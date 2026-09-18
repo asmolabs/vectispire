@@ -21,8 +21,8 @@ import { goTo, signIn } from './support/session';
  */
 test.describe('Licence dashboard figures', () => {
 
-    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
-    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    // The brute-force budget is global and narrow: without this, the case that receives the 429
+    // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
     test.beforeEach(async ({ page }) => {

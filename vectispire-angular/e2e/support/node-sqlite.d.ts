@@ -1,11 +1,11 @@
 /**
- * Le peu de `node:sqlite` que la fixture utilise.
+ * The little of `node:sqlite` the fixture uses.
  *
- * <p><b>Déclaré ici plutôt qu'en relevant une dépendance partagée.</b> Le module est intégré à
- * Node depuis la 22.5 mais les typages `@types/node` de ce dépôt ne le connaissent pas encore ;
- * le monter de version pour une fixture d'amorçage ferait bouger le typage de tout le front pour
- * trois appels. Cette surface est volontairement minuscule : si elle ne suffit plus, c'est le
- * signe qu'il faut la vraie dépendance.
+ * <p><b>Declared here rather than by raising a shared dependency.</b> The module has been built
+ * into Node since 22.5, but this repository's `@types/node` does not know it yet; bumping that for
+ * a seeding fixture would move the typing of the whole front end for three calls. This surface is
+ * deliberately tiny: the day it is no longer enough is the sign that the real dependency is
+ * needed.
  */
 declare module 'node:sqlite' {
     export class DatabaseSync {

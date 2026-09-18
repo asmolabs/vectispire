@@ -4,25 +4,25 @@ import { goTo, signIn } from './support/session';
 
 test.describe('Settings Administration & Audit Log E2E', () => {
 
-    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
-    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    // The brute-force budget is global and narrow: without this, the case that receives the 429
+    // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
     test.beforeEach(async ({ page }) => {
         await signIn(page);
     });
 
-    test('la double validation est visible dans les réglages, et son nom est lisible', async ({ page }) => {
-        // **Ce cas s'appelait « toggles Four-Eyes Approval » et ne basculait rien** : il naviguait
-        // et vérifiait qu'un `body` était visible — ce qu'un écran d'erreur 403 a aussi, et une
-        // redirection de garde également. Il ne pouvait pas échouer. Le commentaire du cas voisin
-        // dénonce exactement ce défaut, corrigé là et laissé ici.
+    test('four-eyes approval is visible in the settings, and its name is readable', async ({ page }) => {
+        // **This case was called "toggles Four-Eyes Approval" and toggled nothing**: it navigated
+        // and checked that a `body` was visible — which a 403 error screen has too, and so does a
+        // guard redirect. It could not fail. The neighbouring case's comment denounces exactly this
+        // defect, fixed there and left here.
         await goTo(page, '/settings');
 
-        // **Sous « Governance », et il a fallu créer l'onglet.** La règle n'était sur aucun :
-        // `isSectionVisible` était une liste blanche par onglet terminée par un `return false`, et
-        // trois sections — dont celle-ci et la visibilité des cibles — ne s'affichaient nulle
-        // part. Ce cas cherchait donc un libellé qu'aucun écran ne rendait.
+        // **Under "Governance", and the tab had to be created.** The rule was on none of them:
+        // `isSectionVisible` was a per-tab allow list ending in a `return false`, and three
+        // sections — this one and target visibility among them — showed nowhere. So this case was
+        // looking for a label no screen rendered.
         await page.getByRole('button', { name: /governance|gouvernance/i }).click();
         await expect(page.getByText(/double validation|four.eyes/i).first())
             .toBeVisible({ timeout: 15000 });

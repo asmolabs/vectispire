@@ -3,34 +3,34 @@ import { test, expect, Page } from '@playwright/test';
 import { goTo, signIn, signInAs } from './support/session';
 
 /**
- * Les six écrans de preuve, dans un vrai navigateur.
+ * The six evidence screens, in a real browser.
  *
- * <h2>Ce qu'un navigateur ajoute ici, dit précisément</h2>
+ * <h2>What a browser adds here, said precisely</h2>
  *
- * <p>Les specs unitaires montent bien ces gabarits, et assertent déjà les calculs. Ce qu'elles ne
- * peuvent pas voir tient en trois choses, et les trois sont exactement ce qui a manqué à ces
- * fonctionnalités pendant une semaine : <b>qu'une entrée de menu y mène</b> — chaque cas navigue
- * en cliquant dans la barre latérale, jamais par `page.goto` —, <b>que le rôle qui ouvre la page
- * y voie ce qu'il doit</b>, et que la page survive au chemin complet.
+ * <p>The unit specs do mount these templates, and already assert the calculations. What they
+ * cannot see comes down to three things, and all three are exactly what these features lacked for
+ * a week: <b>that a menu entry leads there</b> — every case navigates by clicking in the sidebar,
+ * never through `page.goto` —, <b>that the role opening the page sees what it should</b>, and that
+ * the page survives the full path.
  *
- * <h2>Ce que chaque cas choisit d'asserter</h2>
+ * <h2>What each case chooses to assert</h2>
  *
- * <p>Un seul chiffre par écran, et à chaque fois <b>celui que la page refuse de produire</b>
- * plutôt qu'un chiffre qu'elle affiche. Un taux de refus absent sur zéro verdict, un pourcentage
- * absent sur une gravité sans délai, un écart de périmètre absent quand personne n'a déclaré : ce
- * sont les trois endroits où un zéro se lirait comme une bonne nouvelle, et les seuls qu'une
- * assertion « la page s'affiche » laisserait passer sans un mot.
+ * <p>One number per screen, and every time <b>the one the page refuses to produce</b> rather than
+ * one it displays. An absent refusal rate on zero verdicts, an absent percentage on a severity
+ * with no deadline, an absent scope gap when nobody declared one: those are the three places where
+ * a zero would read as good news, and the only ones an assertion of "the page renders" would let
+ * through without a word.
  *
- * <p>L'API est simulée plutôt qu'alimentée. Ce qui est éprouvé est l'accord entre une réponse et
- * ce qu'un lecteur en voit ; une base dont le contenu dépend de ce qu'un scan a trouvé ferait
- * passer une page fausse pour un problème de données.
+ * <p>The API is stubbed rather than seeded. What is tested is the agreement between a response and
+ * what a reader sees of it; a database whose contents depend on what a scan found would make a
+ * wrong page look like a data problem.
  */
 test.describe('Evidence screens', () => {
 
-    // Le budget anti-force-brute est global et étroit : voir `resetLoginThrottle`.
+    // The brute-force budget is global and narrow: see `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
-    /** Une réponse JSON pour une route, sans avoir à répéter l'enveloppe. */
+    /** A JSON response for a route, without repeating the envelope each time. */
     async function stub(page: Page, pattern: string, body: unknown): Promise<void> {
         await page.route(pattern, (route) =>
             route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) }));
@@ -67,8 +67,8 @@ test.describe('Evidence screens', () => {
         await goTo(page, '/exceptions');
 
         await expect(page.getByText('never revisited')).toBeVisible({ timeout: 15000 });
-        // La ligne elle-même le dit aussi : sans ce mot, une exception rouverte chaque trimestre
-        // et une que personne n'a ouverte depuis janvier se lisent à l'identique.
+        // The row says it too: without that word, an exception reopened every quarter and one
+        // nobody has opened since January read identically.
         await expect(page.getByText('never', { exact: true }).first()).toBeVisible();
     });
 
@@ -78,8 +78,8 @@ test.describe('Evidence screens', () => {
         await goTo(page, '/exceptions');
         await expect(page.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 15000 });
 
-        // Le même écran, le même jeu de données, un autre rôle. Confirmer une exception est une
-        // affirmation sur le risque que quelqu'un doit porter ; un auditeur la lit sans la signer.
+        // The same screen, the same data, another role. Confirming an exception is a claim about
+        // risk somebody has to carry; an auditor reads it without signing it.
         await signInAs(page, 'AUDITOR');
         await goTo(page, '/exceptions');
         await expect(page.getByText('never revisited')).toBeVisible({ timeout: 15000 });
@@ -91,12 +91,12 @@ test.describe('Evidence screens', () => {
         await signIn(page);
         await goTo(page, '/gate-verdicts');
 
-        // Borné au bloc de chiffres, et sur l'absence de *tout* pourcentage. Chercher « 0 % » et
-        // n'en trouver aucun passerait aussi si la page ne s'était pas affichée du tout.
+        // Scoped to the figures block, and on the absence of *any* percentage. Looking for "0 %"
+        // and finding none would also pass if the page had not rendered at all.
         const figures = page.locator('.card .grid').first();
         await expect(figures).toContainText('refusal rate', { timeout: 15000 });
-        // `0 %` se lirait « la barrière ne refuse rien » là où la phrase vraie est « la barrière
-        // n'a pas encore répondu ». C'est la confusion que tout cet écran existe pour empêcher.
+        // `0 %` would read as "the gate refuses nothing" where the true sentence is "the gate has
+        // not answered yet". That is the confusion this whole screen exists to prevent.
         await expect(figures).not.toContainText('%');
     });
 
@@ -121,10 +121,10 @@ test.describe('Evidence screens', () => {
         await signIn(page);
         await goTo(page, '/remediation-delays');
 
-        // Le plus ancien élément ouvert est en haut de l'écran : c'est la ligne qu'aucune moyenne
-        // ne peut montrer et la première qu'un évaluateur demande. « 241 days » et non « 241 » :
-        // le chiffre est aussi dans la colonne du tableau, et il faut bien qu'il y soit — ce que
-        // ce cas vérifie est qu'il est *aussi* en tête, hors du tableau.
+        // The oldest open item is at the top of the screen: the line no mean can show and the
+        // first an assessor asks for. "241 days" and not "241": the number is also in the table's
+        // column, and it has to be — what this case checks is that it is *also* at the top, outside
+        // the table.
         await expect(page.getByText('241 days')).toBeVisible({ timeout: 15000 });
         await expect(page.getByText('No deadline set', { exact: false })).toBeVisible();
     });
@@ -138,17 +138,17 @@ test.describe('Evidence screens', () => {
         await signIn(page);
         await goTo(page, '/rule-sets');
 
-        // Un avertissement affiché quand tout va bien perd son sens en quelques jours, et alors
-        // celui qui compte devient invisible aussi.
+        // A warning shown when all is well loses its meaning within days, and then the one that
+        // matters becomes invisible too.
         await expect(page.getByText('Code analysis covers one pattern')).toHaveCount(0);
 
         await stub(page, '**/api/v1/rule-sets/coverage', {
             state: 'UNCONFIGURED', languagesWithRules: ['python'], ecosystemsInEstate: ['maven'],
             uncovered: ['java'], ruleFiles: 1
         });
-        // **Pas de `page.reload()` ici.** La session de Vectispire vit en mémoire et non dans un
-        // cookie : une navigation complète la perd et la garde renvoie au formulaire de connexion.
-        // On repasse donc par la barre latérale, qui est de toute façon le chemin d'un lecteur.
+        // **No `page.reload()` here.** Vectispire's session lives in memory rather than in a
+        // cookie: a full navigation loses it and the guard sends you back to the sign-in form. So
+        // we go through the sidebar again, which is a reader's path anyway.
         await goTo(page, '/issues');
         await goTo(page, '/rule-sets');
         await expect(page.getByText('Code analysis covers one pattern', { exact: false }))
@@ -172,7 +172,7 @@ test.describe('Evidence screens', () => {
         await stub(page, '**/api/v1/compliance/soa', [{
             framework: 'ISO_27001', total: 2, declared: 2, findings: 1, reviewsOverdue: 0,
             complete: true,
-            // Le serveur rend l'ordre du standard : cohérent d'abord, contredit ensuite.
+                // The server returns the standard's order: consistent first, contradicted after.
             lines: [line('ISO-A.5.15', 'CONSISTENT'), line('ISO-A.8.8', 'CONTRADICTED')]
         }]);
         await signIn(page);
@@ -180,7 +180,7 @@ test.describe('Evidence screens', () => {
 
         await expect(page.getByText('Contradicted')).toBeVisible({ timeout: 15000 });
 
-        // Un contrôle contredit rangé sous les cohérents est un constat que personne ne voit.
+        // A contradicted control filed below the consistent ones is a finding nobody sees.
         const ids = await page.locator('td .font-mono').allTextContents();
         expect(ids.slice(0, 2)).toEqual(['ISO-A.8.8', 'ISO-A.5.15']);
     });
@@ -216,13 +216,13 @@ test.describe('Evidence screens', () => {
         await signIn(page);
         await goTo(page, '/compliance-history');
 
-        // Dix-neuf points perdus, et la raison est à l'écran plutôt que laissée à l'interprétation
-        // d'une courbe qui descend.
+        // Nineteen points lost, and the reason is on screen rather than left to the interpretation
+        // of a line going down.
         await expect(page.getByText('-19')).toBeVisible({ timeout: 15000 });
         await expect(page.getByText('not a regression', { exact: false })).toBeVisible();
 
-        // Sans cette mention, deux points reliés se lisent comme une trajectoire quelle que soit
-        // la distance entre les deux parcs qui les ont produits.
+        // Without that note, two joined points read as a trajectory whatever the distance between
+        // the two estates that produced them.
         await expect(page.getByText('this is a shape, not a trend', { exact: false })).toBeVisible();
     });
 
@@ -237,11 +237,11 @@ test.describe('Evidence screens', () => {
         await signIn(page);
         await goTo(page, '/certified-scope');
 
-        // Trois cibles dans le périmètre, trois scannées récemment : sans le nombre déclaré, tout
-        // outil qui mesure sa propre couverture annonce cent pour cent.
+        // Three targets in scope, three scanned recently: without the declared count, any tool
+        // measuring its own coverage announces one hundred per cent.
         await expect(page.getByText('undeclared')).toBeVisible({ timeout: 15000 });
-        // La phrase entière et non sa fin : « carries current evidence » est aussi dans le
-        // sous-titre de l'écran, et l'assertion échouait sur la page qui a raison.
+        // The whole sentence and not its ending: "carries current evidence" is also in the
+        // screen's subtitle, and the assertion was failing on the page that is right.
         await expect(page.getByText('of the declared scope')).toHaveCount(0);
     });
 });

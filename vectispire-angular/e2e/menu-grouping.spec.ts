@@ -3,22 +3,21 @@ import { test, expect } from '@playwright/test';
 import { signInAs } from './support/session';
 
 /**
- * La barre latérale ne propose aucun lien qui mène à un refus.
+ * The sidebar offers no link that leads to a refusal.
  *
- * <p><b>C'est un défaut que ce produit a déjà eu</b>, sur les clés de déploiement : la route les
- * réservait à un administrateur, le menu les offrait à tout le monde, et c'était le seul moyen
- * d'atteindre `/forbidden` en cliquant. Le regroupement des écrans de preuve remet quatre routes
- * réservées à la gouvernance dans une section que tout le monde voit, donc la même erreur
- * redevient possible — d'où ce cas.
+ * <p><b>This product has had that defect before</b>, on the deployment keys: the route reserved
+ * them to an administrator, the menu offered them to everybody, and that was the only way to reach
+ * `/forbidden` by clicking. Grouping the evidence screens puts four governance-only routes into a
+ * section everybody sees, so the same mistake becomes possible again — hence this case.
  *
- * <p>L'assertion porte dans les deux sens : un compte ordinaire ne les voit pas, et un auditeur
- * les voit. La première moitié seule passerait sur un menu qui ne les propose à personne.
+ * <p>The assertion runs both ways: an ordinary account does not see them, and an auditor does. The
+ * first half alone would pass on a menu that offers them to nobody.
  */
 test.describe('Sidebar grouping', () => {
 
     test.beforeEach(() => resetLoginThrottle());
 
-    /** Les quatre entrées de la section « preuves » réservées à la lecture de gouvernance. */
+    /** The four entries of the evidence section reserved to governance read access. */
     const GOVERNANCE_ONLY = [
         'Compliance progression', 'Statement of applicability', 'Certified scope',
         'Verdict register', 'Audit log'
@@ -39,8 +38,8 @@ test.describe('Sidebar grouping', () => {
     });
 
     test('offers an auditor the whole evidence section', async ({ page }) => {
-        // Sans cette moitié, un menu qui ne proposerait ces écrans à personne passerait le cas
-        // ci-dessus — et c'est exactement la forme du défaut que ce fichier surveille.
+        // Without this half, a menu offering these screens to nobody would pass the case above —
+        // and that is exactly the shape of the defect this file watches for.
         await signInAs(page, 'AUDITOR');
 
         for (const label of [...EVERYONE, ...GOVERNANCE_ONLY]) {

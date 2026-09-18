@@ -15,8 +15,8 @@ import { goTo, signInAs, TRIAGE_BUTTON, TRIAGE_SAVE } from './support/session';
  */
 test.describe('VEX Triage & Backlog Management E2E', () => {
 
-    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
-    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    // The brute-force budget is global and narrow: without this, the case that receives the 429
+    // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
     const ISSUE = {
@@ -67,9 +67,9 @@ test.describe('VEX Triage & Backlog Management E2E', () => {
     }
 
     test.beforeEach(async ({ page }) => {
-        // **Un CISO, et non le compte d'amorçage.** Celui-ci est SUPERUSER, qui gouverne la
-        // plateforme sans y agir : il ne trie pas. La suite signait avec le seul compte qui n'en
-        // a pas le droit, et ne s'en apercevait pas parce qu'elle simule l'API de triage.
+        // **A CISO, not the bootstrap account.** That one is SUPERUSER, which governs the platform
+        // without acting on it: it does not triage. The suite was signing in with the one account
+        // that may not, and did not notice because it stubs the triage API.
         await signInAs(page, 'CISO');
     });
 

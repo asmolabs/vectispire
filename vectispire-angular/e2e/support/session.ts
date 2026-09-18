@@ -21,19 +21,17 @@ export const BOOTSTRAP_PASSWORD = 'AdminVectispire2026!';
 export const E2E_PASSWORD = 'E2eVectispire2026!';
 
 /**
- * Le mot de passe qui a marché, par compte, pour ne plus le redécouvrir.
+ * The password that worked, per account, so it is never rediscovered.
  *
- * <p><b>Chaque essai raté est décompté par le serveur, et le budget est de cinq.</b>
- * {@code LoginThrottle} bloque un compte après cinq échecs dans une fenêtre de quinze minutes, et
- * ce sont des constantes de compilation. {@code VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW},
- * que le nocturne pose à 200, relève le seau par adresse et non celui-ci.
- * Les helpers essayaient donc deux mots de passe à chaque connexion — un échec garanti par cas —
- * et une suite de dix-sept cas dépensait le budget de {@code admin} bien avant la fin. C'est
- * l'origine des « ni l'un ni l'autre mot de passe n'a été accepté » qui frappaient des cas sans
- * rapport les uns avec les autres.
+ * <p><b>Every failed attempt is counted by the server, and the budget is five.</b>
+ * {@code LoginThrottle} blocks an account after five failures inside a fifteen-minute window, and
+ * those are compile-time constants. {@code VECTISPIRE_SECURITY_LOGIN_ATTEMPTS_PER_WINDOW}, which
+ * the nightly sets to 200, raises the per-address bucket and not this one. The helpers therefore
+ * tried two passwords at every sign-in — one guaranteed failure per case — and a suite of
+ * seventeen cases spent {@code admin}'s budget long before the end. That is the origin of the
+ * "neither password was accepted" failures that struck cases unrelated to one another.
  *
- * <p>Le cache vit dans le processus du worker : la première connexion cherche, les suivantes
- * savent.
+ * <p>The cache lives in the worker's process: the first sign-in searches, the ones after it know.
  */
 const known = new Map<string, string>();
 
@@ -115,18 +113,17 @@ export async function goTo(page: Page, path: string): Promise<void> {
 }
 
 /**
- * Le bouton qui propose un triage, quel que soit le libellé qu'il porte.
+ * The button that offers a triage, whatever label it carries.
  *
- * <p><b>Écrit ici parce qu'il l'était quatre fois.</b> Le libellé dépend du rôle — « Triage »
- * quand la décision clôt, « Send for approval » quand elle part en file — et il vient de le
- * dépendre aussi de la langue, en passant par le dictionnaire. Les quatre copies étaient en
- * français en dur ; trois suites sont donc devenues aveugles d'un coup, et une assertion
- * « aucun bouton de triage » qui ne trouve rien parce qu'elle cherche le mauvais mot ne dit
- * plus rien du tout.
+ * <p><b>Written here because it was written four times.</b> The label depends on the role —
+ * "Triage" when the decision settles, "Send for approval" when it goes into a queue — and it has
+ * just come to depend on the language too, by going through the dictionary. All four copies were
+ * hard-coded French; three suites therefore went blind at once, and an assertion of "no triage
+ * button" that finds nothing because it is looking for the wrong word says nothing at all.
  */
 export const TRIAGE_BUTTON = /^(Triage|Send for approval)( \(\d+\))?$/;
 
-/** Le bouton qui valide la boîte de triage, dont le libellé suit la même règle. */
+/** The button that confirms the triage dialog, whose label follows the same rule. */
 export const TRIAGE_SAVE = /save|enregistrer|approval|approbation/i;
 
 /** The sidebar wording for the paths the suites visit. */
@@ -138,10 +135,9 @@ const LINKS: Record<string, string> = {
     '/attestation': 'Attestation',
     '/remediation': 'Remediation',
 
-    // **Les six écrans de preuve, atteints par la barre latérale comme les autres.** C'est
-    // délibérément le chemin d'un lecteur : une page dont la route répond mais dont aucune entrée
-    // de menu ne parle est une page que personne n'ouvrira, et un `page.goto` direct ne peut pas
-    // voir la différence.
+    // **The six evidence screens, reached through the sidebar like any other.** That is
+    // deliberately a reader's path: a page whose route answers but that no menu entry mentions is
+    // a page nobody will open, and a direct `page.goto` cannot see the difference.
     '/exceptions': 'Exceptions register',
     '/gate-verdicts': 'Verdict register',
     '/remediation-delays': 'Time to fix',
@@ -149,41 +145,41 @@ const LINKS: Record<string, string> = {
     '/certified-scope': 'Certified scope',
     '/compliance-history': 'Compliance progression',
 
-    // Le bandeau de couverture n'a pas d'écran à lui : il se pose sur ceux où son absence produit
-    // une conclusion fausse. Celui-ci est le seul des deux qui ait une entrée de menu.
+    // The coverage banner has no screen of its own: it sits on the ones where its absence would
+    // produce a false conclusion. This is the only one of the two with a menu entry.
     '/rule-sets': 'Semgrep rules'
 };
 
-/** Le mot de passe des comptes de rôle, et celui vers lequel le premier usage le fait tourner. */
+/** The role accounts' password, and the one the first use rotates it to. */
 export const ROLE_PASSWORD = 'RoleVectispire2026!';
 export const ROLE_PASSWORD_ROTATED = 'RoleVectispire2026Bis!';
 
 /**
- * Se connecte avec un compte du rôle demandé, en le créant au besoin.
+ * Signs in with an account of the requested role, creating it where needed.
  *
- * <p><b>Pourquoi ce détour, plutôt que le compte d'amorçage.</b> L'amorçage crée un
- * {@code SUPERUSER}, et ce rôle gouverne la plateforme sans y agir : il ne trie pas, n'ouvre pas de
- * ticket, ne lance pas de revue. Les suites qui trient signaient donc avec le seul compte qui n'en
- * a pas le droit — elles passaient parce qu'elles simulent l'API de triage, ce qui est une autre
- * façon de ne pas le savoir. Le détour reproduit ce qu'une installation réelle fait : le compte
- * racine crée les comptes de travail.
+ * <p><b>Why this detour rather than the bootstrap account.</b> Bootstrap creates a
+ * {@code SUPERUSER}, and that role governs the platform without acting on it: it does not triage,
+ * does not open a ticket, does not launch a review. The suites that triage were therefore signing
+ * in with the one account that may not — they passed because they stub the triage API, which is
+ * another way of not finding out. The detour reproduces what a real installation does: the root
+ * account creates the working accounts.
  *
- * <p><b>Le jeton est passé à la main, et il le faut.</b> `page.request` partage les cookies du
- * navigateur, or la session de Vectispire vit en mémoire et non dans un cookie — un choix
- * délibéré de `SessionStore`. Sans en-tête explicite, l'appel de création part sans identifiant
- * et le serveur a raison de le refuser.
+ * <p><b>The token is passed by hand, and it has to be.</b> `page.request` shares the browser's
+ * cookies, but Vectispire's session lives in memory rather than in a cookie — a deliberate choice
+ * of `SessionStore`. Without an explicit header the creation call leaves with no credential, and
+ * the server is right to refuse it.
  *
- * <p><b>Et le compte créé doit changer son mot de passe</b>, comme celui de l'amorçage. La
- * rotation est tentée une fois puis les deux mots de passe sont essayés, pour qu'une réexécution
- * locale sur la même base se comporte comme la première.
+ * <p><b>And the account created must change its password</b>, like the bootstrap one. The rotation
+ * is attempted once and then both passwords are tried, so that a local rerun against the same
+ * database behaves like the first.
  */
 export async function signInAs(page: Page, role: 'ADMIN' | 'CISO' | 'AUDITOR' | 'USER'): Promise<string> {
     const username = `e2e-${role.toLowerCase()}`;
 
-    // **Le chemin court d'abord.** Le compte survit d'une exécution à l'autre : passé la
-    // première, tout ce détour se résume à une connexion. Le faire quand même coûtait cinq
-    // navigations par cas — la connexion d'amorçage, sa rotation, la création, puis la connexion
-    // du compte — et faisait dépasser le délai des suites qui appellent ceci dans un `beforeEach`.
+    // **The short path first.** The account survives from one run to the next: past the first, the
+    // whole detour comes down to a sign-in. Doing it anyway cost five navigations per case — the
+    // bootstrap sign-in, its rotation, the creation, then the account's sign-in — and pushed past
+    // the timeout in the suites that call this from a `beforeEach`.
     if (known.has(username) && (await attempt(page, known.get(username)!, username))) {
         return username;
     }
@@ -194,17 +190,17 @@ export async function signInAs(page: Page, role: 'ADMIN' | 'CISO' | 'AUDITOR' | 
 
     await signIn(page);
     const token = await tokenFor(page, 'admin', E2E_PASSWORD, BOOTSTRAP_PASSWORD);
-    // **Le refus n'est pas asserté, et la connexion qui suit l'est.** Le compte peut déjà
-    // exister — une réexécution locale sur la même base, ou un autre cas du même fichier qui l'a
-    // créé avant. Ce qui compte n'est pas que cet appel réussisse mais qu'un compte de ce rôle
-    // existe et puisse se connecter, et c'est l'assertion d'après qui le dit.
+    // **The refusal is not asserted, and the sign-in that follows is.** The account may already
+    // exist — a local rerun against the same database, or another case in the same file that
+    // created it first. What matters is not that this call succeeds but that an account of this
+    // role exists and can sign in, and it is the next assertion that says so.
     await page.request.post('/api/v1/users', {
         headers: { Authorization: `Bearer ${token}` },
         data: { username, password: ROLE_PASSWORD, role, display_name: username }
     });
 
     const accepted = await signInWith(page, username, ROLE_PASSWORD, ROLE_PASSWORD_ROTATED);
-    expect(accepted, `ni l'un ni l'autre mot de passe n'a été accepté pour ${username}`).toBe(true);
+    expect(accepted, `neither password was accepted for ${username}`).toBe(true);
 
     if (new URL(page.url()).pathname.startsWith('/change-password')) {
         await page.fill('#current input', ROLE_PASSWORD);
@@ -213,22 +209,22 @@ export async function signInAs(page: Page, role: 'ADMIN' | 'CISO' | 'AUDITOR' | 
         await page.click('button[type="submit"]');
         await expect(page).not.toHaveURL(/\/change-password/, { timeout: 15_000 });
 
-        // Le changement révoque toutes les sessions du compte, celle qui vient de le faire
-        // comprise — même raison que pour l'amorçage.
+        // The change revokes every session of the account, including the one that just made it —
+        // the same reason as for bootstrap.
         known.set(username, ROLE_PASSWORD_ROTATED);
         const again = await attempt(page, ROLE_PASSWORD_ROTATED, username);
-        expect(again, `le mot de passe tourné a été refusé juste après avoir été posé`).toBe(true);
+        expect(again, `the rotated password was refused immediately after being set`).toBe(true);
     }
 
     return username;
 }
 
-/** Un jeton porteur, obtenu par l'API : c'est la seule façon d'authentifier `page.request`. */
+/** A bearer token, obtained through the API: the only way to authenticate `page.request`. */
 async function tokenFor(page: Page, username: string, ...passwords: string[]): Promise<string> {
-    // **Les codes sont retenus pour l'échec.** « Aucun mot de passe n'a produit de jeton » ne
-    // distingue pas un mot de passe faux d'un 429 du limiteur de tentatives ou d'un 502 du proxy
-    // pendant que le serveur de développement recompile — trois causes qui se corrigent
-    // autrement, et dont deux n'ont rien à voir avec le test.
+    // **The status codes are kept for the failure message.** "No password produced a token" does
+    // not tell a wrong password apart from a 429 out of the attempt limiter or a 502 out of the
+    // proxy while the development server recompiles — three causes with three different fixes, two
+    // of which have nothing to do with the test.
     const refusals: number[] = [];
     for (const password of passwords) {
         const response = await page.request.post('/api/v1/auth/login', { data: { username, password } });
@@ -239,5 +235,5 @@ async function tokenFor(page: Page, username: string, ...passwords: string[]): P
         refusals.push(response.status());
     }
     throw new Error(
-        `aucun mot de passe n'a produit de jeton pour ${username} (réponses : ${refusals.join(', ')})`);
+        `no password produced a token for ${username} (responses: ${refusals.join(', ')})`);
 }

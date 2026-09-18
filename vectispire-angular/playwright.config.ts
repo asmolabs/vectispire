@@ -27,12 +27,12 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 2 : 0,
   reporter: 'html',
-  // **Deux minutes, et non trente secondes.** Ces suites parlent au vrai serveur : un cas
-  // commence par une connexion complète — chargement du bundle, page de connexion, éventuel
-  // changement de mot de passe imposé, puis navigation — et le serveur de développement compile
-  // les chunks paresseux à la première visite de chaque page. Le défaut coupait au milieu, et
-  // l'échec se lisait « page fermée » à l'intérieur du helper de connexion, ce qui n'apprend rien
-  // sur la cause. Un délai trop court ne rend pas la suite plus rapide, il la rend menteuse.
+  // **Two minutes, not thirty seconds.** These suites talk to the real server: a case begins with
+  // a full sign-in — bundle load, sign-in page, a forced password change where there is one, then
+  // navigation — and the development server compiles the lazy chunks on the first visit to each
+  // page. The default cut through the middle of that, and the failure read "page closed" inside
+  // the sign-in helper, which teaches nothing about the cause. A timeout that is too short does
+  // not make a suite faster, it makes it a liar.
   timeout: 120_000,
 
   use: {
@@ -45,12 +45,12 @@ export default defineConfig({
     // is configured in exactly one place.
     baseURL: 'http://localhost:4280',
 
-    // **La langue est fixée, parce qu'elle décidait des assertions sans le dire.** Le service
-    // i18n lit `localStorage`, puis retombe sur `navigator.language` : dans un contexte neuf il
-    // n'y a rien en réserve, donc c'est la locale du navigateur qui choisit. Les suites cherchent
-    // « Issues », « Settings », « Audit log » — elles ne passaient que parce que la locale par
-    // défaut de Playwright est anglaise, et une machine réglée en français les aurait toutes
-    // fait échouer sur des libellés introuvables, sans que rien ne nomme la cause.
+    // **The language is pinned, because it decided the assertions without saying so.** The i18n
+    // service reads `localStorage` and then falls back on `navigator.language`: in a fresh context
+    // there is nothing in store, so the browser's locale chooses. The suites look for "Issues",
+    // "Settings", "Audit log" — they passed only because Playwright's default locale is English,
+    // and a machine set to French would have failed every one of them on labels it could not find,
+    // with nothing naming the cause.
     locale: 'en-US',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure'
@@ -58,13 +58,6 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      // **Deux minutes, et non trente secondes.** Ces suites parlent au vrai serveur : un cas
-  // commence par une connexion complète — chargement du bundle, page de connexion, éventuel
-  // changement de mot de passe imposé, puis navigation — et le serveur de développement compile
-  // les chunks paresseux à la première visite de chaque page. Le défaut coupait au milieu, et
-  // l'échec se lisait « page fermée » à l'intérieur du helper de connexion, ce qui n'apprend rien
-  // sur la cause. Un délai trop court ne rend pas la suite plus rapide, il la rend menteuse.
-  timeout: 120_000,
 
   use: { ...devices['Desktop Chrome'] }
     }

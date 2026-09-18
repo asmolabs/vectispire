@@ -3,21 +3,20 @@ import { test, expect, Page } from '@playwright/test';
 import { goTo, signIn } from './support/session';
 
 /**
- * Le plan de remédiation, et l'aveu qu'il doit faire.
+ * The remediation plan, and the admission it has to make.
  *
- * <h2>Le défaut que ce cas ferme</h2>
+ * <h2>The defect this case closes</h2>
  *
- * <p><b>Un dépôt a affiché une seule action face à des centaines de constats ouverts, et cela a
- * été lu comme une panne.</b> Le calcul était juste : le classement ne retient que les
- * vulnérabilités portant un nom de paquet, parce qu'une ligne du plan est une montée de version,
- * et le retard de ce dépôt était fait de secrets exposés — qu'on révoque, qu'on ne met pas à
- * jour. Rien à l'écran ne le disait.
+ * <p><b>A repository showed a single action against hundreds of open findings, and it was read as
+ * a breakage.</b> The calculation was right: the ranking keeps only vulnerabilities carrying a
+ * package name, because a line of the plan is a version bump, and that repository's backlog was
+ * made of exposed secrets — which you revoke, not upgrade. Nothing on screen said so.
  *
- * <p>Un chiffre faux se corrige, une défiance se garde. Ce que ce cas vérifie n'est donc pas un
- * chiffre mais <b>l'accord entre une réponse chargée et ce qu'un lecteur en comprend</b> : que la
- * disproportion soit nommée, et qu'elle le soit par le geste qui referme réellement la famille.
+ * <p>A wrong number gets corrected, mistrust is kept. What this case checks is therefore not a
+ * number but <b>the agreement between a loaded response and what a reader understands of it</b>:
+ * that the disproportion is named, and named by the move that actually closes the family.
  *
- * <p>L'API est simulée : ce qui est éprouvé est cet accord, et non ce qu'un scan a trouvé.
+ * <p>The API is stubbed: what is tested is that agreement, not what a scan found.
  */
 test.describe('Remediation plan', () => {
 
@@ -62,9 +61,9 @@ test.describe('Remediation plan', () => {
 
         await expect(page.getByText('What this plan cannot close')).toBeVisible({ timeout: 15000 });
 
-        // La phrase, et non seulement les chiffres : « 12 des 412 » est ce qui fait la différence
-        // entre « une action » et « une action sur douze constats, les quatre cents autres sont
-        // ailleurs ».
+        // The sentence, and not only the numbers: "12 of 412" is what makes the difference between
+        // "one action" and "one action covering twelve findings, the other four hundred are
+        // elsewhere".
         await expect(page.getByText('12 of the 412 open findings')).toBeVisible();
 
         // Et le geste, qui est le fond de l'affaire : on ne monte pas un secret de version.
@@ -72,8 +71,8 @@ test.describe('Remediation plan', () => {
     });
 
     test('says nothing when every finding closes with an upgrade', async ({ page }) => {
-        // Un avertissement affiché quand tout va bien perd son sens en quelques jours, et alors
-        // celui qui compte devient invisible aussi.
+        // A warning shown when all is well loses its meaning within days, and then the one that
+        // matters becomes invisible too.
         await stubPlan(page, {
             openFindings: 12, addressableByUpgrade: 12, beyondUpgrades: 0, gaps: []
         });

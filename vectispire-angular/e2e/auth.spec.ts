@@ -4,8 +4,8 @@ import { signIn } from './support/session';
 
 test.describe('Authentication & Anti-Brute-Force E2E', () => {
 
-    // Le budget anti-force-brute est global et étroit : sans cela, le cas qui reçoit
-    // le 429 n'est pas celui qui l'a dépensé. Voir `resetLoginThrottle`.
+    // The brute-force budget is global and narrow: without this, the case that receives the 429
+    // is not the one that spent it. See `resetLoginThrottle`.
     test.beforeEach(() => resetLoginThrottle());
 
     test('valid credentials get you into the application', async ({ page }) => {
@@ -19,13 +19,13 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
     });
 
     test('signing out ends the session, on the server as well as in the tab', async ({ page }) => {
-        // **Le bouton n'a jamais rien fait.** Il portait l'icône et le libellé, sans gestionnaire :
-        // on cliquait, la page ne bougeait pas, et la session restait ouverte des deux côtés. Sur
-        // un poste partagé, le suivant n'avait qu'à revenir en arrière.
+        // **The button never did anything.** It carried the icon and the label, with no handler:
+        // you clicked, the page did not move, and the session stayed open on both sides. On a
+        // shared workstation, the next person only had to go back.
         await signIn(page);
 
-        // Le jeton tel que l'application l'utilisera, capté sur une requête qu'elle émet
-        // d'elle-même : c'est lui qui doit devenir inutilisable, et non « une » session.
+        // The token as the application will use it, captured from a request it issues itself: that
+        // is the one that must become unusable, not "a" session.
         const authorized = await page.waitForRequest((request) =>
             request.url().includes('/api/v1/') && !!request.headers()['authorization']);
         const bearer = authorized.headers()['authorization'];
@@ -33,13 +33,13 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
         await page.getByRole('button', { name: 'Sign out' }).click();
         await expect(page).toHaveURL(/\/login/, { timeout: 15000 });
 
-        // **La preuve côté serveur, et non seulement côté écran.** Une déconnexion qui ne ferait
-        // qu'oublier le jeton dans l'onglet laisserait la ligne de session vivante : quiconque a
-        // vu passer l'en-tête resterait connecté.
+        // **The proof on the server, not only on the screen.** A sign-out that merely forgot the
+        // token in the tab would leave the session row alive: anybody who saw the header go past
+        // would stay signed in.
         const afterwards = await page.request.get('/api/v1/auth/me', {
             headers: { Authorization: bearer }
         });
-        expect(afterwards.status(), 'le jeton répond encore après la déconnexion').toBe(401);
+        expect(afterwards.status(), 'the token still answers after signing out').toBe(401);
     });
 
     test('login fails with invalid credentials', async ({ page }) => {
@@ -136,11 +136,11 @@ test.describe('Authentication & Anti-Brute-Force E2E', () => {
                 failOnStatusCode: false
             });
 
-            // **Refusé, et non refusé d'une seule façon.** Le cas exigeait 401 sur les six
-            // essais ; le sixième reçoit 429, parce que `LoginThrottle` coupe à cinq échecs par
-            // fenêtre. Un 429 n'est pas un défaut ici — c'est l'autre moitié du contrôle qui
-            // répond, et exiger 401 rendait le cas rouge précisément quand la protection
-            // marchait. Ce qui doit rester vrai est qu'aucune supposition n'est jamais acceptée.
+            // **Refused, and not refused in one single way.** The case required 401 on all six
+            // attempts; the sixth receives 429, because `LoginThrottle` cuts in at five failures
+            // per window. A 429 is not a defect here — it is the other half of the control
+            // answering, and requiring 401 turned the case red precisely when the protection
+            // worked. What must stay true is that no guess is ever accepted.
             expect([401, 429], 'a guess must never be accepted').toContain(response.status());
         }
     });
