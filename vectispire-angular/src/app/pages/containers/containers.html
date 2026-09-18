@@ -76,12 +76,12 @@
                         @if (isAdmin()) {
                             <div class="whitespace-nowrap">
                                 <p-button icon="pi pi-play" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Run a scan of ' + container.reference"
+                                          [ariaLabel]="'containers.aria_scan' | translate: { name: container.reference }"
                                           [disabled]="busy() === container.id" (onClick)="triggerScan(container)" />
                                 <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Edit ' + container.reference" (onClick)="openForm(container)" />
+                                          [ariaLabel]="'containers.aria_edit' | translate: { name: container.reference }" (onClick)="openForm(container)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Delete ' + container.reference" (onClick)="askDelete(container)" />
+                                          [ariaLabel]="'containers.aria_delete' | translate: { name: container.reference }" (onClick)="askDelete(container)" />
                             </div>
                         }
                     </div>
@@ -94,7 +94,7 @@
     </ng-template>
 </p-dataview>
 
-<p-dialog [header]="editing() ? 'Edit this image' : 'Add an image'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="editing() ? ('containers.header_edit' | translate) : ('containers.header_add' | translate)" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
@@ -135,7 +135,7 @@
     </div>
     <ng-template #footer>
         <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button [label]="editing() ? 'Save' : 'Add'" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="editing() ? ('common.save' | translate) : ('common.add' | translate)" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 

@@ -87,7 +87,7 @@
     [(visible)]="formVisible"
     [modal]="true"
     [style]="{ width: '30rem' }"
-    [header]="editing() ? 'Rename the team' : 'Create a team'">
+    [header]="editing() ? ('teams.header_rename' | translate) : ('teams.header_create' | translate)">
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
@@ -116,7 +116,7 @@
     [(visible)]="accessVisible"
     [modal]="true"
     [style]="{ width: '36rem' }"
-    [header]="'Access — ' + (accessTeam()?.name ?? '')">
+    [header]="'teams.header_access' | translate: { name: accessTeam()?.name ?? '' }">
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
@@ -169,7 +169,7 @@
     [(visible)]="webhookVisible"
     [modal]="true"
     [style]="{ width: '32rem' }"
-    [header]="'Channel — ' + (webhookTeam()?.name ?? '')">
+    [header]="'teams.header_channel' | translate: { name: webhookTeam()?.name ?? '' }">
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }

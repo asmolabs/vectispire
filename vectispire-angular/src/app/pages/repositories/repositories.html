@@ -108,12 +108,12 @@
                         @if (isAdmin()) {
                             <div class="whitespace-nowrap">
                                 <p-button icon="pi pi-play" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Run a scan of ' + repository.url"
+                                          [ariaLabel]="'repositories.aria_scan' | translate: { name: repository.url }"
                                           [disabled]="busy() === repository.id" (onClick)="triggerScan(repository)" />
                                 <p-button icon="pi pi-pencil" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Edit ' + repository.url" (onClick)="openForm(repository)" />
+                                          [ariaLabel]="'repositories.aria_edit' | translate: { name: repository.url }" (onClick)="openForm(repository)" />
                                 <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                                          [ariaLabel]="'Delete ' + repository.url" (onClick)="askDelete(repository)" />
+                                          [ariaLabel]="'repositories.aria_delete' | translate: { name: repository.url }" (onClick)="askDelete(repository)" />
                             </div>
                         }
                     </div>
@@ -126,7 +126,7 @@
     </ng-template>
 </p-dataview>
 
-<p-dialog [header]="editing() ? 'Edit this repository' : 'Add a repository'" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="editing() ? ('repositories.header_edit' | translate) : ('repositories.header_add' | translate)" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="url" class="font-medium">Repository URL</label>
@@ -192,7 +192,7 @@
     </div>
     <ng-template #footer>
         <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button [label]="editing() ? 'Save' : 'Add'" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="editing() ? ('common.save' | translate) : ('common.add' | translate)" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 
@@ -307,7 +307,7 @@
 <p-dialog
     [visible]="cicdVisible()"
     (visibleChange)="cicdVisible.set($event)"
-    [header]="'Intégration CI/CD & Pipeline Gate — ' + (selectedCicdRepo()?.displayName || '')"
+    [header]="'repositories.header_cicd' | translate: { name: selectedCicdRepo()?.displayName || '' }"
     [modal]="true"
     [style]="{ width: '800px', maxWidth: '95vw' }"
     [draggable]="false"
@@ -377,7 +377,7 @@
                 <pre class="p-4 rounded-xl bg-surface-900 text-surface-100 text-xs font-mono overflow-x-auto m-0 border border-surface-700 leading-relaxed">{{ getCicdSnippet(cicdActiveTab(), repo) }}</pre>
                 <div class="absolute top-3 right-3">
                     <p-button
-                        [label]="cicdCopied() ? 'Copié !' : 'Copier'"
+                        [label]="cicdCopied() ? ('common.copied' | translate) : ('common.copy' | translate)"
                         [icon]="cicdCopied() ? 'pi pi-check' : 'pi pi-copy'"
                         [severity]="cicdCopied() ? 'success' : 'primary'"
                         size="small"

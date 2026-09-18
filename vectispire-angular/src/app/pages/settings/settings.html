@@ -248,7 +248,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-tag text-blue-500"></i> Jira Webhook</span>
                         <p-button
-                            [label]="webhookCopied() === 'jira' ? 'Copié !' : 'Copier URL'"
+                            [label]="webhookCopied() === 'jira' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
                             [icon]="webhookCopied() === 'jira' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'jira' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -263,7 +263,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-gitlab text-orange-500"></i> GitLab Webhook</span>
                         <p-button
-                            [label]="webhookCopied() === 'gitlab' ? 'Copié !' : 'Copier URL'"
+                            [label]="webhookCopied() === 'gitlab' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
                             [icon]="webhookCopied() === 'gitlab' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'gitlab' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -278,7 +278,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-github"></i> GitHub Webhook</span>
                         <p-button
-                            [label]="webhookCopied() === 'github' ? 'Copié !' : 'Copier URL'"
+                            [label]="webhookCopied() === 'github' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
                             [icon]="webhookCopied() === 'github' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'github' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -293,7 +293,7 @@
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-server text-emerald-500"></i> ServiceNow Webhook</span>
                         <p-button
-                            [label]="webhookCopied() === 'servicenow' ? 'Copié !' : 'Copier URL'"
+                            [label]="webhookCopied() === 'servicenow' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
                             [icon]="webhookCopied() === 'servicenow' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'servicenow' ? 'success' : 'secondary'"
                             [outlined]="true"

@@ -125,7 +125,7 @@
     </p-table>
 </div>
 
-<p-dialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '34rem' }" [header]="'Policy for ' + scopeLabel">
+<p-dialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '34rem' }" [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel }">
     <div class="flex flex-col gap-4">
         @if (error()) {
             <p-message severity="error" styleClass="w-full">{{ error() }}</p-message>

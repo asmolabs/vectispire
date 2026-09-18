@@ -59,7 +59,7 @@
                 </td>
                 <td class="text-right">
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'Revoke ' + key.name" (onClick)="askDelete(key)" />
+                              [ariaLabel]="'api_keys.aria_revoke' | translate: { name: key.name }" (onClick)="askDelete(key)" />
                 </td>
             </tr>
         </ng-template>

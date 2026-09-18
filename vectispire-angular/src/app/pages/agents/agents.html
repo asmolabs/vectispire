@@ -303,13 +303,21 @@
                 <td class="text-right font-medium">{{ agent.runningScans }}</td>
                 <td class="text-right whitespace-nowrap">
                     <p-button [icon]="agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'" [text]="true" [rounded]="true"
-                              [ariaLabel]="(agent.signsResults ? 'Stop requiring signed results from ' : 'Require signed results from ') + agent.name"
+                              [ariaLabel]="
+                                agent.signsResults
+                                    ? ('agents.aria_stop_requiring_signatures' | translate: { name: agent.name })
+                                    : ('agents.aria_require_signatures' | translate: { name: agent.name })
+                            "
                               [disabled]="busy() === agent.id" (onClick)="toggleSigning(agent)" />
                     <p-button [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
-                              [ariaLabel]="(agent.enabled ? 'Disable ' : 'Re-enable ') + agent.name"
+                              [ariaLabel]="
+                                agent.enabled
+                                    ? ('agents.aria_disable' | translate: { name: agent.name })
+                                    : ('agents.aria_reenable' | translate: { name: agent.name })
+                            "
                               [disabled]="busy() === agent.id" (onClick)="toggle(agent)" />
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'Delete ' + agent.name" (onClick)="askDelete(agent)" />
+                              [ariaLabel]="'agents.aria_delete' | translate: { name: agent.name }" (onClick)="askDelete(agent)" />
                 </td>
             </tr>
         </ng-template>

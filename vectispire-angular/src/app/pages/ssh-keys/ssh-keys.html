@@ -44,7 +44,7 @@
                 <td class="text-right">{{ key.usedByRepositories }}</td>
                 <td class="text-right">
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'Delete ' + key.name" (onClick)="askDelete(key)" />
+                              [ariaLabel]="'ssh_keys.aria_delete' | translate: { name: key.name }" (onClick)="askDelete(key)" />
                 </td>
             </tr>
         </ng-template>

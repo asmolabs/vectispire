@@ -124,7 +124,7 @@
         <ng-template #body let-issue>
             <tr>
                 <td>
-                    <p-tableCheckbox [value]="issue" [ariaLabel]="'Select ' + (issue.identifier ?? 'this issue')" />
+                    <p-tableCheckbox [value]="issue" [ariaLabel]="'issues.aria_select' | translate: { name: issue.identifier ?? ('issues.this_issue' | translate) }" />
                 </td>
                 <td>
                     <!-- The identifier is the handle: it is what somebody reads the row

@@ -57,16 +57,20 @@
                 <td>{{ user.createdAt | date: 'dd/MM/yyyy' }}</td>
                 <td class="text-right whitespace-nowrap">
                     <p-button [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
-                              [ariaLabel]="(user.isActive ? 'Disable ' : 'Re-enable ') + user.username"
+                              [ariaLabel]="
+                                user.isActive
+                                    ? ('users.aria_disable' | translate: { name: user.username })
+                                    : ('users.aria_reenable' | translate: { name: user.username })
+                            "
                               [disabled]="busy() === user.id" (onClick)="toggleActive(user)" />
                     <p-button icon="pi pi-eye" [text]="true" [rounded]="true"
                               [ariaLabel]="('users.access_for' | translate) + ' ' + user.username"
                               [disabled]="busy() === user.id" (onClick)="openAccess(user)" />
                     <p-button icon="pi pi-key" [text]="true" [rounded]="true"
-                              [ariaLabel]="'Reset the password of ' + user.username"
+                              [ariaLabel]="'users.aria_reset_password' | translate: { name: user.username }"
                               [disabled]="busy() === user.id" (onClick)="openReset(user)" />
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'Delete ' + user.username"
+                              [ariaLabel]="'users.aria_delete' | translate: { name: user.username }"
                               [disabled]="busy() === user.id" (onClick)="askDelete(user)" />
                 </td>
             </tr>

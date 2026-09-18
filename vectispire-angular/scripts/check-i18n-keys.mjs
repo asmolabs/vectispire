@@ -77,7 +77,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1089;
+const EXPECTED_KEYS = 1125;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -135,6 +135,15 @@ for (const file of walk(join(root, 'src/app'))) {
 // accent. A word list fills the gap where accents stop; it will never be complete, but every word
 // added is a word that will not come back.
 const FRENCH_IN_TEMPLATES_CEILING = 0;
+
+/**
+ * Hard-coded labels inside a property binding.
+ *
+ * **Zero from the day the check exists, and that is only tenable because the debt was paid in the
+ * same commit.** Thirty-two were found the moment the guard learnt to look there; a ratchet would
+ * have been the honest shape had they been left, and they were not.
+ */
+const BOUND_LABEL_CEILING = 0;
 const accented = /[éèêàùûôîçÉÈÊÀÇ]/;
 const frenchWords = new RegExp(
     '\\b(Composant|Composants|Cible|Cibles|Critique|Critiques|Ouverte|Ouvertes|Ouvert|Ouverts|' +
@@ -183,6 +192,63 @@ if (frozenFrench < FRENCH_IN_TEMPLATES_CEILING) {
     process.exit(1);
 }
 
+// **The third ratchet: literals inside a binding, which neither of the other two can see.**
+//
+// The first reads `.ts` files, the second reads static attributes and text nodes. Neither reads
+// `[label]="…"`, and the comment above says so plainly — "an expression either already goes
+// through the dictionary or never will". That was wrong, and the count proves it: the ceiling
+// read zero while thirty-two labels sat in bindings, seven of them French and the rest English.
+//
+// **The English half is the one that hid best.** Most were `aria-label`s — "Delete ", "Disable ",
+// "Run a scan of " — so a French-speaking reader using a screen reader heard English, and nothing
+// on screen showed it. A rule that looks in the wrong place is worse than an absent rule; this
+// file already says so about the other half of the problem.
+//
+// **What this can and cannot tell apart.** A binding holds expressions, not just labels:
+// `webhookCopied() === 'jira'` compares, `', '` and `' — '` join. The literals are taken by
+// pairing quotes rather than by matching a pattern — a pattern spanning two separate literals
+// reports the operator between them, which is how the first draft of this check flagged
+// `':' + ep.lineNumber : ''` as prose. Flagged is a literal that holds a letter and then reads
+// like prose: it contains a space, or begins with a capital and runs to three characters or more.
+//
+// That passes a lowercase one-word label, and it passes every separator. The miss is the cheaper
+// of the two mistakes: a rule that fires on a comparison is a rule somebody switches off.
+const textBinding = /\[(?:label|header|placeholder|pTooltip|title|ariaLabel|ariaDescription|emptyMessage|summary|detail|subheader|tooltip)\]="([^"]*)"/g;
+const translated = /'[^']*'\s*\|\s*translate/g;
+
+/** The quoted literals of an expression, paired in order — never matched across two of them. */
+const literalsOf = (expression) => expression.split("'").filter((_, index) => index % 2 === 1);
+
+let boundLabels = 0;
+const boundOffenders = new Map();
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.html$/.test(file)) continue;
+    let hits = 0;
+    for (const [, expression] of readFileSync(file, 'utf8').matchAll(textBinding)) {
+        for (const literal of literalsOf(expression.replace(translated, ''))) {
+            if (!/[A-Za-zÀ-ÿ]/.test(literal)) continue;
+            const looksLikeProse = /\s/.test(literal) || (/^[A-ZÀ-Ý]/.test(literal) && literal.length >= 3);
+            if (looksLikeProse) hits += 1;
+        }
+    }
+    if (hits > 0) {
+        boundLabels += hits;
+        boundOffenders.set(file.slice(root.length + 1), hits);
+    }
+}
+if (boundLabels > BOUND_LABEL_CEILING) {
+    console.error(
+        `${boundLabels} hard-coded label(s) inside a binding, against a ceiling of ` +
+        `${BOUND_LABEL_CEILING}.`);
+    console.error(
+        `A label in [label]="…" or [ariaLabel]="…" is a label the language preference never ` +
+        `reaches. Route it through the translate pipe and add the key to both bundles.`);
+    for (const [file, count] of [...boundOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+        console.error(`  ${String(count).padStart(3)}  ${file}`);
+    }
+    process.exit(1);
+}
+
 if (hardcoded > HARDCODED_LABEL_CEILING) {
     console.error(`${hardcoded} hard-coded label(s) in src/app, against a ceiling of 0.`);
     console.error(
@@ -214,4 +280,5 @@ if (failed) {
 console.log(
     `i18n check: ${referenced.size} keys referenced, all present in French and English; ` +
     `${hardcoded} hard-coded labels (ceiling ${HARDCODED_LABEL_CEILING}); ` +
-    `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}).`);
+    `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}); ` +
+    `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}).`);
