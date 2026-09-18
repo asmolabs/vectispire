@@ -64,7 +64,7 @@
             [text]="activeTab() !== 'inventory'"
             [outlined]="activeTab() === 'inventory'"
             icon="pi pi-list"
-            label="Inventaire & Politiques"
+            [label]="'licenses.tab_inventory' | translate"
             size="small"
             (click)="setTab('inventory')"
         ></button>

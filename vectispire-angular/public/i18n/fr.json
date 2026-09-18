@@ -926,6 +926,7 @@
     "strong_copyleft": "Strong Copyleft / Viral",
     "subtitle": "Inventaire continu et classification légale des licences de dépendances logicielles (SPDX)",
     "tab_conflicts": "Conflits de licence & copyleft",
+    "tab_inventory": "Inventaire et politiques",
     "tab_matrix": "Matrice de compatibilité légale",
     "target": "Cible",
     "title": "Gouvernance des licences Open Source & Risque Copyleft",

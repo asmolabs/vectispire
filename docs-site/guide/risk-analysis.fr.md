@@ -4,6 +4,8 @@ Quatre vues qui répondent à « qu'est-ce que cela met réellement en risque »
 angle différent.
 
 ## EPSS
+![La priorisation EPSS : deux vulnérabilités classées par probabilité d'exploitation, chacune avec l'action que son palier appelle.](../assets/screens/fr/epss.png)
+
 
 La page **EPSS** classe le parc par probabilité d'exploitation plutôt que par CVSS. Chaque
 vulnérabilité porte son score, et l'écart entre les deux nombres est tout le propos : le CVSS

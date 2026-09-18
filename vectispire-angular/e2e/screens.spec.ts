@@ -287,4 +287,38 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('40').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'certified-scope', locale);
         });
+
+        test('EPSS prioritisation', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // `recommendedAction` is a token since this week; the screen turns it into a sentence in
+            // the reader's language, which is exactly what a bilingual screenshot should show.
+            await stub(page, '**/api/v1/epss/priorities', {
+                totalVulnerabilities: 412, activeKevCount: 3, highEpssCount: 11,
+                reachableEpssCount: 6, averageFleetEpss: 0.07,
+                breakdownByTier: { CRITICAL_ARMED: 3, HIGH_PROBABLE: 8, MEDIUM_THEORETICAL: 41, LOW_PROBABILITY: 360 },
+                topPriorities: [
+                    {
+                        issueId: 41, identifier: 'CVE-2021-44228', title: 'Log4Shell',
+                        severity: 'critical', cvssScore: 10.0, epssScore: 0.975, epssPercentile: 0.999,
+                        isKev: true, reachability: 'REACHABLE', targetName: 'portail-client',
+                        targetKind: 'REPOSITORY', priorityScore: 98, priorityTier: 'CRITICAL_ARMED',
+                        recommendedAction: 'P0_KEV_24H'
+                    },
+                    {
+                        issueId: 42, identifier: 'CVE-2024-1086', title: 'Kernel use-after-free',
+                        severity: 'high', cvssScore: 7.8, epssScore: 0.41, epssPercentile: 0.97,
+                        isKev: false, reachability: 'UNKNOWN', targetName: 'arm-libs',
+                        targetKind: 'REPOSITORY', priorityScore: 64, priorityTier: 'HIGH_PROBABLE',
+                        recommendedAction: 'P1_7D'
+                    }
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/epss');
+
+            await expect(page.getByText('CVE-2021-44228').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'epss', locale);
+        });
+
     });

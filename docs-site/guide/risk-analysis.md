@@ -3,6 +3,8 @@
 Four views that answer "what does this actually put at risk", each from a different angle.
 
 ## EPSS
+![EPSS prioritisation: two vulnerabilities ranked by exploitation probability, each with the action its tier calls for.](../assets/screens/en/epss.png)
+
 
 The **EPSS** page ranks the estate by exploitation probability rather than by CVSS. Every
 vulnerability carries its score, and the difference between the two numbers is the whole
