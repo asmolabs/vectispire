@@ -110,7 +110,17 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: vectispire:latest
+    # **Published, so nobody has to build it to run it.** This was `vectispire:latest` — a bare
+    # local tag, which `docker compose up` cannot pull: the shipped composition only worked for
+    # somebody who had already built the image, while the installation guide promised a path that
+    # needed no JDK.
+    #
+    # Pinned to the version rather than `latest`: a composition that follows a moving tag upgrades
+    # the control plane on a `docker compose pull` nobody asked for, and the two images would drift
+    # apart the day one of them is republished. Not pinned by digest, unlike the third-party images
+    # below, because this file ships inside the release that builds them — a digest here would have
+    # to be rewritten by the release job, and nothing does that.
+    image: ghcr.io/asmolabs/vectispire:0.9.0
     container_name: vectispire-control-plane
     ports:
       - "${VECTISPIRE_PORT:-3180}:3180"
@@ -214,7 +224,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.agent
-    image: vectispire-agent:latest
+    # Same reasoning as the control plane above, and the same version: an agent from one release
+    # talking to a plane from another is a protocol mismatch nobody set out to test.
+    image: ghcr.io/asmolabs/vectispire-agent:0.9.0
     container_name: vectispire-agent
     profiles:
       - with-agent

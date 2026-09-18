@@ -45,6 +45,17 @@ un agent distant dédié :
 docker compose --profile with-agent up -d
 ```
 
+La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
+
+```
+ghcr.io/asmolabs/vectispire:0.9.0
+ghcr.io/asmolabs/vectispire-agent:0.9.0
+```
+
+Elles sont publiques — ni identifiant, ni jeton. Pour en tirer une seule,
+`docker pull ghcr.io/asmolabs/vectispire:0.9.0` ; et lisez
+[Vérifier une release](#verifier-une-release) avant de l'exécuter.
+
 ## Avant le premier démarrage
 
 La plupart des réglages vivent dans la base de données et s'éditent depuis **Réglages** une
@@ -152,10 +163,10 @@ parole est une contradiction.
 
 ```bash
 cosign verify-blob \
-  --bundle vectispire-1.0.0.jar.cosign.bundle \
-  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v1.0.0" \
+  --bundle vectispire-0.9.0.jar.cosign.bundle \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  vectispire-1.0.0.jar
+  vectispire-0.9.0.jar
 ```
 
 Chaque option épingle quelque chose, et en retirer une seule rend l'essentiel de ce pour quoi
@@ -175,6 +186,28 @@ conception.
     que pas d'instruction du tout, parce qu'elle apprend à son lecteur que le contrôle est
     passé le jour où il la tape mal jusqu'à ce qu'elle passe. Utilisez l'identité de la forge
     qui a construit l'artefact que vous détenez.
+
+### Vérifier une image
+
+Les images sont signées de la même façon, **par empreinte plutôt que par tag** — un tag peut être
+déplacé vers une autre image, pas une empreinte.
+
+```bash
+cosign verify \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/asmolabs/vectispire:0.9.0
+```
+
+Chaque image porte aussi son SBOM en attestation plutôt qu'en fichier posé à côté, parce qu'un
+fichier posé à côté d'une image est un fichier que n'importe qui peut remplacer :
+
+```bash
+cosign verify-attestation --type cyclonedx \
+  --certificate-identity "https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/asmolabs/vectispire:0.9.0
+```
 
 Il n'y a pas de clé de signature. Sigstore *keyless* signe avec l'identité OIDC du workflow
 lui-même, donc il n'y a rien sous la garde de quiconque à voler ou à faire tourner.
