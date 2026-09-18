@@ -67,7 +67,7 @@ class OwaspReportTest extends ApiTestBase {
         service = new OwaspReviewService(models, results, issues, scans, Clock.fixed(NOW, ZoneOffset.UTC));
 
         RepositoryEntity entity = new RepositoryEntity();
-        entity.setUrl("ssh://git@example.com/art/arm-libs-spring.git");
+        entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
         entity.setName("Arm Libs Spring");
         entity.setBranch("master");
         repository = repositories.save(entity);

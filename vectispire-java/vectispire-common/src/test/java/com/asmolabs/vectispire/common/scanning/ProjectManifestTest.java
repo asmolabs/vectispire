@@ -29,7 +29,7 @@ class ProjectManifestTest {
             // project's, so a wrong reading is unmistakable.
             write("pom.xml", """
                     <project>
-                      <artifactId>arm-libs-spring</artifactId>
+                      <artifactId>basalt-libs-spring</artifactId>
                       <version>2.4.1</version>
                       <dependencies>
                         <dependency>
@@ -55,7 +55,7 @@ class ProjectManifestTest {
                         <artifactId>arm-parent</artifactId>
                         <version>1.8.0</version>
                       </parent>
-                      <artifactId>arm-libs-spring</artifactId>
+                      <artifactId>basalt-libs-spring</artifactId>
                     </project>
                     """);
 
