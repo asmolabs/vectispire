@@ -112,7 +112,7 @@ public class AttackPathService {
                 AttackPathNodeType.INTERNET_INGRESS,
                 "INFO",
                 true,
-                "Point d'entrée public externe",
+                AttackPathNode.NodeNote.PUBLIC_INGRESS,
                 Map.of("exposure", "PUBLIC", "protocol", "HTTPS / HTTP")));
 
         // 2. Map Unauthenticated / Public API Endpoints
@@ -143,7 +143,9 @@ public class AttackPathService {
                         AttackPathNodeType.API_ENDPOINT,
                         severity,
                         isUnauth,
-                        isUnauth ? "Route Non-Authentifiée" : "Route Publique Authentifiée",
+                        isUnauth
+                                ? AttackPathNode.NodeNote.UNAUTHENTICATED_ROUTE
+                                : AttackPathNode.NodeNote.AUTHENTICATED_PUBLIC_ROUTE,
                         meta));
 
                 edges.add(new AttackPathEdge(
@@ -213,7 +215,7 @@ public class AttackPathService {
                     AttackPathNodeType.VULNERABLE_COMPONENT,
                     vuln.severity() != null ? vuln.severity().toUpperCase(Locale.ROOT) : "HIGH",
                     isExploitable,
-                    (isRceOrCritical ? "RCE Potentielle · " : "") + (Boolean.TRUE.equals(vuln.isKev()) ? "Actively Exploited (CISA KEV)" : "Exécutable"),
+                    noteFor(isRceOrCritical, Boolean.TRUE.equals(vuln.isKev())),
                     meta));
 
             // Link from exposed endpoints to this vulnerable component
@@ -246,7 +248,7 @@ public class AttackPathService {
                 AttackPathNodeType.DATABASE,
                 "CRITICAL",
                 !criticalVulns.isEmpty(),
-                "Base de données & Données sensibles",
+                AttackPathNode.NodeNote.SENSITIVE_DATA_STORE,
                 Map.of("asset", "PostgreSQL / MySQL Storage", "impact", "Data Exfiltration & Integrity Loss")));
 
         if (!criticalVulns.isEmpty()) {
@@ -277,7 +279,7 @@ public class AttackPathService {
                     AttackPathNodeType.SECRET,
                     "CRITICAL",
                     true,
-                    "Clé API / Mot de passe dans le code",
+                    AttackPathNode.NodeNote.HARDCODED_CREDENTIAL,
                     meta));
 
             if (!criticalVulns.isEmpty()) {
@@ -306,12 +308,15 @@ public class AttackPathService {
 
             paths.add(new AttackPath(
                     "path-rce-exfil",
-                    "Chaîne RCE & Exfiltration Non-Authentifiée",
-                    "Un attaquant externe peut appeler l'endpoint non-authentifié '" + unauthEp.method() + " " + unauthEp.path() + "', déclencher l'exécution de code sur " + topVuln.identifier() + " et compromettre la base de données ou les secrets.",
+                    AttackPath.Scenario.UNAUTH_RCE_CHAIN,
+                    Map.of(
+                            "method", unauthEp.method() != null ? unauthEp.method() : "",
+                            "path", unauthEp.path() != null ? unauthEp.path() : "",
+                            "identifier", topVuln.identifier() != null ? topVuln.identifier() : "",
+                            "package", topVuln.packageName() != null ? topVuln.packageName() : ""),
                     "CRITICAL",
                     true,
-                    List.of(ingressId, "ep-" + unauthEp.id(), "vuln-" + topVuln.id(), dbSinkId),
-                    "1. Restreindre l'accès à " + unauthEp.path() + " par authentification Bearer ou API Key.\n2. Mettre à jour la dépendance " + topVuln.packageName() + " vers la version corrigée.\n3. Isoler le conteneur et restreindre les privilèges réseau vers la base de données."));
+                    List.of(ingressId, "ep-" + unauthEp.id(), "vuln-" + topVuln.id(), dbSinkId)));
         }
 
         if (!secrets.isEmpty()) {
@@ -319,23 +324,21 @@ public class AttackPathService {
             IssueRows.GraphNode firstSecret = secrets.get(0);
             paths.add(new AttackPath(
                     "path-secret-leak",
-                    "Exposition Directe de Secret de Production",
-                    "Secret en clair détecté dans '" + firstSecret.filePath() + "'. Permet un accès direct aux ressources sans franchissement de périmètre.",
+                    AttackPath.Scenario.PLAINTEXT_SECRET,
+                    Map.of("file", firstSecret.filePath() != null ? firstSecret.filePath() : ""),
                     "CRITICAL",
                     true,
-                    List.of(ingressId, "secret-" + firstSecret.id(), dbSinkId),
-                    "1. Révoquer immédiatement la clé/mot de passe compromis.\n2. Migrer le secret vers un gestionnaire sécurisé (HashiCorp Vault, AWS Secrets Manager).\n3. Nettoyer l'historique Git."));
+                    List.of(ingressId, "secret-" + firstSecret.id(), dbSinkId)));
         }
 
         if (paths.isEmpty()) {
             paths.add(new AttackPath(
                     "path-baseline",
-                    "Flux Ingress Sécurisé (Aucun chemin d'attaque critique actif)",
-                    "Aucun chemin d'exploitation directe reliant un point d'entrée non-authentifié à un composant vulnérable n'a été détecté.",
+                    AttackPath.Scenario.NO_CRITICAL_PATH,
+                    Map.of(),
                     "LOW",
                     false,
-                    List.of(ingressId, dbSinkId),
-                    "Maintenir la surveillance continue et les scans périodiques."));
+                    List.of(ingressId, dbSinkId)));
         }
 
         // **Scored on what the target has, not on what the picture shows.** The node lists were
@@ -401,6 +404,24 @@ public class AttackPathService {
         return lower.contains("admin") || lower.contains("auth") || lower.contains("login")
                 || lower.contains("user") || lower.contains("payment") || lower.contains("checkout")
                 || lower.contains("secret") || lower.contains("token") || lower.contains("upload");
+    }
+
+    /**
+     * The two booleans a vulnerability node carries, flattened into one note.
+     *
+     * <p>They used to be concatenated into a sentence on the spot — {@code "RCE Potentielle · "}
+     * plus one of two endings — and a concatenation is precisely what a translation cannot
+     * reorder. Four constants say the same four things and leave the wording to the bundles.
+     */
+    private static AttackPathNode.NodeNote noteFor(boolean remoteCodeExecution, boolean activelyExploited) {
+        if (remoteCodeExecution) {
+            return activelyExploited
+                    ? AttackPathNode.NodeNote.RCE_ACTIVELY_EXPLOITED
+                    : AttackPathNode.NodeNote.RCE_EXECUTABLE;
+        }
+        return activelyExploited
+                ? AttackPathNode.NodeNote.ACTIVELY_EXPLOITED
+                : AttackPathNode.NodeNote.EXECUTABLE;
     }
 
     private static int calculateRiskScore(int criticalPaths, int unauthCount, int vulnCount, int secretCount) {

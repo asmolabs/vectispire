@@ -457,9 +457,6 @@
       },
       "AttackPath" : {
         "properties" : {
-          "description" : {
-            "type" : "string"
-          },
           "id" : {
             "type" : "string"
           },
@@ -472,13 +469,17 @@
             },
             "type" : "array"
           },
-          "remediationAdvice" : {
-            "type" : "string"
+          "params" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
           },
           "riskLevel" : {
             "type" : "string"
           },
-          "title" : {
+          "scenario" : {
+            "enum" : [ "UNAUTH_RCE_CHAIN", "PLAINTEXT_SECRET", "NO_CRITICAL_PATH" ],
             "type" : "string"
           }
         },
@@ -566,10 +567,11 @@
             },
             "type" : "object"
           },
-          "severity" : {
+          "note" : {
+            "enum" : [ "PUBLIC_INGRESS", "UNAUTHENTICATED_ROUTE", "AUTHENTICATED_PUBLIC_ROUTE", "RCE_ACTIVELY_EXPLOITED", "RCE_EXECUTABLE", "ACTIVELY_EXPLOITED", "EXECUTABLE", "SENSITIVE_DATA_STORE", "HARDCODED_CREDENTIAL" ],
             "type" : "string"
           },
-          "subtitle" : {
+          "severity" : {
             "type" : "string"
           },
           "type" : {

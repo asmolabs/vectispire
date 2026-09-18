@@ -1,3 +1,22 @@
+<!--
+    **The nine node notes, written once.** `check-i18n-keys` reads literal keys only, so a key
+    built from the token would be invisible to it and would ship unresolved. Five copies of the
+    same switch would satisfy the guard and drift; one template used five times does not.
+-->
+<ng-template #nodeNote let-note>
+    @switch (note) {
+        @case ('PUBLIC_INGRESS') { {{ 'attack_paths.note_public_ingress' | translate }} }
+        @case ('UNAUTHENTICATED_ROUTE') { {{ 'attack_paths.note_unauthenticated_route' | translate }} }
+        @case ('AUTHENTICATED_PUBLIC_ROUTE') { {{ 'attack_paths.note_authenticated_public_route' | translate }} }
+        @case ('RCE_ACTIVELY_EXPLOITED') { {{ 'attack_paths.note_rce_actively_exploited' | translate }} }
+        @case ('RCE_EXECUTABLE') { {{ 'attack_paths.note_rce_executable' | translate }} }
+        @case ('ACTIVELY_EXPLOITED') { {{ 'attack_paths.note_actively_exploited' | translate }} }
+        @case ('EXECUTABLE') { {{ 'attack_paths.note_executable' | translate }} }
+        @case ('SENSITIVE_DATA_STORE') { {{ 'attack_paths.note_sensitive_data_store' | translate }} }
+        @case ('HARDCODED_CREDENTIAL') { {{ 'attack_paths.note_hardcoded_credential' | translate }} }
+    }
+</ng-template>
+
 <div class="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
         <h1 class="text-2xl font-semibold m-0 flex items-center gap-2">
@@ -155,7 +174,7 @@
                                 <span class="text-xs font-bold text-blue-900 dark:text-blue-200">{{ node.label }}</span>
                                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-300">PUBLIC</span>
                             </div>
-                            <span class="text-[11px] text-surface-500 dark:text-surface-400">{{ node.subtitle }}</span>
+                            <span class="text-[11px] text-surface-500 dark:text-surface-400"><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                         </div>
                     }
                 </div>
@@ -181,7 +200,7 @@
                                 <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" size="small" />
                             </div>
                             <div class="flex items-center justify-between text-[11px] text-surface-500">
-                                <span>{{ node.subtitle }}</span>
+                                <span><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                                 @if (node.isExploitable) {
                                     <span class="text-rose-500 font-bold flex items-center gap-1"><i class="pi pi-lock-open text-[10px]"></i> Unauth</span>
                                 }
@@ -210,7 +229,7 @@
                                 <span class="text-xs font-bold text-rose-600 dark:text-rose-400 truncate">{{ node.label }}</span>
                                 <p-tag [severity]="getSeverityBadge(node.severity)" [value]="node.severity" size="small" />
                             </div>
-                            <span class="text-[11px] text-surface-500">{{ node.subtitle }}</span>
+                            <span class="text-[11px] text-surface-500"><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                             @if (node.metadata?.['cvss']) {
                                 <div class="flex items-center gap-2 text-[10px] text-surface-400 font-mono">
                                     <span>CVSS {{ node.metadata?.['cvss'] }}</span>
@@ -240,7 +259,7 @@
                                 </span>
                                 <p-tag severity="danger" value="IMPACT" size="small" />
                             </div>
-                            <span class="text-[11px] text-surface-500 dark:text-surface-400">{{ node.subtitle }}</span>
+                            <span class="text-[11px] text-surface-500 dark:text-surface-400"><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                         </div>
                     }
                 </div>
@@ -258,27 +277,57 @@
                 >
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-2">
-                            <span class="text-base font-bold text-surface-900 dark:text-surface-0">{{ path.title }}</span>
+                            <span class="text-base font-bold text-surface-900 dark:text-surface-0">
+                                @switch (path.scenario) {
+                                    @case ('UNAUTH_RCE_CHAIN') { {{ 'attack_paths.scenario_unauth_rce_chain' | translate }} }
+                                    @case ('PLAINTEXT_SECRET') { {{ 'attack_paths.scenario_plaintext_secret' | translate }} }
+                                    @case ('NO_CRITICAL_PATH') { {{ 'attack_paths.scenario_no_critical_path' | translate }} }
+                                }
+                            </span>
                             @if (path.isDirectlyExploitable) {
                                 <span class="px-2 py-0.5 text-xs font-bold rounded bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
-                                    DIRECTEMENT EXPLOITABLE
+                                    {{ 'attack_paths.directly_exploitable' | translate }}
                                 </span>
                             }
                         </div>
                         <p-tag [severity]="getSeverityBadge(path.riskLevel)" [value]="path.riskLevel" />
                     </div>
 
-                    <p class="text-sm text-surface-600 dark:text-surface-400 m-0 leading-relaxed">{{ path.description }}</p>
+                    <!--
+                        **The narrative, assembled here from a token and its values.** It used to
+                        arrive as one French sentence with the method, the path and the package
+                        concatenated into it on the server — and a concatenation is exactly what a
+                        translation cannot reorder.
+                    -->
+                    <p class="text-sm text-surface-600 dark:text-surface-400 m-0 leading-relaxed">
+                        @switch (path.scenario) {
+                            @case ('UNAUTH_RCE_CHAIN') {
+                                {{ 'attack_paths.story_unauth_rce_chain' | translate: { method: path.params?.['method'] ?? '', path: path.params?.['path'] ?? '', identifier: path.params?.['identifier'] ?? '' } }}
+                            }
+                            @case ('PLAINTEXT_SECRET') {
+                                {{ 'attack_paths.story_plaintext_secret' | translate: { file: path.params?.['file'] ?? '' } }}
+                            }
+                            @case ('NO_CRITICAL_PATH') { {{ 'attack_paths.story_no_critical_path' | translate }} }
+                        }
+                    </p>
 
                     <!-- Remediation Guidance Block -->
                     <div class="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 text-xs text-blue-900 dark:text-blue-200 flex flex-col gap-1.5">
                         <span class="font-bold flex items-center gap-1.5"><i class="pi pi-check-circle text-blue-500"></i> {{ 'attack_paths.plan' | translate }}</span>
-                        <pre class="font-sans whitespace-pre-wrap m-0 leading-relaxed text-xs">{{ path.remediationAdvice }}</pre>
+                        <pre class="font-sans whitespace-pre-wrap m-0 leading-relaxed text-xs">@switch (path.scenario) {
+                                @case ('UNAUTH_RCE_CHAIN') { {{ 'attack_paths.plan_unauth_rce_chain' | translate: { path: path.params?.['path'] ?? '', package: path.params?.['package'] ?? '' } }} }
+                                @case ('PLAINTEXT_SECRET') { {{ 'attack_paths.plan_plaintext_secret' | translate }} }
+                                @case ('NO_CRITICAL_PATH') { {{ 'attack_paths.plan_no_critical_path' | translate }} }
+                            }</pre>
                     </div>
 
                     <div class="flex items-center justify-end gap-2 pt-2 border-t border-surface-200 dark:border-surface-800">
                         <p-button
-                            [label]="selectedPath()?.id === path.id ? 'Désactiver le focus' : 'Focaliser sur le graphe'"
+                            [label]="
+                                selectedPath()?.id === path.id
+                                    ? ('attack_paths.unfocus' | translate)
+                                    : ('attack_paths.focus' | translate)
+                            "
                             icon="pi pi-eye"
                             size="small"
                             [outlined]="selectedPath()?.id !== path.id"
@@ -354,8 +403,8 @@
             </div>
 
             <div class="p-3 rounded-lg bg-surface-100 dark:bg-surface-800 text-xs flex flex-col gap-1">
-                <span class="text-surface-500 font-semibold uppercase">Classification :</span>
-                <span class="font-medium">{{ node.subtitle }}</span>
+                <span class="text-surface-500 font-semibold uppercase">{{ 'attack_paths.classification' | translate }}</span>
+                <span class="font-medium"><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
             </div>
 
             @if (node.metadata) {

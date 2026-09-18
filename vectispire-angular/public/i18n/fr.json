@@ -954,21 +954,33 @@
     "feed_status": "Statut du flux",
     "governor_only": "Cette règle ne peut être changée que par un super-administrateur.",
     "keys": {
-      "sla_critical_days": {
-        "label": "Délai SLA Critique (jours)",
-        "help": "Délai maximal autorisé pour corriger une vulnérabilité critique avant non-conformité."
+      "ai_review_enabled": {
+        "label": "Activer la revue IA",
+        "help": "Évalue le contexte et la sévérité réelle des failles. Le code analysé part vers le fournisseur choisi ci-dessous : local avec Ollama, chez un tiers avec une API publique."
       },
-      "sla_high_days": {
-        "label": "Délai SLA Élevé (jours)",
-        "help": "Délai maximal autorisé pour corriger une vulnérabilité élevée avant non-conformité."
+      "ai_review_model": {
+        "label": "Modèle LLM pour la revue",
+        "help": "Identifiant du modèle installé dans Ollama (ex: llama3:8b, mistral, deepseek-r1:8b, qwen2.5-coder)."
       },
-      "sla_medium_days": {
-        "label": "Délai SLA Moyen (jours)",
-        "help": "Délai maximal recommandé pour corriger une vulnérabilité moyenne."
+      "ai_review_ollama_url": {
+        "label": "URL de l'instance Ollama",
+        "help": "Adresse HTTP du serveur Ollama local ou d'entreprise (ex: http://localhost:11434)."
       },
-      "sla_low_days": {
-        "label": "Délai SLA Faible (jours)",
-        "help": "Délai maximal indicatif pour corriger une vulnérabilité faible."
+      "ai_review_openai_url": {
+        "label": "URL de l'API compatible OpenAI",
+        "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie le code chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
+      },
+      "ai_review_prompt_context": {
+        "label": "Consignes et contexte d'évaluation pour l'IA",
+        "help": "Instructions contextuelles et règles de filtrage transmises au LLM pour affiner ses analyses."
+      },
+      "ai_review_provider": {
+        "label": "Fournisseur",
+        "help": "« Ollama » garde le code sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
+      },
+      "compliance_freshness_days": {
+        "label": "Conformité : une observation reste courante pendant",
+        "help": "**Une cible jamais observée n'a aucune vulnérabilité connue**, et sur un tableau naïf elle est verte — c'est le seul vert qui devrait déclencher une alarme. Au-delà de ce nombre de jours, un scan cesse de compter comme une observation courante, et un contrôle évalué sur une couverture incomplète ne peut plus être rendu conforme : il est *non évalué*, ce qui n'est pas la même phrase devant un auditeur. Zéro désactive le plafond et rend à l'évaluation son comportement d'avant."
       },
       "enrichment_enabled": {
         "label": "Enrichissement CISA KEV et scores EPSS",
@@ -982,22 +994,6 @@
         "label": "Fenêtre d'avertissement avant fin de vie (jours)",
         "help": "Délai d'anticipation avant l'échéance EOL pour déclencher un avertissement moyen."
       },
-      "sast_enabled": {
-        "label": "Activer l'analyse statique du code (Semgrep)",
-        "help": "Scanne le code source à chaque analyse pour identifier les faiblesses applicatives et mauvaises pratiques."
-      },
-      "retention_keep_per_target": {
-        "label": "Nombre de scans bruts conservés par cible",
-        "help": "Conserve les sorties brutes et SBOMs des N derniers scans pour chaque cible (0 = illimité)."
-      },
-      "retention_max_age_days": {
-        "label": "Âge maximal des scans bruts (jours)",
-        "help": "Purge les sorties brutes et SBOMs des scans antérieurs à cette durée (0 = aucune purge)."
-      },
-      "notification_webhook_url": {
-        "label": "URL de Webhook générique",
-        "help": "Envoi de notifications JSON POST vers Slack, Mattermost, Discord ou un webhook sur mesure."
-      },
       "notification_teams_enabled": {
         "label": "Activer les notifications Microsoft Teams",
         "help": "Interrupteur général pour activer ou désactiver l'envoi de cartes adaptatives vers Microsoft Teams."
@@ -1010,45 +1006,21 @@
         "label": "Secret de signature Webhook",
         "help": "Signe chaque payload avec HMAC-SHA256 dans l'en-tête X-Vectispire-Signature (chiffré au repos)."
       },
-      "ai_review_enabled": {
-        "label": "Activer la revue IA",
-        "help": "Évalue le contexte et la sévérité réelle des failles. Le code analysé part vers le fournisseur choisi ci-dessous : local avec Ollama, chez un tiers avec une API publique."
+      "notification_webhook_url": {
+        "label": "URL de Webhook générique",
+        "help": "Envoi de notifications JSON POST vers Slack, Mattermost, Discord ou un webhook sur mesure."
       },
-      "ai_review_provider": {
-        "label": "Fournisseur",
-        "help": "« Ollama » garde le code sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
+      "retention_keep_per_target": {
+        "label": "Nombre de scans bruts conservés par cible",
+        "help": "Conserve les sorties brutes et SBOMs des N derniers scans pour chaque cible (0 = illimité)."
       },
-      "ai_review_openai_url": {
-        "label": "URL de l'API compatible OpenAI",
-        "help": "Racine de l'API, sans /chat/completions. Celle d'OpenAI envoie le code chez OpenAI ; pointée sur vLLM, LM Studio ou une passerelle interne, rien ne sort."
+      "retention_max_age_days": {
+        "label": "Âge maximal des scans bruts (jours)",
+        "help": "Purge les sorties brutes et SBOMs des scans antérieurs à cette durée (0 = aucune purge)."
       },
-      "ai_review_ollama_url": {
-        "label": "URL de l'instance Ollama",
-        "help": "Adresse HTTP du serveur Ollama local ou d'entreprise (ex: http://localhost:11434)."
-      },
-      "ai_review_model": {
-        "label": "Modèle LLM pour la revue",
-        "help": "Identifiant du modèle installé dans Ollama (ex: llama3:8b, mistral, deepseek-r1:8b, qwen2.5-coder)."
-      },
-      "ai_review_prompt_context": {
-        "label": "Consignes et contexte d'évaluation pour l'IA",
-        "help": "Instructions contextuelles et règles de filtrage transmises au LLM pour affiner ses analyses."
-      },
-      "ticket_provider": {
-        "label": "Fournisseur de tickets d'incidents",
-        "help": "Plateforme cible pour l'export automatique : JIRA, GITHUB_ISSUES ou GITLAB_ISSUES."
-      },
-      "ticket_url": {
-        "label": "URL du serveur de tickets",
-        "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
-      },
-      "ticket_project": {
-        "label": "Projet ou Référentiel cible",
-        "help": "Clé du projet Jira (ex: SEC) ou chemin du dépôt (ex: organisation/depot)."
-      },
-      "ticket_label": {
-        "label": "Étiquette (label) des tickets créés",
-        "help": "Label apposé systématiquement sur tous les tickets créés (ex: vectispire-security)."
+      "sast_enabled": {
+        "label": "Activer l'analyse statique du code (Semgrep)",
+        "help": "Scanne le code source à chaque analyse pour identifier les faiblesses applicatives et mauvaises pratiques."
       },
       "scanner_concurrency": {
         "label": "Nombre maximal d'analyses simultanées",
@@ -1057,6 +1029,38 @@
       "scanner_docker_timeout_seconds": {
         "label": "Délai d'expiration des conteneurs de scan (secondes)",
         "help": "Timeout au-delà duquel l'exécution d'un scanner (Trivy, Syft, Semgrep) est interrompue."
+      },
+      "sla_critical_days": {
+        "label": "Délai SLA Critique (jours)",
+        "help": "Délai maximal autorisé pour corriger une vulnérabilité critique avant non-conformité."
+      },
+      "sla_high_days": {
+        "label": "Délai SLA Élevé (jours)",
+        "help": "Délai maximal autorisé pour corriger une vulnérabilité élevée avant non-conformité."
+      },
+      "sla_low_days": {
+        "label": "Délai SLA Faible (jours)",
+        "help": "Délai maximal indicatif pour corriger une vulnérabilité faible."
+      },
+      "sla_medium_days": {
+        "label": "Délai SLA Moyen (jours)",
+        "help": "Délai maximal recommandé pour corriger une vulnérabilité moyenne."
+      },
+      "ticket_label": {
+        "label": "Étiquette (label) des tickets créés",
+        "help": "Label apposé systématiquement sur tous les tickets créés (ex: vectispire-security)."
+      },
+      "ticket_project": {
+        "label": "Projet ou Référentiel cible",
+        "help": "Clé du projet Jira (ex: SEC) ou chemin du dépôt (ex: organisation/depot)."
+      },
+      "ticket_provider": {
+        "label": "Fournisseur de tickets d'incidents",
+        "help": "Plateforme cible pour l'export automatique : JIRA, GITHUB_ISSUES ou GITLAB_ISSUES."
+      },
+      "ticket_url": {
+        "label": "URL du serveur de tickets",
+        "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
       }
     },
     "last_sync": "Dernière synchronisation",
@@ -1535,26 +1539,48 @@
     "radius_score": "Score Rayon d'Impact"
   },
   "attack_paths": {
-    "subtitle": "Cartographie des scénarios d'exploitation réels :",
-    "chain": "Internet / Ingress → API Endpoint → Composant Vulnérable (RCE) → Secret / Base de Données",
-    "direct_chains": "Chaînes d'attaque directes depuis l'extérieur",
     "axes": "Exposition x Exploitation x Criticité",
+    "chain": "Internet / Ingress → API Endpoint → Composant Vulnérable (RCE) → Secret / Base de Données",
+    "classification": "Classification",
+    "direct_chains": "Chaînes d'attaque directes depuis l'extérieur",
+    "directly_exploitable": "Directement exploitable",
     "entry_points": "Points d'Entrée Exposés",
     "entry_points_help": "Routes API publiques & non-authentifiées",
+    "exploitable_paths": "Chemins Critiques Exploitables",
+    "focus": "Focaliser sur le graphe",
     "linked_components": "Composants Vulnérables Liés",
     "linked_components_help": "Dépendances critiques & RCE atteignables",
-    "scenarios": "Scénarios d'Exploitation",
-    "no_endpoint": "Aucun endpoint API exposé ou non-authentifié.",
-    "step_components": "3. Composants Vulnérables",
-    "no_critical": "Aucune vulnérabilité critique active.",
-    "step_assets": "4. Assets & Données Sensibles",
-    "plan": "Plan de Remédiation Prioritaire :",
-    "repository": "Dépôt",
     "metadata": "Métadonnées Techniques :",
+    "no_critical": "Aucune vulnérabilité critique active.",
+    "no_endpoint": "Aucun endpoint API exposé ou non-authentifié.",
+    "note_actively_exploited": "Exploitation active confirmée (CISA KEV)",
+    "note_authenticated_public_route": "Route publique authentifiée",
+    "note_executable": "Exécutable",
+    "note_hardcoded_credential": "Clé d'API ou mot de passe dans le code",
+    "note_public_ingress": "Point d'entrée public externe",
+    "note_rce_actively_exploited": "RCE potentielle · exploitation active confirmée (CISA KEV)",
+    "note_rce_executable": "RCE potentielle · exécutable",
+    "note_sensitive_data_store": "Base de données et données sensibles",
+    "note_unauthenticated_route": "Route non authentifiée",
+    "plan": "Plan de Remédiation Prioritaire :",
+    "plan_no_critical_path": "Maintenir la surveillance continue et les scans périodiques.",
+    "plan_plaintext_secret": "1. Révoquer immédiatement la clé ou le mot de passe compromis.\n2. Migrer le secret vers un gestionnaire dédié (HashiCorp Vault, AWS Secrets Manager).\n3. Nettoyer l'historique Git.",
+    "plan_unauth_rce_chain": "1. Restreindre l'accès à {{path}} par authentification Bearer ou clé d'API.\n2. Mettre à jour la dépendance {{package}} vers la version corrigée.\n3. Isoler le conteneur et restreindre ses privilèges réseau vers la base de données.",
+    "repository": "Dépôt",
+    "scenario_no_critical_path": "Flux d'entrée sûr (aucun chemin d'attaque critique actif)",
+    "scenario_plaintext_secret": "Exposition directe d'un secret de production",
+    "scenario_unauth_rce_chain": "Chaîne RCE et exfiltration non authentifiée",
+    "scenarios": "Scénarios d'Exploitation",
+    "step_assets": "4. Assets & Données Sensibles",
+    "step_components": "3. Composants Vulnérables",
+    "story_no_critical_path": "Aucun chemin d'exploitation directe reliant un point d'entrée non authentifié à un composant vulnérable n'a été détecté.",
+    "story_plaintext_secret": "Secret en clair détecté dans « {{file}} ». Il donne un accès direct aux ressources sans franchir de périmètre.",
+    "story_unauth_rce_chain": "Un attaquant externe peut appeler l'endpoint non authentifié « {{method}} {{path}} », déclencher l'exécution de code sur {{identifier}}, puis compromettre la base de données ou les secrets.",
+    "subtitle": "Cartographie des scénarios d'exploitation réels :",
     "title_long": "Visualiseur de Chemins d'Attaque (Attack Path Visualizer)",
-    "exploitable_paths": "Chemins Critiques Exploitables",
     "topological_score": "Score de Risque Topologique",
-    "total_paths": "Total Chemins"
+    "total_paths": "Total Chemins",
+    "unfocus": "Désactiver le focus"
   },
   "notifications": {
     "alert_teams": "Alertez vos équipes en temps réel sur",

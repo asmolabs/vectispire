@@ -1635,7 +1635,8 @@ export type AttackPathNode = Refine<
         label: string;
         type: AttackPathNodeType;
         severity: string;
-        subtitle?: string;
+        /** What the node is, as a token; the sentence is in the bundles. */
+        note: NonNullable<Schema<'AttackPathNode'>['note']>;
         metadata?: Record<string, string>;
     }
 >;
@@ -1654,11 +1655,17 @@ export type AttackPath = Refine<
     Schema<'AttackPath'>,
     {
         id: string;
-        title: string;
-        description: string;
+        /**
+         * Which scenario this is; the title, the narrative and the plan follow from it.
+         *
+         * The three used to arrive as French sentences with the method, the path and the package
+         * concatenated into them on the server. The values that vary now travel in {@link params},
+         * because a concatenation is what a translation cannot reorder.
+         */
+        scenario: NonNullable<Schema<'AttackPath'>['scenario']>;
+        params: Record<string, string>;
         riskLevel: string;
         nodeIds: string[];
-        remediationAdvice: string;
     }
 >;
 

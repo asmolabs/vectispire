@@ -2816,13 +2816,15 @@ export interface components {
             url?: string;
         };
         AttackPath: {
-            description?: string;
             id?: string;
             isDirectlyExploitable: boolean;
             nodeIds?: string[];
-            remediationAdvice?: string;
+            params?: {
+                [key: string]: string;
+            };
             riskLevel?: string;
-            title?: string;
+            /** @enum {string} */
+            scenario?: "UNAUTH_RCE_CHAIN" | "PLAINTEXT_SECRET" | "NO_CRITICAL_PATH";
         };
         AttackPathEdge: {
             id?: string;
@@ -2852,8 +2854,9 @@ export interface components {
             metadata?: {
                 [key: string]: string;
             };
+            /** @enum {string} */
+            note?: "PUBLIC_INGRESS" | "UNAUTHENTICATED_ROUTE" | "AUTHENTICATED_PUBLIC_ROUTE" | "RCE_ACTIVELY_EXPLOITED" | "RCE_EXECUTABLE" | "ACTIVELY_EXPLOITED" | "EXECUTABLE" | "SENSITIVE_DATA_STORE" | "HARDCODED_CREDENTIAL";
             severity?: string;
-            subtitle?: string;
             /** @enum {string} */
             type?: "INTERNET_INGRESS" | "API_ENDPOINT" | "VULNERABLE_COMPONENT" | "SECRET" | "DATABASE" | "INFRASTRUCTURE";
         };
