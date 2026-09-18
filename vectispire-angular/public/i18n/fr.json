@@ -82,6 +82,15 @@
     "unroutable_notice": "analyse(s) requièrent le label, qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
     "wait_time": "Temps d'attente"
   },
+  "ai": {
+    "exposure_mentioned": "À regarder en premier : un contrôle de code a produit un constat qui mentionne ce composant. C'est un endroit où regarder, pas une preuve d'appel : cette corrélation rapproche des textes, elle ne suit pas le graphe d'appels.",
+    "exposure_not_mentioned": "Exposition indéterminée : aucun constat de code ne mentionne ce composant. Cela ne veut pas dire qu'il n'est pas utilisé — seulement que rien ne l'a montré.",
+    "exposure_unknown": "Exposition probable : le composant est dans le périmètre d'exécution. Vérifiez si des parcours utilisateur atteignent les fonctions de cette bibliothèque.",
+    "fix_action": "Mettre à jour « {{package}} » de la version {{version}} vers {{target}}.",
+    "mechanics_generic": "Un attaquant peut envoyer des entrées malveillantes via les points d'entrée qui utilisent « {{package}} » pour déclencher un comportement non prévu.",
+    "mechanics_kev": "Attention : cette faille figure au catalogue CISA KEV et fait l'objet d'exploitations actives (probabilité EPSS : {{chance}} %). Un attaquant distant peut exécuter du code arbitraire ou contourner les contrôles d'accès.",
+    "summary": "La vulnérabilité {{id}} affecte le composant « {{package}} » (version {{version}}). Elle permet d'altérer la sécurité ou la disponibilité du service."
+  },
   "api_keys": {
     "aria_revoke": "Révoquer {{name}}",
     "delete_confirm": "Êtes-vous sûr de vouloir révoquer cette clé API ?",
@@ -117,6 +126,51 @@
     "title": "Clés API",
     "token_modal_desc": "Conservez précieusement ce jeton. Pour des raisons de sécurité, il ne pourra plus jamais être affiché.",
     "token_modal_title": "Clé API générée"
+  },
+  "attack_paths": {
+    "axes": "Exposition x Exploitation x Criticité",
+    "chain": "Internet / Ingress → API Endpoint → Composant Vulnérable (RCE) → Secret / Base de Données",
+    "classification": "Classification",
+    "direct_chains": "Chaînes d'attaque directes depuis l'extérieur",
+    "directly_exploitable": "Directement exploitable",
+    "entry_points": "Points d'Entrée Exposés",
+    "entry_points_help": "Routes API publiques & non-authentifiées",
+    "exploitable_paths": "Chemins Critiques Exploitables",
+    "focus": "Focaliser sur le graphe",
+    "linked_components": "Composants Vulnérables Liés",
+    "linked_components_help": "Dépendances critiques & RCE atteignables",
+    "metadata": "Métadonnées Techniques :",
+    "no_critical": "Aucune vulnérabilité critique active.",
+    "no_endpoint": "Aucun endpoint API exposé ou non-authentifié.",
+    "node_details": "Détails du nœud d'attaque",
+    "note_actively_exploited": "Exploitation active confirmée (CISA KEV)",
+    "note_authenticated_public_route": "Route publique authentifiée",
+    "note_executable": "Exécutable",
+    "note_hardcoded_credential": "Clé d'API ou mot de passe dans le code",
+    "note_public_ingress": "Point d'entrée public externe",
+    "note_rce_actively_exploited": "RCE potentielle · exploitation active confirmée (CISA KEV)",
+    "note_rce_executable": "RCE potentielle · exécutable",
+    "note_sensitive_data_store": "Base de données et données sensibles",
+    "note_unauthenticated_route": "Route non authentifiée",
+    "plan": "Plan de Remédiation Prioritaire :",
+    "plan_no_critical_path": "Maintenir la surveillance continue et les scans périodiques.",
+    "plan_plaintext_secret": "1. Révoquer immédiatement la clé ou le mot de passe compromis.\n2. Migrer le secret vers un gestionnaire dédié (HashiCorp Vault, AWS Secrets Manager).\n3. Nettoyer l'historique Git.",
+    "plan_unauth_rce_chain": "1. Restreindre l'accès à {{path}} par authentification Bearer ou clé d'API.\n2. Mettre à jour la dépendance {{package}} vers la version corrigée.\n3. Isoler le conteneur et restreindre ses privilèges réseau vers la base de données.",
+    "repository": "Dépôt",
+    "scenario_no_critical_path": "Flux d'entrée sûr (aucun chemin d'attaque critique actif)",
+    "scenario_plaintext_secret": "Exposition directe d'un secret de production",
+    "scenario_unauth_rce_chain": "Chaîne RCE et exfiltration non authentifiée",
+    "scenarios": "Scénarios d'Exploitation",
+    "step_assets": "4. Assets & Données Sensibles",
+    "step_components": "3. Composants Vulnérables",
+    "story_no_critical_path": "Aucun chemin d'exploitation directe reliant un point d'entrée non authentifié à un composant vulnérable n'a été détecté.",
+    "story_plaintext_secret": "Secret en clair détecté dans « {{file}} ». Il donne un accès direct aux ressources sans franchir de périmètre.",
+    "story_unauth_rce_chain": "Un attaquant externe peut appeler l'endpoint non authentifié « {{method}} {{path}} », déclencher l'exécution de code sur {{identifier}}, puis compromettre la base de données ou les secrets.",
+    "subtitle": "Cartographie des scénarios d'exploitation réels :",
+    "title_long": "Visualiseur de Chemins d'Attaque (Attack Path Visualizer)",
+    "topological_score": "Score de Risque Topologique",
+    "total_paths": "Total Chemins",
+    "unfocus": "Désactiver le focus"
   },
   "attack_surface": {
     "auth": {
@@ -236,6 +290,30 @@
     "notfound_title": "Page non trouvée",
     "notfound_desc": "Cette adresse ne correspond à aucun écran Vectispire.",
     "notfound_back_btn": "Retour au tableau de bord"
+  },
+  "blast_radius": {
+    "pick_component": "Sélectionnez un composant pour analyser son impact",
+    "radius_scale": "Rayon d'Impact (0 à 100)",
+    "radius_help": "mesure l'exposition systémique de votre parc à une bibliothèque ou une vulnérabilité.",
+    "top_dependencies": "Top Dépendances à plus fort Rayon d'Impact dans l'organisation",
+    "targets_reached": "Cibles Impactées",
+    "repos_and_containers": "dépôt(s) &amp; conteneur(s)",
+    "dependency_exposure": "Exposition de Dépendance",
+    "related_vulnerabilities": "Vulnérabilités Liées",
+    "correlated_cves": "CVE(s) corrélée(s)",
+    "click_to_focus": "Cliquez sur un élément pour focaliser la recherche",
+    "targets_column": "Cibles (Dépôts / Images)",
+    "dependencies_column": "Dépendances Logicielles",
+    "vulnerabilities_column": "Vulnérabilités (CVEs)",
+    "no_critical_cve": "Aucune CVE critique associée à ces composants.",
+    "target_column": "Cible (Dépôt / Image)",
+    "component_column": "Composant / Dépendance",
+    "cves_found": "CVEs Identifiées",
+    "no_match": "Aucune dépendance ne correspond aux critères de recherche.",
+    "subtitle": "Analysez la propagation d'une bibliothèque logicielle ou d'une CVE sur l'ensemble de vos dépôts et conteneurs.",
+    "graph": "Graphe Relationnel : Cibles → Dépendances → Vulnérabilités",
+    "targets": "Cibles",
+    "radius_score": "Score Rayon d'Impact"
   },
   "common": {
     "actions": "Actions",
@@ -427,6 +505,117 @@
     "resolution_ratio": "{{ percent }} % ({{ resolved }} résolues / {{ opened }} ouvertes)",
     "person_days": "J/H"
   },
+  "delays": {
+    "title": "Délais de correction",
+    "subtitle": "Une moyenne est tirée par le volume des correctifs faciles. Ce qui décrit un processus, c'est la part qui a tenu son délai, la queue de distribution, et l'âge du plus ancien élément encore ouvert.",
+    "days": "jours",
+    "days_short": "j",
+    "window": "Résolutions comptées sur les",
+    "oldest_open": "Le plus ancien élément ouvert",
+    "oldest_open_help": "Aucune moyenne ne peut montrer cette ligne.",
+    "column": {
+      "severity": "Gravité",
+      "deadline": "Délai",
+      "within": "Dans le délai",
+      "median": "Médiane",
+      "ninetieth": "90e centile",
+      "open_overdue": "Ouvertes en retard",
+      "oldest": "Plus ancienne ouverte"
+    },
+    "on_time": "dans le délai",
+    "late": "en retard",
+    "no_deadline": "aucun",
+    "no_deadline_help": "Aucun délai fixé — un pourcentage contre une règle absente n'en serait pas un.",
+    "empty": "Rien n'a été résolu sur cette fenêtre.",
+    "footnote": "Le 90e centile est au rang le plus proche : c'est une durée qu'une issue a réellement eue, pas un point interpolé entre deux. Les issues fermées dans l'instant où elles ont été vues sont absentes de la distribution plutôt qu'à son plancher.",
+    "load_failed": "La distribution des délais n'a pas pu être chargée.",
+    "nothing_resolved": "Rien n'a été résolu sur cette fenêtre — le délai tient, il n'y a simplement rien à mesurer contre lui."
+  },
+  "epss": {
+    "action_p0_48h": "P0 — corriger sous 48 h (probabilité d'exploitation supérieure à 50 %)",
+    "action_p0_kev_24h": "P0 — corriger sous 24 h (catalogue CISA KEV : exploitation active confirmée)",
+    "action_p1_7d": "P1 — corriger en priorité sous 7 jours (armement probable)",
+    "action_p2_30d": "P2 — corriger sous 30 jours (sévérité haute, exploitation peu probable)",
+    "action_p3_routine": "P3 — traiter au fil de l'eau (probabilité d'exploitation négligeable)",
+    "cve_or_rule": "CVE / Règle",
+    "epss_probability": "Probabilité EPSS",
+    "epss_score": "Score EPSS (Probabilité)",
+    "explain": "Expliquer cette CVE (IA)",
+    "explain_failed": "Le modèle n'a pas répondu. Rien n'a été produit.",
+    "explain_fix": "Correctif :",
+    "high_epss": "EPSS Élevé (&gt; 20%)",
+    "high_probability": "failles à haute probabilité",
+    "in_executed_code": "dans le code exécuté",
+    "kev_active": "CISA KEV actif",
+    "kev_weaponised": "ARMÉE KEV",
+    "lookup_none": "Aucun enregistrement EPSS ou KEV pour {{cve}}.",
+    "lookup_title": "Détail du renseignement sur une CVE",
+    "matrix": "Matrice d'Exploitabilité CVSS &times; EPSS (4 Quadrants)",
+    "mean_probability": "probabilité moyenne",
+    "mean_score": "Score EPSS Moyen du Parc",
+    "none_active": "Aucune vulnérabilité active dans le parc.",
+    "percentile": "Percentile global",
+    "priority": "Priorité",
+    "q1": "Quadrant 1 : P0 Armées",
+    "q1_help": "CISA KEV ou EPSS &ge; 50% &amp; CVSS &ge; 7.0 (Remédiation immédiate sous 24h-48h)",
+    "q2_help": "EPSS &ge; 20% ou Percentile &ge; 90% (Remédiation prioritaire sous 7 jours)",
+    "q3": "Quadrant 3 : P2 Théoriques",
+    "q3_help": "CVSS &ge; 7.0 mais EPSS &lt; 5% (Remédiation planifiée sous 30 jours)",
+    "q4_help": "EPSS &lt; 5% et CVSS modéré (Traitement standard sans urgence)",
+    "reachable_weaponised": "Appelables & Armées (Reachable)",
+    "recommended_action": "Action Recommandée",
+    "severity_cvss": "Sévérité / CVSS",
+    "subtitle_before": "Priorisez vos remédiations par la probabilité réelle d'exploitation dans les 30 jours (",
+    "subtitle_between": ") et les attaques avérées (",
+    "target": "Cible",
+    "weaponised": "faille(s) armée(s)"
+  },
+  "exceptions": {
+    "title": "Registre des exceptions",
+    "subtitle": "Ce que quelqu'un a décidé de ne pas corriger, et sous quelles conditions. Un backlog vert veut dire deux choses très différentes selon qu'il a été nettoyé ou argumenté.",
+    "granted": "acceptations en vigueur",
+    "awaiting": "en attente d'approbation",
+    "lapsed": "périmées, non revues",
+    "never_reviewed": "jamais revues",
+    "column": {
+      "issue": "Issue",
+      "target": "Cible",
+      "decision": "Décision",
+      "justification": "Justification",
+      "by": "Par",
+      "expiry": "Échéance",
+      "reviewed": "Dernière revue",
+      "action": "Action"
+    },
+    "state": {
+      "lapsed": "périmée",
+      "awaiting": "en attente",
+      "granted": "accordée"
+    },
+    "no_expiry": "sans échéance",
+    "never": "jamais",
+    "review": "Revoir",
+    "empty": "Aucune exception accordée ni demandée.",
+    "footnote": "Les corrections ne figurent pas ici. Une issue fermée parce qu'elle a été réparée n'est pas une exception, et les mélanger enterrerait ces quelques lignes sous toutes les résolutions du parc.",
+    "review_dialog": {
+      "title": "Revoir une exception",
+      "help": "Confirmer ne change rien, et c'est tout l'intérêt : cela enregistre que quelqu'un a regardé. Sans ça, une acceptation rouverte chaque trimestre et une que personne n'a ouverte depuis se lisent à l'identique.",
+      "new_expiry": "Nouvelle échéance",
+      "comment": "Commentaire",
+      "record": "Enregistrer la revue"
+    },
+    "outcome": {
+      "confirmed": "Elle tient toujours",
+      "confirmed_help": "Inchangée. L'entrée existe pour que « quelqu'un a regardé » soit un fait daté.",
+      "extended": "Elle tient, avec une nouvelle date",
+      "extended_help": "Déplace l'échéance.",
+      "revoked": "Elle ne tient plus",
+      "revoked_help": "L'issue repasse en revue et la barrière cesse de l'honorer."
+    },
+    "load_failed": "Le registre des exceptions n'a pas pu être chargé.",
+    "review_failed": "La revue n'a pas été enregistrée.",
+    "more": "Charger la suite"
+  },
   "footer": {
     "tagline": "Gestion de la posture de sécurité applicative",
     "powered_by": "Propulsé par"
@@ -459,6 +648,39 @@
     "subtitle": "Définir les critères bloquants pour l'acceptation ou le rejet d'un build/scan.",
     "title": "Politiques de Gate de sécurité"
   },
+  "gate_verdicts": {
+    "title": "Registre des verdicts",
+    "subtitle": "Ce que la barrière a répondu, du plus récent au plus ancien. Un refus est la seule preuve qu'un contrôle s'exécute : « toutes les cibles passent » ne distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué.",
+    "refused": "refus",
+    "refusal_rate": "taux de refus",
+    "refusals_only": "Refus seulement",
+    "column": {
+      "target": "Cible",
+      "verdict": "Verdict",
+      "examined": "Examinées",
+      "policy": "Politique",
+      "asked_by": "Demandé par",
+      "when": "Quand"
+    },
+    "kind": {
+      "repository": "Dépôt",
+      "container": "Image"
+    },
+    "passed": "passé",
+    "refused_one": "refusé",
+    "nothing_to_judge": "rien à juger",
+    "in_violation": "en violation",
+    "no_violation": "aucune violation",
+    "fails_at": "échoue à",
+    "relaxation_refused": "assouplissement demandé, refusé",
+    "unattributed": "non attribué",
+    "empty": "La barrière n'a pas encore répondu.",
+    "empty_refusals": "La barrière n'a rien refusé sur cette fenêtre.",
+    "footnote": "Les verdicts sont conservés selon la fenêtre de rétention des preuves. Un verdict « passé » sur zéro issue examinée est affiché comme tel : il ne prouve rien d'autre que l'absence de matière.",
+    "load_failed": "Le registre des verdicts n'a pas pu être chargé.",
+    "more": "Charger la suite",
+    "loaded": "verdicts chargés"
+  },
   "history": {
     "title": "Historique",
     "subtitle": "Ce que chaque scan a observé, sur quelle version, et quelles décisions ont été prises.",
@@ -489,6 +711,21 @@
     "unknown_version": "inconnue",
     "decisions_recorded_count": "décisions enregistrées",
     "no_decision_recorded": "aucune décision enregistrée"
+  },
+  "history_compliance": {
+    "title": "Progression de la conformité",
+    "subtitle": "Le verdict de chaque cadre mois par mois, avec le parc qui l'a produit. Lisez la raison avant la note : elle baisse quand on enregistre un dépôt et quand on allume un détecteur, dans les deux cas parce qu'on surveille plus large.",
+    "not_comparable": "le parc n'a cessé de changer — c'est une forme, pas une tendance",
+    "column": {
+      "month": "Mois",
+      "score": "Note",
+      "change": "Écart",
+      "targets": "Cibles",
+      "why": "Pourquoi"
+    },
+    "empty": "Aucun mois n'a encore été capturé. La première capture arrive au prochain passage de maintenance.",
+    "footnote": "Six cadres, six séries, et délibérément aucun chiffre global : une note agrégée s'améliore en ajoutant un cadre facile, et un chiffre qu'on peut améliorer sans toucher au parc est un chiffre que quelqu'un finit par améliorer ainsi.",
+    "load_failed": "La progression de la conformité n'a pas pu être chargée."
   },
   "inventory": {
     "added": "Ajoutés",
@@ -761,6 +998,20 @@
     "backup_codes_title": "Codes de secours d'urgence",
     "backup_codes_desc": "Enregistrez ces codes de récupération à usage unique dans un gestionnaire de mots de passe sécurisé. Ils vous permettront de vous connecter en cas de perte de votre appareil."
   },
+  "notifications": {
+    "alert_teams": "Alertez vos équipes en temps réel sur",
+    "gate_failure": "Échec de Quality Gate",
+    "header_is": "(en-tête",
+    "kev_epss_critical": "CISA KEV / EPSS Critique",
+    "not_set": "Non renseigné (à configurer dans Paramètres)",
+    "outbox_intro": "Les alertes Vectispire sont enregistrées dans une",
+    "outbox_retry": "en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par",
+    "outbox_when": "au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de",
+    "refresh": "Rafraîchir",
+    "subscribed_events": "Événements abonnés :",
+    "test_send": "Tester l'envoi",
+    "webhook_settings": "Paramètres des webhooks"
+  },
   "owasp": {
     "inputs_title": "Ce que le modèle a reçu",
     "inputs_help": "Le relevé de constats fourni au modèle, conservé tel quel. Le texte ci-dessous est un commentaire et non une mesure : rien de ce qu'il affirme ne devient un constat, n'atteint une barrière, ni ne fait bouger une case de la grille.",
@@ -776,6 +1027,62 @@
     "open_findings_count": "constats ouverts",
     "no_findings": "Aucun constat classifié dans cette section.",
     "export_pdf": "Exporter en PDF"
+  },
+  "owasp_grid": {
+    "declare": "Déclarer",
+    "revise": "Réviser",
+    "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "evidence_source": {
+      "VECTISPIRE": "Vectispire",
+      "BOTH": "Vectispire et une source externe",
+      "EXTERNAL": "Une source externe"
+    },
+    "dialog": {
+      "title": "Déclarer une catégorie",
+      "why": "Aucun scanner de ce déploiement ne produit de constat ici. Ce que l'organisation en dit tient lieu de mesure, et se revoit comme une mesure.",
+      "applicability": "Applicabilité",
+      "implementation": "Mise en œuvre",
+      "evidence_source": "Où vit la preuve",
+      "evidence_help": "Cette catégorie n'est pas mesurée ici : sa preuve vit ailleurs par construction.",
+      "external_evidence": "Où la trouver",
+      "justification": "Comment elle est traitée",
+      "justification_excluded": "Pourquoi elle ne s'applique pas",
+      "owner": "Qui en répond",
+      "review_due": "Prochaine revue",
+      "record": "Enregistrer"
+    },
+    "declared": {
+      "APPLICABLE": "Déclarée applicable",
+      "EXCLUDED": "Déclarée hors périmètre"
+    },
+    "implementation": {
+      "IMPLEMENTED": "en place",
+      "PARTIALLY_IMPLEMENTED": "partiellement en place",
+      "PLANNED": "planifiée",
+      "NOT_IMPLEMENTED": "pas en place"
+    },
+    "evidence": "Preuve :",
+    "reviewed": "Revue le",
+    "due": "prochaine le",
+    "title": "Couverture du Top 10, par règle",
+    "subtitle": "Les mêmes dix questions répondues à partir du seul type du constat — chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
+    "covered": "catégories qu'un scanner d'ici peut voir",
+    "with_findings": "avec des constats ouverts",
+    "unmeasured": "couvertes mais non mesurées",
+    "column": {
+      "category": "Catégorie",
+      "state": "État",
+      "findings": "Ouverts",
+      "because": "Pourquoi"
+    },
+    "state": {
+      "FINDINGS": "Constats",
+      "NOT_MEASURED": "Non mesurée",
+      "NOT_COVERED": "Aucun scanner ici",
+      "NO_FINDING": "Rien trouvé"
+    },
+    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code place ses constats par la catégorie que chaque règle déclare dans ses propres métadonnées — donc une case dépend de ce qui est installé ici, et une catégorie qu'aucun scanner ne mesure peut être déclarée plutôt que laissée grise.",
+    "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc."
   },
   "quality": {
     "title": "Qualité du code",
@@ -878,6 +1185,18 @@
     "security_champion": "Référent sécurité",
     "auditor": "Auditeur (lecture seule)"
   },
+  "rule_coverage": {
+    "unconfigured": {
+      "title": "L'analyse de code ne couvre qu'un motif, en Python.",
+      "body": "Les dépôts dans d'autres langages ne sont pas analysés — aucune règle ne les atteint, donc un zéro ici ne veut rien dire d'autre que « on n'a pas cherché »."
+    },
+    "partial": {
+      "title": "Aucune règle ne couvre :",
+      "body": "L'injection et le SSRF n'y sont pas mesurés — ces catégories ne sont pas vertes, elles sont sans preuve."
+    },
+    "import": "Importer un catalogue",
+    "add": "Ajouter ces langages"
+  },
   "rule_sets": {
     "title": "Jeux de règles Semgrep",
     "subtitle": "Vectispire intègre une règle par défaut ; la couverture du code source provient des jeux de règles installés ici. Vos règles sont transmises avec chaque scan, y compris vers les agents distants.",
@@ -931,6 +1250,28 @@
     "manual_only": "Les deux champs sont vides : cette cible est analysée uniquement à la demande. Aucun planning automatique par défaut.",
     "manual_only_warning": "Ni intervalle ni cron : cette cible ne sera scannée que sur demande.",
     "rescan_interval": "Réanalyser toutes les"
+  },
+  "scope": {
+    "title": "Périmètre certifié",
+    "subtitle": "Ce que le périmètre certifié du système de management couvre, et combien de lui porte une preuve courante. Un outil qui mesure sa propre couverture annonce toujours cent pour cent — celui-ci mesure contre le document de périmètre.",
+    "statement": "Déclaration de périmètre",
+    "undeclared_notice": "Personne n'a dit combien d'actifs le périmètre couvre : la couverture est donc mesurée contre ce que cette instance détient. Renseignez « Actifs couverts par le périmètre certifié » dans les réglages pour rendre l'écart visible.",
+    "unaccounted": "actifs revendiqués par le périmètre dont cette instance n'a aucune ligne",
+    "unaccounted_help": "Ils ne peuvent être ni scannés, ni comptés, et aucune requête ici ne peut les voir : ils n'ont pas de ligne d'où manquer.",
+    "declared_assets": "actifs déclarés",
+    "not_declared": "non déclaré",
+    "in_scope": "cibles dans le périmètre",
+    "fresh": "avec preuve courante",
+    "stale": "scannées, pas récemment",
+    "never_scanned": "jamais scannées",
+    "fresh_share": "du périmètre déclaré porte une preuve courante",
+    "repositories": "Dépôts",
+    "containers": "Images",
+    "no_repository": "Aucun dépôt surveillé.",
+    "no_container": "Aucune image surveillée.",
+    "footnote": "Rien n'est dans le périmètre tant que personne ne l'y met : un périmètre que personne n'a tracé est un périmètre non tracé, pas le parc entier. Jamais scannée est compté à part de périmée — une cible scannée il y a un an a produit une preuve une fois, une cible jamais scannée n'en a jamais produit.",
+    "load_failed": "Le périmètre certifié n'a pas pu être chargé.",
+    "update_failed": "Le périmètre n'a pas été modifié."
   },
   "scorecard": {
     "title": "Scorecard de sécurité & Note de posture",
@@ -1144,6 +1485,87 @@
     "negligible": "Négligeable",
     "unknown": "Inconnue"
   },
+  "soa": {
+    "applicability": {
+      "APPLICABLE": "Applicable",
+      "EXCLUDED": "Exclu"
+    },
+    "column": {
+      "control": "Contrôle",
+      "declared": "Déclaré",
+      "measured": "Mesuré",
+      "divergence": "Écart",
+      "owner": "Responsable",
+      "action": "Action"
+    },
+    "complete": "chaque contrôle traité",
+    "complete_no": "Non",
+    "complete_yes": "Oui",
+    "declare": "Déclarer",
+    "declare_failed": "La déclaration n'a pas été enregistrée.",
+    "declared": "contrôles traités",
+    "dialog": {
+      "title": "Déclarer un contrôle",
+      "applicability": "Applicabilité",
+      "implementation": "Mise en œuvre",
+      "evidence_source": "Où vit la preuve",
+      "evidence_help": "Vectispire mesure une tranche de chaque contrôle, jamais son entier. Un contrôle dont la preuve vit ailleurs n'est pas jugé contre ce qui est mesuré ici.",
+      "external_evidence": "Nommez le document, le registre ou la revue",
+      "justification": "Justification",
+      "justification_excluded": "Pourquoi il ne s'applique pas",
+      "justification_required": "Obligatoire : la clause 6.1.3 d n'accepte pas une exclusion non argumentée.",
+      "owner": "Responsable",
+      "review_due": "Revue due le",
+      "record": "Enregistrer la déclaration"
+    },
+    "divergence": {
+      "CONTRADICTED": "Contredit",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion non argumentée",
+      "UNDECLARED": "Non traité",
+      "OVERSTATED": "Surévalué",
+      "UNDERSTATED": "Sous-évalué",
+      "NOT_MEASURED_HERE": "Non mesuré ici",
+      "NOT_APPLICABLE": "Exclu",
+      "CONSISTENT": "Cohérent"
+    },
+    "divergence_help": {
+      "CONTRADICTED": "Déclaré en place ; mesuré non conforme. Pas seulement en défaut d'un contrôle — le contraire a été écrit.",
+      "EXCLUDED_WITHOUT_JUSTIFICATION": "La clause 6.1.3 d autorise une exclusion et exige qu'elle soit argumentée.",
+      "UNDECLARED": "Le cadre porte ce contrôle et la déclaration n'en parle pas.",
+      "OVERSTATED": "Déclaré en place ; mesuré partiel.",
+      "UNDERSTATED": "Déclaré prévu ou pas en place ; mesuré conforme. Le document a pris du retard sur la pratique.",
+      "NOT_MEASURED_HERE": "La preuve vit hors de ce produit : rien ici ne porte sur cette affirmation.",
+      "NOT_APPLICABLE": "Exclu avec justification. Rien à confronter.",
+      "CONSISTENT": "La déclaration et la mesure s'accordent."
+    },
+    "evidence": {
+      "VECTISPIRE": "Preuve ici",
+      "EXTERNAL": "Preuve ailleurs",
+      "BOTH": "Preuve ici et ailleurs"
+    },
+    "findings": "constats",
+    "implementation": {
+      "IMPLEMENTED": "En place",
+      "PARTIALLY_IMPLEMENTED": "Partiellement en place",
+      "PLANNED": "Prévu",
+      "NOT_IMPLEMENTED": "Pas en place"
+    },
+    "incomplete_notice": "La clause 6.1.3 d demande que chaque contrôle de l'annexe A soit traité — applicable ou exclu. Un contrôle pour lequel personne n'a écrit de ligne est un manque, pas un blanc.",
+    "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
+    "measured": {
+      "COMPLIANT": "Conforme",
+      "PARTIAL": "Partiel",
+      "NON_COMPLIANT": "Non conforme"
+    },
+    "not_declared": "non déclaré",
+    "overdue_since": "à revoir depuis le",
+    "overdue_title": "Revues échues, tous référentiels confondus",
+    "review_lapsed": "revue périmée",
+    "reviews_overdue": "revues périmées",
+    "revise": "Réviser",
+    "subtitle": "Ce que l'organisme affirme de chaque contrôle, confronté à ce que le parc mesure. L'artefact utile n'est ni l'une ni l'autre : c'est la ligne où les deux divergent.",
+    "title": "Déclaration d'applicabilité"
+  },
   "ssh_keys": {
     "add_key_btn": "Ajouter une clé",
     "added": "Ajoutée le",
@@ -1230,418 +1652,5 @@
     "target_repository": "Dépôt",
     "title": "Gestion des utilisateurs",
     "username": "Nom d'utilisateur"
-  },
-  "exceptions": {
-    "title": "Registre des exceptions",
-    "subtitle": "Ce que quelqu'un a décidé de ne pas corriger, et sous quelles conditions. Un backlog vert veut dire deux choses très différentes selon qu'il a été nettoyé ou argumenté.",
-    "granted": "acceptations en vigueur",
-    "awaiting": "en attente d'approbation",
-    "lapsed": "périmées, non revues",
-    "never_reviewed": "jamais revues",
-    "column": {
-      "issue": "Issue",
-      "target": "Cible",
-      "decision": "Décision",
-      "justification": "Justification",
-      "by": "Par",
-      "expiry": "Échéance",
-      "reviewed": "Dernière revue",
-      "action": "Action"
-    },
-    "state": {
-      "lapsed": "périmée",
-      "awaiting": "en attente",
-      "granted": "accordée"
-    },
-    "no_expiry": "sans échéance",
-    "never": "jamais",
-    "review": "Revoir",
-    "empty": "Aucune exception accordée ni demandée.",
-    "footnote": "Les corrections ne figurent pas ici. Une issue fermée parce qu'elle a été réparée n'est pas une exception, et les mélanger enterrerait ces quelques lignes sous toutes les résolutions du parc.",
-    "review_dialog": {
-      "title": "Revoir une exception",
-      "help": "Confirmer ne change rien, et c'est tout l'intérêt : cela enregistre que quelqu'un a regardé. Sans ça, une acceptation rouverte chaque trimestre et une que personne n'a ouverte depuis se lisent à l'identique.",
-      "new_expiry": "Nouvelle échéance",
-      "comment": "Commentaire",
-      "record": "Enregistrer la revue"
-    },
-    "outcome": {
-      "confirmed": "Elle tient toujours",
-      "confirmed_help": "Inchangée. L'entrée existe pour que « quelqu'un a regardé » soit un fait daté.",
-      "extended": "Elle tient, avec une nouvelle date",
-      "extended_help": "Déplace l'échéance.",
-      "revoked": "Elle ne tient plus",
-      "revoked_help": "L'issue repasse en revue et la barrière cesse de l'honorer."
-    },
-    "load_failed": "Le registre des exceptions n'a pas pu être chargé.",
-    "review_failed": "La revue n'a pas été enregistrée.",
-    "more": "Charger la suite"
-  },
-  "gate_verdicts": {
-    "title": "Registre des verdicts",
-    "subtitle": "Ce que la barrière a répondu, du plus récent au plus ancien. Un refus est la seule preuve qu'un contrôle s'exécute : « toutes les cibles passent » ne distingue pas un parc propre d'une barrière qui n'a jamais rien bloqué.",
-    "refused": "refus",
-    "refusal_rate": "taux de refus",
-    "refusals_only": "Refus seulement",
-    "column": {
-      "target": "Cible",
-      "verdict": "Verdict",
-      "examined": "Examinées",
-      "policy": "Politique",
-      "asked_by": "Demandé par",
-      "when": "Quand"
-    },
-    "kind": {
-      "repository": "Dépôt",
-      "container": "Image"
-    },
-    "passed": "passé",
-    "refused_one": "refusé",
-    "nothing_to_judge": "rien à juger",
-    "in_violation": "en violation",
-    "no_violation": "aucune violation",
-    "fails_at": "échoue à",
-    "relaxation_refused": "assouplissement demandé, refusé",
-    "unattributed": "non attribué",
-    "empty": "La barrière n'a pas encore répondu.",
-    "empty_refusals": "La barrière n'a rien refusé sur cette fenêtre.",
-    "footnote": "Les verdicts sont conservés selon la fenêtre de rétention des preuves. Un verdict « passé » sur zéro issue examinée est affiché comme tel : il ne prouve rien d'autre que l'absence de matière.",
-    "load_failed": "Le registre des verdicts n'a pas pu être chargé.",
-    "more": "Charger la suite",
-    "loaded": "verdicts chargés"
-  },
-  "delays": {
-    "title": "Délais de correction",
-    "subtitle": "Une moyenne est tirée par le volume des correctifs faciles. Ce qui décrit un processus, c'est la part qui a tenu son délai, la queue de distribution, et l'âge du plus ancien élément encore ouvert.",
-    "days": "jours",
-    "days_short": "j",
-    "window": "Résolutions comptées sur les",
-    "oldest_open": "Le plus ancien élément ouvert",
-    "oldest_open_help": "Aucune moyenne ne peut montrer cette ligne.",
-    "column": {
-      "severity": "Gravité",
-      "deadline": "Délai",
-      "within": "Dans le délai",
-      "median": "Médiane",
-      "ninetieth": "90e centile",
-      "open_overdue": "Ouvertes en retard",
-      "oldest": "Plus ancienne ouverte"
-    },
-    "on_time": "dans le délai",
-    "late": "en retard",
-    "no_deadline": "aucun",
-    "no_deadline_help": "Aucun délai fixé — un pourcentage contre une règle absente n'en serait pas un.",
-    "empty": "Rien n'a été résolu sur cette fenêtre.",
-    "footnote": "Le 90e centile est au rang le plus proche : c'est une durée qu'une issue a réellement eue, pas un point interpolé entre deux. Les issues fermées dans l'instant où elles ont été vues sont absentes de la distribution plutôt qu'à son plancher.",
-    "load_failed": "La distribution des délais n'a pas pu être chargée.",
-    "nothing_resolved": "Rien n'a été résolu sur cette fenêtre — le délai tient, il n'y a simplement rien à mesurer contre lui."
-  },
-  "rule_coverage": {
-    "unconfigured": {
-      "title": "L'analyse de code ne couvre qu'un motif, en Python.",
-      "body": "Les dépôts dans d'autres langages ne sont pas analysés — aucune règle ne les atteint, donc un zéro ici ne veut rien dire d'autre que « on n'a pas cherché »."
-    },
-    "partial": {
-      "title": "Aucune règle ne couvre :",
-      "body": "L'injection et le SSRF n'y sont pas mesurés — ces catégories ne sont pas vertes, elles sont sans preuve."
-    },
-    "import": "Importer un catalogue",
-    "add": "Ajouter ces langages"
-  },
-  "soa": {
-    "applicability": {
-      "APPLICABLE": "Applicable",
-      "EXCLUDED": "Exclu"
-    },
-    "column": {
-      "control": "Contrôle",
-      "declared": "Déclaré",
-      "measured": "Mesuré",
-      "divergence": "Écart",
-      "owner": "Responsable",
-      "action": "Action"
-    },
-    "complete": "chaque contrôle traité",
-    "complete_no": "Non",
-    "complete_yes": "Oui",
-    "declare": "Déclarer",
-    "declare_failed": "La déclaration n'a pas été enregistrée.",
-    "declared": "contrôles traités",
-    "dialog": {
-      "title": "Déclarer un contrôle",
-      "applicability": "Applicabilité",
-      "implementation": "Mise en œuvre",
-      "evidence_source": "Où vit la preuve",
-      "evidence_help": "Vectispire mesure une tranche de chaque contrôle, jamais son entier. Un contrôle dont la preuve vit ailleurs n'est pas jugé contre ce qui est mesuré ici.",
-      "external_evidence": "Nommez le document, le registre ou la revue",
-      "justification": "Justification",
-      "justification_excluded": "Pourquoi il ne s'applique pas",
-      "justification_required": "Obligatoire : la clause 6.1.3 d n'accepte pas une exclusion non argumentée.",
-      "owner": "Responsable",
-      "review_due": "Revue due le",
-      "record": "Enregistrer la déclaration"
-    },
-    "divergence": {
-      "CONTRADICTED": "Contredit",
-      "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion non argumentée",
-      "UNDECLARED": "Non traité",
-      "OVERSTATED": "Surévalué",
-      "UNDERSTATED": "Sous-évalué",
-      "NOT_MEASURED_HERE": "Non mesuré ici",
-      "NOT_APPLICABLE": "Exclu",
-      "CONSISTENT": "Cohérent"
-    },
-    "divergence_help": {
-      "CONTRADICTED": "Déclaré en place ; mesuré non conforme. Pas seulement en défaut d'un contrôle — le contraire a été écrit.",
-      "EXCLUDED_WITHOUT_JUSTIFICATION": "La clause 6.1.3 d autorise une exclusion et exige qu'elle soit argumentée.",
-      "UNDECLARED": "Le cadre porte ce contrôle et la déclaration n'en parle pas.",
-      "OVERSTATED": "Déclaré en place ; mesuré partiel.",
-      "UNDERSTATED": "Déclaré prévu ou pas en place ; mesuré conforme. Le document a pris du retard sur la pratique.",
-      "NOT_MEASURED_HERE": "La preuve vit hors de ce produit : rien ici ne porte sur cette affirmation.",
-      "NOT_APPLICABLE": "Exclu avec justification. Rien à confronter.",
-      "CONSISTENT": "La déclaration et la mesure s'accordent."
-    },
-    "evidence": {
-      "VECTISPIRE": "Preuve ici",
-      "EXTERNAL": "Preuve ailleurs",
-      "BOTH": "Preuve ici et ailleurs"
-    },
-    "findings": "constats",
-    "implementation": {
-      "IMPLEMENTED": "En place",
-      "PARTIALLY_IMPLEMENTED": "Partiellement en place",
-      "PLANNED": "Prévu",
-      "NOT_IMPLEMENTED": "Pas en place"
-    },
-    "incomplete_notice": "La clause 6.1.3 d demande que chaque contrôle de l'annexe A soit traité — applicable ou exclu. Un contrôle pour lequel personne n'a écrit de ligne est un manque, pas un blanc.",
-    "load_failed": "La déclaration d'applicabilité n'a pas pu être chargée.",
-    "measured": {
-      "COMPLIANT": "Conforme",
-      "PARTIAL": "Partiel",
-      "NON_COMPLIANT": "Non conforme"
-    },
-    "not_declared": "non déclaré",
-    "overdue_since": "à revoir depuis le",
-    "overdue_title": "Revues échues, tous référentiels confondus",
-    "review_lapsed": "revue périmée",
-    "reviews_overdue": "revues périmées",
-    "revise": "Réviser",
-    "subtitle": "Ce que l'organisme affirme de chaque contrôle, confronté à ce que le parc mesure. L'artefact utile n'est ni l'une ni l'autre : c'est la ligne où les deux divergent.",
-    "title": "Déclaration d'applicabilité"
-  },
-  "scope": {
-    "title": "Périmètre certifié",
-    "subtitle": "Ce que le périmètre certifié du système de management couvre, et combien de lui porte une preuve courante. Un outil qui mesure sa propre couverture annonce toujours cent pour cent — celui-ci mesure contre le document de périmètre.",
-    "statement": "Déclaration de périmètre",
-    "undeclared_notice": "Personne n'a dit combien d'actifs le périmètre couvre : la couverture est donc mesurée contre ce que cette instance détient. Renseignez « Actifs couverts par le périmètre certifié » dans les réglages pour rendre l'écart visible.",
-    "unaccounted": "actifs revendiqués par le périmètre dont cette instance n'a aucune ligne",
-    "unaccounted_help": "Ils ne peuvent être ni scannés, ni comptés, et aucune requête ici ne peut les voir : ils n'ont pas de ligne d'où manquer.",
-    "declared_assets": "actifs déclarés",
-    "not_declared": "non déclaré",
-    "in_scope": "cibles dans le périmètre",
-    "fresh": "avec preuve courante",
-    "stale": "scannées, pas récemment",
-    "never_scanned": "jamais scannées",
-    "fresh_share": "du périmètre déclaré porte une preuve courante",
-    "repositories": "Dépôts",
-    "containers": "Images",
-    "no_repository": "Aucun dépôt surveillé.",
-    "no_container": "Aucune image surveillée.",
-    "footnote": "Rien n'est dans le périmètre tant que personne ne l'y met : un périmètre que personne n'a tracé est un périmètre non tracé, pas le parc entier. Jamais scannée est compté à part de périmée — une cible scannée il y a un an a produit une preuve une fois, une cible jamais scannée n'en a jamais produit.",
-    "load_failed": "Le périmètre certifié n'a pas pu être chargé.",
-    "update_failed": "Le périmètre n'a pas été modifié."
-  },
-  "owasp_grid": {
-    "declare": "Déclarer",
-    "revise": "Réviser",
-    "declare_failed": "La déclaration n'a pas été enregistrée.",
-    "evidence_source": {
-      "VECTISPIRE": "Vectispire",
-      "BOTH": "Vectispire et une source externe",
-      "EXTERNAL": "Une source externe"
-    },
-    "dialog": {
-      "title": "Déclarer une catégorie",
-      "why": "Aucun scanner de ce déploiement ne produit de constat ici. Ce que l'organisation en dit tient lieu de mesure, et se revoit comme une mesure.",
-      "applicability": "Applicabilité",
-      "implementation": "Mise en œuvre",
-      "evidence_source": "Où vit la preuve",
-      "evidence_help": "Cette catégorie n'est pas mesurée ici : sa preuve vit ailleurs par construction.",
-      "external_evidence": "Où la trouver",
-      "justification": "Comment elle est traitée",
-      "justification_excluded": "Pourquoi elle ne s'applique pas",
-      "owner": "Qui en répond",
-      "review_due": "Prochaine revue",
-      "record": "Enregistrer"
-    },
-    "declared": {
-      "APPLICABLE": "Déclarée applicable",
-      "EXCLUDED": "Déclarée hors périmètre"
-    },
-    "implementation": {
-      "IMPLEMENTED": "en place",
-      "PARTIALLY_IMPLEMENTED": "partiellement en place",
-      "PLANNED": "planifiée",
-      "NOT_IMPLEMENTED": "pas en place"
-    },
-    "evidence": "Preuve :",
-    "reviewed": "Revue le",
-    "due": "prochaine le",
-    "title": "Couverture du Top 10, par règle",
-    "subtitle": "Les mêmes dix questions répondues à partir du seul type du constat — chaque correspondance est une phrase vérifiable. Là où aucune règle ne s'applique, la réponse est « aucun scanner ici », jamais une supposition. Le rapport ci-dessous est écrit par un modèle et ne sert pas de preuve.",
-    "covered": "catégories qu'un scanner d'ici peut voir",
-    "with_findings": "avec des constats ouverts",
-    "unmeasured": "couvertes mais non mesurées",
-    "column": {
-      "category": "Catégorie",
-      "state": "État",
-      "findings": "Ouverts",
-      "because": "Pourquoi"
-    },
-    "state": {
-      "FINDINGS": "Constats",
-      "NOT_MEASURED": "Non mesurée",
-      "NOT_COVERED": "Aucun scanner ici",
-      "NO_FINDING": "Rien trouvé"
-    },
-    "footnote": "Une catégorie sans constat et une catégorie que rien ne regarde produisent le même vert : c'est pourquoi il y a quatre états et non deux. L'analyse de code place ses constats par la catégorie que chaque règle déclare dans ses propres métadonnées — donc une case dépend de ce qui est installé ici, et une catégorie qu'aucun scanner ne mesure peut être déclarée plutôt que laissée grise.",
-    "not_covered_note": "« Aucun scanner ici » veut dire qu'aucun scanner de ce déploiement ne produit de constat dans cette catégorie — c'est une propriété du produit, pas un verdict sur le parc."
-  },
-  "epss": {
-    "action_p0_48h": "P0 — corriger sous 48 h (probabilité d'exploitation supérieure à 50 %)",
-    "action_p0_kev_24h": "P0 — corriger sous 24 h (catalogue CISA KEV : exploitation active confirmée)",
-    "action_p1_7d": "P1 — corriger en priorité sous 7 jours (armement probable)",
-    "action_p2_30d": "P2 — corriger sous 30 jours (sévérité haute, exploitation peu probable)",
-    "action_p3_routine": "P3 — traiter au fil de l'eau (probabilité d'exploitation négligeable)",
-    "cve_or_rule": "CVE / Règle",
-    "epss_probability": "Probabilité EPSS",
-    "epss_score": "Score EPSS (Probabilité)",
-    "explain": "Expliquer cette CVE (IA)",
-    "explain_failed": "Le modèle n'a pas répondu. Rien n'a été produit.",
-    "explain_fix": "Correctif :",
-    "high_epss": "EPSS Élevé (&gt; 20%)",
-    "high_probability": "failles à haute probabilité",
-    "in_executed_code": "dans le code exécuté",
-    "kev_active": "CISA KEV actif",
-    "kev_weaponised": "ARMÉE KEV",
-    "lookup_none": "Aucun enregistrement EPSS ou KEV pour {{cve}}.",
-    "lookup_title": "Détail du renseignement sur une CVE",
-    "matrix": "Matrice d'Exploitabilité CVSS &times; EPSS (4 Quadrants)",
-    "mean_probability": "probabilité moyenne",
-    "mean_score": "Score EPSS Moyen du Parc",
-    "none_active": "Aucune vulnérabilité active dans le parc.",
-    "percentile": "Percentile global",
-    "priority": "Priorité",
-    "q1": "Quadrant 1 : P0 Armées",
-    "q1_help": "CISA KEV ou EPSS &ge; 50% &amp; CVSS &ge; 7.0 (Remédiation immédiate sous 24h-48h)",
-    "q2_help": "EPSS &ge; 20% ou Percentile &ge; 90% (Remédiation prioritaire sous 7 jours)",
-    "q3": "Quadrant 3 : P2 Théoriques",
-    "q3_help": "CVSS &ge; 7.0 mais EPSS &lt; 5% (Remédiation planifiée sous 30 jours)",
-    "q4_help": "EPSS &lt; 5% et CVSS modéré (Traitement standard sans urgence)",
-    "reachable_weaponised": "Appelables & Armées (Reachable)",
-    "recommended_action": "Action Recommandée",
-    "severity_cvss": "Sévérité / CVSS",
-    "subtitle_before": "Priorisez vos remédiations par la probabilité réelle d'exploitation dans les 30 jours (",
-    "subtitle_between": ") et les attaques avérées (",
-    "target": "Cible",
-    "weaponised": "faille(s) armée(s)"
-  },
-  "blast_radius": {
-    "pick_component": "Sélectionnez un composant pour analyser son impact",
-    "radius_scale": "Rayon d'Impact (0 à 100)",
-    "radius_help": "mesure l'exposition systémique de votre parc à une bibliothèque ou une vulnérabilité.",
-    "top_dependencies": "Top Dépendances à plus fort Rayon d'Impact dans l'organisation",
-    "targets_reached": "Cibles Impactées",
-    "repos_and_containers": "dépôt(s) &amp; conteneur(s)",
-    "dependency_exposure": "Exposition de Dépendance",
-    "related_vulnerabilities": "Vulnérabilités Liées",
-    "correlated_cves": "CVE(s) corrélée(s)",
-    "click_to_focus": "Cliquez sur un élément pour focaliser la recherche",
-    "targets_column": "Cibles (Dépôts / Images)",
-    "dependencies_column": "Dépendances Logicielles",
-    "vulnerabilities_column": "Vulnérabilités (CVEs)",
-    "no_critical_cve": "Aucune CVE critique associée à ces composants.",
-    "target_column": "Cible (Dépôt / Image)",
-    "component_column": "Composant / Dépendance",
-    "cves_found": "CVEs Identifiées",
-    "no_match": "Aucune dépendance ne correspond aux critères de recherche.",
-    "subtitle": "Analysez la propagation d'une bibliothèque logicielle ou d'une CVE sur l'ensemble de vos dépôts et conteneurs.",
-    "graph": "Graphe Relationnel : Cibles → Dépendances → Vulnérabilités",
-    "targets": "Cibles",
-    "radius_score": "Score Rayon d'Impact"
-  },
-  "attack_paths": {
-    "axes": "Exposition x Exploitation x Criticité",
-    "chain": "Internet / Ingress → API Endpoint → Composant Vulnérable (RCE) → Secret / Base de Données",
-    "classification": "Classification",
-    "direct_chains": "Chaînes d'attaque directes depuis l'extérieur",
-    "directly_exploitable": "Directement exploitable",
-    "entry_points": "Points d'Entrée Exposés",
-    "entry_points_help": "Routes API publiques & non-authentifiées",
-    "exploitable_paths": "Chemins Critiques Exploitables",
-    "focus": "Focaliser sur le graphe",
-    "linked_components": "Composants Vulnérables Liés",
-    "linked_components_help": "Dépendances critiques & RCE atteignables",
-    "metadata": "Métadonnées Techniques :",
-    "no_critical": "Aucune vulnérabilité critique active.",
-    "no_endpoint": "Aucun endpoint API exposé ou non-authentifié.",
-    "node_details": "Détails du nœud d'attaque",
-    "note_actively_exploited": "Exploitation active confirmée (CISA KEV)",
-    "note_authenticated_public_route": "Route publique authentifiée",
-    "note_executable": "Exécutable",
-    "note_hardcoded_credential": "Clé d'API ou mot de passe dans le code",
-    "note_public_ingress": "Point d'entrée public externe",
-    "note_rce_actively_exploited": "RCE potentielle · exploitation active confirmée (CISA KEV)",
-    "note_rce_executable": "RCE potentielle · exécutable",
-    "note_sensitive_data_store": "Base de données et données sensibles",
-    "note_unauthenticated_route": "Route non authentifiée",
-    "plan": "Plan de Remédiation Prioritaire :",
-    "plan_no_critical_path": "Maintenir la surveillance continue et les scans périodiques.",
-    "plan_plaintext_secret": "1. Révoquer immédiatement la clé ou le mot de passe compromis.\n2. Migrer le secret vers un gestionnaire dédié (HashiCorp Vault, AWS Secrets Manager).\n3. Nettoyer l'historique Git.",
-    "plan_unauth_rce_chain": "1. Restreindre l'accès à {{path}} par authentification Bearer ou clé d'API.\n2. Mettre à jour la dépendance {{package}} vers la version corrigée.\n3. Isoler le conteneur et restreindre ses privilèges réseau vers la base de données.",
-    "repository": "Dépôt",
-    "scenario_no_critical_path": "Flux d'entrée sûr (aucun chemin d'attaque critique actif)",
-    "scenario_plaintext_secret": "Exposition directe d'un secret de production",
-    "scenario_unauth_rce_chain": "Chaîne RCE et exfiltration non authentifiée",
-    "scenarios": "Scénarios d'Exploitation",
-    "step_assets": "4. Assets & Données Sensibles",
-    "step_components": "3. Composants Vulnérables",
-    "story_no_critical_path": "Aucun chemin d'exploitation directe reliant un point d'entrée non authentifié à un composant vulnérable n'a été détecté.",
-    "story_plaintext_secret": "Secret en clair détecté dans « {{file}} ». Il donne un accès direct aux ressources sans franchir de périmètre.",
-    "story_unauth_rce_chain": "Un attaquant externe peut appeler l'endpoint non authentifié « {{method}} {{path}} », déclencher l'exécution de code sur {{identifier}}, puis compromettre la base de données ou les secrets.",
-    "subtitle": "Cartographie des scénarios d'exploitation réels :",
-    "title_long": "Visualiseur de Chemins d'Attaque (Attack Path Visualizer)",
-    "topological_score": "Score de Risque Topologique",
-    "total_paths": "Total Chemins",
-    "unfocus": "Désactiver le focus"
-  },
-  "notifications": {
-    "alert_teams": "Alertez vos équipes en temps réel sur",
-    "gate_failure": "Échec de Quality Gate",
-    "header_is": "(en-tête",
-    "kev_epss_critical": "CISA KEV / EPSS Critique",
-    "not_set": "Non renseigné (à configurer dans Paramètres)",
-    "outbox_intro": "Les alertes Vectispire sont enregistrées dans une",
-    "outbox_retry": "en cas d'indisponibilité momentanée du récepteur. Les messages peuvent être signés cryptographiquement par",
-    "outbox_when": "au moment exact où les résultats de scan ou les verdicts de Gate sont validés. Les envois sont isolés par canal avec politique de",
-    "refresh": "Rafraîchir",
-    "subscribed_events": "Événements abonnés :",
-    "test_send": "Tester l'envoi",
-    "webhook_settings": "Paramètres des webhooks"
-  },
-  "history_compliance": {
-    "title": "Progression de la conformité",
-    "subtitle": "Le verdict de chaque cadre mois par mois, avec le parc qui l'a produit. Lisez la raison avant la note : elle baisse quand on enregistre un dépôt et quand on allume un détecteur, dans les deux cas parce qu'on surveille plus large.",
-    "not_comparable": "le parc n'a cessé de changer — c'est une forme, pas une tendance",
-    "column": {
-      "month": "Mois",
-      "score": "Note",
-      "change": "Écart",
-      "targets": "Cibles",
-      "why": "Pourquoi"
-    },
-    "empty": "Aucun mois n'a encore été capturé. La première capture arrive au prochain passage de maintenance.",
-    "footnote": "Six cadres, six séries, et délibérément aucun chiffre global : une note agrégée s'améliore en ajoutant un cadre facile, et un chiffre qu'on peut améliorer sans toucher au parc est un chiffre que quelqu'un finit par améliorer ainsi.",
-    "load_failed": "La progression de la conformité n'a pas pu être chargée."
   }
 }

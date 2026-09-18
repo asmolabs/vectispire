@@ -1416,6 +1416,24 @@ export type AiVexSuggestion = Refine<
     { status: string; justification: string; impactStatement: string; actionStatement: string }
 >;
 
+/**
+ * The values the product's own wording was built from.
+ *
+ * Claimed as always sent: the server fills every one of them whenever it writes this record, and
+ * the document cannot say so because they are reference types. `exploitProbability` is the
+ * exception that is genuinely absent — EPSS has nothing for every CVE.
+ */
+export type AiDeterministic = Refine<
+    Schema<'Deterministic'>,
+    {
+        packageName: string;
+        currentVersion: string;
+        targetVersion: string;
+        exposure: NonNullable<Schema<'Deterministic'>['exposure']>;
+        exploitProbability: number | null;
+    }
+>;
+
 export type AiVulnerabilityAdvice = Refine<
     Schema<'AiVulnerabilityAdvice'>,
     {
@@ -1427,6 +1445,15 @@ export type AiVulnerabilityAdvice = Refine<
         references: string[];
         remediation: AiRemediationAdvice;
         vexSuggestion: AiVexSuggestion;
+        /**
+         * Set when the product wrote the prose itself, absent when a model did.
+         *
+         * The sentences above stay free text because a model fills them with its own, in whatever
+         * language it chose. What the server can say is who wrote them: when this is present, every
+         * sentence was built from exactly these values, and the screen rebuilds them in the
+         * reader's language instead of printing the English fallback.
+         */
+        deterministic?: AiDeterministic;
     }
 >;
 

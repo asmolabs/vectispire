@@ -486,6 +486,17 @@ export class Issues {
     readonly aiAdviceLoading = signal<boolean>(false);
     readonly aiAdvice = signal<AiVulnerabilityAdvice | null>(null);
     readonly aiAdviceError = signal<string | null>(null);
+
+    /**
+     * The exploit probability as a percentage, for the deterministic wording.
+     *
+     * The bundles hold the sentence; the number is formatted here because neither screen imports a
+     * decimal pipe, and a raw float in a sentence reads like a bug.
+     */
+    kevChance(probability: number | null | undefined): string {
+        return ((probability ?? 0.85) * 100).toFixed(1);
+    }
+
     aiModalOpen = false;
     aiTargetIssue: Issue | null = null;
 

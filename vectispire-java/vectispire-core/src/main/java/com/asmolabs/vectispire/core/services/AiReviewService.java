@@ -341,21 +341,25 @@ public class AiReviewService {
                 if (parsed != null && parsed.isObject()) {
                     return new AiVulnerabilityAdvice(
                             id,
-                            "Analyse IA pour " + id + " (" + (pkg != null ? pkg : "composant") + ")",
+                            "Model analysis for " + id + " (" + (pkg != null ? pkg : "the component") + ")",
                             parsed.path("summary").asText(""),
                             parsed.path("mechanics").asText(""),
                             parsed.path("exposure").asText(""),
                             new AiVulnerabilityAdvice.RemediationAdvice(
-                                    parsed.path("fix_action").asText("Mettre à jour vers " + (fix != null ? fix : "la version corrigée")),
-                                    fix != null ? fix : "version corrigée",
+                                    parsed.path("fix_action").asText("Upgrade to " + (fix != null ? fix : "the fixed version")),
+                                    fix != null ? fix : "the fixed version",
                                     parsed.path("code_snippet").asText(""),
                                     parsed.path("cli_command").asText("")),
                             new AiVulnerabilityAdvice.VexSuggestion(
                                     parsed.path("vex_status").asText("under_investigation"),
                                     parsed.path("vex_justification").asText("vulnerable_code_cannot_be_controlled_by_adversary"),
                                     parsed.path("vex_statement").asText(""),
-                                    "Appliquer le patch correctif."),
-                            List.of("https://nvd.nist.gov/vuln/detail/" + id, "https://www.first.org/epss"));
+                                    "Apply the fix."),
+                            List.of("https://nvd.nist.gov/vuln/detail/" + id, "https://www.first.org/epss"),
+                            // Null on purpose: a model wrote the prose above, so there is nothing
+                            // for a screen to rebuild — and pretending otherwise would have it
+                            // render this product's words over the model's.
+                            null);
                 }
             } catch (Exception e) {
                 log.info("Ollama inference not available or failed, falling back to deterministic advice: {}", e.getMessage());

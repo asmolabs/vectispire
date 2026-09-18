@@ -289,7 +289,20 @@
                 <i class="pi pi-sparkles text-purple-600 text-xl mt-0.5"></i>
                 <div class="flex-1">
                     <h4 class="font-bold text-purple-950 dark:text-purple-200 text-base mb-1">{{ 'issues.ai_summary' | translate }}</h4>
-                    <p class="text-sm text-purple-900 dark:text-purple-300 leading-relaxed">{{ aiAdvice()!.summaryExplanation }}</p>
+                    <!--
+                        **The model's words when a model wrote them, ours translated otherwise.**
+                        These fields stay free text because a model fills them with its own prose,
+                        in whatever language it chose. `deterministic` says the product wrote them,
+                        and then the screen rebuilds the sentence from the bundles rather than
+                        printing the English fallback the server carries.
+                    -->
+                    <p class="text-sm text-purple-900 dark:text-purple-300 leading-relaxed">
+                        @if (aiAdvice()!.deterministic; as own) {
+                            {{ 'ai.summary' | translate: { id: aiAdvice()!.identifier, package: own.packageName, version: own.currentVersion } }}
+                        } @else {
+                            {{ aiAdvice()!.summaryExplanation }}
+                        }
+                    </p>
                 </div>
             </div>
 
@@ -299,13 +312,33 @@
                     <h5 class="font-semibold text-sm mb-2 flex items-center gap-2 text-red-600 dark:text-red-400">
                         <i class="pi pi-shield"></i> {{ 'issues.ai_mechanism' | translate }}
                     </h5>
-                    <p class="text-xs text-muted-color leading-relaxed">{{ aiAdvice()!.exploitMechanics }}</p>
+                    <p class="text-xs text-muted-color leading-relaxed">
+                        @if (aiAdvice()!.deterministic; as own) {
+                            @if (own.activelyExploited) {
+                                {{ 'ai.mechanics_kev' | translate: { chance: kevChance(own.exploitProbability) } }}
+                            } @else {
+                                {{ 'ai.mechanics_generic' | translate: { package: own.packageName } }}
+                            }
+                        } @else {
+                            {{ aiAdvice()!.exploitMechanics }}
+                        }
+                    </p>
                 </div>
                 <div class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl">
                     <h5 class="font-semibold text-sm mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
                         <i class="pi pi-compass"></i> {{ 'issues.ai_reachability' | translate }}
                     </h5>
-                    <p class="text-xs text-muted-color leading-relaxed">{{ aiAdvice()!.exposureAssessment }}</p>
+                    <p class="text-xs text-muted-color leading-relaxed">
+                        @if (aiAdvice()!.deterministic; as own) {
+                            @switch (own.exposure) {
+                                @case ('MENTIONED_IN_CODE') { {{ 'ai.exposure_mentioned' | translate }} }
+                                @case ('NOT_MENTIONED') { {{ 'ai.exposure_not_mentioned' | translate }} }
+                                @case ('UNKNOWN') { {{ 'ai.exposure_unknown' | translate }} }
+                            }
+                        } @else {
+                            {{ aiAdvice()!.exposureAssessment }}
+                        }
+                    </p>
                 </div>
             </div>
 

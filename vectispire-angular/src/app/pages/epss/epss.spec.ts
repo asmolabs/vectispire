@@ -36,7 +36,10 @@ describe('EPSS prioritisation', () => {
 
         TestBed.inject(I18nService).translations.set({
             common: { close: 'Close' },
-            epss: { explain: 'Explain this CVE (AI)', explain_failed: 'The model did not answer. Nothing was produced.' }
+            epss: { explain: 'Explain this CVE (AI)', explain_failed: 'The model did not answer. Nothing was produced.' },
+            // Deliberately not the English the server carries: a case asserting on the same words
+            // could not tell a translated sentence from the fallback printed as it stands.
+            ai: { summary: 'TRANSLATED: {{id}} touche {{package}} {{version}}' }
         });
 
         fixture = TestBed.createComponent(Epss);
@@ -103,6 +106,57 @@ describe('EPSS prioritisation', () => {
         // An analysis left under another CVE's numbers reads as that CVE's own.
         lookup();
         expect(fixture.componentInstance.advice()).toBeNull();
+    });
+
+    /**
+     * **Whose words are on the screen.**
+     *
+     * These fields carry a model's own prose when a model answers, so they cannot become tokens.
+     * What the server says instead is who wrote them: `deterministic` is set only when the product
+     * wrote them itself, and then the screen must render the reader's language rather than the
+     * English the response carries.
+     *
+     * Before this, the fallback was French for everybody — including the English reader — and the
+     * screen printed whatever arrived.
+     */
+    it('translates the wording the product wrote itself', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
+            identifier: 'CVE-2021-44228', title: '', summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+            exploitMechanics: '', exposureAssessment: '',
+            remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+            vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+            references: [],
+            deterministic: {
+                packageName: 'log4j-core', currentVersion: '2.14.1', targetVersion: '2.17.1',
+                exposure: 'NOT_MENTIONED', activelyExploited: false, exploitProbability: null
+            }
+        });
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('TRANSLATED: CVE-2021-44228 touche log4j-core 2.14.1');
+        expect(text).not.toContain('ENGLISH FALLBACK FROM THE SERVER');
+    });
+
+    it("leaves a model's own words alone", () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
+            identifier: 'CVE-2021-44228', title: '', summaryExplanation: 'What the model actually wrote.',
+            exploitMechanics: '', exposureAssessment: '',
+            remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
+            vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
+            references: []
+        });
+        fixture.detectChanges();
+
+        // Rewriting a model's sentence in this product's words would be putting words in its mouth,
+        // on a screen whose whole point is to show what the model said.
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('What the model actually wrote.');
+        expect(text).not.toContain('TRANSLATED:');
     });
 
     it('says the model did not answer, rather than showing nothing', () => {

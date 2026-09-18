@@ -2704,6 +2704,7 @@ export interface components {
             max_concurrent?: number;
         };
         AiVulnerabilityAdvice: {
+            deterministic?: components["schemas"]["Deterministic"];
             exploitMechanics?: string;
             exposureAssessment?: string;
             identifier?: string;
@@ -3329,6 +3330,16 @@ export interface components {
         DependencyGraph: {
             edges?: components["schemas"]["GraphEdge"][];
             nodes?: components["schemas"]["GraphNode"][];
+        };
+        Deterministic: {
+            activelyExploited: boolean;
+            currentVersion?: string;
+            /** Format: double */
+            exploitProbability?: number;
+            /** @enum {string} */
+            exposure?: "MENTIONED_IN_CODE" | "NOT_MENTIONED" | "UNKNOWN";
+            packageName?: string;
+            targetVersion?: string;
         };
         Document: {
             category?: string;

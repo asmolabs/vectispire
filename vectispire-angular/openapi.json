@@ -136,6 +136,9 @@
       },
       "AiVulnerabilityAdvice" : {
         "properties" : {
+          "deterministic" : {
+            "$ref" : "#/components/schemas/Deterministic"
+          },
           "exploitMechanics" : {
             "type" : "string"
           },
@@ -1825,6 +1828,32 @@
             "type" : "array"
           }
         },
+        "type" : "object"
+      },
+      "Deterministic" : {
+        "properties" : {
+          "activelyExploited" : {
+            "type" : "boolean"
+          },
+          "currentVersion" : {
+            "type" : "string"
+          },
+          "exploitProbability" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "exposure" : {
+            "enum" : [ "MENTIONED_IN_CODE", "NOT_MENTIONED", "UNKNOWN" ],
+            "type" : "string"
+          },
+          "packageName" : {
+            "type" : "string"
+          },
+          "targetVersion" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "activelyExploited" ],
         "type" : "object"
       },
       "Document" : {

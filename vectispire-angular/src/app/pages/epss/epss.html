@@ -299,13 +299,36 @@
                     <div class="border-t border-surface-200 dark:border-surface-700 pt-3">
                         @if (advice(); as explanation) {
                             <div class="flex flex-col gap-2 text-sm">
-                                <p class="m-0">{{ explanation.summaryExplanation }}</p>
+                                <!-- Same arrangement as the issues screen: the model's prose when
+                                     a model wrote it, ours from the bundles when it did not. -->
+                                <p class="m-0">
+                                    @if (explanation.deterministic; as own) {
+                                        {{ 'ai.summary' | translate: { id: explanation.identifier, package: own.packageName, version: own.currentVersion } }}
+                                    } @else {
+                                        {{ explanation.summaryExplanation }}
+                                    }
+                                </p>
                                 @if (explanation.exploitMechanics) {
-                                    <p class="m-0 text-xs text-muted-color">{{ explanation.exploitMechanics }}</p>
+                                    <p class="m-0 text-xs text-muted-color">
+                                        @if (explanation.deterministic; as own) {
+                                            @if (own.activelyExploited) {
+                                                {{ 'ai.mechanics_kev' | translate: { chance: kevChance(own.exploitProbability) } }}
+                                            } @else {
+                                                {{ 'ai.mechanics_generic' | translate: { package: own.packageName } }}
+                                            }
+                                        } @else {
+                                            {{ explanation.exploitMechanics }}
+                                        }
+                                    </p>
                                 }
                                 @if (explanation.remediation.fixAction) {
                                     <p class="m-0 text-xs"><strong>{{ 'epss.explain_fix' | translate }}</strong>
-                                        {{ explanation.remediation.fixAction }}</p>
+                                        @if (explanation.deterministic; as own) {
+                                            {{ 'ai.fix_action' | translate: { package: own.packageName, version: own.currentVersion, target: own.targetVersion } }}
+                                        } @else {
+                                            {{ explanation.remediation.fixAction }}
+                                        }
+                                    </p>
                                 }
                             </div>
                         } @else if (adviceError(); as message) {

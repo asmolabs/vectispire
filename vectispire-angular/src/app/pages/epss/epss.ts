@@ -63,6 +63,17 @@ export class Epss implements OnInit {
      */
     readonly aiEnabled = signal<boolean>(false);
     readonly advice = signal<AiVulnerabilityAdvice | null>(null);
+
+    /**
+     * The exploit probability as a percentage, for the deterministic wording.
+     *
+     * The bundles hold the sentence; the number is formatted here because neither screen imports a
+     * decimal pipe, and a raw float in a sentence reads like a bug.
+     */
+    kevChance(probability: number | null | undefined): string {
+        return ((probability ?? 0.85) * 100).toFixed(1);
+    }
+
     readonly adviceLoading = signal<boolean>(false);
     readonly adviceError = signal<string | null>(null);
 
