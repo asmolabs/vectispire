@@ -23,6 +23,8 @@ dont le **dernier scan a échoué**. Toutes deux portent un backlog vide, et un 
 passe toutes les politiques. Un tableau de bord qui n'afficherait que les chiffres montrerait
 ces deux-là en vert.
 
+![La vue d'ensemble Sécurité : un verdict par cible, et le bandeau qui nomme les cibles qu'aucun scan n'a encore observées.](../assets/screens/fr/security-overview.png)
+
 ## Backlog dans le temps
 
 Les chiffres ci-dessus sont des instantanés. Ils répondent à « combien » et jamais à « mieux ou

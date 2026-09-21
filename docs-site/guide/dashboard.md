@@ -21,6 +21,8 @@ Two states are named here that appear nowhere else: a target **never scanned**, 
 whose **last scan failed**. Both carry an empty backlog, and an empty backlog passes every
 policy. A dashboard that only showed the numbers would show these two as green.
 
+![The security overview: a verdict per target, and the banner naming the targets no scan has yet observed.](../assets/screens/en/security-overview.png)
+
 ## Backlog over time
 
 The figures above are snapshots. They answer "how much" and never "better or worse than

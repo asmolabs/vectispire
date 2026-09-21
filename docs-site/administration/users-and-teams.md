@@ -38,6 +38,8 @@ people who can change what it records.
 
 ## Teams and visibility
 
+![Teams, each with its members, the targets it owns and its notification channel.](../assets/screens/en/teams.png)
+
 Teams decide what a person can **see**. Targets are owned by teams, and every list, every
 export and every trend series is narrowed by the reader's visibility — the dashboard's
 backlog-over-time series included.

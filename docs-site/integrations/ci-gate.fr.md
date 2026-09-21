@@ -24,6 +24,8 @@ La réponse dit quelle politique a été appliquée. Cela compte quand une const
 que son auteur veut savoir à quelle barre il a été tenu — « la politique globale, version 4 »
 est une réponse ; « échec » n'en est pas une.
 
+![Le registre des verdicts : ce que la barrière a répondu par cible, du plus récent au plus ancien, avec le taux de refus à côté du compte.](../assets/screens/fr/gate-verdicts.png)
+
 ## Les politiques sont stockées, pas envoyées
 
 **Un objet `policy` dans la requête ne peut que *durcir* ce qui s'applique, jamais l'assouplir.**
