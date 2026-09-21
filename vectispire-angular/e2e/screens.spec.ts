@@ -138,8 +138,24 @@ async function openScreen(page: Page, path: string): Promise<void> {
     await expect(page).toHaveURL(new RegExp(`${path.replace('/', '\\/')}(\\?|$)`), { timeout: 15_000 });
 }
 
-/** Captures the screen, under the locale this project runs in. */
+/**
+ * Captures the screen, under the locale this project runs in.
+ *
+ * <p><b>A table that has finished loading is still drawing its mask.</b> The overlay fades out on
+ * a CSS transition — driven by the compositor, so the frozen clock does not reach it — while the
+ * rows are already underneath it. Every assertion here waits on a row, which is therefore
+ * satisfied a few frames too early: the `teams` capture shipped with the loading spinner sitting
+ * over the cell it hid, and nothing failed.
+ *
+ * <p>So the mask has to leave before the shot, and what is left of any animation is stopped
+ * outright. A screenshot should be a settled screen, not whichever frame the run happened to
+ * reach.
+ */
 async function shoot(page: Page, name: string, locale: string): Promise<void> {
+    await expect(page.locator('.p-datatable-mask')).toHaveCount(0, { timeout: 15_000 });
+    await page.addStyleTag({
+        content: '*, *::before, *::after { animation: none !important; transition: none !important; }'
+    });
     await page.screenshot({ path: `../docs-site/assets/screens/${locale}/${name}.png` });
 }
 
