@@ -12,6 +12,8 @@ poster des résultats, et **rien d'autre** — en particulier, aucun accès à l
 Donnez à une barrière CI une clé capable de demander un verdict. Elle n'a pas besoin d'une clé
 capable d'enregistrer des cibles.
 
+![Quatre clés : une sans restriction, une limitée à un dépôt, une clé d'agent jamais utilisée, et une expirée.](../assets/screens/fr/api-keys.png)
+
 ## Affichée une seule fois
 
 Une clé est affichée une fois, à sa création. Vectispire stocke ce dont il a besoin pour

@@ -25,6 +25,8 @@ Previous keys are tried **for decryption only**. Values move to the new key as t
 re-saved, and this page marks the rows that still depend on an old one — that marking is
 how you know when the rotation is actually finished rather than merely started.
 
+![Three deploy keys, one per encryption state: readable under the current key, still on a previous one, and one no configured key reads.](../assets/screens/en/ssh-keys.png)
+
 The file form takes a comma- or newline-separated list, so a rotation does not have to put
 the old key back into the environment.
 
