@@ -30,6 +30,7 @@
     "aria_stop_requiring_signatures": "Ne plus exiger de résultats signés de {{name}}",
     "assigned_agent": "Agent assigné",
     "branch": "Branche",
+    "concurrent_label": "Analyses simultanées",
     "copy_token_btn": "Copier le jeton",
     "credentials": "Identifiants",
     "credentials_modes": {
@@ -58,6 +59,7 @@
     "modal_title": "Déclarer un agent",
     "name_label": "Nom",
     "name_placeholder": "worker-eu-west-1",
+    "never_announced": "Jamais annoncé",
     "no_agents": "Aucun agent enregistré.",
     "no_pending": "File d'attente vide — toutes les cibles sont à jour.",
     "no_running": "Aucune analyse en cours d'exécution.",
@@ -68,6 +70,18 @@
     "running_subtitle": "Tâches actuellement prises en charge et traitées par les agents.",
     "running_title": "Analyses en cours d'exécution",
     "scans": "Analyses",
+    "sealing": {
+      "sealed": "Scellé de bout en bout",
+      "in_clear": "En clair sous TLS"
+    },
+    "seen_at": "Vu le {{at}}",
+    "signing": {
+      "attested": "Résultats attestés",
+      "unsigned": "Résultats non signés"
+    },
+    "signing_key_notice_after": ", puis redémarrez-le. Elle n'est affichée qu'une fois et n'est pas conservée ici. Tant que l'agent ne l'a pas, ses résultats sont refusés.",
+    "signing_key_notice_before": "Placez-la dans la configuration de l'agent sous",
+    "signing_key_title": "Clé de signature des résultats",
     "silent_badge": "Inactif",
     "state": "État",
     "status_blocked": "Bloqué (aucun agent avec ce label)",
@@ -79,7 +93,8 @@
     "title": "Centre de contrôle des agents & File d'attente",
     "token_modal_desc": "Transmettez ce jeton d'initialisation au démon distant. Il ne sera plus réaffiché.",
     "token_modal_title": "Identifiants de l'agent",
-    "unroutable_notice": "analyse(s) requièrent le label, qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
+    "unlabelled_targets": "Cibles sans étiquette",
+    "unroutable_notice": "{{count}} analyse(s) requièrent le label « {{label}} », qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
     "wait_time": "Temps d'attente"
   },
   "ai": {

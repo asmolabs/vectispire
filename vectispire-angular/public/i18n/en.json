@@ -30,6 +30,7 @@
     "aria_stop_requiring_signatures": "Stop requiring signed results from {{name}}",
     "assigned_agent": "Assigned Agent",
     "branch": "Branch",
+    "concurrent_label": "Concurrent scans",
     "copy_token_btn": "Copy Token",
     "credentials": "Credentials",
     "credentials_modes": {
@@ -58,6 +59,7 @@
     "modal_title": "Declare an agent",
     "name_label": "Name",
     "name_placeholder": "worker-eu-west-1",
+    "never_announced": "Never announced",
     "no_agents": "No agent registered.",
     "no_pending": "Queue is empty — all targets are up-to-date.",
     "no_running": "No scans currently running.",
@@ -68,6 +70,18 @@
     "running_subtitle": "Scan tasks currently assigned and progressing on execution agents.",
     "running_title": "Active Running Scans",
     "scans": "Scans",
+    "sealing": {
+      "sealed": "Sealed end to end",
+      "in_clear": "In clear under TLS"
+    },
+    "seen_at": "Seen {{at}}",
+    "signing": {
+      "attested": "Results attested",
+      "unsigned": "Results unsigned"
+    },
+    "signing_key_notice_after": ", then restart it. It is shown once and is not stored here. Until the agent has it, its results are refused.",
+    "signing_key_notice_before": "Put this in the agent's configuration as",
+    "signing_key_title": "Result-signing key",
     "silent_badge": "Silent",
     "state": "State",
     "status_blocked": "Blocked (no matching agent label)",
@@ -79,7 +93,8 @@
     "title": "Agent Control Center & Scan Queue",
     "token_modal_desc": "Provide this bootstrap token to the remote agent daemon. It will not be shown again.",
     "token_modal_title": "Agent Credentials",
-    "unroutable_notice": "scan(s) require the label, which no enabled agent carries. They will wait until somebody declares it.",
+    "unlabelled_targets": "Unlabelled targets",
+    "unroutable_notice": "{{count}} scan(s) require the label \"{{label}}\", which no enabled agent carries. They will wait until somebody declares it.",
     "wait_time": "Wait Time"
   },
   "ai": {
