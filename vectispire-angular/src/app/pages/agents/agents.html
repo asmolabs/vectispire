@@ -15,8 +15,7 @@
 
 @for (blocked of unroutable(); track blocked.label) {
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-        {{ blocked.queued }} scan(s) require the label "{{ blocked.label }}", which no enabled agent carries.
-        They will wait until somebody declares it.
+        {{ 'agents.unroutable_notice' | translate: { count: blocked.queued, label: blocked.label } }}
     </p-message>
 }
 
@@ -265,9 +264,9 @@
                         <p-tag [value]="'agents.silent_badge' | translate" severity="warn" />
                     }
                     @if (agent.lastSeenAt) {
-                        <div class="text-xs text-muted-color mt-1">Seen {{ agent.lastSeenAt | date: 'dd/MM HH:mm' }}</div>
+                        <div class="text-xs text-muted-color mt-1">{{ 'agents.seen_at' | translate: { at: (agent.lastSeenAt | date: 'dd/MM HH:mm') ?? '' } }}</div>
                     } @else {
-                        <div class="text-xs text-muted-color mt-1">Never announced</div>
+                        <div class="text-xs text-muted-color mt-1">{{ 'agents.never_announced' | translate }}</div>
                     }
                 </td>
                 <td>
@@ -284,20 +283,20 @@
                             <p-tag [value]="label" severity="info" styleClass="mr-1" />
                         }
                     } @else {
-                        <span class="text-muted-color text-sm">Unlabelled targets</span>
+                        <span class="text-muted-color text-sm">{{ 'agents.unlabelled_targets' | translate }}</span>
                     }
                 </td>
                 <td>
-                    <span class="text-sm">{{ agent.credentialsMode === 'delegated' ? 'Delegated' : 'Local' }}</span>
+                    <span class="text-sm">{{ (agent.credentialsMode === 'delegated' ? 'agents.credentials_modes.delegated' : 'agents.credentials_modes.local') | translate }}</span>
                     @if (agent.credentialsMode === 'delegated') {
                         <div class="text-xs" [class.text-muted-color]="agent.sealsCredentials">
-                            {{ agent.sealsCredentials ? 'Sealed end to end' : 'In clear under TLS' }}
+                            {{ (agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.in_clear') | translate }}
                         </div>
                     }
                     <!-- Said on the row and not behind a dialog: an operator who believes their
                          results are attested has no other way to find out they are not. -->
                     <div class="text-xs" [class.text-muted-color]="agent.signsResults">
-                        {{ agent.signsResults ? 'Results attested' : 'Results unsigned' }}
+                        {{ (agent.signsResults ? 'agents.signing.attested' : 'agents.signing.unsigned') | translate }}
                     </div>
                 </td>
                 <td class="text-right font-medium">{{ agent.runningScans }}</td>
@@ -350,7 +349,7 @@
             </small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="concurrent" class="font-medium">Concurrent scans</label>
+            <label for="concurrent" class="font-medium">{{ 'agents.concurrent_label' | translate }}</label>
             <p-inputnumber inputId="concurrent" [(ngModel)]="form.maxConcurrent" [min]="1" [max]="16" styleClass="w-full" />
         </div>
         @if (formError(); as message) {
@@ -373,11 +372,9 @@
     </ng-template>
 </p-dialog>
 
-<p-dialog header="Result-signing key" [(visible)]="signingKeyVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+<p-dialog [header]="'agents.signing_key_title' | translate" [(visible)]="signingKeyVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-        Put this in the agent's configuration as <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span>,
-        then restart it. It is shown once and is not stored here. Until the agent has it, its
-        results are refused.
+        {{ 'agents.signing_key_notice_before' | translate }} <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span>{{ 'agents.signing_key_notice_after' | translate }}
     </p-message>
     <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSigningKey() }}</div>
     <ng-template #footer>
