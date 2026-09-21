@@ -12,6 +12,8 @@ in particular, no database access.
 Give a CI gate a key that can ask for a verdict. It does not need one that can register
 targets.
 
+![Four keys: one unrestricted, one scoped to a repository, an agent key never used, and one expired.](../assets/screens/en/api-keys.png)
+
 ## Shown once
 
 A key is displayed once, at creation. Vectispire stores what it needs to verify a

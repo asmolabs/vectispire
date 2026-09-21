@@ -104,3 +104,5 @@ that one agent is down.
 Each agent shows its concurrent scan capacity and when it last announced itself. An agent
 that has **never announced** has not reached the control plane at all: check the URL, the
 token, and that outbound HTTPS is allowed.
+
+![The registered agents: the built-in one on local keys, a remote agent sealed and attesting its results, and a third delegated in the clear, unsigned and silent since 12:41.](../assets/screens/en/agents.png)

@@ -26,6 +26,8 @@ nouvelle clé au fur et à mesure qu'elles sont réenregistrées, et cette page 
 qui dépendent encore d'une ancienne — ce marquage est ce qui vous dit quand la rotation est
 réellement terminée plutôt que seulement commencée.
 
+![Trois clés de déploiement, une par état de chiffrement : lisible sous la clé courante, encore sous une précédente, et une qu'aucune clé configurée ne lit.](../assets/screens/fr/ssh-keys.png)
+
 La forme fichier accepte une liste séparée par des virgules ou des sauts de ligne, pour qu'une
 rotation n'ait pas à remettre l'ancienne clé dans l'environnement.
 

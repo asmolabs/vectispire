@@ -815,4 +815,165 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('1284').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'attestation', locale);
         });
+
+        test('ssh keys', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **One key per encryption state, because the column exists for the two that are not
+            // `current`.** `SshKeySummary` says so: a key readable only under a previous key has
+            // not finished being rotated, and one that no configured key reads will fail the next
+            // clone that needs it — at scan time, in a worker thread, hours later. A capture of
+            // three healthy keys would photograph a column with nothing to say.
+            //
+            // The three values are what the server emits and not what reads well: it lowercases
+            // `SecretState`, so `current`, `previous_key` and `unreadable`. `badge()` falls back
+            // to `unreadable` for anything it does not know, which means a wrong constant here
+            // would render the alarming badge on a healthy key and nothing would fail.
+            await stub(page, '**/api/v1/ssh-keys', [
+                { id: '0f1c9d2a-4b77-4c81-9a10-2e6b5d3f8c40', name: 'gitlab-deploy',
+                  publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB7kQ2vN8pXcR4mL0aYtZ9wFsJ3hG6dK1nP5rT8uV2xE deploy@vectispire',
+                  createdAt: '2026-06-14T09:20:00Z', encryptionState: 'current', usedByRepositories: 9 },
+                { id: '7a3e5b18-92cd-4f60-8b21-0c4d7e9a1f35', name: 'github-mirror',
+                  publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC2fH9jK4mQ8sW1nB6vX0pL7tR3gY5dZ8cA4eN6uT1oP mirror@vectispire',
+                  createdAt: '2026-03-02T14:05:00Z', encryptionState: 'previous_key', usedByRepositories: 3 },
+                // Nothing else on this screen would say that a scan is going to fail: the key is
+                // present, named, and attached to a repository. Only the badge knows.
+                { id: 'c5d81e60-3f24-4a97-b0e8-6d1a2c7b4938', name: 'bitbucket-legacy',
+                  publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID8bV3xM7qJ0nR5wC1tY6hL9kF2sG4pZ7eB0aU5dN3iQ legacy@vectispire',
+                  createdAt: '2025-11-19T08:41:00Z', encryptionState: 'unreadable', usedByRepositories: 1 }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/ssh-keys');
+
+            await expect(page.getByText('bitbucket-legacy').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'ssh-keys', locale);
+        });
+
+        test('api keys', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **`/targets` is an object and the catch-all would answer it `[]`.** The pattern list
+            // in `stubEverything` marks anything under `api-keys/` as a collection, so the picker
+            // would receive an array and the form would break — the same shape mismatch the
+            // `ssh-keys` note in that function describes. Stubbed here rather than fixed there:
+            // the catch-all is a floor, and a screen that needs a shape says so itself.
+            await stub(page, '**/api/v1/api-keys/targets', {
+                repositories: [{ id: 5, label: 'helios-portal' }, { id: 6, label: 'basalt-libs' }],
+                containers: [{ id: 3, label: 'registry.example/api' }]
+            });
+            // Four keys, four things the screen has to be able to say. An unrestricted key and a
+            // restricted one, because "all targets" is the dangerous default and it has to be
+            // visibly different from a scope. A key never used, because `lastUsedAt` null is not
+            // the same as a key used long ago. And an expired one, because `isExpired` is the
+            // only reason a key that still exists stops working.
+            await stub(page, '**/api/v1/api-keys', [
+                { id: '2b9f4c31-8a05-4e72-9d16-3f7c0b5a8e24', name: 'ci-pipeline',
+                  prefix: 'vsp_7Kq2', scopes: ['read', 'scan'],
+                  targetKind: null, targetId: null, targetLabel: null,
+                  createdAt: '2026-07-01T10:00:00Z', lastUsedAt: '2026-09-18T07:42:00Z',
+                  expiresAt: null, isExpired: false },
+                { id: '8e1a7d52-6c39-4b80-a24f-9b3e5c1d0f67', name: 'helios-gate',
+                  prefix: 'vsp_Rm9x', scopes: ['read'],
+                  targetKind: 'repository', targetId: 5, targetLabel: 'helios-portal',
+                  createdAt: '2026-08-12T16:30:00Z', lastUsedAt: '2026-09-17T22:11:00Z',
+                  expiresAt: '2026-11-12T16:30:00Z', isExpired: false },
+                // `agent` is the one scope `ApiKeyScope.defaults()` withholds: it is what a remote
+                // agent authenticates with, not something a pipeline should be handed by accident.
+                { id: 'd4c60b93-1f78-42ae-8506-7a2d9e4b3c18', name: 'dmz-agent',
+                  prefix: 'vsp_Lp3T', scopes: ['agent'],
+                  targetKind: null, targetId: null, targetLabel: null,
+                  createdAt: '2026-05-20T11:15:00Z', lastUsedAt: null,
+                  expiresAt: null, isExpired: false },
+                { id: '5f27e8a0-9d14-4c63-b7f2-0e8a1b6d5943', name: 'audit-export-q2',
+                  prefix: 'vsp_Wd8n', scopes: ['read', 'export'],
+                  targetKind: 'container', targetId: 3, targetLabel: 'registry.example/api',
+                  createdAt: '2026-04-03T09:00:00Z', lastUsedAt: '2026-06-30T18:20:00Z',
+                  expiresAt: '2026-07-01T09:00:00Z', isExpired: true }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/api-keys');
+
+            await expect(page.getByText('audit-export-q2').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'api-keys', locale);
+        });
+
+        test('agents', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **`/activity` is an object, and the catch-all answers `[]` to anything under
+            // `agents/`.** Same floor, same reason as `/api-keys/targets` above.
+            //
+            // The queue is the argument of this screen. `stats` is built so that the three KPI
+            // tiles disagree with each other: agents are online, one scan is running, and three
+            // are pending — which is the shape of a queue that is not draining, and the shape no
+            // single number on the page would show.
+            await stub(page, '**/api/v1/admin/agents/activity', {
+                stats: { totalAgents: 3, onlineAgents: 2, busyAgents: 1, idleAgents: 1,
+                         runningScansCount: 1, pendingScansCount: 3,
+                         scansCompleted24h: 47, avgScanDurationSeconds: 214 },
+                runningScans: [
+                    { scanId: 41, targetId: 5, targetName: 'helios-portal', targetType: 'repository',
+                      branch: 'main', agentId: '3c8f1b27-5d40-4e96-a1b8-7f2e0c9d6a53',
+                      agentName: 'dmz-runner', requiredLabel: 'dmz',
+                      claimedAt: '2026-09-18T11:52:00Z', durationSeconds: 480 }
+                ],
+                // The third pending scan asks for `airgap`, which no agent below carries. It sits
+                // in the queue behind two that will drain, and nothing about it looks different —
+                // that is what the unroutable notice is for, and why it is stubbed as well.
+                pendingScans: [
+                    { scanId: 42, targetId: 6, targetName: 'basalt-libs', targetType: 'repository',
+                      branch: 'develop', requiredLabel: null, positionInQueue: 1,
+                      queuedAt: '2026-09-18T11:55:00Z', waitDurationSeconds: 300, isRoutable: true },
+                    { scanId: 43, targetId: 3, targetName: 'registry.example/api', targetType: 'container',
+                      branch: null, requiredLabel: 'dmz', positionInQueue: 2,
+                      queuedAt: '2026-09-18T11:57:00Z', waitDurationSeconds: 180, isRoutable: true },
+                    { scanId: 44, targetId: 7, targetName: 'billing-legacy', targetType: 'repository',
+                      branch: 'main', requiredLabel: 'airgap', positionInQueue: 3,
+                      queuedAt: '2026-09-18T09:10:00Z', waitDurationSeconds: 10_200, isRoutable: false }
+                ]
+            });
+            await stub(page, '**/api/v1/admin/agents/non-routables', [{ label: 'airgap', queued: 1 }]);
+            // **`kind` and `credentialsMode` are lowercase wire names, not the enum constants.**
+            // `AgentKind` and `CredentialsMode` both derive theirs with `name().toLowerCase()`, and
+            // the template compares against the literal `'delegated'` — so `DELEGATED` here would
+            // silently render every agent as using local keys, which is the reassuring answer.
+            await stub(page, '**/api/v1/admin/agents', [
+                { id: '1a4e7c90-2b63-4d15-8f07-6c3a9e2b5d81', name: 'built-in worker',
+                  description: 'Runs inside the control plane', kind: 'builtin', enabled: true,
+                  credentialsMode: 'local', labels: '', sealsCredentials: false, signsResults: false,
+                  maxConcurrent: 2, hostname: 'vectispire-control-plane', platform: 'linux/amd64',
+                  version: '1.4.0', contractVersion: '2', lastSeenAt: '2026-09-18T11:59:30Z',
+                  online: true, runningScans: 0 },
+                { id: '3c8f1b27-5d40-4e96-a1b8-7f2e0c9d6a53', name: 'dmz-runner',
+                  description: 'Perimeter network', kind: 'remote', enabled: true,
+                  credentialsMode: 'delegated', labels: 'dmz', sealsCredentials: true, signsResults: true,
+                  maxConcurrent: 4, hostname: 'runner-dmz-01', platform: 'linux/amd64',
+                  version: '1.4.0', contractVersion: '2', lastSeenAt: '2026-09-18T11:59:50Z',
+                  online: true, runningScans: 1 },
+                // **Enabled and silent, which is the case the screen exists to make visible.**
+                // `AgentSummary` says it in as many words: an enabled agent that has been silent
+                // for an hour is what matters, because the queue fills and nobody drains it.
+                // It is also delegated *without* sealing — so the deployment key would cross its
+                // proxy in the clear — and it does not sign its results, which is the other thing
+                // an operator has no way to discover anywhere else.
+                { id: '9b2d6a48-7e51-4c03-bf94-1d8c5f0a3e72', name: 'lab-runner',
+                  description: 'Isolated lab segment', kind: 'remote', enabled: true,
+                  credentialsMode: 'delegated', labels: 'lab', sealsCredentials: false, signsResults: false,
+                  maxConcurrent: 1, hostname: 'runner-lab-07', platform: 'linux/arm64',
+                  version: '1.2.1', contractVersion: '2', lastSeenAt: '2026-09-18T10:41:00Z',
+                  online: false, runningScans: 0 }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/agents');
+
+            // **Scrolled to the table, because the page's argument is the row.** The queue and the
+            // four tiles fill the first screenful, and the documentation's section on this page is
+            // about what a row says — the credentials mode, whether results are attested, an agent
+            // that has never announced. A capture that stopped at the fold would illustrate the
+            // paragraph above it and none of the ones it is attached to.
+            await page.getByText('lab-runner').first().scrollIntoViewIfNeeded();
+
+            await expect(page.getByText('lab-runner').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'agents', locale);
+        });
     });

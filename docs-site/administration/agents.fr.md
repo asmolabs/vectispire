@@ -108,3 +108,5 @@ d'être analysée quand cet unique agent est indisponible.
 Chaque agent affiche sa capacité de scans concurrents et la date de sa dernière annonce. Un
 agent qui **ne s'est jamais annoncé** n'a pas atteint le plan de contrôle du tout : vérifiez
 l'URL, le jeton, et que le HTTPS sortant est autorisé.
+
+![Les agents enregistrés : l'agent intégré sur clés locales, un agent distant scellé et attestant ses résultats, et un troisième délégué en clair, non signé et silencieux depuis 12:41.](../assets/screens/fr/agents.png)
