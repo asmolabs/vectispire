@@ -55,3 +55,9 @@ vectispire-angular/.playwright/
 
 # Le fichier de connexion déléguée porte un secret client : il reste local.
 .env.oidc
+
+# La configuration IntelliJ de cette machine. IntelliJ écrit son propre `.idea/.gitignore`,
+# mais il n'exclut que ce qu'il sait volatil — `workspace.xml`, les sources de données — et
+# laisse committer le reste : des chemins de SDK et de runners qui n'existent que sur le poste
+# qui les a écrits, et qui cassent l'import chez le suivant plutôt que de l'aider.
+.idea/
