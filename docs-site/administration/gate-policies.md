@@ -25,6 +25,8 @@ Where nothing is stored, a built-in default applies. The screen shows it **besid
 you have stored, so that "not set" and "set to the same thing" do not look alike — they
 behave identically today and diverge the moment the default changes.
 
+![The stored policy and the built-in beside it, with one target held above the estate bar.](../assets/screens/en/gate-policies.png)
+
 ## What a policy sets
 
 | | |
