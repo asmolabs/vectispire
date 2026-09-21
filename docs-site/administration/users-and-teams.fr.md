@@ -39,6 +39,8 @@ proportion du nombre de gens capables de changer ce qu'il enregistre.
 
 ## Équipes et visibilité
 
+![Les équipes, avec leurs membres, les cibles qu'elles possèdent et leur canal de notification.](../assets/screens/fr/teams.png)
+
 Les équipes décident de ce qu'une personne peut **voir**. Les cibles appartiennent à des
 équipes, et chaque liste, chaque export et chaque série de tendance est restreint par la
 visibilité du lecteur — la série « backlog dans le temps » du tableau de bord comprise.

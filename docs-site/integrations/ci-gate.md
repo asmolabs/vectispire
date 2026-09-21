@@ -23,6 +23,8 @@ The response says which policy it applied. That matters when a build fails and t
 wants to know what bar they were held to — "the global policy, version 4" is an answer;
 "failed" is not.
 
+![The verdict register: what the gate answered per target, newest first, with the refusal rate beside the count.](../assets/screens/en/gate-verdicts.png)
+
 ## Policies are stored, not sent
 
 **A `policy` object in the request can only *tighten* what applies, never loosen it.**
