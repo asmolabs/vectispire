@@ -23,6 +23,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0017](0017-custom-checks-as-container-images.md) | Checks personnalisés en images de conteneur, pas en JAR |
 | [0018](0018-the-docker-socket-is-never-mounted.md) | Le socket Docker n'est jamais monté dans le plan de contrôle |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | Le serveur envoie un jeton ; l'écran détient la phrase |
+| [0020](0020-screenshots-stay-png.md) | Les captures restent en PNG, et le déclencheur qui changera cela est nommé |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes
