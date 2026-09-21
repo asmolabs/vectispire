@@ -12,6 +12,8 @@ The reason is worth stating. A gate that can fail on style is a gate that teams 
 bypass, and once bypassing is routine the security half stops working too. The quality
 backlog is there to be read and worked through, not to block a release.
 
+![The quality view: the banner saying these findings never fail a build, and the backlog ranked by rule, file and repository.](../assets/screens/en/code-quality.png)
+
 ## The Quality section
 
 Ranked three ways, because the useful question differs by who is asking:

@@ -13,6 +13,8 @@ La raison vaut d'être dite. Une barrière qui peut échouer sur du style est un
 sécurité cesse elle aussi de fonctionner. Le backlog de qualité est là pour être lu et traité,
 pas pour bloquer une livraison.
 
+![La vue Qualité : le bandeau qui dit que ces constats ne font jamais échouer une construction, et le backlog classé par règle, par fichier et par dépôt.](../assets/screens/fr/code-quality.png)
+
 ## La section Qualité
 
 Classée de trois façons, parce que la question utile diffère selon qui la pose :

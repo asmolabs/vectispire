@@ -523,30 +523,170 @@ test.describe('documentation screenshots', () => {
             await shoot(page, 'repositories', locale);
         });
 
+        test('containers', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // One image pinned by digest, because the shortening only exists for that case: sixty
+            // characters of hexadecimal push every other field off the card, and a capture of
+            // three tag-pinned images would show a screen that never has to deal with it.
+            await stub(page, '**/api/v1/containers*', [
+                { id: 3, imageName: 'registry.example/api', tag: '1.4',
+                  reference: 'registry.example/api:1.4', registry: 'registry.example',
+                  openIssues: 58, tier: 'TIER_1_MISSION_CRITICAL',
+                  scanIntervalMinutes: 720, scanCron: null, requiredAgentLabel: null,
+                  lastScheduledScanAt: '2026-09-17T18:00:00Z',
+                  lastScan: { id: 32, status: 'completed', createdAt: '2026-09-17T18:06:00Z', error: null } },
+                { id: 4, imageName: 'registry.example/nginx-edge', tag: 'sha256:9f2c1d4b7a03e85f6c2b9d10a47e3f8521bc60d9e7a4f31682c5b0ad9e14f7c3',
+                  reference: 'registry.example/nginx-edge@sha256:9f2c1d4b7a03e85f6c2b9d10a47e3f8521bc60d9e7a4f31682c5b0ad9e14f7c3',
+                  registry: 'registry.example', openIssues: 0, tier: 'TIER_2_BUSINESS_OPERATIONAL',
+                  scanIntervalMinutes: null, scanCron: '0 4 * * *', requiredAgentLabel: 'dmz',
+                  lastScheduledScanAt: '2026-09-18T04:00:00Z',
+                  lastScan: { id: 35, status: 'completed', createdAt: '2026-09-18T04:03:00Z', error: null } },
+                { id: 5, imageName: 'registry.example/batch-runner', tag: '2026.09',
+                  reference: 'registry.example/batch-runner:2026.09', registry: 'registry.example',
+                  openIssues: 12, tier: 'TIER_3_INTERNAL',
+                  scanIntervalMinutes: null, scanCron: null, requiredAgentLabel: null,
+                  lastScheduledScanAt: null,
+                  lastScan: { id: 31, status: 'failed', createdAt: '2026-09-16T11:20:00Z',
+                              error: 'manifest unknown' } }
+            ]);
+            await enterApp(page, locale);
+            await openScreen(page, '/containers');
+
+            await expect(page.getByText('registry.example/batch-runner').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'containers', locale);
+        });
+
+        test('code quality', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **Partial coverage, not full.** The banner is the screen's one warning, and a capture
+            // taken over a covered estate would hide it: a quality backlog is only as complete as
+            // the languages somebody wrote rules for, and TypeScript having none is exactly the
+            // thing a reader should learn here rather than discover later.
+            await stub(page, '**/api/v1/rule-sets/coverage', {
+                state: 'PARTIAL', ruleFiles: 12,
+                languagesWithRules: ['java', 'python'],
+                ecosystemsInEstate: ['java', 'python', 'typescript'],
+                uncovered: ['typescript']
+            });
+            // The three tallies are deliberately top-heavy. "Eight rules account for most of the
+            // debt" is the framing this page exists for, and a flat distribution would illustrate
+            // the opposite of its argument.
+            await stub(page, '**/api/v1/quality/overview', {
+                openCount: 1432, ruleCount: 47, fileCount: 318,
+                topRules: [
+                    { label: 'java.lang.security.audit.formatted-sql-string', count: 212 },
+                    { label: 'python.lang.correctness.unchecked-subprocess', count: 164 },
+                    { label: 'java.lang.maintainability.dead-catch-block', count: 121 },
+                    { label: 'generic.secrets.hardcoded-token', count: 38 }
+                ],
+                topFiles: [
+                    { label: 'src/main/java/portal/LegacyQueryBuilder.java', count: 96 },
+                    { label: 'src/main/java/portal/ReportExporter.java', count: 71 },
+                    { label: 'scripts/migrate_accounts.py', count: 44 },
+                    { label: 'src/main/java/portal/AuditTrail.java', count: 22 }
+                ],
+                topTargets: [
+                    { label: 'helios-portal', count: 731 },
+                    { label: 'basalt-libs', count: 402 },
+                    { label: 'billing-legacy', count: 299 }
+                ]
+            });
+            await stub(page, '**/api/v1/dashboard', {
+                posture: { totalCount: 14, failingCount: 3, kevCount: 2, overdueCount: 5,
+                           neverScannedCount: 1, lastScanFailedCount: 1 },
+                backlogBySeverity: { CRITICAL: 4, HIGH: 12, MEDIUM: 31, LOW: 365 },
+                qualityTotal: 1432, failing: [], recentScans: []
+            });
+            await enterApp(page, locale);
+            // **Through the dashboard, because the sidebar does not offer this screen.** Quality
+            // is reached from the backlog card's quality total and from nowhere else, so a capture
+            // that clicked a menu entry would be asserting a route that no reader can take.
+            //
+            // And not through `openScreen`, because that link carries no `href`: written
+            // `routerLink="/quality"` rather than `[routerLink]="['/quality']"`, it navigates on
+            // click and renders no address. Clicking the total is what a reader does; the URL
+            // assertion below is what keeps this honest if the route is ever renamed.
+            await openScreen(page, '/dashboard');
+            await page.getByText('1432').first().click();
+            await expect(page).toHaveURL(/\/quality(\?|$)/, { timeout: 15_000 });
+
+            await expect(page.getByText('1432').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'code-quality', locale);
+        });
+
+        test('gate policies', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            // **The stored policy departs from the built-in on two flags, and that is the point of
+            // the fixture.** Identical cards would photograph the screen's argument out of it:
+            // showing both is the only place "not set" and "set to the same thing" can be told
+            // apart, and a capture where they read alike demonstrates nothing.
+            await stub(page, '**/api/v1/gate/policies', {
+                policies: [
+                    { kind: 'global', target_id: null, target_name: null, version: 4,
+                      fail_on_severity: 'high', fail_on_kev: true, fixable_only: true,
+                      include_triaged: false, include_ai_review: false,
+                      fail_on_uncovered_languages: false,
+                      note: 'criticals in transitive dependencies were failing every build and teams had started bypassing the gate',
+                      created_by: 'c.moreau', created_at: '2026-08-02T09:12:00Z' },
+                    { kind: 'repository', target_id: 5, target_name: 'helios-portal', version: 2,
+                      fail_on_severity: 'medium', fail_on_kev: true, fixable_only: false,
+                      include_triaged: false, include_ai_review: false,
+                      fail_on_uncovered_languages: false,
+                      note: 'Tier 1 payment path, held above the estate bar for the quarter',
+                      created_by: 'c.moreau', created_at: '2026-09-04T16:40:00Z' }
+                ],
+                built_in: { kind: 'built-in', target_id: null, target_name: null, version: 0,
+                            fail_on_severity: 'high', fail_on_kev: true, fixable_only: false,
+                            include_triaged: false, include_ai_review: false,
+                            fail_on_uncovered_languages: false, note: null,
+                            created_by: null, created_at: null }
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/gate-policies');
+
+            await expect(page.getByText('helios-portal').first()).toBeVisible({ timeout: 15_000 });
+            await shoot(page, 'gate-policies', locale);
+        });
+
         test('security overview', async ({ page }, testInfo) => {
             const locale = edition(testInfo.project.name);
             await stubEverything(page);
             // The two cases no other screen names: a target never scanned, and one whose last scan
             // failed. Both are green everywhere else, which is the point of this page.
+            //
+            // **Shaped as `SecurityOverviewView` writes it, which the first version was not.**
+            // That fixture sent `NEVER_SCANNED` and invented `FRESH` and `STALE`; the server
+            // lowercases every constant and has only four — the view class says so in as many
+            // words, and warns that a client comparing against `never_scanned` matches nothing
+            // and renders its fallback. It did: the never-scanned target was captured badged
+            // "scan in progress". It also sent `verdict: null`, which no target ever carries —
+            // the server evaluates a policy against an empty backlog rather than skipping it —
+            // and the row that received it rendered as a line of blanks.
             await stub(page, '**/api/v1/security/overview*', {
                 totalCount: 4, failingCount: 1, kevCount: 1,
                 neverScannedCount: 1, lastScanFailedCount: 1,
                 targets: [
                     { targetId: 5, kind: 'repository', name: 'helios-portal', observed: true,
                       passed: false, lastScanAt: '2026-09-17T21:04:00Z', lastScanId: 34,
-                      observation: 'FRESH',
+                      observation: 'ok',
                       policy: { source: 'built-in', version: null },
                       verdict: { passed: false, evaluated: 412, violations: [],
                                  countsBySeverity: { CRITICAL: 1, HIGH: 3 } } },
-                    { targetId: 6, kind: 'repository', name: 'basalt-libs', observed: true,
+                    { targetId: 6, kind: 'repository', name: 'basalt-libs', observed: false,
                       passed: true, lastScanAt: '2026-09-16T03:11:00Z', lastScanId: 30,
-                      observation: 'STALE',
+                      observation: 'last_scan_failed',
                       policy: { source: 'built-in', version: null },
                       verdict: { passed: true, evaluated: 37, violations: [], countsBySeverity: {} } },
+                    // Passing on nothing at all: the empty backlog that satisfies every policy,
+                    // which is the whole reason the observation column exists.
                     { targetId: 7, kind: 'repository', name: 'billing-legacy', observed: false,
                       passed: true, lastScanAt: null, lastScanId: null,
-                      observation: 'NEVER_SCANNED',
-                      policy: { source: 'built-in', version: null }, verdict: null }
+                      observation: 'never_scanned',
+                      policy: { source: 'built-in', version: null },
+                      verdict: { passed: true, evaluated: 0, violations: [], countsBySeverity: {} } }
                 ]
             });
             await enterApp(page, locale);

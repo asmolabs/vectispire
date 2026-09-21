@@ -7,6 +7,8 @@ Préférez une empreinte quand vous le pouvez. Un tag est mutable : un verdict e
 `monapp:latest` est un verdict sur ce que `latest` désignait au moment du scan, ce qui n'est
 pas un fait sur lequel quiconque peut agir une semaine plus tard.
 
+![Les images surveillées : une épinglée par empreinte et abrégée, une par tag, une dont le dernier tirage a échoué.](../assets/screens/fr/containers.png)
+
 ## Ce qui est contrôlé
 
 L'image est cataloguée par Syft et rapprochée par Grype exactement comme un dépôt : mêmes

@@ -29,6 +29,8 @@ Là où rien n'est stocké, un défaut intégré s'applique. L'écran le montre 
 vous avez stocké, pour que « non posé » et « posé à la même valeur » ne se ressemblent pas :
 ils se comportent identiquement aujourd'hui et divergent à l'instant où le défaut change.
 
+![La politique stockée et le défaut intégré à côté d'elle, avec une cible tenue au-dessus de la barre du parc.](../assets/screens/fr/gate-policies.png)
+
 ## Ce qu'une politique règle
 
 | | |

@@ -7,6 +7,8 @@ Prefer a digest where you can. A tag is mutable, so a verdict recorded against
 `myapp:latest` is a verdict about whatever `latest` meant at the moment of the scan, which
 is not a fact anybody can act on a week later.
 
+![Monitored images: one pinned by digest and shortened, one by tag, one whose last pull failed.](../assets/screens/en/containers.png)
+
 ## What is checked
 
 The image is catalogued by Syft and matched by Grype exactly as a repository is: same
