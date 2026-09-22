@@ -81,6 +81,9 @@ describe('the catalogue preview', () => {
         readCatalogue({});
 
         expect(fixture.componentInstance.categoriesOf(fixture.componentInstance.catalogue()!)).toEqual([]);
-        expect(fixture.nativeElement.textContent as string).toContain('moves no square of the grid');
+        // The key rather than the sentence, since the sentence now has two of them and this
+        // harness renders keys unresolved. It is also the better assertion: a rewording of the
+        // English does not break it, and a screen that stops rendering the empty branch does.
+        expect(fixture.nativeElement.textContent as string).toContain('rule_sets.owasp_none');
     });
 });
