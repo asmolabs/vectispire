@@ -97,7 +97,12 @@ export class Repositories {
 
     /** Exposed to the template: the list says what each target's schedule is, because a
      *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
-    readonly scheduleLabel = scheduleLabel;
+    /** Bound rather than referenced: the label is translated, so it needs the service — and it
+     *  reads `translations()` so the row redraws when the reader changes language. */
+    readonly scheduleLabel = (target: { scanIntervalMinutes: number | null; scanCron: string | null }) => {
+        this.i18n.translations();
+        return scheduleLabel(target, this.i18n);
+    };
 
     /** The row being edited, or null when the dialog is adding one. */
     readonly editing = signal<MonitoredRepository | null>(null);
@@ -128,7 +133,7 @@ export class Repositories {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the repository list.');
+                this.error.set(this.i18n.t('repositories.error_load'));
                 this.loading.set(false);
             }
         });
@@ -153,7 +158,7 @@ export class Repositories {
             error: (response) => {
                 this.busy.set(null);
                 // The server knows why — "a scan is already queued", most of the time.
-                this.error.set(messageOf(response, 'Could not queue this scan.'));
+                this.error.set(messageOf(response, this.i18n.t('repositories.error_scan')));
             }
         });
     }
@@ -176,7 +181,7 @@ export class Repositories {
                 },
                 error: (response) => {
                     this.scanningAll.set(false);
-                    this.error.set(messageOf(response, 'Impossible de lancer le scan de tous les dépôts.'));
+                    this.error.set(messageOf(response, this.i18n.t('repositories.error_scan_all')));
                 }
             });
         });
@@ -242,7 +247,7 @@ export class Repositories {
                 this.saving.set(false);
                 // The server's message is the one that knows *why* — scheme refused, host
                 // missing. Replacing it with a generic "error" would lose that.
-                this.formError.set(messageOf(response, editing ? 'Could not save this repository.' : 'Could not add this repository.'));
+                this.formError.set(messageOf(response, this.i18n.t(editing ? 'repositories.error_save' : 'repositories.error_add')));
             }
         });
     }
@@ -265,7 +270,7 @@ export class Repositories {
             error: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set('The deletion failed.');
+                this.error.set(this.i18n.t('repositories.error_delete'));
             }
         });
     }
@@ -284,7 +289,7 @@ export class Repositories {
                     error: () => this.badge.set({ published: false, token: null, url: null })
                 });
             },
-            error: () => this.error.set('Failed to load scorecard for this repository.')
+            error: () => this.error.set(this.i18n.t('repositories.error_scorecard'))
         });
     }
 

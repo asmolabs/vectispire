@@ -12,10 +12,15 @@ import { MessageModule } from '@openng/optimus-ui/message';
  * "Manual only" is spelled out rather than left blank — an empty schedule column reads as
  * "nothing to say here", which is exactly the wrong reading.
  */
-export function scheduleLabel(target: { scanIntervalMinutes: number | null; scanCron: string | null }): string {
-    if (target.scanCron?.trim()) return `cron ${target.scanCron.trim()}`;
-    if ((target.scanIntervalMinutes ?? 0) > 0) return `every ${target.scanIntervalMinutes} min`;
-    return 'manual only';
+export function scheduleLabel(
+    target: { scanIntervalMinutes: number | null; scanCron: string | null },
+    i18n: I18nService
+): string {
+    if (target.scanCron?.trim()) return i18n.t('schedule.label_cron', { cron: target.scanCron.trim() });
+    if ((target.scanIntervalMinutes ?? 0) > 0) {
+        return i18n.t('schedule.label_every', { minutes: String(target.scanIntervalMinutes) });
+    }
+    return i18n.t('schedule.label_manual');
 }
 
 /**
@@ -34,6 +39,7 @@ export function scheduleLabel(target: { scanIntervalMinutes: number | null; scan
  */
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { I18nService } from '../core/i18n/i18n.service';
 
 @Component({
     selector: 'app-schedule-fields',

@@ -82,12 +82,15 @@ describe('the container list', () => {
 
     it('says an image with no schedule is scanned only when somebody asks', () => {
         load();
-        expect(fixture.nativeElement.textContent).toContain('manual only');
+        expect(fixture.nativeElement.textContent).toContain('schedule.label_manual');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
         load({ ...CONTAINER, scanIntervalMinutes: 60, scanCron: '0 3 * * *' });
-        expect(fixture.nativeElement.textContent).toContain('cron 0 3 * * *');
+        // The key, since the label is translated now and this harness leaves keys
+        // unresolved. `label_cron` is still the whole assertion: it can only be reached
+        // by the branch that prefers the expression over the interval.
+        expect(fixture.nativeElement.textContent).toContain('schedule.label_cron');
     });
 
     /**

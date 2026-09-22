@@ -84,7 +84,9 @@ describe('the gate policy screen', () => {
 
         // An empty table under a heading reads as "no rules apply". The built-in policy always
         // applies, and that is exactly what somebody arriving here needs to be told.
-        expect(fixture.nativeElement.textContent).toContain('built-in');
+        // The key, not the sentence: this harness renders keys unresolved, and pinning the
+        // wording would break on the next rewording while proving nothing more.
+        expect(fixture.nativeElement.textContent).toContain('gate_policies.nothing_stored_strong');
         expect(fixture.componentInstance.globalPolicy()).toBeNull();
     });
 
@@ -99,10 +101,15 @@ describe('the gate policy screen', () => {
     it('shows a null threshold as a rule that is off, not as an unknown severity', () => {
         load([OVERRIDE]);
 
-        // The word matters: "unknown" is a severity the scanners emit, and reading it here as
-        // one would describe the strictest possible gate as the loosest.
-        expect(fixture.componentInstance.describeThreshold(OVERRIDE.fail_on_severity)).toContain('No severity');
-        expect(fixture.componentInstance.describeThreshold('high')).toContain('high');
+        // **The key it resolves, not the sentence it used to build.** `describeThreshold` no
+        // longer spells the five thresholds out — it looks up `severity_rules.*`, which the
+        // select was already using, so the same value can no longer read one way in the dropdown
+        // and another in the card. The distinction the test defends is unchanged: `null` must
+        // reach the `none` entry and never be shown as a severity the scanners emit.
+        expect(fixture.componentInstance.describeThreshold(OVERRIDE.fail_on_severity))
+            .toBe('gate_policies.severity_rules.none');
+        expect(fixture.componentInstance.describeThreshold('high'))
+            .toBe('gate_policies.severity_rules.high');
     });
 
     it('sends "none" for a rule switched off, and every field on every save', () => {

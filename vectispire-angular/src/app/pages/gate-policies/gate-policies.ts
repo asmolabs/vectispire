@@ -99,7 +99,7 @@ export class GatePolicies {
     });
 
     scope: Scope = { kind: 'global', id: null };
-    scopeLabel = 'the global policy';
+    scopeLabel = this.i18n.t('gate_policies.scope_global');
     draft: Draft = blank();
     /** `kind:id`, because a select carries one value and a scope is two. */
     chosenTarget: string | null = null;
@@ -111,13 +111,13 @@ export class GatePolicies {
     load(): void {
         this.api.gatePolicies().subscribe({
             next: (catalogue) => this.catalogue.set(catalogue),
-            error: (response) => this.error.set(messageOf(response, 'Could not load the gate policies.'))
+            error: (response) => this.error.set(messageOf(response, this.i18n.t('gate_policies.error_load')))
         });
     }
 
     editGlobal(): void {
         this.scope = { kind: 'global', id: null };
-        this.scopeLabel = 'the global policy';
+        this.scopeLabel = this.i18n.t('gate_policies.scope_global');
         this.chosenTarget = null;
         // Pre-filled with what currently applies — the stored policy, or the built-in it would
         // depart from. A form opening on blanks would make "keep what we have" a retyping
@@ -145,7 +145,7 @@ export class GatePolicies {
      */
     addOverride(): void {
         this.scope = { kind: 'repository', id: null };
-        this.scopeLabel = 'a new override';
+        this.scopeLabel = this.i18n.t('gate_policies.scope_new');
         this.chosenTarget = null;
         this.draft = draftOf(this.globalPolicy() ?? this.builtIn());
         this.error.set(null);
@@ -170,7 +170,7 @@ export class GatePolicies {
     save(): void {
         if (this.scope.kind !== 'global' && this.scope.id === null) {
             if (!this.chosenTarget) {
-                this.error.set('Choose the repository or container this policy is for.');
+                this.error.set(this.i18n.t('gate_policies.error_no_target'));
                 return;
             }
             const [kind, id] = this.chosenTarget.split(':');
@@ -201,7 +201,7 @@ export class GatePolicies {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.error.set(messageOf(response, 'The policy was refused.'));
+                    this.error.set(messageOf(response, this.i18n.t('gate_policies.error_refused')));
                 }
             });
     }
@@ -209,13 +209,14 @@ export class GatePolicies {
     remove(policy: GatePolicy): void {
         this.api.removeGatePolicy(policy.kind as 'repository' | 'container', policy.target_id as number).subscribe({
             next: () => this.load(),
-            error: (response) => this.error.set(messageOf(response, 'Could not remove the override.'))
+            error: (response) => this.error.set(messageOf(response, this.i18n.t('gate_policies.error_remove')))
         });
     }
 
     /** A threshold in words — and "off" said as off, never as a severity. */
     describeThreshold(value: string | null): string {
-        return value === null ? 'No severity rule — actively exploited only' : `${value} and above`;
+        this.i18n.translations();
+        return this.i18n.t(`gate_policies.severity_rules.${value ?? 'none'}`);
     }
 
     formatDate(value: string | null): string {

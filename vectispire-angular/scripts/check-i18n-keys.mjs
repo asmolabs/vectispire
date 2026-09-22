@@ -77,7 +77,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1177;
+const EXPECTED_KEYS = 1284;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -272,16 +272,17 @@ if (hardcoded > HARDCODED_LABEL_CEILING) {
 // else between two tags is text somebody typed, and it is typed in exactly one language whatever
 // that language happens to be.
 //
-// Read that way the count is 390 across 21 templates, in both directions at once: `Global policy`,
+// Read that way the count was 390 across 21 templates, in both directions at once: `Global policy`,
 // `Fail on actively exploited findings` and `Initial password` beside `Priorisation EPSS &
 // Threat Intelligence` and `Centre de Notifications Webhooks`. The French half of that had been
 // reported as zero for as long as this file has existed, because `frenchWords` is a list and a
 // list only finds what somebody thought to add.
 //
-// **A ratchet and not a prohibition, because 390 is not a debt that can be paid in this commit.**
-// The number may only fall. The two screens paid so far — `agents` and `rule-sets` — were paid
-// because a French screenshot of them was about to be published, which is the honest reason and
-// worth writing down: this is the guard rail, not the schedule.
+// **A ratchet and not a prohibition, because the debt cannot be paid in one commit.** The number
+// may only fall. It has fallen twice: to 390 when `agents` and `rule-sets` were paid, and to 293
+// when `gate-policies` and `repositories` were — each time because a French screenshot of those
+// screens was about to be published, which is the honest reason and worth writing down. This is
+// the guard rail, not the schedule.
 //
 // **What it deliberately does not flag.** A bare word without a space and under four characters,
 // which is where units, symbols and column keys live; an environment variable name, which has no
@@ -289,7 +290,7 @@ if (hardcoded > HARDCODED_LABEL_CEILING) {
 // value. Control flow is removed before the text nodes are read — `@if (…) {` and `} @else {`
 // are not prose, and a scanner that balances the parentheses is needed rather than a pattern,
 // because `@if (activity()?.stats; as stats) {` closes three of them.
-const UNTRANSLATED_TEXT_CEILING = 390;
+const UNTRANSLATED_TEXT_CEILING = 293;
 
 /** Removes `@if (…) {`, `} @else if (…) {`, and the braces, leaving only what a reader sees. */
 function stripControlFlow(source) {

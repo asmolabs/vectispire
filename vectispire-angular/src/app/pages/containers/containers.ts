@@ -15,6 +15,7 @@ import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 
@@ -27,6 +28,7 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 export class Containers {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
 
     readonly containers = signal<MonitoredContainer[]>([]);
     readonly loading = signal(true);
@@ -53,7 +55,12 @@ export class Containers {
 
     /** Exposed to the template: the list says what each image's schedule is, because a target
      *  nobody rescans looks monitored until somebody reads the date of its last scan. */
-    readonly scheduleLabel = scheduleLabel;
+    /** Bound rather than referenced: the label is translated, so it needs the service — and it
+     *  reads `translations()` so the row redraws when the reader changes language. */
+    readonly scheduleLabel = (target: { scanIntervalMinutes: number | null; scanCron: string | null }) => {
+        this.i18n.translations();
+        return scheduleLabel(target, this.i18n);
+    };
 
     /** The row being edited, or null when the dialog is adding one. */
     readonly editing = signal<MonitoredContainer | null>(null);

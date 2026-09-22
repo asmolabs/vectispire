@@ -6,7 +6,7 @@
                 {{ 'gate_policies.subtitle' | translate }}
             </p>
         </div>
-        <p-button label="Add an override" icon="pi pi-plus" severity="secondary" (onClick)="addOverride()" />
+        <p-button [label]="'gate_policies.add_override_btn' | translate" icon="pi pi-plus" severity="secondary" (onClick)="addOverride()" />
     </div>
 
     @if (error()) {
@@ -19,81 +19,78 @@
         <p-card>
             <ng-template #title>
                 <div class="flex items-center justify-between gap-2">
-                    <span>Global policy</span>
+                    <span>{{ 'gate_policies.global_policy' | translate }}</span>
                     @if (globalPolicy()) {
-                        <p-tag severity="info" [value]="'version ' + globalPolicy()!.version" />
+                        <p-tag severity="info" [value]="'gate_policies.version_label' | translate: { n: globalPolicy()!.version }" />
                     } @else {
-                        <p-tag severity="warn" value="not set" />
+                        <p-tag severity="warn" [value]="'gate_policies.not_set' | translate" />
                     }
                 </div>
             </ng-template>
 
             @if (globalPolicy(); as policy) {
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                    <li><span class="font-medium">Threshold:</span> {{ describeThreshold(policy.fail_on_severity) }}</li>
-                    <li><span class="font-medium">Actively exploited:</span> {{ policy.fail_on_kev ? 'fails the build' : 'ignored' }}</li>
-                    <li><span class="font-medium">Fixable only:</span> {{ policy.fixable_only ? 'yes' : 'no' }}</li>
-                    <li><span class="font-medium">Triaged findings:</span> {{ policy.include_triaged ? 'counted' : 'not counted' }}</li>
-                    <li><span class="font-medium">Model review:</span> {{ policy.include_ai_review ? 'counted' : 'not counted' }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span> {{ describeThreshold(policy.fail_on_severity) }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span> {{ (policy.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.fixable_only' | translate }}</span> {{ (policy.fixable_only ? 'common.yes' : 'common.no') | translate }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span> {{ (policy.include_triaged ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span> {{ (policy.include_ai_review ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate }}</li>
                     <li>
-                        <span class="font-medium">Unexamined targets:</span>
-                        {{ policy.fail_on_uncovered_languages ? 'fail the build' : 'pass' }}
+                        <span class="font-medium">{{ 'gate_policies.unexamined' | translate }}</span>
+                        {{ (policy.fail_on_uncovered_languages ? 'gate_policies.fail_build' : 'gate_policies.pass') | translate }}
                     </li>
                     @if (policy.note) {
                         <li class="text-surface-500 dark:text-surface-400">“{{ policy.note }}”</li>
                     }
                     <li class="text-surface-500 dark:text-surface-400 text-sm">
-                        Set by {{ policy.created_by ?? 'an administrator' }} on {{ formatDate(policy.created_at) }}
+                        {{ 'gate_policies.set_by' | translate: { who: policy.created_by ?? ('gate_policies.an_administrator' | translate), when: formatDate(policy.created_at) } }}
                     </li>
                 </ul>
             } @else {
                 <p class="m-0">
-                    Nothing is stored, so the <strong>built-in</strong> policy applies to every target: fail at
-                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong>, and on anything
-                    actively exploited. Triaged findings and model review are excluded.
+                    {{ 'gate_policies.nothing_stored_before' | translate }} <strong>{{ 'gate_policies.nothing_stored_strong' | translate }}</strong>{{ 'gate_policies.nothing_stored_mid' | translate }}
+                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong>{{ 'gate_policies.nothing_stored_after' | translate }}
                 </p>
             }
 
             <ng-template #footer>
-                <p-button label="Edit the global policy" icon="pi pi-pencil" (onClick)="editGlobal()" />
+                <p-button [label]="'gate_policies.edit_global_btn' | translate" icon="pi pi-pencil" (onClick)="editGlobal()" />
             </ng-template>
         </p-card>
 
         <p-card>
-            <ng-template #title>Built-in default</ng-template>
+            <ng-template #title>{{ 'gate_policies.builtin_title' | translate }}</ng-template>
             <p class="m-0 mb-3 text-surface-500 dark:text-surface-400">
-                What applies where nothing is stored — the code's own choice, kept visible so a stored policy is read
-                as a departure from something rather than as the only rule there is.
+                {{ 'gate_policies.builtin_explain' | translate }}
             </p>
             @if (builtIn(); as fallback) {
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                    <li><span class="font-medium">Threshold:</span> {{ describeThreshold(fallback.fail_on_severity) }}</li>
-                    <li><span class="font-medium">Actively exploited:</span> {{ fallback.fail_on_kev ? 'fails the build' : 'ignored' }}</li>
-                    <li><span class="font-medium">Triaged findings:</span> not counted — an argued exemption is the point of triage</li>
-                    <li><span class="font-medium">Model review:</span> not counted — a hostile repository can steer a local model</li>
+                    <li><span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span> {{ describeThreshold(fallback.fail_on_severity) }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span> {{ (fallback.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span> {{ 'gate_policies.builtin_triaged_note' | translate }}</li>
+                    <li><span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span> {{ 'gate_policies.builtin_model_note' | translate }}</li>
                 </ul>
             }
         </p-card>
     </div>
 
-    <h6 class="mb-2">Overrides</h6>
+    <h6 class="mb-2">{{ 'gate_policies.repo_override' | translate }}</h6>
     <p class="text-surface-500 dark:text-surface-400 mt-0 mb-3">
-        A target listed here is judged by its own rules. Removing an override does not relax anything by itself — the
-        target goes back to following the global policy.
+        {{ 'gate_policies.overrides_explain' | translate }}
     </p>
 
     <p-table [value]="overrides()" [paginator]="overrides().length > 10" [rows]="10" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
-                <th>Target</th>
-                <th>Threshold</th>
-                <th>Exploited</th>
-                <th>Fixable only</th>
-                <th>Triaged</th>
-                <th>Model review</th>
-                <th>Unexamined</th>
-                <th>Version</th>
-                <th class="text-right">Actions</th>
+                <th>{{ 'gate_policies.col_target' | translate }}</th>
+                <th>{{ 'gate_policies.col_threshold' | translate }}</th>
+                <th>{{ 'gate_policies.col_exploited' | translate }}</th>
+                <th>{{ 'gate_policies.col_fixable' | translate }}</th>
+                <th>{{ 'gate_policies.col_triaged' | translate }}</th>
+                <th>{{ 'gate_policies.col_model' | translate }}</th>
+                <th>{{ 'gate_policies.col_unexamined' | translate }}</th>
+                <th>{{ 'common.version' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
             </tr>
         </ng-template>
         <ng-template #body let-policy>
@@ -105,11 +102,11 @@
                     }
                 </td>
                 <td>{{ describeThreshold(policy.fail_on_severity) }}</td>
-                <td>{{ policy.fail_on_kev ? 'fails' : '—' }}</td>
-                <td>{{ policy.fixable_only ? 'yes' : '—' }}</td>
-                <td>{{ policy.include_triaged ? 'counted' : '—' }}</td>
-                <td>{{ policy.include_ai_review ? 'counted' : '—' }}</td>
-                <td>{{ policy.fail_on_uncovered_languages ? 'fails' : '—' }}</td>
+                <td>{{ policy.fail_on_kev ? ('gate_policies.fails_short' | translate) : '—' }}</td>
+                <td>{{ policy.fixable_only ? ('common.yes' | translate) : '—' }}</td>
+                <td>{{ policy.include_triaged ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ policy.include_ai_review ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ policy.fail_on_uncovered_languages ? ('gate_policies.fails_short' | translate) : '—' }}</td>
                 <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
                 <td class="text-right whitespace-nowrap">
                     <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="editOverride(policy)" />
@@ -119,7 +116,7 @@
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="9">No target has rules of its own; every one follows the policy above.</td>
+                <td colspan="9">{{ 'gate_policies.no_overrides' | translate }}</td>
             </tr>
         </ng-template>
     </p-table>
@@ -133,21 +130,21 @@
 
         @if (scope.kind !== 'global' && scope.id === null) {
             <div class="flex flex-col gap-2">
-                <label for="policy-target">Target</label>
+                <label for="policy-target">{{ 'gate_policies.col_target' | translate }}</label>
                 <p-select
                     inputId="policy-target"
                     [options]="candidates()"
                     optionLabel="label"
                     optionValue="value"
                     [(ngModel)]="chosenTarget"
-                    placeholder="Choose a repository or container"
+                    [placeholder]="'gate_policies.choose_target' | translate"
                     styleClass="w-full"
                 />
             </div>
         }
 
         <div class="flex flex-col gap-2">
-            <label for="policy-severity">Fail the build at</label>
+            <label for="policy-severity">{{ 'gate_policies.fail_at_label' | translate }}</label>
             <p-select
                 inputId="policy-severity"
                 [options]="severities()"
@@ -157,17 +154,16 @@
                 styleClass="w-full"
             />
             <small class="text-surface-500 dark:text-surface-400">
-                “No severity rule” is not the same as a low threshold: nothing fails on severity, and only the switches
-                below can fail a build.
+                {{ 'gate_policies.threshold_hint' | translate }}
             </small>
         </div>
 
         <div class="flex items-center gap-3">
             <p-toggleswitch inputId="policy-kev" [(ngModel)]="draft.failOnKev" />
             <label for="policy-kev" class="m-0">
-                Fail on actively exploited findings
+                {{ 'gate_policies.fail_kev' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
-                    A medium exploited in the wild outranks a critical that never has been.
+                    {{ 'gate_policies.fail_kev_hint' | translate }}
                 </span>
             </label>
         </div>
@@ -175,9 +171,9 @@
         <div class="flex items-center gap-3">
             <p-toggleswitch inputId="policy-fixable" [(ngModel)]="draft.fixableOnly" />
             <label for="policy-fixable" class="m-0">
-                Only count findings that have a fix
+                {{ 'gate_policies.fixable_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
-                    Reasonable as a choice, dangerous as a default: it tolerates an exploited vulnerability with no fix.
+                    {{ 'gate_policies.fixable_hint' | translate }}
                 </span>
             </label>
         </div>
@@ -185,9 +181,9 @@
         <div class="flex items-center gap-3">
             <p-toggleswitch inputId="policy-triaged" [(ngModel)]="draft.includeTriaged" />
             <label for="policy-triaged" class="m-0">
-                Count findings that were triaged
+                {{ 'gate_policies.triaged_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
-                    Off by default — an argued exemption is what triage is for.
+                    {{ 'gate_policies.triaged_hint' | translate }}
                 </span>
             </label>
         </div>
@@ -195,10 +191,9 @@
         <div class="flex items-center gap-3">
             <p-toggleswitch inputId="policy-ai" [(ngModel)]="draft.includeAiReview" />
             <label for="policy-ai" class="m-0">
-                Count the local model's review
+                {{ 'gate_policies.ai_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
-                    Off by default: the model reads the repository's own source, and an invented “critical” would fail
-                    somebody's build.
+                    {{ 'gate_policies.ai_hint' | translate }}
                 </span>
             </label>
         </div>
@@ -206,22 +201,21 @@
         <div class="flex items-center gap-3">
             <p-toggleswitch inputId="policy-coverage" [(ngModel)]="draft.failOnUncoveredLanguages" />
             <label for="policy-coverage" class="m-0">
-                Fail when no rule covers the target
+                {{ 'gate_policies.coverage_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
-                    Off by default. A target whose ecosystems no installed rule reaches reports no code finding, and
-                    an empty result passes every policy — this makes “not examined” block instead of inform.
+                    {{ 'gate_policies.coverage_hint' | translate }}
                 </span>
             </label>
         </div>
 
         <div class="flex flex-col gap-2">
-            <label for="policy-note">Why (kept with the version)</label>
+            <label for="policy-note">{{ 'gate_policies.note_label' | translate }}</label>
             <input pInputText id="policy-note" name="policy-note" [(ngModel)]="draft.note" class="w-full" />
         </div>
     </div>
 
     <ng-template #footer>
-        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="dialogVisible.set(false)" />
-        <p-button label="Save" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="dialogVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
     </ng-template>
 </p-dialog>

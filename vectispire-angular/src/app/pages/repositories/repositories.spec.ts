@@ -61,7 +61,10 @@ describe('the repository list', () => {
         expect(text).toContain('Arm Libs Spring');
         expect(text).toContain('ssh://git@bitbucket.example.com/art/basalt-libs-spring.git');
         expect(text).toContain('master');
-        expect(text).toContain('38 outstanding');
+        // The count now travels beside the key as a parameter, so it is asserted on the model
+        // rather than in the rendered text — which this harness leaves unresolved anyway.
+        expect(text).toContain('repositories.outstanding');
+        expect(fixture.componentInstance.repositories()[0].openIssues).toBe(38);
     });
 
     it('shows the sub-path, or a monorepo registered twice reads as one target listed twice', () => {
@@ -79,7 +82,7 @@ describe('the repository list', () => {
 
     it('says "nothing outstanding" rather than showing a bare zero', () => {
         load({ ...REPOSITORY, openIssues: 0 });
-        expect(fixture.nativeElement.textContent).toContain('nothing outstanding');
+        expect(fixture.nativeElement.textContent).toContain('repositories.nothing_outstanding');
     });
 
     it('says a never-scanned target was never scanned', () => {
@@ -98,16 +101,19 @@ describe('the repository list', () => {
         load();
         // A blank schedule column reads as "nothing to say here"; the target is in fact never
         // rescanned, which is the one thing about it worth knowing.
-        expect(fixture.nativeElement.textContent).toContain('manual only');
+        expect(fixture.nativeElement.textContent).toContain('schedule.label_manual');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
         load({ ...REPOSITORY, scanIntervalMinutes: 60, scanCron: '0 2 * * *' });
 
         const text = fixture.nativeElement.textContent as string;
-        expect(text).toContain('cron 0 2 * * *');
+        // The key, since the label is translated now and this harness leaves keys
+        // unresolved. `label_cron` is still the whole assertion: it can only be reached
+        // by the branch that prefers the expression over the interval.
+        expect(text).toContain('schedule.label_cron');
         // Showing "every 60 min" would be a third opinion on a precedence the server already owns.
-        expect(text).not.toContain('every 60 min');
+        expect(text).not.toContain('schedule.label_every');
     });
 
     /**
