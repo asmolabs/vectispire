@@ -77,7 +77,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1142;
+const EXPECTED_KEYS = 1177;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -262,6 +262,108 @@ if (hardcoded > HARDCODED_LABEL_CEILING) {
     process.exit(1);
 }
 
+// **The fourth ratchet: visible text that comes from no key at all, in either language.**
+//
+// The three above hunt a *language*. The second says so in as many words — "frozen English is not
+// detected the same way, any word at all is English" — and concludes that half the problem is
+// undetectable. That conclusion follows from the question, not from the templates: asking which
+// language a string is in has no mechanical answer, but asking whether a string came out of the
+// dictionary has one. A translated template's visible text is an interpolation of a key. Anything
+// else between two tags is text somebody typed, and it is typed in exactly one language whatever
+// that language happens to be.
+//
+// Read that way the count is 390 across 21 templates, in both directions at once: `Global policy`,
+// `Fail on actively exploited findings` and `Initial password` beside `Priorisation EPSS &
+// Threat Intelligence` and `Centre de Notifications Webhooks`. The French half of that had been
+// reported as zero for as long as this file has existed, because `frenchWords` is a list and a
+// list only finds what somebody thought to add.
+//
+// **A ratchet and not a prohibition, because 390 is not a debt that can be paid in this commit.**
+// The number may only fall. The two screens paid so far — `agents` and `rule-sets` — were paid
+// because a French screenshot of them was about to be published, which is the honest reason and
+// worth writing down: this is the guard rail, not the schedule.
+//
+// **What it deliberately does not flag.** A bare word without a space and under four characters,
+// which is where units, symbols and column keys live; an environment variable name, which has no
+// translation; and anything inside `{{ … }}`, which has already been through the pipe or is a
+// value. Control flow is removed before the text nodes are read — `@if (…) {` and `} @else {`
+// are not prose, and a scanner that balances the parentheses is needed rather than a pattern,
+// because `@if (activity()?.stats; as stats) {` closes three of them.
+const UNTRANSLATED_TEXT_CEILING = 390;
+
+/** Removes `@if (…) {`, `} @else if (…) {`, and the braces, leaving only what a reader sees. */
+function stripControlFlow(source) {
+    let out = '';
+    let i = 0;
+    while (i < source.length) {
+        const keyword = /^@[a-z]+(\s+if)?/.exec(source.slice(i));
+        if (keyword) {
+            let j = i + keyword[0].length;
+            while (j < source.length && /\s/.test(source[j])) j += 1;
+            if (source[j] === '(') {
+                let depth = 0;
+                do {
+                    if (source[j] === '(') depth += 1;
+                    else if (source[j] === ')') depth -= 1;
+                    j += 1;
+                } while (j < source.length && depth > 0);
+            }
+            while (j < source.length && /\s/.test(source[j])) j += 1;
+            if (source[j] === '{') j += 1;
+            i = j;
+            continue;
+        }
+        out += source[i] === '{' || source[i] === '}' ? ' ' : source[i];
+        i += 1;
+    }
+    return out;
+}
+
+const environmentVariable = /^[A-Z][A-Z0-9_]{5,}$/;
+let untranslated = 0;
+const untranslatedOffenders = new Map();
+for (const file of walk(join(root, 'src/app'))) {
+    if (!/\.html$/.test(file)) continue;
+    const raw = readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+    // The interpolation becomes one neutral marker: it must not weld the words on either side of
+    // it into a sentence that nobody wrote.
+    const readable = stripControlFlow(raw.replace(/\{\{[\s\S]*?\}\}/g, '\u0000'))
+        .replace(/&[a-z]+;|&#\d+;/g, ' ');
+    let hits = 0;
+    const consider = (candidate) => {
+        const text = candidate.replace(/\u0000/g, '').replace(/\s+/g, ' ').trim();
+        if (text.length < 3 || !/[A-Za-zÀ-ÿ]{3,}/.test(text)) return;
+        if (environmentVariable.test(text)) return;
+        const looksLikeProse = /\s/.test(text) || (/^[A-ZÀ-Ý]/.test(text) && text.length >= 4);
+        if (looksLikeProse) hits += 1;
+    };
+    for (const [, text] of readable.matchAll(/>([^<>]{3,}?)</g)) consider(text);
+    for (const [, text] of raw.matchAll(staticAttribute)) consider(text);
+    if (hits > 0) {
+        untranslated += hits;
+        untranslatedOffenders.set(file.slice(root.length + 1), hits);
+    }
+}
+if (untranslated > UNTRANSLATED_TEXT_CEILING) {
+    console.error(
+        `${untranslated} untranslated string(s) in the templates, against a ceiling of ` +
+        `${UNTRANSLATED_TEXT_CEILING}.`);
+    console.error(
+        `Text written between two tags is shown in the language it was typed in, to every reader. ` +
+        `Route it through the translate pipe and add the key to both bundles.`);
+    for (const [file, count] of [...untranslatedOffenders].sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+        console.error(`  ${String(count).padStart(3)}  ${file}`);
+    }
+    process.exit(1);
+}
+if (untranslated < UNTRANSLATED_TEXT_CEILING) {
+    console.error(
+        `${untranslated} untranslated string(s), against a ceiling of ${UNTRANSLATED_TEXT_CEILING}: ` +
+        `lower UNTRANSLATED_TEXT_CEILING in the same commit. A ratchet that is not tightened when ` +
+        `the debt is paid gives the room straight back.`);
+    process.exit(1);
+}
+
 let failed = false;
 for (const lang of ['en', 'fr']) {
     const known = bundle(lang);
@@ -282,4 +384,5 @@ console.log(
     `i18n check: ${referenced.size} keys referenced, all present in French and English; ` +
     `${hardcoded} hard-coded labels (ceiling ${HARDCODED_LABEL_CEILING}); ` +
     `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}); ` +
-    `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}).`);
+    `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}); ` +
+    `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}).`);

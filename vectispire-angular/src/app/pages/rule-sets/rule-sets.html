@@ -71,7 +71,7 @@
 </p-card>
 
 <p-card styleClass="mb-4">
-    <ng-template #title>Fetch from the upstream catalogue</ng-template>
+    <ng-template #title>{{ 'rule_sets.catalogue_title' | translate }}</ng-template>
 
     <!--
         **Vectispire does not ship these rules, it fetches them on your instruction.** That
@@ -80,13 +80,11 @@
     -->
     <div class="flex flex-col gap-4">
         <div>
-            <p-button label="Read the catalogue" icon="pi pi-download" [loading]="loadingCatalogue()"
+            <p-button [label]="'rule_sets.read_catalogue_btn' | translate" icon="pi pi-download" [loading]="loadingCatalogue()"
                       (onClick)="readCatalogue()" />
         </div>
         <small class="text-muted-color max-w-3xl">
-            Clones the upstream and shows what it holds right now. <strong>It publishes no tags</strong>, so
-            what is pinned is the commit — and the rules you fetch are frozen in the database from that moment,
-            which is what keeps later scans reproducible.
+            {{ 'rule_sets.catalogue_hint_before' | translate }} <strong>{{ 'rule_sets.catalogue_hint_strong' | translate }}</strong>{{ 'rule_sets.catalogue_hint_after' | translate }}
         </small>
 
         @if (catalogueError(); as message) {
@@ -96,11 +94,11 @@
         @if (catalogue(); as preview) {
             <div class="border-t pt-4" style="border-color: var(--surface-border)">
                 <p class="m-0 mb-3 text-sm">
-                    <span class="font-medium">{{ preview.upstream }}</span> at commit
+                    <span class="font-medium">{{ preview.upstream }}</span> {{ 'rule_sets.at_commit' | translate }}
                     <span class="font-mono">{{ preview.commit.slice(0, 12) }}</span>.
                 </p>
 
-                <div class="font-medium mb-2">Languages</div>
+                <div class="font-medium mb-2">{{ 'rule_sets.languages_title' | translate }}</div>
                 <div class="flex flex-wrap gap-3 mb-4">
                     @for (language of languagesOf(preview); track language.name) {
                         <div class="flex items-center gap-2">
@@ -121,7 +119,7 @@
                     were never imported" — and nothing settled it without importing first. Rendered
                     empty, this block is an answer too: this catalogue declares no category.
                 -->
-                <div class="font-medium mb-2">OWASP Top 10 declared by these rules</div>
+                <div class="font-medium mb-2">{{ 'rule_sets.owasp_title' | translate }}</div>
                 @if (categoriesOf(preview); as categories) {
                     @if (categories.length > 0) {
                         <div class="flex flex-wrap gap-2 mb-4">
@@ -131,8 +129,7 @@
                         </div>
                     } @else {
                         <p class="text-muted-color text-sm mb-4">
-                            No rule in this catalogue declares an OWASP category, so importing it
-                            moves no square of the grid.
+                            {{ 'rule_sets.owasp_none' | translate }}
                         </p>
                     }
                 }
@@ -144,8 +141,7 @@
                     gate that fires on noise is switched off within a week.
                 -->
                 <p-message severity="warn" [closable]="false" styleClass="w-full mb-4">
-                    Choose the languages you actually scan. Every rule id becomes part of an issue's identity,
-                    so a set you do not need is triage you can lose the next time the upstream moves a file.
+                    {{ 'rule_sets.choose_languages_warning' | translate }}
                 </p-message>
 
                 <div class="font-medium mb-2">{{ preview.licenceName }}</div>
@@ -155,20 +151,18 @@
                 <div class="flex items-start gap-2 mt-3">
                     <p-checkbox inputId="licence-accepted" [binary]="true" [(ngModel)]="licenceAccepted" />
                     <label for="licence-accepted" class="cursor-pointer text-sm">
-                        I accept these terms on behalf of this installation.
+                        {{ 'rule_sets.licence_accept' | translate }}
                         <span class="block text-muted-color">
-                            The Commons Clause takes whoever adopts these rules out of open source in the OSI
-                            sense. Building an agent image that contains them is a legitimate use;
-                            <strong>publishing that image is redistribution</strong>. Your acceptance is
-                            recorded in the audit log with the tag, the commit and a digest of this text.
+                            {{ 'rule_sets.licence_notice_before' | translate }}
+                            <strong>{{ 'rule_sets.licence_notice_strong' | translate }}</strong>{{ 'rule_sets.licence_notice_after' | translate }}
                         </span>
                     </label>
                 </div>
 
                 <div class="mt-4">
-                    <p-button label="Fetch as a rule set" icon="pi pi-check" [loading]="fetching()"
+                    <p-button [label]="'rule_sets.fetch_btn' | translate" icon="pi pi-check" [loading]="fetching()"
                               [disabled]="!licenceAccepted || chosen().size === 0" (onClick)="fetchCatalogue()" />
-                    <span class="text-muted-color text-sm ml-3">Stored, not activated.</span>
+                    <span class="text-muted-color text-sm ml-3">{{ 'rule_sets.stored_not_activated' | translate }}</span>
                 </div>
             </div>
         }
@@ -176,16 +170,16 @@
 </p-card>
 
 <p-card>
-    <ng-template #title>Stored sets</ng-template>
+    <ng-template #title>{{ 'rule_sets.active_rules_title' | translate }}</ng-template>
 
     <p-table [value]="sets()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
-                <th>Name</th>
-                <th class="text-right">Rules</th>
-                <th class="text-right">Files</th>
-                <th>Uploaded</th>
-                <th>State</th>
+                <th>{{ 'common.name' | translate }}</th>
+                <th class="text-right">{{ 'rule_sets.col_rules' | translate }}</th>
+                <th class="text-right">{{ 'rule_sets.col_files' | translate }}</th>
+                <th>{{ 'rule_sets.col_uploaded' | translate }}</th>
+                <th>{{ 'common.status' | translate }}</th>
                 <th></th>
             </tr>
         </ng-template>
@@ -199,19 +193,19 @@
                 <td class="text-right">{{ set.ruleCount }}</td>
                 <td class="text-right">{{ set.fileCount }}</td>
                 <td>
-                    <div>{{ set.uploadedAt | date: 'short' }}</div>
+                    <div>{{ set.uploadedAt | date: 'dd/MM/yyyy HH:mm' }}</div>
                     <div class="text-muted-color text-xs">{{ set.uploadedBy ?? '—' }}</div>
                 </td>
                 <td>
                     @if (set.isActive) {
-                        <p-tag severity="success" value="Active" />
+                        <p-tag severity="success" [value]="'common.active' | translate" />
                     } @else {
-                        <p-tag severity="secondary" value="Stored" />
+                        <p-tag severity="secondary" [value]="'rule_sets.state_stored' | translate" />
                     }
                 </td>
                 <td class="text-right">
                     @if (!set.isActive) {
-                        <p-button label="Review activation" size="small" [text]="true" (onClick)="review(set)" />
+                        <p-button [label]="'rule_sets.review_btn' | translate" size="small" [text]="true" (onClick)="review(set)" />
                     }
                 </td>
             </tr>
@@ -220,7 +214,7 @@
         <ng-template #emptymessage>
             <tr>
                 <td colspan="6" class="text-muted-color">
-                    Nothing uploaded. Scans use the single bundled rule, plus VECTISPIRE_SEMGREP_RULES_DIR where it is set.
+                    {{ 'rule_sets.no_rule_sets' | translate: { var: 'VECTISPIRE_SEMGREP_RULES_DIR' } }}
                 </td>
             </tr>
         </ng-template>
@@ -228,7 +222,7 @@
 
     @if (active()) {
         <div class="mt-4">
-            <p-button label="Deactivate, back to the bundled rule" severity="secondary" [text]="true" (onClick)="deactivate()" />
+            <p-button [label]="'rule_sets.deactivate_btn' | translate" severity="secondary" [text]="true" (onClick)="deactivate()" />
         </div>
     }
 </p-card>
@@ -241,16 +235,16 @@
 @if (candidate(); as set) {
     @if (impact(); as cost) {
         <p-card styleClass="mt-4">
-            <ng-template #title>Activate "{{ set.name }}"?</ng-template>
+            <ng-template #title>{{ 'rule_sets.activate_title' | translate: { name: set.name } }}</ng-template>
 
             <div class="flex flex-col gap-4">
                 <div class="flex gap-8">
                     <div>
-                        <div class="text-muted-color text-sm">Rules added</div>
+                        <div class="text-muted-color text-sm">{{ 'rule_sets.rules_added' | translate }}</div>
                         <div class="text-xl font-semibold">{{ cost.addedRules }}</div>
                     </div>
                     <div>
-                        <div class="text-muted-color text-sm">Rules removed</div>
+                        <div class="text-muted-color text-sm">{{ 'rule_sets.rules_removed' | translate }}</div>
                         <div class="text-xl font-semibold">{{ cost.removedRules }}</div>
                     </div>
                 </div>
@@ -259,30 +253,28 @@
                     <p-message severity="warn" [closable]="false" styleClass="w-full">
                         <div>
                             <p class="m-0 font-medium">
-                                {{ cost.affectedIssues }} open issue(s) will be resolved by the next scan.
+                                {{ 'rule_sets.impact_resolved' | translate: { count: cost.affectedIssues } }}
                             </p>
                             <p class="m-0 mt-2 text-sm">
-                                Their rules are not in this set, so the scanner will stop finding them. Their triage
-                                decisions — justifications, review dates, who decided — go with them, and this cannot be
-                                undone by re-uploading the old set: the issues come back as new.
+                                {{ 'rule_sets.impact_explain' | translate }}
                             </p>
                             <p class="m-0 mt-2 text-sm">
-                                Rules losing issues: <span class="font-mono">{{ cost.losingIssues.slice(0, 10).join(', ') }}</span>
+                                {{ 'rule_sets.impact_losing' | translate }} <span class="font-mono">{{ cost.losingIssues.slice(0, 10).join(', ') }}</span>
                                 @if (cost.losingIssues.length > 10) {
-                                    <span> and {{ cost.losingIssues.length - 10 }} more.</span>
+                                    <span> {{ 'rule_sets.impact_more' | translate: { count: cost.losingIssues.length - 10 } }}</span>
                                 }
                             </p>
                         </div>
                     </p-message>
                 } @else {
                     <p-message severity="info" [closable]="false" styleClass="w-full">
-                        No open issue depends on a rule this set drops. Nothing in the backlog is lost.
+                        {{ 'rule_sets.impact_none' | translate }}
                     </p-message>
                 }
 
                 <div class="flex gap-2">
-                    <p-button label="Activate" icon="pi pi-check" [loading]="activating()" (onClick)="activate(set, cost)" />
-                    <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="candidate.set(null)" />
+                    <p-button [label]="'rule_sets.activate_btn' | translate" icon="pi pi-check" [loading]="activating()" (onClick)="activate(set, cost)" />
+                    <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="candidate.set(null)" />
                 </div>
             </div>
         </p-card>
