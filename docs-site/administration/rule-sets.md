@@ -42,3 +42,9 @@ That boundary is structural rather than configurable. See
 Expect a large first result on an existing codebase. Enable it on one repository, work
 through what it says, tune the rule set, and only then widen — turning it on estate-wide in
 one go produces a backlog nobody triages and a feature everybody ignores.
+
+![Activating a set: the rules it adds and removes, and the 317 open issues that resolve with them — triage decisions included.](../assets/screens/en/rule-sets.png)
+
+**Activation says what it costs before it does it.** The rules a new set drops are rules whose
+open issues resolve on the next scan, and their justifications, review dates and decider go with
+them. Re-uploading the old set does not bring them back: the issues return as new ones.

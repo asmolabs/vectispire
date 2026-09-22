@@ -47,3 +47,10 @@ Attendez-vous à un premier résultat volumineux sur une base de code existante.
 un dépôt, traitez ce qu'il dit, affinez le jeu de règles, et seulement ensuite élargissez —
 l'activer sur tout le parc d'un coup produit un backlog que personne ne trie et une
 fonctionnalité que tout le monde ignore.
+
+![Activer un jeu : les règles ajoutées et retirées, et les 317 constats ouverts qui s'en vont avec elles — décisions de triage comprises.](../assets/screens/fr/rule-sets.png)
+
+**L'activation dit ce qu'elle coûte avant de le faire.** Les règles qu'un nouveau jeu abandonne
+sont des règles dont les constats ouverts se résolvent au prochain scan, et leurs justifications,
+dates de revue et décideur partent avec elles. Reverser l'ancien jeu ne les ramène pas : les
+constats reviennent comme neufs.
