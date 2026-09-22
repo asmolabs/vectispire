@@ -976,4 +976,72 @@ test.describe('documentation screenshots', () => {
             await expect(page.getByText('lab-runner').first()).toBeVisible({ timeout: 15_000 });
             await shoot(page, 'agents', locale);
         });
+
+        test('rule sets', async ({ page }, testInfo) => {
+            const locale = edition(testInfo.project.name);
+            await stubEverything(page);
+            await stub(page, '**/api/v1/rule-sets/coverage', {
+                state: 'PARTIAL', ruleFiles: 12,
+                languagesWithRules: ['java', 'python'],
+                ecosystemsInEstate: ['java', 'python', 'typescript'],
+                uncovered: ['typescript']
+            });
+            // An active set and a stored one, because the screen's two states only mean something
+            // beside each other — and because the button this capture clicks exists on the stored
+            // row alone.
+            await stub(page, '**/api/v1/rule-sets', {
+                ruleSets: [
+                    { id: 4, name: 'opengrep-rules 2026.06', ruleCount: 1284, fileCount: 312,
+                      contentHash: 'a91f3c7d5e28b0461d9c2f8a7b3e5061', sizeBytes: '4180224',
+                      uploadedAt: '2026-06-11T10:24:00Z', uploadedBy: 'c.moreau',
+                      isActive: true, activationNote: 'first estate-wide set' },
+                    { id: 7, name: 'internal-java-rules', ruleCount: 96, fileCount: 18,
+                      contentHash: '5c0b8e2a41f7d93620ae4c1b8f6d3057', sizeBytes: '294912',
+                      uploadedAt: '2026-09-15T08:50:00Z', uploadedBy: 'c.moreau',
+                      isActive: false, activationNote: null }
+                ]
+            });
+            // **The panel this page exists for.** `removedRules` is large and `affectedIssues` is
+            // not zero, which is the only combination that says what activation actually costs:
+            // the rules that go are rules whose open issues resolve on the next scan, and their
+            // justifications, review dates and decider go with them. A fixture where nothing is
+            // lost would render the reassuring branch and photograph a confirmation dialog.
+            await stub(page, '**/api/v1/rule-sets/*/impact', {
+                addedRules: 96, removedRules: 1284, affectedIssues: 317,
+                // Four rather than the dozen this would really return: the panel is already the
+                // tallest thing on the page, and a monospace list that runs off the bottom of the
+                // capture illustrates nothing that the first line has not already said.
+                losingIssues: [
+                    'java.lang.security.audit.formatted-sql-string',
+                    'java.lang.security.audit.crypto.weak-hash',
+                    'python.lang.correctness.unchecked-subprocess',
+                    'java.lang.maintainability.dead-catch-block'
+                ]
+            });
+            await enterApp(page, locale);
+            await openScreen(page, '/rule-sets');
+
+            // **Clicked rather than stubbed open.** The impact is fetched when the button is
+            // pressed and never before — the whole reason this screen has two steps is that the
+            // number it shows is invisible in the data and permanent in its effect. A capture that
+            // arrived at the panel some other way would be illustrating a screen nobody can reach.
+            await expect(page.getByText('internal-java-rules').first()).toBeVisible({ timeout: 15_000 });
+            await page.getByRole('button', { name: /review activation|examiner l'activation/i }).first().click();
+            await expect(page.getByText('317').first()).toBeVisible({ timeout: 15_000 });
+            // **The foot of the panel, not the top of it.** `scrollIntoViewIfNeeded` on the
+            // number stops as soon as its top edge is in view, which left the list of rules
+            // losing issues running off the bottom of the capture; scrolling `window` instead
+            // moved almost nothing, because the element that scrolls here is not `body`. Asking
+            // the browser to bring the last card's end into view settles both.
+            // **Anchored on the number, aligned to the top.** `scrollIntoViewIfNeeded` stops the
+            // moment the element's top edge is in view, which left the list of rules losing issues
+            // off the bottom; scrolling `window` moved almost nothing, because the element that
+            // scrolls here is not `body`; and `block: 'end'` on the card missed, because the
+            // `p-card` host measures 207px and does not enclose its projected content. Putting the
+            // figure at the top of the viewport leaves the whole panel below it.
+            await page.getByText('317').first().evaluate((node) =>
+                node.scrollIntoView({ block: 'start', behavior: 'instant' }));
+
+            await shoot(page, 'rule-sets', locale);
+        });
     });
