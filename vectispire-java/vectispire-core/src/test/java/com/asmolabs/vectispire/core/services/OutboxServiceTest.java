@@ -61,6 +61,7 @@ class OutboxServiceTest {
 
         when(messages.save(any())).thenAnswer(call -> call.getArgument(0));
         when(messages.findDue(anyString(), any(), any())).thenReturn(List.of());
+        when(messages.claim(any(), anyString(), any(), any())).thenReturn(1);
     }
 
     @Test
@@ -81,6 +82,19 @@ class OutboxServiceTest {
 
         assertThat(service.relay(20)).isEqualTo(new OutboxService.RelayResult(1, 0, 0));
         verify(messages).markSent(ID, 1, "sent", NOW);
+    }
+
+    @Test
+    @DisplayName("a message another instance has claimed is not delivered again")
+    void aClaimedMessageIsSkipped() throws Exception {
+        // Every instance runs the relay and reads the same due rows. Without the claim each of
+        // them delivered each message.
+        OutboxMessageEntity message = pending(0);
+        due(message);
+        when(messages.claim(eq(message.getId()), anyString(), any(), any())).thenReturn(0);
+
+        assertThat(service.relay(20).sent()).isZero();
+        verify(messages, never()).markSent(any(), anyInt(), anyString(), any());
     }
 
     @Test

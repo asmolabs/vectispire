@@ -21,10 +21,12 @@ import org.springframework.stereotype.Component;
  * about to lose a startup race for the leader lease is competing for it. Half a minute costs
  * nothing and removes a whole class of "only on the first tick after a deploy".
  *
- * <p><b>No leader election here, deliberately.</b> Everything below is idempotent: dropping the
- * same payload twice costs nothing, and the ticket sweep deduplicates on the reference stored
- * on the issue. That is not true of every periodic job — scheduling scans does need an election
- * — so this class may only host work that tolerates being run twice.
+ * <p><b>No leader election here, deliberately.</b> Every job below tolerates running on several
+ * instances at once: the purges delete the same rows twice at no cost, the ticket sweep
+ * deduplicates on the reference stored on the issue, and the notification relay claims each
+ * message before sending it. That last one was listed as idempotent and was not — each instance
+ * delivered every message — which is why "idempotent" has to name its mechanism. Scheduling scans
+ * does need an election, so this class may only host work that tolerates being run twice.
  */
 @Component
 public class MaintenanceJobs {

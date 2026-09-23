@@ -34,6 +34,26 @@ public interface Outbox extends JpaRepository<OutboxMessageEntity, UUID> {
              order by m.createdAt asc, m.id asc""")
     List<OutboxMessageEntity> findDue(@Param("status") String status, @Param("at") Instant at, Limit limit);
 
+    /**
+     * Takes one due message for this instance, or reports that another one already has.
+     *
+     * <p>The condition is the whole mechanism: it repeats {@link #findDue}'s, so of two instances
+     * that read the same due row, the second update finds its next attempt already pushed ahead
+     * and changes nothing. Committed on its own, before the delivery, so the others see it.
+     *
+     * @return 1 when this caller holds the message until {@code until}, 0 when someone else does
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update OutboxMessageEntity m set m.nextAttemptAt = :until
+             where m.id = :id and m.status = :status and (m.nextAttemptAt is null or m.nextAttemptAt <= :at)""")
+    int claim(
+            @Param("id") UUID id,
+            @Param("status") String status,
+            @Param("at") Instant at,
+            @Param("until") Instant until);
+
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""

@@ -38,6 +38,17 @@ public final class OutboxRetry {
      */
     public static final int MAX_PER_PASS = 20;
 
+    /**
+     * How long a claimed message is withheld from the other instances.
+     *
+     * <p>The claim pushes the message's next attempt this far ahead, so it must outlast one
+     * delivery — ten seconds of outbound timeout and the write that settles it — by a wide margin.
+     * It is also how long a message waits when the instance that claimed it dies mid-delivery:
+     * it falls due again rather than staying claimed forever. Delivery stays at-least-once; the
+     * {@code message_id} in the payload is what a receiver deduplicates on.
+     */
+    public static final Duration CLAIM_WINDOW = Duration.ofMinutes(5);
+
     /** Delivered messages are kept for a few days, so "did it go out?" has an answer. */
     public static final Duration SENT_RETENTION = Duration.ofDays(7);
 

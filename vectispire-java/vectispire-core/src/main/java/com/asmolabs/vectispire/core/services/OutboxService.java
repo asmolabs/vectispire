@@ -136,6 +136,12 @@ public class OutboxService {
         int abandoned = 0;
 
         for (OutboxMessageEntity message : due) {
+            // **Claimed before it is sent.** Every instance runs this pass and reads the same due
+            // rows; without the claim each of them delivered each message, so N instances sent
+            // every webhook, card and mail N times.
+            if (messages.claim(message.getId(), STATUS_PENDING, at, at.plus(OutboxRetry.CLAIM_WINDOW)) == 0) {
+                continue;
+            }
             int attempts = message.getAttempts() + 1;
             try {
                 channelFor(message).deliver(payloadOf(message), message.getTeamId());

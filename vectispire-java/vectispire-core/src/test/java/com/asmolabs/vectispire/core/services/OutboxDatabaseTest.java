@@ -85,6 +85,24 @@ class OutboxDatabaseTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a due message is claimed by one caller only, and falls due again if its claimant vanishes")
+    void aClaimIsExclusiveAndLapses() {
+        UUID id = transactions
+                .execute(status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA))
+                .getId();
+        Instant now = Instant.now();
+        Instant until = now.plus(OutboxRetry.CLAIM_WINDOW);
+
+        assertThat(messages.claim(id, "pending", now, until)).as("the first instance takes it").isEqualTo(1);
+        assertThat(messages.claim(id, "pending", now, until)).as("the second finds it taken").isZero();
+        assertThat(messages.findDue("pending", now, Limit.of(20))).isEmpty();
+
+        // An instance that dies mid-delivery must not hold the message forever.
+        assertThat(messages.findDue("pending", until.plusSeconds(1), Limit.of(20))).hasSize(1);
+        assertThat(messages.claim(id, "pending", until.plusSeconds(1), until.plusSeconds(301))).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("a message waiting for its retry is not due yet")
     void aScheduledRetryIsNotDue() {
         UUID id = transactions
