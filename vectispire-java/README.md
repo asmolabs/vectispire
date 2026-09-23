@@ -9,7 +9,7 @@ HTTP.
 ./gradlew :vectispire-common:integrationTest   # the scanner containers, needs Docker
 ./gradlew integrationTest            # one engine, needs Docker (default: mysql)
 ./gradlew integrationTest -Pdialect=postgres
-./gradlew integrationTestAll         # all four
+./gradlew integrationTestAll         # PostgreSQL, MySQL and the SQLite fixture
 ```
 
 ## Three modules, and why three
@@ -57,7 +57,7 @@ the same commit that violates it; a missing dependency cannot.
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
-| Entities agree with the schema, on two engines | `SchemaParityIntegrationTest` |
+| Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `UsersController` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -133,10 +133,11 @@ historically experienced with abstractions:
   hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all twenty-six tables and twenty foreign keys are created by name.
+that all thirty-seven tables are created by name, and that the twenty-four foreign keys of the
+sixteen tables that carry one really exist.
 
-`SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on all four
-engines through Testcontainers. **There is no "skip if Docker is missing" guard, deliberately** — a
+`SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
+PostgreSQL and MySQL through Testcontainers and on the SQLite fixture. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
 
 See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md) for the architecture rationale.
@@ -145,8 +146,13 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 
 `./gradlew build` runs the unit suites, the architecture suite and the HTTP suite against a
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
-all two engines through Testcontainers — **not run by CI**, because it needs Docker and ten
-minutes; run it before a release and after any change to the migrations.
+PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
+On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
+**only when a migration changed**, or when the diff range cannot be resolved. Every night, the
+`databases` job of [`nightly.yml`](../.github/workflows/nightly.yml) runs it unconditionally.
+A green push pipeline that touched no migration therefore says nothing about portability: a
+query that behaves differently on MySQL is the nightly's to catch. Do not release on a nightly
+that has not been green, and remember that the schedule fires from `main` only.
 
 `ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer
 is populated, so an empty one now means a package was renamed or deleted, and that rule going

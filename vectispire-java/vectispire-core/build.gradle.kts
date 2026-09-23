@@ -158,8 +158,8 @@ dependencies {
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
     // SQLite on the unit-test classpath, not only at runtime: it is the one engine that needs
-    // no daemon, so the migrations can be executed for real in a plain unit test. The other
-    // three are the integration campaign's business.
+    // no daemon, so the migrations can be executed for real in a plain unit test. PostgreSQL
+    // and MySQL are the integration campaign's business.
     testRuntimeOnly(libs.sqlite)
     testImplementation(libs.sqlite)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -266,7 +266,7 @@ tasks.register("integrationTestAll") {
  * `gradle.properties` sets a project version, so `bootJar` produced `vectispire-core-0.9.0.jar`
  * while `Dockerfile`, `Dockerfile.agent`, `release.yml` and the nightly workflow all copy
  * `vectispire-core.jar`. Every one of those steps failed on a file that never existed — and nothing
- * noticed, because no CI job builds the images or runs a release.
+ * noticed, because at the time no CI job built the images or ran a release.
  *
  * Pinned here rather than by teaching four callers to glob a version they do not care about:
  * the version belongs in the manifest and in the release artifact's name, which `release.yml`

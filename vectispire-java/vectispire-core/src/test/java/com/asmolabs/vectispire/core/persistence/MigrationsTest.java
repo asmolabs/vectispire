@@ -76,9 +76,10 @@ class MigrationsTest {
     @Test
     @DisplayName("the foreign keys really exist on SQLite, which is why they are inline")
     void foreignKeysArePresent() throws Exception {
-        // The point of declaring them inline. Written as `addForeignKeyConstraint` the
-        // migrations apply without complaint on SQLite and creates no constraint at all —
-        // referential integrity on three engines out of four, and nothing saying so.
+        // The point of declaring them inline. SQLite has no `alter table … add constraint`,
+        // so a key that is not in the `create table` never exists on the fixture the HTTP
+        // suite runs on, while the deployable engines have it. Enforcement is a separate
+        // matter — the per-connection pragma, which `ForeignKeyEnforcementTest` guards.
         Path database = scratch.resolve("fk.db");
         apply(database);
 
