@@ -96,35 +96,14 @@ public final class IssueCsv {
         return csv.toString();
     }
 
-    /**
-     * The characters by which a spreadsheet decides a cell is a <b>formula</b>.
-     *
-     * <p>Excel, LibreOffice and Google Sheets evaluate a cell starting with any of them. Tab
-     * and carriage return are in the list because Excel skips them before resuming its parse:
-     * {@code \t=cmd|…} is evaluated as {@code =cmd|…}.
-     */
-    private static final Pattern FORMULA_PREFIX = Pattern.compile("^[=+\\-@\\t\\r]");
-
     private static final Pattern NEEDS_QUOTING = Pattern.compile("[\",\\r\\n]");
 
     /**
-     * Minimal quoting, <b>preceded by formula neutralization</b>.
-     *
-     * <p><b>This file's content comes from scanned repositories</b>, hence from outside the
-     * trust boundary: a package name, a file path, a rule identifier are chosen by whoever can
-     * commit to the target. The reader is a security operator opening the file in a
-     * spreadsheet, which is the entire point of a CSV export.
-     *
-     * <p>A package named {@code =cmd|'/c calc'!A1} executes on open;
-     * {@code =HYPERLINK(...&A1&B1)} exfiltrates the neighbouring cells — that is, the rest of
-     * the backlog — to a host of the attacker's choosing, with no prompt at all. A leading
-     * apostrophe forces text mode.
-     *
-     * <p><b>Quoting does not protect</b>: the spreadsheet strips the quotes before evaluating.
-     * Neutralization has to come first, and cannot be replaced by it.
+     * Minimal quoting, <b>preceded by formula neutralization</b> — see {@link SpreadsheetCells}
+     * for why the order matters and cannot be reversed.
      */
     private static String quote(String value) {
-        String safe = FORMULA_PREFIX.matcher(value).find() ? "'" + value : value;
+        String safe = SpreadsheetCells.neutralize(value);
         if (!NEEDS_QUOTING.matcher(safe).find()) {
             return safe;
         }

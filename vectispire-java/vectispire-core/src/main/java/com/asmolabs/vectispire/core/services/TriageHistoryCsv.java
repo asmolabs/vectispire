@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.exports.SpreadsheetCells;
 import com.asmolabs.vectispire.core.services.TriageHistory.Decision;
 import com.asmolabs.vectispire.core.services.TriageHistory.ObservedIssue;
 import com.asmolabs.vectispire.core.services.TriageHistory.Scan;
@@ -117,8 +118,14 @@ public final class TriageHistoryCsv {
      * a matter of course, and a rule that decides per field is a rule with a case nobody thought
      * of — which produces a file that opens fine and has one column too many on the row that
      * matters.
+     *
+     * <p><b>Neutralized before it is quoted</b>, because quoting protects nothing: the spreadsheet
+     * strips the quotes and then evaluates. This export shipped without it while {@code IssueCsv}
+     * beside it had it, and a triage comment is exactly the free text an attacker with triage
+     * rights would use — see {@link SpreadsheetCells}.
      */
     private static String quote(String value) {
-        return '"' + (value == null ? "" : value.replace("\"", "\"\"")) + '"';
+        String safe = value == null ? "" : SpreadsheetCells.neutralize(value);
+        return '"' + safe.replace("\"", "\"\"") + '"';
     }
 }
