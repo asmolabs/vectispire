@@ -142,7 +142,7 @@ class TrendsRoutesTest extends ApiTestBase {
         issue.setLastSeenAt(Instant.now());
         issue.setTimesSeen(1);
         if (resolvedAgo != null) {
-            issue.setResolvedAt(Instant.now().minus(resolvedAgo));
+            issue.resolveAt(Instant.now().minus(resolvedAgo));
         }
         issues.save(issue);
     }

@@ -59,6 +59,24 @@ class ResolutionSecondsTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("the state moves with the instant: resolving closes the issue, reopening opens it")
+    void theStateTravelsWithTheResolution() {
+        // State, instant and duration were three public setters; a path setting one of them left
+        // an issue "resolved" with no date, or dated and still open, and the MTTR drifted. Two of
+        // this suite's own fixtures had exactly that shape.
+        IssueEntity issue = new IssueEntity();
+        issue.setFirstSeenAt(SEEN);
+        issue.setState("open");
+
+        issue.resolveAt(SEEN.plus(Duration.ofDays(1)));
+        assertThat(issue.getState()).isEqualTo("resolved");
+
+        issue.reopen();
+        assertThat(issue.getState()).isEqualTo("open");
+        assertThat(issue.getResolvedAt()).isNull();
+    }
+
+    @Test
     @DisplayName("stays null for the three cases the average has always skipped")
     void stays_null_where_there_is_nothing_to_measure() {
         IssueEntity closedInTheSameInstant = new IssueEntity();

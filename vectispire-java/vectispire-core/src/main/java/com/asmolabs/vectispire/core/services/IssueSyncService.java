@@ -194,7 +194,6 @@ public class IssueSyncService {
                 .toList();
 
         disappeared.forEach(issue -> {
-            issue.setState(IssueState.RESOLVED.wireName());
             issue.resolveAt(moment);
         });
         issues.saveAll(disappeared);
@@ -250,7 +249,6 @@ public class IssueSyncService {
         issue.setLastSeenAt(moment);
         issue.setLastSeenScanId(scan.getId());
         issue.setTimesSeen(issue.getTimesSeen() + 1);
-        issue.setState(IssueState.OPEN.wireName());
         issue.reopen();
     }
 

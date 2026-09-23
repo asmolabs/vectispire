@@ -332,7 +332,9 @@ class ReadCostSweepTest extends ApiTestBase {
             issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
             issue.setFirstSeenAt(Instant.now().minusSeconds(86_400L * 30));
             issue.setLastSeenAt(Instant.now());
-            issue.setResolvedAt(index % 4 == 0 ? Instant.now().minusSeconds(86_400L * 5) : null);
+            if (index % 4 == 0) {
+                issue.resolveAt(Instant.now().minusSeconds(86_400L * 5));
+            }
             issue.setTimesSeen(1);
             issues.save(issue);
         }

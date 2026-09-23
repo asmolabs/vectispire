@@ -391,16 +391,8 @@ public class IssueEntity {
         return resolvedAt;
     }
 
-    public void setResolvedAt(Instant resolvedAt) {
-        this.resolvedAt = resolvedAt;
-    }
-
     public Long getResolutionSeconds() {
         return resolutionSeconds;
-    }
-
-    public void setResolutionSeconds(Long resolutionSeconds) {
-        this.resolutionSeconds = resolutionSeconds;
     }
 
     /**
@@ -414,14 +406,19 @@ public class IssueEntity {
      * truth with every scan.
      */
     public void resolveAt(Instant moment) {
+        // The state travels with the instant, for the same reason the duration does: three fields
+        // one decision, and there were public setters for each. They are gone — the only writes
+        // left are this method and `reopen`, so no path can resolve an issue halfway.
+        this.state = com.asmolabs.vectispire.common.domain.issues.IssueState.RESOLVED.wireName();
         this.resolvedAt = moment;
         this.resolutionSeconds = moment != null && firstSeenAt != null && moment.isAfter(firstSeenAt)
                 ? java.time.Duration.between(firstSeenAt, moment).toSeconds()
                 : null;
     }
 
-    /** Reopens it: no resolution instant, and therefore no duration either. */
+    /** Reopens it: open again, no resolution instant, and therefore no duration either. */
     public void reopen() {
+        this.state = com.asmolabs.vectispire.common.domain.issues.IssueState.OPEN.wireName();
         this.resolvedAt = null;
         this.resolutionSeconds = null;
     }
