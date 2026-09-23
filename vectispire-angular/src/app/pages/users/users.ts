@@ -18,6 +18,9 @@ import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
+/** A list from the server, or none: read inside a computed the template renders, anything else would break the screen. */
+const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? rows : []);
+
 @Component({
     selector: 'app-users',
     standalone: true,
@@ -76,11 +79,11 @@ export class Users {
         this.i18n.translations();
         const targets = this.targets();
         return [
-            ...(targets?.repositories ?? []).map((row) => ({
+            ...listOf(targets?.repositories).map((row) => ({
                 label: `${this.i18n.t('users.target_repository')} — ${row.label}`,
                 value: `repository:${row.id}`
             })),
-            ...(targets?.containers ?? []).map((row) => ({
+            ...listOf(targets?.containers).map((row) => ({
                 label: `${this.i18n.t('users.target_image')} — ${row.label}`,
                 value: `container:${row.id}`
             }))

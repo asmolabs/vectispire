@@ -32,6 +32,9 @@ interface TargetOption {
  * Both halves are sent **wholesale**. A screen that sent only what it added, against a server
  * that only added, would make removing somebody a click that silently does nothing.
  */
+/** A list from the server, or none: read inside a computed the template renders, anything else would break the screen. */
+const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? rows : []);
+
 @Component({
     selector: 'app-teams',
     standalone: true,
@@ -63,11 +66,11 @@ export class Teams {
         this.i18n.translations();
         const targets = this.targets();
         return [
-            ...(targets?.repositories ?? []).map((row) => ({
+            ...listOf(targets?.repositories).map((row) => ({
                 label: `${this.i18n.t('teams.target_repository')} — ${row.label}`,
                 value: `repository:${row.id}`
             })),
-            ...(targets?.containers ?? []).map((row) => ({
+            ...listOf(targets?.containers).map((row) => ({
                 label: `${this.i18n.t('teams.target_image')} — ${row.label}`,
                 value: `container:${row.id}`
             }))

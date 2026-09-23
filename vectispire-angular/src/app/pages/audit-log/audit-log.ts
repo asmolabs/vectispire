@@ -76,7 +76,9 @@ export class AuditLog {
         });
 
         this.api.auditOperationTypes().subscribe({
-            next: (types) => this.operationTypes.set(types),
+            // Checked, not trusted: read inside a computed the template renders, a value that is
+            // not a list broke the whole screen — the log included — instead of just the filter.
+            next: (types) => this.operationTypes.set(Array.isArray(types) ? types : []),
             error: () => this.operationTypes.set([])
         });
     }
