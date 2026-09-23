@@ -7,7 +7,6 @@ import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
@@ -114,15 +113,14 @@ public class SecurityScorecardService {
         List<LicenseEntry> licenses = licenseService.getInventory().stream()
                 .filter(entry -> permits(allowed, entry))
                 .toList();
-        // **This one stays a full read, and it is not the same defect as the two above.** Those
-        // asked "has this target completed a scan" and answered it by loading every scan in the
-        // deployment; both are now one indexed existence check. This asks "has *any target the
-        // caller may see* completed one", and the allowance is a set of targets rather than a
-        // column — so there is no derived query to ask it with. Named rather than left to look
-        // like an oversight.
-        boolean hasAttestation = scansRepo.findAll().stream()
-                .filter(s -> allowed.permits(targetOf(s)))
-                .anyMatch(s -> "completed".equalsIgnoreCase(s.getStatus()));
+        // **Still a read of every target, no longer of every scan.** Those above asked "has this
+        // target completed a scan" and are one indexed existence check. This asks "has *any target
+        // the caller may see* completed one", and the allowance is a set of targets rather than a
+        // column, so it is applied in memory — but over the distinct targets with a completed
+        // scan, as two columns. It used to load every scan entity, SBOM and CVE payloads included,
+        // to read one boolean.
+        boolean hasAttestation = scansRepo.targetsWithStatus("completed").stream()
+                .anyMatch(row -> allowed.permits(targetOf(row[0], row[1])));
 
         return computeScorecard(null, "global", "Organization Portfolio", openIssues, licenses, hasAttestation);
     }
@@ -223,12 +221,15 @@ public class SecurityScorecardService {
                 : new ScanTarget.Repository(entry.targetId()));
     }
 
-    /** A scan attached to neither target is unclassifiable, and a restriction does not pass it. */
-    private static ScanTarget targetOf(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return new ScanTarget.Repository(scan.getRepoId());
+    /**
+     * A scan attached to neither target is unclassifiable, and a restriction does not pass it.
+     * Read from a {@code [.., repoId, containerId]} projection row.
+     */
+    private static ScanTarget targetOf(Object repoId, Object containerId) {
+        if (repoId != null) {
+            return new ScanTarget.Repository(((Number) repoId).longValue());
         }
-        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+        return containerId == null ? null : new ScanTarget.Container(((Number) containerId).longValue());
     }
 
 }

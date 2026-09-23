@@ -10,7 +10,6 @@ import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest;
 import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest.EvidenceFileEntry;
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -160,26 +159,27 @@ public class EvidenceVaultService {
                     triageBytes);
 
             // 4. In-toto Supply Chain Attestations & DSSE Envelopes
-            List<ScanEntity> completedScans = scansRepo.findAll().stream()
-                    .filter(s -> "completed".equalsIgnoreCase(s.getStatus()))
-                    // An attestation names its target's provenance and gate verdict, so the
-                    // twenty that go into the archive must be twenty the caller may see.
-                    .filter(s -> allowed.permits(targetOf(s)))
+            // The twenty most recent the caller may see, as ids: an attestation names its target's
+            // provenance and gate verdict, so the twenty must be visible ones. Read from
+            // `findAll()` they were also the twenty *oldest*, and every scan came with its SBOM.
+            List<Long> completedScans = scansRepo.idsAndTargetsNewestFirst("completed").stream()
+                    .filter(row -> allowed.permits(targetOf(row[1], row[2])))
                     .limit(20)
+                    .map(row -> ((Number) row[0]).longValue())
                     .toList();
-            for (ScanEntity scan : completedScans) {
+            for (Long scanId : completedScans) {
                 try {
-                    InTotoAttestation attestation = attestationService.generateAttestation(scan.getId());
+                    InTotoAttestation attestation = attestationService.generateAttestation(scanId);
                     byte[] attestationBytes = json.writeValueAsBytes(attestation);
-                    addZipEntry(zip, entries, "04_attestations/scan_" + scan.getId() + "_in_toto.json",
-                            "in-toto v0.1 supply chain provenance and gate verdict for scan " + scan.getId(),
+                    addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_in_toto.json",
+                            "in-toto v0.1 supply chain provenance and gate verdict for scan " + scanId,
                             attestationBytes);
 
                     // Signed DSSE Envelope
                     DsseEnvelope dsse = signingKeyService.wrapAndSignDsse(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, attestationBytes);
                     byte[] dsseBytes = json.writeValueAsBytes(dsse);
-                    addZipEntry(zip, entries, "04_attestations/scan_" + scan.getId() + "_in_toto.dsse.json",
-                            "Signed DSSE envelope (RFC 9615) for scan " + scan.getId(),
+                    addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_in_toto.dsse.json",
+                            "Signed DSSE envelope (RFC 9615) for scan " + scanId,
                             dsseBytes);
                 } catch (Exception ignored) {}
             }
@@ -319,12 +319,15 @@ public class EvidenceVaultService {
         }
     }
 
-    /** A scan attached to neither target is unclassifiable, and a restriction does not wave it through. */
-    private static ScanTarget targetOf(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return new ScanTarget.Repository(scan.getRepoId());
+    /**
+     * A scan attached to neither target is unclassifiable, and a restriction does not wave it through.
+     * Read from a {@code [.., repoId, containerId]} projection row.
+     */
+    private static ScanTarget targetOf(Object repoId, Object containerId) {
+        if (repoId != null) {
+            return new ScanTarget.Repository(((Number) repoId).longValue());
         }
-        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+        return containerId == null ? null : new ScanTarget.Container(((Number) containerId).longValue());
     }
 
 }

@@ -191,6 +191,30 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
             @Param("to") String to,
             @Param("error") String error);
 
+    /**
+     * The targets that have at least one scan in this status, as {@code [repoId, containerId]}.
+     *
+     * <p><b>Columns, not entities.</b> Asked by routes that need only "has a target the caller may
+     * see completed a scan" — and answered by loading every scan in the deployment, SBOM and CVE
+     * payloads included, to read one boolean off them. The allowance is a set of targets, so it is
+     * still applied in memory; what no longer travels is the payload.
+     */
+    @Query("select distinct s.repoId, s.containerId from ScanEntity s where s.status = :status")
+    List<Object[]> targetsWithStatus(@Param("status") String status);
+
+    /**
+     * Scans in this status, most recent first, as {@code [id, repoId, containerId]}.
+     *
+     * <p>Newest first because the caller keeps the first few it may see: taken from
+     * {@code findAll()} they were the oldest, so the evidence bundle shipped the twenty earliest
+     * attestations of the deployment's life instead of the current ones.
+     */
+    @Query("""
+            select s.id, s.repoId, s.containerId from ScanEntity s
+             where s.status = :status
+             order by s.createdAt desc, s.id desc""")
+    List<Object[]> idsAndTargetsNewestFirst(@Param("status") String status);
+
     /** Scans whose lease has lapsed: their worker stopped renewing, or stopped existing. */
     @Query("""
             select s from ScanEntity s
