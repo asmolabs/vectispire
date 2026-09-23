@@ -5,6 +5,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '@/app/core/api.service';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { FormsModule } from '@angular/forms';
@@ -42,6 +43,7 @@ export class Remediation {
     private readonly coverageRequest = new LatestRequest();
 
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly fixes = signal<HighImpactFix[]>([]);
     readonly debt = signal<SecurityDebtReport | null>(null);
@@ -134,7 +136,7 @@ export class Remediation {
         this.fixesRequest.run(this.api.getHighImpactFixes(repoId, containerId, this.wanted()), {
             next: (fixes) => { this.fixes.set(fixes); this.loading.set(false); },
             error: () => {
-                this.error.set('Le plan de remédiation n\'a pas pu être calculé.');
+                this.error.set(this.i18n.t('remediation.plan_failed'));
                 this.loading.set(false);
             }
         });

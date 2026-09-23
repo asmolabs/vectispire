@@ -23,15 +23,9 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     unknown: 'secondary'
 };
 
-const TRIAGE_LABELS: Record<string, string> = {
-    under_review: 'Under review',
-    pending_approval: 'Pending approval',
-    not_affected: 'Not affected',
-    affected: 'Affected',
-    fixed: 'Fixed',
-    accepted: 'Risk accepted',
-    false_positive: 'False positive'
-};
+/** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
+ *  is shown raw rather than hidden. */
+const TRIAGE_STATUSES = new Set(['under_review', 'pending_approval', 'not_affected', 'affected', 'fixed', 'accepted', 'false_positive']);
 
 /**
  * One issue, with what a row in the backlog cannot carry.
@@ -83,7 +77,7 @@ export class IssueDetailPage {
         queueMicrotask(() => {
             this.api.issue(Number(this.id())).subscribe({
                 next: (detail) => this.issue.set(detail),
-                error: () => this.error.set('This issue could not be loaded.')
+                error: () => this.error.set(this.i18n.t('issues.detail_load_failed'))
             });
         });
     }
@@ -93,11 +87,11 @@ export class IssueDetailPage {
     }
 
     triageLabel(status: string | null): string {
-        return status ? (TRIAGE_LABELS[status] ?? status) : '—';
+        return status ? (TRIAGE_STATUSES.has(status) ? this.i18n.t(`issues.triage_status.${status}`) : status) : '—';
     }
 
     typeLabel(type: string): string {
-        return type === 'sast' ? 'Vulnerable code' : type;
+        return type === 'sast' ? this.i18n.t('issues.types.sast') : type;
     }
 
     /** Opens the form, pre-filled with what is already attached. */

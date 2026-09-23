@@ -13,7 +13,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { UserSummary, UserTargetAssignment } from '../../core/api.models';
+import type { ApiKeyTargets, UserSummary, UserTargetAssignment } from '../../core/api.models';
 import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -69,7 +69,23 @@ export class Users {
      */
     readonly accessVisible = signal(false);
     readonly accessUser = signal<UserSummary | null>(null);
-    readonly targetOptions = signal<{ label: string; value: string }[]>([]);
+    private readonly targets = signal<ApiKeyTargets | null>(null);
+
+    /** Labelled at render time, not at load: the language changes at runtime. */
+    readonly targetOptions = computed<{ label: string; value: string }[]>(() => {
+        this.i18n.translations();
+        const targets = this.targets();
+        return [
+            ...(targets?.repositories ?? []).map((row) => ({
+                label: `${this.i18n.t('users.target_repository')} — ${row.label}`,
+                value: `repository:${row.id}`
+            })),
+            ...(targets?.containers ?? []).map((row) => ({
+                label: `${this.i18n.t('users.target_image')} — ${row.label}`,
+                value: `container:${row.id}`
+            }))
+        ];
+    });
     selectedTargets: string[] = [];
 
     /**
@@ -104,18 +120,8 @@ export class Users {
         // The targets and the mode are loaded separately: failing to get them degrades the dialog
         // without preventing the administration of accounts, which is the screen's subject.
         this.api.apiKeyTargets().subscribe({
-            next: (targets) =>
-                this.targetOptions.set([
-                    ...(targets?.repositories ?? []).map((row) => ({
-                        label: `${this.i18n.t('users.target_repository')} — ${row.label}`,
-                        value: `repository:${row.id}`
-                    })),
-                    ...(targets?.containers ?? []).map((row) => ({
-                        label: `${this.i18n.t('users.target_image')} — ${row.label}`,
-                        value: `container:${row.id}`
-                    }))
-                ]),
-            error: () => this.targetOptions.set([])
+            next: (targets) => this.targets.set(targets ?? null),
+            error: () => this.targets.set(null)
         });
         this.api.settings().subscribe({
             next: (result) => this.visibilityMode.set(
@@ -184,7 +190,7 @@ export class Users {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the account list.');
+                this.error.set(this.i18n.t('users.error_load'));
                 this.loading.set(false);
             }
         });
@@ -212,7 +218,7 @@ export class Users {
                 // Le refus porte sa raison — « dernier administrateur actif », « votre
                 // own account". Replacing it with a generic message would suggest a fault where
                 // there is a rule.
-                this.error.set(messageOf(response, 'The operation failed.'));
+                this.error.set(messageOf(response, this.i18n.t('users.error_operation')));
                 // Reloaded to bring the list back in line with the database — otherwise the role
                 // selector keeps showing the refused value.
                 this.reload(true);
@@ -243,7 +249,7 @@ export class Users {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(messageOf(response, 'Could not create this account.'));
+                    this.formError.set(messageOf(response, this.i18n.t('users.error_create')));
                 }
             });
     }
@@ -267,7 +273,7 @@ export class Users {
             },
             error: (response) => {
                 this.saving.set(false);
-                this.formError.set(messageOf(response, 'The reset failed.'));
+                this.formError.set(messageOf(response, this.i18n.t('users.error_reset')));
             }
         });
     }
@@ -290,7 +296,7 @@ export class Users {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(messageOf(response, 'The deletion failed.'));
+                this.error.set(messageOf(response, this.i18n.t('users.error_delete')));
                 this.reload(true);
             }
         });

@@ -111,7 +111,7 @@ export class Inventory {
             },
             error: () => {
                 this.loading.set(false);
-                this.error.set('The search could not be run.');
+                this.error.set(this.i18n.t('inventory.search_failed'));
             }
         });
     }

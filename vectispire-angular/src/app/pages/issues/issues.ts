@@ -313,8 +313,12 @@ export class Issues {
     }
 
     pageLabel(): string {
-        if (this.total() === 0) return 'No result';
-        return `${this.offset() + 1}–${Math.min(this.offset() + this.limit, this.total())} of ${this.total()}`;
+        if (this.total() === 0) return this.i18n.t('issues.no_result');
+        return this.i18n.t('issues.page_range', {
+            from: this.offset() + 1,
+            to: Math.min(this.offset() + this.limit, this.total()),
+            total: this.total()
+        });
     }
 
     /**
@@ -343,11 +347,13 @@ export class Issues {
         if (!issue.slaState || issue.slaDays === null) return null;
         if (issue.slaState === 'overdue') {
             const late = Math.abs(issue.slaDays);
-            return late === 0 ? 'late today' : `${late} day${late === 1 ? '' : 's'} late`;
+            if (late === 0) return this.i18n.t('issues.sla_late_today');
+            return this.i18n.t(late === 1 ? 'issues.sla_late_one' : 'issues.sla_late_many', { count: late });
         }
         // "due in 0 days" reads worse than "due today", and the zero is a real case: the last
         // day of a window rounds to it.
-        return issue.slaDays === 0 ? 'due today' : `due in ${issue.slaDays} days`;
+        if (issue.slaDays === 0) return this.i18n.t('issues.sla_due_today');
+        return this.i18n.t(issue.slaDays === 1 ? 'issues.sla_due_one' : 'issues.sla_due_many', { count: issue.slaDays });
     }
 
     slaColour(issue: Issue): 'danger' | 'warn' | 'secondary' {
@@ -419,7 +425,9 @@ export class Issues {
     /** The dialog says how wide the decision is, because "Save" looks identical for one row and
      *  for forty — and one of the two is not undoable row by row. */
     triageHeader(): string {
-        return this.bulk ? `Triage ${this.selected().length} selected issue(s)` : 'Triage this issue';
+        return this.bulk
+            ? this.i18n.t('issues.triage_header_bulk', { count: this.selected().length })
+            : this.i18n.t('issues.triage_header_single');
     }
 
     /** Preventing the submission beats explaining a refusal afterwards. */
@@ -441,7 +449,7 @@ export class Issues {
                     this.triageOpen = false;
                     this.reload(this.offset());
                 },
-                error: (response) => this.triageError.set(messageOf(response, 'The triage was refused.'))
+                error: (response) => this.triageError.set(messageOf(response, this.i18n.t('issues.triage_refused')))
             });
     }
 
@@ -463,11 +471,11 @@ export class Issues {
                 this.reload(this.offset());
             },
             error: (response) => {
-                const refused = `None of the ${ids.length} selected issues were triaged: the batch is refused as a whole.`;
+                const refused = this.i18n.t('issues.bulk_triage_refused', { count: ids.length });
                 this.triageError.set(
                     (response as { status?: number } | null)?.status === 404
-                        ? `${refused} One of them is no longer visible to you — reload the list and select again.`
-                        : `${refused} ${messageOf(response, 'The triage was refused.')}`
+                        ? `${refused} ${this.i18n.t('issues.bulk_triage_not_visible')}`
+                        : `${refused} ${messageOf(response, this.i18n.t('issues.triage_refused'))}`
                 );
             }
         });
@@ -530,7 +538,7 @@ export class Issues {
         if (advice.vexSuggestion) {
             this.triageStatus = advice.vexSuggestion.status || 'under_investigation';
             this.triageJustification = advice.vexSuggestion.justification || null;
-            this.triageComment = `[Suggestion IA] ${advice.vexSuggestion.impactStatement || advice.summaryExplanation}`;
+            this.triageComment = `${this.i18n.t('issues.ai_suggestion_prefix')} ${advice.vexSuggestion.impactStatement || advice.summaryExplanation}`;
         }
         this.aiModalOpen = false;
     }

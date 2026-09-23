@@ -45,6 +45,23 @@ const walk = (dir) =>
         return statSync(path).isDirectory() ? walk(path) : [path];
     });
 
+/**
+ * Every template, wherever it is written: the `.html` files, and the `template:` strings inline in
+ * a component.
+ *
+ * **The template ratchets below read `.html` only, and eight components have no `.html`.** The
+ * layout — topbar, sidebar, menu, footer, the theme configurator — writes its templates inline,
+ * twelve hundred lines of them, and "Presets", "Menu Mode" or "Primary" sat there untranslated in a
+ * French interface with every counter at zero. A rule that reads the wrong files reassures.
+ */
+const templates = () =>
+    walk(join(root, 'src/app')).flatMap((file) => {
+        if (file.endsWith('.html')) return [{ file, source: readFileSync(file, 'utf8') }];
+        if (!file.endsWith('.ts') || file.endsWith('.spec.ts')) return [];
+        const inline = readFileSync(file, 'utf8').match(/\btemplate:\s*`([\s\S]*?)`/);
+        return inline ? [{ file, source: inline[1] }] : [];
+    });
+
 const bundle = (lang) =>
     new Set(flatten(JSON.parse(readFileSync(join(root, 'public/i18n', `${lang}.json`), 'utf8'))));
 
@@ -77,7 +94,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1285;
+const EXPECTED_KEYS = 1433;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -162,9 +179,7 @@ const textNode = />([^<>{}]{3,}?)</g;
 const staticAttribute = /\s(?:label|placeholder|header|title|ariaLabel)="([^"{}]{3,}?)"/g;
 let frozenFrench = 0;
 const frenchOffenders = new Map();
-for (const file of walk(join(root, 'src/app'))) {
-    if (!/\.html$/.test(file)) continue;
-    const source = readFileSync(file, 'utf8');
+for (const { file, source } of templates()) {
     const hits = [...source.matchAll(textNode), ...source.matchAll(staticAttribute)]
         .map((match) => match[1].trim())
         .filter((text) => accented.test(text) || frenchWords.test(text));
@@ -222,10 +237,9 @@ const literalsOf = (expression) => expression.split("'").filter((_, index) => in
 
 let boundLabels = 0;
 const boundOffenders = new Map();
-for (const file of walk(join(root, 'src/app'))) {
-    if (!/\.html$/.test(file)) continue;
+for (const { file, source } of templates()) {
     let hits = 0;
-    for (const [, expression] of readFileSync(file, 'utf8').matchAll(textBinding)) {
+    for (const [, expression] of source.matchAll(textBinding)) {
         for (const literal of literalsOf(expression.replace(translated, ''))) {
             if (!/[A-Za-zÀ-ÿ]/.test(literal)) continue;
             const looksLikeProse = /\s/.test(literal) || (/^[A-ZÀ-Ý]/.test(literal) && literal.length >= 3);
@@ -321,11 +335,13 @@ function stripControlFlow(source) {
 }
 
 const environmentVariable = /^[A-Z][A-Z0-9_]{5,}$/;
+// The product's own name, which the footer writes as text and no language translates. Counted, it
+// would have made reading the inline templates look like a regression of one.
+const productName = /^Vectispire$/;
 let untranslated = 0;
 const untranslatedOffenders = new Map();
-for (const file of walk(join(root, 'src/app'))) {
-    if (!/\.html$/.test(file)) continue;
-    const raw = readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '');
+for (const { file, source } of templates()) {
+    const raw = source.replace(/<!--[\s\S]*?-->/g, '');
     // The interpolation becomes one neutral marker: it must not weld the words on either side of
     // it into a sentence that nobody wrote.
     const readable = stripControlFlow(raw.replace(/\{\{[\s\S]*?\}\}/g, '\u0000'))
@@ -335,6 +351,7 @@ for (const file of walk(join(root, 'src/app'))) {
         const text = candidate.replace(/\u0000/g, '').replace(/\s+/g, ' ').trim();
         if (text.length < 3 || !/[A-Za-zÀ-ÿ]{3,}/.test(text)) return;
         if (environmentVariable.test(text)) return;
+        if (productName.test(text)) return;
         const looksLikeProse = /\s/.test(text) || (/^[A-ZÀ-Ý]/.test(text) && text.length >= 4);
         if (looksLikeProse) hits += 1;
     };
@@ -365,6 +382,116 @@ if (untranslated < UNTRANSLATED_TEXT_CEILING) {
     process.exit(1);
 }
 
+// **The fifth ratchet: sentences written in the code, which no template check can see.**
+//
+// Every rule above reads templates or `label:` keys. The messages a screen shows are mostly
+// neither: `this.error.set('Could not load the log.')`, a fallback after `??`, the second argument
+// of `messageOf(…)`, a notice built with a template literal. A hundred and fifty of them sat in
+// the components — errors, confirmations, status labels, pagination — in English on the English
+// screens and in French on the attack surface, EPSS and compliance, reaching every reader in the
+// language they were typed in, with every counter above at zero.
+//
+// **What counts.** A string literal in a component's code that reads like prose: two words or
+// more, starting with a capital or carrying an accent. Not counted: comments, imports, inline
+// templates (read above), `console` lines — a log is for the operator's terminal, not the screen —
+// multi-line template literals, which here are the CI snippets a user copies as code, and tokens
+// made only of capitals and digits (`EU CRA`, `NIS 2`), which are names rather than sentences.
+const MESSAGES_IN_CODE_CEILING = 0;
+/**
+ * The string literals of a source file, read by a scanner rather than a pattern.
+ *
+ * A pattern pairs quotes wrongly as soon as a backtick sits inside a string, a comment or a regular
+ * expression — the first draft matched `'Security Gate'` from inside a copied CI snippet because an
+ * earlier backtick had shifted every pair after it. Comments are skipped, `'…'` and `"…"` are read
+ * to their closing quote, and a template literal is read with its `${…}` holes; one that spans
+ * lines is reported as such, since here those are the snippets a user copies as code.
+ */
+function stringLiterals(source) {
+    const found = [];
+    let i = 0;
+    const readTemplate = () => {
+        let text = '';
+        let multiline = false;
+        i += 1;
+        while (i < source.length && source[i] !== '`') {
+            if (source[i] === '\\') { text += source.slice(i, i + 2); i += 2; continue; }
+            if (source[i] === '$' && source[i + 1] === '{') {
+                let depth = 1;
+                i += 2;
+                while (i < source.length && depth > 0) {
+                    if (source[i] === '{') depth += 1;
+                    else if (source[i] === '}') depth -= 1;
+                    else if (source[i] === '`') readTemplate();
+                    i += 1;
+                }
+                text += '\u0000';
+                continue;
+            }
+            if (source[i] === '\n') multiline = true;
+            text += source[i];
+            i += 1;
+        }
+        i += 1;
+        return { text, multiline };
+    };
+    while (i < source.length) {
+        const c = source[i];
+        if (c === '/' && source[i + 1] === '/') { i = source.indexOf('\n', i); if (i < 0) break; continue; }
+        if (c === '/' && source[i + 1] === '*') { i = source.indexOf('*/', i + 2); if (i < 0) break; i += 2; continue; }
+        if (c === "'" || c === '"') {
+            let j = i + 1;
+            while (j < source.length && source[j] !== c && source[j] !== '\n') j += source[j] === '\\' ? 2 : 1;
+            found.push({ text: source.slice(i + 1, j), multiline: false, at: i });
+            i = j + 1;
+            continue;
+        }
+        if (c === '`') {
+            const at = i;
+            const { text, multiline } = readTemplate();
+            found.push({ text, multiline, at });
+            continue;
+        }
+        i += 1;
+    }
+    return found;
+}
+
+let messagesInCode = 0;
+const messageOffenders = new Map();
+for (const file of walk(join(root, 'src/app'))) {
+    if (!file.endsWith('.ts') || file.endsWith('.spec.ts') || file.endsWith('api.generated.ts')) continue;
+    if (file.includes('/testing/')) continue;
+    const source = readFileSync(file, 'utf8');
+    const lineOf = (at) => source.slice(source.lastIndexOf('\n', at) + 1, source.indexOf('\n', at));
+    let hits = 0;
+    for (const { text, multiline, at } of stringLiterals(source)) {
+        if (multiline) continue;
+        const line = lineOf(at);
+        if (/^\s*import\b/.test(line) || /\bconsole\.\w+\(/.test(line) || /\btemplate:\s*`/.test(line)) continue;
+        if (!/^[A-ZÀ-Ý"«]/.test(text) && !accented.test(text)) continue;
+        if (!/[A-Za-zÀ-ÿ]{2,}[\s'’][A-Za-zÀ-ÿ]{2,}/.test(text)) continue;
+        if (/^[A-Z0-9 .\-]+$/.test(text)) continue;
+        hits += 1;
+    }
+    if (hits > 0) {
+        messagesInCode += hits;
+        messageOffenders.set(file.slice(root.length + 1), hits);
+    }
+}
+if (messagesInCode !== MESSAGES_IN_CODE_CEILING) {
+    console.error(
+        `${messagesInCode} sentence(s) written in the code, against a ceiling of ${MESSAGES_IN_CODE_CEILING}.`);
+    console.error(
+        messagesInCode > MESSAGES_IN_CODE_CEILING
+            ? `A message set from the code is shown in the language it was typed in. Route it through ` +
+                  `i18n.t and add the key to both bundles.`
+            : `Lower MESSAGES_IN_CODE_CEILING in the same commit: a ratchet not tightened gives the room back.`);
+    for (const [file, count] of [...messageOffenders].sort((a, b) => b[1] - a[1]).slice(0, 8)) {
+        console.error(`  ${String(count).padStart(3)}  ${file}`);
+    }
+    process.exit(1);
+}
+
 let failed = false;
 for (const lang of ['en', 'fr']) {
     const known = bundle(lang);
@@ -386,4 +513,5 @@ console.log(
     `${hardcoded} hard-coded labels (ceiling ${HARDCODED_LABEL_CEILING}); ` +
     `${frozenFrench} frozen French labels in the templates (ceiling ${FRENCH_IN_TEMPLATES_CEILING}); ` +
     `${boundLabels} hard-coded labels inside a binding (ceiling ${BOUND_LABEL_CEILING}); ` +
-    `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}).`);
+    `${untranslated} untranslated strings in the templates (ceiling ${UNTRANSLATED_TEXT_CEILING}); ` +
+    `${messagesInCode} sentences in the code (ceiling ${MESSAGES_IN_CODE_CEILING}).`);

@@ -116,7 +116,7 @@ export class Epss implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Erreur lors du chargement des données de priorisation EPSS.');
+                this.error.set(err?.error?.message ?? this.i18n.t('epss.load_failed'));
                 this.loading.set(false);
             }
         });
@@ -129,12 +129,12 @@ export class Epss implements OnInit {
         this.api.syncEpss().subscribe({
             next: (res) => {
                 this.syncing.set(false);
-                this.syncFeedback.set(`Synchronisation réussie : ${res.totalCves} CVEs analysées (${res.totalKev} dans CISA KEV).`);
+                this.syncFeedback.set(this.i18n.t('epss.sync_succeeded', { cves: res.totalCves, kev: res.totalKev }));
                 this.loadSummary();
             },
             error: (err) => {
                 this.syncing.set(false);
-                this.error.set(err?.error?.message ?? 'Échec de synchronisation du flux Threat Intelligence.');
+                this.error.set(err?.error?.message ?? this.i18n.t('epss.sync_failed'));
             }
         });
     }
@@ -174,10 +174,10 @@ export class Epss implements OnInit {
 
     getTierLabel(tier: string): string {
         switch (tier) {
-            case 'CRITICAL_ARMED': return 'Critique / Armée (P0)';
-            case 'HIGH_PROBABLE': return 'Élevée / Probable (P1)';
-            case 'MEDIUM_THEORETICAL': return 'Théorique (P2)';
-            default: return 'Faible Probabilité (P3)';
+            case 'CRITICAL_ARMED': return this.i18n.t('epss.tier_critical_armed');
+            case 'HIGH_PROBABLE': return this.i18n.t('epss.tier_high_probable');
+            case 'MEDIUM_THEORETICAL': return this.i18n.t('epss.tier_medium_theoretical');
+            default: return this.i18n.t('epss.tier_low');
         }
     }
 

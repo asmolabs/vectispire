@@ -8,6 +8,7 @@ import { PasswordModule } from '@openng/optimus-ui/password';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import { SessionStore } from '../../core/session.store';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 const MINIMUM_LENGTH = 12;
 
@@ -30,6 +31,7 @@ export class ChangePassword {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
+    private readonly i18n = inject(I18nService);
 
     readonly minimumLength = MINIMUM_LENGTH;
     readonly loading = signal(false);
@@ -44,7 +46,7 @@ export class ChangePassword {
         // Checked here and not on the server: the confirmation guards against a typo, it is
         // not a rule. Sending it would give the server nothing to check.
         if (this.newPassword !== this.confirmation) {
-            this.error.set('The new password and its confirmation differ.');
+            this.error.set(this.i18n.t('auth.error_confirmation_differs'));
             return;
         }
 
@@ -59,11 +61,11 @@ export class ChangePassword {
             error: (response: { status: number; error?: { message?: string } }) => {
                 this.loading.set(false);
                 if (response.status === 0) {
-                    this.error.set('Server unreachable. Check that Vectispire is running.');
+                    this.error.set(this.i18n.t('auth.error_server_unreachable'));
                 } else {
                     // The server distinguishes "current password wrong" (401) from "new
                     // password refused" (400); its message says which one.
-                    this.error.set(messageOf(response, 'The change failed.'));
+                    this.error.set(messageOf(response, this.i18n.t('auth.error_change_failed')));
                 }
             }
         });

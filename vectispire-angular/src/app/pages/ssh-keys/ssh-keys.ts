@@ -59,7 +59,7 @@ export class SshKeys {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the key list.');
+                this.error.set(this.i18n.t('ssh_keys.error_load'));
                 this.loading.set(false);
             }
         });
@@ -108,7 +108,7 @@ export class SshKeys {
                     this.saving.set(false);
                     // The server knows *why* — not a private key, no encryption key configured.
                     // A generic message would lose the action to take.
-                    this.formError.set(messageOf(response, 'Could not add this key.'));
+                    this.formError.set(messageOf(response, this.i18n.t('ssh_keys.error_add')));
                 }
             });
     }
@@ -132,7 +132,7 @@ export class SshKeys {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
                 // Notably "used by N repositories": the refusal carries the number to detach.
-                this.error.set(messageOf(response, 'The deletion failed.'));
+                this.error.set(messageOf(response, this.i18n.t('ssh_keys.error_delete')));
             }
         });
     }

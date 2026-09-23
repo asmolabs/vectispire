@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -85,6 +86,7 @@ describe('the history screen', () => {
             providers: [provideHttpClient(), provideHttpClientTesting()]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(History);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();

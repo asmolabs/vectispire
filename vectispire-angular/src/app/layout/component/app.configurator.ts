@@ -1,5 +1,6 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { Component, PLATFORM_ID, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -40,11 +41,11 @@ declare type SurfacesType = {
 @Component({
     selector: 'app-configurator',
     standalone: true,
-    imports: [CommonModule, FormsModule, SelectButtonModule],
+    imports: [CommonModule, FormsModule, SelectButtonModule, TranslatePipe],
     template: `
         <div class="flex flex-col gap-4">
             <div>
-                <span class="text-sm text-muted-color font-semibold">Primary</span>
+                <span class="text-sm text-muted-color font-semibold">{{ 'layout.primary' | translate }}</span>
                 <div class="pt-2 flex gap-2 flex-wrap justify-start">
                     @for (primaryColor of primaryColors(); track primaryColor.name) {
                         <button
@@ -63,7 +64,7 @@ declare type SurfacesType = {
                 </div>
             </div>
             <div>
-                <span class="text-sm text-muted-color font-semibold">Surface</span>
+                <span class="text-sm text-muted-color font-semibold">{{ 'layout.surface' | translate }}</span>
                 <div class="pt-2 flex gap-2 flex-wrap justify-start">
                     @for (surface of surfaces; track surface.name) {
                         <button
@@ -82,13 +83,13 @@ declare type SurfacesType = {
                 </div>
             </div>
             <div class="flex flex-col gap-2">
-                <span class="text-sm text-muted-color font-semibold">Presets</span>
+                <span class="text-sm text-muted-color font-semibold">{{ 'layout.presets' | translate }}</span>
                 <p-selectbutton [options]="presets" [ngModel]="selectedPreset()" (ngModelChange)="onPresetChange($event)" [allowEmpty]="false" size="small" />
             </div>
             @if (showMenuModeButton()) {
                 <div class="flex flex-col gap-2">
-                    <span class="text-sm text-muted-color font-semibold">Menu Mode</span>
-                    <p-selectbutton [ngModel]="menuMode()" (ngModelChange)="onMenuModeChange($event)" [options]="menuModeOptions" [allowEmpty]="false" size="small" />
+                    <span class="text-sm text-muted-color font-semibold">{{ 'layout.menu_mode_label' | translate }}</span>
+                    <p-selectbutton [ngModel]="menuMode()" (ngModelChange)="onMenuModeChange($event)" [options]="menuModeOptions()" [allowEmpty]="false" size="small" />
                 </div>
             }
         </div>
@@ -113,10 +114,15 @@ export class AppConfigurator implements OnInit {
 
     showMenuModeButton = signal(!this.router.url.includes('auth'));
 
-    menuModeOptions = [
-        { label: this.i18n.t('layout.menu_mode.static'), value: 'static' },
-        { label: this.i18n.t('layout.menu_mode.overlay'), value: 'overlay' }
-    ];
+    // Computed rather than a field: the language changes at runtime, and a list built once at
+    // construction kept the labels of whichever language was loaded first.
+    menuModeOptions = computed(() => {
+        this.i18n.translations();
+        return [
+            { label: this.i18n.t('layout.menu_mode.static'), value: 'static' },
+            { label: this.i18n.t('layout.menu_mode.overlay'), value: 'overlay' }
+        ];
+    });
 
     ngOnInit() {
         if (isPlatformBrowser(this.platformId)) {

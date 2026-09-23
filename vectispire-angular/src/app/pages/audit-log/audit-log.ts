@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -11,22 +11,24 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import type { AuditEntry, AuditVerification } from '../../core/api.models';
 
-/** Operation types, in words. Open table: an unknown type is shown raw rather than hidden —
+/** Operation types, in words — keys rather than text, resolved at render time so a language
+ *  switch relabels them. Open table: an unknown type is shown raw rather than hidden —
  *  the log must show what it holds, not what somebody expected it to hold. */
-const OPERATION_LABELS: Record<string, string> = {
-    SETTING_UPDATED: 'Setting changed',
-    ACCESS_DENIED: 'Access denied',
-    LOGIN: 'Sign in',
-    LOGOUT: 'Sign out',
-    TRIAGE: 'Triage',
-    SCAN_TRIGGERED: 'Scan triggered',
-    POLICY_UPDATED: 'Policy changed',
-    TEAM_UPDATED: 'Team changed',
-    TEAM_ACCESS_CHANGED: 'Team access changed'
+const OPERATION_KEYS: Record<string, string> = {
+    SETTING_UPDATED: 'audit_log.operations.setting_updated',
+    ACCESS_DENIED: 'audit_log.operations.access_denied',
+    LOGIN: 'audit_log.operations.login',
+    LOGOUT: 'audit_log.operations.logout',
+    TRIAGE: 'audit_log.operations.triage',
+    SCAN_TRIGGERED: 'audit_log.operations.scan_triggered',
+    POLICY_UPDATED: 'audit_log.operations.policy_updated',
+    TEAM_UPDATED: 'audit_log.operations.team_updated',
+    TEAM_ACCESS_CHANGED: 'audit_log.operations.team_access_changed'
 };
 
 const PAGE_SIZE = 50;
 
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 
@@ -40,6 +42,7 @@ export class AuditLog {
     private readonly page = new LatestRequest();
 
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly entries = signal<AuditEntry[]>([]);
     readonly total = signal(0);
@@ -48,7 +51,11 @@ export class AuditLog {
     readonly verifying = signal(true);
     readonly verification = signal<AuditVerification | null>(null);
     readonly error = signal<string | null>(null);
-    readonly operationOptions = signal<{ label: string; value: string }[]>([]);
+    private readonly operationTypes = signal<string[]>([]);
+    readonly operationOptions = computed(() => {
+        this.i18n.translations();
+        return this.operationTypes().map((type) => ({ label: this.operationLabel(type), value: type }));
+    });
 
     filters: { operationType: string | null; userId: string; search: string } = { operationType: null, userId: '', search: '' };
 
@@ -64,19 +71,20 @@ export class AuditLog {
                 this.verifying.set(false);
                 // Distinct from a broken chain: not knowing is not knowing that it is broken,
                 // and showing "broken" on a network failure would be a lie.
-                this.error.set('Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.');
+                this.error.set(this.i18n.t('audit_log.error_verify'));
             }
         });
 
         this.api.auditOperationTypes().subscribe({
-            next: (types) => this.operationOptions.set(types.map((type) => ({ label: this.operationLabel(type), value: type }))),
-            error: () => this.operationOptions.set([])
+            next: (types) => this.operationTypes.set(types),
+            error: () => this.operationTypes.set([])
         });
     }
 
     operationLabel(type: string | null): string {
         if (!type) return '—';
-        return OPERATION_LABELS[type] ?? type;
+        const key = OPERATION_KEYS[type];
+        return key ? this.i18n.t(key) : type;
     }
 
     shownTo(): number {
@@ -115,7 +123,7 @@ export class AuditLog {
                     this.loading.set(false);
                 },
                 error: () => {
-                    this.error.set('Could not load the log.');
+                    this.error.set(this.i18n.t('audit_log.error_load'));
                     this.loading.set(false);
                 }
             });

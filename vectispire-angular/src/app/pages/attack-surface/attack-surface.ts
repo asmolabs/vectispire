@@ -143,7 +143,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Erreur lors du chargement de la surface d\'attaque.');
+                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_load'));
                 this.loading.set(false);
             }
         });
@@ -175,7 +175,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.repoLoading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Erreur lors du chargement des APIs du dépôt.');
+                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_repo_apis'));
                 this.repoLoading.set(false);
             }
         });
@@ -233,7 +233,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.exporting.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Échec de l\'export OpenAPI.');
+                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_export'));
                 this.exporting.set(false);
             }
         });
@@ -254,7 +254,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         request$.subscribe({
             next: () => {
                 this.clearing.set(false);
-                this.scanSuccess.set('Surface d\'attaque purgée avec succès.');
+                this.scanSuccess.set(this.i18n.t('attack_surface.cleared'));
                 this.loadData();
                 if (repoId && repoId !== 'ALL') {
                     this.onSelectRepo(repoId);
@@ -262,7 +262,7 @@ export class AttackSurface implements OnInit, OnDestroy {
             },
             error: (err) => {
                 this.clearing.set(false);
-                this.error.set(messageOf(err, 'Échec lors de la purge de la surface d\'attaque.'));
+                this.error.set(messageOf(err, this.i18n.t('attack_surface.error_clear')));
             }
         });
     }
@@ -288,12 +288,12 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.api.triggerRepositoryScan(id).subscribe({
             next: () => {
                 this.scanningRepo.set(false);
-                this.scanSuccess.set('Scan planifié. Analyse des routes d\'APIs en cours d\'exécution...');
+                this.scanSuccess.set(this.i18n.t('attack_surface.scan_scheduled'));
                 this.startPolling();
             },
             error: (err) => {
                 this.scanningRepo.set(false);
-                this.error.set(err?.error?.message ?? 'Impossible de lancer l\'analyse.');
+                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_scan'));
             }
         });
     }
@@ -311,12 +311,12 @@ export class AttackSurface implements OnInit, OnDestroy {
             forkJoin(requests).subscribe({
                 next: (results) => {
                     this.scanningRepo.set(false);
-                    this.scanSuccess.set(`Scan planifié pour ${results.length} dépôts. Analyse et découverte en cours...`);
+                    this.scanSuccess.set(this.i18n.t('attack_surface.scan_scheduled_all', { count: results.length }));
                     this.startPolling();
                 },
                 error: (err) => {
                     this.scanningRepo.set(false);
-                    this.error.set(err?.error?.message ?? 'Impossible de lancer le scan global des dépôts.');
+                    this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_scan_all'));
                 }
             });
         });
@@ -335,7 +335,7 @@ export class AttackSurface implements OnInit, OnDestroy {
             const globalCount = this.globalData()?.totalEndpoints ?? 0;
             if (currentCount > 0 || globalCount > 0 || attempts >= 25) {
                 if (currentCount > 0 || globalCount > 0) {
-                    this.scanSuccess.set(`Découverte d'APIs terminée avec succès (${globalCount || currentCount} routes répertoriées).`);
+                    this.scanSuccess.set(this.i18n.t('attack_surface.discovery_complete', { count: globalCount || currentCount }));
                     this.stopPolling();
                 } else if (attempts >= 25) {
                     this.stopPolling();

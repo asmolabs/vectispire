@@ -10,6 +10,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import type {
@@ -41,6 +42,7 @@ export class AttackPaths implements OnInit {
     private readonly graphRequest = new LatestRequest();
 
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly repositories = signal<MonitoredRepository[]>([]);
     readonly selectedRepoId = signal<number | null>(null);
@@ -102,7 +104,7 @@ export class AttackPaths implements OnInit {
                     this.loadGraph(repos[0].id);
                 }
             },
-            error: () => this.error.set('Impossible de charger la liste des dépôts.')
+            error: () => this.error.set(this.i18n.t('repositories.error_load'))
         });
     }
 
@@ -129,7 +131,7 @@ export class AttackPaths implements OnInit {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Erreur lors de la génération du graphe des chemins d\'attaque.');
+                this.error.set(this.i18n.t('attack_paths.error_graph'));
                 this.loading.set(false);
             }
         });

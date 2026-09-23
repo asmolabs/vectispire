@@ -8,6 +8,7 @@ import { PasswordModule } from '@openng/optimus-ui/password';
 import type { SignInMethods } from '../../core/api.models';
 import { ApiService } from '@/app/core/api.service';
 import { SessionStore } from '@/app/core/session.store';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
  * The sign-in screen.
@@ -35,6 +36,7 @@ export class Login {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
+    private readonly i18n = inject(I18nService);
     readonly branding = inject(BrandingService);
 
     username = '';
@@ -62,9 +64,9 @@ export class Login {
         if (parameters.get('sso') === 'complete') {
             this.completeSignIn();
         } else if (parameters.get('sso') === 'refused') {
-            this.error.set(parameters.get('reason') ?? 'Single sign-on was refused.');
+            this.error.set(parameters.get('reason') ?? this.i18n.t('auth.error_sso_refused'));
         } else if (parameters.get('sso') === 'failed') {
-            this.error.set('Single sign-on did not complete. The provider refused the exchange.');
+            this.error.set(this.i18n.t('auth.error_sso_failed'));
         }
     }
 
@@ -88,7 +90,7 @@ export class Login {
             },
             error: () => {
                 this.loading.set(false);
-                this.error.set('This sign-on could not be completed. Try again.');
+                this.error.set(this.i18n.t('auth.error_sso_incomplete'));
             }
         });
     }
@@ -125,7 +127,7 @@ export class Login {
             },
             error: (response: { status: number; error?: { message?: string } }) => {
                 this.loading.set(false);
-                this.error.set(response.error?.message ?? 'Invalid MFA verification code.');
+                this.error.set(response.error?.message ?? this.i18n.t('auth.error_mfa_invalid'));
             }
         });
     }
@@ -160,17 +162,17 @@ export class Login {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
                 if (retryAfter) {
-                    this.error.set(`Too many attempts. Try again in ${Math.ceil(retryAfter / 60)} minute(s).`);
+                    this.error.set(this.i18n.t('auth.error_too_many_attempts', { minutes: Math.ceil(retryAfter / 60) }));
                 } else if (response.status === 401) {
-                    this.error.set('Invalid credentials.');
+                    this.error.set(this.i18n.t('auth.error_invalid_credentials'));
                 } else {
                     // An unreachable or failing server used to display "Invalid credentials",
                     // which sends somebody hunting for the right password while the real fault
                     // is elsewhere. Seen by trying it, not by reading it.
                     this.error.set(
                         response.status === 0
-                            ? 'Server unreachable. Check that Vectispire is running.'
-                            : `The server answered ${response.status}. Try again, or check its logs.`
+                            ? this.i18n.t('auth.error_server_unreachable')
+                            : this.i18n.t('auth.error_server_status', { status: response.status })
                     );
                 }
             }

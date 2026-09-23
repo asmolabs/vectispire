@@ -71,10 +71,10 @@ export class Licenses {
     readonly targetOptions = computed(() => {
         const options: { label: string; value: string }[] = [{ label: this.i18n.t('common.all_targets'), value: 'ALL' }];
         for (const r of this.repos()) {
-            options.push({ label: `Repository: ${r.displayName || r.name}`, value: `repo:${r.id}` });
+            options.push({ label: this.i18n.t('licenses.scope_repository', { name: r.displayName || r.name || '' }), value: `repo:${r.id}` });
         }
         for (const c of this.containers()) {
-            options.push({ label: `Container: ${c.reference}`, value: `container:${c.id}` });
+            options.push({ label: this.i18n.t('licenses.scope_container', { name: c.reference }), value: `container:${c.id}` });
         }
         return options;
     });
@@ -208,7 +208,7 @@ export class Licenses {
 
         this.summaryRequest.run(this.api.getLicenseSummary(repoId, containerId), {
             next: (s) => this.summary.set(s),
-            error: () => this.error.set('Failed to load license summary.')
+            error: () => this.error.set(this.i18n.t('licenses.summary_load_failed'))
         });
 
         this.api.getLicensePolicy().subscribe({
@@ -222,7 +222,7 @@ export class Licenses {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Failed to load license inventory.');
+                this.error.set(this.i18n.t('licenses.inventory_load_failed'));
                 this.loading.set(false);
             }
         });

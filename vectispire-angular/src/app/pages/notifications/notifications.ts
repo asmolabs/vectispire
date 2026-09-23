@@ -11,6 +11,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 
 @Component({
     selector: 'app-notifications',
@@ -29,6 +30,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 export class Notifications implements OnInit {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
 
     /** Sending a test posts to somebody's Slack, so it belongs to whoever configured it. */
     readonly isSecurityLead = this.session.isSecurityLead;
@@ -53,7 +55,7 @@ export class Notifications implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Impossible de charger la liste des canaux de notification.');
+                this.error.set(err?.error?.message ?? this.i18n.t('notifications.load_failed'));
                 this.loading.set(false);
             }
         });
@@ -77,7 +79,7 @@ export class Notifications implements OnInit {
                     [channelType]: {
                         type: channelType,
                         success: false,
-                        message: err?.error?.message ?? 'Échec lors du test d\'envoi.',
+                        message: err?.error?.message ?? this.i18n.t('notifications.test_failed'),
                         testedAt: new Date().toISOString()
                     }
                 }));

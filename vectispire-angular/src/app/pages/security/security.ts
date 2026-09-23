@@ -39,7 +39,7 @@ export class Security {
     constructor() {
         this.api.securityOverview().subscribe({
             next: (data) => this.overview.set(data),
-            error: () => this.error.set('Could not load the security posture.')
+            error: () => this.error.set(this.i18n.t('security.error_load'))
         });
     }
 
@@ -98,7 +98,7 @@ export class Security {
             },
             error: () => {
                 this.downloading.set(null);
-                this.error.set('The export could not be produced.');
+                this.error.set(this.i18n.t('security.error_export'));
             }
         });
     }

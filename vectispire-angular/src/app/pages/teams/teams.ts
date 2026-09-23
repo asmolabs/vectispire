@@ -11,7 +11,8 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { TeamSummary, TeamTargetAssignment, UserSummary } from '../../core/api.models';
+import type { ApiKeyTargets, TeamSummary, TeamTargetAssignment, UserSummary } from '../../core/api.models';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** A target, as the multiselect needs it: one option list across both kinds. */
@@ -51,10 +52,27 @@ interface TargetOption {
 })
 export class Teams {
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly teams = signal<TeamSummary[]>([]);
     readonly accounts = signal<UserSummary[]>([]);
-    readonly targetOptions = signal<TargetOption[]>([]);
+    private readonly targets = signal<ApiKeyTargets | null>(null);
+
+    /** Labelled at render time, not at load: the language changes at runtime. */
+    readonly targetOptions = computed<TargetOption[]>(() => {
+        this.i18n.translations();
+        const targets = this.targets();
+        return [
+            ...(targets?.repositories ?? []).map((row) => ({
+                label: `${this.i18n.t('teams.target_repository')} — ${row.label}`,
+                value: `repository:${row.id}`
+            })),
+            ...(targets?.containers ?? []).map((row) => ({
+                label: `${this.i18n.t('teams.target_image')} — ${row.label}`,
+                value: `container:${row.id}`
+            }))
+        ];
+    });
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
@@ -98,18 +116,8 @@ export class Teams {
             error: () => this.accounts.set([])
         });
         this.api.apiKeyTargets().subscribe({
-            next: (targets) =>
-                this.targetOptions.set([
-                    ...(targets.repositories ?? []).map((row) => ({
-                        label: `Repository — ${row.label}`,
-                        value: `repository:${row.id}`
-                    })),
-                    ...(targets.containers ?? []).map((row) => ({
-                        label: `Image — ${row.label}`,
-                        value: `container:${row.id}`
-                    }))
-                ]),
-            error: () => this.targetOptions.set([])
+            next: (targets) => this.targets.set(targets),
+            error: () => this.targets.set(null)
         });
     }
 
@@ -122,7 +130,7 @@ export class Teams {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the teams.');
+                this.error.set(this.i18n.t('teams.error_load'));
                 this.loading.set(false);
             }
         });
@@ -159,7 +167,7 @@ export class Teams {
                 this.saving.set(false);
                 // Kept on the dialog: the name being taken is the common refusal, and closing
                 // the dialog to show it elsewhere loses what was typed.
-                this.formError.set(messageOf(failure, 'Could not save the team.'));
+                this.formError.set(messageOf(failure, this.i18n.t('teams.error_save')));
             }
         });
     }
@@ -174,11 +182,11 @@ export class Teams {
 
         this.api.teamMembers(team.id).subscribe({
             next: (ids) => (this.selectedMembers = ids ?? []),
-            error: () => this.formError.set('Could not read the current membership.')
+            error: () => this.formError.set(this.i18n.t('teams.error_read_members'))
         });
         this.api.teamTargets(team.id).subscribe({
             next: (targets) => (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
-            error: () => this.formError.set('Could not read the current targets.')
+            error: () => this.formError.set(this.i18n.t('teams.error_read_targets'))
         });
     }
 
@@ -209,13 +217,13 @@ export class Teams {
                         // meant that the moment the server said anything at all, the one fact an
                         // administrator needs was dropped. A spec found that; clicking through
                         // never would, because the sentence looks right in isolation.
-                        const detail = messageOf(failure, 'Try again.');
-                        this.formError.set(`The membership was saved; the targets were not. ${detail}`);
+                        const detail = messageOf(failure, this.i18n.t('teams.try_again'));
+                        this.formError.set(this.i18n.t('teams.error_targets_after_members', { detail }));
                     }
                 }),
             error: (failure) => {
                 this.saving.set(false);
-                this.formError.set(messageOf(failure, 'Could not save the membership.'));
+                this.formError.set(messageOf(failure, this.i18n.t('teams.error_save_members')));
             }
         });
     }
@@ -243,7 +251,7 @@ export class Teams {
                 this.saving.set(false);
                 // The server refuses a private destination unless the deployment allows it, and
                 // that message is worth showing verbatim: it names which rule was broken.
-                this.formError.set(messageOf(failure, 'Could not save the channel.'));
+                this.formError.set(messageOf(failure, this.i18n.t('teams.error_save_channel')));
             }
         });
     }
@@ -267,7 +275,7 @@ export class Teams {
             error: (failure) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(messageOf(failure, 'Could not delete the team.'));
+                this.error.set(messageOf(failure, this.i18n.t('teams.error_delete')));
                 this.reload(true);
             }
         });

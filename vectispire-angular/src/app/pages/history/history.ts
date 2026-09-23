@@ -7,6 +7,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
 
@@ -43,15 +44,9 @@ const SEVERITY_RANK: Record<string, number> = {
 /** A finding carrying its rank, so the column can sort on a number the reader never sees. */
 type RankedIssue = HistoryIssue & { severityRank: number };
 
-/** Triage statuses in words. Open table: an unknown value is shown raw rather than hidden. */
-const TRIAGE_LABELS: Record<string, string> = {
-    under_review: 'Under review',
-    not_affected: 'Not affected',
-    affected: 'Affected',
-    fixed: 'Fixed',
-    accepted: 'Risk accepted',
-    false_positive: 'False positive'
-};
+/** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
+ *  is shown raw rather than hidden. */
+const TRIAGE_STATUSES = new Set(['under_review', 'pending_approval', 'not_affected', 'affected', 'fixed', 'accepted', 'false_positive']);
 
 /**
  * The trail that shows a finding was taken into account.
@@ -73,6 +68,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class History {
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly repositories = signal<HistoryRepository[]>([]);
     readonly dossier = signal<HistoryDossier | null>(null);
@@ -94,7 +90,7 @@ export class History {
             },
             error: () => {
                 this.loadingList.set(false);
-                this.error.set('The history could not be loaded.');
+                this.error.set(this.i18n.t('history.load_failed'));
             }
         });
     }
@@ -102,7 +98,7 @@ export class History {
     open(repository: HistoryRepository): void {
         this.api.historyDossier(repository.id).subscribe({
             next: (file) => this.dossier.set(ranked(file)),
-            error: () => this.error.set('This target’s dossier could not be loaded.')
+            error: () => this.error.set(this.i18n.t('history.dossier_load_failed'))
         });
     }
 
@@ -115,7 +111,7 @@ export class History {
         // lives in memory and only the interceptor puts it on a request.
         this.api.downloadDocument(`/api/v1/history/repositories/${id}/export.${format}`).subscribe({
             next: (response) => saveDocument(response, `vectispire-history-${id}.${format}`),
-            error: () => this.error.set('The export could not be produced.')
+            error: () => this.error.set(this.i18n.t('history.export_failed'))
         });
     }
 
@@ -130,7 +126,7 @@ export class History {
                 a.click();
                 window.URL.revokeObjectURL(url);
             },
-            error: () => this.error.set('Could not download OpenVEX document for this scan.')
+            error: () => this.error.set(this.i18n.t('history.vex_download_failed'))
         });
     }
 
@@ -142,7 +138,7 @@ export class History {
         if (!status) {
             return '—';
         }
-        return TRIAGE_LABELS[status] ?? status;
+        return TRIAGE_STATUSES.has(status) ? this.i18n.t(`issues.triage_status.${status}`) : status;
     }
 
     component(issue: { packageName: string | null; packageVersion: string | null; filePath: string | null }): string {

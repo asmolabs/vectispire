@@ -177,7 +177,7 @@ export class Compliance {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Failed to load compliance summary.');
+                this.error.set(this.i18n.t('compliance.error_load'));
                 this.loading.set(false);
             }
         });
@@ -202,7 +202,7 @@ export class Compliance {
                 this.exporting.set(false);
             },
             error: () => {
-                this.error.set('Failed to export compliance PDF report.');
+                this.error.set(this.i18n.t('compliance.error_export_pdf'));
                 this.exporting.set(false);
             }
         });
@@ -216,7 +216,7 @@ export class Compliance {
                 this.exportingBundle.set(false);
             },
             error: () => {
-                this.error.set('Failed to export audit evidence bundle.');
+                this.error.set(this.i18n.t('compliance.error_export_bundle'));
                 this.exportingBundle.set(false);
             }
         });
@@ -236,7 +236,7 @@ export class Compliance {
                 this.exportingVex.set(false);
             },
             error: () => {
-                this.error.set('Failed to export OpenVEX advisory.');
+                this.error.set(this.i18n.t('compliance.error_export_vex'));
                 this.exportingVex.set(false);
             }
         });
@@ -256,7 +256,7 @@ export class Compliance {
                 this.exportingCsaf.set(false);
             },
             error: () => {
-                this.error.set('Failed to export OASIS CSAF 2.0 advisory.');
+                this.error.set(this.i18n.t('compliance.error_export_csaf'));
                 this.exportingCsaf.set(false);
             }
         });
@@ -276,7 +276,7 @@ export class Compliance {
                 this.exportingCycloneDx.set(false);
             },
             error: () => {
-                this.error.set('Failed to export CycloneDX 1.5 VEX advisory.');
+                this.error.set(this.i18n.t('compliance.error_export_cyclonedx'));
                 this.exportingCycloneDx.set(false);
             }
         });
@@ -313,17 +313,17 @@ export class Compliance {
                     this.importing.set(false);
                     const count = res?.triagedIssues ?? 0;
                     const applied = (res?.appliedCves ?? []).join(', ');
-                    this.importSuccess.set(`Document VEX ingéré avec succès : ${count} vulnérabilité(s) classée(s) automatiquement (${applied || 'aucune correspondance'}).`);
+                    this.importSuccess.set(this.i18n.t('compliance.vex_ingested', { count, applied: applied || this.i18n.t('compliance.vex_no_match') }));
                     this.loadSummary();
                 },
                 error: (err) => {
                     this.importing.set(false);
-                    this.importError.set(err?.error?.message ?? 'Erreur lors de l\'ingestion du document VEX.');
+                    this.importError.set(err?.error?.message ?? this.i18n.t('compliance.error_vex_ingest'));
                 }
             });
         } catch (e) {
             this.importing.set(false);
-            this.importError.set('Format JSON invalide : ' + (e instanceof Error ? e.message : String(e)));
+            this.importError.set(this.i18n.t('compliance.error_invalid_json', { detail: e instanceof Error ? e.message : String(e) }));
         }
     }
 
@@ -341,7 +341,7 @@ export class Compliance {
                 this.downloadingPubKey.set(false);
             },
             error: () => {
-                this.error.set('Échec du téléchargement de la clé publique de signature.');
+                this.error.set(this.i18n.t('compliance.error_public_key'));
                 this.downloadingPubKey.set(false);
             }
         });
@@ -396,7 +396,7 @@ export class Compliance {
             },
             error: (err) => {
                 this.verifying.set(false);
-                this.verifyError.set(err?.error?.message ?? 'Erreur lors de la vérification de la signature.');
+                this.verifyError.set(err?.error?.message ?? this.i18n.t('compliance.error_verify'));
             }
         });
     }

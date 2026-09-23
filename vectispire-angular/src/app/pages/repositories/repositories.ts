@@ -166,7 +166,7 @@ export class Repositories {
         this.api.triggerRepositoryScan(repository.id).subscribe({
             next: () => {
                 this.busy.set(null);
-                this.notice.set(`Scan queued for ${repository.displayName}. It will start as soon as a worker is available.`);
+                this.notice.set(this.i18n.t('repositories.scan_queued', { name: repository.displayName }));
                 this.reload();
             },
             error: (response) => {
@@ -190,7 +190,7 @@ export class Repositories {
             forkJoin(requests).subscribe({
                 next: (results) => {
                     this.scanningAll.set(false);
-                    this.notice.set(`Scan planifié pour ${results.length} dépôts. Les workers vont démarrer les analyses.`);
+                    this.notice.set(this.i18n.t('repositories.scan_all_queued', { count: results.length }));
                     this.reload();
                 },
                 error: (response) => {

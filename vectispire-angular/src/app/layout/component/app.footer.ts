@@ -20,7 +20,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                 target="_blank"
                 rel="noopener noreferrer"
                 class="font-semibold text-primary hover:underline inline-flex items-center gap-1"
-                aria-label="Vectispire GitLab repository"
+                [attr.aria-label]="'footer.repository_link' | translate"
             >
                 <i class="pi pi-code text-xs"></i>
                 <span>Vectispire</span>

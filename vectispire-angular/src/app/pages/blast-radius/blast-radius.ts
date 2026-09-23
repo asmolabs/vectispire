@@ -10,6 +10,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { RouterLink } from '@angular/router';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
@@ -29,6 +30,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 })
 export class BlastRadius implements OnInit {
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     searchQuery = '';
     readonly loading = signal<boolean>(false);
@@ -75,7 +77,7 @@ export class BlastRadius implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? 'Erreur lors de l\'exploration du graphe de dépendances.');
+                this.error.set(err?.error?.message ?? this.i18n.t('blast_radius.error_explore'));
                 this.loading.set(false);
             }
         });

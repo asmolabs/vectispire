@@ -234,7 +234,7 @@ export class Settings {
                     model: '',
                     url: '',
                     models: [],
-                    detail: 'The connection test could not be run.',
+                    detail: this.i18n.t('settings.error_connection_test_not_run'),
                     provider: this.aiProvider(),
                     // The check never ran, so it learned nothing about the destination. The banner
                     // above is driven by the form's own values, not by this.
@@ -261,14 +261,14 @@ export class Settings {
             },
             error: (response) => {
                 this.savingSiem.set(false);
-                this.error.set(messageOf(response, 'Saving SIEM configuration failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save_siem')));
             }
         });
     }
 
     testSiem(): void {
         if (!this.siemForm.endpoint.trim()) {
-            this.siemTestResult.set({ success: false, message: 'Please provide an Endpoint URL first.', statusCode: 0 });
+            this.siemTestResult.set({ success: false, message: this.i18n.t('settings.siem_endpoint_required'), statusCode: 0 });
             return;
         }
         this.testingSiem.set(true);
@@ -283,7 +283,7 @@ export class Settings {
             },
             error: () => {
                 this.testingSiem.set(false);
-                this.siemTestResult.set({ success: false, message: 'Connection test request failed.', statusCode: 0 });
+                this.siemTestResult.set({ success: false, message: this.i18n.t('settings.error_connection_test_request'), statusCode: 0 });
             }
         });
     }
@@ -467,7 +467,7 @@ export class Settings {
                 this.saving.set(false);
                 // The server's message carries the offending setting's label and the expected
                 // value; replacing it with generic text would lose that.
-                this.error.set(messageOf(response, 'Saving failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save')));
             }
         });
     }
@@ -486,7 +486,7 @@ export class Settings {
             },
             error: (response) => {
                 this.savingToken.set(false);
-                this.error.set(messageOf(response, 'Saving the token failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save_token')));
             }
         });
     }
@@ -503,7 +503,7 @@ export class Settings {
             },
             error: (response) => {
                 this.savingTicketWebhookSecret.set(false);
-                this.error.set(messageOf(response, 'Saving the webhook secret failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save_webhook_secret')));
             }
         });
     }
@@ -522,7 +522,7 @@ export class Settings {
             },
             error: (response) => {
                 this.savingOpenAiKey.set(false);
-                this.error.set(messageOf(response, 'Saving the API key failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save_api_key')));
             }
         });
     }
@@ -542,7 +542,7 @@ export class Settings {
             },
             error: (response) => {
                 this.savingWebhookSecret.set(false);
-                this.error.set(messageOf(response, 'Saving the secret failed.'));
+                this.error.set(messageOf(response, this.i18n.t('settings.error_save_secret')));
             }
         });
     }
@@ -566,11 +566,11 @@ export class Settings {
             next: (status) => {
                 this.syncingThreatIntel.set(false);
                 this.threatIntelStatus.set(status);
-                this.threatIntelFeedback.set(`Synchronized ${status.totalCves} CVEs (${status.totalKev} active CISA KEV). Re-evaluated ${status.backlogUpdatedCount} backlog issues.`);
+                this.threatIntelFeedback.set(this.i18n.t('settings.threat_intel_synced', { cves: status.totalCves, kev: status.totalKev, issues: status.backlogUpdatedCount }));
             },
             error: () => {
                 this.syncingThreatIntel.set(false);
-                this.threatIntelFeedback.set('Failed to synchronize Threat Intelligence feed.');
+                this.threatIntelFeedback.set(this.i18n.t('settings.error_threat_intel_sync'));
             }
         });
     }
@@ -622,7 +622,7 @@ export class Settings {
                 this.values.set(values);
                 this.original = { ...values };
             },
-            error: () => this.error.set('Could not load the settings.')
+            error: () => this.error.set(this.i18n.t('settings.error_load'))
         });
     }
 }

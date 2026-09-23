@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
@@ -46,6 +47,7 @@ describe('the issue backlog', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(Issues);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -167,6 +169,7 @@ describe('the issue backlog', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         const offline = TestBed.createComponent(Issues);
         const calls = TestBed.inject(HttpTestingController);
         offline.detectChanges();
@@ -190,6 +193,7 @@ describe('the issue backlog', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         const broken = TestBed.createComponent(Issues);
         const calls = TestBed.inject(HttpTestingController);
         broken.detectChanges();
@@ -259,6 +263,7 @@ describe('triaging a selection', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(Issues);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -423,6 +428,7 @@ describe('the backlog opened from a dashboard link', () => {
             ]
         });
 
+        useEnglish();
         const fixture = TestBed.createComponent(Issues);
         const http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();

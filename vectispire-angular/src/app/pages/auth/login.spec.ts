@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
@@ -51,6 +52,7 @@ describe('the sign-in screen', () => {
             providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(Login);
         http = TestBed.inject(HttpTestingController);
         navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);

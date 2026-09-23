@@ -14,7 +14,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
-import type { ApiKeySummary } from '../../core/api.models';
+import type { ApiKeySummary, ApiKeyTargets } from '../../core/api.models';
 
 /** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
  *  grants the right to execute code. */
@@ -48,7 +48,16 @@ export class ApiKeys {
     });
 
     readonly keys = signal<ApiKeySummary[]>([]);
-    readonly targetOptions = signal<{ label: string; value: string }[]>([]);
+    /** Kept raw: the prefixes are translated at render time, so a language switch relabels them. */
+    private readonly targets = signal<ApiKeyTargets | null>(null);
+    readonly targetOptions = computed(() => {
+        this.i18n.translations();
+        const targets = this.targets();
+        return [
+            ...optionsOf(targets?.repositories, this.i18n.t('api_keys.target_repository_prefix'), 'repository'),
+            ...optionsOf(targets?.containers, this.i18n.t('api_keys.target_container_prefix'), 'container')
+        ];
+    });
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
@@ -72,15 +81,10 @@ export class ApiKeys {
             // Each side is read defensively: an `error:` handler catches an HTTP failure, not an
             // exception thrown here, so a payload missing one of the two arrays used to escape as
             // an uncaught TypeError instead of taking the degraded path promised below.
-            next: (targets) => {
-                this.targetOptions.set([
-                    ...optionsOf(targets?.repositories, 'Repository', 'repository'),
-                    ...optionsOf(targets?.containers, 'Container', 'container')
-                ]);
-            },
+            next: (targets) => this.targets.set(targets ?? null),
             // Silent: without the list the field stays empty and the key covers every target.
             // That is degraded, not broken — no reason to alarm anybody.
-            error: () => this.targetOptions.set([])
+            error: () => this.targets.set(null)
         });
     }
 
@@ -93,7 +97,7 @@ export class ApiKeys {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the key list.');
+                this.error.set(this.i18n.t('api_keys.error_load'));
                 this.loading.set(false);
             }
         });
@@ -134,7 +138,7 @@ export class ApiKeys {
                 },
                 error: (response) => {
                     this.saving.set(false);
-                    this.formError.set(messageOf(response, 'Could not issue this key.'));
+                    this.formError.set(messageOf(response, this.i18n.t('api_keys.error_issue')));
                 }
             });
     }
@@ -164,7 +168,7 @@ export class ApiKeys {
             error: (response) => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set(messageOf(response, 'The revocation failed.'));
+                this.error.set(messageOf(response, this.i18n.t('api_keys.error_revoke')));
                 this.reload(true);
             }
         });

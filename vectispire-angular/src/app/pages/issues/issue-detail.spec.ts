@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -86,6 +87,7 @@ describe('the issue detail', () => {
             }
         });
 
+        useEnglish();
         fixture = TestBed.createComponent(IssueDetailPage);
         fixture.componentRef.setInput('id', '7');
         http = TestBed.inject(HttpTestingController);
@@ -112,7 +114,9 @@ describe('the issue detail', () => {
         await load();
 
         const text = fixture.nativeElement.textContent;
-        expect(text.includes('No decision has been recorded') || text.includes('history.no_decision_recorded')).toBe(true);
+        // With the shipped bundle loaded the reader's words can be asserted, rather than either an
+        // old sentence or the bare key.
+        expect(text).toContain('no decision recorded');
     });
 
     it('shows a decision with both ends of the transition', async () => {

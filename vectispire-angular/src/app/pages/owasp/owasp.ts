@@ -7,6 +7,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
 
@@ -36,6 +37,7 @@ export class Owasp {
     private readonly reportRequest = new LatestRequest();
 
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     selected: number | null = null;
 
@@ -47,7 +49,7 @@ export class Owasp {
     constructor() {
         this.api.repositories().subscribe({
             next: (rows) => this.repositories.set(rows),
-            error: () => this.error.set('The repositories could not be loaded.')
+            error: () => this.error.set(this.i18n.t('owasp.repositories_load_failed'))
         });
     }
 
@@ -75,7 +77,7 @@ export class Owasp {
         // 401's empty body as a zero-byte file.
         this.api.downloadDocument(`/api/v1/repositories/${id}/owasp-review/export.pdf`).subscribe({
             next: (response) => saveDocument(response, `vectispire-owasp-${id}.pdf`),
-            error: () => this.error.set('The PDF could not be produced.')
+            error: () => this.error.set(this.i18n.t('owasp.pdf_failed'))
         });
     }
 
@@ -93,7 +95,7 @@ export class Owasp {
             },
             error: (response) => {
                 this.running.set(false);
-                this.error.set(response?.error?.message ?? 'The report could not be produced.');
+                this.error.set(response?.error?.message ?? this.i18n.t('owasp.report_failed'));
             }
         });
     }

@@ -36,7 +36,7 @@ export class Quality {
     constructor() {
         this.api.qualityOverview().subscribe({
             next: (data) => this.overview.set(data),
-            error: () => this.error.set('Could not load the quality view.')
+            error: () => this.error.set(this.i18n.t('quality.load_failed'))
         });
     }
 

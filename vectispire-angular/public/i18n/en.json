@@ -95,7 +95,13 @@
     "token_modal_title": "Agent Credentials",
     "unlabelled_targets": "Unlabelled targets",
     "unroutable_notice": "{{count}} scan(s) require the label \"{{label}}\", which no enabled agent carries. They will wait until somebody declares it.",
-    "wait_time": "Wait Time"
+    "wait_time": "Wait Time",
+    "error_load": "Could not load the agent list.",
+    "error_operation": "The operation failed.",
+    "error_name_required": "Name is required.",
+    "error_declare": "Could not declare the agent.",
+    "error_signing_key": "Could not change the result-signing key.",
+    "error_delete": "Could not delete the agent."
   },
   "ai": {
     "exposure_mentioned": "Look here first: a code check produced a finding that mentions this component. It is a place to look, not proof of a call: this correlation matches text, it does not follow the call graph.",
@@ -140,7 +146,12 @@
     "target_label": "Target restriction (optional)",
     "title": "API keys",
     "token_modal_desc": "Save this token now. For security reasons, it cannot be viewed again.",
-    "token_modal_title": "API Key Created"
+    "token_modal_title": "API Key Created",
+    "target_repository_prefix": "Repository",
+    "target_container_prefix": "Container",
+    "error_load": "Could not load the key list.",
+    "error_issue": "Could not issue this key.",
+    "error_revoke": "The revocation failed."
   },
   "attack_paths": {
     "axes": "Exposure × exploitability × criticality",
@@ -185,7 +196,8 @@
     "title_long": "Attack path visualizer",
     "topological_score": "Topological risk score",
     "total_paths": "Paths in total",
-    "unfocus": "Clear the focus"
+    "unfocus": "Clear the focus",
+    "error_graph": "Could not build the attack path graph."
   },
   "attack_surface": {
     "auth": {
@@ -246,7 +258,17 @@
       "public": "Public (exposed)",
       "internal": "Internal",
       "unknown": "Unknown"
-    }
+    },
+    "error_load": "Could not load the attack surface.",
+    "error_repo_apis": "Could not load the repository's APIs.",
+    "error_export": "The OpenAPI export failed.",
+    "cleared": "Attack surface cleared.",
+    "error_clear": "Could not clear the attack surface.",
+    "scan_scheduled": "Scan scheduled. API route analysis is running...",
+    "error_scan": "Could not start the analysis.",
+    "scan_scheduled_all": "Scan scheduled for {{count}} repositories. Analysis and discovery in progress...",
+    "error_scan_all": "Could not start the scan of all repositories.",
+    "discovery_complete": "API discovery complete ({{count}} routes listed)."
   },
   "attestation": {
     "title": "Attestation",
@@ -264,7 +286,9 @@
     "frameworks_note": "Four controls per framework, projected from seven categories: two frameworks sharing a category receive the same result.",
     "no_compliance": "Compliance could not be read.",
     "bundle": "Evidence bundle",
-    "bundle_desc": "The verification public key, the six evaluated frameworks, the complete audit log, triage decisions with their justifications, in-toto attestations in DSSE envelopes, signed OpenVEX and CSAF advisories, licence compliance and the signed CycloneDX."
+    "bundle_desc": "The verification public key, the six evaluated frameworks, the complete audit log, triage decisions with their justifications, in-toto attestations in DSSE envelopes, signed OpenVEX and CSAF advisories, licence compliance and the signed CycloneDX.",
+    "error_chain": "Verifying the audit chain failed.",
+    "error_bundle": "The evidence bundle could not be produced."
   },
   "audit_log": {
     "title": "Immutable Audit Log",
@@ -275,7 +299,20 @@
     "operation": "Operation",
     "user": "User",
     "resource": "Target Resource",
-    "hash": "SHA-256 Entry Hash"
+    "hash": "SHA-256 Entry Hash",
+    "operations": {
+      "setting_updated": "Setting changed",
+      "access_denied": "Access denied",
+      "login": "Sign in",
+      "logout": "Sign out",
+      "triage": "Triage",
+      "scan_triggered": "Scan triggered",
+      "policy_updated": "Policy changed",
+      "team_updated": "Team changed",
+      "team_access_changed": "Team access changed"
+    },
+    "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
+    "error_load": "Could not load the log."
   },
   "auth": {
     "login_title": "Sign in to Vectispire",
@@ -304,7 +341,17 @@
     "error_desc": "Requested resource is not available.",
     "notfound_title": "Page not found",
     "notfound_desc": "This address matches no Vectispire screen.",
-    "notfound_back_btn": "Back to the dashboard"
+    "notfound_back_btn": "Back to the dashboard",
+    "error_confirmation_differs": "The new password and its confirmation differ.",
+    "error_server_unreachable": "Server unreachable. Check that Vectispire is running.",
+    "error_change_failed": "The change failed.",
+    "error_sso_refused": "Single sign-on was refused.",
+    "error_sso_failed": "Single sign-on did not complete. The provider refused the exchange.",
+    "error_sso_incomplete": "This sign-on could not be completed. Try again.",
+    "error_mfa_invalid": "Invalid MFA verification code.",
+    "error_too_many_attempts": "Too many attempts. Try again in {{minutes}} minute(s).",
+    "error_invalid_credentials": "Invalid credentials.",
+    "error_server_status": "The server answered {{status}}. Try again, or check its logs."
   },
   "blast_radius": {
     "pick_component": "Pick a component to see what it reaches",
@@ -328,7 +375,8 @@
     "subtitle": "How far one library or one CVE reaches across your repositories and images.",
     "graph": "Targets → dependencies → vulnerabilities",
     "targets": "Targets",
-    "radius_score": "Blast radius"
+    "radius_score": "Blast radius",
+    "error_explore": "Could not explore the dependency graph."
   },
   "common": {
     "actions": "Actions",
@@ -424,7 +472,19 @@
     "verify_integrity": "Check the integrity",
     "verify_signature": "Verify the signature",
     "vex_upload_help": "published by a third-party vendor or an open-source maintainer. The vulnerabilities it names are filed as",
-    "with_vendor_justification": "with the vendor's justification."
+    "with_vendor_justification": "with the vendor's justification.",
+    "error_load": "Failed to load the compliance summary.",
+    "error_export_pdf": "Failed to export the compliance PDF report.",
+    "error_export_bundle": "Failed to export the audit evidence bundle.",
+    "error_export_vex": "Failed to export the OpenVEX advisory.",
+    "error_export_csaf": "Failed to export the OASIS CSAF 2.0 advisory.",
+    "error_export_cyclonedx": "Failed to export the CycloneDX 1.5 VEX advisory.",
+    "vex_ingested": "VEX document ingested: {{count}} vulnerability(ies) triaged automatically ({{applied}}).",
+    "vex_no_match": "no match",
+    "error_vex_ingest": "Could not ingest the VEX document.",
+    "error_invalid_json": "Invalid JSON: {{detail}}",
+    "error_public_key": "Could not download the signing public key.",
+    "error_verify": "Could not verify the signature."
   },
   "containers": {
     "add_btn": "Add Container Image",
@@ -440,7 +500,13 @@
     "platform": "Platform",
     "subtitle": "Monitored container images and registries for OS and package vulnerabilities.",
     "tag": "Tag",
-    "title": "Container Images"
+    "title": "Container Images",
+    "scan_queued": "Scan queued for {{reference}}. It will start as soon as a worker is available.",
+    "scan_queue_failed": "Could not queue this scan.",
+    "load_failed": "Could not load the container list.",
+    "save_failed": "Could not save this image.",
+    "add_failed": "Could not add this image.",
+    "delete_failed": "The deletion failed."
   },
   "dashboard": {
     "title": "Dashboard",
@@ -518,7 +584,14 @@
     "debt_iac": "Infrastructure as code:",
     "debt_help": "Engineering time estimated to clear the security backlog ({{ count }} open tickets).",
     "resolution_ratio": "{{ percent }}% ({{ resolved }} resolved / {{ opened }} opened)",
-    "person_days": "person-days"
+    "person_days": "person-days",
+    "load_failed": "Could not load the dashboard.",
+    "trend_load_failed": "Could not load the backlog trend.",
+    "no_measurement": "No measurement",
+    "days_count": "{{count}} days",
+    "days_short": "{{count}} d",
+    "nothing_resolved_in_window": "Nothing was resolved in this window: there is nothing to average.",
+    "mean_population": "over {{count}} issue(s) resolved in this window"
   },
   "delays": {
     "title": "Time to fix",
@@ -583,7 +656,14 @@
     "subtitle_before": "Order the work by the real chance of exploitation within thirty days (",
     "subtitle_between": ") and by the attacks already seen (",
     "target": "Target",
-    "weaponised": "weaponised flaw(s)"
+    "weaponised": "weaponised flaw(s)",
+    "load_failed": "Could not load the EPSS prioritisation data.",
+    "sync_succeeded": "Synchronisation succeeded: {{cves}} CVEs analysed ({{kev}} in CISA KEV).",
+    "sync_failed": "The Threat Intelligence feed could not be synchronised.",
+    "tier_critical_armed": "Critical / Weaponised (P0)",
+    "tier_high_probable": "High / Probable (P1)",
+    "tier_medium_theoretical": "Theoretical (P2)",
+    "tier_low": "Low probability (P3)"
   },
   "exceptions": {
     "title": "Exceptions register",
@@ -633,7 +713,8 @@
   },
   "footer": {
     "tagline": "Application security posture management",
-    "powered_by": "Powered by"
+    "powered_by": "Powered by",
+    "repository_link": "Vectispire source repository"
   },
   "forbidden": {
     "need_administrator": "This page is for administrators",
@@ -776,7 +857,11 @@
     "on": "on",
     "unknown_version": "unknown",
     "decisions_recorded_count": "decisions recorded",
-    "no_decision_recorded": "no decision recorded"
+    "no_decision_recorded": "no decision recorded",
+    "load_failed": "The history could not be loaded.",
+    "dossier_load_failed": "This target’s dossier could not be loaded.",
+    "export_failed": "The export could not be produced.",
+    "vex_download_failed": "Could not download the OpenVEX document for this scan."
   },
   "history_compliance": {
     "title": "Compliance progression",
@@ -842,7 +927,8 @@
     "unknown": "unknown",
     "version": "Version",
     "version_label": "Version (exact, optional)",
-    "version_placeholder": "2.14.1"
+    "version_placeholder": "2.14.1",
+    "search_failed": "The search could not be run."
   },
   "issues": {
     "action_accept": "Accept Risk",
@@ -916,7 +1002,9 @@
       "pending_approval": "Pending approval",
       "affected": "Affected",
       "not_affected": "Not affected",
-      "fixed": "Fixed"
+      "fixed": "Fixed",
+      "accepted": "Risk accepted",
+      "false_positive": "False positive"
     },
     "types": {
       "vulnerability": "Vulnerability",
@@ -934,13 +1022,32 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Not controllable by an adversary",
       "inline_mitigations_already_exist": "Inline mitigations already exist"
     },
-    "what_it_is": "What it is"
+    "what_it_is": "What it is",
+    "detail_load_failed": "This issue could not be loaded.",
+    "no_result": "No result",
+    "page_range": "{{from}}–{{to}} of {{total}}",
+    "sla_late_today": "late today",
+    "sla_late_one": "{{count}} day late",
+    "sla_late_many": "{{count}} days late",
+    "sla_due_today": "due today",
+    "sla_due_one": "due in {{count}} day",
+    "sla_due_many": "due in {{count}} days",
+    "triage_header_bulk": "Triage {{count}} selected issue(s)",
+    "triage_header_single": "Triage this issue",
+    "triage_refused": "The triage was refused.",
+    "bulk_triage_refused": "None of the {{count}} selected issues were triaged: the batch is refused as a whole.",
+    "bulk_triage_not_visible": "One of them is no longer visible to you — reload the list and select again.",
+    "ai_suggestion_prefix": "[AI suggestion]"
   },
   "layout": {
     "menu_mode": {
       "static": "Static",
       "overlay": "Overlay"
-    }
+    },
+    "primary": "Primary",
+    "surface": "Surface",
+    "presets": "Presets",
+    "menu_mode_label": "Menu Mode"
   },
   "licenses": {
     "advice_forbidden": "Replace this component with an alternative under a standard open source licence (MIT, Apache-2.0, BSD).",
@@ -1006,7 +1113,11 @@
     "verdict_unknown": "Unknown or non-standard licence. The legal risk is unassessed.",
     "verdict_weak_copyleft": "Weak copyleft ({{licence}}): the library may be used in proprietary software provided it is not modified directly and is linked dynamically.",
     "weak_copyleft": "Weak Copyleft (Conditional)",
-    "weak_copyleft_group": "Weak copyleft (LGPL, MPL, EPL)"
+    "weak_copyleft_group": "Weak copyleft (LGPL, MPL, EPL)",
+    "summary_load_failed": "Failed to load the license summary.",
+    "inventory_load_failed": "Failed to load the license inventory.",
+    "scope_repository": "Repository: {{name}}",
+    "scope_container": "Container: {{name}}"
   },
   "menu": {
     "administration": "Administration",
@@ -1078,7 +1189,9 @@
     "refresh": "Refresh",
     "subscribed_events": "Events subscribed to:",
     "test_send": "Send a test",
-    "webhook_settings": "Webhook settings"
+    "webhook_settings": "Webhook settings",
+    "load_failed": "Could not load the list of notification channels.",
+    "test_failed": "The test send failed."
   },
   "owasp": {
     "inputs_title": "What the model was given",
@@ -1094,7 +1207,10 @@
     "failed_badge": "failed",
     "open_findings_count": "open findings",
     "no_findings": "No findings categorized under this section.",
-    "export_pdf": "Export PDF"
+    "export_pdf": "Export PDF",
+    "repositories_load_failed": "The repositories could not be loaded.",
+    "pdf_failed": "The PDF could not be produced.",
+    "report_failed": "The report could not be produced."
   },
   "owasp_grid": {
     "declare": "Declare",
@@ -1165,7 +1281,8 @@
       "most_frequent_rules": "Most frequent rules",
       "most_affected_files": "Most affected files",
       "densest_repositories": "Densest repositories"
-    }
+    },
+    "load_failed": "Could not load the quality view."
   },
   "reachability": {
     "call_traces": "Call traces:",
@@ -1205,7 +1322,8 @@
     "subtitle": "What to do, in order: one action per row, ranked by what it closes over what it costs.",
     "targets": "targets",
     "title": "Remediation plan",
-    "whole_estate": "Whole estate"
+    "whole_estate": "Whole estate",
+    "plan_failed": "The remediation plan could not be computed."
   },
   "repositories": {
     "add_btn": "Add Repository",
@@ -1280,7 +1398,9 @@
     "tier_option_3": "🟢 Tier 3 — Internal / Lab (SLA: Critical 30d | High 60d)",
     "title": "Git Repositories",
     "url_hint": "https://…, ssh://… or git@host:path",
-    "url_label": "Repository URL"
+    "url_label": "Repository URL",
+    "scan_queued": "Scan queued for {{name}}. It will start as soon as a worker is available.",
+    "scan_all_queued": "Scan queued for {{count}} repositories. The workers will start the scans."
   },
   "roles": {
     "user": "User",
@@ -1346,7 +1466,19 @@
     "upload_btn": "Upload",
     "activate_btn": "Activate",
     "active_rules_title": "Stored sets",
-    "no_rule_sets": "Nothing uploaded. Scans use the single bundled rule, plus {{var}} where it is set."
+    "no_rule_sets": "Nothing uploaded. Scans use the single bundled rule, plus {{var}} where it is set.",
+    "error_catalogue_read": "The catalogue could not be read.",
+    "fetched_notice": "Fetched {{count}} rules from {{upstream}} at {{commit}}. Stored, not active — review the activation cost before switching to it.",
+    "error_fetch": "The fetch failed.",
+    "error_file_read": "One of the selected files could not be read.",
+    "uploaded_notice": "Stored {{files}} files, {{rules}} rules. Review activation to put it in use.",
+    "error_upload": "The upload was refused.",
+    "error_impact": "The impact of this activation could not be computed; it has not been activated.",
+    "activated_notice": "\"{{name}}\" is active. It ships with every scan from now on.",
+    "error_activate": "The activation failed.",
+    "deactivated_notice": "Back to the bundled rule. Scans will find less from the next run on.",
+    "error_deactivate": "The deactivation failed.",
+    "error_load": "The stored rule sets could not be loaded."
   },
   "scans": {
     "artifacts": "Scan Artifacts",
@@ -1370,7 +1502,9 @@
     "status_failed": "Failed",
     "status_queued": "Queued",
     "status_running": "Scanning",
-    "title": "Scans"
+    "title": "Scans",
+    "error_not_found": "This scan does not exist.",
+    "error_load": "Could not load this scan."
   },
   "schedule": {
     "cron_hint": "Five fields — minute, hour, day of month, month, day of week. 0 2 * * * is every day at 02:00, 0 */6 * * * every six hours. The server refuses an expression it cannot read, so a mistake here is reported rather than saved.",
@@ -1442,7 +1576,9 @@
     "csaf_btn": "CSAF",
     "default_policy": "default",
     "repository": "Repository",
-    "container": "Container"
+    "container": "Container",
+    "error_load": "Could not load the security posture.",
+    "error_export": "The export could not be produced."
   },
   "settings": {
     "active_cisa_kev": "Active CISA KEV Exploits",
@@ -1500,7 +1636,19 @@
     "token_label": "Token",
     "token_none": "none",
     "token_placeholder": "Leave empty to keep it unchanged",
-    "token_saved": "saved"
+    "token_saved": "saved",
+    "error_connection_test_not_run": "The connection test could not be run.",
+    "error_save_siem": "Saving SIEM configuration failed.",
+    "siem_endpoint_required": "Please provide an Endpoint URL first.",
+    "error_connection_test_request": "Connection test request failed.",
+    "error_save": "Saving failed.",
+    "error_save_token": "Saving the token failed.",
+    "error_save_webhook_secret": "Saving the webhook secret failed.",
+    "error_save_api_key": "Saving the API key failed.",
+    "error_save_secret": "Saving the secret failed.",
+    "threat_intel_synced": "Synchronized {{cves}} CVEs ({{kev}} active CISA KEV). Re-evaluated {{issues}} backlog issues.",
+    "error_threat_intel_sync": "Failed to synchronize Threat Intelligence feed.",
+    "error_load": "Could not load the settings."
   },
   "severities": {
     "critical": "Critical",
@@ -1620,7 +1768,10 @@
     "public_key_placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... deploy@vectispire",
     "repositories": "Repositories",
     "subtitle": "The deployment keys used to clone private repositories.",
-    "title": "SSH keys"
+    "title": "SSH keys",
+    "error_load": "Could not load the key list.",
+    "error_add": "Could not add this key.",
+    "error_delete": "The deletion failed."
   },
   "teams": {
     "create_team": "Create Team",
@@ -1632,7 +1783,18 @@
     "subtitle": "Group monitored targets and delegate visibility by team.",
     "targets": "Assigned Targets",
     "team_name": "Team Name",
-    "title": "Teams & Target Assignment"
+    "title": "Teams & Target Assignment",
+    "target_repository": "Repository",
+    "target_image": "Image",
+    "error_load": "Could not load the teams.",
+    "error_save": "Could not save the team.",
+    "error_read_members": "Could not read the current membership.",
+    "error_read_targets": "Could not read the current targets.",
+    "try_again": "Try again.",
+    "error_targets_after_members": "The membership was saved; the targets were not. {{detail}}",
+    "error_save_members": "Could not save the membership.",
+    "error_save_channel": "Could not save the channel.",
+    "error_delete": "Could not delete the team."
   },
   "tiers": {
     "label": "Business Criticality Tier",
@@ -1676,6 +1838,11 @@
     "target_image": "Image",
     "target_repository": "Repository",
     "title": "User Management",
-    "username": "Username"
+    "username": "Username",
+    "error_load": "Could not load the account list.",
+    "error_operation": "The operation failed.",
+    "error_create": "Could not create this account.",
+    "error_reset": "The reset failed.",
+    "error_delete": "The deletion failed."
   }
 }

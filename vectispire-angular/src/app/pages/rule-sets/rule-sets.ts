@@ -10,6 +10,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core/api.models';
 
 /**
@@ -42,6 +43,7 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 })
 export class RuleSets {
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly sets = signal<RuleSetSummary[]>([]);
     readonly picked = signal<{ name: string; content: string }[]>([]);
@@ -104,7 +106,7 @@ export class RuleSets {
                 this.loadingCatalogue.set(false);
                 // The server names the cause — a branch instead of a tag, a tag that does not
                 // exist upstream. A generic message would send somebody to the wrong place.
-                this.catalogueError.set(messageOf(response, 'The catalogue could not be read.'));
+                this.catalogueError.set(messageOf(response, this.i18n.t('rule_sets.error_catalogue_read')));
             }
         });
     }
@@ -122,14 +124,17 @@ export class RuleSets {
                     this.catalogue.set(null);
                     this.licenceAccepted = false;
                     this.notice.set(
-                        `Fetched ${stored.ruleCount} rules from ${preview.upstream} at ${preview.commit.slice(0, 12)}. ` +
-                            'Stored, not active — review the activation cost before switching to it.'
+                        this.i18n.t('rule_sets.fetched_notice', {
+                            count: stored.ruleCount,
+                            upstream: preview.upstream,
+                            commit: preview.commit.slice(0, 12)
+                        })
                     );
                     this.reload();
                 },
                 error: (response) => {
                     this.fetching.set(false);
-                    this.catalogueError.set(messageOf(response, 'The fetch failed.'));
+                    this.catalogueError.set(messageOf(response, this.i18n.t('rule_sets.error_fetch')));
                 }
             });
     }
@@ -175,7 +180,7 @@ export class RuleSets {
         } catch {
             this.picked.set([]);
             this.ignored.set(0);
-            this.error.set('One of the selected files could not be read.');
+            this.error.set(this.i18n.t('rule_sets.error_file_read'));
         }
     }
 
@@ -192,12 +197,12 @@ export class RuleSets {
                 this.name = '';
                 // Stored, not active. Saying so is the point: an operator who assumed the
                 // upload took effect would wait for coverage that is not there.
-                this.notice.set(`Stored ${stored.fileCount} files, ${stored.ruleCount} rules. Review activation to put it in use.`);
+                this.notice.set(this.i18n.t('rule_sets.uploaded_notice', { files: stored.fileCount, rules: stored.ruleCount }));
                 this.reload();
             },
             error: (response) => {
                 this.uploading.set(false);
-                this.error.set(messageOf(response, 'The upload was refused.'));
+                this.error.set(messageOf(response, this.i18n.t('rule_sets.error_upload')));
             }
         });
     }
@@ -209,7 +214,7 @@ export class RuleSets {
             next: (cost) => this.impact.set(cost),
             error: () => {
                 this.candidate.set(null);
-                this.error.set('The impact of this activation could not be computed; it has not been activated.');
+                this.error.set(this.i18n.t('rule_sets.error_impact'));
             }
         });
     }
@@ -225,12 +230,12 @@ export class RuleSets {
             next: () => {
                 this.activating.set(false);
                 this.candidate.set(null);
-                this.notice.set(`"${set.name}" is active. It ships with every scan from now on.`);
+                this.notice.set(this.i18n.t('rule_sets.activated_notice', { name: set.name }));
                 this.reload();
             },
             error: (response) => {
                 this.activating.set(false);
-                this.error.set(messageOf(response, 'The activation failed.'));
+                this.error.set(messageOf(response, this.i18n.t('rule_sets.error_activate')));
             }
         });
     }
@@ -238,17 +243,17 @@ export class RuleSets {
     deactivate(): void {
         this.api.deactivateRuleSets().subscribe({
             next: () => {
-                this.notice.set('Back to the bundled rule. Scans will find less from the next run on.');
+                this.notice.set(this.i18n.t('rule_sets.deactivated_notice'));
                 this.reload();
             },
-            error: () => this.error.set('The deactivation failed.')
+            error: () => this.error.set(this.i18n.t('rule_sets.error_deactivate'))
         });
     }
 
     private reload(): void {
         this.api.ruleSets().subscribe({
             next: (response) => this.sets.set(response.ruleSets),
-            error: () => this.error.set('The stored rule sets could not be loaded.')
+            error: () => this.error.set(this.i18n.t('rule_sets.error_load'))
         });
     }
 }

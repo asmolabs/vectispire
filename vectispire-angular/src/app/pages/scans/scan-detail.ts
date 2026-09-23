@@ -7,21 +7,17 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
+import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { ScanDetail } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
 
-/** Finding types, in words. Open table: an unknown type is shown raw. */
-const TYPE_LABELS: Record<string, string> = {
-    vulnerability: 'Vulnerability',
-    secret: 'Secret',
-    iac: 'Infrastructure',
-    license: 'License',
-    eol: 'End of life',
-    sast: 'Source code',
-    quality: 'Quality'
-};
+/**
+ * Finding types, in words — the keys of `issues.types`, read at render time because the language
+ * changes at runtime. Open table: an unknown type is shown raw.
+ */
+const KNOWN_TYPES = new Set(['vulnerability', 'secret', 'iac', 'license', 'eol', 'sast', 'quality']);
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     critical: 'danger',
@@ -42,6 +38,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class ScanDetailPage {
     private readonly api = inject(ApiService);
+    private readonly i18n = inject(I18nService);
 
     readonly id = input.required<string>();
     readonly scan = signal<ScanDetail | null>(null);
@@ -59,7 +56,7 @@ export class ScanDetailPage {
     }
 
     typeLabel(type: string): string {
-        return TYPE_LABELS[type] ?? type;
+        return KNOWN_TYPES.has(type) ? this.i18n.t(`issues.types.${type}`) : type;
     }
 
     severityOf(severity: string): 'danger' | 'warn' | 'secondary' {
@@ -104,7 +101,7 @@ export class ScanDetailPage {
     private load(id: number): void {
         this.api.scan(id).subscribe({
             next: (detail) => this.scan.set(detail),
-            error: (response) => this.error.set(response?.status === 404 ? 'This scan does not exist.' : 'Could not load this scan.')
+            error: (response) => this.error.set(response?.status === 404 ? this.i18n.t('scans.error_not_found') : this.i18n.t('scans.error_load'))
         });
     }
 }

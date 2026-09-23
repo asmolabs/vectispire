@@ -87,7 +87,7 @@ export class Dashboard {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the dashboard.');
+                this.error.set(this.i18n.t('dashboard.load_failed'));
                 this.loading.set(false);
             }
         });
@@ -107,7 +107,7 @@ export class Dashboard {
         this.trendError.set(null);
         this.api.trends(days).subscribe({
             next: (series) => this.trends.set(series),
-            error: () => this.trendError.set('Could not load the backlog trend.')
+            error: () => this.trendError.set(this.i18n.t('dashboard.trend_load_failed'))
         });
 
         this.api.getPostureAnalytics(days).subscribe({
@@ -135,8 +135,8 @@ export class Dashboard {
      */
     meanLabel(): string {
         const mean = this.trends()?.mean_days_to_resolve;
-        if (mean === null || mean === undefined) return 'No measurement';
-        return `${mean.toFixed(1)} days`;
+        if (mean === null || mean === undefined) return this.i18n.t('dashboard.no_measurement');
+        return this.i18n.t('dashboard.days_count', { count: mean.toFixed(1) });
     }
 
     /** Why there is no mean, when there is none — a stat with no explanation gets read as a bug. */
@@ -144,11 +144,11 @@ export class Dashboard {
         const series = this.trends();
         if (!series) return '';
         if (series.mean_days_to_resolve === null || series.mean_days_to_resolve === undefined) {
-            return 'Nothing was resolved in this window: there is nothing to average.';
+            return this.i18n.t('dashboard.nothing_resolved_in_window');
         }
         // The denominator, stated beside the average: an average with no population behind it is a
         // number people quote and should not.
-        return `over ${series.resolved_in_window} issue(s) resolved in this window`;
+        return this.i18n.t('dashboard.mean_population', { count: series.resolved_in_window });
     }
 
     /**

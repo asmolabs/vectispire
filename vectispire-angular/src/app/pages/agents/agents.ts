@@ -127,7 +127,7 @@ export class Agents implements OnInit {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the agent list.');
+                this.error.set(this.i18n.t('agents.error_load'));
                 this.loading.set(false);
             }
         });
@@ -143,7 +143,7 @@ export class Agents implements OnInit {
             },
             error: (response) => {
                 this.busy.set(null);
-                this.error.set(messageOf(response, 'The operation failed.'));
+                this.error.set(messageOf(response, this.i18n.t('agents.error_operation')));
                 this.reload(true);
             }
         });
@@ -157,7 +157,7 @@ export class Agents implements OnInit {
 
     save(): void {
         if (!this.form.name.trim()) {
-            this.formError.set('Name is required.');
+            this.formError.set(this.i18n.t('agents.error_name_required'));
             return;
         }
         this.saving.set(true);
@@ -178,7 +178,7 @@ export class Agents implements OnInit {
             },
             error: (response) => {
                 this.saving.set(false);
-                this.formError.set(messageOf(response, 'Could not declare the agent.'));
+                this.formError.set(messageOf(response, this.i18n.t('agents.error_declare')));
             }
         });
     }
@@ -207,7 +207,7 @@ export class Agents implements OnInit {
             },
             error: (response) => {
                 this.busy.set(null);
-                this.error.set(messageOf(response, 'Could not change the result-signing key.'));
+                this.error.set(messageOf(response, this.i18n.t('agents.error_signing_key')));
             }
         });
     }
@@ -234,7 +234,7 @@ export class Agents implements OnInit {
             error: (response) => {
                 this.deleteVisible.set(false);
                 this.pendingDelete.set(null);
-                this.error.set(messageOf(response, 'Could not delete the agent.'));
+                this.error.set(messageOf(response, this.i18n.t('agents.error_delete')));
             }
         });
     }

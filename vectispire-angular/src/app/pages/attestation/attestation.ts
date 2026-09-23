@@ -5,6 +5,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { ApiService } from '@/app/core/api.service';
 import { SessionStore } from '@/app/core/session.store';
+import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { saveDocument } from '@/app/core/download';
 import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from '@/app/core/api.models';
@@ -29,6 +30,7 @@ import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from 
 export class Attestation {
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
+    private readonly i18n = inject(I18nService);
 
     readonly chain = signal<AuditVerification | null>(null);
     readonly compliance = signal<ComplianceSummary | null>(null);
@@ -65,7 +67,7 @@ export class Attestation {
         this.loading.set(true);
         this.api.verifyAuditChain().subscribe({
             next: (v) => { this.chain.set(v); this.loading.set(false); },
-            error: () => { this.error.set('La vérification de la chaîne d\'audit a échoué.'); this.loading.set(false); }
+            error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.loading.set(false); }
         });
         this.api.complianceSummary().subscribe({
             next: (s) => this.compliance.set(s),
@@ -79,7 +81,7 @@ export class Attestation {
         this.rechecking.set(true);
         this.api.verifyAuditChain().subscribe({
             next: (v) => { this.chain.set(v); this.establishedAt.set(new Date()); this.rechecking.set(false); },
-            error: () => { this.error.set('La vérification de la chaîne d\'audit a échoué.'); this.rechecking.set(false); }
+            error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.rechecking.set(false); }
         });
     }
 
@@ -87,7 +89,7 @@ export class Attestation {
         this.downloading.set(true);
         this.api.exportEvidenceBundle().subscribe({
             next: (response) => { saveDocument(response, 'vectispire-evidence.zip'); this.downloading.set(false); },
-            error: () => { this.error.set('Le paquet de preuves n\'a pas pu être produit.'); this.downloading.set(false); }
+            error: () => { this.error.set(this.i18n.t('attestation.error_bundle')); this.downloading.set(false); }
         });
     }
 

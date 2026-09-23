@@ -1,4 +1,5 @@
 import { provideHttpClient } from '@angular/common/http';
+import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -49,6 +50,7 @@ describe('the backlog trend', () => {
             dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
         });
 
+        useEnglish();
         fixture = TestBed.createComponent(Dashboard);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -220,6 +222,7 @@ describe('the failing targets table', () => {
             dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
         });
 
+        useEnglish();
         fixture = TestBed.createComponent(Dashboard);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();

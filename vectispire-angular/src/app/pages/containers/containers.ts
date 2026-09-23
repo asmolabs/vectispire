@@ -106,12 +106,12 @@ export class Containers {
         this.api.triggerContainerScan(container.id).subscribe({
             next: () => {
                 this.busy.set(null);
-                this.notice.set(`Scan queued for ${container.reference}. It will start as soon as a worker is available.`);
+                this.notice.set(this.i18n.t('containers.scan_queued', { reference: container.reference }));
                 this.reload();
             },
             error: (response) => {
                 this.busy.set(null);
-                this.error.set(messageOf(response, 'Could not queue this scan.'));
+                this.error.set(messageOf(response, this.i18n.t('containers.scan_queue_failed')));
             }
         });
     }
@@ -125,7 +125,7 @@ export class Containers {
                 this.loading.set(false);
             },
             error: () => {
-                this.error.set('Could not load the container list.');
+                this.error.set(this.i18n.t('containers.load_failed'));
                 this.loading.set(false);
             }
         });
@@ -187,7 +187,7 @@ export class Containers {
                 // The server's message is the one that knows *why* — upper case refused,
                 // malformed digest, a cron field it could not read. Replacing it with a generic
                 // "error" would send somebody back to guessing.
-                this.formError.set(messageOf(response, editing ? 'Could not save this image.' : 'Could not add this image.'));
+                this.formError.set(messageOf(response, this.i18n.t(editing ? 'containers.save_failed' : 'containers.add_failed')));
             }
         });
     }
@@ -210,7 +210,7 @@ export class Containers {
             error: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
-                this.error.set('The deletion failed.');
+                this.error.set(this.i18n.t('containers.delete_failed'));
             }
         });
     }

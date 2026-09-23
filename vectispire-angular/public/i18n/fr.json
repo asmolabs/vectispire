@@ -95,7 +95,13 @@
     "token_modal_title": "Identifiants de l'agent",
     "unlabelled_targets": "Cibles sans étiquette",
     "unroutable_notice": "{{count}} analyse(s) requièrent le label « {{label}} », qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
-    "wait_time": "Temps d'attente"
+    "wait_time": "Temps d'attente",
+    "error_load": "Impossible de charger la liste des agents.",
+    "error_operation": "L'opération a échoué.",
+    "error_name_required": "Le nom est obligatoire.",
+    "error_declare": "Impossible de déclarer l'agent.",
+    "error_signing_key": "Impossible de modifier la clé de signature des résultats.",
+    "error_delete": "Impossible de supprimer l'agent."
   },
   "ai": {
     "exposure_mentioned": "À regarder en premier : un contrôle de code a produit un constat qui mentionne ce composant. C'est un endroit où regarder, pas une preuve d'appel : cette corrélation rapproche des textes, elle ne suit pas le graphe d'appels.",
@@ -140,7 +146,12 @@
     "target_label": "Restriction de cible (optionnel)",
     "title": "Clés API",
     "token_modal_desc": "Conservez précieusement ce jeton. Pour des raisons de sécurité, il ne pourra plus jamais être affiché.",
-    "token_modal_title": "Clé API générée"
+    "token_modal_title": "Clé API générée",
+    "target_repository_prefix": "Dépôt",
+    "target_container_prefix": "Conteneur",
+    "error_load": "Impossible de charger la liste des clés.",
+    "error_issue": "Impossible d'émettre cette clé.",
+    "error_revoke": "La révocation a échoué."
   },
   "attack_paths": {
     "axes": "Exposition x Exploitation x Criticité",
@@ -185,7 +196,8 @@
     "title_long": "Visualiseur de Chemins d'Attaque (Attack Path Visualizer)",
     "topological_score": "Score de Risque Topologique",
     "total_paths": "Total Chemins",
-    "unfocus": "Désactiver le focus"
+    "unfocus": "Désactiver le focus",
+    "error_graph": "Erreur lors de la génération du graphe des chemins d'attaque."
   },
   "attack_surface": {
     "auth": {
@@ -246,7 +258,17 @@
       "public": "Public (exposé)",
       "internal": "Interne",
       "unknown": "Inconnu"
-    }
+    },
+    "error_load": "Erreur lors du chargement de la surface d'attaque.",
+    "error_repo_apis": "Erreur lors du chargement des API du dépôt.",
+    "error_export": "Échec de l'export OpenAPI.",
+    "cleared": "Surface d'attaque purgée avec succès.",
+    "error_clear": "Échec de la purge de la surface d'attaque.",
+    "scan_scheduled": "Analyse planifiée. Analyse des routes d'API en cours...",
+    "error_scan": "Impossible de lancer l'analyse.",
+    "scan_scheduled_all": "Analyse planifiée pour {{count}} dépôts. Analyse et découverte en cours...",
+    "error_scan_all": "Impossible de lancer l'analyse de l'ensemble des dépôts.",
+    "discovery_complete": "Découverte d'API terminée ({{count}} routes répertoriées)."
   },
   "attestation": {
     "title": "Attestation",
@@ -264,7 +286,9 @@
     "frameworks_note": "Quatre contrôles par référentiel, projetés depuis sept catégories : deux référentiels partageant une catégorie reçoivent le même résultat.",
     "no_compliance": "La conformité n'a pas pu être lue.",
     "bundle": "Paquet de preuves",
-    "bundle_desc": "La clé publique de vérification, les six référentiels évalués, le journal d'audit complet, les décisions de triage et leurs justifications, les attestations in-toto en enveloppe DSSE, les avis OpenVEX et CSAF signés, la conformité des licences et le CycloneDX signé."
+    "bundle_desc": "La clé publique de vérification, les six référentiels évalués, le journal d'audit complet, les décisions de triage et leurs justifications, les attestations in-toto en enveloppe DSSE, les avis OpenVEX et CSAF signés, la conformité des licences et le CycloneDX signé.",
+    "error_chain": "La vérification de la chaîne d'audit a échoué.",
+    "error_bundle": "Le paquet de preuves n'a pas pu être produit."
   },
   "audit_log": {
     "title": "Journal d'audit immuable",
@@ -275,7 +299,20 @@
     "operation": "Opération",
     "user": "Utilisateur",
     "resource": "Ressource cible",
-    "hash": "Empreinte SHA-256"
+    "hash": "Empreinte SHA-256",
+    "operations": {
+      "setting_updated": "Paramètre modifié",
+      "access_denied": "Accès refusé",
+      "login": "Connexion",
+      "logout": "Déconnexion",
+      "triage": "Tri",
+      "scan_triggered": "Analyse déclenchée",
+      "policy_updated": "Politique modifiée",
+      "team_updated": "Équipe modifiée",
+      "team_access_changed": "Accès de l'équipe modifiés"
+    },
+    "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
+    "error_load": "Impossible de charger le journal."
   },
   "auth": {
     "login_title": "Connexion à Vectispire",
@@ -304,7 +341,17 @@
     "error_desc": "La ressource demandée n'est pas disponible.",
     "notfound_title": "Page non trouvée",
     "notfound_desc": "Cette adresse ne correspond à aucun écran Vectispire.",
-    "notfound_back_btn": "Retour au tableau de bord"
+    "notfound_back_btn": "Retour au tableau de bord",
+    "error_confirmation_differs": "Le nouveau mot de passe et sa confirmation diffèrent.",
+    "error_server_unreachable": "Serveur injoignable. Vérifier que Vectispire est démarré.",
+    "error_change_failed": "La modification a échoué.",
+    "error_sso_refused": "L'authentification unique a été refusée.",
+    "error_sso_failed": "L'authentification unique n'a pas abouti. Le fournisseur a refusé l'échange.",
+    "error_sso_incomplete": "Cette connexion n'a pas pu être finalisée. Réessayer.",
+    "error_mfa_invalid": "Code de vérification MFA invalide.",
+    "error_too_many_attempts": "Trop de tentatives. Réessayer dans {{minutes}} minute(s).",
+    "error_invalid_credentials": "Identifiants invalides.",
+    "error_server_status": "Le serveur a répondu {{status}}. Réessayer, ou consulter ses journaux."
   },
   "blast_radius": {
     "pick_component": "Sélectionnez un composant pour analyser son impact",
@@ -328,7 +375,8 @@
     "subtitle": "Analysez la propagation d'une bibliothèque logicielle ou d'une CVE sur l'ensemble de vos dépôts et conteneurs.",
     "graph": "Graphe Relationnel : Cibles → Dépendances → Vulnérabilités",
     "targets": "Cibles",
-    "radius_score": "Score Rayon d'Impact"
+    "radius_score": "Score Rayon d'Impact",
+    "error_explore": "Erreur lors de l'exploration du graphe de dépendances."
   },
   "common": {
     "actions": "Actions",
@@ -424,7 +472,19 @@
     "verify_integrity": "Vérifier l'intégrité",
     "verify_signature": "Vérifier la signature",
     "vex_upload_help": "fournie par un éditeur tiers ou un mainteneur open-source. Les vulnérabilités concernées seront automatiquement classées en",
-    "with_vendor_justification": "avec la justification de l'éditeur."
+    "with_vendor_justification": "avec la justification de l'éditeur.",
+    "error_load": "Échec du chargement de la synthèse de conformité.",
+    "error_export_pdf": "Échec de l'export du rapport de conformité PDF.",
+    "error_export_bundle": "Échec de l'export du paquet de preuves d'audit.",
+    "error_export_vex": "Échec de l'export de l'avis OpenVEX.",
+    "error_export_csaf": "Échec de l'export de l'avis OASIS CSAF 2.0.",
+    "error_export_cyclonedx": "Échec de l'export de l'avis CycloneDX 1.5 VEX.",
+    "vex_ingested": "Document VEX ingéré : {{count}} vulnérabilité(s) triée(s) automatiquement ({{applied}}).",
+    "vex_no_match": "aucune correspondance",
+    "error_vex_ingest": "Erreur lors de l'ingestion du document VEX.",
+    "error_invalid_json": "Format JSON invalide : {{detail}}",
+    "error_public_key": "Échec du téléchargement de la clé publique de signature.",
+    "error_verify": "Erreur lors de la vérification de la signature."
   },
   "containers": {
     "add_btn": "Ajouter un conteneur",
@@ -440,7 +500,13 @@
     "platform": "Plateforme",
     "subtitle": "Images et registres de conteneurs surveillés contre les vulnérabilités de paquets et d'OS.",
     "tag": "Tag",
-    "title": "Images Conteneurs"
+    "title": "Images Conteneurs",
+    "scan_queued": "Analyse mise en file pour {{reference}}. Elle démarrera dès qu’un worker sera disponible.",
+    "scan_queue_failed": "Impossible de mettre cette analyse en file.",
+    "load_failed": "Impossible de charger la liste des conteneurs.",
+    "save_failed": "Impossible d’enregistrer cette image.",
+    "add_failed": "Impossible d’ajouter cette image.",
+    "delete_failed": "La suppression a échoué."
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -518,7 +584,14 @@
     "debt_iac": "Infrastructure-as-Code :",
     "debt_help": "Temps d'ingénierie estimé pour résorber le backlog de sécurité ({{ count }} tickets ouverts).",
     "resolution_ratio": "{{ percent }} % ({{ resolved }} résolues / {{ opened }} ouvertes)",
-    "person_days": "J/H"
+    "person_days": "J/H",
+    "load_failed": "Impossible de charger le tableau de bord.",
+    "trend_load_failed": "Impossible de charger la tendance du backlog.",
+    "no_measurement": "Aucune mesure",
+    "days_count": "{{count}} jours",
+    "days_short": "{{count}} j",
+    "nothing_resolved_in_window": "Rien n’a été résolu sur cette période : il n’y a rien à moyenner.",
+    "mean_population": "sur {{count}} constat(s) résolu(s) sur cette période"
   },
   "delays": {
     "title": "Délais de correction",
@@ -583,7 +656,14 @@
     "subtitle_before": "Priorisez vos remédiations par la probabilité réelle d'exploitation dans les 30 jours (",
     "subtitle_between": ") et les attaques avérées (",
     "target": "Cible",
-    "weaponised": "faille(s) armée(s)"
+    "weaponised": "faille(s) armée(s)",
+    "load_failed": "Erreur lors du chargement des données de priorisation EPSS.",
+    "sync_succeeded": "Synchronisation réussie : {{cves}} CVEs analysées ({{kev}} dans CISA KEV).",
+    "sync_failed": "Échec de synchronisation du flux Threat Intelligence.",
+    "tier_critical_armed": "Critique / Armée (P0)",
+    "tier_high_probable": "Élevée / Probable (P1)",
+    "tier_medium_theoretical": "Théorique (P2)",
+    "tier_low": "Faible probabilité (P3)"
   },
   "exceptions": {
     "title": "Registre des exceptions",
@@ -633,7 +713,8 @@
   },
   "footer": {
     "tagline": "Gestion de la posture de sécurité applicative",
-    "powered_by": "Propulsé par"
+    "powered_by": "Propulsé par",
+    "repository_link": "Dépôt des sources de Vectispire"
   },
   "forbidden": {
     "need_administrator": "Cette page est réservée aux administrateurs",
@@ -776,7 +857,11 @@
     "on": "sur",
     "unknown_version": "inconnue",
     "decisions_recorded_count": "décisions enregistrées",
-    "no_decision_recorded": "aucune décision enregistrée"
+    "no_decision_recorded": "aucune décision enregistrée",
+    "load_failed": "L’historique n’a pas pu être chargé.",
+    "dossier_load_failed": "Le dossier de cette cible n’a pas pu être chargé.",
+    "export_failed": "L’export n’a pas pu être produit.",
+    "vex_download_failed": "Impossible de télécharger le document OpenVEX de cette analyse."
   },
   "history_compliance": {
     "title": "Progression de la conformité",
@@ -842,7 +927,8 @@
     "unknown": "inconnu",
     "version": "Version",
     "version_label": "Version (exacte, optionnelle)",
-    "version_placeholder": "2.14.1"
+    "version_placeholder": "2.14.1",
+    "search_failed": "La recherche n’a pas pu être exécutée."
   },
   "issues": {
     "action_accept": "Accepter le risque",
@@ -916,7 +1002,9 @@
       "pending_approval": "En attente d'approbation",
       "affected": "Affecté",
       "not_affected": "Non affecté",
-      "fixed": "Corrigé"
+      "fixed": "Corrigé",
+      "accepted": "Risque accepté",
+      "false_positive": "Faux positif"
     },
     "types": {
       "vulnerability": "Vulnérabilité",
@@ -934,13 +1022,32 @@
       "vulnerable_code_cannot_be_controlled_by_adversary": "Non contrôlable par un adversaire",
       "inline_mitigations_already_exist": "Des mesures d'atténuation existent déjà"
     },
-    "what_it_is": "Description du constat"
+    "what_it_is": "Description du constat",
+    "detail_load_failed": "Ce constat n’a pas pu être chargé.",
+    "no_result": "Aucun résultat",
+    "page_range": "{{from}}–{{to}} sur {{total}}",
+    "sla_late_today": "en retard aujourd’hui",
+    "sla_late_one": "{{count}} jour de retard",
+    "sla_late_many": "{{count}} jours de retard",
+    "sla_due_today": "échéance aujourd’hui",
+    "sla_due_one": "échéance dans {{count}} jour",
+    "sla_due_many": "échéance dans {{count}} jours",
+    "triage_header_bulk": "Trier {{count}} constat(s) sélectionné(s)",
+    "triage_header_single": "Trier ce constat",
+    "triage_refused": "Le tri a été refusé.",
+    "bulk_triage_refused": "Aucun des {{count}} constats sélectionnés n’a été trié : le lot est refusé dans son ensemble.",
+    "bulk_triage_not_visible": "L’un d’eux n’est plus visible pour ce compte — rechargez la liste et sélectionnez à nouveau.",
+    "ai_suggestion_prefix": "[Suggestion IA]"
   },
   "layout": {
     "menu_mode": {
       "static": "Statique",
       "overlay": "Superposé"
-    }
+    },
+    "primary": "Couleur principale",
+    "surface": "Surface",
+    "presets": "Thèmes prédéfinis",
+    "menu_mode_label": "Mode du menu"
   },
   "licenses": {
     "advice_forbidden": "Remplacer ce composant par une alternative sous licence open source standard (MIT, Apache-2.0, BSD).",
@@ -1006,7 +1113,11 @@
     "verdict_unknown": "Licence inconnue ou non standard. Risque juridique non qualifié.",
     "verdict_weak_copyleft": "Copyleft faible ({{licence}}) : la bibliothèque peut être utilisée dans un logiciel propriétaire à condition de ne pas être modifiée directement et d'être liée dynamiquement.",
     "weak_copyleft": "Weak Copyleft (Conditionnel)",
-    "weak_copyleft_group": "Copyleft Faible (LGPL, MPL, EPL)"
+    "weak_copyleft_group": "Copyleft Faible (LGPL, MPL, EPL)",
+    "summary_load_failed": "Impossible de charger la synthèse des licences.",
+    "inventory_load_failed": "Impossible de charger l’inventaire des licences.",
+    "scope_repository": "Dépôt : {{name}}",
+    "scope_container": "Conteneur : {{name}}"
   },
   "menu": {
     "administration": "Administration",
@@ -1078,7 +1189,9 @@
     "refresh": "Rafraîchir",
     "subscribed_events": "Événements abonnés :",
     "test_send": "Tester l'envoi",
-    "webhook_settings": "Paramètres des webhooks"
+    "webhook_settings": "Paramètres des webhooks",
+    "load_failed": "Impossible de charger la liste des canaux de notification.",
+    "test_failed": "Échec lors du test d’envoi."
   },
   "owasp": {
     "inputs_title": "Ce que le modèle a reçu",
@@ -1094,7 +1207,10 @@
     "failed_badge": "échoué",
     "open_findings_count": "constats ouverts",
     "no_findings": "Aucun constat classifié dans cette section.",
-    "export_pdf": "Exporter en PDF"
+    "export_pdf": "Exporter en PDF",
+    "repositories_load_failed": "Les dépôts n’ont pas pu être chargés.",
+    "pdf_failed": "Le PDF n’a pas pu être produit.",
+    "report_failed": "Le rapport n’a pas pu être produit."
   },
   "owasp_grid": {
     "declare": "Déclarer",
@@ -1165,7 +1281,8 @@
       "most_frequent_rules": "Règles les plus fréquentes",
       "most_affected_files": "Fichiers les plus touchés",
       "densest_repositories": "Dépôts les plus denses"
-    }
+    },
+    "load_failed": "Impossible de charger la vue qualité."
   },
   "reachability": {
     "call_traces": "Traces d'appel :",
@@ -1205,7 +1322,8 @@
     "subtitle": "Ce qu'il faut faire, dans l'ordre : une action par ligne, classée par ce qu'elle ferme sur ce qu'elle coûte.",
     "targets": "cibles",
     "title": "Plan de remédiation",
-    "whole_estate": "Tout le parc"
+    "whole_estate": "Tout le parc",
+    "plan_failed": "Le plan de remédiation n’a pas pu être calculé."
   },
   "repositories": {
     "add_btn": "Ajouter un dépôt",
@@ -1280,7 +1398,9 @@
     "tier_option_3": "🟢 Palier 3 — Interne / labo (SLA : critique 30 j | élevée 60 j)",
     "title": "Dépôts Git",
     "url_hint": "https://…, ssh://… ou git@hôte:chemin",
-    "url_label": "URL du dépôt"
+    "url_label": "URL du dépôt",
+    "scan_queued": "Analyse mise en file pour {{name}}. Elle démarrera dès qu'un worker sera disponible.",
+    "scan_all_queued": "Analyse planifiée pour {{count}} dépôts. Les workers vont démarrer les analyses."
   },
   "roles": {
     "user": "Utilisateur",
@@ -1346,7 +1466,19 @@
     "upload_btn": "Téléverser",
     "activate_btn": "Activer",
     "active_rules_title": "Jeux stockés",
-    "no_rule_sets": "Rien de téléversé. Les scans utilisent l'unique règle intégrée, plus {{var}} là où elle est posée."
+    "no_rule_sets": "Rien de téléversé. Les scans utilisent l'unique règle intégrée, plus {{var}} là où elle est posée.",
+    "error_catalogue_read": "Le catalogue n'a pas pu être lu.",
+    "fetched_notice": "{{count}} règles récupérées depuis {{upstream}} au commit {{commit}}. Stocké, non activé — examiner le coût de l'activation avant de basculer.",
+    "error_fetch": "La récupération a échoué.",
+    "error_file_read": "Un des fichiers sélectionnés n'a pas pu être lu.",
+    "uploaded_notice": "{{files}} fichiers stockés, {{rules}} règles. Examiner l'activation pour le mettre en service.",
+    "error_upload": "Le téléversement a été refusé.",
+    "error_impact": "L'impact de cette activation n'a pas pu être calculé ; le jeu n'a pas été activé.",
+    "activated_notice": "« {{name}} » est actif. Il accompagne désormais chaque analyse.",
+    "error_activate": "L'activation a échoué.",
+    "deactivated_notice": "Retour à la règle embarquée. Les analyses trouveront moins de résultats dès la prochaine exécution.",
+    "error_deactivate": "La désactivation a échoué.",
+    "error_load": "Les jeux de règles stockés n'ont pas pu être chargés."
   },
   "scans": {
     "artifacts": "Artefacts d'analyse",
@@ -1370,7 +1502,9 @@
     "status_failed": "Échoué",
     "status_queued": "En attente",
     "status_running": "En cours d'analyse",
-    "title": "Analyses"
+    "title": "Analyses",
+    "error_not_found": "Cette analyse n'existe pas.",
+    "error_load": "Impossible de charger cette analyse."
   },
   "schedule": {
     "cron_hint": "Cinq champs — minute, heure, jour du mois, mois, jour de la semaine. 0 2 * * * correspond à chaque jour à 02h00, 0 */6 * * * toutes les 6 heures. Les erreurs sont signalées immédiatement.",
@@ -1442,7 +1576,9 @@
     "csaf_btn": "CSAF",
     "default_policy": "défaut",
     "repository": "Dépôt Git",
-    "container": "Conteneur"
+    "container": "Conteneur",
+    "error_load": "Impossible de charger la posture de sécurité.",
+    "error_export": "L'export n'a pas pu être produit."
   },
   "settings": {
     "active_cisa_kev": "Exploits CISA KEV actifs",
@@ -1610,7 +1746,19 @@
     "token_label": "Jeton d'accès",
     "token_none": "aucun",
     "token_placeholder": "Laisser vide pour conserver la valeur actuelle",
-    "token_saved": "enregistré"
+    "token_saved": "enregistré",
+    "error_connection_test_not_run": "Le test de connexion n'a pas pu être exécuté.",
+    "error_save_siem": "L'enregistrement de la configuration SIEM a échoué.",
+    "siem_endpoint_required": "Veuillez d'abord renseigner l'URL du point de collecte.",
+    "error_connection_test_request": "La requête de test de connexion a échoué.",
+    "error_save": "L'enregistrement a échoué.",
+    "error_save_token": "L'enregistrement du jeton a échoué.",
+    "error_save_webhook_secret": "L'enregistrement du secret du webhook a échoué.",
+    "error_save_api_key": "L'enregistrement de la clé d'API a échoué.",
+    "error_save_secret": "L'enregistrement du secret a échoué.",
+    "threat_intel_synced": "{{cves}} CVE synchronisées ({{kev}} CISA KEV actives). {{issues}} constats du backlog réévalués.",
+    "error_threat_intel_sync": "La synchronisation du flux de Threat Intelligence a échoué.",
+    "error_load": "Impossible de charger les paramètres."
   },
   "severities": {
     "critical": "Critique",
@@ -1730,7 +1878,10 @@
     "public_key_placeholder": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... deploy@vectispire",
     "repositories": "Dépôts",
     "subtitle": "Clés de déploiement chiffrées utilisées pour cloner les dépôts Git privés.",
-    "title": "Clés SSH"
+    "title": "Clés SSH",
+    "error_load": "Impossible de charger la liste des clés.",
+    "error_add": "Impossible d'ajouter cette clé.",
+    "error_delete": "La suppression a échoué."
   },
   "teams": {
     "create_team": "Créer une équipe",
@@ -1742,7 +1893,18 @@
     "subtitle": "Regrouper les cibles surveillées et déléguer la visibilité par équipe.",
     "targets": "Cibles assignées",
     "team_name": "Nom de l'équipe",
-    "title": "Équipes & Attribution des cibles"
+    "title": "Équipes & Attribution des cibles",
+    "target_repository": "Dépôt",
+    "target_image": "Image",
+    "error_load": "Impossible de charger les équipes.",
+    "error_save": "Impossible d'enregistrer l'équipe.",
+    "error_read_members": "Impossible de lire les membres actuels.",
+    "error_read_targets": "Impossible de lire les cibles actuelles.",
+    "try_again": "Veuillez réessayer.",
+    "error_targets_after_members": "Les membres ont été enregistrés ; les cibles ne l'ont pas été. {{detail}}",
+    "error_save_members": "Impossible d'enregistrer les membres.",
+    "error_save_channel": "Impossible d'enregistrer le canal.",
+    "error_delete": "Impossible de supprimer l'équipe."
   },
   "tiers": {
     "label": "Niveau de criticité métier",
@@ -1786,6 +1948,11 @@
     "target_image": "Image",
     "target_repository": "Dépôt",
     "title": "Gestion des utilisateurs",
-    "username": "Nom d'utilisateur"
+    "username": "Nom d'utilisateur",
+    "error_load": "Impossible de charger la liste des comptes.",
+    "error_operation": "L'opération a échoué.",
+    "error_create": "Impossible de créer ce compte.",
+    "error_reset": "La réinitialisation a échoué.",
+    "error_delete": "La suppression a échoué."
   }
 }
