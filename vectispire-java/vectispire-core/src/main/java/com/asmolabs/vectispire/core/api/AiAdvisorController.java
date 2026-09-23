@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
@@ -9,7 +10,6 @@ import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.asmolabs.vectispire.core.services.AiReviewService;
 import java.util.List;
 import java.util.Map;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
@@ -57,12 +56,14 @@ public class AiAdvisorController {
     public AiVulnerabilityAdvice explainIssue(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable Long issueId) {
-        IssueEntity issue = issuesRepo.findById(issueId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issue not found: " + issueId));
-
         // The principal was already on this signature and was already unused — the route took
         // an identifier, found the row and explained it, whoever asked. An explanation names the
         // package, the file and the fix, which is the finding itself in prose.
+        //
+        // **An absent row goes to the same guard as a hidden one.** It had its own 404, worded
+        // "Issue not found: 42" against the guard's "Issue not found.", so the message alone told
+        // a restricted reader which sequential ids existed.
+        IssueEntity issue = issuesRepo.findById(issueId).orElse(null);
         Visibilities.requireVisible(
                 issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
@@ -79,7 +80,12 @@ public class AiAdvisorController {
             @RequestParam(required = false) String fixVersion,
             @RequestParam(required = false) String reachability) {
 
-        List<IssueEntity> matched = issuesRepo.findByIdentifier(cveId);
+        // Narrowed before anything is read, so that a CVE present only in a target the caller was
+        // not given gets exactly the answer a CVE present nowhere gets — see `Visibilities`.
+        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
+        List<IssueEntity> matched = issuesRepo.findByIdentifier(cveId).stream()
+                .filter(issue -> Visibilities.isVisible(issue, allowed))
+                .toList();
         if (!matched.isEmpty()) {
             return aiReviewService.explainVulnerability(matched.get(0));
         }

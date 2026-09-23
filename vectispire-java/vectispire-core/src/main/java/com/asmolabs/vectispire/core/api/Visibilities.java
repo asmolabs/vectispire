@@ -23,9 +23,22 @@ final class Visibilities {
     private Visibilities() {}
 
     static void requireVisible(IssueEntity issue, Visibility visibility) {
-        if (issue == null || !visibility.permits(targetOf(issue))) {
+        if (issue == null || !isVisible(issue, visibility)) {
             throw new NoSuchElementException("Issue not found.");
         }
+    }
+
+    /**
+     * The same rule, for a route that looks issues up by something other than their id.
+     *
+     * <p><b>A lookup by CVE is a search across every target</b>, so it has no single row to refuse:
+     * the rows the caller may not see have to be dropped before anything is read from them. The
+     * explanation route took the first match from anywhere in the estate — package, version, fix,
+     * EPSS — and its answer differed depending on whether a match existed, which told a reader
+     * with one repository whether a CVE was present in repositories they were never given.
+     */
+    static boolean isVisible(IssueEntity issue, Visibility visibility) {
+        return visibility.permits(targetOf(issue));
     }
 
     /**

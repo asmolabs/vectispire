@@ -1,8 +1,10 @@
 package com.asmolabs.vectispire.core.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -395,6 +397,63 @@ class VisibilityRoutesTest extends ApiTestBase {
 
         mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + theirIssue), reader))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("an absent issue and a hidden one are refused in the same words")
+    void theAiExplanationDoesNotNameTheId() throws Exception {
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirIssue = issue(theirs, "CVE-2026-9");
+        String reader = assignedReader(mine);
+
+        String hidden = mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + theirIssue), reader))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        String absent = mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + (theirIssue + 1000)), reader))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(json.readTree(absent).path("detail").asText())
+                .isEqualTo(json.readTree(hidden).path("detail").asText());
+    }
+
+    @Test
+    @DisplayName("a CVE found only in someone else's target is explained as if it were found nowhere")
+    void theCveExplanationIsScoped() throws Exception {
+        // **The lookup by CVE is a search across every target**, and it took the first match from
+        // anywhere: the neighbour's package, version and fix, in prose. Asserting that the
+        // package name is absent is not enough — the answer also has to be the one a CVE present
+        // nowhere gets, or its shape alone says the CVE exists somewhere in the estate.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        IssueEntity theirIssue = issues.findById(issue(theirs, "CVE-2026-9")).orElseThrow();
+        theirIssue.setPackageName("neighbour-private-lib");
+        theirIssue.setPackageVersion("4.2.0");
+        issues.save(theirIssue);
+        String reader = assignedReader(mine);
+        String route = "/api/v1/ai-advisor/explain/cve/CVE-2026-9";
+
+        String whileTheirsExists = mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(whileTheirsExists).doesNotContain("neighbour-private-lib").doesNotContain("4.2.0");
+
+        issues.delete(theirIssue);
+        String whenNothingExists = mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(whileTheirsExists)).isEqualTo(json.readTree(whenNothingExists));
+
+        // And the filter is a narrowing, not a switch: the reader's own issue is still explained.
+        IssueEntity own = issues.findById(issue(mine, "CVE-2026-9")).orElseThrow();
+        own.setPackageName("my-own-lib");
+        issues.save(own);
+        mvc.perform(authenticated(post(route), reader))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("my-own-lib")));
     }
 
     @Test
