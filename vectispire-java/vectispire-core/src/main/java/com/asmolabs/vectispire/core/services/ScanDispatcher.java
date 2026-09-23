@@ -252,6 +252,20 @@ public class ScanDispatcher {
                 agent.getName()));
     }
 
+    /**
+     * Puts back a scan claimed for an agent that never received it.
+     *
+     * <p>Only while the claim is still that agent's: the release carries the owner, so a scan
+     * another worker has since taken is left alone. The attempt the claim counted is not refunded —
+     * a scan that keeps going undelivered should reach its limit rather than circulate for ever.
+     */
+    public void returnUndelivered(long scanId, AgentEntity agent) {
+        if (queue.requeue(scanId, agent.getId().toString())) {
+            log.info("Scan {} was claimed for agent \"{}\" but never delivered — back in the queue.",
+                    scanId, agent.getName());
+        }
+    }
+
     /** Extends the lease of a scan entrusted to this agent. */
     public boolean renewAgentLease(long scanId, AgentEntity agent) {
         return queue.renewLease(scanId, agent.getId().toString());

@@ -97,7 +97,14 @@ public class AgentJobPoller {
                         Optional<ScanDispatcher.AgentTask> task = dispatcher.claimForAgent(agent, secureTransport);
                         if (task.isPresent()) {
                             metrics.agentPolled(true);
-                            result.setResult(ResponseEntity.ok(task.get()));
+                            // **The return value is the delivery receipt.** Between the check above
+                            // and this line the wait can run out or the agent hang up; the scan is
+                            // then claimed by an agent that never received it, and sat there until
+                            // the lease lapsed. False means nobody will read this answer — so the
+                            // scan goes straight back to the queue.
+                            if (!result.setResult(ResponseEntity.ok(task.get()))) {
+                                dispatcher.returnUndelivered(task.get().scanId(), agent);
+                            }
                         } else if (Instant.now().isAfter(deadline)) {
                             metrics.agentPolled(false);
                             result.setResult(noJob());
