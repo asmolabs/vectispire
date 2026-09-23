@@ -65,6 +65,8 @@ public abstract class VectispireContextTest {
             // would survive into the next test and the failure would read as a duplicate write.
             "t_control_declaration",
             "t_compliance_snapshot",
+            // A singleton row: left behind, it made the next SIEM test start "enabled".
+            "t_siem_config",
             "t_processed_message",
             "t_outbox_message",
             "t_audit_log",

@@ -66,4 +66,5 @@ Microsoft Teams receives Vectispire alerts via **Power Automate** Workflow Webho
 
 * **Strict SSRF Guard (`OutboundUrlGuard`)**: Internal IP destinations (`127.0.0.1`, `10.0.0.0/8`, `192.168.0.0/16`) are refused by default unless `notification_allow_private_url` is explicitly allowed by an administrator.
 * **Encrypted at Rest**: Webhook URLs and signing secrets are encrypted using AES-GCM-256.
+* **The SIEM export follows the same rule.** Its endpoint is refused on a private address unless `notification_allow_private_url` is on — a SIEM collector on an internal network needs that setting. Its authorization header is encrypted at rest like the other credentials, and leaving the field empty when saving keeps the stored one.
 * **Replay Protection**: The `X-Vectispire-Timestamp` header combined with `X-Vectispire-Signature` guarantees message authenticity and prevents replay attacks.

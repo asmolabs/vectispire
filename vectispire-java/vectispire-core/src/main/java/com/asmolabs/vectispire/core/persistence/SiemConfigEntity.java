@@ -28,7 +28,7 @@ public class SiemConfigEntity {
     @Column(name = "endpoint", length = 1024)
     private String endpoint;
 
-    @Column(name = "auth_header", length = 512)
+    @Column(name = "auth_header", length = 2048)
     private String authHeader;
 
     @Column(name = "min_severity", length = 32, nullable = false)

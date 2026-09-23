@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
@@ -22,13 +23,21 @@ import org.springframework.stereotype.Service;
 @Service
 public class SiemExporterService {
 
+    /** Binds the stored header to its own column, so a ciphertext moved elsewhere does not decrypt. */
+    static final String AUTH_HEADER_CONTEXT = "siem_config:auth_header";
+
     private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
     private final SiemConfigs repository;
     private final OutboundPost outbound;
+    private final EncryptionService encryption;
+    private final SettingsService settings;
 
-    public SiemExporterService(SiemConfigs repository, OutboundPost outbound) {
+    public SiemExporterService(
+            SiemConfigs repository, OutboundPost outbound, EncryptionService encryption, SettingsService settings) {
         this.repository = repository;
         this.outbound = outbound;
+        this.encryption = encryption;
+        this.settings = settings;
     }
 
     public Optional<SiemConfigEntity> getConfig() {
@@ -45,7 +54,16 @@ public class SiemExporterService {
         entity.setEnabled(enabled);
         entity.setProtocol(protocol != null ? protocol : "WEBHOOK");
         entity.setEndpoint(endpoint);
-        entity.setAuthHeader(authHeader);
+        // **Blank keeps the stored header.** The screen says so ("leave empty to keep current")
+        // and the response never sends the header back, so the form cannot resubmit it: writing
+        // what arrived erased the credential on every save that changed anything else, and the
+        // exports then went out unauthenticated and were refused by the collector.
+        //
+        // **Encrypted like every other credential**, which this one was not: it sat in the
+        // database as typed, readable by anyone holding a backup.
+        if (authHeader != null && !authHeader.isBlank()) {
+            entity.setAuthHeader(encryption.encrypt(authHeader.trim(), AUTH_HEADER_CONTEXT));
+        }
         entity.setMinSeverity(minSeverity != null ? minSeverity : "HIGH");
         entity.setUpdatedAt(Instant.now());
         return repository.save(entity);
@@ -58,7 +76,7 @@ public class SiemExporterService {
                 return;
             }
             try {
-                sendPayload(config.getEndpoint(), config.getAuthHeader(), event.toCefString());
+                sendPayload(config.getEndpoint(), storedAuthHeader(config), event.toCefString());
             } catch (Exception e) {
                 log.warn("Failed to export SIEM security event: {}", e.getMessage());
             }
@@ -80,13 +98,32 @@ public class SiemExporterService {
         }
     }
 
+    /** Tolerates a header stored before it was encrypted, with a warning — see {@code readSecret}. */
+    private String storedAuthHeader(SiemConfigEntity config) {
+        return encryption.readSecret(config.getAuthHeader(), AUTH_HEADER_CONTEXT, "The SIEM authorization header");
+    }
+
+    /**
+     * Private addresses only when the operator has allowed them, as for every other channel.
+     *
+     * <p>This one allowed them unconditionally. With the test route answering the raw error to a
+     * security lead — "Connection refused", "HTTP 404" — that made a scanner of the internal
+     * network available to a role that is not an administrator. The metadata endpoint stays
+     * refused under both policies.
+     */
+    private OutboundPolicy policy() {
+        return settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+                ? OutboundPolicy.INTERNAL_ALLOWED
+                : OutboundPolicy.PUBLIC_ONLY;
+    }
+
     private void sendPayload(String endpoint, String authHeader, String cefString) {
         Map<String, String> headers = new HashMap<>();
         if (authHeader != null && !authHeader.isBlank()) {
             headers.put("Authorization", authHeader);
         }
         Map<String, String> payload = Map.of("cef", cefString);
-        outbound.postForResponse(endpoint, payload, OutboundPolicy.INTERNAL_ALLOWED, "SIEM export", headers);
+        outbound.postForResponse(endpoint, payload, policy(), "SIEM export", headers);
     }
 
     public record TestResult(boolean success, String message, int statusCode) {}

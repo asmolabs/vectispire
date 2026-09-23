@@ -66,4 +66,5 @@ Microsoft Teams prend en charge les alertes Vectispire via les connecteurs de fl
 
 * **Protection SSRF stricte (`OutboundUrlGuard`)** : Les destinations pointant vers des adresses privées/internes (`127.0.0.1`, `10.0.0.0/8`, `192.168.0.0/16`) sont bloquées par défaut, sauf si le paramètre `notification_allow_private_url` est explicitement activé par un administrateur.
 * **Chiffrement au repos** : Les secrets et jetons de webhooks sont stockés chiffrés avec AES-GCM-256.
+* **L'export SIEM suit la même règle.** Son point de collecte est refusé sur une adresse privée tant que `notification_allow_private_url` n'est pas activé — un collecteur SIEM sur un réseau interne a besoin de ce paramètre. Son en-tête d'autorisation est chiffré au repos comme les autres identifiants, et laisser le champ vide à l'enregistrement conserve celui qui est stocké.
 * **Signature cryptographique** : Les en-têtes `X-Vectispire-Signature` et `X-Vectispire-Timestamp` préviennent les attaques par rejeu et permettent au récepteur de certifier l'authenticité de l'expéditeur.
