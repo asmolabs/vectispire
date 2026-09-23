@@ -52,7 +52,7 @@ class EndOfLifeServiceTest {
         productReturns("debian", expired("10"));
 
         List<FindingEntity> findings = service.findings(scan(), sbom("""
-                {"distro": {"id": "debian", "versionID": "10", "name": "Debian GNU/Linux"}, "artifacts": []}"""));
+                {"distro": {"id": "debian", "versionID": "10", "name": "Debian GNU/Linux"}, "artifacts": []}""")).orElseThrow();
 
         assertThat(findings).singleElement().satisfies(finding -> {
             assertThat(finding.getIdentifier()).isEqualTo("EOL-debian-10");
@@ -73,7 +73,7 @@ class EndOfLifeServiceTest {
                 {"result": [{"identifier": "pkg:generic/python", "product": {"name": "python"}}]}""");
 
         List<FindingEntity> findings = service.findings(scan(), sbom("""
-                {"artifacts": [{"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"}]}"""));
+                {"artifacts": [{"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"}]}""")).orElseThrow();
 
         // "python 3.9" reaches end of life, not "python 3.9.18". The fingerprint is built on
         // this, so the issue keeps its triage when the patch moves.
@@ -90,7 +90,7 @@ class EndOfLifeServiceTest {
         List<FindingEntity> findings = service.findings(scan(), sbom("""
                 {"artifacts": [
                    {"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"},
-                   {"name": "python3", "version": "3.9.2", "purl": "pkg:generic/python@3.9.2"}]}"""));
+                   {"name": "python3", "version": "3.9.2", "purl": "pkg:generic/python@3.9.2"}]}""")).orElseThrow();
 
         assertThat(findings).hasSize(1);
     }
@@ -103,18 +103,55 @@ class EndOfLifeServiceTest {
                    {"name": "12", "eolFrom": "2030-06-10", "isEol": false, "isMaintained": true,
                     "latest": {"name": "12.5"}}]}}""");
 
+        // Present and empty: the step ran and found nothing, which may resolve the backlog.
         assertThat(service.findings(scan(), sbom("""
-                {"distro": {"id": "debian", "versionID": "12", "name": "Debian"}, "artifacts": []}"""))).isEmpty();
+                {"distro": {"id": "debian", "versionID": "12", "name": "Debian"}, "artifacts": []}""")))
+                .hasValueSatisfying(findings -> assertThat(findings).isEmpty());
     }
 
     @Test
-    @DisplayName("a catalog outage costs the step, not the scan")
-    void anOutageYieldsNoFindings() {
+    @DisplayName("a catalog outage makes the step absent, not empty")
+    void anOutageIsAbsent() {
+        // This test used to assert an empty list — the defect itself, written down as the
+        // intended behaviour. Empty means "ran, found nothing", which resolves every end-of-life
+        // issue of the target (decision 0007).
         when(outbound.get(anyString(), any(), anyString()))
                 .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
 
         assertThat(service.findings(scan(), sbom("""
                 {"distro": {"id": "debian", "versionID": "10"}, "artifacts": []}"""))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("one product unreachable makes the whole pass absent")
+    void aPartialPassIsAbsent() {
+        // A partial result would declare the type scanned while one product was never looked
+        // at: that product's issue would resolve and its neighbours' would not.
+        productReturns("debian", expired("10"));
+        indexReturns("""
+                {"result": [{"identifier": "pkg:generic/python", "product": {"name": "python"}}]}""");
+        when(outbound.get(contains("/products/python/"), any(), anyString()))
+                .thenThrow(new OutboundJson.OutboundFailureException("HTTP 503."));
+
+        assertThat(service.findings(scan(), sbom("""
+                {"distro": {"id": "debian", "versionID": "10", "name": "Debian"},
+                 "artifacts": [{"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"}]}""")))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("an outage is not cached: the next scan asks again")
+    void anOutageIsNotCached() {
+        // It was cached as an empty index for the whole TTL, which blinded the step for a day
+        // after a single unreachable minute.
+        when(outbound.get(contains("/identifiers/purl/"), any(), anyString()))
+                .thenThrow(new OutboundJson.OutboundFailureException("connection refused"))
+                .thenReturn(Optional.of(parse("{\"result\":[]}")));
+        String document = """
+                {"artifacts": []}""";
+
+        assertThat(service.findings(scan(), sbom(document))).isEmpty();
+        assertThat(service.findings(scan(), sbom(document))).isPresent();
     }
 
     @Test

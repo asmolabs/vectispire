@@ -50,7 +50,8 @@ public class ScanIngestor {
     public interface EndOfLifeSource {
         boolean isEnabled();
 
-        List<FindingEntity> findings(ScanEntity scan, JsonNode sbom);
+        /** Absent when the lookup failed, even partly: the type then counts as not scanned. */
+        Optional<List<FindingEntity>> findings(ScanEntity scan, JsonNode sbom);
 
         String describe(FindingEntity finding);
     }
@@ -204,19 +205,20 @@ public class ScanIngestor {
         });
 
         // End of life is read from the SBOM. **The type counts as scanned only if detection was
-        // switched on and an SBOM exists**: without either, nothing was observed, and declaring
-        // it would resolve that type's whole history — "we stopped looking" is not "it is
-        // fixed".
-        artifacts.sbom().ifPresent(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled).ifPresent(source -> {
-            scannedTypes.add(FindingType.EOL);
-            List<FindingEntity> found = source.findings(scan, sbom);
-            found.forEach(finding -> {
-                if (finding.getIdentifier() != null) {
-                    descriptions.put(finding.getIdentifier(), source.describe(finding));
-                }
-            });
-            findings.addAll(found);
-        }));
+        // switched on, an SBOM exists and the lookup succeeded**: without any of the three,
+        // nothing was observed, and declaring it would resolve that type's whole history — "we
+        // stopped looking" is not "it is fixed". The third condition was missing: the type was
+        // declared before the call, and a catalog outage returned an empty list.
+        artifacts.sbom().ifPresent(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled).ifPresent(source ->
+                source.findings(scan, sbom).ifPresent(found -> {
+                    scannedTypes.add(FindingType.EOL);
+                    found.forEach(finding -> {
+                        if (finding.getIdentifier() != null) {
+                            descriptions.put(finding.getIdentifier(), source.describe(finding));
+                        }
+                    });
+                    findings.addAll(found);
+                })));
 
         // Licences are read from the same SBOM, with no network call and no extra tool. The type
         // counts as scanned as soon as an SBOM exists: unlike end of life there is no remote

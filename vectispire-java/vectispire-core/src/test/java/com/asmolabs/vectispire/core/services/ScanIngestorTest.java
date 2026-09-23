@@ -135,6 +135,36 @@ class ScanIngestorTest {
         }
 
         @Test
+        @DisplayName("end of life is not declared when its lookup failed")
+        void failedEndOfLifeDeclaresNothing() {
+            // The defect: the type was declared before the call, and an outage returned an empty
+            // list — "ran, found nothing" — which resolved every end-of-life issue of the target.
+            ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
+            when(source.isEnabled()).thenReturn(true);
+            when(source.findings(any(), any())).thenReturn(Optional.empty());
+
+            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
+                            Clock.fixed(NOW, ZoneOffset.UTC))
+                    .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
+
+            assertThat(scannedTypes()).doesNotContain(FindingType.EOL);
+        }
+
+        @Test
+        @DisplayName("end of life is declared when its lookup ran, even with nothing found")
+        void emptyEndOfLifeIsDeclared() {
+            ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
+            when(source.isEnabled()).thenReturn(true);
+            when(source.findings(any(), any())).thenReturn(Optional.of(List.of()));
+
+            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
+                            Clock.fixed(NOW, ZoneOffset.UTC))
+                    .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
+
+            assertThat(scannedTypes()).contains(FindingType.EOL);
+        }
+
+        @Test
         @DisplayName("licences are declared as soon as an SBOM exists")
         void licencesNeedNoRemoteService() {
             // Unlike end of life there is nothing remote to reach, so "no findings" genuinely

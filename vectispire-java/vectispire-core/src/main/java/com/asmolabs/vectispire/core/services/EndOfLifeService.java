@@ -114,12 +114,15 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
     /**
      * One finding per expired product cycle — or one about to expire.
      *
-     * <p>Returns an empty list on any failure, network included: this step runs inside a scan
-     * that has already produced results, and the alternative is failing a scan over an optional
-     * catalog.
+     * <p><b>Absent on any failure, never empty</b> (decision 0007). It returned an empty list,
+     * and the ingestion had already declared the type scanned: an outage of the catalog read as
+     * "no end-of-life platform here" and resolved every end-of-life issue of the target, with
+     * their triage. A partial pass is absent too — a product whose lookup failed would otherwise
+     * see its issue resolved while the neighbours' were kept. The scan itself still completes;
+     * only this step is reported as not having run, and the backlog is left alone.
      */
     @Override
-    public List<FindingEntity> findings(ScanEntity scan, JsonNode sbomDocument) {
+    public Optional<List<FindingEntity>> findings(ScanEntity scan, JsonNode sbomDocument) {
         try {
             Sbom sbom = new Sbom(sbomDocument);
             Duration window = warningWindow();
@@ -153,10 +156,10 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
             if (!findings.isEmpty()) {
                 log.info("End of life: {} cycle(s) reported.", findings.size());
             }
-            return List.copyOf(findings);
+            return Optional.of(List.copyOf(findings));
         } catch (RuntimeException failed) {
-            log.warn("End-of-life detection failed — step skipped: {}", failed.getMessage());
-            return List.of();
+            log.warn("End-of-life detection failed — step skipped, backlog left as it was: {}", failed.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -222,11 +225,14 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
             return cached.value();
         }
 
-        Map<String, String> index = safeFetch(PURL_IDENTIFIERS_URL, "end-of-life index")
+        Map<String, String> index = outbound.get(PURL_IDENTIFIERS_URL, OutboundPolicy.PUBLIC_ONLY, "end-of-life index")
                 .map(LifeCycle::parseIdentifierIndex)
                 .orElseGet(Map::of);
-        // Cached **even when empty**, so a catalog outage is retried on the next cache cycle
-        // rather than on every scan.
+        // **Only an answer is cached, never an outage.** A failure used to be cached as an empty
+        // index for the whole TTL, so a single unreachable minute blinded the step for a day —
+        // and, while the step still returned an empty list, resolved every end-of-life issue on
+        // each scan of that day. A failure now propagates and makes the step absent; the next
+        // scan asks again, which during an outage costs one refused request per scan.
         purlIndex = new Cached<>(index, clock.instant());
         log.info("End-of-life index: {} purl match(es).", index.size());
         return index;
@@ -239,28 +245,13 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
         }
 
         String url = API_ROOT + "/products/" + URLEncoder.encode(name, StandardCharsets.UTF_8) + "/";
-        Product product = safeFetch(url, "end-of-life product " + name)
+        Product product = outbound.get(url, OutboundPolicy.PUBLIC_ONLY, "end-of-life product " + name)
                 .flatMap(LifeCycle::parseProduct)
                 .orElse(null);
-        // Cached including the absence: an unknown product must not be asked for again on every
-        // package of every scan.
+        // Cached including the absence: an unknown product — a 404, which is an answer — must not
+        // be asked for again on every package of every scan. A failure raises before this line
+        // and is not cached.
         products.put(name, new Cached<>(product, clock.instant()));
         return Optional.ofNullable(product);
-    }
-
-    /**
-     * A call whose failure costs only its own answer.
-     *
-     * <p>Caught here rather than around the loop: one unreachable product must not lose the
-     * cycles already matched. A partial result beats none, and the missing products are seen
-     * again on the next scan.
-     */
-    private Optional<JsonNode> safeFetch(String url, String label) {
-        try {
-            return outbound.get(url, OutboundPolicy.PUBLIC_ONLY, label);
-        } catch (RuntimeException unavailable) {
-            log.warn("End-of-life lookup failed for {}: {}", url, unavailable.getMessage());
-            return Optional.empty();
-        }
     }
 }
