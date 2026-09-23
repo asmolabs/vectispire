@@ -54,6 +54,18 @@ class GitCloneTest {
     }
 
     @Test
+    @DisplayName("an error message never carries the credential embedded in the URL")
+    void explanationsMaskTheCredential() {
+        // Every explanation names the URL, and each one reaches the scan's error, the agent's log
+        // and the screen.
+        String explanation = GitClone.explain(
+                request("https://alice:ghp_secret@example.com/org/project.git", null),
+                new TransportException("not authorized"));
+
+        assertThat(explanation).doesNotContain("ghp_secret").contains("https://***@example.com/org/project.git");
+    }
+
+    @Test
     @DisplayName("tells an operator with a key apart from one without")
     void explainsAuthenticationDifferently() {
         // With a key attached, the useful question is whether the provider knows it. Without

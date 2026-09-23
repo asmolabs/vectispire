@@ -21,7 +21,10 @@ class TargetsTest {
             "https://github.com/org/project.git",
             "ssh://git@github.com/org/project.git",
             "git://example.com/project",
-            "git@github.com:org/project.git"
+            "git@github.com:org/project.git",
+            // A self-hosted forge on the internal network is the ordinary case, not an attack.
+            "https://10.0.0.5/org/project.git",
+            "https://user:token@github.com/org/project.git"
         })
         void acceptsTheTwoForms(String url) {
             assertThat(RepositoryUrl.validate(url)).isEmpty();
@@ -36,7 +39,13 @@ class TargetsTest {
             "ext::sh -c whoami",
             "https:///no-host",
             "not a url at all",
-            ""
+            "",
+            // The metadata endpoint, in every spelling the clone would have reached it by: the
+            // clone is the one request the SSRF guard never saw.
+            "https://169.254.169.254/latest/meta-data",
+            "https://[fe80::1]/org/project.git",
+            "https://[::ffff:169.254.169.254]/org/project.git",
+            "git@169.254.169.254:org/project.git"
         })
         void refusesEverythingElse(String url) {
             // This value lands in a `git clone` run by an agent. An uncontrolled one there is
@@ -65,6 +74,48 @@ class TargetsTest {
                     .isEqualTo("Billing API");
             assertThat(RepositoryUrl.displayName("   ", "https://github.com/org/project")).isEqualTo("org/project");
             assertThat(RepositoryUrl.displayName(null, "https://github.com/org/project")).isEqualTo("org/project");
+        }
+
+        @Test
+        @DisplayName("a credential in the URL is masked for display, an SSH login is not")
+        void credentialsAreMasked() {
+            // Accepted — a token in the URL is the only way to clone a private repository over
+            // HTTPS today — but never shown: the list and the audit log carried it verbatim.
+            assertThat(RepositoryUrl.redact("https://alice:ghp_secret@github.com/org/p.git"))
+                    .isEqualTo("https://***@github.com/org/p.git");
+            // A token is commonly passed as the user name alone.
+            assertThat(RepositoryUrl.redact("https://ghp_secret@github.com/org/p.git"))
+                    .isEqualTo("https://***@github.com/org/p.git");
+            assertThat(RepositoryUrl.redact("ssh://git:hunter2@host/p.git")).isEqualTo("ssh://***@host/p.git");
+            // Over SSH the user is a login name; the key is the secret.
+            assertThat(RepositoryUrl.redact("ssh://git@host/p.git")).isEqualTo("ssh://git@host/p.git");
+            assertThat(RepositoryUrl.redact("git@github.com:org/p.git")).isEqualTo("git@github.com:org/p.git");
+            assertThat(RepositoryUrl.redact("https://github.com/org/p.git")).isEqualTo("https://github.com/org/p.git");
+        }
+
+        @Test
+        @DisplayName("the host is read from either accepted form")
+        void readsTheHost() {
+            assertThat(RepositoryUrl.host("git@github.com:org/p.git")).contains("github.com");
+            assertThat(RepositoryUrl.host("https://alice:t@gitlab.internal:8443/org/p.git")).contains("gitlab.internal");
+            assertThat(RepositoryUrl.host("not a url")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("the short name never carries the credential, even with one path segment")
+        void theShortNameIsMaskedToo() {
+            assertThat(RepositoryUrl.shortName("https://ghp_secret@host/project")).doesNotContain("ghp_secret");
+        }
+
+        @Test
+        @DisplayName("the masked form sent back by a form is recognised as unchanged")
+        void theMaskIsRecognised() {
+            String stored = "https://alice:ghp_secret@github.com/org/p.git";
+            assertThat(RepositoryUrl.isMaskedFormOf("https://***@github.com/org/p.git", stored)).isTrue();
+            assertThat(RepositoryUrl.isMaskedFormOf(stored, stored)).isFalse();
+            assertThat(RepositoryUrl.isMaskedFormOf("https://github.com/org/other.git", stored)).isFalse();
+            // A URL with nothing to mask is never "its own masked form".
+            assertThat(RepositoryUrl.isMaskedFormOf("https://github.com/org/p.git", "https://github.com/org/p.git")).isFalse();
         }
     }
 

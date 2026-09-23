@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPath;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathEdge;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
@@ -98,7 +99,7 @@ public class AttackPathService {
             List<IssueRows.GraphNode> openIssues) {
 
         Long repositoryId = repo.getId();
-        String repoName = repo.getName() != null ? repo.getName() : repo.getUrl();
+        String repoName = repo.getName() != null ? repo.getName() : RepositoryUrl.redact(repo.getUrl());
 
         List<AttackPathNode> nodes = new ArrayList<>();
         List<AttackPathEdge> edges = new ArrayList<>();

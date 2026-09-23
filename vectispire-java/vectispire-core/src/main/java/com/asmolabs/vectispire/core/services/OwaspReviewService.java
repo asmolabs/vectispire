@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
@@ -98,7 +99,7 @@ public class OwaspReviewService {
         List<IssueEntity> open = issues.findByRepositoryAndState(repository.getId(), IssueState.OPEN.wireName());
         String digest = OwaspReview.digest(
                 new OwaspReview.Subject(
-                        repository.getName() == null ? repository.getUrl() : repository.getName(),
+                        repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
                         repository.getBranch(),
                         scan.getVersion(),
                         open.size()),

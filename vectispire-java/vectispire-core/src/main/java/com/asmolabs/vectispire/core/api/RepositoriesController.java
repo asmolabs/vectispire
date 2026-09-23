@@ -141,7 +141,7 @@ public class RepositoriesController {
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
                 .map(repository -> new RepositorySummary(
                         repository.getId(),
-                        repository.getUrl(),
+                        RepositoryUrl.redact(repository.getUrl()),
                         repository.getBranch(),
                         repository.getName(),
                         repository.getSubPath(),
@@ -189,7 +189,7 @@ public class RepositoriesController {
         repository.setTier(body.tier() != null ? AssetTier.fromString(body.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
         RepositoryEntity saved = repositories.save(repository);
-        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + saved.getUrl());
+        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + RepositoryUrl.redact(saved.getUrl()));
         return list(principal).stream()
                 .filter(summary -> summary.id().equals(saved.getId()))
                 .findFirst()
@@ -228,7 +228,9 @@ public class RepositoriesController {
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         String previousUrl = repository.getUrl();
-        if (body.url() != null) {
+        // The list sends the URL masked; a form saved without touching it sends the mask back,
+        // which must leave the stored URL — credential included — as it was.
+        if (body.url() != null && !RepositoryUrl.isMaskedFormOf(trim(body.url()), previousUrl)) {
             String url = trim(body.url());
             // Validated on update exactly as on create: an unvalidated URL reaching a git clone
             // is arbitrary code execution, and a row edited later is no safer than a row added.
@@ -264,9 +266,9 @@ public class RepositoriesController {
         }
 
         RepositoryEntity saved = repositories.save(repository);
-        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + previousUrl + ")";
+        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
-                "Repository updated: " + saved.getUrl() + moved);
+                "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved);
 
         return list(principal).stream()
                 .filter(summary -> summary.id().equals(saved.getId()))
@@ -293,7 +295,7 @@ public class RepositoriesController {
 
         ScanEntity scan = trigger.trigger(repository);
         record(principal, request, AuditOperation.SCAN_TRIGGERED, scan.getId(),
-                "Scan requested: " + repository.getUrl());
+                "Scan requested: " + RepositoryUrl.redact(repository.getUrl()));
         return new QueuedScan(scan.getId(), scan.getStatus());
     }
 
@@ -311,7 +313,7 @@ public class RepositoriesController {
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
 
         targetDeletion.deleteRepository(id);
-        record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + repository.getUrl());
+        record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()));
     }
 
     private Map<Long, LastScan> latestScans() {

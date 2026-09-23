@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -445,7 +446,7 @@ public class ScanDispatcher {
             SshKeyEntity key = sshKeys
                     .findById(repository.getSshKeyId())
                     .orElseThrow(() -> new IllegalStateException(
-                            "The SSH key of repository " + repository.getUrl() + " has been deleted."));
+                            "The SSH key of repository " + RepositoryUrl.redact(repository.getUrl()) + " has been deleted."));
             SecretCipher.Decrypted secret =
                     encryption.inspect(key.getPrivateKey(), SecretCipher.privateKeyContext(key.getId().toString()));
             if (secret.state() == SecretCipher.SecretState.UNREADABLE) {

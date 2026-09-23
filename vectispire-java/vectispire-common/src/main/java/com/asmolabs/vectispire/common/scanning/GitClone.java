@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning;
 
+import com.asmolabs.vectispire.common.domain.net.LinkLocalHosts;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -148,6 +149,13 @@ public final class GitClone {
         if (refused.isPresent()) {
             throw new CloneFailureException("Repository URL refused: " + refused.get(), "");
         }
+        // The literal was refused above; a name is only known to point there once resolved, and
+        // resolving is this machine's business — the agent's network, not the control plane's.
+        if (RepositoryUrl.host(request.url()).filter(LinkLocalHosts::resolvesToLinkLocal).isPresent()) {
+            throw new CloneFailureException(
+                    "Repository URL refused: its host resolves to a link-local address, where the instance metadata lives.",
+                    "");
+        }
 
         // Parsed before anything reaches the network. The SSH factory would parse it lazily, at
         // connection time, and an unreadable key would then be indistinguishable from a refused
@@ -173,7 +181,11 @@ public final class GitClone {
             // class exists to avoid.
             throw alreadyDiagnosed;
         } catch (GitAPIException | RuntimeException failure) {
-            throw new CloneFailureException(explain(request, failure), rootMessage(failure));
+            // JGit's own text may quote the URL too; masked like the explanation, although nothing
+            // displays it today — the day something does, it will not carry the token.
+            throw new CloneFailureException(
+                    explain(request, failure),
+                    rootMessage(failure).replace(request.url(), RepositoryUrl.redact(request.url())));
         }
     }
 
@@ -272,28 +284,31 @@ public final class GitClone {
      */
     static String explain(Request request, Throwable failure) {
         String message = rootMessage(failure);
+        // Every message below names the URL, and each one reaches the scan's error, the agent's
+        // log and the screen: a credential in it would travel with it.
+        String url = RepositoryUrl.redact(request.url());
 
         if (failure instanceof InvalidRemoteException || message.contains("not found")
                 || message.contains("Remote branch")) {
             if (message.contains("Remote branch") || message.contains("branch")) {
-                return "Branch \"" + request.branch() + "\" does not exist on " + request.url() + ".";
+                return "Branch \"" + request.branch() + "\" does not exist on " + url + ".";
             }
-            return request.url() + " could not be found.";
+            return url + " could not be found.";
         }
         if (message.contains("Auth fail") || message.contains("publickey") || message.contains("not authorized")) {
             return request.hasKey()
-                    ? "Authentication refused by " + request.url()
+                    ? "Authentication refused by " + url
                             + ". Is the deployment key attached to it declared with the provider?"
-                    : request.url() + " requires authentication. Attach an SSH key to this repository.";
+                    : url + " requires authentication. Attach an SSH key to this repository.";
         }
         if (message.contains("KeyExchange") || message.contains("host key") || message.contains("HostKey")) {
-            return "The host key of " + request.url()
+            return "The host key of " + url
                     + " has changed since the last clone. Check it is the same server before running again.";
         }
         if (failure instanceof TransportException && (message.contains("timeout") || message.contains("timed out"))) {
-            return "The clone of " + request.url() + " timed out. Is the repository reachable from this machine?";
+            return "The clone of " + url + " timed out. Is the repository reachable from this machine?";
         }
-        return "The clone of " + request.url() + " failed.";
+        return "The clone of " + url + " failed.";
     }
 
     private static String rootMessage(Throwable failure) {

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.agent;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
@@ -144,7 +145,7 @@ public class AgentLoop {
 
     private static String describe(ScanTask task) {
         return switch (task.target()) {
-            case ScanTask.Target.Repository repository -> repository.url() + " (" + repository.branch() + ")";
+            case ScanTask.Target.Repository repository -> RepositoryUrl.redact(repository.url()) + " (" + repository.branch() + ")";
             case ScanTask.Target.Image image -> image.reference().format();
         };
     }

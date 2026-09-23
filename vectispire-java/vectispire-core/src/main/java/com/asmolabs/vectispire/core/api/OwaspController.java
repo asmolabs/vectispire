@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
@@ -152,7 +153,7 @@ public class OwaspController {
         ScanEntity scan = scans.findById(result.getScanId()).orElse(null);
         byte[] document = OwaspReportPdf.render(
                 new OwaspReportPdf.Subject(
-                        repository.getName() == null ? repository.getUrl() : repository.getName(),
+                        repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
                         repository.getBranch(),
                         scan == null ? null : scan.getVersion(),
                         result.getModel(),

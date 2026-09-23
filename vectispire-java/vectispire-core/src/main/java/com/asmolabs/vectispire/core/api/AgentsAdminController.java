@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
@@ -205,7 +206,7 @@ public class AgentsAdminController {
 
         Map<Long, String> repoNames = new HashMap<>();
         gitRepositories.findAll().forEach(r -> {
-            String name = r.getName() != null && !r.getName().isBlank() ? r.getName() : r.getUrl();
+            String name = r.getName() != null && !r.getName().isBlank() ? r.getName() : RepositoryUrl.redact(r.getUrl());
             repoNames.put(r.getId(), name != null ? name : "Repo #" + r.getId());
         });
 

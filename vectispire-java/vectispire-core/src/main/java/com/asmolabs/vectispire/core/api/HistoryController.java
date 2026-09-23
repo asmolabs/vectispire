@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -184,8 +185,10 @@ public class HistoryController {
 
         return new TriageHistory.Repository(
                 repository.getId(),
-                repository.getName() == null ? repository.getUrl() : repository.getName(),
-                repository.getUrl(),
+                repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
+                // Masked here, at the source of the trail, so the screen, the CSV and the PDF
+                // built from it all carry the same safe form.
+                RepositoryUrl.redact(repository.getUrl()),
                 repository.getBranch(),
                 version,
                 type,
