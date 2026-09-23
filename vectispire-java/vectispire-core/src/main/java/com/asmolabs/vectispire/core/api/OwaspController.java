@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
@@ -176,12 +175,9 @@ public class OwaspController {
     }
 
     private RepositoryEntity visible(VectispirePrincipal principal, long id) {
-        RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-        Visibilities.requireVisible(
-                new ScanTarget.Repository(id),
+        return Visibilities.requireVisible(
+                repositories.findById(id).orElse(null),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        return repository;
     }
 
     private static Report reportOf(AiReviewResultEntity result) {

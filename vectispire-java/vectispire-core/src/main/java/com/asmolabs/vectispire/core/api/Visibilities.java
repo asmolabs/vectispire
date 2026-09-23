@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -16,7 +17,8 @@ import java.util.Optional;
  * a refusal has to be indistinguishable from an absence.
  *
  * <p>Also 404 for a row that genuinely is not there, so the two cases cost the same and no
- * timing or wording tells them apart.
+ * timing or wording tells them apart. <b>The absent row comes here as null</b>, never refused by
+ * the caller first: nine routes did, each in its own words, and each wording was an oracle.
  */
 final class Visibilities {
 
@@ -50,10 +52,21 @@ final class Visibilities {
      * one to be forgotten, and the forgotten one had already happened four times over.
      */
     static void requireVisible(ScanEntity scan, Visibility visibility) {
-        if (scan == null) {
+        // **One message for both cases.** An absent scan said "Scan not found." and a hidden one
+        // fell through to "Target not found.": ids are sequential, so the wording alone let a
+        // restricted reader enumerate every scan of the deployment. Pass the absent row here as
+        // null rather than refusing it beforehand in the caller's own words.
+        if (scan == null || !visibility.permits(targetOf(scan))) {
             throw new NoSuchElementException("Scan not found.");
         }
-        requireVisible(targetOf(scan), visibility);
+    }
+
+    /** The same rule for a route named by a repository: absent and hidden read alike. */
+    static RepositoryEntity requireVisible(RepositoryEntity repository, Visibility visibility) {
+        if (repository == null || !visibility.permits(new ScanTarget.Repository(repository.getId()))) {
+            throw new NoSuchElementException("Repository not found.");
+        }
+        return repository;
     }
 
     /** A scan attached to neither is unclassifiable, and treated as invisible. */

@@ -420,6 +420,49 @@ class VisibilityRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("every route named by a scan or a repository refuses a hidden id and an absent one in the same words")
+    void absentAndHiddenReadAlike() throws Exception {
+        // Nine routes refused an absent row in their own words — "Scan not found.", "Repository
+        // not found." — and a hidden one in the guard's, "Target not found.". Ids are sequential,
+        // so the wording alone enumerated what a restricted reader was never given.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        long theirScan = scan(theirs);
+        long absentScan = theirScan + 1000;
+        long absentRepository = theirs + 1000;
+        long myScan = scan(mine);
+        String reader = assignedReader(mine);
+
+        Map<String, String[]> routes = new java.util.LinkedHashMap<>();
+        routes.put("scan detail", new String[] {"/api/v1/scans/%d"});
+        routes.put("scan SBOM", new String[] {"/api/v1/scans/%d/sbom"});
+        routes.put("CSAF", new String[] {"/api/v1/csaf/scans/%d/csaf.json"});
+        routes.put("OpenVEX", new String[] {"/api/v1/vex/scans/%d/openvex.json"});
+        routes.put("CycloneDX", new String[] {"/api/v1/cyclonedx/scans/%d/cyclonedx-vex.json"});
+        routes.put("attestation", new String[] {"/api/v1/attestations/scans/%d"});
+        routes.put("SBOM diff", new String[] {"/api/v1/sbom/diff?fromScanId=" + myScan + "&toScanId=%d"});
+        routes.put("OWASP review", new String[] {"/api/v1/repositories/%d/owasp-review", "repository"});
+        routes.put("history", new String[] {"/api/v1/history/repositories/%d", "repository"});
+        routes.put("history CSV", new String[] {"/api/v1/history/repositories/%d/export.csv", "repository"});
+
+        for (var route : routes.entrySet()) {
+            boolean byRepository = route.getValue().length > 1;
+            String template = route.getValue()[0];
+            String hidden = refusal(template.formatted(byRepository ? theirs : theirScan), reader);
+            String absent = refusal(template.formatted(byRepository ? absentRepository : absentScan), reader);
+            assertThat(absent).as(route.getKey()).isEqualTo(hidden);
+        }
+    }
+
+    private String refusal(String route, String token) throws Exception {
+        String body = mvc.perform(authenticated(get(route), token))
+                .andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(body).path("detail").asText();
+    }
+
+    @Test
     @DisplayName("a CVE found only in someone else's target is explained as if it were found nowhere")
     void theCveExplanationIsScoped() throws Exception {
         // **The lookup by CVE is a search across every target**, and it took the first match from

@@ -27,7 +27,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Limit;
@@ -159,13 +158,11 @@ public class HistoryController {
     }
 
     private RepositoryEntity visible(VectispirePrincipal principal, long id) {
-        RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-        // 404 rather than 403 when it exists but is not visible — see `Visibilities`.
-        Visibilities.requireVisible(
-                new ScanTarget.Repository(repository.getId()),
+        // 404 rather than 403 when it exists but is not visible, in the same words as when it does
+        // not exist — see `Visibilities`.
+        return Visibilities.requireVisible(
+                repositories.findById(id).orElse(null),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        return repository;
     }
 
     private TriageHistory.Repository rowOf(RepositoryEntity repository) {

@@ -134,9 +134,9 @@ public class ScansController {
     public ScanDetail detail(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
-        ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
+        ScanEntity scan = scans.findById(id).orElse(null);
         Visibilities.requireVisible(
-                targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+                scan, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         List<FindingEntity> page = findings.findByScanId(id, Limit.of(MAX_FINDINGS));
         long total = findings.countByScanId(id);
@@ -180,9 +180,9 @@ public class ScansController {
     public ResponseEntity<String> sbom(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
-        ScanEntity scan = scans.findById(id).orElseThrow(() -> new NoSuchElementException("Scan not found."));
+        ScanEntity scan = scans.findById(id).orElse(null);
         Visibilities.requireVisible(
-                targetOf(scan), visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+                scan, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         String document = scan.getSbom();
         if (document == null) {

@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.VisibilityService;
-import java.util.NoSuchElementException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.AttestationService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +46,7 @@ public class AttestationController {
      */
     private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
         Visibilities.requireVisible(
-                scans.findById(scanId).orElseThrow(() -> new NoSuchElementException("Scan not found.")),
+                scans.findById(scanId).orElse(null),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
