@@ -12,6 +12,7 @@ import { ApiService } from '../../core/api.service';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { InventoryOccurrence, MonitoredContainer, MonitoredRepository, SbomDiffReport, ScanSummary } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-inventory',
@@ -20,6 +21,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './inventory.html'
 })
 export class Inventory {
+    private readonly scansRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
     private readonly i18n = inject(I18nService);
 
@@ -135,10 +138,9 @@ export class Inventory {
 
         const [kind, id] = this.diffTarget.split(':');
         this.scansLoading.set(true);
-        this.api.scansOf(
+        this.scansRequest.run(this.api.scansOf(
                 kind === 'repo' ? Number(id) : undefined,
-                kind === 'container' ? Number(id) : undefined)
-            .subscribe({
+                kind === 'container' ? Number(id) : undefined), {
                 next: (history) => {
                     this.scans.set(history);
                     this.scansLoading.set(false);

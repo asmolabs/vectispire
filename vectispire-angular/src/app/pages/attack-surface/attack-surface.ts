@@ -13,6 +13,7 @@ import { ApiService } from '../../core/api.service';
 import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 import type {
     ApiContractView,
     ApiEndpointView,
@@ -39,6 +40,8 @@ import type {
     templateUrl: './attack-surface.html'
 })
 export class AttackSurface implements OnInit, OnDestroy {
+    private readonly repoRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
     readonly i18n = inject(I18nService);
     private pollInterval: any = null;
@@ -156,6 +159,7 @@ export class AttackSurface implements OnInit, OnDestroy {
 
     onSelectRepo(repoId: string | number | null): void {
         if (!repoId || repoId === 'ALL' || repoId === '0') {
+            this.repoRequest.cancel();
             this.selectedRepoId.set(null);
             this.repoOverview.set(null);
             this.repoLoading.set(false);
@@ -166,7 +170,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.selectedRepoId.set(String(id));
         this.repoLoading.set(true);
 
-        this.api.getRepositoryApis(id).subscribe({
+        this.repoRequest.run(this.api.getRepositoryApis(id), {
             next: (data) => {
                 this.repoOverview.set(data);
                 this.repoLoading.set(false);

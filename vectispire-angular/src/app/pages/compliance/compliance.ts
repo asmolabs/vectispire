@@ -14,6 +14,7 @@ import { saveDocument } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.models';
+import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-compliance',
@@ -22,6 +23,8 @@ import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.mod
     templateUrl: './compliance.html'
 })
 export class Compliance {
+    private readonly summaryRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
 
@@ -164,7 +167,7 @@ export class Compliance {
         const sel = this.selectedTarget();
         const tid = (sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined') ? sel : undefined;
 
-        this.api.complianceSummary(tid).subscribe({
+        this.summaryRequest.run(this.api.complianceSummary(tid), {
             next: (data) => {
                 this.summary.set(data);
                 if (data.targets && data.targets.length > 0) {

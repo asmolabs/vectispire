@@ -11,6 +11,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ApiService } from '../../core/api.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 import type {
     AttackPath,
     AttackPathEdge,
@@ -38,6 +39,8 @@ import type {
     templateUrl: './attack-paths.html'
 })
 export class AttackPaths implements OnInit {
+    private readonly graphRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
 
     readonly repositories = signal<MonitoredRepository[]>([]);
@@ -121,7 +124,7 @@ export class AttackPaths implements OnInit {
     loadGraph(repoId: number): void {
         this.loading.set(true);
         this.error.set(null);
-        this.api.getAttackPathGraph(repoId).subscribe({
+        this.graphRequest.run(this.api.getAttackPathGraph(repoId), {
             next: (g) => {
                 this.graph.set(g);
                 this.loading.set(false);

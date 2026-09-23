@@ -28,6 +28,7 @@ const OPERATION_LABELS: Record<string, string> = {
 const PAGE_SIZE = 50;
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-audit-log',
@@ -36,6 +37,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './audit-log.html'
 })
 export class AuditLog {
+    private readonly page = new LatestRequest();
+
     private readonly api = inject(ApiService);
 
     readonly entries = signal<AuditEntry[]>([]);
@@ -97,15 +100,15 @@ export class AuditLog {
 
     private reload(): void {
         this.loading.set(true);
-        this.api
+        // Called on every keystroke of the search box: latest wins, or answers land out of order.
+        this.page.run(this.api
             .auditLog({
                 operation_type: this.filters.operationType ?? undefined,
                 user_id: this.filters.userId.trim() || undefined,
                 search: this.filters.search.trim() || undefined,
                 limit: PAGE_SIZE,
                 offset: this.offset()
-            })
-            .subscribe({
+            }), {
                 next: (page) => {
                     this.entries.set(page.items);
                     this.total.set(page.total);

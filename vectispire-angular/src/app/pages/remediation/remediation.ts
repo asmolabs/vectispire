@@ -9,6 +9,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { FormsModule } from '@angular/forms';
 import type { HighImpactFix, MonitoredContainer, MonitoredRepository, RemediationCoverage, SecurityDebtReport } from '@/app/core/api.models';
+import { LatestRequest } from '@/app/core/latest-request';
 
 /**
  * What to do, in order — and not what is wrong.
@@ -36,6 +37,10 @@ import type { HighImpactFix, MonitoredContainer, MonitoredRepository, Remediatio
     templateUrl: './remediation.html'
 })
 export class Remediation {
+    private readonly fixesRequest = new LatestRequest();
+    private readonly debtRequest = new LatestRequest();
+    private readonly coverageRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
 
     readonly fixes = signal<HighImpactFix[]>([]);
@@ -126,7 +131,7 @@ export class Remediation {
         const repoId = kind === 'repo' ? Number(id) : undefined;
         const containerId = kind === 'container' ? Number(id) : undefined;
 
-        this.api.getHighImpactFixes(repoId, containerId, this.wanted()).subscribe({
+        this.fixesRequest.run(this.api.getHighImpactFixes(repoId, containerId, this.wanted()), {
             next: (fixes) => { this.fixes.set(fixes); this.loading.set(false); },
             error: () => {
                 this.error.set('Le plan de remédiation n\'a pas pu être calculé.');
@@ -136,14 +141,14 @@ export class Remediation {
 
         // Separately: an unavailable debt figure must not erase a work order that did arrive. It is
         // the page's context, not its subject.
-        this.api.getSecurityDebt(repoId, containerId)
-            .subscribe({ next: (debt) => this.debt.set(debt), error: () => {} });
+        this.debtRequest.run(this.api.getSecurityDebt(repoId, containerId),
+            { next: (debt) => this.debt.set(debt), error: () => {} });
 
         // And the admission likewise: not knowing what the plan leaves out beats not seeing the
         // plan. Reset first, so that one scope does not keep the other's admission.
         this.coverage.set(null);
-        this.api.getRemediationCoverage(repoId, containerId)
-            .subscribe({ next: (coverage) => this.coverage.set(coverage), error: () => {} });
+        this.coverageRequest.run(this.api.getRemediationCoverage(repoId, containerId),
+            { next: (coverage) => this.coverage.set(coverage), error: () => {} });
     }
 
     /** Changes target: the size asked for goes back to ten, the plan no longer being the same. */

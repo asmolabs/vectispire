@@ -14,6 +14,7 @@ import { messageOf } from '../../core/api-error';
 import { ApiService } from '../../core/api.service';
 import { SessionStore } from '../../core/session.store';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 import type {
     MonitoredContainer,
     MonitoredRepository,
@@ -44,6 +45,9 @@ import type {
     templateUrl: './licenses.html'
 })
 export class Licenses {
+    private readonly summaryRequest = new LatestRequest();
+    private readonly inventoryRequest = new LatestRequest();
+
     private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     private readonly session = inject(SessionStore);
@@ -202,7 +206,7 @@ export class Licenses {
             containerId = Number(target.substring(10));
         }
 
-        this.api.getLicenseSummary(repoId, containerId).subscribe({
+        this.summaryRequest.run(this.api.getLicenseSummary(repoId, containerId), {
             next: (s) => this.summary.set(s),
             error: () => this.error.set('Failed to load license summary.')
         });
@@ -212,7 +216,7 @@ export class Licenses {
             error: () => {}
         });
 
-        this.api.getLicenseInventory(repoId, containerId).subscribe({
+        this.inventoryRequest.run(this.api.getLicenseInventory(repoId, containerId), {
             next: (inv) => {
                 this.inventory.set(inv);
                 this.loading.set(false);

@@ -39,6 +39,7 @@ import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.mode
  * and no second route on the server either.
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'zs-issues',
@@ -47,6 +48,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './issues.html'
 })
 export class Issues {
+    private readonly page = new LatestRequest();
+
     private readonly i18n = inject(I18nService);
     private readonly api = inject(ApiService);
     private readonly route = inject(ActivatedRoute);
@@ -281,7 +284,8 @@ export class Issues {
         this.selected.set([]);
         this.offset.set(Math.max(0, offset));
         const [kind, id] = this.target?.split(':') ?? [];
-        this.api
+        // Latest wins: an answer to a previous filter is cancelled, never shown under this one.
+        this.page.run(this.api
             .issues({
                 repository_id: kind === 'repository' ? Number(id) : undefined,
                 container_id: kind === 'container' ? Number(id) : undefined,
@@ -298,8 +302,7 @@ export class Issues {
                 search: this.search || undefined,
                 limit: this.limit,
                 offset: this.offset()
-            })
-            .subscribe({
+            }), {
                 next: (page) => {
                     this.issues.set(page.items);
                     this.total.set(page.total);

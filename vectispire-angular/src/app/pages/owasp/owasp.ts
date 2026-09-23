@@ -24,6 +24,7 @@ import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
  */
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { OwaspGridComponent } from '@/app/shared/owasp-grid';
+import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-owasp',
@@ -32,6 +33,8 @@ import { OwaspGridComponent } from '@/app/shared/owasp-grid';
     templateUrl: './owasp.html'
 })
 export class Owasp {
+    private readonly reportRequest = new LatestRequest();
+
     private readonly api = inject(ApiService);
 
     selected: number | null = null;
@@ -52,9 +55,10 @@ export class Owasp {
         this.report.set(null);
         this.error.set(null);
         if (this.selected === null) {
+            this.reportRequest.cancel();
             return;
         }
-        this.api.owaspReport(this.selected).subscribe({
+        this.reportRequest.run(this.api.owaspReport(this.selected), {
             next: (report) => this.report.set(report),
             // A 404 here means "none yet", which is a state and not a failure.
             error: () => this.report.set(null)
