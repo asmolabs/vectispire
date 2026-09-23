@@ -63,7 +63,7 @@ class RouteScopingTest {
      * reporting every route that adopted it as unguarded.
      */
     private static final Pattern ROLE_GUARD =
-            Pattern.compile(AuthorizationMarkers.roleGuardPattern());
+            Pattern.compile(AuthorizationMarkers.scopeGuardPattern());
 
     /**
      * Routes that name no target, with the reason for each.
@@ -86,10 +86,15 @@ class RouteScopingTest {
             // internal URL as well; that was removed rather than exempted.
             Map.entry("AiAdvisorController#getStatus", "the advisor's availability, no target read"),
 
-            // Explains a published vulnerability from the identifier and hints the caller supplies.
-            // Its sibling `explainIssue` takes an issue id, reads it, and resolves an allowance —
-            // which is why that one is absent from this list.
-            Map.entry("AiAdvisorController#explainCve", "explains a public CVE from what the caller passes in"));
+            // (`AiAdvisorController#explainCve` stood here as "explains a public CVE from what the
+            // caller passes in". It looked the CVE up across every target and explained the first
+            // match — the leak this list exists to prevent, admitted by an exemption whose claim
+            // nobody re-checked. It resolves an allowance now; the stale-entry test below would
+            // have refused the entry the day that happened.)
+
+            // Reached by an unguessable token that a writer who can see the repository published;
+            // anonymous by design, since a README badge is fetched by whoever reads the README.
+            Map.entry("ScorecardController#getPublishedBadge", "reached only by a published, revocable token"));
 
     private record Route(String controller, String method, String body) {
         String id() {
@@ -102,9 +107,10 @@ class RouteScopingTest {
     void everyRouteIsScopedOrExempt() throws IOException {
         List<Route> routes = new ArrayList<>();
         List<String> unscoped = new ArrayList<>();
+        List<String> staleExemptions = new ArrayList<>();
         int mappingsSeen = 0;
 
-        try (Stream<Path> files = Files.list(CONTROLLERS)) {
+        try (Stream<Path> files = Files.walk(CONTROLLERS)) {
             for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Controller.java")).toList()) {
                 String name = file.getFileName().toString().replace(".java", "");
                 // The controller-level exemptions are the same list, not a copy of it: a
@@ -131,7 +137,11 @@ class RouteScopingTest {
 
                 for (Route route : routesOf(name, source)) {
                     routes.add(route);
-                    if (isScoped(route, trustedHelpers) || NAMES_NO_TARGET.containsKey(route.id())) {
+                    boolean scoped = isScoped(route, trustedHelpers);
+                    if (scoped && NAMES_NO_TARGET.containsKey(route.id())) {
+                        staleExemptions.add(route.id());
+                    }
+                    if (scoped || NAMES_NO_TARGET.containsKey(route.id())) {
                         continue;
                     }
                     unscoped.add(route.id());
@@ -150,6 +160,17 @@ class RouteScopingTest {
                 .as("no routes were parsed: the path or the parser is wrong, and a rule that "
                         + "inspects nothing passes forever")
                 .isGreaterThan(60);
+
+        // **An exemption is a claim, and a claim goes stale.** One that names no parsed route, or a
+        // route that now resolves an allowance, no longer describes the code — and the false one
+        // that let `explainCve` through was exactly an entry nobody re-read. Refusing stale entries
+        // forces the list to be re-read whenever the code under it changes.
+        assertThat(routes.stream().map(Route::id).toList())
+                .as("exemptions naming no unguarded route")
+                .containsAll(NAMES_NO_TARGET.keySet());
+        assertThat(staleExemptions)
+                .as("exempted routes that resolve an allowance anyway: remove the exemption")
+                .isEmpty();
 
         assertThat(unscoped)
                 .as("these routes serve data without stating who may see it. Resolve a Visibility, "

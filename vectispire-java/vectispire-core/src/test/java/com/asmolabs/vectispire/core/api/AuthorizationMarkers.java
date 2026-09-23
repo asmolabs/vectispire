@@ -8,9 +8,13 @@ import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresPlatformGovernor;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.common.domain.users.Role;
 import java.lang.annotation.Annotation;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * The markers a route may wear, in <b>one</b> list.
@@ -71,6 +75,55 @@ final class AuthorizationMarkers {
     /** True when {@code source} carries any marker that names who may call the route. */
     static boolean statesARole(String source) {
         return ROLE_GUARDS.stream().anyMatch(marker -> source.contains("@" + marker.getSimpleName()));
+    }
+
+    // Declared before `SCOPE_GUARDS`, which reads them while the class initialises: static
+    // fields initialise in order, and these were still null the first time round.
+    private static final Pattern ANY_ROLE = Pattern.compile("^hasAnyRole\\((.*)\\)$");
+    private static final Pattern QUOTED = Pattern.compile("'([A-Z_]+)'");
+
+    /**
+     * The markers that settle <b>whose data</b> a route may return, as opposed to merely who may
+     * call it: those whose every admitted role sees the whole estate.
+     *
+     * <p><b>Derived from the markers' own {@code @PreAuthorize} and from {@link Role}</b>, never
+     * listed. The scoping lints used {@link #ROLE_GUARDS}, which includes
+     * {@link RequiresWriteAccount} — and that marker admits {@code SECURITY_CHAMPION} and
+     * {@code USER}, the two roles whose visibility is a handful of targets. A route guarded by it
+     * alone was reported as scoped while it served the whole estate to exactly the accounts the
+     * scope exists for. Reading the expression means a role added to a marker, or a role losing
+     * its global scope, changes this set without anybody remembering to.
+     *
+     * <p>A marker with no role expression — the agent key, anonymous access — is not here: it
+     * names no account, so it cannot vouch for an account's scope. Such routes are exempted by
+     * name, with a reason.
+     */
+    static final List<Class<? extends Annotation>> SCOPE_GUARDS = ALL.stream()
+            .filter(AuthorizationMarkers::admitsOnlyGlobalScope)
+            .toList();
+
+    static boolean admitsOnlyGlobalScope(Class<? extends Annotation> marker) {
+        PreAuthorize rule = marker.getAnnotation(PreAuthorize.class);
+        if (rule == null) {
+            return false;
+        }
+        // Only the one shape the markers use. Anything else — `isAuthenticated()`, a compound
+        // expression — is not understood here, and not understood means not trusted.
+        Matcher anyRole = ANY_ROLE.matcher(rule.value().trim());
+        if (!anyRole.matches()) {
+            return false;
+        }
+        List<Role> admitted = QUOTED.matcher(anyRole.group(1)).results()
+                .map(match -> Role.valueOf(match.group(1)))
+                .toList();
+        return !admitted.isEmpty() && admitted.stream().allMatch(Role::hasGlobalSecurityScope);
+    }
+
+    /** {@link #SCOPE_GUARDS} as a regular-expression alternation, both written forms matched. */
+    static String scopeGuardPattern() {
+        return "@(?:[\\w.]+\\.)?(?:"
+                + SCOPE_GUARDS.stream().map(Class::getSimpleName).collect(Collectors.joining("|"))
+                + ")\\b";
     }
 
     private AuthorizationMarkers() {}

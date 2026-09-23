@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,8 +40,23 @@ import org.junit.jupiter.api.Test;
 @DisplayName("the authorization surface")
 class AuthorizationCoverageTest {
 
+    @Test
+    @DisplayName("only a marker whose every role sees the whole estate settles scope")
+    void scopeGuardsAreTheGlobalRolesOnly() {
+        // Pinned so that the derivation cannot quietly turn permissive: a parse that fell back to
+        // "every marker" would make both scoping lints pass on anything.
+        assertThat(AuthorizationMarkers.SCOPE_GUARDS)
+                .contains(com.asmolabs.vectispire.core.api.security.RequiresSecurityLead.class,
+                        com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead.class)
+                .doesNotContain(com.asmolabs.vectispire.core.api.security.RequiresWriteAccount.class,
+                        com.asmolabs.vectispire.core.api.security.RequiresAccount.class,
+                        com.asmolabs.vectispire.core.api.security.OpenToAnonymous.class);
+    }
+
     private static final Path CONTROLLERS = Path.of(
             "src/main/java/com/asmolabs/vectispire/core/api");
+
+    private static final Pattern SCOPE_GUARD = Pattern.compile(AuthorizationMarkers.scopeGuardPattern());
 
     /**
      * Controllers that serve nothing belonging to a scan target, with the reason for each.
@@ -71,10 +87,10 @@ class AuthorizationCoverageTest {
             "TicketingWebhookController",
             // Notification channels are deployment configuration; the route that sends a test
             // message carries `@RequiresSecurityLead`.
-            "NotificationCenterController",
-            // Framework plumbing rather than a surface: error rendering and SPA forwarding.
-            "ApiExceptionHandler",
-            "SpaForwardingController");
+            "NotificationCenterController");
+            // (`ApiExceptionHandler` and `SpaForwardingController` stood here too. Neither file
+            // ends in `Controller.java` — the second is `SpaForwarding.java` — so neither was ever
+            // inspected, and the entries exempted nothing. The test now refuses such entries.)
 
     @Test
     @DisplayName("no controller serves target-scoped data on @RequiresAccount alone")
@@ -82,7 +98,9 @@ class AuthorizationCoverageTest {
         List<String> offenders = new ArrayList<>();
         List<String> inspected = new ArrayList<>();
 
-        try (Stream<Path> files = Files.list(CONTROLLERS)) {
+        // **Walked, not listed.** `Files.list` stops at the top directory, and the SCIM
+        // controllers under `api/scim/` were never read.
+        try (Stream<Path> files = Files.walk(CONTROLLERS)) {
             for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Controller.java")).toList()) {
                 String name = file.getFileName().toString().replace(".java", "");
                 inspected.add(name);
@@ -93,9 +111,9 @@ class AuthorizationCoverageTest {
                 String source = Files.readString(file, StandardCharsets.UTF_8);
 
                 // A role that sees everything by construction is an allowance, stated differently.
-                // Asked of `AuthorizationMarkers` rather than spelled out: this list was one of
-                // three, and it did not learn about the governance-read marker on its own.
-                boolean guardedByRole = AuthorizationMarkers.statesARole(source);
+                // Only those: `@RequiresWriteAccount` names who may call, and admits the two
+                // roles with a restricted scope — see `AuthorizationMarkers.SCOPE_GUARDS`.
+                boolean guardedByRole = SCOPE_GUARD.matcher(source).find();
                 boolean resolvesAllowance = source.contains("VisibilityService")
                         || source.contains("Visibilities.");
 
@@ -111,6 +129,10 @@ class AuthorizationCoverageTest {
                 .as("no controller sources were read: the path in this test is wrong, and a rule "
                         + "that inspects nothing passes forever")
                 .hasSizeGreaterThan(30);
+
+        assertThat(inspected)
+                .as("an exemption naming no controller that is read exempts nothing and hides that it does")
+                .containsAll(NOT_TARGET_SCOPED);
 
         assertThat(offenders)
                 .as("these controllers serve data belonging to scan targets while requiring only a "
