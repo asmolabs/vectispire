@@ -46,9 +46,10 @@ export function asSchema<K extends keyof Schemas, T>(name: K, fixture: T): T {
         throw new Error(
             `The fixture does not match the schema "${String(name)}" the control plane publishes:\n` +
                 problems.map((problem) => `  · ${problem}`).join('\n') +
-                '\n\nIf the change is intended, regenerate the contract:\n' +
+                '\n\nIf the change is intended, regenerate the contract, then the types built from it:\n' +
                 "  ./gradlew :vectispire-core:test --tests '*ClientContractSpecTest*' " +
-                '-Dvectispire.openapi.write=true'
+                '-Dvectispire.openapi.write=true\n' +
+                '  npm run generate:api   (in vectispire-angular — CI refuses a stale api.generated.ts)'
         );
     }
     return fixture;

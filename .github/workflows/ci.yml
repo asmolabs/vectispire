@@ -204,6 +204,16 @@ jobs:
           path: ~/.npm
           key: npm-${{ hashFiles('package-lock.json') }}
       - run: npm ci --prefer-offline
+      # **The contract chain's last link.** `ClientContractSpecTest` pins `openapi.json` to the
+      # routes, and the fixtures are checked against that JSON at run time — but the TypeScript
+      # types are generated from it by hand. After a backend rename both suites stayed green while
+      # the compiled types still described the old shape. Regenerating and diffing makes a stale
+      # `api.generated.ts` a red build, which is the only place it is visible.
+      - name: the generated API types are what openapi.json produces
+        run: |
+          cd vectispire-angular && npm run generate:api
+          git -c safe.directory='*' diff --exit-code -- src/app/core/api.generated.ts \
+            || { echo "api.generated.ts is stale: run 'npm run generate:api' in vectispire-angular and commit it."; exit 1; }
       - run: npm run build
       - run: npm test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
