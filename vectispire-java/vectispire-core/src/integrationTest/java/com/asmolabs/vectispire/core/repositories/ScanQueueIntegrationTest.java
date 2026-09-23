@@ -13,7 +13,9 @@ import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -24,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /**
@@ -65,6 +68,9 @@ class ScanQueueIntegrationTest {
 
     @Autowired
     private Scans scans;
+
+    @Autowired
+    private TransactionTemplate transactions;
 
     @BeforeEach
     void emptyQueue() {
@@ -175,5 +181,105 @@ class ScanQueueIntegrationTest {
 
         assertThat(queue.claim(0, "worker", List.of())).isEmpty();
         assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isEqualTo(1);
+    }
+
+    /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */
+    private long claimedThenLapsed(String worker) {
+        enqueue(1, null);
+        ScanEntity scan = queue.claim(1, worker, List.of()).getFirst();
+        ScanEntity stored = scans.findById(scan.getId()).orElseThrow();
+        stored.setLeaseExpiresAt(Instant.now().minusSeconds(60));
+        scans.save(stored);
+        return scan.getId();
+    }
+
+    @Test
+    @DisplayName("a deposed worker cannot fail the scan its successor now holds")
+    void aDeposedWorkerCannotFailItsSuccessor() {
+        // The release named the row by id alone: the first worker, whose lease had lapsed, marked
+        // the successor's scan FAILED and dropped the successor's lease with it.
+        long id = claimedThenLapsed("worker-a");
+        assertThat(queue.reclaimLapsedLeases().requeued()).containsExactly(id);
+        assertThat(queue.claim(1, "worker-b", List.of())).extracting(ScanEntity::getId).containsExactly(id);
+
+        assertThat(queue.fail(id, "worker-a", "runner crashed")).isFalse();
+        assertThat(queue.requeue(id, "worker-a")).isFalse();
+
+        ScanEntity after = scans.findById(id).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+        assertThat(after.getClaimedBy()).isEqualTo("worker-b");
+        assertThat(after.getLeaseExpiresAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("a renewal landing between the reclaim's read and its update wins")
+    void aRenewalBeatsAStaleReclaim() throws Exception {
+        // The reclaim reads the lapsed scans, then releases them. A renewal committed in between
+        // must survive: the release is conditioned on the lease still being lapsed, and without
+        // that condition a worker renewing on time was deposed anyway.
+        long id = claimedThenLapsed("worker-a");
+        CountDownLatch renewed = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> renewal = pool.submit(() -> transactions.execute(status -> {
+                boolean ok = queue.renewLease(id, "worker-a");
+                renewed.countDown();
+                try {
+                    // Uncommitted while the reclaim reads the old, lapsed lease and then blocks on
+                    // the row this transaction holds.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                return ok;
+            }));
+            assertThat(renewed.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<ScanQueue.Reclaimed> reclaim = pool.submit(() -> queue.reclaimLapsedLeases());
+
+            assertThat(renewal.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(reclaim.get(30, TimeUnit.SECONDS).requeued()).isEmpty();
+        }
+
+        ScanEntity after = scans.findById(id).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+        assertThat(after.getClaimedBy()).isEqualTo("worker-a");
+    }
+
+    @Test
+    @DisplayName("a reclaim racing the final write waits for it, then changes nothing")
+    void theWriteFencesTheReclaim() throws Exception {
+        // The ownership check was a plain read: a reclaim and a new take could commit between it
+        // and the final save, which then merged stale results over the successor's claim. The
+        // check is now an update, whose row lock the write keeps until it commits.
+        long id = claimedThenLapsed("worker-a");
+        CountDownLatch held = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> write = pool.submit(() -> transactions.execute(status -> {
+                if (!queue.holdForWrite(id, "worker-a")) {
+                    return false;
+                }
+                held.countDown();
+                try {
+                    // Long enough for the reclaim below to reach the row and block on it.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                ScanEntity scan = scans.findById(id).orElseThrow();
+                scan.setStatus(ScanStatus.COMPLETED.wireName());
+                scan.setClaimedBy(null);
+                scan.setLeaseExpiresAt(null);
+                scans.save(scan);
+                return true;
+            }));
+            assertThat(held.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<ScanQueue.Reclaimed> reclaim = pool.submit(() -> queue.reclaimLapsedLeases());
+
+            assertThat(write.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(reclaim.get(30, TimeUnit.SECONDS).requeued()).isEmpty();
+        }
+
+        assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
     }
 }

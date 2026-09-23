@@ -19,11 +19,16 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
+import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -50,6 +55,13 @@ public class ScanDispatcher {
     private static final Set<ScanTask.Step> IMAGE_STEPS = EnumSet.of(ScanTask.Step.DEPENDENCIES);
 
     private final ScanQueue queue;
+
+    /** One daemon thread for every lease the built-in worker keeps alive — see {@link #keepLeased}. */
+    private final ScheduledExecutorService leaseKeeper = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "vectispire-lease-keeper");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final GitRepositories repositories;
     private final Containers containers;
     private final SshKeys sshKeys;
@@ -203,7 +215,7 @@ public class ScanDispatcher {
                 } else if (!secureTransport) {
                     // Put back in the queue *before* refusing: otherwise the scan stays claimed by
                     // an agent that received nothing, until the lease lapses.
-                    queue.requeue(scan.getId());
+                    queue.requeue(scan.getId(), agent.getId().toString());
                     throw new InsecureCredentialTransportException();
                 }
                 // An older agent announces no sealing key and therefore falls back on the
@@ -217,7 +229,7 @@ public class ScanDispatcher {
         } catch (InsecureCredentialTransportException refused) {
             throw refused;
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), String.valueOf(error.getMessage()));
+            queue.fail(scan.getId(), agent.getId().toString(), String.valueOf(error.getMessage()));
             return Optional.empty();
         }
     }
@@ -272,7 +284,17 @@ public class ScanDispatcher {
 
     /** True when the scan finished normally. */
     private boolean execute(ScanEntity scan, String worker) {
+        // **Renewed before it starts.** A round claims several scans at once and runs them one
+        // after the other, all leased from the moment of the claim: the third could lapse before
+        // it began, be reclaimed elsewhere, and run twice. Renewing here either restarts the
+        // clock or reveals that another worker already has it.
+        if (!queue.renewLease(scan.getId(), worker)) {
+            log.warn("Scan {} was taken over before it started — skipped.", scan.getId());
+            return false;
+        }
+
         ScanArtifacts artifacts;
+        ScheduledFuture<?> heartbeat = keepLeased(scan.getId(), worker);
         try {
             // The built-in worker runs inside the control plane and always receives the key.
             ScanTask task = buildTask(scan, true);
@@ -280,9 +302,11 @@ public class ScanDispatcher {
             // for that long blocks PostgreSQL's vacuum.
             artifacts = runner.orElseThrow().run(task);
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), String.valueOf(error.getMessage()));
+            queue.fail(scan.getId(), worker, String.valueOf(error.getMessage()));
             metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
+        } finally {
+            heartbeat.cancel(false);
         }
 
         try {
@@ -292,10 +316,41 @@ public class ScanDispatcher {
             metrics.scanFinishedSince(scan.getClaimedAt(), true, false);
             return true;
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), String.valueOf(error.getMessage()));
+            queue.fail(scan.getId(), worker, String.valueOf(error.getMessage()));
             metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
         }
+    }
+
+    /**
+     * Renews the lease while the built-in worker runs a scan.
+     *
+     * <p><b>Only remote agents renewed until now</b>, through their own route. The built-in worker
+     * held the lease it was claimed with: any scan longer than the lease was reclaimed by another
+     * instance while it still ran, executed twice, and cost an attempt each time until it failed
+     * as "lease exhausted" — on a target that was simply slow.
+     *
+     * <p>A third of the lease, so two renewals can be lost before it lapses. A failed renewal is
+     * logged and the next one tried: the scan is not interrupted, and if it has been taken over
+     * the write will say so.
+     */
+    private ScheduledFuture<?> keepLeased(long scanId, String worker) {
+        long period = Math.max(1_000L, queue.lease().toMillis() / 3);
+        return leaseKeeper.scheduleAtFixedRate(() -> {
+            try {
+                if (!queue.renewLease(scanId, worker)) {
+                    log.warn("Scan {} is no longer this worker's — its results will be discarded.", scanId);
+                }
+            } catch (RuntimeException unavailable) {
+                // Caught, or the executor would silently cancel every later renewal.
+                log.warn("Lease renewal for scan {} failed: {}", scanId, unavailable.getMessage());
+            }
+        }, period, period, TimeUnit.MILLISECONDS);
+    }
+
+    @PreDestroy
+    void stopLeaseKeeper() {
+        leaseKeeper.shutdownNow();
     }
 
     /**
@@ -310,7 +365,8 @@ public class ScanDispatcher {
     }
 
     private boolean write(long scanId, String worker, ScanArtifacts artifacts) {
-        if (!queue.stillOwned(scanId, worker)) {
+        // Holds the row until this transaction commits — see `holdForWrite`.
+        if (!queue.holdForWrite(scanId, worker)) {
             return false;
         }
 

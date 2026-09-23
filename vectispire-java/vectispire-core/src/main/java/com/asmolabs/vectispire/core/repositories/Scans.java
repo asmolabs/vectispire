@@ -144,10 +144,15 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
             @Param("leaseExpiresAt") Instant leaseExpiresAt);
 
     /**
-     * Hands a scan back to the queue, or fails it, and <b>drops its lease</b> either way.
+     * Hands a scan back to the queue, or fails it, and <b>drops its lease</b> either way — if the
+     * caller still holds it.
      *
      * <p>A failed scan that kept its lease would be picked up by the next reclaim, fail again,
      * and go round until its attempts ran out.
+     *
+     * <p><b>The owner is in the {@code where}</b>, as in {@link #renewLease}. This update used to
+     * name the row by id alone: a worker whose lease had lapsed and whose scan had been taken over
+     * could still fail it, marking its successor's work FAILED and dropping the successor's lease.
      */
     @Transactional
     @Modifying(clearAutomatically = true)
@@ -155,8 +160,36 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
             update ScanEntity s
                set s.status = :to, s.error = :error, s.claimedBy = null,
                    s.claimedAt = null, s.leaseExpiresAt = null
-             where s.id = :id""")
-    int release(@Param("id") Long id, @Param("to") String to, @Param("error") String error);
+             where s.id = :id and s.status = :running and s.claimedBy = :owner""")
+    int releaseOwned(
+            @Param("id") Long id,
+            @Param("running") String running,
+            @Param("owner") String owner,
+            @Param("to") String to,
+            @Param("error") String error);
+
+    /**
+     * The same, for the reclaim: releases a scan only while its lease is still lapsed.
+     *
+     * <p>The reclaim reads the lapsed scans and then releases them; in between, the owner may
+     * renew or finish. Conditioning on the lease is enough — no successor can have taken a scan
+     * that is still {@code scanning}, so only the owner can have changed the row, and either of its
+     * moves makes this match nothing.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ScanEntity s
+               set s.status = :to, s.error = :error, s.claimedBy = null,
+                   s.claimedAt = null, s.leaseExpiresAt = null
+             where s.id = :id and s.status = :running
+               and (s.leaseExpiresAt is null or s.leaseExpiresAt < :asOf)""")
+    int releaseLapsed(
+            @Param("id") Long id,
+            @Param("running") String running,
+            @Param("asOf") Instant asOf,
+            @Param("to") String to,
+            @Param("error") String error);
 
     /** Scans whose lease has lapsed: their worker stopped renewing, or stopped existing. */
     @Query("""

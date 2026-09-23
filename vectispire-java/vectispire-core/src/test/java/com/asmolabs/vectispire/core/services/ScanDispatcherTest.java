@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -134,7 +135,7 @@ class ScanDispatcherTest {
 
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, envelopes.generateKeyPair().publicKey()), false))
                 .isPresent();
-        verify(queue, never()).requeue(anyLong());
+        verify(queue, never()).requeue(anyLong(), anyString());
     }
 
     @Test
@@ -147,7 +148,7 @@ class ScanDispatcherTest {
 
         // Put back before refusing: otherwise the scan stays claimed by an agent that received
         // nothing, and waits out the whole lease before anybody can take it.
-        verify(queue).requeue(7L);
+        verify(queue).requeue(eq(7L), anyString());
     }
 
     @Test
@@ -182,7 +183,7 @@ class ScanDispatcherTest {
         assertThat(task.target()).isInstanceOf(ScanTask.Target.Image.class);
         // No refusal either: with nothing to protect, the encrypted-link precaution does not
         // apply, and an image scan stays distributable to any agent.
-        verify(queue, never()).requeue(anyLong());
+        verify(queue, never()).requeue(anyLong(), anyString());
     }
 
     @Test
@@ -205,7 +206,7 @@ class ScanDispatcherTest {
         when(sshKeys.findById(KEY_ID)).thenReturn(Optional.empty());
 
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), true)).isEmpty();
-        verify(queue).fail(anyLong(), anyString());
+        verify(queue).fail(anyLong(), anyString(), anyString());
     }
 
     @Test
@@ -245,11 +246,41 @@ class ScanDispatcherTest {
         assertThat(scan.getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
     }
 
+    @Test
+    @DisplayName("a scan taken over before its turn in the round is not run")
+    void aScanTakenOverBeforeItsTurnIsSkipped() {
+        // A round claims several scans and runs them one after the other, all leased from the
+        // claim. One whose lease lapsed while it waited was reclaimed elsewhere; running it here
+        // too would scan the target twice.
+        ScanEntity scan = repositoryScan();
+        queueHolds(scan);
+        when(queue.renewLease(anyLong(), anyString())).thenReturn(false);
+        when(queue.countRunning()).thenReturn(0L);
+        when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
+        ScanRunner runner = mock(ScanRunner.class);
+
+        new ScanDispatcher(
+                        queue, repositories, containers, sshKeys, mock(ScanIngestor.class),
+                        new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                        settings, ruleSets, envelopes,
+                        new ScanningProperties(Optional.of("linux/amd64")),
+                        Optional.of(runner),
+                        mock(AuditLogService.class),
+                        mock(PlatformMetrics.class),
+                        new TransactionTemplate(mock(PlatformTransactionManager.class)))
+                .dispatch("worker-1", 2, List.of());
+
+        verify(runner, never()).run(any());
+        verify(queue, never()).fail(anyLong(), anyString(), anyString());
+    }
+
     /** Runs one scan through the dispatcher with a stubbed runner, and returns the row written. */
     private ScanEntity withRunner(ScanArtifacts artifacts) {
         ScanEntity scan = repositoryScan();
         queueHolds(scan);
-        when(queue.stillOwned(anyLong(), anyString())).thenReturn(true);
+        when(queue.renewLease(anyLong(), anyString())).thenReturn(true);
+        when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
+        when(queue.lease()).thenReturn(Duration.ofMinutes(20));
         when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
         when(queue.countRunning()).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));

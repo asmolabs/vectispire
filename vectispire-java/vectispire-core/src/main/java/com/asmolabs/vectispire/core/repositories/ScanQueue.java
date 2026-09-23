@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -96,19 +97,19 @@ public class ScanQueue {
     }
 
     /**
-     * Does this worker still hold this scan?
+     * Holds this worker's scan for the write that records its results, or reports it lost.
      *
-     * <p>Asked <b>inside the writing transaction</b>, never before it. A worker whose lease
-     * lapsed while it was scanning has had its scan taken over, and writing its results would
-     * overwrite the successor's work with stale ones — which looks like a scan that ran
-     * backwards, with no error anywhere.
+     * <p><b>An update, not a read, and inside the writing transaction.</b> It used to be a plain
+     * read of the owner: nothing stopped a reclaim and a new take from committing between that
+     * read and the final save, which then merged the stale results over the successor's claim.
+     * The conditional update takes the row lock and keeps it until the write commits, so a
+     * concurrent reclaim waits, then finds the scan no longer lapsed — or no longer running — and
+     * changes nothing. If the reclaim got there first, this matches nothing and the results are
+     * discarded.
      */
-    @Transactional(readOnly = true)
-    public boolean stillOwned(long scanId, String worker) {
-        return scans.findById(scanId)
-                .filter(scan -> ScanStatus.SCANNING.wireName().equals(scan.getStatus()))
-                .filter(scan -> worker.equals(scan.getClaimedBy()))
-                .isPresent();
+    @Transactional
+    public boolean holdForWrite(long scanId, String worker) {
+        return renewLease(scanId, worker);
     }
 
     /** Extends a progressing scan's lease. False when it is no longer this worker's. */
@@ -118,16 +119,23 @@ public class ScanQueue {
         return scans.renewLease(scanId, ScanStatus.SCANNING.wireName(), worker, until) > 0;
     }
 
-    /** Puts a scan back in the queue, available to anybody. */
-    @Transactional
-    public void requeue(long scanId) {
-        scans.release(scanId, ScanStatus.PENDING.wireName(), null);
+    /** How long a lease runs before it has to be renewed. */
+    public Duration lease() {
+        return policy.lease();
     }
 
-    /** Ends a scan in failure, and drops its lease with it. */
+    /** Puts this worker's scan back in the queue. False when it was no longer this worker's. */
     @Transactional
-    public void fail(long scanId, String reason) {
-        scans.release(scanId, ScanStatus.FAILED.wireName(), truncate(reason));
+    public boolean requeue(long scanId, String worker) {
+        return scans.releaseOwned(
+                scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.PENDING.wireName(), null) > 0;
+    }
+
+    /** Ends this worker's scan in failure, lease included. False when it was no longer this worker's. */
+    @Transactional
+    public boolean fail(long scanId, String worker, String reason) {
+        return scans.releaseOwned(
+                scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.FAILED.wireName(), truncate(reason)) > 0;
     }
 
     /**
@@ -160,7 +168,7 @@ public class ScanQueue {
      * <p>A lease lapses when a worker goes quiet: the process died, the machine vanished, the
      * network dropped. <b>Nothing is stopped here</b> — the work may still be running elsewhere,
      * and nothing in this process can kill a thread on another machine. The row simply becomes
-     * claimable again, and {@link #stillOwned} is what will later refuse the deposed worker's
+     * claimable again, and {@link #holdForWrite} is what will later refuse the deposed worker's
      * results.
      *
      * <p>Filtered in SQL rather than by loading every running scan and comparing in memory: that
@@ -174,13 +182,15 @@ public class ScanQueue {
 
         List<Long> requeued = new ArrayList<>();
         List<Long> failed = new ArrayList<>();
+        String running = ScanStatus.SCANNING.wireName();
         for (ScanEntity scan : lapsed) {
+            // Counted only when the row really changed: the owner may have renewed or finished
+            // since it was read, and that scan was not reclaimed.
             if (afterLapse(scan.getAttempts(), policy) == Lapsed.FAIL) {
-                scans.release(
-                        scan.getId(), ScanStatus.FAILED.wireName(), LEASE_EXHAUSTED_MESSAGE);
-                failed.add(scan.getId());
-            } else {
-                scans.release(scan.getId(), ScanStatus.PENDING.wireName(), null);
+                if (scans.releaseLapsed(scan.getId(), running, asOf, ScanStatus.FAILED.wireName(), LEASE_EXHAUSTED_MESSAGE) > 0) {
+                    failed.add(scan.getId());
+                }
+            } else if (scans.releaseLapsed(scan.getId(), running, asOf, ScanStatus.PENDING.wireName(), null) > 0) {
                 requeued.add(scan.getId());
             }
         }
