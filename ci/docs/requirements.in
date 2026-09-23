@@ -1,0 +1,20 @@
+# Les dépendances directes du site de documentation — ce que l'on choisit.
+#
+# **Ce fichier n'est pas celui qu'on installe.** `requirements.txt` en est la résolution complète,
+# chaque paquet transitif compris, épinglé à la version exacte et à ses empreintes SHA-256 ; la CI
+# l'installe avec `--require-hashes`, donc une archive qui ne correspond pas est refusée plutôt
+# qu'exécutée. Pour monter une version, modifier ce fichier puis régénérer :
+#
+#   uv pip compile ci/docs/requirements.in --generate-hashes --python-version 3.12 --universal \
+#     --no-header --output-file ci/docs/requirements.txt
+#
+# **Les plages seules ne suffisaient pas, et la raison qu'on en donnait était fausse.** Ce fichier
+# disait que le pire qu'une version mineure puisse faire était de changer l'apparence d'une page.
+# Mais `pip install` exécute le code du paquet dans le job qui produit l'artefact publié : une
+# version compromise de mkdocs ou d'un de ses plugins — ou de n'importe laquelle de leurs vingt-sept
+# dépendances, qu'aucune borne ne contraignait — pouvait réécrire le site servi sous le nom du
+# projet. Les plages restent ici pour dire ce qu'on accepte ; ce sont les empreintes qui décident
+# de ce qui s'exécute.
+mkdocs>=1.6,<2
+mkdocs-material>=9.5,<10
+mkdocs-static-i18n>=1.2,<2
