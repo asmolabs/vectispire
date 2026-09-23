@@ -61,3 +61,6 @@ vectispire-angular/.playwright/
 # laisse committer le reste : des chemins de SDK et de runners qui n'existent que sur le poste
 # qui les a écrits, et qui cassent l'import chez le suivant plutôt que de l'aider.
 .idea/
+
+# npm's own state when HOME points here (the update notifier's timestamp was committed once).
+/.npm/
