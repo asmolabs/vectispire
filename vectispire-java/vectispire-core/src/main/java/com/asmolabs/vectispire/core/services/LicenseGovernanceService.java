@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class LicenseGovernanceService {
+
+    private static final Logger log = LoggerFactory.getLogger(LicenseGovernanceService.class);
 
     private final LicensePolicies policyRepo;
     private final Components componentsRepo;
@@ -161,7 +165,7 @@ public class LicenseGovernanceService {
 
                             String license = extractLicenseFromSbom(artifact);
                             if (license == null || license.isBlank() || "UNKNOWN".equalsIgnoreCase(license)) {
-                                license = inferLicense(name);
+                                license = UNDECLARED;
                             }
 
                             LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
@@ -182,7 +186,12 @@ public class LicenseGovernanceService {
                                     targetName));
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception unreadable) {
+                    // Logged, not swallowed: an SBOM that no longer parses took every licence of
+                    // its scan out of the inventory with nothing to say why.
+                    log.warn("Scan {}: SBOM unreadable, its licences are missing from the inventory: {}",
+                            scan.getId(), unreadable.getMessage());
+                }
             }
         }
 
@@ -210,7 +219,7 @@ public class LicenseGovernanceService {
 
             String key = targetKind + ":" + targetId + ":" + comp.getName() + ":" + (comp.getVersion() != null ? comp.getVersion() : "");
             if (!entryMap.containsKey(key)) {
-                String inferredLicense = inferLicense(comp.getName());
+                String inferredLicense = UNDECLARED;
                 LicenseRiskCategory risk = LicenseRiskCategory.classify(inferredLicense);
                 boolean compliant = policy.isCompliant(inferredLicense, risk);
                 String violationReason = compliant ? null : "License " + inferredLicense + " is forbidden under active compliance policy (" + risk + ")";
@@ -331,17 +340,18 @@ public class LicenseGovernanceService {
         return null;
     }
 
-    private String inferLicense(String packageName) {
-        if (packageName == null) return "UNKNOWN";
-        String lower = packageName.toLowerCase();
-        if (lower.contains("gpl") || lower.contains("mysql-connector")) return "GPL-2.0";
-        if (lower.contains("agpl")) return "AGPL-3.0";
-        if (lower.contains("hibernate") || lower.contains("lgpl")) return "LGPL-2.1";
-        if (lower.contains("apache") || lower.contains("spring") || lower.contains("commons") || lower.contains("log4j") || lower.contains("jackson")) return "Apache-2.0";
-        if (lower.contains("react") || lower.contains("angular") || lower.contains("vue") || lower.contains("lodash") || lower.contains("express")) return "MIT";
-        if (lower.contains("postgres") || lower.contains("sqlite")) return "BSD-3-Clause";
-        return "MIT";
-    }
+    /**
+     * What an undeclared licence is recorded as: unknown, and nothing more.
+     *
+     * <p><b>It used to be guessed from the package name</b> — "spring" meant Apache-2.0, "react"
+     * meant MIT, a name containing "gpl" meant GPL-2.0 — and <b>anything unrecognised was declared
+     * MIT</b>, which is permissive, so compliant under every policy. The inventory, the scorecard
+     * grade and the conflict evaluation therefore reported as cleared exactly the components whose
+     * licence nobody had read, to an auditor with no way of telling a declared licence from an
+     * invented one. Unknown is what the risk classification and the conflict matrix already have a
+     * category for; a policy that refuses unknown licences can now actually see them.
+     */
+    private static final String UNDECLARED = "UNKNOWN";
 
     private LicensePolicy toDomainPolicy(LicensePolicyEntity entity) {
         Set<LicenseRiskCategory> disallowed = new HashSet<>();
@@ -349,7 +359,14 @@ public class LicenseGovernanceService {
             for (String part : entity.getDisallowedCategories().split(",")) {
                 try {
                     disallowed.add(LicenseRiskCategory.valueOf(part.trim()));
-                } catch (Exception ignored) {}
+                } catch (IllegalArgumentException misspelt) {
+                    // A misspelt category was dropped in silence, and the category it meant to
+                    // forbid was then allowed. Still dropped — failing every read over it would
+                    // take the screen down — but said.
+                    if (!part.isBlank()) {
+                        log.warn("Licence policy names an unknown risk category \"{}\" — it forbids nothing.", part.trim());
+                    }
+                }
             }
         }
         Set<String> allowed = entity.getAllowedLicenses() != null && !entity.getAllowedLicenses().isBlank()

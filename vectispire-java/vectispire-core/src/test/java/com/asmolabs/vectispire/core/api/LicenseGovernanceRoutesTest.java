@@ -54,22 +54,24 @@ class LicenseGovernanceRoutesTest extends ApiTestBase {
         scan.setBranch("main");
         scan.setStatus("completed");
         scan.setCreatedAt(Instant.now());
+        // 1. Licences as the cataloguer declares them, one permissive and one copyleft. This test
+        // used to seed bare components and let the service *guess* GPL from the name
+        // "mysql-connector" — asserting the invention it now refuses to make.
+        scan.setSbom("""
+                {"artifacts": [
+                  {"name": "org.apache.commons:commons-lang3", "version": "3.12.0",
+                   "purl": "pkg:maven/org.apache.commons/commons-lang3@3.12.0", "licenses": ["Apache-2.0"]},
+                  {"name": "mysql:mysql-connector-j", "version": "8.0.33",
+                   "purl": "pkg:maven/mysql/mysql-connector-j@8.0.33", "licenses": ["GPL-2.0"]}]}""");
         scan = scansRepo.save(scan);
 
-        // 1. Create a component with permissive license and another with copyleft license
-        ComponentEntity comp1 = new ComponentEntity();
-        comp1.setScanId(scan.getId());
-        comp1.setName("org.apache.commons:commons-lang3");
-        comp1.setVersion("3.12.0");
-        comp1.setPurl("pkg:maven/org.apache.commons/commons-lang3@3.12.0");
-        componentsRepo.save(comp1);
-
-        ComponentEntity comp2 = new ComponentEntity();
-        comp2.setScanId(scan.getId());
-        comp2.setName("mysql:mysql-connector-j");
-        comp2.setVersion("8.0.33");
-        comp2.setPurl("pkg:maven/mysql/mysql-connector-j@8.0.33");
-        componentsRepo.save(comp2);
+        // And one component nothing declares a licence for.
+        ComponentEntity undeclared = new ComponentEntity();
+        undeclared.setScanId(scan.getId());
+        undeclared.setName("com.example:mystery-lib");
+        undeclared.setVersion("1.0.0");
+        undeclared.setPurl("pkg:maven/com.example/mystery-lib@1.0.0");
+        componentsRepo.save(undeclared);
 
         // 2. Query summary
         mvc.perform(authenticated(get("/api/v1/licenses/summary"), adminToken))
@@ -82,7 +84,11 @@ class LicenseGovernanceRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/licenses/inventory"), adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.packageName == 'mysql:mysql-connector-j')].riskCategory").value("STRONG_COPYLEFT"))
-                .andExpect(jsonPath("$[?(@.packageName == 'mysql:mysql-connector-j')].compliant").value(false));
+                .andExpect(jsonPath("$[?(@.packageName == 'mysql:mysql-connector-j')].compliant").value(false))
+                // Unknown, not MIT: anything unrecognised used to be declared MIT, hence permissive,
+                // hence compliant under every policy — cleared precisely because nobody read it.
+                .andExpect(jsonPath("$[?(@.packageName == 'com.example:mystery-lib')].license").value("UNKNOWN"))
+                .andExpect(jsonPath("$[?(@.packageName == 'com.example:mystery-lib')].riskCategory").value("UNKNOWN"));
 
         // 4. Update policy to allow STRONG_COPYLEFT
         LicensePolicy updatedPolicy = new LicensePolicy(

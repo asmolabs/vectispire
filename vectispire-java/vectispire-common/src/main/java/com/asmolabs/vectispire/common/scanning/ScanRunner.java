@@ -103,17 +103,18 @@ public final class ScanRunner {
             // would put "no pom.xml" in the same list as "Semgrep timed out".
             ProjectManifest.read(workspace.source().resolve(subPath)).ifPresent(artifacts::project);
 
-            // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger)
-            try {
+            // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
+            //
+            // **A step like the others, no longer a swallowed exception.** A failure here was
+            // caught and ignored — and the scanner itself returned empty lists when it could not
+            // walk the tree, which the inventory reads as "this repository has no contracts" and
+            // records by replacing the ones it had (decision 0007). Absent now means absent.
+            step(artifacts, "api discovery", () -> {
                 var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(
                         workspace.source().resolve(subPath));
-                if (apiDiscovery != null) {
-                    artifacts.apiEndpoints(apiDiscovery.endpoints());
-                    artifacts.apiContracts(apiDiscovery.contracts());
-                }
-            } catch (Exception ignored) {
-                // Discovery is resilient; failure never blocks the scan
-            }
+                artifacts.apiEndpoints(apiDiscovery.endpoints());
+                artifacts.apiContracts(apiDiscovery.contracts());
+            });
 
             if (task.runs(ScanTask.Step.DEPENDENCIES)) {
                 step(artifacts, "dependencies", () -> {

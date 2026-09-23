@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
 import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
@@ -25,6 +27,8 @@ import java.util.regex.Pattern;
  */
 public final class ApiDiscoveryScanner {
 
+    private static final Logger log = LoggerFactory.getLogger(ApiDiscoveryScanner.class);
+
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     private static final Set<String> IGNORED_DIRS = Set.of(
@@ -34,8 +38,11 @@ public final class ApiDiscoveryScanner {
     public record Result(List<ApiEndpoint> endpoints, List<ApiContract> contracts) {}
 
     public static Result scan(Path workspaceRoot) {
-        if (workspaceRoot == null || !Files.exists(workspaceRoot)) {
-            return new Result(List.of(), List.of());
+        // A root that is not there — a sub-path absent from this checkout — means nothing was
+        // looked at. Answering with empty lists said "looked, found no API".
+        if (workspaceRoot == null || !Files.isDirectory(workspaceRoot)) {
+            throw new java.io.UncheckedIOException(new java.nio.file.NoSuchFileException(
+                    String.valueOf(workspaceRoot), null, "no source tree to discover APIs in"));
         }
 
         List<ApiEndpoint> endpoints = new ArrayList<>();
@@ -87,14 +94,18 @@ public final class ApiDiscoveryScanner {
                         } else if (name.endsWith(".go")) {
                             extractGoEndpoints(file, relativePath, endpoints);
                         }
-                    } catch (Exception ignored) {
-                        // Resilient scanner: a single malformed file does not abort the whole discovery
+                    } catch (Exception unreadable) {
+                        // One malformed file does not abort the discovery — it is a property of the
+                        // scanned code, not a failure of the scanner — but it is no longer silent.
+                        log.debug("API discovery skipped {}: {}", relativePath, unreadable.getMessage());
                     }
                     return FileVisitResult.CONTINUE;
                 }
             });
-        } catch (IOException e) {
-            return new Result(List.of(), List.of());
+        } catch (IOException unwalkable) {
+            // Thrown, not answered with empty lists: empty is "looked and found no API", which
+            // replaces the repository's recorded contracts with nothing.
+            throw new java.io.UncheckedIOException("The source tree could not be walked for API discovery.", unwalkable);
         }
 
         // Reconcile visibility if Ingress paths were found and deduplicate endpoints
@@ -265,7 +276,10 @@ public final class ApiDiscoveryScanner {
 
                 return java.util.Optional.of(new ApiContract(relativePath, format, title, version, paths.size(), paths));
             }
-        } catch (Exception e) {
+        } catch (Exception unreadable) {
+            // A file that looked like a specification and did not parse: said at warn, because it
+            // is the one case an operator would want to fix — a contract they believe is inventoried.
+            log.warn("API contract {} could not be parsed and is not inventoried: {}", relativePath, unreadable.getMessage());
             return java.util.Optional.empty();
         }
     }

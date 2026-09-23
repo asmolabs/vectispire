@@ -249,4 +249,15 @@ class ApiDiscoveryScannerTest {
         assertThat(summary.shadowEndpoints()).isEqualTo(1);
         assertThat(summary.sensitiveUnprotectedEndpoints()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("a tree that cannot be walked is a failure, not an API-free repository")
+    void anUnwalkableTreeThrows(@TempDir Path tempDir) {
+        // It answered with empty lists, which the inventory reads as "no contracts here" and
+        // records by replacing the ones it had (decision 0007).
+        Path missing = tempDir.resolve("does-not-exist");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> ApiDiscoveryScanner.scan(missing))
+                .isInstanceOf(java.io.UncheckedIOException.class);
+    }
 }
