@@ -105,8 +105,36 @@ public class ScanIngestor {
         this(sync, enricher, endOfLife, licenses, notifications, inventory, Optional.empty(), clock);
     }
 
+    /**
+     * What ingestion needs from outside this process, fetched before its transaction opens.
+     *
+     * @param endOfLife the end-of-life findings, or empty when the step did not run — no SBOM,
+     *     detection off, or a failed lookup — in which case the type is not declared scanned
+     */
+    public record Prepared(Optional<List<FindingEntity>> endOfLife) {}
+
+    /**
+     * Performs the remote lookups, <b>outside any transaction</b>.
+     *
+     * <p>End of life consults a public catalogue, one request per product on a cold cache. Done
+     * inside {@link #ingest}, those requests ran while the scan's writing transaction held its
+     * rows — the lock that fences a concurrent reclaim included — for as long as the catalogue
+     * took to answer. The class promises never to hold a transaction during slow work; this is
+     * where that promise is kept.
+     */
+    public Prepared prepare(ScanEntity scan, ScanArtifacts artifacts) {
+        return new Prepared(artifacts.sbom().flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
+                .flatMap(source -> source.findings(scan, sbom))));
+    }
+
+    /** Prepares and ingests in one go — for a caller with no transaction to keep short. */
     @Transactional(propagation = Propagation.MANDATORY)
     public IssueSyncService.SyncResult ingest(ScanEntity scan, ScanArtifacts artifacts) {
+        return ingest(scan, artifacts, prepare(scan, artifacts));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public IssueSyncService.SyncResult ingest(ScanEntity scan, ScanArtifacts artifacts, Prepared prepared) {
         List<FindingEntity> findings = new ArrayList<>();
         Set<FindingType> scannedTypes = EnumSet.noneOf(FindingType.class);
         Map<String, String> descriptions = new HashMap<>();
@@ -209,16 +237,16 @@ public class ScanIngestor {
         // nothing was observed, and declaring it would resolve that type's whole history — "we
         // stopped looking" is not "it is fixed". The third condition was missing: the type was
         // declared before the call, and a catalog outage returned an empty list.
-        artifacts.sbom().ifPresent(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled).ifPresent(source ->
-                source.findings(scan, sbom).ifPresent(found -> {
-                    scannedTypes.add(FindingType.EOL);
-                    found.forEach(finding -> {
-                        if (finding.getIdentifier() != null) {
-                            descriptions.put(finding.getIdentifier(), source.describe(finding));
-                        }
-                    });
-                    findings.addAll(found);
-                })));
+        // Looked up by `prepare`, before the transaction; present only if all three held.
+        prepared.endOfLife().ifPresent(found -> {
+            scannedTypes.add(FindingType.EOL);
+            endOfLife.ifPresent(source -> found.forEach(finding -> {
+                if (finding.getIdentifier() != null) {
+                    descriptions.put(finding.getIdentifier(), source.describe(finding));
+                }
+            }));
+            findings.addAll(found);
+        });
 
         // Licences are read from the same SBOM, with no network call and no extra tool. The type
         // counts as scanned as soon as an SBOM exists: unlike end of life there is no remote

@@ -376,17 +376,24 @@ public class ScanDispatcher {
      * overwrite its work with stale results.
      */
     private boolean record(long scanId, String worker, ScanArtifacts artifacts) {
-        return Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts)));
+        // **The remote lookups first, then the transaction.** End of life asks a public catalogue,
+        // and asking it inside `write` held the scan's row lock — the one that fences a concurrent
+        // reclaim — for as long as the catalogue took to answer.
+        Optional<ScanIngestor.Prepared> prepared = queue.byId(scanId).map(scan -> ingestor.prepare(scan, artifacts));
+        if (prepared.isEmpty()) {
+            return false;
+        }
+        return Boolean.TRUE.equals(transactions.execute(status -> write(scanId, worker, artifacts, prepared.get())));
     }
 
-    private boolean write(long scanId, String worker, ScanArtifacts artifacts) {
+    private boolean write(long scanId, String worker, ScanArtifacts artifacts, ScanIngestor.Prepared prepared) {
         // Holds the row until this transaction commits — see `holdForWrite`.
         if (!queue.holdForWrite(scanId, worker)) {
             return false;
         }
 
         ScanEntity scan = queue.byId(scanId).orElseThrow();
-        IssueSyncService.SyncResult result = ingestor.ingest(scan, artifacts);
+        IssueSyncService.SyncResult result = ingestor.ingest(scan, artifacts, prepared);
 
         // **A scan that observed nothing is a failure, not a completed scan.** Every step
         // absent *and* something broken means the target was never examined — the case that

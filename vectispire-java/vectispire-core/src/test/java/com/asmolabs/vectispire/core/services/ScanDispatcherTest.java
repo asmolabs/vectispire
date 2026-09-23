@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -274,6 +276,44 @@ class ScanDispatcherTest {
         verify(queue, never()).fail(anyLong(), anyString(), anyString());
     }
 
+    @Test
+    @DisplayName("the remote lookups run before the writing transaction opens, not inside it")
+    void lookupsPrecedeTheTransaction() {
+        // End of life asks a public catalogue. Inside the transaction, that held the scan's row
+        // lock — the one fencing a concurrent reclaim — for as long as the catalogue took.
+        ScanEntity scan = repositoryScan();
+        queueHolds(scan);
+        when(queue.renewLease(anyLong(), anyString())).thenReturn(true);
+        when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
+        when(queue.lease()).thenReturn(Duration.ofMinutes(20));
+        when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
+        when(queue.countRunning()).thenReturn(0L);
+        when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
+        ScanIngestor ingestor = mock(ScanIngestor.class);
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty()));
+        when(ingestor.ingest(any(), any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.run(any())).thenReturn(ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(1)));
+        PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+        when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+
+        new ScanDispatcher(
+                        queue, repositories, containers, sshKeys, ingestor,
+                        new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                        settings, ruleSets, envelopes,
+                        new ScanningProperties(Optional.of("linux/amd64")),
+                        Optional.of(runner),
+                        mock(AuditLogService.class),
+                        mock(PlatformMetrics.class),
+                        new TransactionTemplate(manager))
+                .dispatch("worker-1", 1, List.of());
+
+        InOrder order = inOrder(ingestor, manager);
+        order.verify(ingestor).prepare(any(), any());
+        order.verify(manager).getTransaction(any());
+        order.verify(ingestor).ingest(any(), any(), any());
+    }
+
     /** Runs one scan through the dispatcher with a stubbed runner, and returns the row written. */
     private ScanEntity withRunner(ScanArtifacts artifacts) {
         ScanEntity scan = repositoryScan();
@@ -286,7 +326,8 @@ class ScanDispatcherTest {
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
 
         ScanIngestor ingestor = mock(ScanIngestor.class);
-        when(ingestor.ingest(any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty()));
+        when(ingestor.ingest(any(), any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
 
         ScanRunner runner = mock(ScanRunner.class);
         when(runner.run(any())).thenReturn(artifacts);
