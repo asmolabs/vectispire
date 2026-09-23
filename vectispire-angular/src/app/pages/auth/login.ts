@@ -188,10 +188,17 @@ export class Login {
  */
 function clientId(): string {
     const key = 'vectispire.client';
-    let value = localStorage.getItem(key);
-    if (!value) {
-        value = crypto.randomUUID();
-        localStorage.setItem(key, value);
+    // Storage can refuse outright — a private window, blocked site data — and an uncaught throw
+    // here made sign-in itself fail. Without it the identifier is simply not kept: the limiter
+    // becomes more forgiving for this browser, which is the stated cost of losing it anyway.
+    try {
+        let value = localStorage.getItem(key);
+        if (!value) {
+            value = crypto.randomUUID();
+            localStorage.setItem(key, value);
+        }
+        return value;
+    } catch {
+        return crypto.randomUUID();
     }
-    return value;
 }

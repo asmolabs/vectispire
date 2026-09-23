@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { RippleModule } from '@openng/optimus-ui/ripple';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { filter } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
     selector: '[app-menuitem]',
@@ -130,7 +131,9 @@ export class AppMenuitem {
     initialized = signal<boolean>(false);
 
     constructor() {
-        this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
+        // Released with the item: one subscription per menu entry, and the menu is rebuilt on every
+        // role change and every sign-in, so without it they piled up for the life of the tab.
+        this.router.events.pipe(filter((event) => event instanceof NavigationEnd), takeUntilDestroyed()).subscribe(() => {
             if (this.item()?.routerLink) {
                 this.updateActiveStateFromRoute();
             }
