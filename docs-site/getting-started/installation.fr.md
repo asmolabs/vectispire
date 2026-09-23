@@ -38,7 +38,7 @@ cp .env.example .env      # puis éditez-le — voir ci-dessous
 docker compose up -d
 ```
 
-Cela démarre PostgreSQL et le plan de contrôle sur `http://localhost:3180`. Pour lancer aussi
+Cela démarre MySQL et le plan de contrôle sur `http://localhost:3180`. Pour lancer aussi
 un agent distant dédié :
 
 ```bash

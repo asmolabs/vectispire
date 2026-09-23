@@ -1,12 +1,13 @@
 # Vectispire — Angular UI
 
-Vectispire's user interface: fifteen screens over the HTTP API that
+Vectispire's user interface: the screens over the HTTP API that
 [`vectispire-java/`](../vectispire-java/) serves.
 
 ```bash
 npm start                 # from the root, serves on http://localhost:4280
 npm run build
-npm test                  # asset check + Vitest suite
+npm run lint              # ESLint: TypeScript, Angular and template accessibility rules
+npm test                  # asset, i18n and dead-API checks, then the Vitest suite
 ```
 
 The dev server proxies `/api` to `http://localhost:3180` (see `proxy.conf.json`). The

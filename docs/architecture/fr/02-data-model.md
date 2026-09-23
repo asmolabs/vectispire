@@ -25,7 +25,7 @@ erDiagram
     SCAN       ||--o{ AI_REVIEW_RESULT : "transporte"
 ```
 
-**Le diagramme est un sous-ensemble délibéré : onze tables sur trente-trois.** Il montre le chemin
+**Le diagramme est un sous-ensemble délibéré : onze tables sur trente-sept.** Il montre le chemin
 d'une analyse, parce que c'est la partie dont il faut comprendre la forme avant de toucher au
 schéma. Le reste — la billetterie, l'inventaire d'API, le renseignement sur les menaces, la
 configuration SIEM, les sessions, les paramètres, le journal d'audit — s'y raccroche sans le

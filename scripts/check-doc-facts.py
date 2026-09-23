@@ -37,11 +37,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Prose to inspect: the two front pages and every published document, both languages.
+# Prose to inspect: the front pages, the modules' own READMEs, every published document in both
+# languages, the architecture record and the user guide the site publishes.
+#
+# **The module READMEs and the site were outside it, and that is where the drift was.** The Java
+# README claimed "all four engines" and "twenty-six tables" a month after both had stopped being
+# true, and the installation guide said `docker compose` starts PostgreSQL when it starts MySQL —
+# every one of those documents is read before the ones this list did cover.
 DOCUMENTS = sorted(
-    {ROOT / "README.md", ROOT / "README.fr.md"}
-    | set((ROOT / "docs" / "en").rglob("*.md"))
-    | set((ROOT / "docs" / "fr").rglob("*.md"))
+    path
+    for path in (
+        {ROOT / "README.md", ROOT / "README.fr.md",
+         ROOT / "vectispire-java" / "README.md", ROOT / "vectispire-angular" / "README.md"}
+        | set((ROOT / "docs" / "en").rglob("*.md"))
+        | set((ROOT / "docs" / "fr").rglob("*.md"))
+        | set((ROOT / "docs" / "architecture").rglob("*.md"))
+        | set((ROOT / "docs-site").rglob("*.md"))
+    )
+    # The decision records are left out of the counts, deliberately: they are history, and a
+    # superseded record *must* still say "four engines" — that is what it decided. Their index is
+    # checked separately, against their headers.
+    if "decisions" not in path.parts
 )
 
 NUMBER_WORDS = {
@@ -180,7 +196,10 @@ def claims() -> list[tuple[str, int, re.Pattern[str]]]:
         # the number of migration directories Flyway actually carries — claim more targets than
         # there is SQL for, and it is wrong whatever the phrasing. That catches the case that
         # broke and stays silent on the cases that did not.
+        # A product version is not a count: "MySQL 8 sont les moteurs supportés" is two engines,
+        # and without the lookbehinds it read as eight.
         ("database engines (at most)", MAX, re.compile(
+            r"(?<!MySQL )(?<!PostgreSQL )(?<!SQLite )"
             r"\b(\d+|one|two|three|four|five|six|un|une|deux|trois|quatre|cinq|six)\b\s+"
             r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
             r"(?:engines?|moteurs?)\b", re.I)),
@@ -195,8 +214,9 @@ def claims() -> list[tuple[str, int, re.Pattern[str]]]:
             r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,4}"
             r"(?:frameworks?|référentiels?)\b", re.I)),
         # "24 controls", "détail des 24 contrôles"
+        # Not after a dot: "### 2.2 Role-Based Access Control" is a section number.
         ("compliance controls", counts["controls"], re.compile(
-            r"\b(\d+)\s+(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
+            r"(?<![\d.])\b(\d+)\s+(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
             r"(?:controls?|contrôles?)\b", re.I)),
         # "7 assessment categories", "7 catégories d'évaluation", "seven control categories".
         # The documents say *assessment* categories where the enum says Category; matching only
@@ -204,8 +224,40 @@ def claims() -> list[tuple[str, int, re.Pattern[str]]]:
         ("control categories", counts["categories"], re.compile(
             r"\b(\d+|six|seven|eight|sept|huit)\b\s+"
             r"(?:(?!\b(?:of|and|de|et)\b)[\w’'-]+\s+){0,2}"
-            r"(?:categor(?:y|ies)|catégories?)\b", re.I)),
+            # STRIDE has six categories of its own, which are threats, not compliance controls.
+            r"(?:categor(?:y|ies)|catégories?)\b(?!\s+STRIDE)", re.I)),
     ]
+
+
+def adr_index_disagreements() -> list[str]:
+    """Rows of the ADR index whose status is not the one the decision's own header states.
+
+    The index gained a status column so that a reader need not open nine files to learn which
+    decisions still hold. A column copied by hand is a second copy of each status, and the one
+    that goes stale is the index — so each row is compared with the header it summarises.
+    """
+    wording = {"accepted": "accepted", "proposed": "proposed", "superseded": "superseded by",
+               "accepté": "acceptée", "proposé": "proposée", "remplacé": "remplacée par"}
+    problems = []
+    for lang in ("en", "fr"):
+        decisions = ROOT / "docs" / "architecture" / lang / "decisions"
+        index = read(decisions / "README.md")
+        for row in re.finditer(r"^\| \[(\d{4})\]\(([^)]+)\) \| [^|]+ \| ([^|]+) \|$", index, re.M):
+            number, target, listed = row.group(1), row.group(2), row.group(3).strip()
+            header = re.search(
+                r"\*\*(?:Status|Statut)\s?:\*\*\s*\**([a-zéè]+)\**(?:\s+(?:by|par)\s+\[(\d{4})\])?",
+                read(decisions / target))
+            if header is None:
+                problems.append(f"docs/architecture/{lang}/decisions/{target}: no status in its header")
+                continue
+            expected = wording.get(header.group(1).lower(), header.group(1).lower())
+            if header.group(2):
+                expected += f" [{header.group(2)}]"
+            if not re.sub(r"\([^)]*\)", "", listed).startswith(expected):
+                problems.append(
+                    f"docs/architecture/{lang}/decisions/README.md: ADR {number} is listed as "
+                    f"“{listed}” but its header says “{expected}”")
+    return problems
 
 
 def asserted(text: str, pattern: re.Pattern[str]) -> list[tuple[int, str, str]]:
@@ -260,6 +312,8 @@ def main() -> int:
         print("Either the documentation stopped stating them, or the pattern is wrong. Both "
               "need a human; neither is a clean run.", file=sys.stderr)
         return 1
+
+    failures.extend(adr_index_disagreements())
 
     if failures:
         print("Documentation contradicts the tree:\n", file=sys.stderr)

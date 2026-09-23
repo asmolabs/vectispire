@@ -24,7 +24,7 @@ erDiagram
     SCAN       ||--o{ AI_REVIEW_RESULT : "carries"
 ```
 
-**The diagram is a deliberate subset: eleven tables of thirty-three.** It shows the scan path,
+**The diagram is a deliberate subset: eleven tables of thirty-seven.** It shows the scan path,
 because that is the part whose shape has to be understood before the schema can be touched. The rest
 — ticketing, the API inventory, threat intelligence, SIEM configuration, sessions, settings, the
 audit log — hangs off it without changing it. `SchemaParityIntegrationTest` is what keeps the count

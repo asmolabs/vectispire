@@ -38,7 +38,7 @@ cp .env.example .env      # then edit it — see below
 docker compose up -d
 ```
 
-That brings up PostgreSQL and the control plane on `http://localhost:3180`. To also start a
+That brings up MySQL and the control plane on `http://localhost:3180`. To also start a
 dedicated remote agent:
 
 ```bash
