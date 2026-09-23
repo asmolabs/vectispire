@@ -44,12 +44,12 @@ vectispire-security-gate:
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L "${VECTISPIRE_URL}/scripts/vectispire-cli.sh" -o vectispire-cli.sh || curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh" -o vectispire-cli.sh
+    - curl -s -f -L "${VECTISPIRE_URL}/scripts/vectispire-cli.sh" -o vectispire-cli.sh || curl -s -f -L "https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh" -o vectispire-cli.sh
     - chmod +x vectispire-cli.sh
     # 1. Déclenche le scan et attend sa fin
-    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --wait
+    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
     # 2. Évalue la Gate (Bloque le pipeline si une sévérité CRITICAL ou HIGH non triée est présente)
-    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'
 ```
@@ -80,10 +80,10 @@ jobs:
           VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
           VECTISPIRE_REPO_ID: "1"
         run: |
-          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
           chmod +x vectispire-cli.sh
-          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --wait
-          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
+          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
 ```
 
 ---
@@ -99,10 +99,10 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
           - chmod +x vectispire-cli.sh
-          - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id 1 --wait
-          - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id 1 --fail-on HIGH
+          - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id 1 --wait
+          - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id 1 --fail-on HIGH
 ```
 
 ---
@@ -121,10 +121,10 @@ pipeline {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/scripts/vectispire-cli.sh -o vectispire-cli.sh
                     chmod +x vectispire-cli.sh
-                    ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --wait
-                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
+                    ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --wait
+                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id "$VECTISPIRE_REPO_ID" --fail-on HIGH
                 '''
             }
         }

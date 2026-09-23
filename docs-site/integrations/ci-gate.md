@@ -5,7 +5,7 @@ The gate answers one question from your pipeline: **should this build fail?**
 ## The short version
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/main/ci/vectispire-gate.sh | sh
+curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh
 ```
 
 Or use the shipped integrations rather than writing the request by hand:

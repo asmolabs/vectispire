@@ -6,7 +6,7 @@ La barrière répond à une question posée par votre pipeline : **cette constru
 ## La version courte
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/main/ci/vectispire-gate.sh | sh
+curl -sSL https://raw.githubusercontent.com/asmolabs/vectispire/v0.9.0/ci/vectispire-gate.sh | sh
 ```
 
 Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la main :

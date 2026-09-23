@@ -21,6 +21,19 @@ import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
+import { version as RELEASE } from '../../../../package.json';
+
+/**
+ * The CLI the pipeline snippets download, <b>pinned to this build's release tag</b>.
+ *
+ * <p>The snippets fetched the script from {@code main} — whatever that branch held on the day a
+ * pipeline ran — and piped the API key into it. Pinned to the tag, a pipeline runs the script this
+ * Vectispire was released with, and a change to {@code main} reaches nobody's CI unannounced. The
+ * key travels in the environment the CLI already reads, not as an argument, where {@code ps} and a
+ * {@code set -x} log would show it; the images and the actions are pinned as this repository's own
+ * workflows are.
+ */
+const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v${RELEASE}/scripts/vectispire-cli.sh`;
 
 @Component({
     selector: 'app-repositories',
@@ -348,17 +361,17 @@ stages:
 
 vectispire-scan:
   stage: security-gate
-  image: alpine:latest
+  image: alpine:3.22
   variables:
     VECTISPIRE_URL: "${origin}"
     # Configure VECTISPIRE_API_KEY in Settings > CI/CD > Variables (Masked & Protected)
   before_script:
     - apk add --no-cache curl jq
   script:
-    - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+    - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
     - chmod +x vectispire-cli.sh
-    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
-    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH
+    - ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
+    - ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
   rules:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"'`;
 
@@ -376,22 +389,19 @@ jobs:
     name: Vectispire ASPM Quality Gate
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Trigger Scan & Enforce Security Gate
         env:
           VECTISPIRE_URL: "${origin}"
           VECTISPIRE_API_KEY: \${{ secrets.VECTISPIRE_API_KEY }}
         run: |
-          curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
           chmod +x vectispire-cli.sh
-          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
-          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH`;
+          ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
+          ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH`;
 
             case 'bitbucket':
                 return `# bitbucket-pipelines.yml
-image: alpine:latest
+image: alpine:3.22
 
 pipelines:
   default:
@@ -399,10 +409,10 @@ pipelines:
         name: Vectispire Security Gate
         script:
           - apk add --no-cache curl jq
-          - curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+          - curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
           - chmod +x vectispire-cli.sh
-          - ./vectispire-cli.sh scan --url "${origin}" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
-          - ./vectispire-cli.sh gate --url "${origin}" --api-key "$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH`;
+          - ./vectispire-cli.sh scan --url "${origin}" --repo-id ${repoId} --wait
+          - ./vectispire-cli.sh gate --url "${origin}" --repo-id ${repoId} --fail-on HIGH`;
 
             case 'jenkins':
                 return `// Jenkinsfile
@@ -416,10 +426,10 @@ pipeline {
         stage('Security Gate') {
             steps {
                 sh '''
-                    curl -s -f -L https://raw.githubusercontent.com/asmolabs/vectispire/main/scripts/vectispire-cli.sh -o vectispire-cli.sh
+                    curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
                     chmod +x vectispire-cli.sh
-                    ./vectispire-cli.sh scan --url "\$VECTISPIRE_URL" --api-key "\$VECTISPIRE_API_KEY" --repo-id ${repoId} --wait
-                    ./vectispire-cli.sh gate --url "\$VECTISPIRE_URL" --api-key "\$VECTISPIRE_API_KEY" --repo-id ${repoId} --fail-on HIGH
+                    ./vectispire-cli.sh scan --url "\$VECTISPIRE_URL" --repo-id ${repoId} --wait
+                    ./vectispire-cli.sh gate --url "\$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
                 '''
             }
         }
