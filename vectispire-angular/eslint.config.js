@@ -1,89 +1,43 @@
-export default {
-    root: true,
-    ignorePatterns: ['**/dist/**'],
-    plugins: ['prettier'],
-    extends: ['prettier'],
-    rules: {
-        'padding-line-between-statements': [
-            'error',
-            { blankLine: 'always', prev: ['const', 'let', 'var'], next: '*' },
-            { blankLine: 'any', prev: ['const', 'let', 'var'], next: ['const', 'let', 'var'] },
-            { blankLine: 'any', prev: ['case', 'default'], next: 'break' },
-            { blankLine: 'any', prev: 'case', next: 'case' },
-            { blankLine: 'always', prev: '*', next: 'return' },
-            { blankLine: 'always', prev: 'block', next: '*' },
-            { blankLine: 'always', prev: '*', next: 'block' },
-            { blankLine: 'always', prev: 'block-like', next: '*' },
-            { blankLine: 'always', prev: '*', next: 'block-like' },
-            { blankLine: 'always', prev: ['import'], next: ['const', 'let', 'var'] }
-        ]
+// @ts-check
+//
+// **This file used to exist without doing anything.** It exported an eslintrc object from a
+// flat-config filename, which ESLint 9 rejects; none of the plugins it named were installed;
+// `npm run lint` called `ng lint`, and `angular.json` has no lint target; no workflow ran it. Its
+// selector rules demanded the prefix `p` while the code uses `app` and `zs`. Every rule below was
+// therefore unenforced — the failure mode this project names most often: a check that exists on
+// paper and verifies nothing.
+//
+// Now installed, run by `npm run lint`, and by CI. The rule sets are the maintained recommended
+// ones rather than a hand-picked list; what is switched off is switched off with its reason.
+const eslint = require('@eslint/js');
+const tseslint = require('typescript-eslint');
+const angular = require('angular-eslint');
+
+module.exports = tseslint.config(
+    {
+        ignores: ['dist/**', 'out-tsc/**', '.angular/**', 'src/app/core/api.generated.ts']
     },
-    overrides: [
-        {
-            files: ['*.ts'],
-            parserOptions: {
-                project: ['tsconfig.json', 'e2e/tsconfig.json'],
-                createDefaultProgram: true
-            },
-            extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:@angular-eslint/recommended', 'plugin:@angular-eslint/template/process-inline-templates', 'prettier'],
-            rules: {
-                '@angular-eslint/component-selector': [
-                    'error',
-                    {
-                        type: 'element',
-                        prefix: 'p',
-                        style: 'kebab-case'
-                    }
-                ],
-                '@angular-eslint/directive-selector': [
-                    'error',
-                    {
-                        type: 'attribute',
-                        prefix: 'p',
-                        style: 'camelCase'
-                    }
-                ],
-                '@angular-eslint/component-class-suffix': [
-                    'error',
-                    {
-                        suffixes: ['']
-                    }
-                ],
-                '@angular-eslint/template/eqeqeq': [
-                    'error',
-                    {
-                        allowNullOrUndefined: true
-                    }
-                ],
-                '@angular-eslint/no-host-metadata-property': 'off',
-                '@angular-eslint/no-output-on-prefix': 'off',
-                '@typescript-eslint/ban-types': 'off',
-                '@typescript-eslint/no-explicit-any': 'off',
-                '@typescript-eslint/no-inferrable-types': 'off',
-                'arrow-body-style': ['error', 'as-needed'],
-                curly: 0,
-                '@typescript-eslint/member-ordering': [
-                    'error',
-                    {
-                        default: ['public-static-field', 'static-field', 'instance-field', 'public-instance-method', 'public-static-field']
-                    }
-                ],
-                'no-console': 0,
-                'prefer-const': 0
-            }
-        },
-        {
-            files: ['*.html'],
-            extends: ['plugin:@angular-eslint/template/recommended', 'prettier'],
-            rules: {}
-        },
-        {
-            files: ['*.js'],
-            rules: {
-                parserOptions: {
-                    allowImportExportEverywhere: true
-                }
-            }
+    {
+        files: ['**/*.ts'],
+        extends: [eslint.configs.recommended, ...tseslint.configs.recommended, ...angular.configs.tsRecommended],
+        processor: angular.processInlineTemplates,
+        rules: {
+            // The prefixes the code actually carries, and the one `angular.json` declares for new
+            // ones. The old file demanded `p`, which no selector here has ever used.
+            '@angular-eslint/component-selector': ['error', { type: 'element', prefix: ['app', 'zs', 'vs'], style: 'kebab-case' }],
+            '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: ['app', 'zs', 'vs'], style: 'camelCase' }]
         }
-    ]
-};
+    },
+    {
+        files: ['**/*.html'],
+        extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
+        rules: {
+            // `value != null` is the idiom for "neither null nor undefined", and the templates use
+            // it on purpose; the old file allowed it too.
+            '@angular-eslint/template/eqeqeq': ['error', { allowNullOrUndefined: true }],
+            // `pButton` renders its `label` as the button's text, which the rule cannot see; an
+            // icon-only button with neither a label nor an aria-label is still reported.
+            '@angular-eslint/template/elements-content': ['error', { allowList: ['label', 'ariaLabel', 'aria-label'] }]
+        }
+    }
+);

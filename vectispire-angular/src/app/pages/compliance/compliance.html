@@ -288,7 +288,7 @@
         <!-- Framework card selector (row 1: NIS 2, ISO 27001, Cyber | row 2: DORA, PCI-DSS, SOC 2) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
             @for (fw of orderedEvaluations(); track fw.framework) {
-                <div
+                <div role="button" tabindex="0" (keydown.enter)="selectFramework(fw.framework)"
                     (click)="selectFramework(fw.framework)"
                     class="p-5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between h-full hover:shadow-md"
                     [ngClass]="selectedFramework() === fw.framework 
@@ -371,13 +371,13 @@
             </p>
 
             <div>
-                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.pick_json' | translate }}</label>
-                <input type="file" accept=".json,application/json" (change)="onFileSelected($event)" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                <label for="vex-import-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.pick_json' | translate }}</label>
+                <input id="vex-import-file" type="file" accept=".json,application/json" (change)="onFileSelected($event)" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Ou coller le contenu JSON direct</label>
-                <textarea rows="8" [(ngModel)]="importJson" class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0" placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'></textarea>
+                <label for="vex-import-json" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Ou coller le contenu JSON direct</label>
+                <textarea id="vex-import-json" rows="8" [(ngModel)]="importJson" class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0" placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'></textarea>
             </div>
 
             @if (importSuccess()) {
@@ -403,20 +403,20 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">1. Fichier de charge utile (ex: manifest.json)</label>
-                    <input type="file" (change)="onVerifyPayloadSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
+                    <label for="verify-payload-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">1. Fichier de charge utile (ex: manifest.json)</label>
+                    <input id="verify-payload-file" type="file" (change)="onVerifyPayloadSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
                     <textarea rows="4" [(ngModel)]="verifyPayload" placeholder="Ou coller le contenu du fichier..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">2. Fichier de signature (ex: manifest.json.sig)</label>
-                    <input type="file" (change)="onVerifySigSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
+                    <label for="verify-signature-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">2. Fichier de signature (ex: manifest.json.sig)</label>
+                    <input id="verify-signature-file" type="file" (change)="onVerifySigSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
                     <textarea rows="4" [(ngModel)]="verifySignature" placeholder="Ou coller la signature Base64..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
                 </div>
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.public_key_field' | translate }}</label>
-                <textarea rows="2" [(ngModel)]="verifyPublicKey" placeholder="-----BEGIN PUBLIC KEY----- ..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                <label for="verify-public-key" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.public_key_field' | translate }}</label>
+                <textarea id="verify-public-key" rows="2" [(ngModel)]="verifyPublicKey" placeholder="-----BEGIN PUBLIC KEY----- ..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
             </div>
 
             @if (verifyResult()) {
@@ -436,7 +436,7 @@
             @if (cosignCliInfo()?.commands?.cosignVerifyManifest) {
                 <div class="bg-surface-900 text-surface-100 p-3 rounded text-xs font-mono">
                     <p class="text-surface-400 text-[11px] mb-1">{{ 'compliance.cosign_equivalent' | translate }}</p>
-                    <code>{{ cosignCliInfo().commands.cosignVerifyManifest }}</code>
+                    <code>{{ cosignCliInfo()?.commands?.cosignVerifyManifest }}</code>
                 </div>
             }
         </div>

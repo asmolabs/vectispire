@@ -78,7 +78,11 @@ export class RuleSets {
 
     choose(language: string, selected: boolean): void {
         const next = new Set(this.chosen());
-        selected ? next.add(language) : next.delete(language);
+        if (selected) {
+            next.add(language);
+        } else {
+            next.delete(language);
+        }
         this.chosen.set(next);
     }
 

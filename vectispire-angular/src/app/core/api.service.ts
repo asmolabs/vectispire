@@ -6,7 +6,6 @@ import {
     ControlDeclaration,
     DeclarationRequest,
     ExceptionsRegister,
-    RegisteredVerdict,
     RemediationDistribution,
     ReviewOutcome,
     OwaspGrid,
@@ -66,7 +65,6 @@ import {
     LicensePolicy,
     LicenseSummary,
     OpenVexDocument,
-    SecurityGrade,
     BadgeState,
     PinnedSigningKey,
     SecurityScorecard,
@@ -82,7 +80,6 @@ import {
     BlastRadiusReport,
     TopImpactPackage,
     EpssFleetSummary,
-    EpssPrioritizedIssue,
     ThreatIntelRecord,
     NotificationChannelStatus,
     NotificationTestResult,
@@ -96,10 +93,7 @@ import {
     SecurityDebtReport,
     HighImpactFix,
     RemediationCoverage,
-    AttackPathGraph,
-    AttackPathNode,
-    AttackPath
-} from './api.models';
+    AttackPathGraph, CosignCliHelper, VexIngestResult } from './api.models';
 
 /**
  * Access to the API, in one place.
@@ -647,8 +641,8 @@ export class ApiService {
         return this.http.get<unknown>('/api/v1/cyclonedx/aggregate.json');
     }
 
-    ingestVex(doc: unknown): Observable<unknown> {
-        return this.http.post<unknown>('/api/v1/vex/ingest', doc);
+    ingestVex(doc: unknown): Observable<VexIngestResult> {
+        return this.http.post<VexIngestResult>('/api/v1/vex/ingest', doc);
     }
 
     getLicenseSummary(repoId?: number, containerId?: number): Observable<LicenseSummary> {
@@ -705,8 +699,8 @@ export class ApiService {
         return this.http.post<{ valid: boolean; keyId: string; algorithm: string; message: string }>('/api/v1/crypto/verify', { payload, signature, publicKey });
     }
 
-    getCosignCliHelper(): Observable<any> {
-        return this.http.get<any>('/api/v1/crypto/cosign-cli-helper');
+    getCosignCliHelper(): Observable<CosignCliHelper> {
+        return this.http.get<CosignCliHelper>('/api/v1/crypto/cosign-cli-helper');
     }
 
     exploreBlastRadius(query?: string): Observable<BlastRadiusReport> {
@@ -797,7 +791,7 @@ export class ApiService {
     }
 
     getSbomDiff(fromScanId: number, toScanId: number): Observable<SbomDiffReport> {
-        let params = new HttpParams()
+        const params = new HttpParams()
             .set('fromScanId', fromScanId)
             .set('toScanId', toScanId);
         return this.http.get<SbomDiffReport>('/api/v1/sbom/diff', { params });

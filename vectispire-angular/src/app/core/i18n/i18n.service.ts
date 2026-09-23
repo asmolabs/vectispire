@@ -4,6 +4,9 @@ import { firstValueFrom } from 'rxjs';
 
 export type SupportedLanguage = 'en' | 'fr';
 
+/** A bundle: nested sections down to the strings, as the JSON files hold them. */
+export type TranslationTree = { [key: string]: string | TranslationTree };
+
 @Injectable({
     providedIn: 'root'
 })
@@ -13,7 +16,7 @@ export class I18nService {
 
     readonly supportedLanguages: readonly SupportedLanguage[] = ['en', 'fr'];
     readonly currentLang = signal<SupportedLanguage>('en');
-    readonly translations = signal<Record<string, any>>({});
+    readonly translations = signal<TranslationTree>({});
     readonly isLoaded = signal<boolean>(false);
 
     /**
@@ -42,7 +45,7 @@ export class I18nService {
         }
 
         try {
-            const data = await firstValueFrom(this.http.get<Record<string, any>>(`/i18n/${lang}.json`));
+            const data = await firstValueFrom(this.http.get<TranslationTree>(`/i18n/${lang}.json`));
             this.translations.set(data);
             this.currentLang.set(lang);
             this.isLoaded.set(true);
@@ -76,8 +79,14 @@ export class I18nService {
         }, value);
     }
 
-    private resolveKey(obj: Record<string, any>, path: string): any {
-        if (!obj || !path) return null;
-        return path.split('.').reduce((prev, curr) => (prev && prev[curr] !== undefined ? prev[curr] : null), obj);
+    private resolveKey(obj: TranslationTree, path: string): string | TranslationTree | undefined {
+        if (!obj || !path) return undefined;
+        let node: string | TranslationTree | undefined = obj;
+        for (const part of path.split('.')) {
+            // A string reached before the path ends means the key goes deeper than the bundle.
+            if (node === undefined || typeof node === 'string') return undefined;
+            node = node[part];
+        }
+        return node;
     }
 }

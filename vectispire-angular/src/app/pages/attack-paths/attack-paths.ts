@@ -14,7 +14,6 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import type {
     AttackPath,
-    AttackPathEdge,
     AttackPathGraph,
     AttackPathNode,
     MonitoredRepository

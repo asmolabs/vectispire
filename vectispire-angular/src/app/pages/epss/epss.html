@@ -22,7 +22,7 @@
                     class="pl-9 text-xs w-48"
                 />
             </div>
-            <button pButton icon="pi pi-search" class="p-button-outlined" (click)="searchCve()" [disabled]="!cveSearchQuery.trim()"></button>
+            <button pButton icon="pi pi-search" class="p-button-outlined" [attr.aria-label]="'common.search' | translate" (click)="searchCve()" [disabled]="!cveSearchQuery.trim()"></button>
             @if (isSecurityLead()) {
                 <button
                     pButton

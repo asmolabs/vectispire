@@ -183,7 +183,10 @@ export class Settings {
     readonly siemTestResult = signal<SiemTestResult | null>(null);
     siemForm = {
         enabled: false,
-        protocol: 'WEBHOOK' as const,
+        // The four protocols the server accepts, not the one the form starts on: typed as the
+        // literal 'WEBHOOK', the form could not hold a syslog configuration it had just loaded,
+        // and an `as any` further down was what kept that quiet.
+        protocol: 'WEBHOOK' as SiemConfig['protocol'],
         endpoint: '',
         authHeader: '',
         minSeverity: 'HIGH'
@@ -603,7 +606,7 @@ export class Settings {
                 this.siemConfig.set(cfg);
                 this.siemForm = {
                     enabled: cfg.enabled,
-                    protocol: (cfg.protocol as any) || 'WEBHOOK',
+                    protocol: cfg.protocol || 'WEBHOOK',
                     endpoint: cfg.endpoint ?? '',
                     authHeader: '',
                     minSeverity: cfg.minSeverity || 'HIGH'

@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { CosignCliHelper } from '@/app/core/api.models';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -110,7 +111,7 @@ export class Compliance {
     verifyPublicKey = '';
     readonly verifyResult = signal<{ valid: boolean; keyId: string; algorithm: string; message: string } | null>(null);
     readonly verifyError = signal<string | null>(null);
-    readonly cosignCliInfo = signal<any | null>(null);
+    readonly cosignCliInfo = signal<CosignCliHelper | null>(null);
 
     // VEX Ingest
     readonly importOpen = signal<boolean>(false);
@@ -308,7 +309,7 @@ export class Compliance {
         try {
             const parsed = JSON.parse(this.importJson);
             this.api.ingestVex(parsed).subscribe({
-                next: (res: any) => {
+                next: (res) => {
                     this.importing.set(false);
                     const count = res?.triagedIssues ?? 0;
                     const applied = (res?.appliedCves ?? []).join(', ');
@@ -320,9 +321,9 @@ export class Compliance {
                     this.importError.set(err?.error?.message ?? 'Erreur lors de l\'ingestion du document VEX.');
                 }
             });
-        } catch (e: any) {
+        } catch (e) {
             this.importing.set(false);
-            this.importError.set('Format JSON invalide : ' + e.message);
+            this.importError.set('Format JSON invalide : ' + (e instanceof Error ? e.message : String(e)));
         }
     }
 

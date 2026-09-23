@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { AssetTier } from '@/app/core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -232,7 +233,7 @@ export class Repositories {
             name: this.form.name.trim() || blank,
             subPath: this.form.subPath.trim() || blank,
             required_agent_label: this.form.requiredAgentLabel.trim() || blank,
-            tier: this.form.tier as any,
+            tier: this.form.tier as AssetTier,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
             // form showed nothing — the operator would think they had switched the schedule off
@@ -428,8 +429,8 @@ pipeline {
                 sh '''
                     curl -s -f -L ${CLI_SCRIPT_URL} -o vectispire-cli.sh
                     chmod +x vectispire-cli.sh
-                    ./vectispire-cli.sh scan --url "\$VECTISPIRE_URL" --repo-id ${repoId} --wait
-                    ./vectispire-cli.sh gate --url "\$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
+                    ./vectispire-cli.sh scan --url "$VECTISPIRE_URL" --repo-id ${repoId} --wait
+                    ./vectispire-cli.sh gate --url "$VECTISPIRE_URL" --repo-id ${repoId} --fail-on HIGH
                 '''
             }
         }

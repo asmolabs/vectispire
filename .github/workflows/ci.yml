@@ -214,6 +214,10 @@ jobs:
           cd vectispire-angular && npm run generate:api
           git -c safe.directory='*' diff --exit-code -- src/app/core/api.generated.ts \
             || { echo "api.generated.ts is stale: run 'npm run generate:api' in vectispire-angular and commit it."; exit 1; }
+      # The lint existed on paper for the whole life of the interface: a config ESLint could not
+      # load, no plugin installed, a script calling a target that did not exist, and no job running
+      # it. A rule nothing executes is not a rule.
+      - run: npm run lint -w vectispire-angular
       - run: npm run build
       - run: npm test
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

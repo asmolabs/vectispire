@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { AssetTier } from '@/app/core/api.models';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -159,7 +160,7 @@ export class Containers {
             image_name: this.form.imageName.trim(),
             tag: this.form.tag.trim() || 'latest',
             required_agent_label: this.form.requiredAgentLabel.trim() || blank,
-            tier: this.form.tier as any,
+            tier: this.form.tier as AssetTier,
             // **Zero, not `undefined`, when the field was cleared on the update path.** The server
             // reads absent as "leave alone", so `undefined` would keep the old interval while the
             // form showed nothing — the operator would think they had switched the rescan off and

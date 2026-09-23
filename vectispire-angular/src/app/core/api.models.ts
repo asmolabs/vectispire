@@ -462,6 +462,17 @@ export type QualityOverview = Refine<
     { topRules: Tally[]; topFiles: Tally[]; topTargets: Tally[] }
 >;
 
+/** The copy-and-paste verification commands the crypto route offers; only the manifest one is shown today. */
+export interface CosignCliHelper {
+    commands?: { cosignVerifyManifest?: string };
+}
+
+/** What ingesting a VEX document reports back. */
+export interface VexIngestResult {
+    triagedIssues?: number;
+    appliedCves?: string[];
+}
+
 export type AssetTier = 'TIER_1_MISSION_CRITICAL' | 'TIER_2_BUSINESS_OPERATIONAL' | 'TIER_3_INTERNAL';
 
 /** A monitored repository, with the state of its last scan. */

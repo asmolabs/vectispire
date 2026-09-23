@@ -16,9 +16,13 @@
 
                     <form (ngSubmit)="verifyMfa()">
                         <label for="mfaCode" class="block text-surface-900 dark:text-surface-0 text-sm font-medium mb-2">{{ 'auth.mfa_code_label' | translate }}</label>
+                        <!-- The code field appears once the password is accepted and is the only thing left to do on
+                             this step; focusing it is the expected behaviour, not a surprise on page load. -->
+                        <!-- eslint-disable @angular-eslint/template/no-autofocus -->
                         <input pInputText id="mfaCode" name="mfaCode" type="text" autocomplete="one-time-code"
                                class="w-full mb-4 text-center text-xl tracking-widest"
                                placeholder="123456" [(ngModel)]="mfaCode" autofocus />
+                        <!-- eslint-enable @angular-eslint/template/no-autofocus -->
 
                         @if (error()) {
                             <p-message severity="error" styleClass="w-full mb-4">{{ error() }}</p-message>

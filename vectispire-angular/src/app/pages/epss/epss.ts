@@ -5,7 +5,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { ApiService } from '../../core/api.service';
 import { messageOf } from '../../core/api-error';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { AiVulnerabilityAdvice, EpssFleetSummary, EpssPrioritizedIssue, ThreatIntelRecord } from '../../core/api.models';
+import { AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { TableModule } from '@openng/optimus-ui/table';

@@ -1,4 +1,5 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal, OnInit, AfterViewInit } from '@angular/core';
+import { MenuItem } from '@openng/optimus-ui/api';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RippleModule } from '@openng/optimus-ui/ripple';
@@ -6,7 +7,13 @@ import { LayoutService } from '@/app/layout/service/layout.service';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
+/** A menu entry, plus the path prefix this layout uses to decide which entry is active. */
+export type AppMenuItem = MenuItem & { path?: string; class?: string; badgeClass?: string };
+
+// The menu renders these as list items — `<li app-menuitem>` — so the host must be an attribute:
+// an element selector would put a non-`li` child directly inside the `ul`.
 @Component({
+    // eslint-disable-next-line @angular-eslint/component-selector
     selector: '[app-menuitem]',
     imports: [CommonModule, RouterModule, RippleModule],
     template: `
@@ -93,12 +100,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
         `
     ]
 })
-export class AppMenuitem {
+export class AppMenuitem implements OnInit, AfterViewInit {
     layoutService = inject(LayoutService);
 
     router = inject(Router);
 
-    item = input<any>(null);
+    // Required: both places that render an entry pass one, and the template reads it unguarded.
+    item = input.required<AppMenuItem>();
 
     root = input<boolean>(false);
 
@@ -106,7 +114,7 @@ export class AppMenuitem {
 
     isVisible = computed(() => this.item()?.visible !== false);
 
-    hasChildren = computed(() => this.item()?.items && this.item()?.items.length > 0);
+    hasChildren = computed(() => (this.item()?.items?.length ?? 0) > 0);
 
     hasRouterLink = computed(() => !!this.item()?.routerLink);
 

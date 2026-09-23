@@ -15,7 +15,6 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 import type {
-    ApiContractView,
     ApiEndpointView,
     GlobalAttackSurface,
     MonitoredRepository,
@@ -44,7 +43,7 @@ export class AttackSurface implements OnInit, OnDestroy {
 
     private readonly api = inject(ApiService);
     readonly i18n = inject(I18nService);
-    private pollInterval: any = null;
+    private pollInterval: ReturnType<typeof setInterval> | null = null;
 
     readonly loading = signal<boolean>(true);
     readonly repoLoading = signal<boolean>(false);
@@ -216,7 +215,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         if (a === 'AUTH') {
             list = list.filter((ep) => Boolean(ep.authRequired));
         } else if (a === 'UNAUTH') {
-            list = list.filter((ep) => !Boolean(ep.authRequired));
+            list = list.filter((ep) => !ep.authRequired);
         }
 
         return list;

@@ -2,7 +2,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
-import { BlastRadiusReport, TopImpactPackage, TargetImpact, DependencyGraph } from '../../core/api.models';
+import { BlastRadiusReport, TopImpactPackage } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { TableModule } from '@openng/optimus-ui/table';
