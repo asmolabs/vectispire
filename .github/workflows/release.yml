@@ -34,8 +34,8 @@ permissions:
   # while the documentation described a public download. Scoped to this workflow, which runs on
   # a tag and on a manual rehearsal and on nothing else.
   contents: write
-  # Sigstore keyless signing needs the workflow's OIDC token. Granted here and nowhere else:
-  # every other workflow in this repository is read-only.
+  # Sigstore keyless signing needs the workflow's OIDC token. The only other holder is the
+  # `deploy` job of `docs.yml`, which `deploy-pages` needs; every other job is read-only.
   id-token: write
   # **Publishing the container images.** Before this, nothing this project built was reachable
   # without compiling it: `jib.to.image` was the local tag `vectispire:latest`, so an internal

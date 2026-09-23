@@ -6,8 +6,8 @@
 # the site's source has changed, says what it does in its `on:`.
 #
 # Every `uses:` is pinned to a commit SHA, with the version in a trailing comment, as in `ci.yml`.
-# A tag is mutable: `actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0` means whatever its owner decides today, and this
-# workflow holds `pages: write` and an OIDC token.
+# A tag is mutable: `actions/checkout@v4` means whatever its owner decides today, and this
+# workflow's `deploy` job holds `pages: write` and an OIDC token.
 
 # **This workflow is the only one that deploys to Pages, and there is a reason to say so here.**
 # On 30 August, `static.yml` — GitHub's "Deploy static content to Pages" template — was added in
@@ -40,12 +40,14 @@ on:
   # To republish without a commit — after switching Pages on, for instance.
   workflow_dispatch:
 
-# Read the repository, write to Pages, and an OIDC token because `deploy-pages` authenticates with
-# one, with no secret to hold.
+# Read-only by default; the write access is granted to `deploy` alone.
+#
+# **These were workflow-wide, and that put them in the wrong job.** `build` runs `pip install` on
+# ranges rather than pins, so any release of mkdocs or one of its plugins executed with a Pages
+# write token and an OIDC token in reach — while `release.yml` asserted that it was the only
+# workflow holding `id-token`. `build` needs to read Pages' configuration and nothing more.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # A publication in flight is not cancelled: the half-deployed page would be served.
 concurrency:
@@ -56,6 +58,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      # `configure-pages` reads the site's settings; it does not change them.
+      pages: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -76,6 +82,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Write to Pages, and an OIDC token because `deploy-pages` authenticates with one, with no
+    # secret to hold. This job runs one pinned action and no third-party code.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
