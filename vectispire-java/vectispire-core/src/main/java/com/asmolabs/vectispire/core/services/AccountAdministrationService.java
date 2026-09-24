@@ -77,7 +77,11 @@ public class AccountAdministrationService {
         return views;
     }
 
-    public AccountView create(NewAccount request, RequestActor actor) {
+    /**
+     * @param actingAccountId the account creating it, or null for a caller that is not one — who
+     *     may grant the platform governor role depends on it
+     */
+    public AccountView create(NewAccount request, Long actingAccountId, RequestActor actor) {
         String username = trim(request.username());
         String password = request.password() == null ? "" : request.password();
         String role = trim(request.role()).isEmpty() ? Role.USER.name() : trim(request.role()).toUpperCase(Locale.ROOT);
@@ -87,6 +91,7 @@ public class AccountAdministrationService {
         if (Role.of(role).isEmpty()) {
             throw new IllegalArgumentException("Unknown role: " + role + ".");
         }
+        refuseGovernorAdministration(actingAccountId, Optional.empty(), Role.of(role));
         if (users.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("The username \"" + username + "\" is already taken.");
         }
@@ -134,12 +139,16 @@ public class AccountAdministrationService {
             refuseIfInvalid(AccountRules.validatePassword(password));
         }
 
+        // Checked on every change and not only on a role change: resetting a governor's password,
+        // or deactivating it, is administering it just as much.
+        refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Role.of(role));
         refuseIfInvalid(AccountRules.refuseSelfLockout(new AccountRules.Change(
                 isSelf(actingAccountId, id),
                 isAdministrative(user.getRole()) && user.getIsActive(),
                 isAdministrative(role),
                 isActive,
                 (int) countOtherActiveAdmins(id))));
+        refuseIfInvalid(AccountRules.refuseOwnRoleChange(isSelf(actingAccountId, id), user.getRole(), role));
 
         List<String> changes = new ArrayList<>();
         String previousRole = user.getRole();
@@ -220,6 +229,7 @@ public class AccountAdministrationService {
     /** @param actingAccountId as for {@link #update}: refuses deleting one's own account */
     public void delete(long id, Long actingAccountId, RequestActor actor) {
         UserEntity user = requireAccount(id);
+        refuseGovernorAdministration(actingAccountId, Role.of(user.getRole()), Optional.empty());
 
         refuseIfInvalid(AccountRules.refuseDeletion(
                 isSelf(actingAccountId, id), isAdministrative(user.getRole()) && user.getIsActive(), (int) countOtherActiveAdmins(id)));
@@ -230,6 +240,14 @@ public class AccountAdministrationService {
 
     private UserEntity requireAccount(long id) {
         return users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
+    }
+
+    /** See {@link AccountRules#refuseGovernorAdministration}; the acting role is read, not trusted. */
+    private void refuseGovernorAdministration(Long actingAccountId, Optional<Role> current, Optional<Role> next) {
+        Optional<Role> acting = actingAccountId == null
+                ? Optional.empty()
+                : users.findById(actingAccountId).flatMap(account -> Role.of(account.getRole()));
+        refuseIfInvalid(AccountRules.refuseGovernorAdministration(acting, current, next));
     }
 
     private static boolean isSelf(Long actingAccountId, long id) {

@@ -26,7 +26,7 @@ explicitly carry a global one.
 | **Auditor** | Sees the whole estate and **changes nothing**, anywhere. Reads the audit log, the compliance evidence, the gate policy, the rule sets and the SIEM configuration. Approves no triage. |
 | **CISO / Security Lead** | Sees the whole estate, approves triages, and **writes** governance: gate policies, rule sets, SIEM destination, licence policy, settings. Does not administer accounts. |
 | **Administrator** | All of the above, plus accounts, teams, API keys, SSH keys and agents. |
-| **Superuser** | Identical to Administrator today. Created by the installation's bootstrap. |
+| **Superuser** | The platform governor: decides the rules the others act under — four-eyes approval, target visibility — and administers accounts, but **takes no triage decision** and imports no VEX. Created by the installation's bootstrap. |
 
 **The auditor is worth a note.** It exists because "looking" and "being able to change" used to be
 the same permission: the only way to open the audit log to someone was to also grant them the right
@@ -35,6 +35,12 @@ customer or an internal function, that is the role — not CISO.
 
 Hand out administrative roles sparingly: the audit log is only as meaningful as the number of
 people who can change what it records.
+
+**Only a superuser administers a superuser.** Granting or removing the role, resetting a
+superuser's password, deactivating or deleting the account are refused to an administrator. The
+separation rests on it: the account that can lift four-eyes is the one that cannot triage, and an
+administrator able to make itself superuser would hold both halves. For the same reason **nobody
+changes their own role**, up or down — another administrator has to.
 
 ## Teams and visibility
 

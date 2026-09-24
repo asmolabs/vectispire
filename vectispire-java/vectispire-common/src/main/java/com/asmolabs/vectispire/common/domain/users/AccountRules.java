@@ -76,6 +76,44 @@ public final class AccountRules {
         return Optional.empty();
     }
 
+    /**
+     * Only a platform governor may grant, remove or administer the platform governor role.
+     *
+     * <p><b>The separation of duties rests on this.</b> The governor is the one role that can lift
+     * the rules — four-eyes, visibility — and the one that cannot act under them. An administrator
+     * could make itself governor, lift four-eyes, turn itself back into an administrator and settle
+     * issues alone; or create a second governor account, or reset an existing governor's password
+     * and sign in as it. Each was one request, and the two roles were one in all but name.
+     *
+     * @param acting the acting account's role, empty when the caller is not an account
+     * @param current the target's role before the change, empty for an account being created
+     * @param next the target's role after the change, empty when the change does not touch it
+     * @return why it is refused, or empty
+     */
+    public static Optional<String> refuseGovernorAdministration(
+            Optional<Role> acting, Optional<Role> current, Optional<Role> next) {
+        boolean touchesGovernor = current.map(Role::governsPlatform).orElse(false)
+                || next.map(Role::governsPlatform).orElse(false);
+        if (touchesGovernor && !acting.map(Role::governsPlatform).orElse(false)) {
+            return Optional.of("Only a platform governor can grant, remove or administer the platform governor "
+                    + "role: it is the role that lifts the rules the others act under.");
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Nobody changes their own role, up or down.
+     *
+     * <p>{@link #refuseSelfLockout} already refuses the way down for an administrator; the way up is
+     * the other half, and it is the one an escalation takes. Another account has to make the change.
+     */
+    public static Optional<String> refuseOwnRoleChange(boolean isSelf, String currentRole, String nextRole) {
+        if (isSelf && nextRole != null && !nextRole.equalsIgnoreCase(currentRole)) {
+            return Optional.of("You cannot change your own role: another administrator has to.");
+        }
+        return Optional.empty();
+    }
+
     /** Likewise for deletion, whose consequences are the same but worse. */
     public static Optional<String> refuseDeletion(boolean isSelf, boolean isAdmin, int remainingActiveAdmins) {
         if (isSelf) {

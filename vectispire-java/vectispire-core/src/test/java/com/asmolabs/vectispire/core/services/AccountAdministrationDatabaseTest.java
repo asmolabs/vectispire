@@ -162,19 +162,71 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
     void creation() {
         account("taken", Role.USER, true);
 
-        assertThatThrownBy(() -> accounts.create(newAccount("fresh", "OVERLORD"), ACTOR))
+        assertThatThrownBy(() -> accounts.create(newAccount("fresh", "OVERLORD"), null, ACTOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown role");
-        assertThatThrownBy(() -> accounts.create(newAccount(" taken ", null), ACTOR))
+        assertThatThrownBy(() -> accounts.create(newAccount(" taken ", null), null, ACTOR))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already taken");
 
-        UserEntity created = accounts.create(newAccount("fresh", null), ACTOR).user();
+        UserEntity created = accounts.create(newAccount("fresh", null), null, ACTOR).user();
         assertThat(created.getRole()).isEqualTo(Role.USER.name());
         assertThat(created.getMustChangePassword()).isTrue();
         assertThat(audit.findAllByOrderByTimestampAscIdAsc())
                 .extracting(AuditLogEntity::getDescription)
                 .containsExactly("Account created: fresh (USER)");
+    }
+
+    @Test
+    @DisplayName("an administrator cannot make itself platform governor, nor create one")
+    void anAdministratorCannotBecomeGovernor() {
+        // Become governor, lift four-eyes, come back and settle issues alone: one request each.
+        UserEntity admin = account("admin", Role.ADMIN, true);
+        account("other-admin", Role.ADMIN, true);
+
+        assertThatThrownBy(() -> accounts.update(admin.getId(), change("SUPERUSER", null, null), admin.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only a platform governor");
+        assertThatThrownBy(() -> accounts.create(newAccount("shadow", "SUPERUSER"), admin.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Only a platform governor");
+        assertThat(users.findById(admin.getId()).orElseThrow().getRole()).isEqualTo(Role.ADMIN.name());
+        assertThat(users.findByUsername("shadow")).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an administrator cannot reset, deactivate or delete a governor's account")
+    void anAdministratorCannotAdministerAGovernor() {
+        UserEntity admin = account("admin", Role.ADMIN, true);
+        UserEntity governor = account("governor", Role.SUPERUSER, true);
+        String before = governor.getPassword();
+
+        assertThatThrownBy(() -> accounts.update(governor.getId(), change(null, null, "a-password-long-enough"), admin.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> accounts.update(governor.getId(), change(null, false, null), admin.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> accounts.delete(governor.getId(), admin.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        UserEntity after = users.findById(governor.getId()).orElseThrow();
+        assertThat(after.getPassword()).isEqualTo(before);
+        assertThat(after.getIsActive()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a governor can grant the role to someone else, and nobody changes their own")
+    void aGovernorGrantsItButNotToItself() {
+        UserEntity governor = account("governor", Role.SUPERUSER, true);
+        UserEntity admin = account("admin", Role.ADMIN, true);
+        account("other-admin", Role.ADMIN, true);
+
+        accounts.update(admin.getId(), change("SUPERUSER", null, null), governor.getId(), ACTOR);
+        assertThat(users.findById(admin.getId()).orElseThrow().getRole()).isEqualTo(Role.SUPERUSER.name());
+
+        UserEntity champion = account("champion", Role.SECURITY_CHAMPION, true);
+        assertThatThrownBy(() -> accounts.update(champion.getId(), change("CISO", null, null), champion.getId(), ACTOR))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("your own role");
     }
 
     private static AccountAdministrationService.AccountChange change(String role, Boolean isActive, String password) {

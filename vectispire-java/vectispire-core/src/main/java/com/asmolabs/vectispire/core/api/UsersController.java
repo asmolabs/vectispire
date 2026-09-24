@@ -84,6 +84,7 @@ public class UsersController {
         return summaryOf(accounts.create(
                 new AccountAdministrationService.NewAccount(
                         body.username(), body.password(), body.role(), body.email(), body.displayName()),
+                actingAccountId(principal),
                 RequestActors.of(principal, request)));
     }
 

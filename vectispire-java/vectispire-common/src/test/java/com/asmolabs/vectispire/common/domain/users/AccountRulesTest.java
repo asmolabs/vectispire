@@ -169,4 +169,59 @@ class AccountRulesTest {
             assertThat(AccountRules.refuseDeletion(false, false, 0)).isEmpty();
         }
     }
+
+    @Nested
+    @DisplayName("the platform governor role")
+    class GovernorAdministration {
+
+        private static java.util.Optional<Role> of(Role role) {
+            return java.util.Optional.of(role);
+        }
+
+        @Test
+        @DisplayName("an administrator cannot grant it — to itself or to anyone")
+        void anAdministratorCannotGrantIt() {
+            // One request made the two roles one: become governor, lift four-eyes, come back.
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), of(Role.ADMIN), of(Role.SUPERUSER)))
+                    .isPresent();
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), java.util.Optional.empty(), of(Role.SUPERUSER)))
+                    .isPresent();
+        }
+
+        @Test
+        @DisplayName("an administrator cannot administer a governor's account — reset, deactivate, demote, delete")
+        void anAdministratorCannotTouchAGovernor() {
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), of(Role.SUPERUSER), java.util.Optional.empty()))
+                    .isPresent();
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), of(Role.SUPERUSER), of(Role.USER)))
+                    .isPresent();
+        }
+
+        @Test
+        @DisplayName("a caller that is not an account cannot either")
+        void aNonAccountCannot() {
+            assertThat(AccountRules.refuseGovernorAdministration(java.util.Optional.empty(), of(Role.USER), of(Role.SUPERUSER)))
+                    .isPresent();
+        }
+
+        @Test
+        @DisplayName("a governor can, and nobody is refused for changes that do not touch the role")
+        void aGovernorCanAndOthersAreUntouched() {
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.SUPERUSER), of(Role.ADMIN), of(Role.SUPERUSER)))
+                    .isEmpty();
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), of(Role.USER), of(Role.CISO)))
+                    .isEmpty();
+            assertThat(AccountRules.refuseGovernorAdministration(of(Role.ADMIN), of(Role.ADMIN), java.util.Optional.empty()))
+                    .isEmpty();
+        }
+
+        @Test
+        @DisplayName("nobody changes their own role, up or down; keeping it is not a change")
+        void noOwnRoleChange() {
+            assertThat(AccountRules.refuseOwnRoleChange(true, "ADMIN", "SUPERUSER")).isPresent();
+            assertThat(AccountRules.refuseOwnRoleChange(true, "CISO", "USER")).isPresent();
+            assertThat(AccountRules.refuseOwnRoleChange(true, "ADMIN", "admin")).isEmpty();
+            assertThat(AccountRules.refuseOwnRoleChange(false, "ADMIN", "SUPERUSER")).isEmpty();
+        }
+    }
 }
