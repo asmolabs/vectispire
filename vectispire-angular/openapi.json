@@ -3093,9 +3093,7 @@
         },
         "type" : "object"
       },
-      "JsonNode" : {
-        "type" : "object"
-      },
+      "JsonNode" : { },
       "LastScan" : {
         "properties" : {
           "createdAt" : {
@@ -4562,9 +4560,7 @@
             "type" : "object"
           },
           "properties" : {
-            "additionalProperties" : {
-              "type" : "object"
-            },
+            "additionalProperties" : { },
             "type" : "object"
           },
           "ruleId" : {
@@ -4659,9 +4655,7 @@
             "type" : "string"
           },
           "properties" : {
-            "additionalProperties" : {
-              "type" : "object"
-            },
+            "additionalProperties" : { },
             "type" : "object"
           },
           "shortDescription" : {
@@ -4738,9 +4732,7 @@
       "Run" : {
         "properties" : {
           "properties" : {
-            "additionalProperties" : {
-              "type" : "object"
-            },
+            "additionalProperties" : { },
             "type" : "object"
           },
           "results" : {
@@ -4980,45 +4972,8 @@
             "type" : "array"
           },
           "duration" : {
-            "properties" : {
-              "nano" : {
-                "format" : "int32",
-                "type" : "integer"
-              },
-              "negative" : {
-                "type" : "boolean"
-              },
-              "positive" : {
-                "type" : "boolean"
-              },
-              "seconds" : {
-                "format" : "int64",
-                "type" : "integer"
-              },
-              "units" : {
-                "items" : {
-                  "properties" : {
-                    "dateBased" : {
-                      "type" : "boolean"
-                    },
-                    "durationEstimated" : {
-                      "type" : "boolean"
-                    },
-                    "timeBased" : {
-                      "type" : "boolean"
-                    }
-                  },
-                  "required" : [ "dateBased", "durationEstimated", "timeBased" ],
-                  "type" : "object"
-                },
-                "type" : "array"
-              },
-              "zero" : {
-                "type" : "boolean"
-              }
-            },
-            "required" : [ "nano", "negative", "positive", "seconds", "zero" ],
-            "type" : "object"
+            "format" : "duration",
+            "type" : "string"
           },
           "failures" : {
             "items" : {
@@ -5373,9 +5328,7 @@
       "Score" : {
         "properties" : {
           "cvss_v3" : {
-            "additionalProperties" : {
-              "type" : "object"
-            },
+            "additionalProperties" : { },
             "type" : "object"
           }
         },
@@ -6983,9 +6936,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }
@@ -7271,9 +7222,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }
@@ -7605,9 +7554,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }
@@ -8379,9 +8326,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }
@@ -10299,9 +10244,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }
@@ -10338,9 +10281,7 @@
             "content" : {
               "*/*" : {
                 "schema" : {
-                  "additionalProperties" : {
-                    "type" : "object"
-                  },
+                  "additionalProperties" : { },
                   "type" : "object"
                 }
               }

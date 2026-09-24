@@ -3803,7 +3803,7 @@ export interface components {
             key?: components["schemas"]["ApiKeySummary"];
             secret?: string;
         };
-        JsonNode: Record<string, never>;
+        JsonNode: unknown;
         LastScan: {
             /** Format: date-time */
             createdAt?: string;
@@ -4345,7 +4345,7 @@ export interface components {
                 [key: string]: string;
             };
             properties?: {
-                [key: string]: Record<string, never>;
+                [key: string]: unknown;
             };
             ruleId?: string;
             /** Format: int32 */
@@ -4380,7 +4380,7 @@ export interface components {
             id?: string;
             name?: string;
             properties?: {
-                [key: string]: Record<string, never>;
+                [key: string]: unknown;
             };
             shortDescription?: components["schemas"]["Text"];
         };
@@ -4409,7 +4409,7 @@ export interface components {
         };
         Run: {
             properties?: {
-                [key: string]: Record<string, never>;
+                [key: string]: unknown;
             };
             results?: components["schemas"]["Result"][];
             tool?: components["schemas"]["SarifTool"];
@@ -4496,20 +4496,8 @@ export interface components {
             apiContracts?: components["schemas"]["ApiContract"][];
             apiEndpoints?: components["schemas"]["ApiEndpoint"][];
             dependencies?: components["schemas"]["DependencyFinding"][];
-            duration?: {
-                /** Format: int32 */
-                nano: number;
-                negative: boolean;
-                positive: boolean;
-                /** Format: int64 */
-                seconds: number;
-                units?: {
-                    dateBased: boolean;
-                    durationEstimated: boolean;
-                    timeBased: boolean;
-                }[];
-                zero: boolean;
-            };
+            /** Format: duration */
+            duration?: string;
             failures?: components["schemas"]["Failure"][];
             iac?: components["schemas"]["IacFinding"][];
             project?: components["schemas"]["Project"];
@@ -4627,7 +4615,7 @@ export interface components {
         };
         Score: {
             cvss_v3?: {
-                [key: string]: Record<string, never>;
+                [key: string]: unknown;
             };
         };
         SecretFinding: {
@@ -5307,7 +5295,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -5522,7 +5510,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -5810,7 +5798,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -6459,7 +6447,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -7935,7 +7923,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
@@ -7963,7 +7951,7 @@ export interface operations {
                 };
                 content: {
                     "*/*": {
-                        [key: string]: Record<string, never>;
+                        [key: string]: unknown;
                     };
                 };
             };
