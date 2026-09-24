@@ -19,8 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Service;
 
 /**
@@ -36,14 +34,13 @@ public class CycloneDxGeneratorService {
     private final String toolVersion;
 
     public CycloneDxGeneratorService(
-            Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ObjectProvider<BuildProperties> build) {
+            Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
         this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
-        // The build's version, or none: the tool entry is optional in CycloneDX, and it was the
-        // literal "0.9.0" that every later release would have kept writing.
-        BuildProperties properties = build.getIfAvailable();
-        this.toolVersion = properties == null ? null : properties.getVersion();
+        // The same version every other export states, or none: the tool entry's version is
+        // optional in CycloneDX, and it was the literal "0.9.0".
+        this.toolVersion = version.get();
     }
 
     public Optional<CycloneDxDocument> generateForScan(Long scanId) {

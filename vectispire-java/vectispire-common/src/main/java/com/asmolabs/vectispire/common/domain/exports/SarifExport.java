@@ -38,10 +38,16 @@ public final class SarifExport {
 
     private SarifExport() {}
 
+    /**
+     * @param toolVersion the producing build's version, or {@code null} to leave it out. The domain
+     *     cannot know it, and used to fall back to a constant that had to be edited at every
+     *     release — a document stating a version nobody verified is worse than one stating none,
+     *     which SARIF allows.
+     */
     public record Options(String targetName, String toolVersion, String informationUri) {
 
         public Options(String targetName) {
-            this(targetName, ExportDefaults.TOOL_VERSION, null);
+            this(targetName, null, null);
         }
     }
 
@@ -114,7 +120,7 @@ public final class SarifExport {
 
         SarifLog.Driver driver = new SarifLog.Driver(
                 "Vectispire",
-                options.toolVersion() == null ? ExportDefaults.TOOL_VERSION : options.toolVersion(),
+                blankToNull(options.toolVersion()),
                 blankToNull(options.informationUri()),
                 List.copyOf(rules.values()));
 

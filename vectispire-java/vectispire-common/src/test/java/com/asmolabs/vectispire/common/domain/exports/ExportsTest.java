@@ -155,6 +155,18 @@ class ExportsTest {
         }
 
         @Test
+        @DisplayName("a version nobody supplied is left out, not filled with a constant")
+        void anUnknownVersionIsOmitted() {
+            // The domain cannot know the build's version. It used to fall back to a literal that had
+            // to be edited at every release; SARIF allows the field to be absent, and absent is true.
+            SarifLog log = SarifExport.build(List.of(issue().build()), new SarifExport.Options("api-service"));
+            assertThat(log.runs().getFirst().tool().driver().version()).isNull();
+
+            SarifLog stated = SarifExport.build(List.of(issue().build()), new SarifExport.Options("api-service", "2.3.4", null));
+            assertThat(stated.runs().getFirst().tool().driver().version()).isEqualTo("2.3.4");
+        }
+
+        @Test
         @DisplayName("a triaged issue is suppressed, not removed")
         void triagedIssuesAreSuppressed() {
             // Removing it makes the platform report it as new on the next upload, undoing the

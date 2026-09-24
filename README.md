@@ -337,7 +337,7 @@ Operational tuning (all optional, shown with their defaults):
 | `VECTISPIRE_LEADER_LEASE` | `180s` | How long the scheduler lease is held without renewal. Comfortably longer than one tick, so a slow tick does not hand the job to somebody else; short enough that a dead leader is replaced in about two minutes. |
 | `VECTISPIRE_IMAGE_SCAN_PLATFORM` | — | Platform to pull for a container scan, e.g. `linux/amd64` — the image scanned should be the one that runs in production, not the one that matches the scanner's host. |
 | `VECTISPIRE_SESSION_LIFETIME` / `VECTISPIRE_SESSION_IDLE` | `12h` / `60m` | Absolute and idle session lifetimes. The absolute one bounds a stolen token's usefulness and no activity extends it; the idle one protects an unlocked screen. |
-| `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / `1.0.0` | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. |
+| `VECTISPIRE_VEX_AUTHOR` / `VECTISPIRE_VERSION` | `Vectispire` / the build's version | Author and tool version recorded in exported documents — a VEX is an assertion about who said what, and when. Leave `VECTISPIRE_VERSION` unset: every document (SARIF, CSAF, CycloneDX, in-toto) then states the version the jar was built as. Set it only for a rebuild shipped under a version of its own. |
 
 **The scanner images are not configurable, and that is deliberate.** The five digests are
 constants in [`ScannerImages`](vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java):

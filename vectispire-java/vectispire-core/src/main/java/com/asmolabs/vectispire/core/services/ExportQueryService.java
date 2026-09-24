@@ -48,6 +48,7 @@ public class ExportQueryService {
     private final BrandingProperties branding;
     private final SlaService sla;
     private final Clock clock;
+    private final ProductVersion version;
 
     public ExportQueryService(
             Issues issues,
@@ -56,7 +57,9 @@ public class ExportQueryService {
             ExportProperties properties,
             BrandingProperties branding,
             SlaService sla,
+            ProductVersion version,
             Clock clock) {
+        this.version = version;
         this.issues = issues;
         this.gate = gate;
         this.naming = naming;
@@ -76,7 +79,7 @@ public class ExportQueryService {
         String name = targetName(target);
         return SarifExport.build(
                 exportable(target, null),
-                new SarifExport.Options(name, properties.toolVersion(), properties.publicUrl().orElse(null)));
+                new SarifExport.Options(name, version.get(), properties.publicUrl().orElse(null)));
     }
 
     /**
@@ -105,7 +108,7 @@ public class ExportQueryService {
                 new CsafExport.Options(
                         name,
                         author == null || author.isBlank() ? properties.vexAuthor() : author,
-                        properties.toolVersion(),
+                        version.get(),
                         properties.publicUrl().orElse("https://vectispire.internal"),
                         clock.instant()));
     }

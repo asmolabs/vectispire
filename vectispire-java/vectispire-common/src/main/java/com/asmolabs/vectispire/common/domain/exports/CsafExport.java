@@ -28,8 +28,10 @@ public final class CsafExport {
     public static CsafDocument build(List<ExportableIssue> issues, Options options) {
         String target = options.targetName() == null || options.targetName().isBlank() ? "target" : options.targetName();
         String author = options.author() == null || options.author().isBlank() ? "Vectispire" : options.author();
+        // Left out when the caller does not know it: the engine version is optional in CSAF, and a
+        // constant fallback here had to be edited at every release to stay true.
         String version = options.toolVersion() == null || options.toolVersion().isBlank()
-                ? ExportDefaults.TOOL_VERSION
+                ? null
                 : options.toolVersion();
         String namespace = options.namespace() == null || options.namespace().isBlank() ? "https://vectispire.internal" : options.namespace();
         Instant now = options.generatedAt() == null ? Instant.now() : options.generatedAt();

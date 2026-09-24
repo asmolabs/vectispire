@@ -12,12 +12,15 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     came from
  * @param vexAuthor a VEX is an assertion about who said what: the default names the tool, and an
  *     organization publishing them outwards will want its own name here
+ * @param toolVersion an override of the build's version, for a rebuild shipped under its own; empty
+ *     means the build's — see {@link ProductVersion}. It defaulted to {@code 1.0.0}, a release that
+ *     does not exist
  */
 @ConfigurationProperties("vectispire.exports")
 public record ExportProperties(
         Optional<String> publicUrl,
         @DefaultValue("Vectispire") String vexAuthor,
-        @DefaultValue("1.0.0") String toolVersion) {
+        String toolVersion) {
 
     public ExportProperties {
         publicUrl = publicUrl == null ? Optional.empty() : publicUrl.filter(value -> !value.isBlank());

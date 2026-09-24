@@ -39,11 +39,13 @@ public class CsafGeneratorService {
     private final Scans scansRepo;
     private final Findings findingsRepo;
     private final Issues issuesRepo;
+    private final ProductVersion version;
 
-    public CsafGeneratorService(Scans scansRepo, Findings findingsRepo, Issues issuesRepo) {
+    public CsafGeneratorService(Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
         this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
+        this.version = version;
     }
 
     public Optional<CsafDocument> generateForScan(Long scanId) {
@@ -186,7 +188,7 @@ public class CsafGeneratorService {
      * <p>The history has a single entry, and honestly so. These advisories are regenerated from
      * current data rather than amended, so there is one revision — the rendering the reader holds.
      */
-    private static CsafDocument.Document metadata(String title, String id, Instant at) {
+    private CsafDocument.Document metadata(String title, String id, Instant at) {
         String stamp = at.toString();
         return new CsafDocument.Document(
                 "csaf_vex",
@@ -202,7 +204,9 @@ public class CsafGeneratorService {
                         List.of(new CsafDocument.Revision(
                                 "1.0.0", stamp, "Generated from the current triage state.")),
                         new CsafDocument.Generator(
-                                new CsafDocument.Engine("Vectispire", "1.0.0"), stamp)),
+                                // The build's version, as every other export states it; it was
+                                // "1.0.0", a release that does not exist. Left out when unknown.
+                                new CsafDocument.Engine("Vectispire", version.get()), stamp)),
                 null);
     }
 

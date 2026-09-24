@@ -18,8 +18,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Service;
 
 /**
@@ -48,16 +46,15 @@ public class AttestationService {
             Containers containers,
             Findings findings,
             GateVerdicts verdicts,
-            ObjectProvider<BuildProperties> build) {
+            ProductVersion version) {
         this.scans = scans;
         this.repositories = repositories;
         this.containers = containers;
         this.findings = findings;
         this.verdicts = verdicts;
-        // From the build's own metadata. It was the literal "0.9.0", which every release after that
-        // one would have gone on claiming inside a signed document.
-        BuildProperties properties = build.getIfAvailable();
-        this.version = properties == null ? null : properties.getVersion();
+        // The version every export states. It was the literal "0.9.0", which every release after
+        // that one would have gone on claiming inside a signed document.
+        this.version = version.get();
     }
 
     /**

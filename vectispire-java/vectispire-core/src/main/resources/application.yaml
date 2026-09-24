@@ -96,11 +96,12 @@ vectispire:
     # to somebody else says where it came from.
     public-url: ${VECTISPIRE_PUBLIC_URL:}
     vex-author: ${VECTISPIRE_VEX_AUTHOR:${VECTISPIRE_BRAND_NAME:${VECTISPIRE_BRANDING_NAME:Vectispire}}}
-    # **The signed jar's version, and it has to be.** A VEX or CSAF document names the tool that
-    # wrote it; announcing 1.0.0 while the artefact somebody verified is 0.9.0 makes the two
-    # unreconcilable in the one place that is read by an assessor. Kept in step with
-    # `gradle.properties` by `ToolVersionTest`.
-    tool-version: ${VECTISPIRE_VERSION:0.9.0}
+    # **Empty means the build's own version**, read from build-info by `ProductVersion`, which
+    # every signed document uses. A VEX or CSAF document names the tool that wrote it, and a version
+    # other than the artefact's makes the two unreconcilable where an assessor reads them. Set only
+    # for a rebuild shipped under a version of its own. It used to repeat the version as a literal,
+    # to be edited at every release.
+    tool-version: ${VECTISPIRE_VERSION:}
 
   bootstrap:
     username: ${VECTISPIRE_BOOTSTRAP_USERNAME:}
