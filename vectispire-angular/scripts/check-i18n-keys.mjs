@@ -16,9 +16,9 @@
  * on its first run is a rule people switch off.
  *
  * What this script deliberately does not check: that the French bundle mirrors the English. It
- * does not, and that is intended — `settings.ts` falls back on the server's English label when a
- * key resolves to itself, so 52 keys exist in French with no English counterpart. Requiring parity
- * would fail on a correct tree, and that is how an exemption list begins.
+ * does not, and that is intended — `settings-catalog.ts` falls back on the server's English label
+ * when a key resolves to itself, so 52 keys exist in French with no English counterpart. Requiring
+ * parity would fail on a correct tree, and that is how an exemption list begins.
  *
  * Only literal calls are checkable: a key built from a variable is not a key this script can read.
  *

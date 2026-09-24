@@ -2,8 +2,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Settings } from './settings';
+import { SettingsCatalog } from './settings-catalog';
+import { SettingsModelReview } from './settings-model-review';
+import { SettingsTicketing } from './settings-ticketing';
 import { asSchema } from '@/app/core/testing/contract';
 
 /**
@@ -17,6 +21,17 @@ import { asSchema } from '@/app/core/testing/contract';
 describe('the settings screen', () => {
     let fixture: ComponentFixture<Settings>;
     let http: HttpTestingController;
+
+    /** A section of the page, by its component: each card group is its own component now. */
+    const section = <T>(type: new (...args: never[]) => T): T =>
+        fixture.debugElement.query(By.directive(type)).componentInstance as T;
+
+    /** The model review block exists only while the AI tab shows the card that holds it. */
+    const openModelReview = (): SettingsModelReview => {
+        fixture.componentInstance.activeTab.set('ai');
+        fixture.detectChanges();
+        return section(SettingsModelReview);
+    };
 
     /**
      * The catalogue as the server sends it: section labels, not enum constants.
@@ -79,14 +94,13 @@ describe('the settings screen', () => {
         const modelReview = { settings: [{ key: 'ai_review_model' }] } as never;
         const notifications = { settings: [{ key: 'notification_webhook_url' }] } as never;
 
-        expect(fixture.componentInstance.isModelReview(modelReview)).toBe(true);
-        expect(fixture.componentInstance.isModelReview(notifications)).toBe(false);
+        expect(section(SettingsCatalog).isModelReview(modelReview)).toBe(true);
+        expect(section(SettingsCatalog).isModelReview(notifications)).toBe(false);
     });
 
     it('shows what the host answered, reachable or not', () => {
-        fixture.componentInstance.activeTab.set('ai');
-        fixture.detectChanges();
-        fixture.componentInstance.testOllama();
+        const review = openModelReview();
+        review.testOllama();
         http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush({
             reachable: true,
             modelInstalled: false,
@@ -101,28 +115,30 @@ describe('the settings screen', () => {
         // would hide it until the first report failed on another screen.
         const text = fixture.nativeElement.textContent;
         expect(text.includes('is not installed there') || text.includes('gemma4:12b-it-qat')).toBe(true);
-        expect(fixture.componentInstance.testingOllama()).toBe(false);
+        expect(review.testingOllama()).toBe(false);
     });
 
     it('keeps no copy of the webhook secret once it is saved', () => {
-        fixture.componentInstance.webhookSecretInput = 'a-signing-key';
-        fixture.componentInstance.saveWebhookSecret();
+        const ticketing = section(SettingsTicketing);
+        ticketing.webhookSecretInput = 'a-signing-key';
+        ticketing.saveWebhookSecret();
         http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' }).flush({ configured: true });
         fixture.detectChanges();
 
         // The server never sends it back, so the field is the only place it could still be read —
         // and anyone who reads it can sign a message Vectispire did not send.
-        expect(fixture.componentInstance.webhookSecretInput).toBe('');
-        expect(fixture.componentInstance.webhookSecretConfigured()).toBe(true);
+        expect(ticketing.webhookSecretInput).toBe('');
+        expect(ticketing.webhookSecretConfigured()).toBe(true);
     });
 
     it('treats a failed check as an answer about the configuration', () => {
-        fixture.componentInstance.testOllama();
+        const review = openModelReview();
+        review.testOllama();
         http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' })
             .flush(null, { status: 500, statusText: 'Server Error' });
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.ollama()?.reachable).toBe(false);
-        expect(fixture.componentInstance.testingOllama()).toBe(false);
+        expect(review.ollama()?.reachable).toBe(false);
+        expect(review.testingOllama()).toBe(false);
     });
 });

@@ -1,0 +1,127 @@
+@if (active()) {
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'settings.ticket_token_title' | translate }}</ng-template>
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                <label for="ticket-token" class="font-medium min-w-0 flex-1">
+                    {{ 'settings.token_label' | translate }}
+                    @if (tokenConfigured()) {
+                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.token_saved' | translate }}</span>
+                    } @else {
+                        <span class="text-muted-color text-sm font-normal">— {{ 'settings.token_none' | translate }}</span>
+                    }
+                </label>
+                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                    <input pInputText id="ticket-token" type="password" class="w-full sm:w-96 max-w-full"
+                           [(ngModel)]="tokenInput"
+                           [placeholder]="'settings.token_placeholder' | translate" autocomplete="off" />
+                    <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
+                </div>
+            </div>
+            <small class="text-muted-color max-w-3xl">
+                {{ 'settings.token_hint' | translate }}
+            </small>
+
+            <!-- The opposite direction from the token above: this one authenticates the tracker
+                 calling us. Write-only, like the token, now that it is encrypted at rest. -->
+            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 mt-5">
+                <label for="ticket-webhook-secret" class="font-medium min-w-0 flex-1">
+                    Inbound webhook secret
+                    @if (ticketWebhookSecretConfigured()) {
+                        <span class="text-green-600 text-sm font-normal">— stored</span>
+                    } @else {
+                        <span class="text-muted-color text-sm font-normal">— none stored</span>
+                    }
+                </label>
+                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                    <input pInputText id="ticket-webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
+                           [(ngModel)]="ticketWebhookSecretInput" autocomplete="off" />
+                    <p-button [label]="'common.save' | translate" [loading]="savingTicketWebhookSecret()"
+                              (onClick)="saveTicketWebhookSecret()" />
+                </div>
+            </div>
+            <small class="text-muted-color max-w-3xl">
+                Authenticates the tracker calling <strong>us</strong>. The webhook route is anonymous by necessity —
+                Jira holds no session — and it moves a triage decision, so while this is empty anyone who guesses a
+                ticket reference can close a finding. Set the same value in the tracker. Encrypted at rest and never
+                returned; saving an empty field clears it.
+            </small>
+        </div>
+    </p-card>
+
+    <p-card styleClass="mb-4">
+        <ng-template #title>
+            <div class="flex items-center gap-2">
+                <i class="pi pi-sync text-primary text-xl"></i>
+                <span>Synchronisation Bidirectionnelle (Webhooks Entrants)</span>
+            </div>
+        </ng-template>
+        <div class="flex flex-col gap-4">
+            <small class="text-muted-color">
+                {{ 'settings.ticket_webhook_help' | translate }}
+            </small>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-tag text-blue-500"></i> Jira Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'jira' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [icon]="webhookCopied() === 'jira' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'jira' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('jira')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('jira') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-gitlab text-orange-500"></i> GitLab Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'gitlab' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [icon]="webhookCopied() === 'gitlab' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'gitlab' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('gitlab')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('gitlab') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-github"></i> GitHub Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'github' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [icon]="webhookCopied() === 'github' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'github' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('github')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('github') }}</code>
+                </div>
+
+                <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-server text-emerald-500"></i> ServiceNow Webhook</span>
+                        <p-button
+                            [label]="webhookCopied() === 'servicenow' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [icon]="webhookCopied() === 'servicenow' ? 'pi pi-check' : 'pi pi-copy'"
+                            [severity]="webhookCopied() === 'servicenow' ? 'success' : 'secondary'"
+                            [outlined]="true"
+                            size="small"
+                            (onClick)="copyWebhookUrl('servicenow')"
+                        />
+                    </div>
+                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('servicenow') }}</code>
+                </div>
+            </div>
+        </div>
+    </p-card>
+}
