@@ -60,13 +60,13 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-            authenticate(header).ifPresent(principal ->
+            authenticate(header, pathWithinApplication(request)).ifPresent(principal ->
                     SecurityContextHolder.getContext().setAuthentication(principal));
         }
         chain.doFilter(request, response);
     }
 
-    private Optional<VectispirePrincipal> authenticate(String header) {
+    private Optional<VectispirePrincipal> authenticate(String header, String path) {
         Optional<SessionEntity> session = auth.resolve(header);
         if (session.isPresent()) {
             Optional<UserEntity> user = users.findById(session.get().getUserId()).filter(UserEntity::getIsActive);
@@ -82,10 +82,18 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
             return Optional.empty();
         }
 
-        // Check dedicated SCIM bearer token
-        if (scimProperties.isPresent()) {
+        // **The SCIM token is a principal on `/scim` and nowhere else.** It is held by the identity
+        // provider — a third system, with its own operators and its own breaches — and it
+        // authenticated as an unrestricted administrator on every route: the credential that
+        // exists to create and deactivate accounts could read the audit log, rewrite the gate
+        // policy, issue API keys and change the settings. Elsewhere it is simply not recognised,
+        // and falls through to the API-key lookup like any other unknown bearer. `enabled` is
+        // honoured too: a token left in the environment of an installation that switched SCIM off
+        // authenticated all the same.
+        if (scimProperties.isPresent() && isScimPath(path)) {
             ScimProperties props = scimProperties.get().resolved();
-            if (props.token().isPresent() && SecretCipher.secretEquals(token.get(), props.token().get())) {
+            if (props.enabled() && props.token().isPresent()
+                    && SecretCipher.secretEquals(token.get(), props.token().get())) {
                 return Optional.of(VectispirePrincipal.ofScimClient());
             }
         }
@@ -95,6 +103,19 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
                 .flatMap(key -> apiKeys.agentFor(key)
                         .map(agent -> VectispirePrincipal.ofAgent(
                                 agent, visibility.restrictionOf(key.getTargetKind(), key.getTargetId()))));
+    }
+
+    /** The path the application routes on, without the servlet context it may be deployed under. */
+    private static String pathWithinApplication(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String context = request.getContextPath();
+        return uri == null ? "" : context != null && !context.isEmpty() && uri.startsWith(context)
+                ? uri.substring(context.length())
+                : uri;
+    }
+
+    private static boolean isScimPath(String path) {
+        return path.equals("/scim") || path.startsWith("/scim/");
     }
 
     /** {@code Bearer zsk…} — the scheme is required, so a bare key does not pass by accident. */
