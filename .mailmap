@@ -1,0 +1,6 @@
+# One author, four addresses. Maps every commit to the identity the repository commits under
+# today, so `git shortlog` and `git blame` name one person rather than four. The history itself is
+# unchanged — this file only changes how it is displayed.
+Asmolabs <asmolabs@outlook.com> <lrb@civadis.be>
+Asmolabs <asmolabs@outlook.com> <asmolabs@icloud.com>
+Asmolabs <asmolabs@outlook.com> <108927228+Asmo1973@users.noreply.github.com>
