@@ -109,37 +109,13 @@ class ArchitectureTest {
     private static final java.util.Set<String> CONTROLLERS_STILL_REACHING_DATA = java.util.Set.of(
             "AgentsAdminController",
             "AgentsController",
-            "AiAdvisorController",
             "ApiKeysController",
-            "AttestationController",
             "AuditLogController",
-            "AuthController",
-            "ContainersController",
-            "CsafController",
-            "CycloneDxController",
-            "DashboardController",
-            "ExceptionsRegisterController",
-            "ExportsController",
-            "GateController",
-            "HistoryController",
-            "InventoryController",
-            "IssuesController",
-            "OwaspController",
-            "QualityController",
-            "RepositoriesController",
-            "RuleSetsController",
-            "SbomDiffController",
-            "ScansController",
             "ScimGroupsController",
             "ScimUsersController",
-            "ScorecardController",
-            "SettingsController",
             "SshKeysController",
-            "TeamsController",
             "TicketingController",
-            "TicketingWebhookController",
-            "UsersController",
-            "VexController");
+            "TicketingWebhookController");
 
     @Test
     @DisplayName("a controller reaches data only through a service — and the list of those that do not only shrinks")
