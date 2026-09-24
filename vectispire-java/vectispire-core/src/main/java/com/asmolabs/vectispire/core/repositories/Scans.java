@@ -407,4 +407,15 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     /** The container half of {@link #findRecentIdsByRepoId}. */
     @Query("select s.id from ScanEntity s where s.containerId = :containerId order by s.id desc")
     List<Long> findRecentIdsByContainerId(@Param("containerId") Long containerId, Limit limit);
+
+    /**
+     * The next completed scan of the same target, which closes the window an earlier scan's gate
+     * verdict can belong to. Two queries rather than one on a nullable column: `repo_id = null`
+     * matches nothing in SQL, and the caller knows which kind of target it holds.
+     */
+    java.util.Optional<ScanEntity> findFirstByRepoIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(
+            Long repoId, String status, Instant after);
+
+    java.util.Optional<ScanEntity> findFirstByContainerIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(
+            Long containerId, String status, Instant after);
 }

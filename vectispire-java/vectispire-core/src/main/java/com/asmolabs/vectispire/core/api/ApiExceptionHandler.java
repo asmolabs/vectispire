@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionExc
 import com.asmolabs.vectispire.core.api.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.services.InsecureCredentialTransportException;
 import com.asmolabs.vectispire.core.services.MissingEncryptionKeyException;
+import com.asmolabs.vectispire.core.services.AttestationService;
 import com.asmolabs.vectispire.core.services.ScanTriggerService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
@@ -85,9 +86,10 @@ public class ApiExceptionHandler {
      *
      * <p>409 rather than 400: nothing about the request is malformed, and a caller that retries
      * it unchanged in five minutes may well succeed. "Already queued" is the state's answer, not
-     * the request's fault.
+     * the request's fault. So is "not attestable": a scan still running may complete, and the
+     * refusal names what is missing rather than serving a statement with it invented.
      */
-    @ExceptionHandler(ScanTriggerService.AlreadyQueuedException.class)
+    @ExceptionHandler({ScanTriggerService.AlreadyQueuedException.class, AttestationService.NotAttestableException.class})
     ProblemDetail conflict(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
     }

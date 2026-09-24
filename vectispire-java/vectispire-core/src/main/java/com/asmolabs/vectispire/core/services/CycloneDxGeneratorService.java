@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Service;
 
 /**
@@ -31,11 +33,17 @@ public class CycloneDxGeneratorService {
     private final Scans scansRepo;
     private final Findings findingsRepo;
     private final Issues issuesRepo;
+    private final String toolVersion;
 
-    public CycloneDxGeneratorService(Scans scansRepo, Findings findingsRepo, Issues issuesRepo) {
+    public CycloneDxGeneratorService(
+            Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ObjectProvider<BuildProperties> build) {
         this.scansRepo = scansRepo;
         this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
+        // The build's version, or none: the tool entry is optional in CycloneDX, and it was the
+        // literal "0.9.0" that every later release would have kept writing.
+        BuildProperties properties = build.getIfAvailable();
+        this.toolVersion = properties == null ? null : properties.getVersion();
     }
 
     public Optional<CycloneDxDocument> generateForScan(Long scanId) {
@@ -82,7 +90,7 @@ public class CycloneDxGeneratorService {
 
         Metadata metadata = new Metadata(
                 Instant.now(),
-                List.of(new Tool("AsmoLabs", "Vectispire", "0.9.0")),
+                List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)),
                 rootApp);
 
         return new CycloneDxDocument(
@@ -142,7 +150,7 @@ public class CycloneDxGeneratorService {
 
         Metadata metadata = new Metadata(
                 scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now(),
-                List.of(new Tool("AsmoLabs", "Vectispire", "0.9.0")),
+                List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)),
                 scanTarget);
 
         return new CycloneDxDocument(

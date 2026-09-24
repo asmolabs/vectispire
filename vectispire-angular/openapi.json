@@ -3782,11 +3782,19 @@
       },
       "PolicyAssessment" : {
         "properties" : {
+          "decidedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
           "enforcedPolicy" : {
             "type" : "string"
           },
           "gatePassed" : {
             "type" : "boolean"
+          },
+          "policyVersion" : {
+            "format" : "int64",
+            "type" : "integer"
           },
           "violations" : {
             "items" : {

@@ -67,4 +67,9 @@ public interface Findings extends JpaRepository<FindingEntity, Long>, FindingGra
     void deleteByScanIdIn(java.util.Collection<Long> scanIds);
 
     void deleteByIssueIdIn(java.util.Collection<Long> issueIds);
+
+    /** One scan's findings that CISA lists as actively exploited — the attestation's KEV count. */
+    long countByScanIdAndIsKevTrue(Long scanId);
+
+    long countByScanIdAndType(Long scanId, String type);
 }

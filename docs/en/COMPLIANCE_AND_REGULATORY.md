@@ -177,7 +177,7 @@ Vectispire exports cryptographically sealed evidence packages ready for external
   - `01_compliance_frameworks.json`: Continuous compliance assessments across all 6 frameworks: NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2.
   - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
-  - `04_attestations/`: in-toto attestations and signed DSSE envelopes (RFC 9615).
+  - `04_attestations/`: in-toto attestations and signed DSSE envelopes (RFC 9615), for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
   - `05_openvex_advisory.json` & `.sig`: OpenVEX v0.2.0 document and detached signature.
   - `06_csaf_2_0_vex.json` & `.sig`: Standardized OASIS CSAF 2.0 security advisory and signature.
   - `07_license_compliance.json`: License inventory & copyleft governance.

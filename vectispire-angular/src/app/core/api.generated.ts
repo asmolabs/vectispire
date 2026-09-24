@@ -4053,8 +4053,12 @@ export interface components {
             policies?: components["schemas"]["GatePolicyView"][];
         };
         PolicyAssessment: {
+            /** Format: date-time */
+            decidedAt?: string;
             enforcedPolicy?: string;
             gatePassed: boolean;
+            /** Format: int64 */
+            policyVersion?: number;
             violations?: string[];
         };
         PolicyRequest: {

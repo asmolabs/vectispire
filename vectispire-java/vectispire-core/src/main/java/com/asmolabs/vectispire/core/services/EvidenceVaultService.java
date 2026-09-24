@@ -167,6 +167,11 @@ public class EvidenceVaultService {
                     .limit(20)
                     .map(row -> ((Number) row[0]).longValue())
                     .toList();
+            // **Refusals are written into the bundle; failures are not swallowed.** This loop ended in
+            // `catch (Exception ignored) {}`, so a statement that could not be built or signed left
+            // the archive without a trace, and an auditor counted twenty scans in the manifest's
+            // intent and nineteen files. A scan that cannot be attested now leaves a note saying why;
+            // anything else fails the export, which is what a broken signing path should do.
             for (Long scanId : completedScans) {
                 try {
                     InTotoAttestation attestation = attestationService.generateAttestation(scanId);
@@ -181,7 +186,11 @@ public class EvidenceVaultService {
                     addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_in_toto.dsse.json",
                             "Signed DSSE envelope (RFC 9615) for scan " + scanId,
                             dsseBytes);
-                } catch (Exception ignored) {}
+                } catch (AttestationService.NotAttestableException refused) {
+                    addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_not_attested.txt",
+                            "Why scan " + scanId + " carries no attestation",
+                            refused.getMessage().getBytes(StandardCharsets.UTF_8));
+                }
             }
 
             // 5. OpenVEX v0.2.0 document & detached signature

@@ -277,6 +277,20 @@ tasks.named<Jar>("bootJar") {
 }
 
 /**
+ * `META-INF/build-info.properties`, so a signed document can say which version produced it.
+ *
+ * The in-toto statement and the CycloneDX SBOM both wrote the literal "0.9.0", and every release
+ * after that one would have gone on claiming it. Spring Boot reads this file into `BuildProperties`.
+ * **Without the build time**: a timestamp in a resource makes every build a different jar and a
+ * different Jib layer, for a field nothing reads.
+ */
+springBoot {
+    buildInfo {
+        excludes = setOf("time")
+    }
+}
+
+/**
  * The container image, built from this build rather than from a Dockerfile.
  *
  * **Why Jib.** The image and the release both copied `vectispire-core.jar` while `bootJar` emitted

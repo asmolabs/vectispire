@@ -5,7 +5,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Pure model for in-toto standard cryptographic attestations and SLSA supply chain provenance.
+ * An in-toto statement about one completed scan: what it found, and what the gate said about it.
+ *
+ * <p><b>Every field is a claim a third party may act on</b>, so none is filled with a plausible
+ * default. It used to be: a subject digest of sixty-four zeros, a builder version fixed at 0.9.0,
+ * a gate "passed" computed as "no critical" under a policy named "Standard Policy" that existed
+ * nowhere, KEV and secret counts hard-coded to zero. A consumer verifying the digest could match it
+ * to nothing, and one reading the verdict read a rule no pipeline had applied.
  */
 public record InTotoAttestation(
         String _type,
@@ -20,6 +26,11 @@ public record InTotoAttestation(
             String name,
             Map<String, String> digest) {}
 
+    /**
+     * @param policy {@code null} when no gate verdict was recorded for the target between this
+     *     scan and the next: the gate was not asked, and "passed" would be an invention
+     * @param builder whose {@code version} is {@code null} when the build carried no version
+     */
     public record Predicate(
             Builder builder,
             Invocation invocation,
@@ -37,10 +48,20 @@ public record InTotoAttestation(
             String commitSha,
             Instant timestamp) {}
 
+    /**
+     * The gate verdict recorded for the target after this scan, as the gate recorded it.
+     *
+     * @param enforcedPolicy where the policy came from — the target's own, the global one, or the
+     *     built-in default — as the verdict register names it
+     * @param policyVersion the stored policy's version, {@code null} for the built-in default
+     * @param decidedAt when the pipeline asked; the verdict judged the backlog as it stood then
+     */
     public record PolicyAssessment(
             boolean gatePassed,
             List<String> violations,
-            String enforcedPolicy) {}
+            String enforcedPolicy,
+            Long policyVersion,
+            Instant decidedAt) {}
 
     public record FindingsSummary(
             long critical,
@@ -51,30 +72,35 @@ public record InTotoAttestation(
             long secrets,
             long total) {}
 
+    /**
+     * @param subjectName what the digest identifies
+     * @param subjectSha256 required: a statement whose subject cannot be matched to anything is not
+     *     an attestation, and refusing here is what keeps a caller from inventing one
+     * @param policy {@code null} when the gate was not asked — see {@link Predicate}
+     */
     public static InTotoAttestation create(
-            String targetName,
-            String artifactSha256,
+            String subjectName,
+            String subjectSha256,
+            String builderVersion,
             Long scanId,
             String targetKind,
+            String targetName,
             String branch,
             String commitSha,
             Instant timestamp,
-            boolean gatePassed,
-            List<String> violations,
-            String policyName,
+            PolicyAssessment policy,
             FindingsSummary findings,
             String sbomDigestSha256) {
 
-        Subject subject = new Subject(
-                targetName,
-                artifactSha256 != null && !artifactSha256.isBlank()
-                        ? Map.of("sha256", artifactSha256)
-                        : Map.of("sha256", "0000000000000000000000000000000000000000000000000000000000000000"));
+        if (subjectSha256 == null || subjectSha256.isBlank()) {
+            throw new IllegalArgumentException("An in-toto subject needs a digest; none was given.");
+        }
+        Subject subject = new Subject(subjectName, Map.of("sha256", subjectSha256));
 
         Predicate predicate = new Predicate(
-                new Builder("https://github.com/asmolabs/vectispire", "0.9.0"),
+                new Builder("https://github.com/asmolabs/vectispire", builderVersion),
                 new Invocation(scanId, targetKind, targetName, branch, commitSha, timestamp),
-                new PolicyAssessment(gatePassed, violations != null ? violations : List.of(), policyName),
+                policy,
                 findings,
                 sbomDigestSha256);
 

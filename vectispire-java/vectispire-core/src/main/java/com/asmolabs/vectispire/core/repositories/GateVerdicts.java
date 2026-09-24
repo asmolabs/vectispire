@@ -94,4 +94,25 @@ public interface GateVerdicts extends JpaRepository<GateVerdictEntity, java.util
     @Modifying(clearAutomatically = true)
     @Query("delete from GateVerdictEntity v where v.decidedAt < :cutoff")
     int deleteBefore(@Param("cutoff") Instant cutoff);
+
+    /**
+     * The last verdict a target received inside a window — the one that judged the backlog a
+     * given scan left behind, if a pipeline asked. Bounded above by the next scan, because a
+     * verdict recorded after that one judged a different backlog.
+     */
+    java.util.Optional<GateVerdictEntity> findFirstByRepoIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
+            Long repoId, Instant from, Instant until);
+
+    java.util.Optional<GateVerdictEntity> findFirstByContainerIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
+            Long containerId, Instant from, Instant until);
+
+    /**
+     * The same, with no later scan to close the window. A separate query rather than a far-future
+     * bound: {@code Instant.MAX} does not fit a MySQL or PostgreSQL timestamp.
+     */
+    java.util.Optional<GateVerdictEntity> findFirstByRepoIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(
+            Long repoId, Instant from);
+
+    java.util.Optional<GateVerdictEntity> findFirstByContainerIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(
+            Long containerId, Instant from);
 }
