@@ -113,7 +113,14 @@ public record IssueFilters(
             if (excludeSettled) {
                 // Named after what it does rather than after the SLA that wanted it: "not
                 // dismissed and not fixed" is a filter a backlog screen will want on its own day.
-                predicates.add(root.get("triageStatus").in(TriageStatus.unsettledWireNames()));
+                //
+                // **`not in` the settled statuses, not `in` the unsettled ones.** The two agree on
+                // every value this version writes and part on the rest: a status written by a later
+                // version, by hand or by an import — `untriaged` was one, in a test fixture — was
+                // dropped by `in`, so an issue nobody had decided on vanished from the overdue
+                // figure and from the grade. `IssueViews` reads an unreadable triage as under
+                // review for exactly that reason; the clause now takes the same side.
+                predicates.add(builder.not(root.get("triageStatus").in(TriageStatus.settledWireNames())));
             }
             if (overdueBefore != null && !overdueBefore.isEmpty()) {
                 // **A union, not a single comparison.** Late means "critical older than fifteen

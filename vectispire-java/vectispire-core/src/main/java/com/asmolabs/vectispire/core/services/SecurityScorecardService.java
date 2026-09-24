@@ -18,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -223,9 +224,20 @@ public class SecurityScorecardService {
                 recommendations);
     }
 
-    /** Every issue the caller may see; the open test stays in Java because it always was there. */
+    /**
+     * Every issue the caller may see that still weighs on the grade; the open test stays in Java
+     * because it always was there.
+     *
+     * <p><b>A settled triage is left out</b> — {@code not_affected} or {@code fixed}, the two
+     * decisions that already stop an issue failing the gate. Counting them kept a target's grade
+     * down after its team had argued each finding away, so the one screen meant to reward triage
+     * punished it, and disagreed with the gate about the same rows. {@code pending_approval}
+     * still counts: a dismissal nobody has approved is a request, not a decision. Filtered in the
+     * clause, as {@code SlaService.overdue} does, so the grade and the overdue figure on the same
+     * card leave out the same issues.
+     */
     private static Specification<IssueEntity> openWithin(Visibility allowed) {
-        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
                 .toSpecification();
     }
 

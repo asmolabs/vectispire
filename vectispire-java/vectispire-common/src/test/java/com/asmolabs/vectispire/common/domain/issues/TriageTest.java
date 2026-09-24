@@ -164,7 +164,7 @@ class TriageTest {
 
             assertThat(TriageStatus.fromWireName("pending_approval")).contains(TriageStatus.PENDING_APPROVAL);
             assertThat(TriageStatus.PENDING_APPROVAL.isSettled()).isFalse();
-            assertThat(TriageStatus.unsettledWireNames()).contains("pending_approval", "under_review", "affected");
+            assertThat(TriageStatus.settledWireNames()).containsExactlyInAnyOrder("not_affected", "fixed");
         }
     }
 }

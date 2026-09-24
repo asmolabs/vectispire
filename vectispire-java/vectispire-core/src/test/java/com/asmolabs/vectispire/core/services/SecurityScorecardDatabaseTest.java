@@ -107,8 +107,8 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
         assertThat(card.overdueCount()).isEqualTo(2);
         assertThat(card.recommendations()).anySatisfy(line -> assertThat(line).startsWith("Resolve 2 issue(s) past"));
-        // 100 - 8 - 8 (two unreachable criticals) - 4 - 4 (two highs) + 5: lateness is not scored.
-        assertThat(card.score()).isEqualTo(81);
+        // 100 - 8 (the unsettled critical) - 4 - 4 (two highs) + 5: lateness is not scored.
+        assertThat(card.score()).isEqualTo(89);
         assertThat(scorecards.getGlobalScorecard(Visibility.everything()).overdueCount()).isEqualTo(3);
     }
 
@@ -133,6 +133,27 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         assertThat(card.openKevCount()).isEqualTo(1);
         assertThat(card.licenseViolationCount()).isEqualTo(1);
         assertThat(card.hasAttestation()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a settled triage weighs nothing; a dismissal awaiting approval, or a status nobody recognizes, still does")
+    void settledTriageIsFree() {
+        completedScan();
+        triaged(issue("critical", true, "REACHABLE", "open"), "not_affected");
+        triaged(issue("critical", false, "UNKNOWN", "open"), "fixed");
+        triaged(issue("high", false, "UNKNOWN", "open"), "pending_approval");
+        triaged(issue("high", false, "UNKNOWN", "open"), "affected");
+        // A status this version does not know is nobody's decision, so it still counts.
+        triaged(issue("critical", false, "UNKNOWN", "open"), "untriaged");
+
+        SecurityScorecard card = scorecard();
+
+        // 100 - 4 - 4 - 8 + 5: the two settled criticals and the KEV among them are gone from the
+        // score and from the counts alike; the unreadable one is not.
+        assertThat(card.score()).isEqualTo(89);
+        assertThat(card.openCriticalCount()).isEqualTo(1);
+        assertThat(card.openKevCount()).isZero();
+        assertThat(card.openHighCount()).isEqualTo(2);
     }
 
     @Test
@@ -234,6 +255,11 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         issue.setFirstSeenAt(Instant.now());
         issue.setLastSeenAt(Instant.now());
         return issues.save(issue);
+    }
+
+    private void triaged(IssueEntity issue, String status) {
+        issue.setTriageStatus(status);
+        issues.save(issue);
     }
 
     private IssueEntity aged(IssueEntity issue, Instant firstSeenAt) {

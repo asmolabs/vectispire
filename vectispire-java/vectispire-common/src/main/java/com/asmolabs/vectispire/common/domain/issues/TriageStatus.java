@@ -54,13 +54,17 @@ public enum TriageStatus {
     }
 
     /**
-     * The statuses that leave an issue in the way, by wire name.
+     * The statuses that take an issue out of the way, by wire name.
      *
      * <p>Derived from {@link #isSettled()} rather than listed: a second list could disagree with
      * the flag, and the disagreement would decide whether a dismissed issue counts as late.
+     *
+     * <p>What a query excludes, rather than a list of what it keeps:
+     * a value outside this enum is then kept, which is the reading {@code fromWireName}'s callers
+     * give it — unknown is still in the way, never silently settled.
      */
-    public static List<String> unsettledWireNames() {
-        return Arrays.stream(values()).filter(status -> !status.isSettled()).map(TriageStatus::wireName).toList();
+    public static List<String> settledWireNames() {
+        return Arrays.stream(values()).filter(TriageStatus::isSettled).map(TriageStatus::wireName).toList();
     }
 
     public static Optional<TriageStatus> fromWireName(String value) {
