@@ -6,7 +6,7 @@ import { BrandingService } from '@/app/core/branding.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { of } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { ApiService } from '@/app/core/api.service';
+import { AuthApi } from '@/app/core/api/auth.api';
 
 describe('AppFooter', () => {
     let fixture: ComponentFixture<AppFooter>;
@@ -39,7 +39,7 @@ describe('AppFooter', () => {
                 BrandingService,
                 I18nService,
                 { provide: HttpClient, useValue: mockHttp },
-                { provide: ApiService, useValue: mockApi }
+                { provide: AuthApi, useValue: mockApi }
             ]
         }).compileComponents();
 

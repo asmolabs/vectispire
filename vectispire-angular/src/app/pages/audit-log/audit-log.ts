@@ -8,7 +8,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { AuditApi } from '../../core/api/audit.api';
 import type { AuditEntry, AuditVerification } from '../../core/api.models';
 
 /** Operation types, in words — keys rather than text, resolved at render time so a language
@@ -41,7 +41,7 @@ import { LatestRequest } from '@/app/core/latest-request';
 export class AuditLog {
     private readonly page = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly auditApi = inject(AuditApi);
     private readonly i18n = inject(I18nService);
 
     readonly entries = signal<AuditEntry[]>([]);
@@ -62,7 +62,7 @@ export class AuditLog {
     constructor() {
         this.reload();
 
-        this.api.verifyAuditChain().subscribe({
+        this.auditApi.verifyAuditChain().subscribe({
             next: (result) => {
                 this.verification.set(result);
                 this.verifying.set(false);
@@ -75,7 +75,7 @@ export class AuditLog {
             }
         });
 
-        this.api.auditOperationTypes().subscribe({
+        this.auditApi.auditOperationTypes().subscribe({
             // Checked, not trusted: read inside a computed the template renders, a value that is
             // not a list broke the whole screen — the log included — instead of just the filter.
             next: (types) => this.operationTypes.set(Array.isArray(types) ? types : []),
@@ -111,7 +111,7 @@ export class AuditLog {
     private reload(): void {
         this.loading.set(true);
         // Called on every keystroke of the search box: latest wins, or answers land out of order.
-        this.page.run(this.api
+        this.page.run(this.auditApi
             .auditLog({
                 operation_type: this.filters.operationType ?? undefined,
                 user_id: this.filters.userId.trim() || undefined,

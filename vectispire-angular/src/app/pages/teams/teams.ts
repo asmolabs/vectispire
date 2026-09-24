@@ -10,7 +10,7 @@ import { MultiSelectModule } from '@openng/optimus-ui/multiselect';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { AccountsApi } from '../../core/api/accounts.api';
 import type { ApiKeyTargets, TeamSummary, TeamTargetAssignment, UserSummary } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -54,7 +54,7 @@ const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? 
     templateUrl: './teams.html'
 })
 export class Teams {
-    private readonly api = inject(ApiService);
+    private readonly accountsApi = inject(AccountsApi);
     private readonly i18n = inject(I18nService);
 
     readonly teams = signal<TeamSummary[]>([]);
@@ -108,7 +108,7 @@ export class Teams {
 
     constructor() {
         this.reload();
-        this.api.users().subscribe({
+        this.accountsApi.users().subscribe({
             // `?? []` and not `result.users`: a payload without the array — a server one version
             // behind, a proxy answering something else — would otherwise throw inside a computed
             // signal, which the `error` handler below cannot catch because nothing errored. The
@@ -118,7 +118,7 @@ export class Teams {
             // membership picker is empty, which is degraded and not broken.
             error: () => this.accounts.set([])
         });
-        this.api.apiKeyTargets().subscribe({
+        this.accountsApi.apiKeyTargets().subscribe({
             next: (targets) => this.targets.set(targets),
             error: () => this.targets.set(null)
         });
@@ -126,7 +126,7 @@ export class Teams {
 
     reload(preserveError = false): void {
         this.loading.set(true);
-        this.api.teams().subscribe({
+        this.accountsApi.teams().subscribe({
             next: (teams) => {
                 this.teams.set(teams ?? []);
                 if (!preserveError) this.error.set(null);
@@ -159,7 +159,7 @@ export class Teams {
         this.saving.set(true);
         this.formError.set(null);
 
-        const request = existing ? this.api.updateTeam(existing.id, payload) : this.api.createTeam(payload);
+        const request = existing ? this.accountsApi.updateTeam(existing.id, payload) : this.accountsApi.createTeam(payload);
         request.subscribe({
             next: () => {
                 this.saving.set(false);
@@ -183,11 +183,11 @@ export class Teams {
         this.selectedTargets = [];
         this.accessVisible.set(true);
 
-        this.api.teamMembers(team.id).subscribe({
+        this.accountsApi.teamMembers(team.id).subscribe({
             next: (ids) => (this.selectedMembers = ids ?? []),
             error: () => this.formError.set(this.i18n.t('teams.error_read_members'))
         });
-        this.api.teamTargets(team.id).subscribe({
+        this.accountsApi.teamTargets(team.id).subscribe({
             next: (targets) => (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
             error: () => this.formError.set(this.i18n.t('teams.error_read_targets'))
         });
@@ -204,9 +204,9 @@ export class Teams {
 
         this.saving.set(true);
         this.formError.set(null);
-        this.api.setTeamMembers(team.id, this.selectedMembers).subscribe({
+        this.accountsApi.setTeamMembers(team.id, this.selectedMembers).subscribe({
             next: () =>
-                this.api.setTeamTargets(team.id, targets).subscribe({
+                this.accountsApi.setTeamTargets(team.id, targets).subscribe({
                     next: () => {
                         this.saving.set(false);
                         this.accessVisible.set(false);
@@ -244,7 +244,7 @@ export class Teams {
 
         this.saving.set(true);
         this.formError.set(null);
-        this.api.setTeamWebhook(team.id, this.webhookUrl).subscribe({
+        this.accountsApi.setTeamWebhook(team.id, this.webhookUrl).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.webhookVisible.set(false);
@@ -269,7 +269,7 @@ export class Teams {
         if (!team) return;
 
         this.saving.set(true);
-        this.api.deleteTeam(team.id).subscribe({
+        this.accountsApi.deleteTeam(team.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);

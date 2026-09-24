@@ -10,7 +10,8 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { SessionStore } from '@/app/core/session.store';
-import { ApiService } from '../../core/api.service';
+import { ComplianceApi } from '../../core/api/compliance.api';
+import { DocumentsApi } from '../../core/api/documents.api';
 import { saveDocument } from '../../core/download';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
@@ -26,7 +27,8 @@ import { LatestRequest } from '@/app/core/latest-request';
 export class Compliance {
     private readonly summaryRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly complianceApi = inject(ComplianceApi);
+    private readonly documentsApi = inject(DocumentsApi);
     private readonly session = inject(SessionStore);
 
     /**
@@ -168,7 +170,7 @@ export class Compliance {
         const sel = this.selectedTarget();
         const tid = (sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined') ? sel : undefined;
 
-        this.summaryRequest.run(this.api.complianceSummary(tid), {
+        this.summaryRequest.run(this.complianceApi.complianceSummary(tid), {
             next: (data) => {
                 this.summary.set(data);
                 if (data.targets && data.targets.length > 0) {
@@ -196,7 +198,7 @@ export class Compliance {
     exportPdf(): void {
         this.exporting.set(true);
         const tid = this.selectedTarget() ?? undefined;
-        this.api.exportCompliancePdf(tid).subscribe({
+        this.complianceApi.exportCompliancePdf(tid).subscribe({
             next: (response) => {
                 saveDocument(response, tid ? `vectispire-compliance-${tid.replace(':', '-')}.pdf` : 'vectispire-compliance-report.pdf');
                 this.exporting.set(false);
@@ -210,7 +212,7 @@ export class Compliance {
 
     exportEvidenceBundle(): void {
         this.exportingBundle.set(true);
-        this.api.exportEvidenceBundle().subscribe({
+        this.complianceApi.exportEvidenceBundle().subscribe({
             next: (response) => {
                 saveDocument(response, 'vectispire-audit-evidence-bundle.zip');
                 this.exportingBundle.set(false);
@@ -224,7 +226,7 @@ export class Compliance {
 
     exportOpenVex(): void {
         this.exportingVex.set(true);
-        this.api.getAggregateVex().subscribe({
+        this.documentsApi.getAggregateVex().subscribe({
             next: (vexDoc) => {
                 const blob = new Blob([JSON.stringify(vexDoc, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
@@ -244,7 +246,7 @@ export class Compliance {
 
     exportCsaf(): void {
         this.exportingCsaf.set(true);
-        this.api.getAggregateCsaf().subscribe({
+        this.documentsApi.getAggregateCsaf().subscribe({
             next: (csafDoc) => {
                 const blob = new Blob([JSON.stringify(csafDoc, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
@@ -264,7 +266,7 @@ export class Compliance {
 
     exportCycloneDx(): void {
         this.exportingCycloneDx.set(true);
-        this.api.getAggregateCycloneDx().subscribe({
+        this.documentsApi.getAggregateCycloneDx().subscribe({
             next: (cdxDoc) => {
                 const blob = new Blob([JSON.stringify(cdxDoc, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);
@@ -308,7 +310,7 @@ export class Compliance {
 
         try {
             const parsed = JSON.parse(this.importJson);
-            this.api.ingestVex(parsed).subscribe({
+            this.documentsApi.ingestVex(parsed).subscribe({
                 next: (res) => {
                     this.importing.set(false);
                     const count = res?.triagedIssues ?? 0;
@@ -329,7 +331,7 @@ export class Compliance {
 
     downloadPublicKey(): void {
         this.downloadingPubKey.set(true);
-        this.api.getPublicKeyPem().subscribe({
+        this.documentsApi.getPublicKeyPem().subscribe({
             next: (pem) => {
                 const blob = new Blob([pem], { type: 'application/x-pem-file' });
                 const url = window.URL.createObjectURL(blob);
@@ -355,7 +357,7 @@ export class Compliance {
         this.verifyError.set(null);
         this.verifyOpen.set(true);
 
-        this.api.getCosignCliHelper().subscribe({
+        this.documentsApi.getCosignCliHelper().subscribe({
             next: (info) => this.cosignCliInfo.set(info),
             error: () => {}
         });
@@ -389,7 +391,7 @@ export class Compliance {
         this.verifyResult.set(null);
         this.verifyError.set(null);
 
-        this.api.verifyCryptoSignature(this.verifyPayload, this.verifySignature, this.verifyPublicKey.trim() || undefined).subscribe({
+        this.documentsApi.verifyCryptoSignature(this.verifyPayload, this.verifySignature, this.verifyPublicKey.trim() || undefined).subscribe({
             next: (res) => {
                 this.verifying.set(false);
                 this.verifyResult.set(res);

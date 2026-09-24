@@ -5,7 +5,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { GateApi } from '@/app/core/api/gate.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
@@ -29,7 +29,7 @@ import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
     templateUrl: './gate-verdicts.html'
 })
 export class GateVerdicts {
-    private readonly api = inject(ApiService);
+    private readonly gateApi = inject(GateApi);
     private readonly i18n = inject(I18nService);
 
     readonly register = signal<VerdictRegister | null>(null);
@@ -91,7 +91,7 @@ export class GateVerdicts {
 
     private fetch(cursor: string | null): void {
         this.loadingMore.set(true);
-        this.api.gateVerdicts(200, cursor).subscribe({
+        this.gateApi.gateVerdicts(200, cursor).subscribe({
             next: (data) => {
                 this.register.set(data);
                 this.loaded.update((rows) => (cursor ? [...rows, ...data.verdicts] : data.verdicts));

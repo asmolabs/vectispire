@@ -13,7 +13,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { AccountsApi } from '../../core/api/accounts.api';
 import type { ApiKeySummary, ApiKeyTargets } from '../../core/api.models';
 
 /** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
@@ -36,7 +36,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class ApiKeys {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly accountsApi = inject(AccountsApi);
     readonly scopes = computed(() => {
         this.i18n.translations();
         return [
@@ -77,7 +77,7 @@ export class ApiKeys {
 
     constructor() {
         this.reload();
-        this.api.apiKeyTargets().subscribe({
+        this.accountsApi.apiKeyTargets().subscribe({
             // Each side is read defensively: an `error:` handler catches an HTTP failure, not an
             // exception thrown here, so a payload missing one of the two arrays used to escape as
             // an uncaught TypeError instead of taking the degraded path promised below.
@@ -90,7 +90,7 @@ export class ApiKeys {
 
     reload(preserveError = false): void {
         this.loading.set(true);
-        this.api.apiKeys().subscribe({
+        this.accountsApi.apiKeys().subscribe({
             next: (keys) => {
                 this.keys.set(keys);
                 if (!preserveError) this.error.set(null);
@@ -120,7 +120,7 @@ export class ApiKeys {
     submit(): void {
         const [targetKind, targetId] = this.form.target ? this.form.target.split(':') : [undefined, undefined];
         this.saving.set(true);
-        this.api
+        this.accountsApi
             .createApiKey({
                 name: this.form.name.trim(),
                 scopes: this.form.scopes,
@@ -159,7 +159,7 @@ export class ApiKeys {
         const key = this.pendingDelete();
         if (!key) return;
         this.saving.set(true);
-        this.api.deleteApiKey(key.id).subscribe({
+        this.accountsApi.deleteApiKey(key.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);

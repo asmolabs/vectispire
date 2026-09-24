@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService } from '../../core/api.service';
+import { ExposureApi } from '../../core/api/exposure.api';
 import { BlastRadiusReport, TopImpactPackage } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -29,7 +29,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     templateUrl: './blast-radius.html'
 })
 export class BlastRadius implements OnInit {
-    private readonly api = inject(ApiService);
+    private readonly exposureApi = inject(ExposureApi);
     private readonly i18n = inject(I18nService);
 
     searchQuery = '';
@@ -45,7 +45,7 @@ export class BlastRadius implements OnInit {
 
     loadTopPackages(): void {
         this.loading.set(true);
-        this.api.getTopBlastRadius(12).subscribe({
+        this.exposureApi.getTopBlastRadius(12).subscribe({
             next: (data) => {
                 this.topPackages.set(data);
                 this.loading.set(false);
@@ -71,7 +71,7 @@ export class BlastRadius implements OnInit {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.exploreBlastRadius(trimmed).subscribe({
+        this.exposureApi.exploreBlastRadius(trimmed).subscribe({
             next: (data) => {
                 this.report.set(data);
                 this.loading.set(false);

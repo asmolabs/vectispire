@@ -8,7 +8,7 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -47,7 +47,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     templateUrl: './account.html'
 })
 export class Account {
-    private readonly api = inject(ApiService);
+    private readonly authApi = inject(AuthApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -81,7 +81,7 @@ export class Account {
         this.code = '';
         this.backupCodes.set([]);
 
-        this.api.setupMfa().subscribe({
+        this.authApi.setupMfa().subscribe({
             next: (setup) => {
                 this.enrolment.set(setup);
                 this.busy.set(false);
@@ -106,7 +106,7 @@ export class Account {
 
         this.busy.set(true);
         this.error.set(null);
-        this.api.enableMfa(enrolment.secret, this.code.trim()).subscribe({
+        this.authApi.enableMfa(enrolment.secret, this.code.trim()).subscribe({
             next: (result) => {
                 this.busy.set(false);
                 this.enrolment.set(null);
@@ -146,7 +146,7 @@ export class Account {
 
         this.busy.set(true);
         this.error.set(null);
-        this.api.disableMfa(this.code.trim()).subscribe({
+        this.authApi.disableMfa(this.code.trim()).subscribe({
             next: () => {
                 this.busy.set(false);
                 this.removing.set(false);

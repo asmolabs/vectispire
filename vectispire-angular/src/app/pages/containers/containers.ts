@@ -10,7 +10,8 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { DataViewModule } from '@openng/optimus-ui/dataview';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { ScansApi } from '../../core/api/scans.api';
+import { TargetsApi } from '../../core/api/targets.api';
 import type { MonitoredContainer } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
@@ -27,7 +28,8 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
     templateUrl: './containers.html'
 })
 export class Containers {
-    private readonly api = inject(ApiService);
+    private readonly scansApi = inject(ScansApi);
+    private readonly targetsApi = inject(TargetsApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -103,7 +105,7 @@ export class Containers {
         this.busy.set(container.id);
         this.notice.set(null);
         this.error.set(null);
-        this.api.triggerContainerScan(container.id).subscribe({
+        this.scansApi.triggerContainerScan(container.id).subscribe({
             next: () => {
                 this.busy.set(null);
                 this.notice.set(this.i18n.t('containers.scan_queued', { reference: container.reference }));
@@ -118,7 +120,7 @@ export class Containers {
 
     reload(): void {
         this.loading.set(true);
-        this.api.containers().subscribe({
+        this.targetsApi.containers().subscribe({
             next: (containers) => {
                 this.containers.set(containers);
                 this.error.set(null);
@@ -174,7 +176,7 @@ export class Containers {
         };
 
         this.saving.set(true);
-        const call = editing ? this.api.updateContainer(editing.id, body) : this.api.createContainer(body);
+        const call = editing ? this.targetsApi.updateContainer(editing.id, body) : this.targetsApi.createContainer(body);
         call.subscribe({
             next: () => {
                 this.saving.set(false);
@@ -201,7 +203,7 @@ export class Containers {
         const container = this.pendingDelete();
         if (!container) return;
         this.saving.set(true);
-        this.api.deleteContainer(container.id).subscribe({
+        this.targetsApi.deleteContainer(container.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);

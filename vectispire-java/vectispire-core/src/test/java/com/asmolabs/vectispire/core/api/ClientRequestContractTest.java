@@ -32,8 +32,9 @@ import org.springframework.http.MediaType;
  * a repository created with no agent label, an account whose deactivation did nothing and
  * reported success, and a dismissal whose review date was dropped so it never came back.
  *
- * <p>Every payload below is written the way {@code api.service.ts} writes it, snake_case
- * included. That file is the specification; this is what holds the two together.
+ * <p>Every payload below is written the way the Angular API clients
+ * ({@code vectispire-angular/src/app/core/api/*.api.ts}) write it, snake_case included. Those
+ * files are the specification; this is what holds the two together.
  */
 @DisplayName("what the Angular client sends")
 class ClientRequestContractTest extends ApiTestBase {

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { RemediationApi } from '@/app/core/api/remediation.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/api.models';
@@ -27,7 +27,7 @@ import type { RemediationBySeverity, RemediationDistribution } from '@/app/core/
     templateUrl: './remediation-delays.html'
 })
 export class RemediationDelays {
-    private readonly api = inject(ApiService);
+    private readonly remediationApi = inject(RemediationApi);
     private readonly i18n = inject(I18nService);
 
     readonly distribution = signal<RemediationDistribution | null>(null);
@@ -36,7 +36,7 @@ export class RemediationDelays {
     readonly rows = computed<RemediationBySeverity[]>(() => this.distribution()?.bySeverity ?? []);
 
     constructor() {
-        this.api.remediationDistribution(90).subscribe({
+        this.remediationApi.remediationDistribution(90).subscribe({
             next: (data) => this.distribution.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('delays.load_failed')))
         });

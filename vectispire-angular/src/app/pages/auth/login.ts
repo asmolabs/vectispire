@@ -6,7 +6,7 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
 import type { SignInMethods } from '../../core/api.models';
-import { ApiService } from '@/app/core/api.service';
+import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
@@ -33,7 +33,7 @@ import { BrandingService } from '@/app/core/branding.service';
     templateUrl: './login.html'
 })
 export class Login {
-    private readonly api = inject(ApiService);
+    private readonly authApi = inject(AuthApi);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
     private readonly i18n = inject(I18nService);
@@ -51,7 +51,7 @@ export class Login {
     readonly methods = signal<SignInMethods | null>(null);
 
     constructor() {
-        this.api.signInMethods().subscribe({
+        this.authApi.signInMethods().subscribe({
             next: (methods) => this.methods.set(methods),
             // A deployment that cannot answer offers the password form alone, which is the
             // conservative default: showing a button that leads nowhere is worse than hiding one.
@@ -79,7 +79,7 @@ export class Login {
      */
     private completeSignIn(): void {
         this.loading.set(true);
-        this.api.completeSignIn().subscribe({
+        this.authApi.completeSignIn().subscribe({
             next: (response) => {
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
@@ -118,7 +118,7 @@ export class Login {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.verifyMfa(this.mfaToken()!, this.mfaCode.trim()).subscribe({
+        this.authApi.verifyMfa(this.mfaToken()!, this.mfaCode.trim()).subscribe({
             next: (response) => {
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
@@ -142,7 +142,7 @@ export class Login {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.login(this.username, this.password, clientId()).subscribe({
+        this.authApi.login(this.username, this.password, clientId()).subscribe({
             next: (response) => {
                 if (response.mfa_required) {
                     this.loading.set(false);

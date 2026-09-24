@@ -9,7 +9,9 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { ExposureApi } from '../../core/api/exposure.api';
+import { TargetsApi } from '../../core/api/targets.api';
+import { ScansApi } from '../../core/api/scans.api';
 import { saveDocument } from '../../core/download';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -41,7 +43,9 @@ import type {
 export class AttackSurface implements OnInit, OnDestroy {
     private readonly repoRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly exposureApi = inject(ExposureApi);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly scansApi = inject(ScansApi);
     readonly i18n = inject(I18nService);
     private pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -137,7 +141,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.getAttackSurface().subscribe({
+        this.exposureApi.getAttackSurface().subscribe({
             next: (global) => {
                 this.globalData.set(global);
                 this.loading.set(false);
@@ -148,7 +152,7 @@ export class AttackSurface implements OnInit, OnDestroy {
             }
         });
 
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repos) => {
                 this.repositories.set(repos);
             },
@@ -169,7 +173,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.selectedRepoId.set(String(id));
         this.repoLoading.set(true);
 
-        this.repoRequest.run(this.api.getRepositoryApis(id), {
+        this.repoRequest.run(this.exposureApi.getRepositoryApis(id), {
             next: (data) => {
                 this.repoOverview.set(data);
                 this.repoLoading.set(false);
@@ -227,7 +231,7 @@ export class AttackSurface implements OnInit, OnDestroy {
 
         const id = Number(repoId);
         this.exporting.set(true);
-        this.api.exportSynthesizedOpenApi(id).subscribe({
+        this.exposureApi.exportSynthesizedOpenApi(id).subscribe({
             next: (response) => {
                 saveDocument(response, `openapi-repository-${id}.json`);
                 this.exporting.set(false);
@@ -248,8 +252,8 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.scanSuccess.set(null);
 
         const request$ = (!repoId || repoId === 'ALL')
-            ? this.api.clearAttackSurface()
-            : this.api.clearRepositoryApis(Number(repoId));
+            ? this.exposureApi.clearAttackSurface()
+            : this.exposureApi.clearRepositoryApis(Number(repoId));
 
         request$.subscribe({
             next: () => {
@@ -285,7 +289,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.error.set(null);
         this.scanSuccess.set(null);
 
-        this.api.triggerRepositoryScan(id).subscribe({
+        this.scansApi.triggerRepositoryScan(id).subscribe({
             next: () => {
                 this.scanningRepo.set(false);
                 this.scanSuccess.set(this.i18n.t('attack_surface.scan_scheduled'));
@@ -306,7 +310,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.error.set(null);
         this.scanSuccess.set(null);
 
-        const requests = repos.map((r) => this.api.triggerRepositoryScan(r.id));
+        const requests = repos.map((r) => this.scansApi.triggerRepositoryScan(r.id));
         import('rxjs').then(({ forkJoin }) => {
             forkJoin(requests).subscribe({
                 next: (results) => {

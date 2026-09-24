@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
-import { ApiService } from '@/app/core/api.service';
+import { RuleSetsApi } from '@/app/core/api/rule-sets.api';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { RuleCoverageAssessment } from '@/app/core/api.models';
 
@@ -29,7 +29,7 @@ import type { RuleCoverageAssessment } from '@/app/core/api.models';
     templateUrl: './rule-coverage-banner.html'
 })
 export class RuleCoverageBanner {
-    private readonly api = inject(ApiService);
+    private readonly ruleSetsApi = inject(RuleSetsApi);
 
     readonly coverage = signal<RuleCoverageAssessment | null>(null);
 
@@ -48,7 +48,7 @@ export class RuleCoverageBanner {
     readonly uncovered = computed(() => this.coverage()?.uncovered ?? []);
 
     constructor() {
-        this.api.ruleCoverage().subscribe({
+        this.ruleSetsApi.ruleCoverage().subscribe({
             next: (data) => this.coverage.set(data),
             error: () => this.coverage.set(null)
         });

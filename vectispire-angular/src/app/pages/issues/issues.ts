@@ -15,7 +15,9 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { IntelApi } from '@/app/core/api/intel.api';
+import { TargetsApi } from '@/app/core/api/targets.api';
+import { IssuesApi } from '@/app/core/api/issues.api';
 import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.models';
 
@@ -51,7 +53,9 @@ export class Issues {
     private readonly page = new LatestRequest();
 
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly intelApi = inject(IntelApi);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly issuesApi = inject(IssuesApi);
     private readonly route = inject(ActivatedRoute);
 
     readonly session = inject(SessionStore);
@@ -246,7 +250,7 @@ export class Issues {
         // **The advisor is offered only if it exists.** With no model configured, the button opened
         // a dialog that could say nothing; a read failure — not an access one — so a call that fails
         // leaves the button hidden rather than promising one that misses.
-        this.api.getAiAdvisorStatus().subscribe({
+        this.intelApi.getAiAdvisorStatus().subscribe({
             next: (status) => this.aiEnabled.set(status?.enabled === true),
             error: () => this.aiEnabled.set(false)
         });
@@ -260,14 +264,14 @@ export class Issues {
      */
     private loadTargets(): void {
         const options: { label: string; value: string }[] = [];
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repositories) => {
                 options.push(...repositories.map((row) => ({ label: row.displayName, value: `repository:${row.id}` })));
                 this.targets.set([...options]);
             },
             error: () => undefined
         });
-        this.api.containers().subscribe({
+        this.targetsApi.containers().subscribe({
             next: (containers) => {
                 options.push(...containers.map((row) => ({ label: row.reference, value: `container:${row.id}` })));
                 this.targets.set([...options]);
@@ -285,7 +289,7 @@ export class Issues {
         this.offset.set(Math.max(0, offset));
         const [kind, id] = this.target?.split(':') ?? [];
         // Latest wins: an answer to a previous filter is cancelled, never shown under this one.
-        this.page.run(this.api
+        this.page.run(this.issuesApi
             .issues({
                 repository_id: kind === 'repository' ? Number(id) : undefined,
                 container_id: kind === 'container' ? Number(id) : undefined,
@@ -442,7 +446,7 @@ export class Issues {
             return;
         }
         if (!this.triaged) return;
-        this.api
+        this.issuesApi
             .triage(this.triaged.id, this.triageBody())
             .subscribe({
                 next: () => {
@@ -465,7 +469,7 @@ export class Issues {
     private submitBulkTriage(): void {
         const ids = this.selected().map((issue) => issue.id);
         if (ids.length === 0) return;
-        this.api.triageMany({ ids, ...this.triageBody() }).subscribe({
+        this.issuesApi.triageMany({ ids, ...this.triageBody() }).subscribe({
             next: () => {
                 this.triageOpen = false;
                 this.reload(this.offset());
@@ -518,7 +522,7 @@ export class Issues {
         this.aiAdviceLoading.set(true);
         this.aiModalOpen = true;
 
-        this.api.explainIssueWithAi(issue.id).subscribe({
+        this.intelApi.explainIssueWithAi(issue.id).subscribe({
             next: (advice) => {
                 this.aiAdvice.set(advice);
                 this.aiAdviceLoading.set(false);

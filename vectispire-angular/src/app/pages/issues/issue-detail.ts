@@ -9,7 +9,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { IssuesApi } from '../../core/api/issues.api';
 import { SessionStore } from '../../core/session.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { IssueDetail } from '../../core/api.models';
@@ -46,7 +46,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './issue-detail.html'
 })
 export class IssueDetailPage {
-    private readonly api = inject(ApiService);
+    private readonly issuesApi = inject(IssuesApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -75,7 +75,7 @@ export class IssueDetailPage {
 
     constructor() {
         queueMicrotask(() => {
-            this.api.issue(Number(this.id())).subscribe({
+            this.issuesApi.issue(Number(this.id())).subscribe({
                 next: (detail) => this.issue.set(detail),
                 error: () => this.error.set(this.i18n.t('issues.detail_load_failed'))
             });
@@ -118,7 +118,7 @@ export class IssueDetailPage {
 
         this.attaching.set(true);
         this.ticketError.set(null);
-        this.api.attachTicket(detail.id, reference, this.ticketUrl.trim() || null).subscribe({
+        this.issuesApi.attachTicket(detail.id, reference, this.ticketUrl.trim() || null).subscribe({
             next: (updated) => {
                 this.attaching.set(false);
                 this.editingTicket.set(false);

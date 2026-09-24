@@ -8,7 +8,8 @@ import { ChartModule } from '@openng/optimus-ui/chart';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { DashboardApi } from '../../core/api/dashboard.api';
+import { RemediationApi } from '../../core/api/remediation.api';
 import type { DashboardOverview, Trends, PostureTrendAnalytics, SecurityDebtReport } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 
@@ -52,7 +53,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class Dashboard {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly dashboardApi = inject(DashboardApi);
+    private readonly remediationApi = inject(RemediationApi);
     readonly severities = computed(() => {
         this.i18n.translations();
         return SEVERITY_TILES.map((tile) => ({ ...tile, label: this.i18n.t(`severities.${tile.key}`) }));
@@ -81,7 +83,7 @@ export class Dashboard {
     readonly window = signal(90);
 
     constructor() {
-        this.api.dashboard().subscribe({
+        this.dashboardApi.dashboard().subscribe({
             next: (overview) => {
                 this.data.set(overview);
                 this.loading.set(false);
@@ -91,7 +93,7 @@ export class Dashboard {
                 this.loading.set(false);
             }
         });
-        this.api.getSecurityDebt().subscribe({
+        this.remediationApi.getSecurityDebt().subscribe({
             next: (debt) => this.securityDebt.set(debt),
             error: () => {}
         });
@@ -105,12 +107,12 @@ export class Dashboard {
         this.window.set(days);
         this.trends.set(null);
         this.trendError.set(null);
-        this.api.trends(days).subscribe({
+        this.dashboardApi.trends(days).subscribe({
             next: (series) => this.trends.set(series),
             error: () => this.trendError.set(this.i18n.t('dashboard.trend_load_failed'))
         });
 
-        this.api.getPostureAnalytics(days).subscribe({
+        this.dashboardApi.getPostureAnalytics(days).subscribe({
             next: (analytics) => this.postureAnalytics.set(analytics),
             error: () => {}
         });

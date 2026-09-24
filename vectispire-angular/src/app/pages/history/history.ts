@@ -6,7 +6,8 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { ScansApi } from '../../core/api/scans.api';
+import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { HistoryDossier, HistoryIssue, HistoryRepository } from '../../core/api.models';
@@ -67,7 +68,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './history.html'
 })
 export class History {
-    private readonly api = inject(ApiService);
+    private readonly scansApi = inject(ScansApi);
+    private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
 
     readonly repositories = signal<HistoryRepository[]>([]);
@@ -78,7 +80,7 @@ export class History {
     readonly selectedId = computed(() => this.dossier()?.repository.id ?? null);
 
     constructor() {
-        this.api.historyRepositories().subscribe({
+        this.scansApi.historyRepositories().subscribe({
             next: (rows) => {
                 this.repositories.set(rows);
                 this.loadingList.set(false);
@@ -96,7 +98,7 @@ export class History {
     }
 
     open(repository: HistoryRepository): void {
-        this.api.historyDossier(repository.id).subscribe({
+        this.scansApi.historyDossier(repository.id).subscribe({
             next: (file) => this.dossier.set(ranked(file)),
             error: () => this.error.set(this.i18n.t('history.dossier_load_failed'))
         });
@@ -109,14 +111,14 @@ export class History {
         }
         // Through HttpClient, never a navigation: there is no session cookie here. The token
         // lives in memory and only the interceptor puts it on a request.
-        this.api.downloadDocument(`/api/v1/history/repositories/${id}/export.${format}`).subscribe({
+        this.documentsApi.downloadDocument(`/api/v1/history/repositories/${id}/export.${format}`).subscribe({
             next: (response) => saveDocument(response, `vectispire-history-${id}.${format}`),
             error: () => this.error.set(this.i18n.t('history.export_failed'))
         });
     }
 
     downloadVex(scanId: number): void {
-        this.api.getScanVex(scanId).subscribe({
+        this.documentsApi.getScanVex(scanId).subscribe({
             next: (vexDoc) => {
                 const blob = new Blob([JSON.stringify(vexDoc, null, 2)], { type: 'application/json' });
                 const url = window.URL.createObjectURL(blob);

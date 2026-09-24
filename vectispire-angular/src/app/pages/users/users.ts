@@ -12,7 +12,8 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { AccountsApi } from '../../core/api/accounts.api';
+import { SettingsApi } from '../../core/api/settings.api';
 import type { ApiKeyTargets, UserSummary, UserTargetAssignment } from '../../core/api.models';
 import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
 
@@ -29,7 +30,8 @@ const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? 
 })
 export class Users {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly accountsApi = inject(AccountsApi);
+    private readonly settingsApi = inject(SettingsApi);
     readonly roles = computed(() => {
         this.i18n.translations();
         return [
@@ -122,11 +124,11 @@ export class Users {
 
         // The targets and the mode are loaded separately: failing to get them degrades the dialog
         // without preventing the administration of accounts, which is the screen's subject.
-        this.api.apiKeyTargets().subscribe({
+        this.accountsApi.apiKeyTargets().subscribe({
             next: (targets) => this.targets.set(targets ?? null),
             error: () => this.targets.set(null)
         });
-        this.api.settings().subscribe({
+        this.settingsApi.settings().subscribe({
             next: (result) => this.visibilityMode.set(
                 (result?.settings ?? []).find((setting) => setting.key === 'target_visibility')?.value ?? null),
             error: () => this.visibilityMode.set(null)
@@ -140,7 +142,7 @@ export class Users {
         this.selectedTargets = [];
         this.accessVisible.set(true);
 
-        this.api.userTargets(user.id).subscribe({
+        this.accountsApi.userTargets(user.id).subscribe({
             next: (targets) =>
                 (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
             error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
@@ -165,7 +167,7 @@ export class Users {
 
         this.saving.set(true);
         this.formError.set(null);
-        this.api.setUserTargets(user.id, targets).subscribe({
+        this.accountsApi.setUserTargets(user.id, targets).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.accessVisible.set(false);
@@ -185,7 +187,7 @@ export class Users {
      */
     reload(preserveError = false): void {
         this.loading.set(true);
-        this.api.users().subscribe({
+        this.accountsApi.users().subscribe({
             next: (result) => {
                 this.users.set(result.users);
                 this.currentUserId.set(result.currentUserId);
@@ -211,7 +213,7 @@ export class Users {
     private patch(user: UserSummary, body: { role?: string; is_active?: boolean; password?: string }): void {
         this.busy.set(user.id);
         this.error.set(null);
-        this.api.updateUser(user.id, body).subscribe({
+        this.accountsApi.updateUser(user.id, body).subscribe({
             next: () => {
                 this.busy.set(null);
                 this.reload();
@@ -237,7 +239,7 @@ export class Users {
 
     submit(): void {
         this.saving.set(true);
-        this.api
+        this.accountsApi
             .createUser({
                 username: this.form.username.trim(),
                 password: this.form.password,
@@ -268,7 +270,7 @@ export class Users {
         const user = this.pendingReset();
         if (!user) return;
         this.saving.set(true);
-        this.api.updateUser(user.id, { password: this.resetPassword }).subscribe({
+        this.accountsApi.updateUser(user.id, { password: this.resetPassword }).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.resetVisible.set(false);
@@ -290,7 +292,7 @@ export class Users {
         const user = this.pendingDelete();
         if (!user) return;
         this.saving.set(true);
-        this.api.deleteUser(user.id).subscribe({
+        this.accountsApi.deleteUser(user.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);

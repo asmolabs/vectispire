@@ -1,12 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { ApiService } from './api.service';
+import { AuthApi } from './api/auth.api';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
 })
 export class BrandingService {
-    private readonly api = inject(ApiService);
+    private readonly authApi = inject(AuthApi);
 
     readonly brandName = signal<string>('Vectispire');
     readonly gitlabUrl = signal<string>('https://github.com/asmolabs/vectispire');
@@ -17,7 +17,7 @@ export class BrandingService {
      */
     async init(): Promise<void> {
         try {
-            const methods = await firstValueFrom(this.api.signInMethods());
+            const methods = await firstValueFrom(this.authApi.signInMethods());
             if (methods?.brandName) {
                 this.brandName.set(methods.brandName);
             }

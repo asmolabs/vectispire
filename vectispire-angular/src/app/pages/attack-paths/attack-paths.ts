@@ -9,7 +9,8 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
+import { ExposureApi } from '../../core/api/exposure.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
@@ -41,7 +42,8 @@ import type {
 export class AttackPaths implements OnInit {
     private readonly graphRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly exposureApi = inject(ExposureApi);
     private readonly i18n = inject(I18nService);
 
     readonly repositories = signal<MonitoredRepository[]>([]);
@@ -96,7 +98,7 @@ export class AttackPaths implements OnInit {
     }
 
     loadRepositories(): void {
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repos) => {
                 this.repositories.set(repos);
                 if (repos.length > 0 && !this.selectedRepoId()) {
@@ -109,7 +111,7 @@ export class AttackPaths implements OnInit {
     }
 
     loadOverview(): void {
-        this.api.getAttackPathsOverview().subscribe({
+        this.exposureApi.getAttackPathsOverview().subscribe({
             next: (list) => this.overviewList.set(list),
             error: () => {}
         });
@@ -125,7 +127,7 @@ export class AttackPaths implements OnInit {
     loadGraph(repoId: number): void {
         this.loading.set(true);
         this.error.set(null);
-        this.graphRequest.run(this.api.getAttackPathGraph(repoId), {
+        this.graphRequest.run(this.exposureApi.getAttackPathGraph(repoId), {
             next: (g) => {
                 this.graph.set(g);
                 this.loading.set(false);

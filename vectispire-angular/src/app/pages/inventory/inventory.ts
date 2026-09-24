@@ -8,7 +8,8 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { SelectModule } from '@openng/optimus-ui/select';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
+import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { InventoryOccurrence, MonitoredContainer, MonitoredRepository, SbomDiffReport, ScanSummary } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -23,7 +24,8 @@ import { LatestRequest } from '@/app/core/latest-request';
 export class Inventory {
     private readonly scansRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly scansApi = inject(ScansApi);
     private readonly i18n = inject(I18nService);
 
     name = '';
@@ -73,7 +75,7 @@ export class Inventory {
         // Loaded separately, and the comparison cannot start without them: picking a target is now
         // the first move rather than an alternative to typing two scan numbers. A failure here
         // leaves the search tab working, which is the other half of this screen.
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repositories: MonitoredRepository[]) => this.addTargets(
                 repositories.map((repository) => ({
                     label: repository.name ?? repository.url,
@@ -81,7 +83,7 @@ export class Inventory {
                 }))),
             error: () => {}
         });
-        this.api.containers().subscribe({
+        this.targetsApi.containers().subscribe({
             next: (containers: MonitoredContainer[]) => this.addTargets(
                 containers.map((container) => ({
                     label: `${container.imageName}:${container.tag}`,
@@ -102,7 +104,7 @@ export class Inventory {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.searchComponents(this.name.trim(), this.version.trim()).subscribe({
+        this.scansApi.searchComponents(this.name.trim(), this.version.trim()).subscribe({
             next: (results) => {
                 this.occurrences.set(results.occurrences);
                 this.truncated.set(results.truncated);
@@ -138,7 +140,7 @@ export class Inventory {
 
         const [kind, id] = this.diffTarget.split(':');
         this.scansLoading.set(true);
-        this.scansRequest.run(this.api.scansOf(
+        this.scansRequest.run(this.scansApi.scansOf(
                 kind === 'repo' ? Number(id) : undefined,
                 kind === 'container' ? Number(id) : undefined), {
                 next: (history) => {
@@ -181,7 +183,7 @@ export class Inventory {
         }
         this.diffLoading.set(true);
         this.diffError.set(null);
-        this.api.getSbomDiff(this.fromScanId, this.toScanId).subscribe({
+        this.scansApi.getSbomDiff(this.fromScanId, this.toScanId).subscribe({
             next: (report) => {
                 this.diffReport.set(report);
                 this.diffLoading.set(false);

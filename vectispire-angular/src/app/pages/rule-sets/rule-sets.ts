@@ -9,7 +9,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { RuleSetsApi } from '../../core/api/rule-sets.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { CataloguePreview, RuleSetImpact, RuleSetSummary } from '../../core/api.models';
 
@@ -42,7 +42,7 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
     templateUrl: './rule-sets.html'
 })
 export class RuleSets {
-    private readonly api = inject(ApiService);
+    private readonly ruleSetsApi = inject(RuleSetsApi);
     private readonly i18n = inject(I18nService);
 
     readonly sets = signal<RuleSetSummary[]>([]);
@@ -97,7 +97,7 @@ export class RuleSets {
         this.catalogue.set(null);
         this.chosen.set(new Set());
 
-        this.api.ruleCatalogue().subscribe({
+        this.ruleSetsApi.ruleCatalogue().subscribe({
             next: (preview) => {
                 this.loadingCatalogue.set(false);
                 this.catalogue.set(preview);
@@ -116,7 +116,7 @@ export class RuleSets {
         if (!preview) return;
 
         this.fetching.set(true);
-        this.api
+        this.ruleSetsApi
             .fetchRuleCatalogue(preview.commit, [...this.chosen()], preview.licence_sha256)
             .subscribe({
                 next: (stored) => {
@@ -189,7 +189,7 @@ export class RuleSets {
         this.error.set(null);
         this.notice.set(null);
 
-        this.api.uploadRuleSet(this.name.trim(), this.picked()).subscribe({
+        this.ruleSetsApi.uploadRuleSet(this.name.trim(), this.picked()).subscribe({
             next: (stored) => {
                 this.uploading.set(false);
                 this.picked.set([]);
@@ -210,7 +210,7 @@ export class RuleSets {
     review(set: RuleSetSummary): void {
         this.candidate.set(set);
         this.impact.set(null);
-        this.api.ruleSetImpact(set.id).subscribe({
+        this.ruleSetsApi.ruleSetImpact(set.id).subscribe({
             next: (cost) => this.impact.set(cost),
             error: () => {
                 this.candidate.set(null);
@@ -226,7 +226,7 @@ export class RuleSets {
         // answerable months later.
         const note = `${cost.addedRules} rules added, ${cost.removedRules} removed, ${cost.affectedIssues} open issues affected.`;
 
-        this.api.activateRuleSet(set.id, note).subscribe({
+        this.ruleSetsApi.activateRuleSet(set.id, note).subscribe({
             next: () => {
                 this.activating.set(false);
                 this.candidate.set(null);
@@ -241,7 +241,7 @@ export class RuleSets {
     }
 
     deactivate(): void {
-        this.api.deactivateRuleSets().subscribe({
+        this.ruleSetsApi.deactivateRuleSets().subscribe({
             next: () => {
                 this.notice.set(this.i18n.t('rule_sets.deactivated_notice'));
                 this.reload();
@@ -251,7 +251,7 @@ export class RuleSets {
     }
 
     private reload(): void {
-        this.api.ruleSets().subscribe({
+        this.ruleSetsApi.ruleSets().subscribe({
             next: (response) => this.sets.set(response.ruleSets),
             error: () => this.error.set(this.i18n.t('rule_sets.error_load'))
         });

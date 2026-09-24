@@ -7,7 +7,7 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { IssuesApi } from '@/app/core/api/issues.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -35,7 +35,7 @@ import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/co
     templateUrl: './exceptions.html'
 })
 export class Exceptions {
-    private readonly api = inject(ApiService);
+    private readonly issuesApi = inject(IssuesApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -116,7 +116,7 @@ export class Exceptions {
     }
 
     private fetch(cursor: string | null): void {
-        this.api.exceptionsRegister(200, cursor).subscribe({
+        this.issuesApi.exceptionsRegister(200, cursor).subscribe({
             next: (data) => {
                 this.register.set(data);
                 this.loaded.update((rows) => (cursor ? [...rows, ...data.entries] : data.entries));
@@ -153,7 +153,7 @@ export class Exceptions {
         this.busy.set(true);
         this.error.set(null);
 
-        this.api
+        this.issuesApi
             .reviewException(
                 entry.issue_id,
                 this.outcome,

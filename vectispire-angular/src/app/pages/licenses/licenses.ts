@@ -11,7 +11,8 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
+import { LicensesApi } from '../../core/api/licenses.api';
 import { SessionStore } from '../../core/session.store';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
@@ -49,7 +50,8 @@ export class Licenses {
     private readonly inventoryRequest = new LatestRequest();
 
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly licensesApi = inject(LicensesApi);
     private readonly session = inject(SessionStore);
 
     readonly summary = signal<LicenseSummary | null>(null);
@@ -105,11 +107,11 @@ export class Licenses {
     }
 
     loadTargets(): void {
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (r) => this.repos.set(r),
             error: () => {}
         });
-        this.api.containers().subscribe({
+        this.targetsApi.containers().subscribe({
             next: (c) => this.containers.set(c),
             error: () => {}
         });
@@ -166,7 +168,7 @@ export class Licenses {
         this.savingPolicy.set(true);
         this.policyError.set(null);
 
-        this.api.updateLicensePolicy({
+        this.licensesApi.updateLicensePolicy({
             disallowedCategories: this.draftDisallowed,
             explicitlyAllowedLicenses: identifiers(this.draftAllowedLicenses),
             explicitlyDisallowedLicenses: identifiers(this.draftDisallowedLicenses)
@@ -206,17 +208,17 @@ export class Licenses {
             containerId = Number(target.substring(10));
         }
 
-        this.summaryRequest.run(this.api.getLicenseSummary(repoId, containerId), {
+        this.summaryRequest.run(this.licensesApi.getLicenseSummary(repoId, containerId), {
             next: (s) => this.summary.set(s),
             error: () => this.error.set(this.i18n.t('licenses.summary_load_failed'))
         });
 
-        this.api.getLicensePolicy().subscribe({
+        this.licensesApi.getLicensePolicy().subscribe({
             next: (p) => this.policy.set(p),
             error: () => {}
         });
 
-        this.inventoryRequest.run(this.api.getLicenseInventory(repoId, containerId), {
+        this.inventoryRequest.run(this.licensesApi.getLicenseInventory(repoId, containerId), {
             next: (inv) => {
                 this.inventory.set(inv);
                 this.loading.set(false);
@@ -240,14 +242,14 @@ export class Licenses {
             containerId = Number(target.substring(10));
         }
 
-        this.api.getLicenseConflicts(repoId, containerId, this.proprietaryMode()).subscribe({
+        this.licensesApi.getLicenseConflicts(repoId, containerId, this.proprietaryMode()).subscribe({
             next: (c) => this.conflicts.set(c),
             error: () => {}
         });
     }
 
     loadMatrixRules(): void {
-        this.api.getLicenseCompatibilityMatrix().subscribe({
+        this.licensesApi.getLicenseCompatibilityMatrix().subscribe({
             next: (rules) => this.matrixRules.set(rules),
             error: () => {}
         });

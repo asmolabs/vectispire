@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app/core/api.models';
@@ -29,14 +29,14 @@ import type { ComplianceMovement, ComplianceSeries, ComplianceStep } from '@/app
     templateUrl: './compliance-history.html'
 })
 export class ComplianceHistoryPage {
-    private readonly api = inject(ApiService);
+    private readonly complianceApi = inject(ComplianceApi);
     private readonly i18n = inject(I18nService);
 
     readonly series = signal<ComplianceSeries[]>([]);
     readonly error = signal<string | null>(null);
 
     constructor() {
-        this.api.complianceHistory().subscribe({
+        this.complianceApi.complianceHistory().subscribe({
             next: (data) => this.series.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('history_compliance.load_failed')))
         });

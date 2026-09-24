@@ -2,7 +2,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
-import { ApiService } from '../../core/api.service';
+import { IntegrationsApi } from '../../core/api/integrations.api';
 import { NotificationChannelStatus, NotificationTestResult } from '../../core/api.models';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { TableModule } from '@openng/optimus-ui/table';
@@ -28,7 +28,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
     templateUrl: './notifications.html'
 })
 export class Notifications implements OnInit {
-    private readonly api = inject(ApiService);
+    private readonly integrationsApi = inject(IntegrationsApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -49,7 +49,7 @@ export class Notifications implements OnInit {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.getNotificationChannels().subscribe({
+        this.integrationsApi.getNotificationChannels().subscribe({
             next: (data) => {
                 this.channels.set(data);
                 this.loading.set(false);
@@ -64,7 +64,7 @@ export class Notifications implements OnInit {
     testChannel(channelType: string): void {
         this.testingChannel.set(channelType);
 
-        this.api.testNotificationChannel(channelType).subscribe({
+        this.integrationsApi.testNotificationChannel(channelType).subscribe({
             next: (res) => {
                 this.testingChannel.set(null);
                 this.testResults.update((current) => ({

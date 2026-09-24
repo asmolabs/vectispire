@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Refuses an `api.service` method no screen calls any more.
+ * Refuses an API client method (`src/app/core/api/*.api.ts`) no screen calls any more.
  *
  * **Why this guard exists.** Four complete server-side features lived for weeks with no screen at
  * all: the remediation plan ranked by leverage, switching on the second factor, per-account target
@@ -21,14 +21,17 @@
  * **What this script does not see, and saying so beats letting people assume.** Only literal
  * `.name(` calls are recognised. A method reached through a name built at runtime would look dead;
  * there is none today, and the day there is one, the exemption is a line here rather than a
- * disabled guard.
+ * disabled guard. For the same reason a method name must be unique across the domain clients: a
+ * call is matched by name, not by receiver, so two clients declaring `repositories(` would let one
+ * of them die behind the other's caller. The script refuses the collision instead of guessing.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SERVICE = 'src/app/core/api.service.ts';
+// Every domain client, and nothing else: the directory is the API surface.
+const CLIENTS = 'src/app/core/api';
 
 /**
  * The methods no screen calls, and that are tolerated all the same.
@@ -51,17 +54,41 @@ const walk = (dir) =>
         return statSync(path).isDirectory() ? walk(path) : [path];
     });
 
-// A public method of the service: four spaces of indentation, a name, a parenthesis.
+// A public method of a client: four spaces of indentation, a name, a parenthesis.
 const DECLARED = /^ {4}([a-zA-Z0-9_]+)\(/gm;
 
-const service = readFileSync(join(root, SERVICE), 'utf8');
-const declared = [...service.matchAll(DECLARED)].map(([, name]) => name).filter((name) => name !== 'constructor');
+const clientFiles = walk(join(root, CLIENTS)).filter((file) => file.endsWith('.api.ts'));
+if (clientFiles.length === 0) {
+    // A moved directory would otherwise report "0 declared, 0 with no screen" — green, and blind.
+    console.error(`No API client found under ${CLIENTS}: the guard would check nothing.`);
+    process.exit(1);
+}
+
+const owners = new Map();
+for (const file of clientFiles) {
+    const source = readFileSync(file, 'utf8');
+    for (const [, name] of source.matchAll(DECLARED)) {
+        if (name === 'constructor') continue;
+        owners.set(name, [...(owners.get(name) ?? []), relative(root, file)]);
+    }
+}
+
+const collisions = [...owners].filter(([, files]) => files.length > 1);
+if (collisions.length > 0) {
+    console.error(
+        `${collisions.length} API method name(s) declared by more than one client: ` +
+        collisions.map(([name, files]) => `${name} (${files.join(', ')})`).join('; ') + '.');
+    console.error(`A call is matched by name alone; rename one of them so each can be seen dying.`);
+    process.exit(1);
+}
+
+const declared = [...owners.keys()];
 
 // The specs are excluded: a call that exists only in a test is not a screen, and a method kept
 // alive by its own test is exactly what this guard is looking for.
 let callers = '';
 for (const file of walk(join(root, 'src/app'))) {
-    if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts') || file.endsWith('api.service.ts')) continue;
+    if (!/\.(ts|html)$/.test(file) || file.endsWith('.spec.ts') || file.endsWith('.api.ts')) continue;
     callers += readFileSync(file, 'utf8') + '\n';
 }
 
@@ -72,7 +99,8 @@ const connected = [...DEAD].filter((name) => !unused.includes(name));
 
 if (appeared.length > 0) {
     console.error(
-        `${appeared.length} api.service method(s) no screen calls any more: ${appeared.join(', ')}.`);
+        `${appeared.length} API method(s) no screen calls any more: ` +
+        appeared.map((name) => `${name} (${owners.get(name)[0]})`).join(', ') + '.');
     console.error(
         `A shipped calculation nobody can reach. Give it a screen, or remove it — and if it is ` +
         `deliberate, add its name to DEAD in the same commit.`);
@@ -88,5 +116,5 @@ if (connected.length > 0) {
 }
 
 console.log(
-    `API method check: ${declared.length} declared, ${unused.length} with no screen ` +
+    `API method check: ${declared.length} declared across ${clientFiles.length} clients, ${unused.length} with no screen ` +
     `(ratchet at ${DEAD.size}).`);

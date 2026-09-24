@@ -12,7 +12,8 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { GateApi } from '../../core/api/gate.api';
+import { TargetsApi } from '../../core/api/targets.api';
 import type { GatePolicy, GatePolicies as GatePoliciesResponse } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
@@ -73,7 +74,8 @@ interface Draft {
 })
 export class GatePolicies {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly gateApi = inject(GateApi);
+    private readonly targetsApi = inject(TargetsApi);
 
     readonly catalogue = signal<GatePoliciesResponse | null>(null);
     readonly error = signal<string | null>(null);
@@ -109,7 +111,7 @@ export class GatePolicies {
     }
 
     load(): void {
-        this.api.gatePolicies().subscribe({
+        this.gateApi.gatePolicies().subscribe({
             next: (catalogue) => this.catalogue.set(catalogue),
             error: (response) => this.error.set(messageOf(response, this.i18n.t('gate_policies.error_load')))
         });
@@ -153,13 +155,13 @@ export class GatePolicies {
 
         const taken = new Set(this.overrides().map((policy) => `${policy.kind}:${policy.target_id}`));
         this.candidates.set([]);
-        this.api.repositories().subscribe((repositories) => {
+        this.targetsApi.repositories().subscribe((repositories) => {
             const options = repositories
                 .map((repository) => ({ label: repository.displayName, value: `repository:${repository.id}` }))
                 .filter((option) => !taken.has(option.value));
             this.candidates.update((current) => [...current, ...options]);
         });
-        this.api.containers().subscribe((containers) => {
+        this.targetsApi.containers().subscribe((containers) => {
             const options = containers
                 .map((container) => ({ label: container.reference, value: `container:${container.id}` }))
                 .filter((option) => !taken.has(option.value));
@@ -178,7 +180,7 @@ export class GatePolicies {
         }
 
         this.saving.set(true);
-        this.api
+        this.gateApi
             .saveGatePolicy(this.scope, {
                 // `none` travels as the word, not as an empty string: the server refuses a blank
                 // and stores a null for `none`, and the two must not be spelt the same on the way.
@@ -207,7 +209,7 @@ export class GatePolicies {
     }
 
     remove(policy: GatePolicy): void {
-        this.api.removeGatePolicy(policy.kind as 'repository' | 'container', policy.target_id as number).subscribe({
+        this.gateApi.removeGatePolicy(policy.kind as 'repository' | 'container', policy.target_id as number).subscribe({
             next: () => this.load(),
             error: (response) => this.error.set(messageOf(response, this.i18n.t('gate_policies.error_remove')))
         });

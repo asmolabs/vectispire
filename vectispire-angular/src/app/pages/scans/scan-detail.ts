@@ -6,7 +6,8 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { DocumentsApi } from '../../core/api/documents.api';
+import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { ScanDetail } from '../../core/api.models';
@@ -37,7 +38,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './scan-detail.html'
 })
 export class ScanDetailPage {
-    private readonly api = inject(ApiService);
+    private readonly documentsApi = inject(DocumentsApi);
+    private readonly scansApi = inject(ScansApi);
     private readonly i18n = inject(I18nService);
 
     readonly id = input.required<string>();
@@ -91,7 +93,7 @@ export class ScanDetailPage {
     }
 
     private download(path: string, filename: string): void {
-        this.api.downloadDocument(path).subscribe({ next: (response) => saveDocument(response, filename) });
+        this.documentsApi.downloadDocument(path).subscribe({ next: (response) => saveDocument(response, filename) });
     }
 
     seconds(durationMs: number): number {
@@ -99,7 +101,7 @@ export class ScanDetailPage {
     }
 
     private load(id: number): void {
-        this.api.scan(id).subscribe({
+        this.scansApi.scan(id).subscribe({
             next: (detail) => this.scan.set(detail),
             error: (response) => this.error.set(response?.status === 404 ? this.i18n.t('scans.error_not_found') : this.i18n.t('scans.error_load'))
         });

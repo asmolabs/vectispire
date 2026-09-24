@@ -2,7 +2,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
-import { ApiService } from '../../core/api.service';
+import { IntelApi } from '../../core/api/intel.api';
 import { messageOf } from '../../core/api-error';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
@@ -31,7 +31,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     templateUrl: './epss.html'
 })
 export class Epss implements OnInit {
-    private readonly api = inject(ApiService);
+    private readonly intelApi = inject(IntelApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -79,7 +79,7 @@ export class Epss implements OnInit {
 
     ngOnInit(): void {
         this.loadSummary();
-        this.api.getAiAdvisorStatus().subscribe({
+        this.intelApi.getAiAdvisorStatus().subscribe({
             next: (status) => this.aiEnabled.set(status?.enabled === true),
             error: () => this.aiEnabled.set(false)
         });
@@ -94,7 +94,7 @@ export class Epss implements OnInit {
         this.adviceError.set(null);
         this.advice.set(null);
 
-        this.api.explainCveWithAi(record.cveId).subscribe({
+        this.intelApi.explainCveWithAi(record.cveId).subscribe({
             next: (advice) => {
                 this.advice.set(advice);
                 this.adviceLoading.set(false);
@@ -110,7 +110,7 @@ export class Epss implements OnInit {
         this.loading.set(true);
         this.error.set(null);
 
-        this.api.getEpssPriorities().subscribe({
+        this.intelApi.getEpssPriorities().subscribe({
             next: (data) => {
                 this.summary.set(data);
                 this.loading.set(false);
@@ -126,7 +126,7 @@ export class Epss implements OnInit {
         this.syncing.set(true);
         this.syncFeedback.set(null);
 
-        this.api.syncEpss().subscribe({
+        this.intelApi.syncEpss().subscribe({
             next: (res) => {
                 this.syncing.set(false);
                 this.syncFeedback.set(this.i18n.t('epss.sync_succeeded', { cves: res.totalCves, kev: res.totalKev }));
@@ -151,7 +151,7 @@ export class Epss implements OnInit {
         this.advice.set(null);
         this.adviceError.set(null);
 
-        this.api.lookupEpssCve(this.cveSearchQuery.trim()).subscribe({
+        this.intelApi.lookupEpssCve(this.cveSearchQuery.trim()).subscribe({
             next: (record) => {
                 this.lookupResult.set(record);
                 this.lookupLoading.set(false);

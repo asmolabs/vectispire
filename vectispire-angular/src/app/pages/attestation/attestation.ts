@@ -3,7 +3,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
-import { ApiService } from '@/app/core/api.service';
+import { AuditApi } from '@/app/core/api/audit.api';
+import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -28,7 +29,8 @@ import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from 
     templateUrl: './attestation.html'
 })
 export class Attestation {
-    private readonly api = inject(ApiService);
+    private readonly auditApi = inject(AuditApi);
+    private readonly complianceApi = inject(ComplianceApi);
     private readonly session = inject(SessionStore);
     private readonly i18n = inject(I18nService);
 
@@ -65,11 +67,11 @@ export class Attestation {
 
     reload(): void {
         this.loading.set(true);
-        this.api.verifyAuditChain().subscribe({
+        this.auditApi.verifyAuditChain().subscribe({
             next: (v) => { this.chain.set(v); this.loading.set(false); },
             error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.loading.set(false); }
         });
-        this.api.complianceSummary().subscribe({
+        this.complianceApi.complianceSummary().subscribe({
             next: (s) => this.compliance.set(s),
             // Deliberately separate: unavailable compliance must not erase a verified chain, which
             // is the demonstrable part of this page.
@@ -79,7 +81,7 @@ export class Attestation {
 
     recheck(): void {
         this.rechecking.set(true);
-        this.api.verifyAuditChain().subscribe({
+        this.auditApi.verifyAuditChain().subscribe({
             next: (v) => { this.chain.set(v); this.establishedAt.set(new Date()); this.rechecking.set(false); },
             error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.rechecking.set(false); }
         });
@@ -87,7 +89,7 @@ export class Attestation {
 
     download(): void {
         this.downloading.set(true);
-        this.api.exportEvidenceBundle().subscribe({
+        this.complianceApi.exportEvidenceBundle().subscribe({
             next: (response) => { saveDocument(response, 'vectispire-evidence.zip'); this.downloading.set(false); },
             error: () => { this.error.set(this.i18n.t('attestation.error_bundle')); this.downloading.set(false); }
         });

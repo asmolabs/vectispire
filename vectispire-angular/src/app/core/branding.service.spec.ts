@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { describe, beforeEach, it, expect, vi } from 'vitest';
 import { of, throwError } from 'rxjs';
 import { BrandingService } from './branding.service';
-import { ApiService } from './api.service';
+import { AuthApi } from './api/auth.api';
 
 describe('BrandingService', () => {
     let service: BrandingService;
@@ -24,7 +24,7 @@ describe('BrandingService', () => {
         TestBed.configureTestingModule({
             providers: [
                 BrandingService,
-                { provide: ApiService, useValue: mockApi }
+                { provide: AuthApi, useValue: mockApi }
             ]
         });
 

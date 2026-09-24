@@ -12,7 +12,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { TooltipModule } from '@openng/optimus-ui/tooltip';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
 import type { EncryptionState, SshKeySummary } from '../../core/api.models';
 
 /**
@@ -33,7 +33,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 })
 export class SshKeys {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
 
     readonly keys = signal<SshKeySummary[]>([]);
     readonly loading = signal(true);
@@ -52,7 +52,7 @@ export class SshKeys {
 
     reload(): void {
         this.loading.set(true);
-        this.api.sshKeys().subscribe({
+        this.targetsApi.sshKeys().subscribe({
             next: (keys) => {
                 this.keys.set(keys);
                 this.error.set(null);
@@ -92,7 +92,7 @@ export class SshKeys {
 
     submit(): void {
         this.saving.set(true);
-        this.api
+        this.targetsApi
             .createSshKey({
                 name: this.form.name.trim(),
                 private_key: this.form.privateKey.trim(),
@@ -122,7 +122,7 @@ export class SshKeys {
         const key = this.pendingDelete();
         if (!key) return;
         this.saving.set(true);
-        this.api.deleteSshKey(key.id).subscribe({
+        this.targetsApi.deleteSshKey(key.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);

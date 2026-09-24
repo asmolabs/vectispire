@@ -4,7 +4,8 @@ import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '@/app/core/api.service';
+import { TargetsApi } from '@/app/core/api/targets.api';
+import { RemediationApi } from '@/app/core/api/remediation.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SelectModule } from '@openng/optimus-ui/select';
@@ -42,7 +43,8 @@ export class Remediation {
     private readonly debtRequest = new LatestRequest();
     private readonly coverageRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly remediationApi = inject(RemediationApi);
     private readonly i18n = inject(I18nService);
 
     readonly fixes = signal<HighImpactFix[]>([]);
@@ -102,7 +104,7 @@ export class Remediation {
 
         // The targets are loaded separately: being unable to list them does not prevent reading the
         // whole estate's plan, which is what the page shows by default.
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repositories: MonitoredRepository[]) => this.addTargets(
                 repositories.map((repository) => ({
                     label: repository.name ?? repository.url,
@@ -110,7 +112,7 @@ export class Remediation {
                 }))),
             error: () => {}
         });
-        this.api.containers().subscribe({
+        this.targetsApi.containers().subscribe({
             next: (containers: MonitoredContainer[]) => this.addTargets(
                 containers.map((container) => ({
                     label: `${container.imageName}:${container.tag}`,
@@ -133,7 +135,7 @@ export class Remediation {
         const repoId = kind === 'repo' ? Number(id) : undefined;
         const containerId = kind === 'container' ? Number(id) : undefined;
 
-        this.fixesRequest.run(this.api.getHighImpactFixes(repoId, containerId, this.wanted()), {
+        this.fixesRequest.run(this.remediationApi.getHighImpactFixes(repoId, containerId, this.wanted()), {
             next: (fixes) => { this.fixes.set(fixes); this.loading.set(false); },
             error: () => {
                 this.error.set(this.i18n.t('remediation.plan_failed'));
@@ -143,13 +145,13 @@ export class Remediation {
 
         // Separately: an unavailable debt figure must not erase a work order that did arrive. It is
         // the page's context, not its subject.
-        this.debtRequest.run(this.api.getSecurityDebt(repoId, containerId),
+        this.debtRequest.run(this.remediationApi.getSecurityDebt(repoId, containerId),
             { next: (debt) => this.debt.set(debt), error: () => {} });
 
         // And the admission likewise: not knowing what the plan leaves out beats not seeing the
         // plan. Reset first, so that one scope does not keep the other's admission.
         this.coverage.set(null);
-        this.coverageRequest.run(this.api.getRemediationCoverage(repoId, containerId),
+        this.coverageRequest.run(this.remediationApi.getRemediationCoverage(repoId, containerId),
             { next: (coverage) => this.coverage.set(coverage), error: () => {} });
     }
 

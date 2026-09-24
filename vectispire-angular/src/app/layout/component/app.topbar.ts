@@ -6,7 +6,7 @@ import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { BrandingService } from '@/app/core/branding.service';
-import { ApiService } from '@/app/core/api.service';
+import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
@@ -124,7 +124,7 @@ export class AppTopbar {
     i18n = inject(I18nService);
     branding = inject(BrandingService);
 
-    private readonly api = inject(ApiService);
+    private readonly authApi = inject(AuthApi);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
 
@@ -152,7 +152,7 @@ export class AppTopbar {
         if (this.signingOut()) return;
         this.signingOut.set(true);
 
-        this.api.logout().subscribe({
+        this.authApi.logout().subscribe({
             next: () => this.forget(),
             error: () => this.forget()
         });

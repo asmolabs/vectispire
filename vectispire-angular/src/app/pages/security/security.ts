@@ -4,7 +4,8 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '@/app/core/api.service';
+import { DashboardApi } from '@/app/core/api/dashboard.api';
+import { DocumentsApi } from '@/app/core/api/documents.api';
 import { saveDocument } from '@/app/core/download';
 import { SecurityOverview, TargetPosture } from '@/app/core/api.models';
 
@@ -31,13 +32,14 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     templateUrl: './security.html'
 })
 export class Security {
-    private readonly api = inject(ApiService);
+    private readonly dashboardApi = inject(DashboardApi);
+    private readonly documentsApi = inject(DocumentsApi);
 
     readonly overview = signal<SecurityOverview | null>(null);
     readonly error = signal<string | null>(null);
 
     constructor() {
-        this.api.securityOverview().subscribe({
+        this.dashboardApi.securityOverview().subscribe({
             next: (data) => this.overview.set(data),
             error: () => this.error.set(this.i18n.t('security.error_load'))
         });
@@ -91,7 +93,7 @@ export class Security {
      */
     download(target: TargetPosture, document: string): void {
         this.downloading.set(target.targetId);
-        this.api.exportDocument(target.kind, target.targetId, document).subscribe({
+        this.documentsApi.exportDocument(target.kind, target.targetId, document).subscribe({
             next: (response) => {
                 this.downloading.set(null);
                 saveDocument(response, document);

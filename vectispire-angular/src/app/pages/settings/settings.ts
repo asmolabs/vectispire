@@ -11,7 +11,9 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { SettingsApi } from '../../core/api/settings.api';
+import { IntegrationsApi } from '../../core/api/integrations.api';
+import { IntelApi } from '../../core/api/intel.api';
 import type { OllamaCheck, SettingDefinition, SiemConfig, SiemTestResult, ThreatIntelSyncStatus } from '../../core/api.models';
 
 /**
@@ -81,7 +83,9 @@ export type SettingsTab = 'general' | 'scanners' | 'ai' | 'integrations' | 'thre
     templateUrl: './settings.html'
 })
 export class Settings {
-    private readonly api = inject(ApiService);
+    private readonly settingsApi = inject(SettingsApi);
+    private readonly integrationsApi = inject(IntegrationsApi);
+    private readonly intelApi = inject(IntelApi);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly i18n = inject(I18nService);
@@ -219,7 +223,7 @@ export class Settings {
     testOllama(): void {
         this.testingOllama.set(true);
         this.ollama.set(null);
-        this.api.testOllama().subscribe({
+        this.settingsApi.testOllama().subscribe({
             next: (check) => {
                 this.ollama.set(check);
                 this.testingOllama.set(false);
@@ -247,7 +251,7 @@ export class Settings {
     saveSiemConfig(): void {
         this.savingSiem.set(true);
         this.error.set(null);
-        this.api.updateSiemConfig({
+        this.integrationsApi.updateSiemConfig({
             enabled: this.siemForm.enabled,
             protocol: this.siemForm.protocol,
             endpoint: this.siemForm.endpoint.trim(),
@@ -273,7 +277,7 @@ export class Settings {
         }
         this.testingSiem.set(true);
         this.siemTestResult.set(null);
-        this.api.testSiemConnection({
+        this.integrationsApi.testSiemConnection({
             endpoint: this.siemForm.endpoint.trim(),
             authHeader: this.siemForm.authHeader.trim() || undefined
         }).subscribe({
@@ -457,7 +461,7 @@ export class Settings {
 
         this.saving.set(true);
         this.error.set(null);
-        this.api.updateSettings(changed).subscribe({
+        this.settingsApi.updateSettings(changed).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.saved.set(true);
@@ -475,7 +479,7 @@ export class Settings {
     saveToken(): void {
         this.savingToken.set(true);
         this.error.set(null);
-        this.api.setTicketToken(this.tokenInput).subscribe({
+        this.settingsApi.setTicketToken(this.tokenInput).subscribe({
             next: ({ configured }) => {
                 this.savingToken.set(false);
                 this.tokenConfigured.set(configured);
@@ -494,7 +498,7 @@ export class Settings {
     saveTicketWebhookSecret(): void {
         this.savingTicketWebhookSecret.set(true);
         this.error.set(null);
-        this.api.setTicketWebhookSecret(this.ticketWebhookSecretInput).subscribe({
+        this.settingsApi.setTicketWebhookSecret(this.ticketWebhookSecretInput).subscribe({
             next: ({ configured }) => {
                 this.savingTicketWebhookSecret.set(false);
                 this.ticketWebhookSecretConfigured.set(configured);
@@ -511,7 +515,7 @@ export class Settings {
     saveOpenAiKey(): void {
         this.savingOpenAiKey.set(true);
         this.error.set(null);
-        this.api.setOpenAiKey(this.openAiKeyInput).subscribe({
+        this.settingsApi.setOpenAiKey(this.openAiKeyInput).subscribe({
             next: ({ configured }) => {
                 this.savingOpenAiKey.set(false);
                 this.openAiKeyConfigured.set(configured);
@@ -530,7 +534,7 @@ export class Settings {
     saveWebhookSecret(): void {
         this.savingWebhookSecret.set(true);
         this.error.set(null);
-        this.api.setWebhookSecret(this.webhookSecretInput).subscribe({
+        this.settingsApi.setWebhookSecret(this.webhookSecretInput).subscribe({
             next: ({ configured }) => {
                 this.savingWebhookSecret.set(false);
                 this.webhookSecretConfigured.set(configured);
@@ -562,7 +566,7 @@ export class Settings {
     syncThreatIntel(): void {
         this.syncingThreatIntel.set(true);
         this.threatIntelFeedback.set(null);
-        this.api.syncThreatIntel().subscribe({
+        this.intelApi.syncThreatIntel().subscribe({
             next: (status) => {
                 this.syncingThreatIntel.set(false);
                 this.threatIntelStatus.set(status);
@@ -576,32 +580,32 @@ export class Settings {
     }
 
     private reload(): void {
-        this.api.ticketTokenState().subscribe({
+        this.settingsApi.ticketTokenState().subscribe({
             next: ({ configured }) => this.tokenConfigured.set(configured),
             error: () => this.tokenConfigured.set(false)
         });
 
-        this.api.webhookSecretState().subscribe({
+        this.settingsApi.webhookSecretState().subscribe({
             next: ({ configured }) => this.webhookSecretConfigured.set(configured),
             error: () => this.webhookSecretConfigured.set(false)
         });
 
-        this.api.ticketWebhookSecretState().subscribe({
+        this.settingsApi.ticketWebhookSecretState().subscribe({
             next: ({ configured }) => this.ticketWebhookSecretConfigured.set(configured),
             error: () => this.ticketWebhookSecretConfigured.set(false)
         });
 
-        this.api.openAiKeyState().subscribe({
+        this.settingsApi.openAiKeyState().subscribe({
             next: ({ configured }) => this.openAiKeyConfigured.set(configured),
             error: () => this.openAiKeyConfigured.set(false)
         });
 
-        this.api.getThreatIntelStatus().subscribe({
+        this.intelApi.getThreatIntelStatus().subscribe({
             next: (status) => this.threatIntelStatus.set(status),
             error: () => this.threatIntelStatus.set(null)
         });
 
-        this.api.getSiemConfig().subscribe({
+        this.integrationsApi.getSiemConfig().subscribe({
             next: (cfg) => {
                 this.siemConfig.set(cfg);
                 this.siemForm = {
@@ -615,7 +619,7 @@ export class Settings {
             error: () => this.siemConfig.set(null)
         });
 
-        this.api.settings().subscribe({
+        this.settingsApi.settings().subscribe({
             next: ({ settings }) => {
                 this.catalog.set(settings);
                 const values = Object.fromEntries(settings.map((setting) => [setting.key, setting.value]));

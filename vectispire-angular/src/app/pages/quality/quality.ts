@@ -3,7 +3,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
-import { ApiService } from '@/app/core/api.service';
+import { DashboardApi } from '@/app/core/api/dashboard.api';
 import { QualityOverview, Tally } from '@/app/core/api.models';
 
 /**
@@ -29,12 +29,12 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 })
 export class Quality {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly dashboardApi = inject(DashboardApi);
     readonly overview = signal<QualityOverview | null>(null);
     readonly error = signal<string | null>(null);
 
     constructor() {
-        this.api.qualityOverview().subscribe({
+        this.dashboardApi.qualityOverview().subscribe({
             next: (data) => this.overview.set(data),
             error: () => this.error.set(this.i18n.t('quality.load_failed'))
         });

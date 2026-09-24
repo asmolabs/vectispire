@@ -6,7 +6,9 @@ import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
+import { OwaspApi } from '../../core/api/owasp.api';
+import { DocumentsApi } from '../../core/api/documents.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
 import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
@@ -36,7 +38,9 @@ import { LatestRequest } from '@/app/core/latest-request';
 export class Owasp {
     private readonly reportRequest = new LatestRequest();
 
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly owaspApi = inject(OwaspApi);
+    private readonly documentsApi = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
 
     selected: number | null = null;
@@ -47,7 +51,7 @@ export class Owasp {
     readonly error = signal<string | null>(null);
 
     constructor() {
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (rows) => this.repositories.set(rows),
             error: () => this.error.set(this.i18n.t('owasp.repositories_load_failed'))
         });
@@ -60,7 +64,7 @@ export class Owasp {
             this.reportRequest.cancel();
             return;
         }
-        this.reportRequest.run(this.api.owaspReport(this.selected), {
+        this.reportRequest.run(this.owaspApi.owaspReport(this.selected), {
             next: (report) => this.report.set(report),
             // A 404 here means "none yet", which is a state and not a failure.
             error: () => this.report.set(null)
@@ -75,7 +79,7 @@ export class Owasp {
         // Through HttpClient, never a navigation: the token is in memory and only the
         // interceptor puts it on a request. A navigation carries none, and the browser saves the
         // 401's empty body as a zero-byte file.
-        this.api.downloadDocument(`/api/v1/repositories/${id}/owasp-review/export.pdf`).subscribe({
+        this.documentsApi.downloadDocument(`/api/v1/repositories/${id}/owasp-review/export.pdf`).subscribe({
             next: (response) => saveDocument(response, `vectispire-owasp-${id}.pdf`),
             error: () => this.error.set(this.i18n.t('owasp.pdf_failed'))
         });
@@ -88,7 +92,7 @@ export class Owasp {
         this.running.set(true);
         this.error.set(null);
 
-        this.api.runOwaspReport(this.selected).subscribe({
+        this.owaspApi.runOwaspReport(this.selected).subscribe({
             next: (report) => {
                 this.report.set(report);
                 this.running.set(false);

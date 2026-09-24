@@ -7,7 +7,7 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -36,7 +36,7 @@ import type { Applicability, ControlDeclaration, Divergence, EvidenceSource, Imp
     templateUrl: './soa.html'
 })
 export class Soa {
-    private readonly api = inject(ApiService);
+    private readonly complianceApi = inject(ComplianceApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
 
@@ -119,12 +119,12 @@ export class Soa {
     load(): void {
         // Separately: failing to get the list of lapsed reviews does not prevent reading the
         // statement, which is the screen's subject.
-        this.api.overdueReviews().subscribe({
+        this.complianceApi.overdueReviews().subscribe({
             next: (declarations) => this.overdue.set(declarations ?? []),
             error: () => this.overdue.set([])
         });
 
-        this.api.statementsOfApplicability().subscribe({
+        this.complianceApi.statementsOfApplicability().subscribe({
             next: (data) => this.statements.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('soa.load_failed')))
         });
@@ -181,7 +181,7 @@ export class Soa {
         this.busy.set(true);
         this.error.set(null);
 
-        this.api
+        this.complianceApi
             .declareControl(statement.framework, line.control.id, {
                 applicability: this.applicability,
                 justification: this.justification.trim() || null,

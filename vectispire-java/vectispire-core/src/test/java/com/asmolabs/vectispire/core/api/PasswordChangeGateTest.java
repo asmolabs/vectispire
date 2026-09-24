@@ -55,7 +55,7 @@ class PasswordChangeGateTest extends ApiTestBase {
 
         mvc.perform(authenticated(post("/api/v1/auth/change-password"), token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        // snake_case, because that is what `api.service.ts` sends. This test
+                        // snake_case, because that is what `core/api/auth.api.ts` sends. This test
                         // used to spell them the way the Java record did, and so asserted the
                         // implementation rather than the contract — it passed while the real
                         // client could not have changed a password at all.

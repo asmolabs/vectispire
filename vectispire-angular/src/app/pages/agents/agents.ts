@@ -12,7 +12,7 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { AgentsApi } from '../../core/api/agents.api';
 import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
 
@@ -27,7 +27,7 @@ import { pollWhile } from '@/app/core/poll-while';
 })
 export class Agents implements OnInit {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly agentsApi = inject(AgentsApi);
     readonly credentials = computed(() => {
         this.i18n.translations();
         return [
@@ -101,7 +101,7 @@ export class Agents implements OnInit {
     }
 
     refreshActivity(): void {
-        this.api.getAgentActivity().subscribe({
+        this.agentsApi.getAgentActivity().subscribe({
             next: (act) => this.activity.set(act),
             error: () => {}
         });
@@ -110,17 +110,17 @@ export class Agents implements OnInit {
     reload(preserveError = false): void {
         this.loading.set(true);
 
-        this.api.unroutableLabels().subscribe({
+        this.agentsApi.unroutableLabels().subscribe({
             next: (blocked) => this.unroutable.set(blocked),
             error: () => this.unroutable.set([])
         });
 
-        this.api.getAgentActivity().subscribe({
+        this.agentsApi.getAgentActivity().subscribe({
             next: (act) => this.activity.set(act),
             error: () => {}
         });
 
-        this.api.agents().subscribe({
+        this.agentsApi.agents().subscribe({
             next: (agents) => {
                 this.agents.set(agents);
                 if (!preserveError) this.error.set(null);
@@ -136,7 +136,7 @@ export class Agents implements OnInit {
     toggle(agent: AgentSummary): void {
         this.busy.set(agent.id);
         this.error.set(null);
-        this.api.setAgentEnabled(agent.id, !agent.enabled).subscribe({
+        this.agentsApi.setAgentEnabled(agent.id, !agent.enabled).subscribe({
             next: () => {
                 this.busy.set(null);
                 this.reload();
@@ -162,7 +162,7 @@ export class Agents implements OnInit {
         }
         this.saving.set(true);
         this.formError.set(null);
-        this.api.createAgent({
+        this.agentsApi.createAgent({
             name: this.form.name.trim(),
             description: this.form.description.trim() || undefined,
             credentials_mode: this.form.credentialsMode,
@@ -196,7 +196,7 @@ export class Agents implements OnInit {
      */
     toggleSigning(agent: AgentSummary): void {
         this.busy.set(agent.id);
-        this.api.pinAgentSigningKey(agent.id, agent.signsResults ? '' : 'generate').subscribe({
+        this.agentsApi.pinAgentSigningKey(agent.id, agent.signsResults ? '' : 'generate').subscribe({
             next: (pinned) => {
                 this.busy.set(null);
                 if (pinned.privateKey) {
@@ -225,7 +225,7 @@ export class Agents implements OnInit {
     confirmDelete(): void {
         const agent = this.pendingDelete();
         if (!agent) return;
-        this.api.deleteAgent(agent.id).subscribe({
+        this.agentsApi.deleteAgent(agent.id).subscribe({
             next: () => {
                 this.deleteVisible.set(false);
                 this.pendingDelete.set(null);

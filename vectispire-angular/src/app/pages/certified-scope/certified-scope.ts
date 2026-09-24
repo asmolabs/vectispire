@@ -3,7 +3,8 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
-import { ApiService } from '@/app/core/api.service';
+import { ComplianceApi } from '@/app/core/api/compliance.api';
+import { TargetsApi } from '@/app/core/api/targets.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -32,7 +33,8 @@ import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/c
     templateUrl: './certified-scope.html'
 })
 export class CertifiedScope {
-    private readonly api = inject(ApiService);
+    private readonly complianceApi = inject(ComplianceApi);
+    private readonly targetsApi = inject(TargetsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
 
@@ -75,12 +77,12 @@ export class CertifiedScope {
     });
 
     constructor() {
-        this.api.certifiedScope().subscribe({
+        this.complianceApi.certifiedScope().subscribe({
             next: (data) => this.scope.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('scope.load_failed')))
         });
-        this.api.repositories().subscribe({ next: (rows) => this.repositories.set(rows), error: () => undefined });
-        this.api.containers().subscribe({ next: (rows) => this.containers.set(rows), error: () => undefined });
+        this.targetsApi.repositories().subscribe({ next: (rows) => this.repositories.set(rows), error: () => undefined });
+        this.targetsApi.containers().subscribe({ next: (rows) => this.containers.set(rows), error: () => undefined });
     }
 
     inScope(kind: string, id: number): boolean {
@@ -88,14 +90,14 @@ export class CertifiedScope {
     }
 
     toggleRepository(id: number, next: boolean): void {
-        this.api.setRepositoryInScope(id, next).subscribe({
+        this.complianceApi.setRepositoryInScope(id, next).subscribe({
             next: (data) => this.scope.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('scope.update_failed')))
         });
     }
 
     toggleContainer(id: number, next: boolean): void {
-        this.api.setContainerInScope(id, next).subscribe({
+        this.complianceApi.setContainerInScope(id, next).subscribe({
             next: (data) => this.scope.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('scope.update_failed')))
         });

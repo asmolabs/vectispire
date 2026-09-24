@@ -4,7 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { of, throwError, Subject } from 'rxjs';
 import { AppTopbar } from './app.topbar';
-import { ApiService } from '@/app/core/api.service';
+import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
@@ -35,7 +35,7 @@ describe('la barre du haut', () => {
             providers: [
                 provideRouter([]),
                 { provide: HttpClient, useValue: { get: vi.fn().mockReturnValue(of({})) } },
-                { provide: ApiService, useValue: { logout, signInMethods: () => of({}) } }
+                { provide: AuthApi, useValue: { logout, signInMethods: () => of({}) } }
             ]
         }).compileComponents();
 

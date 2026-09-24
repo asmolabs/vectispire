@@ -13,7 +13,9 @@ import { DataViewModule } from '@openng/optimus-ui/dataview';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { TargetsApi } from '../../core/api/targets.api';
+import { ScansApi } from '../../core/api/scans.api';
+import { ScorecardsApi } from '../../core/api/scorecards.api';
 import type { BadgeState, MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
@@ -44,7 +46,9 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
 })
 export class Repositories {
     private readonly i18n = inject(I18nService);
-    private readonly api = inject(ApiService);
+    private readonly targetsApi = inject(TargetsApi);
+    private readonly scansApi = inject(ScansApi);
+    private readonly scorecardsApi = inject(ScorecardsApi);
     private readonly session = inject(SessionStore);
 
     readonly repositories = signal<MonitoredRepository[]>([]);
@@ -135,12 +139,12 @@ export class Repositories {
         this.reload();
         // A failure here leaves the list empty rather than blocking the form: the operator can
         // still edit everything else, and "no key" stays selectable.
-        this.api.sshKeys().subscribe({ next: (keys) => this.sshKeys.set(keys) });
+        this.targetsApi.sshKeys().subscribe({ next: (keys) => this.sshKeys.set(keys) });
     }
 
     reload(): void {
         this.loading.set(true);
-        this.api.repositories().subscribe({
+        this.targetsApi.repositories().subscribe({
             next: (repositories) => {
                 this.repositories.set(repositories);
                 this.error.set(null);
@@ -163,7 +167,7 @@ export class Repositories {
         this.busy.set(repository.id);
         this.notice.set(null);
         this.error.set(null);
-        this.api.triggerRepositoryScan(repository.id).subscribe({
+        this.scansApi.triggerRepositoryScan(repository.id).subscribe({
             next: () => {
                 this.busy.set(null);
                 this.notice.set(this.i18n.t('repositories.scan_queued', { name: repository.displayName }));
@@ -185,7 +189,7 @@ export class Repositories {
         this.notice.set(null);
         this.error.set(null);
 
-        const requests = repos.map((r) => this.api.triggerRepositoryScan(r.id));
+        const requests = repos.map((r) => this.scansApi.triggerRepositoryScan(r.id));
         import('rxjs').then(({ forkJoin }) => {
             forkJoin(requests).subscribe({
                 next: (results) => {
@@ -249,7 +253,7 @@ export class Repositories {
         };
 
         this.saving.set(true);
-        const call = editing ? this.api.updateRepository(editing.id, body) : this.api.createRepository(body);
+        const call = editing ? this.targetsApi.updateRepository(editing.id, body) : this.targetsApi.createRepository(body);
         call.subscribe({
             next: () => {
                 this.saving.set(false);
@@ -275,7 +279,7 @@ export class Repositories {
         const repository = this.pendingDelete();
         if (!repository) return;
         this.saving.set(true);
-        this.api.deleteRepository(repository.id).subscribe({
+        this.targetsApi.deleteRepository(repository.id).subscribe({
             next: () => {
                 this.saving.set(false);
                 this.deleteVisible.set(false);
@@ -290,7 +294,7 @@ export class Repositories {
     }
 
     openScorecard(repository: MonitoredRepository): void {
-        this.api.getRepositoryScorecard(repository.id).subscribe({
+        this.scorecardsApi.getRepositoryScorecard(repository.id).subscribe({
             next: (card) => {
                 this.selectedScorecard.set(card);
                 this.copied.set(false);
@@ -298,7 +302,7 @@ export class Repositories {
                 this.scorecardVisible.set(true);
                 // Separate call, and it may legitimately fail for a reader without write access;
                 // a badge panel that cannot load must not take the scorecard down with it.
-                this.api.getRepositoryBadge(repository.id).subscribe({
+                this.scorecardsApi.getRepositoryBadge(repository.id).subscribe({
                     next: (state) => this.badge.set(state),
                     error: () => this.badge.set({ published: false, token: null, url: null })
                 });
@@ -309,7 +313,7 @@ export class Repositories {
 
     publishBadge(repoId: number): void {
         this.badgeBusy.set(true);
-        this.api.publishRepositoryBadge(repoId).subscribe({
+        this.scorecardsApi.publishRepositoryBadge(repoId).subscribe({
             next: (state) => {
                 this.badge.set(state);
                 this.badgeBusy.set(false);
@@ -323,7 +327,7 @@ export class Repositories {
 
     revokeBadge(repoId: number): void {
         this.badgeBusy.set(true);
-        this.api.revokeRepositoryBadge(repoId).subscribe({
+        this.scorecardsApi.revokeRepositoryBadge(repoId).subscribe({
             next: (state) => {
                 this.badge.set(state);
                 this.copied.set(false);

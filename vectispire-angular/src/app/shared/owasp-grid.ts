@@ -6,7 +6,7 @@ import { DialogModule } from '@openng/optimus-ui/dialog';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
-import { ApiService } from '@/app/core/api.service';
+import { OwaspApi } from '@/app/core/api/owasp.api';
 import { messageOf } from '@/app/core/api-error';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -47,7 +47,7 @@ import type {
     templateUrl: './owasp-grid.html'
 })
 export class OwaspGridComponent {
-    private readonly api = inject(ApiService);
+    private readonly owaspApi = inject(OwaspApi);
     private readonly session = inject(SessionStore);
     readonly i18n = inject(I18nService);
 
@@ -123,7 +123,7 @@ export class OwaspGridComponent {
         this.busy.set(true);
         this.error.set(null);
 
-        this.api
+        this.owaspApi
             .declareOwaspCategory(line.id, {
                 applicability: this.applicability,
                 justification: this.justification.trim() || null,
@@ -149,7 +149,7 @@ export class OwaspGridComponent {
     }
 
     private reload(): void {
-        this.api.owaspCoverage().subscribe({
+        this.owaspApi.owaspCoverage().subscribe({
             next: (data) => this.grid.set(data),
             error: () => this.grid.set(null)
         });

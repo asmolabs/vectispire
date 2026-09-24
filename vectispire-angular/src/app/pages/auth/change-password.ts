@@ -6,7 +6,7 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
 import { messageOf } from '../../core/api-error';
-import { ApiService } from '../../core/api.service';
+import { AuthApi } from '../../core/api/auth.api';
 import { SessionStore } from '../../core/session.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 
@@ -28,7 +28,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     templateUrl: './change-password.html'
 })
 export class ChangePassword {
-    private readonly api = inject(ApiService);
+    private readonly authApi = inject(AuthApi);
     private readonly session = inject(SessionStore);
     private readonly router = inject(Router);
     private readonly i18n = inject(I18nService);
@@ -52,7 +52,7 @@ export class ChangePassword {
 
         this.loading.set(true);
         this.error.set(null);
-        this.api.changePassword(this.currentPassword, this.newPassword).subscribe({
+        this.authApi.changePassword(this.currentPassword, this.newPassword).subscribe({
             next: () => {
                 this.loading.set(false);
                 this.session.clearMustChangePassword();
