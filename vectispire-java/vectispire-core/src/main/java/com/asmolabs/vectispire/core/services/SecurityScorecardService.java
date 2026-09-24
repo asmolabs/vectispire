@@ -32,18 +32,21 @@ public class SecurityScorecardService {
     private final Containers containerRepo;
     private final Scans scansRepo;
     private final LicenseGovernanceService licenseService;
+    private final SlaService sla;
 
     public SecurityScorecardService(
             Issues issuesRepo,
             GitRepositories gitRepo,
             Containers containerRepo,
             Scans scansRepo,
-            LicenseGovernanceService licenseService) {
+            LicenseGovernanceService licenseService,
+            SlaService sla) {
         this.issuesRepo = issuesRepo;
         this.gitRepo = gitRepo;
         this.containerRepo = containerRepo;
         this.scansRepo = scansRepo;
         this.licenseService = licenseService;
+        this.sla = sla;
     }
 
     public Optional<SecurityScorecard> getRepositoryScorecard(Long repoId) {
@@ -64,8 +67,9 @@ public class SecurityScorecardService {
                     .toList();
 
             boolean hasAttestation = scansRepo.existsByRepoIdAndStatusIgnoreCase(repoId, "completed");
+            long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Repository(repoId))));
 
-            return computeScorecard(repoId, "repository", repo.getName(), openIssues, licenses, hasAttestation);
+            return computeScorecard(repoId, "repository", repo.getName(), openIssues, licenses, hasAttestation, overdue);
         });
     }
 
@@ -85,8 +89,9 @@ public class SecurityScorecardService {
                     .toList();
 
             boolean hasAttestation = scansRepo.existsByContainerIdAndStatusIgnoreCase(containerId, "completed");
+            long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Container(containerId))));
 
-            return computeScorecard(containerId, "container", container.getImageName() + ":" + container.getTag(), openIssues, licenses, hasAttestation);
+            return computeScorecard(containerId, "container", container.getImageName() + ":" + container.getTag(), openIssues, licenses, hasAttestation, overdue);
         });
     }
 
@@ -122,7 +127,9 @@ public class SecurityScorecardService {
         boolean hasAttestation = scansRepo.targetsWithStatus("completed").stream()
                 .anyMatch(row -> allowed.permits(targetOf(row[0], row[1])));
 
-        return computeScorecard(null, "global", "Organization Portfolio", openIssues, licenses, hasAttestation);
+        long overdue = sla.countOverdue(allowed);
+
+        return computeScorecard(null, "global", "Organization Portfolio", openIssues, licenses, hasAttestation, overdue);
     }
 
     private SecurityScorecard computeScorecard(
@@ -131,7 +138,8 @@ public class SecurityScorecardService {
             String targetName,
             List<IssueRows.Posture> issues,
             List<LicenseEntry> licenses,
-            boolean hasAttestation) {
+            boolean hasAttestation,
+            long overdueCount) {
 
         int score = 100;
         List<String> recommendations = new ArrayList<>();
@@ -139,7 +147,6 @@ public class SecurityScorecardService {
         long criticalCount = 0;
         long highCount = 0;
         long kevCount = 0;
-        long overdueCount = 0;
 
         for (IssueRows.Posture issue : issues) {
             String sev = issue.severity() != null ? issue.severity().toUpperCase() : "UNKNOWN";
@@ -165,10 +172,16 @@ public class SecurityScorecardService {
             recommendations.add("Remediate " + licenseViolations + " disallowed open source license violation(s).");
         }
 
+        // **What "attestation" means here, and what the advice used to get wrong.** The in-toto
+        // statement is issued on demand, from any completed scan, by `AttestationService`; nothing
+        // is generated or stored beforehand. So the flag is true exactly when a scan has
+        // completed, and the only way to earn it is to complete one. The recommendation told
+        // people to "generate in-toto provenance attestations" — a step that does not exist in
+        // this product, sending the reader to look for a button nobody built.
         if (hasAttestation) {
             score += 5;
         } else {
-            recommendations.add("Generate in-toto provenance attestations for target scans.");
+            recommendations.add("Complete a scan: no in-toto attestation can be issued for a target never scanned.");
         }
 
         if (kevCount > 0) {
@@ -179,6 +192,14 @@ public class SecurityScorecardService {
         }
         if (highCount > 0) {
             recommendations.add("Schedule remediation of " + highCount + " high severity issue(s).");
+        }
+        // Counted and advised on, not scored. The grade is what a public badge carries, and a
+        // deadline is a deployment's own setting: two installs holding identical backlogs would
+        // display different grades, and changing a window would move every badge overnight.
+        // The figure is the one `SlaService` gives the dashboard and the overdue list, so the
+        // three agree; it used to be declared here, never assigned, and reported as zero.
+        if (overdueCount > 0) {
+            recommendations.add("Resolve " + overdueCount + " issue(s) past their remediation deadline.");
         }
         if (recommendations.isEmpty()) {
             recommendations.add("Maintain current posture with continuous automated scanning.");

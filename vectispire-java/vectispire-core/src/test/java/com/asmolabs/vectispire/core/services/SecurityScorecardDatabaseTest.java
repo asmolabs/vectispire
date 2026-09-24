@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
@@ -16,6 +17,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +74,42 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
         assertThat(card.score()).isEqualTo(100);
         assertThat(card.hasAttestation()).isFalse();
-        assertThat(card.recommendations()).singleElement().asString().contains("attestation");
+        // The attestation is issued from a completed scan, so completing one is the advice —
+        // not "generate attestations", a step this product does not have.
+        assertThat(card.recommendations()).singleElement().asString().startsWith("Complete a scan");
+    }
+
+    @Test
+    @DisplayName("issues past their remediation deadline are counted and advised on, for this target only, without moving the score")
+    void overdueIssues() {
+        completedScan();
+        Instant longAgo = Instant.now().minus(Duration.ofDays(40));
+        // Past the 30-day high window, and past the 15-day critical one.
+        aged(issue("high", false, "UNKNOWN", "open"), longAgo);
+        aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        // Inside its window.
+        issue("high", false, "UNKNOWN", "open");
+        // Old, but settled by a triage decision: that is not lateness.
+        IssueEntity settled = aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        settled.setTriageStatus("not_affected");
+        issues.save(settled);
+        // Old and late, but another target's.
+        RepositoryEntity other = new RepositoryEntity();
+        other.setName("corp/other");
+        other.setUrl("https://example.invalid/corp/other.git");
+        other.setBranch("main");
+        other = repositories.save(other);
+        IssueEntity theirs = aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        theirs.setRepoId(other.getId());
+        issues.save(theirs);
+
+        SecurityScorecard card = scorecard();
+
+        assertThat(card.overdueCount()).isEqualTo(2);
+        assertThat(card.recommendations()).anySatisfy(line -> assertThat(line).startsWith("Resolve 2 issue(s) past"));
+        // 100 - 8 - 8 (two unreachable criticals) - 4 - 4 (two highs) + 5: lateness is not scored.
+        assertThat(card.score()).isEqualTo(81);
+        assertThat(scorecards.getGlobalScorecard(Visibility.everything()).overdueCount()).isEqualTo(3);
     }
 
     @Test
@@ -196,6 +233,11 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         issue.setTriageStatus("under_review");
         issue.setFirstSeenAt(Instant.now());
         issue.setLastSeenAt(Instant.now());
+        return issues.save(issue);
+    }
+
+    private IssueEntity aged(IssueEntity issue, Instant firstSeenAt) {
+        issue.setFirstSeenAt(firstSeenAt);
         return issues.save(issue);
     }
 
