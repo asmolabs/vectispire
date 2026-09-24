@@ -5,7 +5,7 @@
 # Usage in GitLab CI / GitHub Actions / Jenkins / Bitbucket.
 # ==============================================================================
 
-FROM alpine:3.21
+FROM alpine:3.24
 
 LABEL org.opencontainers.image.title="Vectispire CLI" \
       org.opencontainers.image.description="Lightweight CI/CD Security Gate and Scan runner for Vectispire Control Plane" \
