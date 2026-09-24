@@ -64,6 +64,38 @@ class EpssRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a CVE the feed does not know is reported without an EPSS, and left out of the mean")
+    void anUnknownScoreIsNotInvented() throws Exception {
+        // It was reported as 0.01, with a percentile of 0.011 made up from it, and averaged in.
+        String token = asAdmin();
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/unknown-intel");
+        repo.setUrl("https://example.invalid/unknown-intel.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+        for (String[] row : new String[][] {{"CVE-2031-0001", "0.40"}, {"CVE-2031-0002", null}}) {
+            IssueEntity issue = new IssueEntity();
+            issue.setRepoId(repo.getId());
+            issue.setType("sca");
+            issue.setIdentifier(row[0]);
+            issue.setSeverity("HIGH");
+            issue.setState("open");
+            issue.setTriageStatus("untriaged");
+            issue.setFingerprint("fp-" + row[0]);
+            issue.setFirstSeenAt(Instant.now());
+            issue.setLastSeenAt(Instant.now());
+            issue.setEpssScore(row[1] == null ? null : Double.valueOf(row[1]));
+            issuesRepo.save(issue);
+        }
+
+        mvc.perform(authenticated(get("/api/v1/epss/priorities"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageFleetEpss").value(0.4))
+                .andExpect(jsonPath("$.topPriorities[?(@.identifier == 'CVE-2031-0002')].epssScore").value(org.hamcrest.Matchers.contains((Object) null)))
+                .andExpect(jsonPath("$.topPriorities[?(@.identifier == 'CVE-2031-0002')].epssPercentile").value(org.hamcrest.Matchers.contains((Object) null)));
+    }
+
+    @Test
     @DisplayName("retrieves EPSS fleet summary and priority rankings")
     void retrievesPriorities() throws Exception {
         String token = asAdmin();

@@ -119,10 +119,15 @@ public class EpssPrioritizationService {
                     ? Optional.ofNullable(intelByCve.get(cveId.trim().toLowerCase(Locale.ROOT)))
                     : Optional.empty();
             boolean isKev = Boolean.TRUE.equals(issue.isKev()) || (intel.isPresent() && intel.get().isKev());
+            // **Unknown stays unknown.** A CVE absent from the feed was reported with an EPSS of
+            // 0.01 and a percentile made up as `score × 1.1` — a figure no feed published, shown
+            // beside real ones, averaged into the fleet mean and read by an operator as a
+            // measurement. The ranking still needs a number to sort on, and the risk matrix
+            // supplies its own default for that; what is *reported* is what was measured, or null.
             Double epssScore = issue.epssScore() != null
                     ? issue.epssScore()
-                    : (intel.map(ThreatIntelRecord::epssScore).orElse(0.01));
-            Double epssPercentile = intel.map(ThreatIntelRecord::epssPercentile).orElse(epssScore != null ? Math.min(1.0, epssScore * 1.1) : 0.05);
+                    : intel.map(ThreatIntelRecord::epssScore).orElse(null);
+            Double epssPercentile = intel.map(ThreatIntelRecord::epssPercentile).orElse(null);
 
             String reachability = issue.reachability() != null ? issue.reachability() : "UNKNOWN";
             boolean isReachable = "REACHABLE".equalsIgnoreCase(reachability);
