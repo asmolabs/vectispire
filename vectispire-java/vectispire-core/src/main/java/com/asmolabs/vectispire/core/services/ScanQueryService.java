@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
@@ -51,7 +50,7 @@ public class ScanQueryService {
         // that cannot grow.
         return new History(
                 scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
-                        .filter(scan -> allowed.permits(targetOf(scan)))
+                        .filter(scan -> allowed.permits(RowVisibility.targetOf(scan)))
                         .toList(),
                 names);
     }
@@ -76,26 +75,8 @@ public class ScanQueryService {
         return document;
     }
 
-    /**
-     * The scan, or the same 404 whether it is absent or hidden.
-     *
-     * <p><b>One message for both cases</b>, and the one `Visibilities.requireVisible` gives a
-     * scan: ids are sequential, so two wordings would let a restricted reader enumerate every scan
-     * of the deployment.
-     */
+    /** The scan, or the same 404 whether it is absent or hidden — see {@link RowVisibility}. */
     private ScanEntity visible(long id, Visibility allowed) {
-        ScanEntity scan = scans.findById(id).orElse(null);
-        if (scan == null || !allowed.permits(targetOf(scan))) {
-            throw new NoSuchElementException("Scan not found.");
-        }
-        return scan;
-    }
-
-    /** A scan with neither target is invisible rather than visible: see {@code Visibilities}. */
-    private static ScanTarget targetOf(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return new ScanTarget.Repository(scan.getRepoId());
-        }
-        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+        return RowVisibility.requireVisible(scans.findById(id).orElse(null), allowed);
     }
 }

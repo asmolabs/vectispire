@@ -154,11 +154,8 @@ public class RepositoryAdministrationService {
         RepositoryEntity repository = repositories
                 .findById(id)
                 .orElseThrow(() -> new NoSuchElementException("No repository with id " + id + "."));
-        // The wording `Visibilities.requireVisible` gives a hidden target, so this route reads the
-        // same as every other one that refuses a target it will not name.
-        if (!allowed.permits(new ScanTarget.Repository(id))) {
-            throw new NoSuchElementException("Target not found.");
-        }
+        // Refused as every other route refuses a target it will not name, in the same words.
+        RowVisibility.requireVisible(new ScanTarget.Repository(id), allowed);
 
         String previousUrl = repository.getUrl();
         // The list sends the URL masked; a form saved without touching it sends the mask back,

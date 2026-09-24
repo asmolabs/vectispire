@@ -94,7 +94,7 @@ public class IssueDecisionService {
     /**
      * Records one triage decision.
      *
-     * @throws java.util.NoSuchElementException absent and hidden alike — see {@code Visibilities}
+     * @throws java.util.NoSuchElementException absent and hidden alike — see {@link RowVisibility}
      */
     public IssueEntity triage(long id, Decision decision, Caller caller) {
         String actor = caller.actor();

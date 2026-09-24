@@ -342,7 +342,7 @@ class VisibilityRoutesTest extends ApiTestBase {
         // the protection depended on which document a caller asked for. A reader who cannot open
         // the SBOM could read the CSAF advisory built from the same scan.
         //
-        // 404 rather than 403 throughout, for the reason `Visibilities` gives: a refusal that is
+        // 404 rather than 403 throughout, for the reason `RowVisibility` gives: a refusal that is
         // distinguishable from an absence answers the question the caller was probing with.
         //
         // **Every path here is spelled out because two of them were once wrong.** The attestation

@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
@@ -12,7 +11,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -46,11 +44,7 @@ public class TicketLinkService {
      * well-formed one, would tell the two apart.
      */
     public IssueEntity visibleIssue(long issueId, Visibility visibility) {
-        IssueEntity issue = issues.findById(issueId).orElse(null);
-        if (issue == null || !visibility.permits(targetOf(issue))) {
-            throw new NoSuchElementException("Issue not found.");
-        }
-        return issue;
+        return RowVisibility.requireVisible(issues.findById(issueId).orElse(null), visibility);
     }
 
     public List<IssueTicketEntity> list(long issueId, Visibility visibility) {
@@ -90,18 +84,5 @@ public class TicketLinkService {
                 actor.userAgent()));
 
         return saved;
-    }
-
-    /**
-     * The same reading of an issue's target as the routes' guard in {@code api.Visibilities}: a
-     * row attached to neither a repository nor a container is unclassifiable, and left to
-     * {@link Visibility#permits} — visible to an unrestricted caller, hidden from a restricted
-     * one — rather than decided here in a way the guard beside it does not.
-     */
-    private static ScanTarget targetOf(IssueEntity issue) {
-        if (issue.getRepoId() != null) {
-            return new ScanTarget.Repository(issue.getRepoId());
-        }
-        return issue.getContainerId() == null ? null : new ScanTarget.Container(issue.getContainerId());
     }
 }

@@ -133,10 +133,8 @@ public class ContainerAdministrationService {
         ContainerEntity container = containers
                 .findById(id)
                 .orElseThrow(() -> new NoSuchElementException("No image with id " + id + "."));
-        // The wording `Visibilities.requireVisible` gives a hidden target.
-        if (!allowed.permits(new ScanTarget.Container(id))) {
-            throw new NoSuchElementException("Target not found.");
-        }
+        // Refused as every other route refuses a target it will not name, in the same words.
+        RowVisibility.requireVisible(new ScanTarget.Container(id), allowed);
 
         String previousReference = referenceOf(container).format();
 

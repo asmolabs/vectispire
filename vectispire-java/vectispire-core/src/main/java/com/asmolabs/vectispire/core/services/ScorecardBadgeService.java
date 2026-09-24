@@ -9,7 +9,6 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -108,13 +107,11 @@ public class ScorecardBadgeService {
     /**
      * The allowance first, then the row — the order the routes have always used.
      *
-     * <p>A hidden repository is refused in the words `Visibilities.requireVisible` gives a target,
-     * before anything is read, so that no lookup distinguishes it from one the reader may see.
+     * <p>A hidden repository is refused as a hidden target, before anything is read, so that no
+     * lookup distinguishes it from one the reader may see.
      */
     private Optional<RepositoryEntity> visible(long repoId, Visibility allowed) {
-        if (!allowed.permits(new ScanTarget.Repository(repoId))) {
-            throw new NoSuchElementException("Target not found.");
-        }
+        RowVisibility.requireVisible(new ScanTarget.Repository(repoId), allowed);
         return repositories.findById(repoId);
     }
 
