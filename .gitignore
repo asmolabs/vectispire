@@ -43,10 +43,11 @@ vectispire-angular/.playwright/
 # spent 43 commits glued to the line above, ignoring nothing.
 .gradle-ci/
 
-# This machine's worktrees and session state. `.claude/agents/` is exempt: it is
-# tracked, shared, and `.claude/**` would have hidden the next agent added to it.
+# This machine's worktrees and session state. `.claude/agents/` and `.claude/skills/` are
+# exempt: they are tracked, shared, and `.claude/**` would have hidden the next one added.
 .claude/*
 !.claude/agents/
+!.claude/skills/
 
 # L'environnement Python et la build locale du site de documentation.
 /.venv/

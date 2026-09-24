@@ -80,6 +80,43 @@ the query, or refuse through `Visibilities.requireVisible(...)`, which answers *
 role guard or names a `VisibilityService`. Four manual sweeps failed to converge before it was
 written — the twenty-first hole turned up hours after the twentieth was closed.
 
+**Controllers map HTTP; services decide.** No business logic and no repository call in a
+controller — lookups, rules, writes, transactions and audit entries live in a service method, and
+the controller keeps parameters, status codes and DTOs. `ArchitectureTest` enforces the parts that
+can be enforced: repositories are reached by services only, the `api` layer opens no transaction,
+and only `api.security` writes the audit log.
+
+**Roles are a separation of duties, not a ladder.** The platform governor (SUPERUSER) decides the
+rules — four-eyes, visibility — and takes no triage decision; only a governor administers the
+governor role, and nobody changes their own role (`AccountRules`). The SCIM token grants no
+administrative role and cannot touch an administrative account. When you add a route that settles,
+approves or grants something, check it against `Role`'s flags (`canCauseEffects`,
+`canApproveTriage`, `governsPlatform`), not only against its marker: `@RequiresSecurityLead` admits
+the governor.
+
+**The actor is the principal, never the payload.** A triage, an import, an audit entry names the
+authenticated caller. A name taken from a request body, an uploaded document or a webhook payload
+goes into a comment, not into `triagedBy` or the audit actor — both have been spoofable before.
+
+**Audit entries are written after the transaction commits.** `AuditLogService.record` opens its own
+`REQUIRES_NEW` transaction; inside another write transaction it waits on SQLite's file lock until it
+times out. Use a `TransactionTemplate` for the writes and record afterwards
+(`ScimProvisioningService`, `VexIngestorService`).
+
+**Every outbound call goes through `OutboundJson`/`OutboundPost` → `PinnedHttpSender`**, which
+resolves, pins and classifies the address and refuses redirects. Never build an `HttpClient` of
+your own. A destination a non-administrator can set must not be able to reach the Docker proxy or
+the database host.
+
+**Figures of risk leave settled triage out** — grades, rankings, plans, attack paths, per-severity
+backlogs — with `not in (TriageStatus.settledWireNames())`, never `in (unsettled)`: a status this
+version does not know must still count. Processing reads (sync, expiry), inventories and the VEX /
+CSAF / CycloneDX exports keep every issue.
+
+**A signed or exported document states only what was recorded.** No placeholder digest, no
+hard-coded version (use `ProductVersion`), no verdict computed by a rule nobody applied. Absent is
+an honest value; an invented one is not.
+
 ## Writing code here
 
 **Idiomatic JDK 25.** Records, sealed interfaces, enums that carry their properties and their
@@ -112,6 +149,19 @@ including one that made every authenticated route return null.
 **A guarantee that is not executed is not a guarantee.** Concurrency, dialect behaviour and
 schema agreement are checked against real servers by `integrationTestAll`, because each has
 already produced a defect invisible to a careful reading.
+
+**Mutation-check every test you add.** Break the code it pins — remove the guard, flip the
+condition — run the test, confirm it fails, restore. A test that stays green with the guard gone
+pins nothing; several written here did until this was the rule.
+
+**Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations,
+`core/repositories/`, `core/persistence/`, `core/config/`, the integration sources, and the Gradle
+catalogue or lockfiles. CI's `engines` job fires on the same paths, but a push that turns it red
+has already reached `develop`.
+
+**A route whose shape changes regenerates the contract.** `ClientContractSpecTest` fails with the
+command; run it with `-Dvectispire.openapi.write=true`, then `npm run generate:api`, and commit both
+files together.
 
 **Never skip silently.** There is no "skip if Docker is missing" guard anywhere, deliberately: a
 suite that skips itself reports green without checking anything.

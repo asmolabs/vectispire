@@ -91,6 +91,22 @@ forge-bound: **renaming the workflow file, the repository, or the owner invalida
 signature a consumer has learned to verify**, which is why the repository was renamed before the
 first tag and not after.
 
+## Agents and skills
+
+Three agents and two skills live in [`.claude/`](.claude/), tracked with the code so the rules they
+carry move with it:
+
+| | Use it for |
+|---|---|
+| [`jvm-porter`](.claude/agents/jvm-porter.md) | any change to the control plane or the agent in `vectispire-java/` |
+| [`angular-frontend`](.claude/agents/angular-frontend.md) | any change to `vectispire-angular/` — screens, API clients, tests, Playwright |
+| [`security-reviewer`](.claude/agents/security-reviewer.md) | a read-only review of one security area or of a diff |
+| [`quality-gate`](.claude/skills/quality-gate/SKILL.md) | the checks a change passes before it is committed and pushed, and the develop → CI → main flow |
+| [`security-audit`](.claude/skills/security-audit/SKILL.md) | a four-area review in parallel, verified and deduplicated into one ranked report |
+
+Each carries the defects already made here, so that the next change does not make them again. When a
+new class of defect is found, add it to the agent or skill that should have caught it.
+
 ## Before you change anything
 
 **Read [`docs/architecture/`](docs/architecture/) first.** Documents 01 to 04 describe the
