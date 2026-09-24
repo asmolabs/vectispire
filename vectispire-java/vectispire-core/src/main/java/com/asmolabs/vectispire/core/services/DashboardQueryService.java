@@ -198,7 +198,15 @@ public class DashboardQueryService {
                 visible.and(IssueFilters.touchingWindow(windowStart)),
                 query -> query.as(IssueRows.Observation.class).all());
 
-        List<IssueAggregates.TargetSeverityCount> openCounts = issues.countOpenByTargetAndSeverity(visible);
+        // **The open backlog leaves settled triage out; the curve and the resolved half do not.**
+        // The ranking used to count every unresolved row, so a target whose team had argued each
+        // finding not affected kept the grade of one that had looked at nothing — and disagreed
+        // with the scorecard and the gate about the same rows. `not_affected` and `fixed` go, as
+        // they do there; `pending_approval` and any status this version does not know stay. The
+        // curve is a record of what appeared and closed, which a triage decision does not rewrite.
+        List<IssueAggregates.TargetSeverityCount> openCounts = issues.countOpenByTargetAndSeverity(
+                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
+                        .toSpecification());
         List<IssueAggregates.TargetResolutions> resolved = issues.countResolvedByTarget(visible);
 
         // Named once for both halves: the curve needs no names at all, but the scoreboard does,

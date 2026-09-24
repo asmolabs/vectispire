@@ -513,7 +513,7 @@ Deux règles que le harnais s'impose à lui-même :
 - **Moteur d'analyse de posture (`PostureTrendAnalytics`, `DashboardController`)** :
   - Calcul en Java pur, par jour calendaire, du délai moyen de remédiation (MTTR) ventilé par échelon de sévérité (Critical, High, Medium, Low).
   - Indicateur de vélocité de résolution nette suivant la vitesse de résolution face au rythme de découverte.
-  - Tableau de maturité des cibles classant dépôts et conteneurs avec des notes (`A` à `F`) et des scores de posture de 0 à 100 : 100 moins 25 par critique non résolu, 10 par haute, 3 par moyenne, 1 sinon (une sévérité absente compte comme moyenne) ; A ≥ 90, B ≥ 75, C ≥ 50, D ≥ 30.
+  - Tableau de maturité des cibles classant dépôts et conteneurs avec des notes (`A` à `F`) et des scores de posture de 0 à 100 : 100 moins 25 par critique non résolu, 10 par haute, 3 par moyenne, 1 sinon (une sévérité absente compte comme moyenne ; triage réglé — `not_affected`, `fixed` — exclu) ; A ≥ 90, B ≥ 75, C ≥ 50, D ≥ 30.
   - **Distinct du scorecard de sécurité** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), qui note de A+ à F sur les problèmes ouverts dont le triage n'est pas réglé — KEV −25, critique atteignable −15, autre critique −8, haute −4, licence non autorisée −5, scan terminé +5 — et alimente la pastille README publique. La page « Dépôts » du guide utilisateur donne la règle complète.
 - **Endpoints REST** :
   - `GET /api/v1/dashboard/posture-analytics?days=30` : MTTR agrégé par sévérité, taux de résolution nette, séries temporelles quotidiennes et classements de maturité des cibles.

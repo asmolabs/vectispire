@@ -47,13 +47,13 @@ première ligne à lire sur cette page.
 La règle de ce classement lui est propre : à partir de 100, chaque problème **non résolu** coûte
 des points selon sa sévérité — critique 25, haute 10, moyenne 3, tout le reste 1, et un
 problème sans sévérité compte comme moyen. La note est A à partir de 90, B à partir de 75, C à
-partir de 50, D à partir de 30, F en dessous. Non résolu inclut les problèmes triés non
-affectés : ce classement mesure ce qu'une cible porte encore, pas ce qui a été décidé à son
-sujet.
+partir de 50, D à partir de 30, F en dessous. Les problèmes triés **non affecté** ou
+**corrigé** sont écartés, comme sur le scorecard et à la barrière ; un problème dont
+l'exclusion est en attente d'approbation compte toujours.
 
 **Ce n'est pas la note du scorecard.** La fiche scorecard d'un dépôt, et la pastille README qui
-en est tirée, suivent une autre règle — vulnérabilités exploitées, atteignabilité, licences,
-triage — et une échelle de A+ à F, décrite dans
+en est tirée, suivent une autre règle — vulnérabilités exploitées, atteignabilité, licences —
+et une échelle de A+ à F, décrite dans
 [Comment la note du scorecard est calculée](repositories.md#comment-la-note-du-scorecard-est-calculee).
 Le même dépôt peut donc afficher B ici et C sur sa pastille ; aucune des deux n'a tort, elles
 répondent à des questions différentes.

@@ -122,6 +122,35 @@ class TrendsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.targetScoreboard").isArray());
     }
 
+    @Test
+    @DisplayName("the maturity ranking leaves settled triage out, and keeps what is only requested or unreadable")
+    void theRankingIgnoresSettledTriage() throws Exception {
+        long target = repository("https://example.invalid/triaged.git");
+        triaged(target, "CVE-T-1", TriageStatus.NOT_AFFECTED.wireName());
+        triaged(target, "CVE-T-2", TriageStatus.FIXED.wireName());
+        triaged(target, "CVE-T-3", TriageStatus.PENDING_APPROVAL.wireName());
+        triaged(target, "CVE-T-4", TriageStatus.UNDER_REVIEW.wireName());
+        // Written by nobody this version knows: still nobody's decision, so still counted.
+        triaged(target, "CVE-T-5", "untriaged");
+
+        // Three highs at ten points each: 70, grade C. Counting the settled two made it 50.
+        mvc.perform(authenticated(get("/api/v1/dashboard/posture-analytics?days=30"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetScoreboard[0].openHigh").value(3))
+                .andExpect(jsonPath("$.targetScoreboard[0].securityScore").value(70))
+                .andExpect(jsonPath("$.targetScoreboard[0].maturityGrade").value("C"));
+    }
+
+    private void triaged(long repoId, String identifier, String triageStatus) {
+        issue(repoId, identifier, Duration.ofDays(3), null);
+        IssueEntity issue = issues.findAll().stream()
+                .filter(i -> identifier.equals(i.getIdentifier()))
+                .findFirst()
+                .orElseThrow();
+        issue.setTriageStatus(triageStatus);
+        issues.save(issue);
+    }
+
     private long repository(String url) {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);

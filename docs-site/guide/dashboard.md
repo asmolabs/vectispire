@@ -44,13 +44,13 @@ this page.
 
 The ranking's rule is its own: starting from 100, every **unresolved** issue costs points by
 severity — critical 25, high 10, medium 3, anything else 1, and an issue with no severity is
-counted as medium. The grade is A from 90, B from 75, C from 50, D from 30, F below. Unresolved
-includes issues triaged not affected: this ranking measures what a target still carries, not
-what has been decided about it.
+counted as medium. The grade is A from 90, B from 75, C from 50, D from 30, F below. Issues
+triaged **not affected** or **fixed** are left out, as on the scorecard and at the gate; one
+whose dismissal is awaiting approval still counts.
 
 **This is not the scorecard grade.** A repository's scorecard, and the README badge built from
-it, uses a different rule — exploited vulnerabilities, reachability, licences, triage — and a
-scale from A+ to F, described in
+it, uses a different rule — exploited vulnerabilities, reachability, licences — and a scale from
+A+ to F, described in
 [How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). The
 same repository can therefore read B here and C on its badge; neither is wrong, they answer
 different questions.
