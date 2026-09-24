@@ -21,7 +21,7 @@ apacheHttpCore5 = "5.4.3"
 jgit = "7.7.1.202607240634-r"
 pdfbox = "3.0.6"
 bucket4j = "8.10.1"
-springdoc = "2.8.5"
+springdoc = "3.1.1"
 # Jib builds the container images from the build itself — no Dockerfile, no daemon.
 jib = "3.4.4"
 
