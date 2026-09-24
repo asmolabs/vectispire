@@ -265,12 +265,23 @@ class VisibilityRoutesTest extends ApiTestBase {
     void theDashboardIsNarrowedToo() throws Exception {
         restrict();
         long mine = repository("https://example.invalid/mine.git");
-        repository("https://example.invalid/theirs.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        // The neighbour's quality issue and scan: the quality total and the recent scans were
+        // the deployment's, whoever asked.
+        IssueEntity theirQuality = issues.findById(issue(theirs, "python.lang.long-function")).orElseThrow();
+        theirQuality.setType(FindingType.QUALITY.wireName());
+        issues.save(theirQuality);
+        long theirScan = scan(theirs);
+        long myScan = scan(mine);
         String reader = assignedReader(mine);
 
         mvc.perform(authenticated(get("/api/v1/dashboard"), reader))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.posture.totalCount").value(1));
+                .andExpect(jsonPath("$.posture.totalCount").value(1))
+                .andExpect(jsonPath("$.qualityTotal").value(0))
+                .andExpect(jsonPath("$.recentScans.length()").value(1))
+                .andExpect(jsonPath("$.recentScans[0].id").value(myScan));
+        org.assertj.core.api.Assertions.assertThat(theirScan).isNotEqualTo(myScan);
     }
 
     @Test

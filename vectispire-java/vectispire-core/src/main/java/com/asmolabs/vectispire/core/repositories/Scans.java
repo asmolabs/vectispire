@@ -305,6 +305,23 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
     List<ScanEntity> findHistory(
             @Param("repoId") Long repoId, @Param("containerId") Long containerId, Limit limit);
 
+    /**
+     * The most recent scans of the given targets, newest first.
+     *
+     * <p>The allowance as SQL, so the limit applies after it: filtered in memory after
+     * {@link #findHistory}, a restricted reader would have been shown whatever share of the
+     * deployment's last few scans happened to be theirs — often none. Neither list may be empty:
+     * `in ()` is not valid everywhere, so the caller passes a sentinel.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where s.repoId in :repoIds or s.containerId in :containerIds
+             order by s.createdAt desc, s.id desc""")
+    List<ScanEntity> findRecentWithin(
+            @Param("repoIds") java.util.Collection<Long> repoIds,
+            @Param("containerIds") java.util.Collection<Long> containerIds,
+            Limit limit);
+
     long countByStatusAndClaimedBy(String status, String claimedBy);
 
     @Query("""

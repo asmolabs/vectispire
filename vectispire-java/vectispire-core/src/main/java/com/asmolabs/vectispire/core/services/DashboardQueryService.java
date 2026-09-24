@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
@@ -108,9 +109,15 @@ public class DashboardQueryService {
                 posture,
                 sla.countOverdue(allowed),
                 backlogBySeverity(allowed),
-                issues.countByStateAndType(IssueState.OPEN.wireName(), FindingType.QUALITY.wireName()),
+                // Within the allowance, like every other figure here. It counted every target's
+                // open quality issues, so a reader given one repository saw the size of the
+                // deployment's quality backlog beside their own numbers.
+                issues.count(new IssueFilters(
+                                IssueState.OPEN.wireName(), null, FindingType.QUALITY.wireName(),
+                                null, null, null, false, false, null, allowed)
+                        .toSpecification()),
                 posture.targets().stream().filter(target -> !target.passed()).toList(),
-                recentScans());
+                recentScans(allowed));
     }
 
     /** @param day an ISO date, UTC — the axis has to mean the same thing in two timezones */
@@ -213,6 +220,11 @@ public class DashboardQueryService {
                 window, now, observations, PostureScoreboards.from(openCounts, resolved, names));
     }
 
+    /** An `in` list that matches nothing when there is nothing to match. */
+    private static List<Long> orNone(List<Long> ids) {
+        return ids.isEmpty() ? List.of(-1L) : ids;
+    }
+
     /**
      * The open backlog per severity, <b>within what the caller may see</b>.
      *
@@ -242,8 +254,27 @@ public class DashboardQueryService {
         return counts;
     }
 
-    private List<RecentScan> recentScans() {
-        List<ScanEntity> recent = scans.findHistory(null, null, Limit.of(RECENT_SCANS));
+    /**
+     * The last scans the caller may see.
+     *
+     * <p>They were the deployment's last scans, whoever asked: target names, statuses and errors
+     * of repositories a restricted reader was never given, on the home page.
+     */
+    private List<RecentScan> recentScans(Visibility allowed) {
+        List<ScanEntity> recent = switch (allowed) {
+            case Visibility.Everything everything -> scans.findHistory(null, null, Limit.of(RECENT_SCANS));
+            case Visibility.Only only -> {
+                List<Long> repoIds = only.targets().stream()
+                        .filter(t -> t instanceof ScanTarget.Repository)
+                        .map(t -> ((ScanTarget.Repository) t).id()).toList();
+                List<Long> containerIds = only.targets().stream()
+                        .filter(t -> t instanceof ScanTarget.Container)
+                        .map(t -> ((ScanTarget.Container) t).id()).toList();
+                yield repoIds.isEmpty() && containerIds.isEmpty()
+                        ? List.of()
+                        : scans.findRecentWithin(orNone(repoIds), orNone(containerIds), Limit.of(RECENT_SCANS));
+            }
+        };
         TargetNaming.Names names = naming.forIds(
                 idsOf(recent, ScanEntity::getRepoId), idsOf(recent, ScanEntity::getContainerId));
 
