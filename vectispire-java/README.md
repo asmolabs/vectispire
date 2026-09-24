@@ -149,10 +149,14 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
 PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
-**only when a migration changed**, or when the diff range cannot be resolved. Every night, the
-`databases` job of [`nightly.yml`](../.github/workflows/nightly.yml) runs it unconditionally.
-A green push pipeline that touched no migration therefore says nothing about portability: a
-query that behaves differently on MySQL is the nightly's to catch. Do not release on a nightly
+**when anything engine-sensitive changed** — a migration, `core/repositories/` (every query lives
+there, which `ArchitectureTest` enforces), `core/persistence/`, `core/config/`, the integration
+sources, or the dependency catalogue and lockfiles — or when the diff range cannot be resolved.
+It used to watch migrations only, and a concurrency fix in `ScanQueue` reached `main` green before
+the nightly found it failing on SQLite. Every night, the `databases` job of
+[`nightly.yml`](../.github/workflows/nightly.yml) runs it unconditionally. A green push pipeline
+that touched none of those paths still says nothing about portability: a service passing an
+existing query new parameters is the nightly's to catch. Do not release on a nightly
 that has not been green, and remember that the schedule fires from `main` only.
 
 `ArchitectureTest` no longer runs with `withOptionalLayers` or `allowEmptyShould`: every layer

@@ -384,7 +384,15 @@ jobs:
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
 
-  # **The engine campaign, on any change that touches the schema.**
+  # **The engine campaign, on any change whose behaviour can differ between engines.**
+  #
+  # It fired on migrations alone, and the schema is only one of the ways a change reaches the
+  # database. On 24 September a concurrency fix in `ScanQueue` — a repository, no migration — went
+  # to `develop` green and to `main` green, and the nightly found it failing on SQLite: the release
+  # of lapsed leases upgraded a read to a write inside one transaction, which SQLite refuses in WAL
+  # without waiting. The same day, triage exclusions rewrote hand-written JPQL in `Issues`, and
+  # nothing on push ran it against MySQL or PostgreSQL. The paths below are where that behaviour
+  # lives; `ENGINE_PATHS` names each with the reason it is there.
   #
   # It lived only in `nightly.yml`, and GitHub triggers a scheduled workflow only from the default
   # branch: a migration merged into `develop` therefore waited for `main` to catch up before any
@@ -422,11 +430,22 @@ jobs:
             echo "touched=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$BASE" HEAD | grep -q 'src/main/resources/db/migration/'; then
-            echo "une migration a changé — la campagne est exécutée"
+          # What can behave differently on MySQL, PostgreSQL and SQLite:
+          #   db/migration/      the schema, written three times by hand
+          #   core/repositories/ JPQL, native queries, Specifications, locking — the query layer;
+          #                      `ArchitectureTest` keeps SQL out of every other package
+          #   core/persistence/  entity mappings, which `SchemaParityIntegrationTest` checks
+          #   core/config/       the datasource and per-engine setup (SQLite's WAL, foreign keys)
+          #   src/integrationTest/  the campaign itself
+          #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
+          ENGINE_PATHS='src/main/resources/db/migration/|/core/repositories/|/core/persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile'
+          changed=$(git diff --name-only "$BASE" HEAD | grep -E "$ENGINE_PATHS" || true)
+          if [ -n "$changed" ]; then
+            echo "des fichiers sensibles au moteur ont changé — la campagne est exécutée :"
+            echo "$changed"
             echo "touched=true" >> "$GITHUB_OUTPUT"
           else
-            echo "aucune migration touchée — la campagne est ignorée"
+            echo "rien de sensible au moteur n'a changé — la campagne est ignorée"
             echo "touched=false" >> "$GITHUB_OUTPUT"
           fi
 

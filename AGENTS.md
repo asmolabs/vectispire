@@ -51,7 +51,9 @@ Workflows from before this port are archived under
 had to leave `.github/` is written there — a file under `.github/workflows/` is not a document,
 it is a trigger, and those would have fired on the first push. For most of this project's life
 the checks lived only in that inert directory while the sole remote was GitLab, which means
-*On a push to `develop` and on every pull request, the `verify` workflow (`ci.yml`) runs
+*nothing had ever been verified by a machine* until 2026-08-25.
+
+On a push to `develop` and on every pull request, the `verify` workflow (`ci.yml`) runs
 `secrets`, `docs-consistency` (links and doc facts), `c4-drift`, `dockerfile-policy`, `jvm`
 (`./gradlew build`), `frontend` (`npm ci && npm run build && npm test`), `sbom`,
 `vulnerabilities` and `npm-audit`; `images` then builds both images with Jib **and starts the
@@ -61,7 +63,9 @@ what `ScannerImages` pins, so the same scanner version audits Vectispire as audi
 to show, and that is the flow the rule is meant to enforce.
 
 **Two suites run on push only when their own ground moved.** `engines` runs `integrationTestAll`
-when a migration changed, and `e2e` runs the Playwright suite when `vectispire-angular/` or the
+when anything engine-sensitive changed — a migration, the query layer (`core/repositories/`), the
+entity mappings (`core/persistence/`), the datasource setup (`core/config/`), the campaign itself,
+or a dependency version — and `e2e` runs the Playwright suite when `vectispire-angular/` or the
 lockfile changed; a diff range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
 alongside `dockerfiles` and `restore` — on `cron: '30 2 * * *'`. On GitLab the nightly depended
@@ -69,12 +73,9 @@ on a schedule created in the project settings, invisible to anyone reading the r
 went unnoticed for two days; the `cron:` is in the file precisely so that gap cannot reopen. Note
 the GitHub rule behind it: a scheduled workflow runs from the **default branch only**, so a
 nightly living on `develop` and not on `main` does not fire. **A green push pipeline still does
-not mean portability was checked** — a query that behaves differently on MySQL touches no
-migration, and a renamed response field touches no front-end file. Those are the nightly's, and a
+not mean portability was checked** — a service that hands an existing query new parameters
+touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
-
-elease should not go out on a
-nightly that has not been green.
 
 A **`v*` tag** runs the `release` job: `./gradlew build`, then the jar signed with Sigstore
 keyless. It **verifies the signature it just made** before publishing anything, with the same
