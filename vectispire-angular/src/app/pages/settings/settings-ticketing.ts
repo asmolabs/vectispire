@@ -40,9 +40,9 @@ export class SettingsTicketing {
     readonly savingTicketWebhookSecret = signal(false);
     ticketWebhookSecretInput = '';
 
-    // The outbound notification signing secret. Its save path is kept exactly as it was in the
-    // single component; note that the template has offered no field for it since the settings
-    // were split into tabs, which is a gap of its own rather than something this move decides.
+    // The outbound notification signing secret — the opposite direction from the inbound one
+    // above: this signs what Vectispire sends. Held here because it shares the tab and the
+    // write-only treatment, not because it belongs to ticketing.
     readonly webhookSecretConfigured = signal(false);
     readonly savingWebhookSecret = signal(false);
     webhookSecretInput = '';

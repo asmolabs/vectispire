@@ -131,6 +131,28 @@ describe('the settings screen', () => {
         expect(ticketing.webhookSecretConfigured()).toBe(true);
     });
 
+    it('offers a field for the webhook signing secret on the integrations tab, and saves what is typed in it', async () => {
+        // The save path existed for a month with no field in front of it: a refactor dropped the
+        // card, every test of the component still passed, and the secret could be set only through
+        // the API. This one goes through the DOM, which is the level at which that was visible.
+        fixture.componentInstance.activeTab.set('integrations');
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input#webhook-secret') as HTMLInputElement | null;
+        expect(input).not.toBeNull();
+        input!.value = 'a-signing-key';
+        input!.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const card = input!.closest('p-card') as HTMLElement;
+        (card.querySelector('p-button button') as HTMLButtonElement).click();
+
+        const put = http.expectOne({ method: 'PUT', url: '/api/v1/settings/webhook-secret' });
+        expect(put.request.body).toEqual({ secret: 'a-signing-key' });
+        put.flush({ configured: true });
+    });
+
     it('treats a failed check as an answer about the configuration', () => {
         const review = openModelReview();
         review.testOllama();

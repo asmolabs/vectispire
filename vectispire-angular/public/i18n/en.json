@@ -1635,7 +1635,7 @@
     "token_hint": "Encrypted at rest, like an SSH key: it grants write access to the tracker, which is another class of secret than a URL. It cannot be shown again — saving an empty value erases it.",
     "token_label": "Token",
     "token_none": "none",
-    "token_placeholder": "Leave empty to keep it unchanged",
+    "token_placeholder": "Saving an empty field clears the token",
     "token_saved": "saved",
     "error_connection_test_not_run": "The connection test could not be run.",
     "error_save_siem": "Saving SIEM configuration failed.",
@@ -1646,6 +1646,9 @@
     "error_save_webhook_secret": "Saving the webhook secret failed.",
     "error_save_api_key": "Saving the API key failed.",
     "error_save_secret": "Saving the secret failed.",
+    "webhook_signing_title": "Webhook signing secret",
+    "webhook_signing_label": "Secret",
+    "webhook_signing_hint": "Signs every outbound webhook message, global and per team, so a receiver can check it came from Vectispire — a script, a bus or your own gateway can; Slack, Teams and Discord ignore it. Encrypted at rest and never returned. Saving an empty field clears it, and messages are then sent unsigned — every receiver that verifies will start rejecting them.",
     "threat_intel_synced": "Synchronized {{cves}} CVEs ({{kev}} active CISA KEV). Re-evaluated {{issues}} backlog issues.",
     "error_threat_intel_sync": "Failed to synchronize Threat Intelligence feed.",
     "error_load": "Could not load the settings."

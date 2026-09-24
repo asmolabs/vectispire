@@ -1745,7 +1745,7 @@
     "token_hint": "Chiffré au repos (AES-256-GCM) comme une clé SSH. Ne peut plus être affiché une fois enregistré.",
     "token_label": "Jeton d'accès",
     "token_none": "aucun",
-    "token_placeholder": "Laisser vide pour conserver la valeur actuelle",
+    "token_placeholder": "Enregistrer un champ vide efface le jeton",
     "token_saved": "enregistré",
     "error_connection_test_not_run": "Le test de connexion n'a pas pu être exécuté.",
     "error_save_siem": "L'enregistrement de la configuration SIEM a échoué.",
@@ -1756,6 +1756,9 @@
     "error_save_webhook_secret": "L'enregistrement du secret du webhook a échoué.",
     "error_save_api_key": "L'enregistrement de la clé d'API a échoué.",
     "error_save_secret": "L'enregistrement du secret a échoué.",
+    "webhook_signing_title": "Secret de signature des webhooks",
+    "webhook_signing_label": "Secret",
+    "webhook_signing_hint": "Signe chaque message de webhook sortant, global et par équipe, pour qu'un destinataire vérifie qu'il vient de Vectispire — un script, un bus ou votre propre passerelle le peuvent ; Slack, Teams et Discord l'ignorent. Chiffré au repos et jamais renvoyé. Enregistrer un champ vide l'efface, et les messages partent alors non signés — tout destinataire qui vérifie se mettra à les refuser.",
     "threat_intel_synced": "{{cves}} CVE synchronisées ({{kev}} CISA KEV actives). {{issues}} constats du backlog réévalués.",
     "error_threat_intel_sync": "La synchronisation du flux de Threat Intelligence a échoué.",
     "error_load": "Impossible de charger les paramètres."

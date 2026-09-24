@@ -49,6 +49,35 @@
         </div>
     </p-card>
 
+    <!-- The outbound direction: this secret signs what Vectispire sends, where the one above checks
+         what a tracker sends us. The field was lost in the refactor of 2026-08-22 and the secret
+         could only be set through the API since; the save path never went away. No "leave empty to
+         keep it" placeholder, which the first version carried: an empty save clears the secret. -->
+    <p-card styleClass="mb-4">
+        <ng-template #title>{{ 'settings.webhook_signing_title' | translate }}</ng-template>
+        <div class="flex flex-col gap-2">
+            <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+                <label for="webhook-secret" class="font-medium min-w-0 flex-1">
+                    {{ 'settings.webhook_signing_label' | translate }}
+                    @if (webhookSecretConfigured()) {
+                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.token_saved' | translate }}</span>
+                    } @else {
+                        <span class="text-muted-color text-sm font-normal">— {{ 'settings.token_none' | translate }}</span>
+                    }
+                </label>
+                <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
+                    <input pInputText id="webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
+                           [(ngModel)]="webhookSecretInput" autocomplete="off" />
+                    <p-button [label]="'common.save' | translate" [loading]="savingWebhookSecret()"
+                              (onClick)="saveWebhookSecret()" />
+                </div>
+            </div>
+            <small class="text-muted-color max-w-3xl">
+                {{ 'settings.webhook_signing_hint' | translate }}
+            </small>
+        </div>
+    </p-card>
+
     <p-card styleClass="mb-4">
         <ng-template #title>
             <div class="flex items-center gap-2">
