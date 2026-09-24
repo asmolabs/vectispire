@@ -11,7 +11,7 @@
 | Component | Technology & Version | Build Tool & Package Manager |
 |---|---|---|
 | **Backend Control Plane** | JDK 25 / Spring Boot 4.1 | Gradle (Kotlin DSL `build.gradle.kts`) |
-| **Frontend Interface** | Node LTS 24 / Angular 21 | npm Workspaces (`package.json` pinned `.nvmrc`) |
+| **Frontend Interface** | Node LTS 24 / Angular 22 / TypeScript 6.0 | npm Workspaces (`package.json` pinned `.nvmrc`) |
 | **UI Components** | Optimus UI / Vanilla CSS | Tailwind CSS (Strict confirmations) |
 | **Architecture Tests** | ArchUnit 1.3 | Gradle `:vectispire-core:test` |
 | **Integration Testing** | Testcontainers — PostgreSQL, MySQL, SQLite fixture | `./gradlew integrationTestAll` |

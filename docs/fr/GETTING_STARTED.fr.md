@@ -7,7 +7,7 @@ Ce guide décrit l'installation, la configuration et le lancement de Vectispire 
 ## 1. Prérequis
 
 - **Java** : JDK 25 (ou compatible JDK 21+ avec Gradle).
-- **Node.js** : Node LTS 24 (Angular 21 refuse Node 25).
+- **Node.js** : Node LTS 24 (Angular 22 refuse Node 25).
 - **Docker** : Nécessaire pour l'exécution des conteneurs d'analyse (Syft, Grype, Semgrep, Gitleaks).
 - **Base de données** : MySQL (défaut) ou PostgreSQL. SQLite est la fixture des tests et ne démarre pas l'application packagée — voir la [décision 0014](../architecture/fr/decisions/0014-two-engines-and-a-test-fixture.md).
 

@@ -1,7 +1,7 @@
 # Agents
 
 Vectispire is a **Spring Boot 4 / JDK 25** control plane in [`vectispire-java/`](vectispire-java/) with an
-**Angular 21** interface in [`vectispire-angular/`](vectispire-angular/). They talk over HTTP and are
+**Angular 22** interface in [`vectispire-angular/`](vectispire-angular/). They talk over HTTP and are
 built by different toolchains: Gradle for the backend, npm for the frontend.
 
 Read [`vectispire-java/README.md`](vectispire-java/README.md) before working there. It carries the
@@ -13,7 +13,7 @@ rather than reproduced.
 | | |
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
-| Frontend | Angular 21, Optimus UI, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
+| Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
 | Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/{vendor}`). SQLite is the test fixture, not a deployment ([0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
@@ -31,7 +31,8 @@ npm test
 `docs.yml`, which builds the user guide on `develop` and pull requests and publishes it to
 GitHub Pages from `main`. [`.github/dependabot.yml`](.github/dependabot.yml) proposes weekly,
 grouped updates as pull requests against `develop` — never MkDocs 2, never Node 25, and no major of
-Angular, TypeScript, vitest or jsdom, which move together through `ng update`. Playwright comes in
+Angular, TypeScript, vitest or jsdom, which move together through `ng update` — nor a TypeScript
+minor, since Angular supports exactly one at a time. Playwright comes in
 a pull request of its own: the e2e image pinned in `ci.yml` and `nightly.yml` has to move with it. It is a
 rewrite of the GitLab pipeline rather than a translation, because the Docker-in-Docker
 workarounds invert when the daemon shares the runner's filesystem: `docker run -v "$PWD:…"`

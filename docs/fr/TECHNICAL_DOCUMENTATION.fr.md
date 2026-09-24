@@ -401,10 +401,10 @@ de base générique. Un service n'écrit aucun SQL, et un repository ne porte au
 
 ## 6. Le frontal
 
-Angular 21 avec [Optimus UI](https://github.com/openng/optimus-ui), le fork communautaire de
-PrimeNG v21 — PrimeTek a archivé PrimeNG et fait passer la v22 sous licence commerciale. La coque
-vient du gabarit Sakai (MIT). `primeicons` est épinglé exactement à `7.0.0` : la 8.0.0 a suivi
-PrimeNG sous licence propriétaire, ce que le passage à Optimus visait précisément à éviter. Voir
+Angular 22 et TypeScript 6.0 avec [Optimus UI](https://github.com/openng/optimus-ui) 2, le fork
+communautaire de PrimeNG v21 — PrimeTek a archivé PrimeNG et fait passer la v22 sous licence
+commerciale ; Optimus 2 est ce fork porté sur Angular 22. La coque vient du gabarit Sakai (MIT).
+`primeicons` est épinglé exactement à `7.0.0` : la 8.x a suivi PrimeNG sous licence propriétaire, ce que le passage à Optimus visait précisément à éviter. Voir
 [`vectispire-angular/README.md`](../../vectispire-angular/README.md).
 
 Les modèles de vue que le navigateur reçoit sont typés et calculés côté serveur
@@ -419,6 +419,10 @@ dans `index.html` et `styles.scss` et vérifie que les polices déclarées exist
 `woff2`. Pas du zèle : la CSP refuse les feuilles de style tierces, et une telle référence ne casse
 rien de visible — la requête est bloquée, la page se rabat sur la police système, et rien ne le
 signale. C'est exactement ainsi qu'une typographie n'a jamais atteint la production.
+
+Le même script échoue sur toute classe d'icône `pi-*` que le `primeicons.css` installé ne définit
+pas : une classe inconnue affiche une case vide sans rien signaler non plus, et quatre étaient
+livrées vides de cette façon.
 
 ## 7. Approche des tests
 

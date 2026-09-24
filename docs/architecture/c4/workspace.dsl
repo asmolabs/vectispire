@@ -6,7 +6,7 @@ workspace "Vectispire Architecture" "C4 Model Architecture diagrams for Vectispi
         ciPipeline = person "CI/CD Pipeline (Jenkins / GitHub Actions / GitLab CI)" "Queries the Quality Gate API (POST /api/v1/gate) to enforce security compliance before deployment."
 
         vectispire = softwareSystem "Vectispire Platform" "Application Security Posture Management (ASPM) & Compliance Control Plane." {
-            webApp = container "Angular Frontend UI" "Provides security overview, repository posture, compliance matrices, issue triage, and administration interface." "Angular 21 / Optimus UI / TypeScript" "Web Browser"
+            webApp = container "Angular Frontend UI" "Provides security overview, repository posture, compliance matrices, issue triage, and administration interface." "Angular 22 / Optimus UI / TypeScript" "Web Browser"
             apiApp = container "Spring Boot Control Plane" "Manages scan scheduling, issue lifecycle, VEX triage, policy gate evaluations, and audit logging." "Spring Boot 4.1 / JDK 25" "Java Process" {
                 enterpriseApi = component "API Controllers Layer" "Handles HTTP endpoints (/api/v1/compliance, /api/v1/gate, /api/v1/scans, /api/v1/issues)." "Spring REST Controllers"
                 scanRunnerComp = component "ScanRunner Engine" "Orchestrates repository clone and scanner container invocations." "Java / ScanRunner"

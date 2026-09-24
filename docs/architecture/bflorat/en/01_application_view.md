@@ -38,7 +38,7 @@ and track issues from scan to scan in a **reconciled backlog**.
 ```mermaid
 flowchart TB
     subgraph Frontend["User Interface (vectispire-angular)"]
-        UI["Angular 21 SPA / Optimus UI<br/>(Dashboard, Posture, Matrix, Gate)"]
+        UI["Angular 22 SPA / Optimus UI<br/>(Dashboard, Posture, Matrix, Gate)"]
     end
 
     subgraph Backend["Control Plane Backend (vectispire-java)"]
@@ -72,7 +72,7 @@ flowchart TB
   `ScanArtifacts`), fingerprinting algorithms (`IssueFingerprint`), and the `ScanRunner` engine.
 - **`vectispire-agent`**: Lightweight standalone remote agent communicating strictly via HTTP
   Long-Polling.
-- **`vectispire-angular`**: Single Page Application frontend built with Angular 21 and Optimus UI.
+- **`vectispire-angular`**: Single Page Application frontend built with Angular 22 and Optimus UI.
 
 ---
 

@@ -1,6 +1,6 @@
 # Vectispire — Plateforme de Gestion de la Posture de Sécurité Logicielle (ASPM)
 
-Vectispire est une plateforme moderne de sécurité applicative (ASPM / SecOps) conçue en **Spring Boot 4.1 / JDK 25** pour le backend et en **Angular 21** pour le frontend.
+Vectispire est une plateforme moderne de sécurité applicative (ASPM / SecOps) conçue en **Spring Boot 4.1 / JDK 25** pour le backend et en **Angular 22** pour le frontend.
 
 ---
 

@@ -1,7 +1,7 @@
 # Architecture, Quality & Security Audit Review
 
 **Project**: Vectispire  
-**Scope**: Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Database Engines, Container Sandboxing, CI/CD Supply Chain, Compliance Engine & Certified Evidence Vault.  
+**Scope**: Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 22 / Optimus UI), Database Engines, Container Sandboxing, CI/CD Supply Chain, Compliance Engine & Certified Evidence Vault.  
 **Author**: Security & Software Architect  
 **Date**: August 2026  
 
@@ -46,7 +46,7 @@ flowchart TB
         AGENT_RUN["vectispire-agent (No JDBC/Hibernate, Long Polling API)"]
     end
 
-    subgraph Front["Frontend (Angular 21)"]
+    subgraph Front["Frontend (Angular 22)"]
         UI["Optimus UI / Signals / In-Memory Session<br/>Strict CSP: script-src 'self' (No unsafe-eval)"]
     end
 
@@ -96,7 +96,7 @@ flowchart TB
 
 ---
 
-## 3. Frontend Architecture & Security (Angular 21)
+## 3. Frontend Architecture & Security (Angular 22)
 
 ### 3.1. Session Management & In-Memory Token Handling (`SessionStore`)
 - **In-Memory Signal Storage**: Authentication bearer tokens reside solely in Angular memory signals and are **never stored in `localStorage` or `sessionStorage`**.

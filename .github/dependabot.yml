@@ -49,11 +49,15 @@ updates:
     target-branch: develop
     schedule:
       interval: weekly
-    # **Majors that are a migration, not an update.** Dependabot proposed Angular 22 with
+    # **Majors that are a migration, not an update.** Dependabot once proposed Angular 22 with
     # TypeScript 7 (#8), which Angular's compiler does not support, and vitest 5 (#11), whose
-    # removed `vitest/node` Angular's own test runner still imports. Angular, TypeScript and vitest
-    # move together through `ng update`, which also migrates the code — a deliberate change, not a
-    # weekly pull request. jsdom 30 (#10) broke the download specs and waits on the same move.
+    # removed `vitest/node` Angular's own test runner still imported. Angular, TypeScript and
+    # vitest move together through `ng update`, which also migrates the code — a deliberate
+    # change, not a weekly pull request. Angular 22 was done that way; Angular 23 will be too.
+    # jsdom 30 (#10) broke the download specs and needs its own look.
+    #
+    # TypeScript minors are held as well: Angular supports exactly one of them at a time
+    # (22 accepts `>=6.0 <6.1`), so a 6.1 pull request cannot build before Angular moves.
     ignore:
       - dependency-name: "@angular/*"
         update-types: [version-update:semver-major]
@@ -64,7 +68,7 @@ updates:
       - dependency-name: angular-eslint
         update-types: [version-update:semver-major]
       - dependency-name: typescript
-        update-types: [version-update:semver-major]
+        update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: vitest
         update-types: [version-update:semver-major]
       - dependency-name: jsdom

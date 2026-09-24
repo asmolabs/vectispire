@@ -40,7 +40,7 @@ de conformité. Son rôle est de surveiller de manière continue la sécurité a
 ```mermaid
 flowchart TB
     subgraph Frontend["Interface Utilisateur (vectispire-angular)"]
-        UI["Angular 21 SPA / Optimus UI<br/>(Dashboard, Posture, Matrix, Gate)"]
+        UI["Angular 22 SPA / Optimus UI<br/>(Dashboard, Posture, Matrix, Gate)"]
     end
 
     subgraph Backend["Plan de Contrôle Backend (vectispire-java)"]
@@ -75,7 +75,7 @@ flowchart TB
   `ScanRunner`.
 - **`vectispire-agent`** : Agent distant autonome léger communiquant exclusivement via HTTP
   Long-Polling.
-- **`vectispire-angular`** : Frontend Single Page Application développé en Angular 21 et Optimus UI.
+- **`vectispire-angular`** : Frontend Single Page Application développé en Angular 22 et Optimus UI.
 
 ---
 

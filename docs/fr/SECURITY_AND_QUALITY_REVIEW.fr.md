@@ -1,7 +1,7 @@
 # Rapport d'Audit & Revue d'Architecture, Qualité et Sécurité
 
 **Projet** : Vectispire  
-**Périmètre** : Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 21 / Optimus UI), Moteurs de Base de Données, Conteneurs d'Analyse, Chaîne de Déploiement (CI/CD / Supply Chain), Moteur de Conformité & Coffre-Fort de Preuves.  
+**Périmètre** : Backend (Spring Boot 4.1 / JDK 25), Frontend (Angular 22 / Optimus UI), Moteurs de Base de Données, Conteneurs d'Analyse, Chaîne de Déploiement (CI/CD / Supply Chain), Moteur de Conformité & Coffre-Fort de Preuves.  
 **Auteur** : Architecte Sécurité, Java & Angular  
 **Date** : Août 2026  
 
@@ -46,7 +46,7 @@ flowchart TB
         AGENT_RUN["vectispire-agent (Sans JDBC/Hibernate, Long Polling API)"]
     end
 
-    subgraph Front["Frontend (Angular 21)"]
+    subgraph Front["Frontend (Angular 22)"]
         UI["Optimus UI / Signals / In-Memory Session<br/>Strict CSP: script-src 'self' (No unsafe-eval)"]
     end
 
@@ -96,7 +96,7 @@ flowchart TB
 
 ---
 
-## 3. Architecture & Sécurité Frontend (Angular 21)
+## 3. Architecture & Sécurité Frontend (Angular 22)
 
 ### 3.1. Gestion des Sessions & Atténuation XSS (`SessionStore`)
 - **Stockage en Mémoire (Angular Signals)** : Le Bearer Token est maintenu dans un signal en mémoire vive et **jamais dans `localStorage` ni `sessionStorage`**.

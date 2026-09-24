@@ -16,13 +16,26 @@ proxy. They only have to agree.
 
 ## The stack, and why
 
-**Angular 21.** Required by Optimus UI, whose peer dependencies are on `^21.0.0`.
+**Angular 22.** Required by Optimus UI 2, whose peer dependencies are on `^22.1.4`. The
+two move together: Optimus 1 declared Angular `^21`, and installing one major without the
+other leaves a second copy of `@angular/core` in the lockfile, which does not build.
+
+**TypeScript 6.0, not 7.** Angular 22 accepts `>=6.0 <6.1` and nothing else, so the range
+is `~6.0.x` and a TypeScript minor is as much a framework decision as a major. The root
+`package.json` carries an `overrides` entry for `openapi-typescript`, whose peer still says
+`^5.x`: without it npm hoists a TypeScript 5 to the root, and ESLint type-checks with a
+different compiler than the build.
+
+**Every component declares `ChangeDetectionStrategy.Eager`.** Angular 22 made OnPush the
+default; `ng update` pinned the existing components to the old behaviour rather than change
+it underneath them, and `eslint.config.js` says why the rule that would flag the pin is off.
+A new component should not copy the pin.
 
 **Optimus UI** (`@openng/optimus-ui`) rather than PrimeNG. PrimeTek archived the PrimeNG
 repository and moved v22 to a commercial license; Optimus is the community fork of v21,
-the last MIT release. The import subpaths are identical (`@openng/optimus-ui/table`
-where you would have written `primeng/table`), which makes the PrimeNG v21 documentation
-directly usable.
+the last MIT release, and its 2.x line is that fork on Angular 22. The import subpaths are
+identical (`@openng/optimus-ui/table` where you would have written `primeng/table`), which
+makes the PrimeNG v21 documentation directly usable.
 
 Two renames to know about, inherited from that fork:
 
@@ -45,7 +58,9 @@ Two things to know if you pull the template from source:
 
 **`primeicons` is pinned to `7.0.0`**, exactly. 8.0.0 followed PrimeNG under a
 proprietary license — which is precisely what moving to Optimus was meant to avoid. The
-constraint is a disguised `=`: do not loosen it without reading the license.
+constraint is a disguised `=`: do not loosen it without reading the license. It was read
+again for 8.0.1 during the Angular 22 move: the PrimeUI license, free only below a
+revenue and headcount threshold, with a license key and a ban on redistribution. Still no.
 
 ## Asset checking
 
@@ -67,6 +82,13 @@ would have shown a missing image forever. Only asset positions are examined: `sr
 `placeholder` is an example shown to the user, and an `<a href>` to an advisory is a
 navigation the CSP does not govern — refusing all of those would make this the rule someone
 switches off.
+
+**Every `pi-*` class must exist in the installed `primeicons.css`.** Same failure, different
+asset: an unknown icon class renders an empty box and reports nothing. `pi-balance-scale`,
+`pi-file-code`, `pi-gitlab` and `pi-terminal` exist in no primeicons release and had been
+blank on seven screens; they became `pi-building-columns`, `pi-file`, `pi-share-alt` and
+`pi-code`. The known set is read from the stylesheet, so an upgrade that drops an icon fails
+here too.
 
 ## Critical CSS inlining is off, and that is a security setting
 
