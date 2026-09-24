@@ -21,7 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * What an identity provider may do to accounts and teams through SCIM (RFC 7644).
@@ -32,8 +32,15 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Group writes are transactional and account writes are not</b>, as they were when this
  * lived in the controllers: a group's rewrite deletes its memberships and inserts the new ones,
- * and a failure halfway would leave a team with half its members. The audit entry is written
- * inside that boundary; it opens its own transaction, so it survives a rollback.
+ * and a failure halfway would leave a team with half its members.
+ *
+ * <p><b>The group's audit entry is written after that transaction commits, never inside it.</b>
+ * The entry opens its own {@code REQUIRES_NEW} transaction, and on SQLite — where the lock is the
+ * file — that second connection waited on the first one's write lock: every group write answered
+ * {@code SQLITE_BUSY}, whichever class held the boundary. The boundary is therefore a {@link
+ * TransactionTemplate}, as in {@code AgentAdministrationService}, since an annotated method cannot
+ * put the entry after its own commit. What commits together is unchanged — the team and its
+ * memberships; the cost is that a write which rolls back is no longer recorded as attempted.
  *
  * <p><b>SCIM marks its membership rows, and that is what keeps two directories from fighting.</b>
  * The OIDC claim's reconciliation removes only the memberships it set itself; without this mark,
@@ -48,15 +55,23 @@ public class ScimProvisioningService {
     private final TeamMembers members;
     private final AuthService auth;
     private final AuditLogService audit;
+    private final TransactionTemplate transactions;
     private final Clock clock;
 
     public ScimProvisioningService(
-            Users users, Teams teams, TeamMembers members, AuthService auth, AuditLogService audit, Clock clock) {
+            Users users,
+            Teams teams,
+            TeamMembers members,
+            AuthService auth,
+            AuditLogService audit,
+            TransactionTemplate transactions,
+            Clock clock) {
         this.users = users;
         this.teams = teams;
         this.members = members;
         this.auth = auth;
         this.audit = audit;
+        this.transactions = transactions;
         this.clock = clock;
     }
 
@@ -283,122 +298,122 @@ public class ScimProvisioningService {
     }
 
     /** @param memberValues each member's SCIM {@code value}: an account id, or a username */
-    @Transactional
     public GroupCreation createGroup(String displayName, List<String> memberValues, RequestActor origin) {
         String name = displayName == null ? "" : displayName.trim();
         if (name.isBlank()) {
             throw new IllegalArgumentException("Group displayName cannot be blank.");
         }
 
-        if (teams.findByNameIgnoreCase(name).isPresent()) {
-            return new GroupCreation.NameTaken();
-        }
-
-        Instant now = clock.instant();
-        TeamEntity team = new TeamEntity();
-        team.setName(name);
-        team.setDescription("Created via SCIM");
-        team.setCreatedAt(now);
-        TeamEntity saved = teams.save(team);
-
-        if (memberValues != null) {
-            for (String value : memberValues) {
-                resolveUserId(value).ifPresent(userId ->
-                        members.save(new TeamMemberEntity(saved.getId(), userId, TeamMemberEntity.Origin.SCIM)));
+        GroupCreation outcome = transactions.execute(status -> {
+            if (teams.findByNameIgnoreCase(name).isPresent()) {
+                return new GroupCreation.NameTaken();
             }
+
+            Instant now = clock.instant();
+            TeamEntity team = new TeamEntity();
+            team.setName(name);
+            team.setDescription("Created via SCIM");
+            team.setCreatedAt(now);
+            TeamEntity saved = teams.save(team);
+
+            if (memberValues != null) {
+                for (String value : memberValues) {
+                    resolveUserId(value).ifPresent(userId ->
+                            members.save(new TeamMemberEntity(saved.getId(), userId, TeamMemberEntity.Origin.SCIM)));
+                }
+            }
+
+            Map<Long, UserEntity> userMap = userMap();
+            return new GroupCreation.Created(viewOf(saved, members.findByTeamId(saved.getId()), userMap));
+        });
+
+        if (outcome instanceof GroupCreation.Created) {
+            recordGroup(origin, "SCIM created team: " + name, name);
         }
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.TEAM_UPDATED,
-                "SCIM",
-                "SCIM created team: " + name,
-                name,
-                origin.ipAddress(),
-                origin.userAgent()));
-
-        Map<Long, UserEntity> userMap = userMap();
-        return new GroupCreation.Created(viewOf(saved, members.findByTeamId(saved.getId()), userMap));
+        return outcome;
     }
 
     /** Replaces the name, when one is given, and the whole membership. Empty when there is no such team. */
-    @Transactional
     public Optional<GroupView> replaceGroup(Long id, String displayName, List<String> memberValues, RequestActor origin) {
-        Optional<TeamEntity> found = teams.findById(id);
-        if (found.isEmpty()) {
-            return Optional.empty();
-        }
-
-        TeamEntity team = found.get();
-        if (displayName != null && !displayName.isBlank()) {
-            team.setName(displayName.trim());
-            teams.save(team);
-        }
-
-        members.deleteByTeamId(id);
-        if (memberValues != null) {
-            for (String value : memberValues) {
-                resolveUserId(value).ifPresent(userId ->
-                        members.save(new TeamMemberEntity(id, userId, TeamMemberEntity.Origin.SCIM)));
+        Optional<GroupView> replaced = transactions.execute(status -> {
+            Optional<TeamEntity> found = teams.findById(id);
+            if (found.isEmpty()) {
+                return Optional.<GroupView>empty();
             }
-        }
 
-        audit.record(new AuditLogService.Record(
-                AuditOperation.TEAM_UPDATED,
-                "SCIM",
-                "SCIM updated team: " + team.getName(),
-                team.getName(),
-                origin.ipAddress(),
-                origin.userAgent()));
+            TeamEntity team = found.get();
+            if (displayName != null && !displayName.isBlank()) {
+                team.setName(displayName.trim());
+                // Flushed now, not at commit: `deleteByTeamId` below clears the persistence
+                // context, and a rename still pending in it was discarded — the response carried
+                // the new name, the row kept the old one, and nothing failed.
+                teams.saveAndFlush(team);
+            }
 
-        Map<Long, UserEntity> userMap = userMap();
-        return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+            members.deleteByTeamId(id);
+            if (memberValues != null) {
+                for (String value : memberValues) {
+                    resolveUserId(value).ifPresent(userId ->
+                            members.save(new TeamMemberEntity(id, userId, TeamMemberEntity.Origin.SCIM)));
+                }
+            }
+
+            Map<Long, UserEntity> userMap = userMap();
+            return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+        });
+
+        replaced.ifPresent(group ->
+                recordGroup(origin, "SCIM updated team: " + group.team().getName(), group.team().getName()));
+        return replaced;
     }
 
     /** Empty when there is no such team. */
-    @Transactional
     public Optional<GroupView> patchGroup(Long id, List<PatchOperation> operations, RequestActor origin) {
-        Optional<TeamEntity> found = teams.findById(id);
-        if (found.isEmpty()) {
-            return Optional.empty();
-        }
+        Optional<GroupView> patched = transactions.execute(status -> {
+            Optional<TeamEntity> found = teams.findById(id);
+            if (found.isEmpty()) {
+                return Optional.<GroupView>empty();
+            }
 
-        TeamEntity team = found.get();
-        if (operations != null) {
-            for (PatchOperation op : operations) {
-                String opType = op.op() == null ? "" : op.op().toLowerCase(Locale.ROOT);
-                if ("add".equals(opType) || "replace".equals(opType)) {
-                    handleAddMembers(id, op.value());
-                } else if ("remove".equals(opType)) {
-                    handleRemoveMembers(id, op);
+            TeamEntity team = found.get();
+            if (operations != null) {
+                for (PatchOperation op : operations) {
+                    String opType = op.op() == null ? "" : op.op().toLowerCase(Locale.ROOT);
+                    if ("add".equals(opType) || "replace".equals(opType)) {
+                        handleAddMembers(id, op.value());
+                    } else if ("remove".equals(opType)) {
+                        handleRemoveMembers(id, op);
+                    }
                 }
             }
-        }
 
-        audit.record(new AuditLogService.Record(
-                AuditOperation.TEAM_UPDATED,
-                "SCIM",
-                "SCIM patched team: " + team.getName(),
-                team.getName(),
-                origin.ipAddress(),
-                origin.userAgent()));
+            Map<Long, UserEntity> userMap = userMap();
+            return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+        });
 
-        Map<Long, UserEntity> userMap = userMap();
-        return Optional.of(viewOf(team, members.findByTeamId(id), userMap));
+        patched.ifPresent(group ->
+                recordGroup(origin, "SCIM patched team: " + group.team().getName(), group.team().getName()));
+        return patched;
     }
 
-    @Transactional
+    /** Idempotent, as RFC 7644 lets it be: deleting a group that is not there is not an error. */
     public void deleteGroup(Long id, RequestActor origin) {
-        teams.findById(id).ifPresent(team -> {
+        Optional<TeamEntity> deleted = transactions.execute(status -> teams.findById(id).map(team -> {
             members.deleteByTeamId(id);
             teams.delete(team);
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.TEAM_UPDATED,
-                    "SCIM",
-                    "SCIM deleted team: " + team.getName(),
-                    team.getName(),
-                    origin.ipAddress(),
-                    origin.userAgent()));
-        });
+            return team;
+        }));
+
+        deleted.ifPresent(team -> recordGroup(origin, "SCIM deleted team: " + team.getName(), team.getName()));
+    }
+
+    /**
+     * Called only once the group's transaction has committed — see the class note for the
+     * deadlock this avoids. Attributed to the team's name, as these entries always were.
+     */
+    private void recordGroup(RequestActor origin, String description, String teamName) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.TEAM_UPDATED, "SCIM", description, teamName, origin.ipAddress(), origin.userAgent()));
     }
 
     private void handleAddMembers(Long teamId, JsonNode value) {

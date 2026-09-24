@@ -47,7 +47,8 @@ class ScimUsersControllerTest {
         audit = mock(AuditLogService.class);
         clock = Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC);
         controller = new ScimUsersController(new ScimProvisioningService(
-                users, mock(Teams.class), mock(TeamMembers.class), auth, audit, clock));
+                users, mock(Teams.class), mock(TeamMembers.class), auth, audit,
+                mock(org.springframework.transaction.support.TransactionTemplate.class), clock));
         request = mock(HttpServletRequest.class);
     }
 

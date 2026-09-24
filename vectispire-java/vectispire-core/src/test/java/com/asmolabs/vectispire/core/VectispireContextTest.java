@@ -69,6 +69,12 @@ public abstract class VectispireContextTest {
             "t_siem_config",
             "t_processed_message",
             "t_outbox_message",
+            // Named rather than left to a cascade. Left out, a team outlived its test: the SCIM
+            // group tests found the previous test's groups in their listing, and its names taken.
+            "t_team_webhook",
+            "t_team_target",
+            "t_team_member",
+            "t_team",
             "t_audit_log",
             "t_login_attempt",
             "t_session",
