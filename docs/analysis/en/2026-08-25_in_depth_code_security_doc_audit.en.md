@@ -129,7 +129,7 @@ The French content that exists is genuine translation, not machine filler ([`ROT
 
 ### 3.1 F1 — MFA verification is unreachable (🔴 Critical)
 
-[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) is annotated `@OpenToAnonymous` and is called by the SPA at [`api.service.ts:524`](../../../vectispire-angular/src/app/core/api.service.ts) with no bearer token — correctly, since the token is exactly what the call is trying to obtain.
+[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) is annotated `@OpenToAnonymous` and is called by the SPA at `api.service.ts:524` — since 2026-09-24 in [`core/api/auth.api.ts`](../../../vectispire-angular/src/app/core/api/auth.api.ts), when the single client was split by domain — with no bearer token — correctly, since the token is exactly what the call is trying to obtain.
 
 But the filter chain in [`SecurityConfiguration.apiSecurity`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/SecurityConfiguration.java) `permitAll`s `/api/v1/auth/login`, `/auth/methods` and `/auth/session/exchange` — **and not `/auth/mfa/verify`**. It therefore falls through to `anyRequest().authenticated()`, and Spring Security's `authenticated()` rejects the anonymous authentication token. The endpoint answers **401 before the controller is ever entered**.
 

@@ -130,7 +130,7 @@ L'[ADR 0013](../../architecture/fr/decisions/0013-flyway-multi-dialect-migration
 
 ### 3.1 F1 — La vérification MFA est injoignable (🔴 Critique)
 
-[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) porte l'annotation `@OpenToAnonymous` et est appelé par le SPA en [`api.service.ts:524`](../../../vectispire-angular/src/app/core/api.service.ts) sans jeton porteur — à juste titre, puisque ce jeton est précisément ce que l'appel cherche à obtenir.
+[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) porte l'annotation `@OpenToAnonymous` et est appelé par le SPA en `api.service.ts:524` — depuis le 2026-09-24 dans [`core/api/auth.api.ts`](../../../vectispire-angular/src/app/core/api/auth.api.ts), quand le client unique a été découpé par domaine — sans jeton porteur — à juste titre, puisque ce jeton est précisément ce que l'appel cherche à obtenir.
 
 Mais la chaîne de filtres de [`SecurityConfiguration.apiSecurity`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/SecurityConfiguration.java) met en `permitAll` `/api/v1/auth/login`, `/auth/methods` et `/auth/session/exchange` — **et pas `/auth/mfa/verify`**. La requête retombe donc sur `anyRequest().authenticated()`, et le `authenticated()` de Spring Security rejette le jeton d'authentification anonyme. L'endpoint répond **401 avant même que le contrôleur soit atteint**.
 
