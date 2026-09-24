@@ -95,6 +95,11 @@ public class IssuesController {
             // that opens the whole backlog is the defect `is_kev` had: the most actionable number
             // on the screen linked to a list nobody could narrow.
             @RequestParam(required = false, defaultValue = "false") boolean overdue,
+            // **What the risk figures count, so the list they open agrees with them.** The
+            // dashboard's per-severity backlog leaves out settled triage — not_affected, fixed —
+            // like the scorecard, the gate and EPSS; a link from "3 critical" to a list of five
+            // reads as the figure being wrong. Acts on `true` alone, like the switches above.
+            @RequestParam(required = false, defaultValue = "false") boolean unsettled,
             @RequestParam(required = false) String search,
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset) {
@@ -102,7 +107,7 @@ public class IssuesController {
         return queries.page(
                 new IssueQueryService.BacklogQuery(
                         state, severity, type, triageStatus, repositoryId, containerId,
-                        onlyDirect, onlyKev, overdue, search, limit, offset),
+                        onlyDirect, onlyKev, overdue, unsettled, search, limit, offset),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));

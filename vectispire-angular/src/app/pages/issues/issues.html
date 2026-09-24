@@ -42,6 +42,14 @@
             <label for="filter-overdue" class="m-0">Past its deadline</label>
         </div>
         <div class="flex items-center gap-2">
+            <p-toggleswitch inputId="filter-unsettled" [ngModel]="unsettled"
+                            (ngModelChange)="unsettled = $event; reload(0)" />
+            <label for="filter-unsettled" class="m-0">
+                {{ 'issues.filter_unsettled' | translate }}
+                <span class="block text-muted-color text-sm">{{ 'issues.filter_unsettled_hint' | translate }}</span>
+            </label>
+        </div>
+        <div class="flex items-center gap-2">
             <p-toggleswitch inputId="filter-direct" [ngModel]="onlyDirect"
                             (ngModelChange)="onlyDirect = $event; reload(0)" />
             <label for="filter-direct" class="m-0">

@@ -15,6 +15,9 @@ clairement que rien de tout cela ne peut faire échouer une construction. Voir
 ## La vue d'ensemble Sécurité
 
 Par cible : le verdict de barrière, le backlog courant par gravité, et la date du dernier scan.
+Les chiffres par gravité écartent les constats triés non affecté ou corrigé, comme tout chiffre de
+risque ; chacun ouvre la liste des constats avec le même filtre, pour que le compte et la liste
+concordent.
 Le verdict est calculé depuis que les politiques de barrière existent ; cet écran est l'endroit
 où il est enfin montré.
 

@@ -234,7 +234,7 @@ public class PostureDigestService {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),
                             severity.wireName(),
-                            null, null, null, null, false, false, null, allowed)
+                            null, null, null, null, false, false, null, true, Map.of(), allowed)
                     .toSpecification());
             if (count > 0) {
                 counts.put(severity.wireName(), count);

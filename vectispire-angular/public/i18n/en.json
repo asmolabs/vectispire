@@ -956,6 +956,8 @@
     "epss": "EPSS",
     "file_path": "File Path",
     "filter_kev": "CISA KEV",
+    "filter_unsettled": "Hide settled triage",
+    "filter_unsettled_hint": "Leaves out what was argued not affected or marked fixed — what the dashboard counts.",
     "filter_reachability": "Reachability",
     "filter_severity": "Severity",
     "filter_state": "State",

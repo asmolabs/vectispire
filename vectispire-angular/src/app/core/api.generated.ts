@@ -7061,6 +7061,7 @@ export interface operations {
                 only_direct?: boolean;
                 is_kev?: boolean;
                 overdue?: boolean;
+                unsettled?: boolean;
                 search?: string;
                 limit?: number;
                 offset?: number;

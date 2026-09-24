@@ -69,6 +69,7 @@ public class IssueQueryService {
             boolean onlyDirect,
             boolean onlyKev,
             boolean overdue,
+            boolean unsettled,
             String search,
             int limit,
             int offset) {}
@@ -118,7 +119,7 @@ public class IssueQueryService {
                 query.search(),
                 // Asking for the overdue also excludes what triage settled: a dismissed issue is
                 // not late, and a list that showed it would disagree with the figure that led here.
-                query.overdue(),
+                query.overdue() || query.unsettled(),
                 query.overdue() ? sla.overdueThresholds() : Map.of(),
                 allowed);
 

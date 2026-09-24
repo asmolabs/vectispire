@@ -297,7 +297,7 @@
                 @for (level of severities(); track level.key) {
                     <div class="flex items-center justify-between">
                         <p-tag [value]="level.label" [severity]="level.severity" />
-                        <a [routerLink]="['/issues']" [queryParams]="{ severity: level.key, state: 'open' }" class="text-xl font-semibold">
+                        <a [routerLink]="['/issues']" [queryParams]="{ severity: level.key, state: 'open', unsettled: true }" class="text-xl font-semibold">
                             {{ overview.backlogBySeverity[level.key] ?? 0 }}
                         </a>
                     </div>

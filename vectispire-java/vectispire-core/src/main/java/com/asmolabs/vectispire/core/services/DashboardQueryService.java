@@ -244,6 +244,11 @@ public class DashboardQueryService {
      * <p>The cost is one indexed count per severity instead of one grouped scan. That is the
      * price of the filter being expressed once, in {@link IssueFilters}, rather than a second
      * time in a hand-written {@code group by} that would have to grow its own visibility clause.
+     *
+     * <p><b>Settled triage is left out</b>, as in every other figure of risk here — the maturity
+     * ranking, the overdue count, the scorecard. Each count links to the issues list with
+     * {@code unsettled=true}, which applies the same clause, so the figure and the rows it opens
+     * agree; that link is what made the exclusion possible here, where it had been held back.
      */
     private Map<String, Long> backlogBySeverity(Visibility allowed) {
         Map<String, Long> counts = new HashMap<>();
@@ -251,7 +256,7 @@ public class DashboardQueryService {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),
                             severity.wireName(),
-                            null, null, null, null, false, false, null, allowed)
+                            null, null, null, null, false, false, null, true, Map.of(), allowed)
                     .toSpecification());
             if (count > 0) {
                 // Absent rather than zero, as the grouped query left it: the screen reads this as

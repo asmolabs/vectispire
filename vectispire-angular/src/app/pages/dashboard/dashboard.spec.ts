@@ -235,6 +235,20 @@ describe('the failing targets table', () => {
         expect(fixture.nativeElement.textContent as string).toContain('KEV');
     });
 
+    it('links each severity figure to the list with unsettled=true, the clause the figure counts by', () => {
+        // The figure leaves settled triage out; a link without the flag opens a list that does
+        // not, and "1 critical" arrives on a page of several.
+        http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
+        fixture.detectChanges();
+
+        const links = Array.from(fixture.nativeElement.querySelectorAll('a[href^="/issues"]')) as HTMLAnchorElement[];
+        const severityLinks = links.filter((link) => link.getAttribute('href')!.includes('severity='));
+        expect(severityLinks.length).toBeGreaterThan(0);
+        for (const link of severityLinks) {
+            expect(link.getAttribute('href')).toContain('unsettled=true');
+        }
+    });
+
     it('tags anything else as a severity breach', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();

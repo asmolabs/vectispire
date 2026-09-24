@@ -126,6 +126,7 @@ describe('the issue backlog', () => {
         const component = fixture.componentInstance;
         component.onlyKev = true;
         component.overdue = true;
+        component.unsettled = true;
         component.onlyDirect = true;
         component.triageFilter = 'affected';
         component.reload(0);
@@ -133,6 +134,7 @@ describe('the issue backlog', () => {
         const url = http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams;
         expect(url).toContain('is_kev=true');
         expect(url).toContain('overdue=true');
+        expect(url).toContain('unsettled=true');
         expect(url).toContain('only_direct=true');
         expect(url).toContain('triage_status=affected');
     });
@@ -156,6 +158,7 @@ describe('the issue backlog', () => {
         const url = http.expectOne((call) => call.url === '/api/v1/issues').request.urlWithParams;
         expect(url).not.toContain('is_kev');
         expect(url).not.toContain('overdue');
+        expect(url).not.toContain('unsettled');
         expect(url).not.toContain('only_direct');
         expect(url).not.toContain('triage_status');
     });
@@ -463,6 +466,15 @@ describe('the backlog opened from a dashboard link', () => {
 
         expect(fixture.componentInstance.overdue).toBe(true);
         expect(fixture.nativeElement.querySelector('#filter-overdue').checked).toBe(true);
+    });
+
+    it('and for the per-severity figures, which leave settled triage out', async () => {
+        // The dashboard links here with `unsettled=true`. Unread, "3 critical" opens a list of
+        // five — the figure looks wrong, and it is the list that is.
+        const fixture = await open({ severity: 'critical', state: 'open', unsettled: 'true' });
+
+        expect(fixture.componentInstance.unsettled).toBe(true);
+        expect(fixture.nativeElement.querySelector('#filter-unsettled').checked).toBe(true);
     });
 
     it('shows nothing as active when the link carries no filter', async () => {

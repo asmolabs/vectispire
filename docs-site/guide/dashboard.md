@@ -14,7 +14,9 @@ that none of it can fail a build. See [Code quality](quality.md).
 ## The security overview
 
 Per target: the gate verdict, the standing backlog by severity, and when it was last
-scanned. The verdict has been computed since gate policies existed; this screen is where it
+scanned. The per-severity figures leave out findings triaged not affected or fixed, as every
+figure of risk does; each opens the findings list with the same filter, so the count and the list
+agree. The verdict has been computed since gate policies existed; this screen is where it
 is finally shown.
 
 Two states are named here that appear nowhere else: a target **never scanned**, and one

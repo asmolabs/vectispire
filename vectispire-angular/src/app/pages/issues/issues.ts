@@ -123,6 +123,8 @@ export class Issues {
     onlyDirect = false;
     onlyKev = false;
     overdue = false;
+    /** What the dashboard's per-severity figures count: open, less settled triage. */
+    unsettled = false;
 
     /**
      * The selected target, as {@code repository:12} or {@code container:3}.
@@ -241,6 +243,9 @@ export class Issues {
         // The same arrangement for the deadline figure: the dashboard links here, and a link
         // this screen does not read is a filter that silently does nothing.
         if (params.get('overdue') === 'true') this.overdue = true;
+        // The per-severity figures on the dashboard leave settled triage out and link here with
+        // this; unread, "3 critical" would open a list of five.
+        if (params.get('unsettled') === 'true') this.unsettled = true;
         if (params.get('only_direct') === 'true') this.onlyDirect = true;
         if (params.get('triage_status')) this.triageFilter = params.get('triage_status');
 
@@ -303,6 +308,7 @@ export class Issues {
                 only_direct: this.onlyDirect || undefined,
                 is_kev: this.onlyKev || undefined,
                 overdue: this.overdue || undefined,
+                unsettled: this.unsettled || undefined,
                 search: this.search || undefined,
                 limit: this.limit,
                 offset: this.offset()

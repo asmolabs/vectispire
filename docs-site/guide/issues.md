@@ -58,7 +58,10 @@ the record has to be able to tell the difference.
 - **Direct dependencies** — hides what an upstream release, not you, has to fix.
 - **Actively exploited (KEV)** — the shortest list, and the one to read first.
 - **Triaged / untriaged** — what has been decided against what has not.
-- **Past its deadline** — suppressions whose review date has come round.
+- **Past its deadline** — open findings past the remediation window their severity carries,
+  settled triage excluded (see [Remediation times](remediation-delays.md)).
+- **Hide settled triage** — leaves out what was argued not affected or marked fixed. It is the
+  clause the dashboard's per-severity figures count by, and the links from those figures set it.
 
 ## Ordering that works
 

@@ -60,7 +60,11 @@ différence.
 - **Dépendances directes** — masque ce qu'une publication en amont, et non vous, doit corriger.
 - **Activement exploitées (KEV)** — la liste la plus courte, et celle à lire en premier.
 - **Triées / non triées** — ce qui a été décidé face à ce qui ne l'a pas été.
-- **Échéance dépassée** — les suppressions dont la date de réexamen est arrivée.
+- **Échéance dépassée** — les constats ouverts qui ont dépassé le délai de correction de leur
+  gravité, triage réglé exclu (voir [Délais de correction](remediation-delays.md)).
+- **Masquer le triage réglé** — écarte ce qui a été jugé non affecté ou marqué corrigé. C'est la
+  règle selon laquelle comptent les chiffres par gravité du tableau de bord, et les liens depuis ces
+  chiffres l'activent.
 
 ## Un ordre qui fonctionne
 

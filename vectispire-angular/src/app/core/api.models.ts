@@ -364,6 +364,9 @@ export interface IssueFilters {
     /** Open, not settled, and past the window its severity carries. The server owns the
      *  thresholds: sending dates from here would be a second copy of the policy. */
     overdue?: boolean;
+    /** Leaves out what triage settled — `not_affected`, `fixed` — as the dashboard's figures do,
+     *  so a count and the list it opens agree. */
+    unsettled?: boolean;
     triage_status?: string;
     repository_id?: number;
     container_id?: number;

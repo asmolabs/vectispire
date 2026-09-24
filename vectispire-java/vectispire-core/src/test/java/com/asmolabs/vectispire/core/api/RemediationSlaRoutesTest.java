@@ -95,6 +95,25 @@ class RemediationSlaRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the per-severity backlog leaves settled triage out, and the list it links to with unsettled=true agrees")
+    void theSeverityFigureAndItsListAgree() throws Exception {
+        long target = repository("https://example.invalid/severity.git");
+        issue(target, "CVE-OPEN", Severity.CRITICAL, Duration.ofDays(1), TriageStatus.UNDER_REVIEW);
+        issue(target, "CVE-ASKED", Severity.CRITICAL, Duration.ofDays(1), TriageStatus.PENDING_APPROVAL);
+        issue(target, "CVE-DISMISSED", Severity.CRITICAL, Duration.ofDays(1), TriageStatus.NOT_AFFECTED);
+        issue(target, "CVE-FIXED", Severity.CRITICAL, Duration.ofDays(1), TriageStatus.FIXED);
+
+        // Two: the dismissal awaiting approval is a request, not a decision.
+        mvc.perform(authenticated(get("/api/v1/dashboard"), asAdmin()))
+                .andExpect(jsonPath("$.backlogBySeverity.critical").value(2));
+        // The link the figure carries — and without the flag, the list is the whole open backlog.
+        mvc.perform(authenticated(get("/api/v1/issues?severity=critical&state=open&unsettled=true"), asAdmin()))
+                .andExpect(jsonPath("$.total").value(2));
+        mvc.perform(authenticated(get("/api/v1/issues?severity=critical&state=open"), asAdmin()))
+                .andExpect(jsonPath("$.total").value(4));
+    }
+
+    @Test
     @DisplayName("a window set to zero disables that severity rather than breaching it")
     void zeroDisables() throws Exception {
         long target = repository("https://example.invalid/zeroed.git");

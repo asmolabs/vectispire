@@ -9180,6 +9180,14 @@
           }
         }, {
           "in" : "query",
+          "name" : "unsettled",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
           "name" : "search",
           "required" : false,
           "schema" : {
