@@ -42,6 +42,22 @@ import tools.jackson.databind.JsonNode;
  * put the entry after its own commit. What commits together is unchanged — the team and its
  * memberships; the cost is that a write which rolls back is no longer recorded as attempted.
  *
+ * <p><b>What the directory may not do, and why each limit is here.</b> The SCIM bearer token sits
+ * in the identity provider's configuration, outside this deployment's control; it was treated as an
+ * unrestricted administrator. With it, one {@code PUT} rebound the bootstrap governor to an
+ * attacker's IdP subject — the next OIDC sign-in landed on that account, with no password and no
+ * local MFA — or granted SUPERUSER to an account the attacker controlled; a {@code PUT} without
+ * {@code roles}, which many IdPs send, silently demoted anyone to USER; the last administrator could
+ * be deactivated or deleted; and a role change left the old sessions open. So:
+ * <ul>
+ *   <li>administrative accounts (ADMIN, SUPERUSER) are not the directory's to change: replacing,
+ *       patching or deleting one is refused, and they are administered in Vectispire;
+ *   <li>the directory grants only non-administrative roles;
+ *   <li>an absent role leaves the account's role as it is;
+ *   <li>{@code externalId} is set once and never rebound;
+ *   <li>a role change closes the account's sessions, as a deactivation does.
+ * </ul>
+ *
  * <p><b>SCIM marks its membership rows, and that is what keeps two directories from fighting.</b>
  * The OIDC claim's reconciliation removes only the memberships it set itself; without this mark,
  * its own would be indistinguishable and the first sign-in would carry away what provisioning had
@@ -91,6 +107,14 @@ public class ScimProvisioningService {
      */
     public record PatchOperation(String op, String path, JsonNode value) {}
 
+    /** An administrative account: not the directory's to change. Answered 403. */
+    public static final class ProtectedAccountException extends RuntimeException {
+        ProtectedAccountException(String username) {
+            super("The account \"" + username + "\" holds an administrative role and is administered in "
+                    + "Vectispire, not through SCIM.");
+        }
+    }
+
     public sealed interface UserCreation {
         record Created(UserEntity user) implements UserCreation {}
 
@@ -138,7 +162,7 @@ public class ScimProvisioningService {
         user.setEmail(attributes.email());
         user.setKeycloakId(attributes.externalId());
         user.setIsActive(attributes.active() == null || attributes.active());
-        user.setRole(roleOf(attributes.role()));
+        user.setRole(grantable(attributes.role(), Role.USER.name()));
         user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
         user.setMustChangePassword(true);
         user.setCreatedAt(now);
@@ -164,22 +188,36 @@ public class ScimProvisioningService {
             return Optional.empty();
         }
 
-        UserEntity user = found.get();
+        UserEntity user = requireProvisionable(found.get());
         boolean wasActive = Boolean.TRUE.equals(user.getIsActive());
         boolean nowActive = attributes.active() == null || attributes.active();
+        String previousRole = user.getRole();
+        String role = grantable(attributes.role(), previousRole);
 
         user.setDisplayName(attributes.displayName());
         user.setEmail(attributes.email());
         if (attributes.externalId() != null) {
-            user.setKeycloakId(attributes.externalId());
+            bindOnce(user, attributes.externalId());
         }
         user.setIsActive(nowActive);
-        user.setRole(roleOf(attributes.role()));
+        user.setRole(role);
         user.setUpdatedAt(clock.instant());
 
         UserEntity saved = users.save(user);
 
-        if (wasActive && !nowActive) {
+        if (!role.equals(previousRole) && nowActive) {
+            // A role change from the directory closes the sessions, as it does from the admin
+            // screen: an open session would otherwise keep what the directory just took away.
+            auth.revokeAllForUser(saved.getId());
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.USER_UPDATED,
+                    "SCIM",
+                    "SCIM changed the role of " + saved.getUsername() + " from " + previousRole + " to " + role
+                            + " and revoked its sessions",
+                    saved.getUsername(),
+                    origin.ipAddress(),
+                    origin.userAgent()));
+        } else if (wasActive && !nowActive) {
             auth.revokeAllForUser(saved.getId());
             audit.record(new AuditLogService.Record(
                     AuditOperation.USER_UPDATED,
@@ -208,7 +246,7 @@ public class ScimProvisioningService {
             return Optional.empty();
         }
 
-        UserEntity user = found.get();
+        UserEntity user = requireProvisionable(found.get());
         boolean wasActive = Boolean.TRUE.equals(user.getIsActive());
 
         if (operations != null) {
@@ -236,7 +274,7 @@ public class ScimProvisioningService {
 
     /** Idempotent, as RFC 7644 lets it be: deleting an account that is not there is not an error. */
     public void deleteUser(Long id, RequestActor origin) {
-        users.findById(id).ifPresent(user -> {
+        users.findById(id).map(this::requireProvisionable).ifPresent(user -> {
             auth.revokeAllForUser(user.getId());
             users.delete(user);
             audit.record(new AuditLogService.Record(
@@ -280,12 +318,46 @@ public class ScimProvisioningService {
         return users.findAllByOrderByUsernameAsc();
     }
 
-    /** A role the directory names and this system does not know falls back to the least one. */
-    private static String roleOf(String requested) {
-        if (requested != null && Role.of(requested.toUpperCase(Locale.ROOT)).isPresent()) {
-            return requested.toUpperCase(Locale.ROOT);
+    /**
+     * The role the directory asked for, if it may grant it.
+     *
+     * @param unchanged what to keep when the document names no role, or one this version does not
+     *     know: the account's own role on a replacement, USER on a creation. It used to be USER in
+     *     both cases, so a replacement without {@code roles} demoted whoever it named.
+     * @throws IllegalArgumentException for an administrative role, which is granted in Vectispire
+     */
+    private static String grantable(String requested, String unchanged) {
+        Optional<Role> role = requested == null ? Optional.empty() : Role.of(requested.trim().toUpperCase(Locale.ROOT));
+        if (role.isEmpty()) {
+            return unchanged;
         }
-        return Role.USER.name();
+        if (role.get().isAdministrative()) {
+            throw new IllegalArgumentException("SCIM cannot grant the " + role.get().name()
+                    + " role: administrative roles are granted in Vectispire.");
+        }
+        return role.get().name();
+    }
+
+    /** Refuses an administrative account: see the class note. */
+    private UserEntity requireProvisionable(UserEntity user) {
+        if (Role.of(user.getRole()).map(Role::isAdministrative).orElse(false)) {
+            throw new ProtectedAccountException(user.getUsername());
+        }
+        return user;
+    }
+
+    /**
+     * Sets the identity-provider subject once.
+     *
+     * <p>Rebinding it is how an account is taken over: the next OIDC sign-in with the new subject
+     * lands on it. A directory that renames its own identifiers re-creates the account instead.
+     */
+    private static void bindOnce(UserEntity user, String externalId) {
+        if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
+            throw new IllegalArgumentException("externalId is immutable once set: this account is already "
+                    + "bound to another identity-provider subject.");
+        }
+        user.setKeycloakId(externalId);
     }
 
     // --- Groups --------------------------------------------------------------------------------

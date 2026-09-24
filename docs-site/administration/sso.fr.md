@@ -42,6 +42,21 @@ Une revendication **vide ou absente ne retire rien**. Un mapper oublié est une 
 configuration, pas une déclaration que cette personne n'appartient à aucune équipe — révoquer sur
 cette base couperait tout le monde au premier réglage manqué.
 
+## Provisionnement depuis l'annuaire (SCIM)
+
+Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des comptes par SCIM 2.0
+(`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM. Ce jeton vit dans la
+configuration du fournisseur ; ce qu'il peut faire est donc volontairement borné :
+
+- **Les comptes administratifs ne relèvent pas de l'annuaire.** Remplacer, modifier ou supprimer un
+  administrateur ou un super-administrateur répond `403` ; ils s'administrent dans Vectispire.
+- **L'annuaire n'accorde que des rôles non administratifs.** Une valeur `roles` à `ADMIN` ou
+  `SUPERUSER` répond `400`.
+- **Un remplacement sans `roles` laisse le rôle tel quel** — il ne rétrograde plus en Utilisateur.
+- **`externalId` n'est lié qu'une fois.** Le changer sur un compte qui en a déjà un répond `400` :
+  un nouveau sujet, c'est un nouveau compte.
+- **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
+
 ## Configuration
 
 ```bash

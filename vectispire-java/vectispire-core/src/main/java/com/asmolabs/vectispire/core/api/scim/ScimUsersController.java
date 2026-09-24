@@ -96,6 +96,13 @@ public class ScimUsersController {
         provisioning.deleteUser(id, RequestActors.unnamed(request));
     }
 
+    /** 403 rather than 404: the account exists and the directory may read it, only not change it. */
+    @ExceptionHandler(ScimProvisioningService.ProtectedAccountException.class)
+    public ResponseEntity<ScimErrorResponse> handleProtected(ScimProvisioningService.ProtectedAccountException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ScimErrorResponse.of(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ScimErrorResponse> handleBadInput(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)

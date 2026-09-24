@@ -40,6 +40,21 @@ An **empty or absent claim removes nothing**. A forgotten mapper is a configurat
 statement that this person belongs to no team, and revoking on that basis would cut everybody off
 the first time a mapper was misconfigured.
 
+## Provisioning from the directory (SCIM)
+
+An identity provider can create, update, deactivate and delete accounts through SCIM 2.0
+(`/scim/v2/Users`, `/scim/v2/Groups`), authenticated by the SCIM bearer token. That token lives in
+the provider's configuration, so what it may do is deliberately bounded:
+
+- **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
+  administrator or a superuser answers `403`; they are administered in Vectispire.
+- **The directory grants non-administrative roles only.** A `roles` value of `ADMIN` or `SUPERUSER`
+  answers `400`.
+- **A replacement without `roles` leaves the role as it is** — it no longer demotes to User.
+- **`externalId` is bound once.** Changing it on an account that already has one answers `400`: a
+  new subject means a new account.
+- **A role change closes the account's sessions**, as a deactivation does.
+
 ## Configuration
 
 ```bash
