@@ -1,49 +1,20 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
-import com.asmolabs.vectispire.common.domain.issues.IssueState;
-import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
-import com.asmolabs.vectispire.common.domain.issues.Triage;
-import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.common.domain.issues.VexJustification;
-import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.IssueOrdering;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.TriageEvents;
-import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.services.SettingsService;
-import com.asmolabs.vectispire.core.services.TriageHistory;
-import com.asmolabs.vectispire.core.services.AuditLogService;
-import com.asmolabs.vectispire.core.services.SlaService;
-import com.asmolabs.vectispire.core.services.TargetNaming;
-import com.asmolabs.vectispire.core.services.IssueTriageService;
+import com.asmolabs.vectispire.core.services.IssueDecisionService;
+import com.asmolabs.vectispire.core.services.IssueQueryService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
-import java.time.Period;
 import java.util.List;
-import java.util.Locale;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.function.Function;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Limit;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -51,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * The backlog and its triage.
@@ -62,7 +32,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
  *   <li><b>{@code limit} is capped at 500.</b> With no ceiling, a caller asking for
  *       {@code limit=1000000} would load the whole backlog into memory — not an attack, just a
  *       client that wants "everything" and does not know what everything weighs.
- *   <li><b>{@code total} is counted with the same filters as the page.</b> See {@link
+ *   <li><b>{@code total} is counted with the same filters as the page.</b> See {@code
  *       IssueFilters} for why that is one definition rather than two.
  * </ul>
  */
@@ -71,44 +41,19 @@ import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 @RequiresAccount
 public class IssuesController {
 
-    public static final int MAX_PAGE_SIZE = 500;
-    private static final int DEFAULT_PAGE_SIZE = 50;
+    /** The page ceiling, stated where the route is documented; the service applies it. */
+    public static final int MAX_PAGE_SIZE = IssueQueryService.MAX_PAGE_SIZE;
 
-    /** A detail page shows where an issue was seen, not every scan that ever ran. */
-    private static final int MAX_SIGHTINGS = 100;
-
-    private final Issues issues;
-    private final Findings findings;
-    private final TriageEvents events;
-    private final TargetNaming naming;
-    private final IssueTriageService triage;
-    private final AuditLogService audit;
+    private final IssueQueryService queries;
+    private final IssueDecisionService decisions;
     private final VisibilityService visibility;
-    private final SlaService sla;
-    private final SettingsService settings;
 
     public IssuesController(
-            Issues issues,
-            Findings findings,
-            TriageEvents events,
-            TargetNaming naming,
-            IssueTriageService triage,
-            AuditLogService audit,
-            VisibilityService visibility,
-            SlaService sla,
-            SettingsService settings) {
-        this.issues = issues;
-        this.findings = findings;
-        this.events = events;
-        this.naming = naming;
-        this.triage = triage;
-        this.audit = audit;
+            IssueQueryService queries, IssueDecisionService decisions, VisibilityService visibility) {
+        this.queries = queries;
+        this.decisions = decisions;
         this.visibility = visibility;
-        this.sla = sla;
-        this.settings = settings;
     }
-
-    public record IssuePage(List<BacklogEntry> items, long total, int limit, int offset) {}
 
     public record TriageRequest(String status, String justification, String comment, @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
@@ -133,22 +78,8 @@ public class IssuesController {
             String comment,
             @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
-    /**
-     * The same ceiling as the list route returns.
-     *
-     * <p>Deliberately equal: a screen that can show 500 rows can decide on 500 rows, and a limit
-     * below what the list hands back would make "select all" an action the interface offers and
-     * the API refuses.
-     */
-    private static final int MAX_BULK_TRIAGE = 500;
-
-    /** What the column accepts: a longer reference would be truncated by the database. */
-    private static final int MAX_TICKET_REFERENCE = 64;
-
-    private static final int MAX_TICKET_URL = 500;
-
     @GetMapping
-    public IssuePage list(
+    public IssueQueryService.IssuePage list(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String severity,
@@ -168,87 +99,14 @@ public class IssuesController {
             @RequestParam(required = false, defaultValue = "50") int limit,
             @RequestParam(required = false, defaultValue = "0") int offset) {
 
-        int size = Math.clamp(limit, 1, MAX_PAGE_SIZE);
-        int from = Math.max(offset, 0);
-
-        IssueFilters filters = new IssueFilters(
-                // `state` has a default and the others do not: a backlog opens on what is open.
-                // `state=all` asks explicitly for the opposite.
-                "all".equals(state) ? null : (state == null ? IssueState.OPEN.wireName() : state),
-                severity,
-                type,
-                triageStatus,
-                repositoryId,
-                containerId,
-                onlyDirect,
-                onlyKev,
-                search,
-                // Asking for the overdue also excludes what triage settled: a dismissed issue is
-                // not late, and a list that showed it would disagree with the figure that led here.
-                overdue,
-                overdue ? sla.overdueThresholds() : java.util.Map.of(),
+        return queries.page(
+                new IssueQueryService.BacklogQuery(
+                        state, severity, type, triageStatus, repositoryId, containerId,
+                        onlyDirect, onlyKev, overdue, search, limit, offset),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-
-        var specification = filters.toSpecification();
-        var page = issues.findAll(
-                specification,
-                PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
-
-        return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);
     }
-
-    /**
-     * Attaches each issue's target name.
-     *
-     * <p><b>Two queries for the page, not two per row.</b> Resolving a name inside the mapping
-     * would issue one select per issue — fifty round trips to render fifty rows, and the cost
-     * grows with the page size a caller chooses.
-     */
-    private List<BacklogEntry> named(List<IssueEntity> page) {
-        TargetNaming.Names names = naming.forIds(
-                idsOf(page, IssueEntity::getRepoId), idsOf(page, IssueEntity::getContainerId));
-        // The policy read once for the page, not once per row: it is four settings reads, and
-        // fifty rows would make it two hundred.
-        RemediationSla policy = sla.policy();
-
-        return page.stream()
-                .map(issue -> {
-                    var assessment = sla.assess(policy, issue);
-                    return new BacklogEntry(
-                            issue,
-                            names.kindOf(issue.getContainerId()),
-                            names.of(issue.getRepoId(), issue.getContainerId()),
-                            assessment.map(RemediationSla.Assessment::dueAt).orElse(null),
-                            assessment.map(found -> found.state().name().toLowerCase(Locale.ROOT)).orElse(null),
-                            assessment.map(RemediationSla.Assessment::days).orElse(null));
-                })
-                .toList();
-    }
-
-    private static List<Long> idsOf(List<IssueEntity> page, Function<IssueEntity, Long> id) {
-        return page.stream().map(id).filter(Objects::nonNull).distinct().toList();
-    }
-
-    /**
-     * @param sightings the scans that observed this issue, newest first. An issue carries a first
-     *     and a last scan and nothing between them; "seen in 1.17.4, still in 1.17.6" is a
-     *     question the findings answer, and the version comes from the scan
-     * @param decisions every triage transition, from the same table the history screen reads —
-     *     one issue's slice of it, so the page that asks "why is this dismissed" has the answer
-     *     beside the dismissal rather than three screens away
-     */
-    public record IssueDetail(
-            @JsonUnwrapped IssueEntity issue,
-            String targetKind,
-            String targetName,
-            List<Sighting> sightings,
-            List<TriageHistory.Decision> decisions) {}
-
-    /** @param version what the project called itself when this scan saw the issue */
-    public record Sighting(
-            Long scanId, String status, String branch, String version, Instant scannedAt, String severity) {}
 
     /**
      * One issue, with what a row cannot carry.
@@ -258,50 +116,11 @@ public class IssuesController {
      * is added here is what needs a query of its own — where it was seen, and what was decided.
      */
     @GetMapping("/{id}")
-    public IssueDetail detail(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
-        IssueEntity issue = issues.findById(id).orElse(null);
-        // 404 rather than 403 when it exists but is not visible — see `Visibilities`.
-        Visibilities.requireVisible(
-                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        if (issue == null) {
-            throw new NoSuchElementException("Issue not found.");
-        }
-
-        TargetNaming.Names names = naming.all();
-        List<Sighting> sightings = findings.sightingsOf(id, Limit.of(MAX_SIGHTINGS)).stream()
-                .map(row -> {
-                    FindingEntity finding = (FindingEntity) row[0];
-                    ScanEntity scan = (ScanEntity) row[1];
-                    return new Sighting(
-                            scan.getId(),
-                            scan.getStatus(),
-                            scan.getBranch(),
-                            scan.getVersion(),
-                            scan.getCreatedAt(),
-                            finding.getSeverity());
-                })
-                .toList();
-
-        List<TriageHistory.Decision> decisions = events.findForIssues(List.of(id)).stream()
-                .map(event -> new TriageHistory.Decision(
-                        event.getFromStatus(),
-                        event.getToStatus(),
-                        event.getJustification(),
-                        event.getComment(),
-                        event.getActor(),
-                        event.getOrigin(),
-                        event.getOccurredAt(),
-                        event.getExpiresAt(),
-                        event.getScanId(),
-                        null))
-                .toList();
-
-        return new IssueDetail(
-                issue,
-                issue.getRepoId() != null ? "repository" : "container",
-                names.of(issue.getRepoId(), issue.getContainerId()),
-                sightings,
-                decisions);
+    public IssueQueryService.IssueDetail detail(
+            @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
+        // 404 rather than 403 when it exists but is not visible — see `Visibilities`, whose rule
+        // the service applies.
+        return queries.detail(id, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     /**
@@ -320,36 +139,12 @@ public class IssuesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
-        boolean fourEyesRequired = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
-        boolean canApprove = !fourEyesRequired || principal.user()
-                .flatMap(user -> Role.of(user.getRole()))
-                .map(Role::canApproveTriage)
-                .orElse(true);
         // Checked before the write, and 404 rather than 403 — see `Visibilities`.
-        Visibilities.requireVisible(
-                issues.findById(id).orElse(null),
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        IssueEntity issue = triage.triage(id, new Triage.Request(
-                TriageStatus.fromWireName(body.status()).orElse(null),
-                actor,
-                VexJustification.fromWireName(body.justification()).orElse(null),
-                body.comment(),
-                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())),
-                canApprove);
-
-        // A triage can dismiss a finding: that is a security decision, and it belongs in the
-        // audit trail as much as a role change does.
-        audit.record(new AuditLogService.Record(
-                AuditOperation.ISSUE_TRIAGED,
-                String.valueOf(id),
-                "Triage \"" + issue.getTriageStatus() + "\""
-                        + (issue.getTriageJustification() == null ? "" : " (" + issue.getTriageJustification() + ")"),
-                actor,
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return issue;
+        return decisions.triage(
+                id,
+                new IssueDecisionService.Decision(
+                        body.status(), body.justification(), body.comment(), body.expiresInDays()),
+                caller(principal, request));
     }
 
     /**
@@ -390,44 +185,17 @@ public class IssuesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        // Checked before the write, and 404 rather than 403 — see `Visibilities`.
-        IssueEntity issue = issues.findById(id).orElse(null);
-        Visibilities.requireVisible(
-                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        if (issue == null) {
-            throw new NoSuchElementException("Issue not found.");
+        // Checked before the write, and 404 rather than 403 — see `Visibilities`. The 400s are
+        // worded by the service and sent as the route always sent them.
+        try {
+            return decisions.attachTicket(
+                    id,
+                    body == null ? null : body.reference(),
+                    body == null ? null : body.url(),
+                    caller(principal, request));
+        } catch (IssueDecisionService.InvalidTicketException invalid) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, invalid.getMessage());
         }
-
-        String reference = body == null || body.reference() == null ? "" : body.reference().trim();
-        if (reference.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A ticket reference is required.");
-        }
-        if (reference.length() > MAX_TICKET_REFERENCE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "That reference is longer than " + MAX_TICKET_REFERENCE + " characters.");
-        }
-        String url = body.url() == null || body.url().isBlank() ? null : body.url().trim();
-        if (url != null && url.length() > MAX_TICKET_URL) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "That URL is longer than " + MAX_TICKET_URL + " characters.");
-        }
-
-        String previous = issue.getTicketRef();
-        issues.attachTicket(id, reference, url);
-
-        // Recorded as a decision, because it is one: the tracker's webhook can now close this
-        // finding, and replacing the reference changes who holds that power.
-        audit.record(new AuditLogService.Record(
-                AuditOperation.ISSUE_TRIAGED,
-                String.valueOf(id),
-                previous == null
-                        ? "Ticket " + reference + " attached"
-                        : "Ticket reference changed from " + previous + " to " + reference,
-                principal.user().map(user -> user.getUsername()).orElse("unknown"),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return issues.findById(id).orElseThrow();
     }
 
     /**
@@ -450,52 +218,20 @@ public class IssuesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        List<Long> ids = body == null || body.ids() == null ? List.of() : body.ids();
-        if (ids.isEmpty()) {
-            throw new InvalidTriageException("Select at least one issue to triage.");
-        }
-        // **Refused, not truncated.** Silently triaging the first 500 of 900 would report success
-        // for a decision that did not reach 400 issues, and the caller has no way to see which.
-        // The cap matches the list route's, so anything the screen can show, it can decide on.
-        if (ids.size() > MAX_BULK_TRIAGE) {
-            throw new InvalidTriageException(
-                    "Too many issues at once: " + ids.size() + ", the limit is " + MAX_BULK_TRIAGE + ".");
-        }
+        return decisions.triageMany(
+                body == null || body.ids() == null ? List.of() : body.ids(),
+                body == null
+                        ? null
+                        : new IssueDecisionService.Decision(
+                                body.status(), body.justification(), body.comment(), body.expiresInDays()),
+                caller(principal, request));
+    }
 
-        String actor = principal.user().map(user -> user.getUsername()).orElse("unknown");
-        boolean fourEyesRequired = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
-        boolean canApprove = !fourEyesRequired || principal.user()
-                .flatMap(user -> Role.of(user.getRole()))
-                .map(Role::canApproveTriage)
-                .orElse(true);
-        Visibility visible = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        for (Long id : ids) {
-            Visibilities.requireVisible(issues.findById(id).orElse(null), visible);
-        }
-
-        List<IssueEntity> triaged = triage.triageAll(ids, new Triage.Request(
-                TriageStatus.fromWireName(body.status()).orElse(null),
-                actor,
-                VexJustification.fromWireName(body.justification()).orElse(null),
-                body.comment(),
-                body.expiresInDays() == null ? null : Period.ofDays(body.expiresInDays())),
-                canApprove);
-
-        // **One entry for the action, not one per issue.** The audit log is never purged, and a
-        // single dismissal of six hundred issues would bury every other entry around it. What is
-        // lost is not traceability: each issue carries its own recorded transition in the triage
-        // history, which is the document a compliance reader is handed. This entry says a bulk
-        // decision happened, by whom, and how wide it was — which is what the audit log is for.
-        audit.record(new AuditLogService.Record(
-                AuditOperation.ISSUE_TRIAGED,
-                ids.size() + " issues",
-                "Bulk triage \"" + body.status() + "\" on " + ids.size() + " issues"
-                        + (body.justification() == null ? "" : " (" + body.justification() + ")")
-                        + " — per-issue transitions are in each issue's triage history",
-                actor,
+    private IssueDecisionService.Caller caller(VectispirePrincipal principal, HttpServletRequest request) {
+        return new IssueDecisionService.Caller(
+                principal.user(),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
                 request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return triaged;
+                request.getHeader("User-Agent"));
     }
 }

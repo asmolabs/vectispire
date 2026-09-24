@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;

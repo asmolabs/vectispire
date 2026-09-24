@@ -1,11 +1,10 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.ExceptionsRegisterService;
+import com.asmolabs.vectispire.core.services.ExceptionReviewService;
 import com.asmolabs.vectispire.core.services.IssueTriageService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -54,18 +53,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ExceptionsRegisterController {
 
     private final ExceptionsRegisterService register;
-    private final IssueTriageService triage;
-    private final Issues issues;
+    private final ExceptionReviewService reviews;
     private final VisibilityService visibility;
 
     public ExceptionsRegisterController(
-            ExceptionsRegisterService register,
-            IssueTriageService triage,
-            Issues issues,
-            VisibilityService visibility) {
+            ExceptionsRegisterService register, ExceptionReviewService reviews, VisibilityService visibility) {
         this.register = register;
-        this.triage = triage;
-        this.issues = issues;
+        this.reviews = reviews;
         this.visibility = visibility;
     }
 
@@ -101,19 +95,14 @@ public class ExceptionsRegisterController {
             @PathVariable long issueId,
             @RequestBody ReviewRequest body) {
 
-        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        // 404 rather than 403, like everywhere else here: a restricted reader must not learn that
-        // an issue exists by being refused it.
-        Visibilities.requireVisible(issues.findById(issueId).orElse(null), allowed);
-
-        triage.review(
+        // 404 rather than 403 for an issue the caller may not see — the service applies the rule.
+        return reviews.review(
                 issueId,
                 body.outcome(),
                 body.comment(),
                 principal.user().map(user -> user.getUsername()).orElse(null),
-                body.newExpiry());
-
-        return register.register(200, null, allowed);
+                body.newExpiry(),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     @Operation(summary = "The exceptions register", description = "Risk acceptances and dismissals, newest first, narrowed to what the caller may see.")

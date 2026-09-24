@@ -1,25 +1,15 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.common.domain.issues.IssueState;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.OwaspReportPdf;
-import com.asmolabs.vectispire.core.services.AuditLogService;
-import com.asmolabs.vectispire.core.services.OwaspReviewService;
+import com.asmolabs.vectispire.core.services.OwaspReportService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,7 +20,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * The OWASP posture report of one repository.
@@ -46,29 +35,12 @@ import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 @RequiresAccount
 public class OwaspController {
 
-    private final OwaspReviewService reviews;
-    private final GitRepositories repositories;
-    private final Scans scans;
-    private final Issues issues;
+    private final OwaspReportService reports;
     private final VisibilityService visibility;
-    private final AuditLogService audit;
-    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
 
-    public OwaspController(
-            OwaspReviewService reviews,
-            GitRepositories repositories,
-            Scans scans,
-            Issues issues,
-            VisibilityService visibility,
-            AuditLogService audit,
-            com.asmolabs.vectispire.core.services.BrandingProperties branding) {
-        this.reviews = reviews;
-        this.repositories = repositories;
-        this.scans = scans;
-        this.issues = issues;
+    public OwaspController(OwaspReportService reports, VisibilityService visibility) {
+        this.reports = reports;
         this.visibility = visibility;
-        this.audit = audit;
-        this.branding = branding;
     }
 
     /**
@@ -101,10 +73,8 @@ public class OwaspController {
 
     @GetMapping
     public Report latest(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
-        visible(principal, id);
-        return reviews.latest(id)
-                .map(OwaspController::reportOf)
-                .orElseThrow(() -> new NoSuchElementException("No OWASP report has been produced for this target."));
+        return reportOf(reports.latest(
+                id, visibility.of(principal.user().orElse(null), principal.credentialRestriction())));
     }
 
     @RequiresWriteAccount
@@ -114,55 +84,21 @@ public class OwaspController {
             @PathVariable long id,
             HttpServletRequest request) {
 
-        RepositoryEntity repository = visible(principal, id);
-        AiReviewResultEntity result = reviews.run(repository);
-
-        // **Audited like any outbound send.** This call puts the target's finding list — its
-        // identifiers, its file paths — on a wire towards a host an operator configured. That it
-        // is usually localhost is a deployment fact, not a property of the feature.
-        audit.record(new AuditLogService.Record(
-                AuditOperation.AI_REVIEW_REQUESTED,
-                String.valueOf(id),
-                "OWASP report requested (" + result.getModel() + ", " + result.getStatus() + ")",
+        return reportOf(reports.run(
+                id,
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
                 principal.user().map(user -> user.getUsername()).orElse("unknown"),
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));
-
-        return reportOf(result);
     }
 
     /**
-     * The report as a document.
-     *
-     * <p><b>A failed run has no PDF.</b> Rendering "the model could not be reached" onto a cover
-     * page with an OWASP title would produce an artefact that looks like a report and says
-     * nothing — and unlike the screen, a file gets forwarded away from the context that explains
-     * it. 409 rather than 404: the report exists, it just is not a document.
+     * The report as a document. A failed run has no PDF, and is answered 409 rather than 404 —
+     * see {@link OwaspReportService#pdf}.
      */
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {
-        RepositoryEntity repository = visible(principal, id);
-        AiReviewResultEntity result = reviews.latest(id)
-                .orElseThrow(() -> new NoSuchElementException("No OWASP report has been produced for this target."));
-
-        if (!"completed".equals(result.getStatus())) {
-            throw new OwaspReviewService.ReviewRefusedException(
-                    "The last run did not produce a report: " + result.getError());
-        }
-
-        ScanEntity scan = scans.findById(result.getScanId()).orElse(null);
-        byte[] document = OwaspReportPdf.render(
-                new OwaspReportPdf.Subject(
-                        repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
-                        repository.getBranch(),
-                        scan == null ? null : scan.getVersion(),
-                        result.getModel(),
-                        result.getScanId(),
-                        scan == null ? null : scan.getCreatedAt(),
-                        result.getCreatedAt(),
-                        issues.countByStateAndRepository(IssueState.OPEN.wireName(), id),
-                        branding.name()),
-                result.getResponse());
+        byte[] document = reports.pdf(id, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)
@@ -173,12 +109,6 @@ public class OwaspController {
                                 .build()
                                 .toString())
                 .body(document);
-    }
-
-    private RepositoryEntity visible(VectispirePrincipal principal, long id) {
-        return Visibilities.requireVisible(
-                repositories.findById(id).orElse(null),
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     private static Report reportOf(AiReviewResultEntity result) {

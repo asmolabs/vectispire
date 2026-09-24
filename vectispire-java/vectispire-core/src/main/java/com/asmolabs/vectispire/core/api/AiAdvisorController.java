@@ -1,14 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.AiAdvisorService;
 import com.asmolabs.vectispire.core.services.AiReviewService;
-import java.util.List;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 
 /**
  * AI Fix & Exploit Advisor endpoints for contextual vulnerability explanation and remediation.
@@ -28,13 +25,13 @@ import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 public class AiAdvisorController {
 
     private final AiReviewService aiReviewService;
-    private final Issues issuesRepo;
+    private final AiAdvisorService advisor;
     private final VisibilityService visibility;
 
     public AiAdvisorController(
-            AiReviewService aiReviewService, Issues issuesRepo, VisibilityService visibility) {
+            AiReviewService aiReviewService, AiAdvisorService advisor, VisibilityService visibility) {
         this.aiReviewService = aiReviewService;
-        this.issuesRepo = issuesRepo;
+        this.advisor = advisor;
         this.visibility = visibility;
     }
 
@@ -58,16 +55,10 @@ public class AiAdvisorController {
             @PathVariable Long issueId) {
         // The principal was already on this signature and was already unused — the route took
         // an identifier, found the row and explained it, whoever asked. An explanation names the
-        // package, the file and the fix, which is the finding itself in prose.
-        //
-        // **An absent row goes to the same guard as a hidden one.** It had its own 404, worded
-        // "Issue not found: 42" against the guard's "Issue not found.", so the message alone told
-        // a restricted reader which sequential ids existed.
-        IssueEntity issue = issuesRepo.findById(issueId).orElse(null);
-        Visibilities.requireVisible(
-                issue, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-
-        return aiReviewService.explainVulnerability(issue);
+        // package, the file and the fix, which is the finding itself in prose. Absent and hidden
+        // answer alike, in the service.
+        return advisor.explainIssue(
+                issueId, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     @RequiresWriteAccount
@@ -81,22 +72,13 @@ public class AiAdvisorController {
             @RequestParam(required = false) String reachability) {
 
         // Narrowed before anything is read, so that a CVE present only in a target the caller was
-        // not given gets exactly the answer a CVE present nowhere gets — see `Visibilities`.
-        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        List<IssueEntity> matched = issuesRepo.findByIdentifier(cveId).stream()
-                .filter(issue -> Visibilities.isVisible(issue, allowed))
-                .toList();
-        if (!matched.isEmpty()) {
-            return aiReviewService.explainVulnerability(matched.get(0));
-        }
-
-        return AiVulnerabilityAdvice.generateDeterministic(
+        // not given gets exactly the answer a CVE present nowhere gets — see `AiAdvisorService`.
+        return advisor.explainCve(
                 cveId,
                 packageName,
                 currentVersion,
                 fixVersion,
-                reachability != null ? reachability : "UNKNOWN",
-                cveId.toUpperCase().contains("2021-44228") || cveId.toUpperCase().contains("2024-3094"),
-                0.75);
+                reachability,
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 }
