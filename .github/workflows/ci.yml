@@ -186,7 +186,7 @@ jobs:
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
       - run: cd vectispire-java && ./gradlew build
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: jar
@@ -220,7 +220,7 @@ jobs:
       - run: npm run lint -w vectispire-angular
       - run: npm run build
       - run: npm test
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ui
           path: vectispire-angular/dist/
@@ -248,7 +248,7 @@ jobs:
             anchore/syft@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026 \
             scan file:/work/vectispire-core.jar -o cyclonedx-json > vectispire-jvm.cdx.json
           echo "components: $(grep -o '"bom-ref"' vectispire-jvm.cdx.json | wc -l)"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
           path: vectispire-jvm.cdx.json
@@ -445,7 +445,7 @@ jobs:
           java-version: '25'
           cache: gradle
       - run: cd vectispire-java && ./gradlew integrationTestAll
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: engine-campaign-reports-verify
@@ -566,7 +566,7 @@ jobs:
       - run: cd vectispire-angular && npx playwright test
       - if: always()
         run: kill "$(cat control-plane.pid)" 2>/dev/null || true
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: playwright-report-verify
