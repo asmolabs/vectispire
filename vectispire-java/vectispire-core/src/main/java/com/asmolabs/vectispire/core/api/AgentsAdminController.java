@@ -209,7 +209,7 @@ public class AgentsAdminController {
         AgentAdministrationService.Declared declared = administration.declare(
                 new AgentAdministrationService.Declaration(
                         body.name(), body.description(), body.credentialsMode(), body.labels(), body.maxConcurrent()),
-                actor(principal, request));
+                RequestActors.of(principal, request));
         return new DeclaredAgent(declared.agent().getId(), declared.agent().getName(), declared.secret());
     }
 
@@ -224,7 +224,7 @@ public class AgentsAdminController {
         AgentAdministrationService.Changed changed = administration.change(
                 id,
                 new AgentAdministrationService.Change(body.enabled(), body.labels(), body.maxConcurrent()),
-                actor(principal, request));
+                RequestActors.of(principal, request));
 
         Map<String, Object> answer = new HashMap<>();
         answer.put("id", changed.id());
@@ -264,7 +264,7 @@ public class AgentsAdminController {
             HttpServletRequest request) {
 
         AgentAdministrationService.PinnedKey pinned = administration.pinSigningKey(
-                id, body == null ? null : body.publicKey(), actor(principal, request));
+                id, body == null ? null : body.publicKey(), RequestActors.of(principal, request));
         return new PinnedSigningKey(pinned.id(), pinned.signsResults(), pinned.privateKey());
     }
 
@@ -275,7 +275,7 @@ public class AgentsAdminController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        administration.remove(id, actor(principal, request));
+        administration.remove(id, RequestActors.of(principal, request));
     }
 
     /**
@@ -290,12 +290,5 @@ public class AgentsAdminController {
         return administration.unroutable().stream()
                 .map(label -> new UnroutableLabel(label.label(), label.queued()))
                 .toList();
-    }
-
-    private static AgentAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
-        return new AgentAdministrationService.Actor(
-                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent"));
     }
 }

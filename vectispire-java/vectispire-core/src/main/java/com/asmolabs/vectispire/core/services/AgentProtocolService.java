@@ -39,9 +39,6 @@ public class AgentProtocolService {
         this.clock = clock;
     }
 
-    /** Where the call came from, as the audit log records it. */
-    public record Origin(String ipAddress, String userAgent) {}
-
     public record Announcement(
             String contractVersion,
             String sealingPublicKey,
@@ -117,7 +114,7 @@ public class AgentProtocolService {
      * <p><b>The body arrives as bytes, and that is what the signature covers.</b> Parsing first
      * and verifying the re-serialization would verify what the server chose to write.
      */
-    public Submission submitResult(AgentEntity agent, long scanId, byte[] body, String signature, Origin origin) {
+    public Submission submitResult(AgentEntity agent, long scanId, byte[] body, String signature, RequestActor origin) {
         if (!attested(agent, scanId, body, signature, origin)) {
             return new Submission.NotAttested();
         }
@@ -155,7 +152,7 @@ public class AgentProtocolService {
      * <p>The refusal is audited here, before the caller answers, because a probe that leaves no
      * trace is the one nobody investigates.
      */
-    private boolean attested(AgentEntity agent, long scanId, byte[] body, String signature, Origin origin) {
+    private boolean attested(AgentEntity agent, long scanId, byte[] body, String signature, RequestActor origin) {
         String pinned = agent.getSigningPublicKey();
         if (pinned == null || pinned.isBlank()) {
             return true;

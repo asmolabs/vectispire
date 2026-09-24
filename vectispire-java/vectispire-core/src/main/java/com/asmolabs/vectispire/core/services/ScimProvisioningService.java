@@ -60,9 +60,6 @@ public class ScimProvisioningService {
         this.clock = clock;
     }
 
-    /** Where the call came from, as the audit log records it. */
-    public record Origin(String ipAddress, String userAgent) {}
-
     /** An account as the directory describes it, already read out of the SCIM document. */
     public record UserAttributes(
             String userName, String displayName, String email, String externalId, Boolean active, String role) {}
@@ -99,7 +96,7 @@ public class ScimProvisioningService {
         return users.findById(id);
     }
 
-    public UserCreation createUser(UserAttributes attributes, Origin origin) {
+    public UserCreation createUser(UserAttributes attributes, RequestActor origin) {
         String username = attributes.userName() == null ? "" : attributes.userName().trim().toLowerCase(Locale.ROOT);
         AccountRules.validateUsername(username).ifPresent(msg -> {
             throw new IllegalArgumentException(msg);
@@ -136,7 +133,7 @@ public class ScimProvisioningService {
     }
 
     /** Empty when there is no such account. */
-    public Optional<UserEntity> replaceUser(Long id, UserAttributes attributes, Origin origin) {
+    public Optional<UserEntity> replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -180,7 +177,7 @@ public class ScimProvisioningService {
     }
 
     /** Empty when there is no such account. */
-    public Optional<UserEntity> patchUser(Long id, List<PatchOperation> operations, Origin origin) {
+    public Optional<UserEntity> patchUser(Long id, List<PatchOperation> operations, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -213,7 +210,7 @@ public class ScimProvisioningService {
     }
 
     /** Idempotent, as RFC 7644 lets it be: deleting an account that is not there is not an error. */
-    public void deleteUser(Long id, Origin origin) {
+    public void deleteUser(Long id, RequestActor origin) {
         users.findById(id).ifPresent(user -> {
             auth.revokeAllForUser(user.getId());
             users.delete(user);
@@ -287,7 +284,7 @@ public class ScimProvisioningService {
 
     /** @param memberValues each member's SCIM {@code value}: an account id, or a username */
     @Transactional
-    public GroupCreation createGroup(String displayName, List<String> memberValues, Origin origin) {
+    public GroupCreation createGroup(String displayName, List<String> memberValues, RequestActor origin) {
         String name = displayName == null ? "" : displayName.trim();
         if (name.isBlank()) {
             throw new IllegalArgumentException("Group displayName cannot be blank.");
@@ -325,7 +322,7 @@ public class ScimProvisioningService {
 
     /** Replaces the name, when one is given, and the whole membership. Empty when there is no such team. */
     @Transactional
-    public Optional<GroupView> replaceGroup(Long id, String displayName, List<String> memberValues, Origin origin) {
+    public Optional<GroupView> replaceGroup(Long id, String displayName, List<String> memberValues, RequestActor origin) {
         Optional<TeamEntity> found = teams.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -359,7 +356,7 @@ public class ScimProvisioningService {
 
     /** Empty when there is no such team. */
     @Transactional
-    public Optional<GroupView> patchGroup(Long id, List<PatchOperation> operations, Origin origin) {
+    public Optional<GroupView> patchGroup(Long id, List<PatchOperation> operations, RequestActor origin) {
         Optional<TeamEntity> found = teams.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -390,7 +387,7 @@ public class ScimProvisioningService {
     }
 
     @Transactional
-    public void deleteGroup(Long id, Origin origin) {
+    public void deleteGroup(Long id, RequestActor origin) {
         teams.findById(id).ifPresent(team -> {
             members.deleteByTeamId(id);
             teams.delete(team);

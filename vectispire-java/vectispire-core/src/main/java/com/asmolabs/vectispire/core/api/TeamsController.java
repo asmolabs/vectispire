@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.RequestActor;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService.TeamView;
 import jakarta.servlet.http.HttpServletRequest;
@@ -154,11 +155,9 @@ public class TeamsController {
         return summaryOf(teams.setWebhook(id, body == null ? null : body.url(), actor(principal, request)));
     }
 
-    private static TeamAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
-        return new TeamAdministrationService.Actor(
-                principal == null ? null : principal.getName(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent"));
+    /** The principal's own name, agents included, as this route has always attributed it. */
+    private static RequestActor actor(VectispirePrincipal principal, HttpServletRequest request) {
+        return RequestActors.named(principal == null ? null : principal.getName(), request);
     }
 
     private static TeamSummary summaryOf(TeamView view) {

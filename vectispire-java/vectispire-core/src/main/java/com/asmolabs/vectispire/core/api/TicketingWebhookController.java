@@ -62,7 +62,7 @@ public class TicketingWebhookController {
                 provider.get(),
                 rawPayload,
                 new WebhookAuthenticity.Presented(gitlabToken, githubSignature, sharedToken),
-                new TicketingWebhookService.Origin(request.getRemoteAddr(), request.getHeader("User-Agent")));
+                RequestActors.unnamed(request));
 
         return switch (outcome) {
             // No detail: a caller learning *which* header was wrong learns which tracker we expect.

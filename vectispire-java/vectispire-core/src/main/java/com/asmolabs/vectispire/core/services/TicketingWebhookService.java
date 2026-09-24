@@ -46,9 +46,6 @@ public class TicketingWebhookService {
         this.tickets = tickets;
     }
 
-    /** Where the call came from, as the audit log records it. */
-    public record Origin(String ipAddress, String userAgent) {}
-
     public sealed interface Outcome {
         /** The secret is configured and the call does not carry it. */
         record Rejected() implements Outcome {}
@@ -63,7 +60,7 @@ public class TicketingWebhookService {
     }
 
     public Outcome handle(
-            TicketProvider provider, String rawPayload, WebhookAuthenticity.Presented presented, Origin origin) {
+            TicketProvider provider, String rawPayload, WebhookAuthenticity.Presented presented, RequestActor origin) {
 
         // **The system's only anonymous door, and it no longer settles anything.** It cannot
         // require a session — the caller is the tracker — and with no secret configured it stays

@@ -81,7 +81,7 @@ public class ApiKeysController {
         ApiKeyAdministrationService.Issued issued = administration.issue(
                 new ApiKeyAdministrationService.Request(
                         body.name(), body.scopes(), body.targetKind(), body.targetId(), body.expiresInDays()),
-                actor(principal, request));
+                RequestActors.of(principal, request));
         return new IssuedKey(summaryOf(issued.key()), issued.secret());
     }
 
@@ -92,7 +92,7 @@ public class ApiKeysController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        administration.revoke(id, actor(principal, request));
+        administration.revoke(id, RequestActors.of(principal, request));
     }
 
     /** The targets a key can be restricted to, so the screen offers names rather than numbers. */
@@ -117,12 +117,5 @@ public class ApiKeysController {
                 key.lastUsedAt(),
                 key.expiresAt(),
                 key.expired());
-    }
-
-    private static ApiKeyAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
-        return new ApiKeyAdministrationService.Actor(
-                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent"));
     }
 }

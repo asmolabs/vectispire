@@ -38,9 +38,6 @@ public class TicketLinkService {
         this.clock = clock;
     }
 
-    /** Who asked, as the audit log records it. */
-    public record Actor(String username, String ipAddress, String userAgent) {}
-
     /**
      * The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike.
      *
@@ -67,7 +64,7 @@ public class TicketLinkService {
      * @throws IllegalArgumentException for a provider that is not a {@link TicketingProvider}
      */
     public IssueTicketEntity attach(
-            long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, Actor actor) {
+            long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
         IssueEntity issue = visibleIssue(issueId, visibility);
         TicketingProvider parsed = TicketingProvider.valueOf(provider.toUpperCase(Locale.ROOT));

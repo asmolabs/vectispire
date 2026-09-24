@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api.scim;
 
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimErrorResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
@@ -63,7 +64,7 @@ public class ScimUsersController {
     public ResponseEntity<ScimUserDto> createUser(
             @RequestBody ScimUserDto dto, HttpServletRequest request) {
 
-        return switch (provisioning.createUser(attributesOf(dto), origin(request))) {
+        return switch (provisioning.createUser(attributesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.UserCreation.UsernameTaken taken ->
                     ResponseEntity.status(HttpStatus.CONFLICT).build();
             case ScimProvisioningService.UserCreation.Created(UserEntity saved) ->
@@ -75,7 +76,7 @@ public class ScimUsersController {
     public ResponseEntity<ScimUserDto> updateUser(
             @PathVariable Long id, @RequestBody ScimUserDto dto, HttpServletRequest request) {
 
-        return provisioning.replaceUser(id, attributesOf(dto), origin(request))
+        return provisioning.replaceUser(id, attributesOf(dto), RequestActors.unnamed(request))
                 .map(saved -> ResponseEntity.ok(toDto(saved)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -84,7 +85,7 @@ public class ScimUsersController {
     public ResponseEntity<ScimUserDto> patchUser(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
 
-        return provisioning.patchUser(id, operationsOf(patch), origin(request))
+        return provisioning.patchUser(id, operationsOf(patch), RequestActors.unnamed(request))
                 .map(saved -> ResponseEntity.ok(toDto(saved)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -92,7 +93,7 @@ public class ScimUsersController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long id, HttpServletRequest request) {
-        provisioning.deleteUser(id, origin(request));
+        provisioning.deleteUser(id, RequestActors.unnamed(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -107,10 +108,6 @@ public class ScimUsersController {
                 : patch.operations().stream()
                         .map(op -> new ScimProvisioningService.PatchOperation(op.op(), op.path(), op.value()))
                         .toList();
-    }
-
-    static ScimProvisioningService.Origin origin(HttpServletRequest request) {
-        return new ScimProvisioningService.Origin(request.getRemoteAddr(), request.getHeader("User-Agent"));
     }
 
     private static ScimProvisioningService.UserAttributes attributesOf(ScimUserDto dto) {

@@ -71,9 +71,6 @@ public class TicketingController {
                 body.provider(),
                 body.ticketKey(),
                 body.ticketUrl(),
-                new TicketLinkService.Actor(
-                        principal.user().map(u -> u.getUsername()).orElse("unknown"),
-                        request.getRemoteAddr(),
-                        request.getHeader("User-Agent")));
+                RequestActors.of(principal, request, "unknown"));
     }
 }

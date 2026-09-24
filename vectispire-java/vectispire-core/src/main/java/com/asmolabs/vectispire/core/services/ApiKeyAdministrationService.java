@@ -46,9 +46,6 @@ public class ApiKeyAdministrationService {
         this.clock = clock;
     }
 
-    /** Who asked, as the audit log records it. */
-    public record Actor(String username, String ipAddress, String userAgent) {}
-
     /**
      * A key as it may be shown: never its hash.
      *
@@ -92,7 +89,7 @@ public class ApiKeyAdministrationService {
      * displayed the row's identifier as though it were the secret — so there had never been a
      * secret. Making it unrecoverable is the point.
      */
-    public Issued issue(Request request, Actor actor) {
+    public Issued issue(Request request, RequestActor actor) {
         String name = request.name() == null ? "" : request.name().trim();
         if (name.isEmpty()) {
             throw new IllegalArgumentException("A name is required.");
@@ -125,7 +122,7 @@ public class ApiKeyAdministrationService {
         return new Issued(viewOf(saved, issuedAt, naming.all()), issued.fullKey());
     }
 
-    public void revoke(UUID id, Actor actor) {
+    public void revoke(UUID id, RequestActor actor) {
         ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
 
         // Revoking deletes the row: a "disabled" key that a scan could re-enable by accident
@@ -202,7 +199,7 @@ public class ApiKeyAdministrationService {
                 : names.containers().getOrDefault(key.getTargetId(), key.getTargetKind() + " " + key.getTargetId() + " (deleted)");
     }
 
-    private void record(Actor actor, AuditOperation operation, String resourceId, String description) {
+    private void record(RequestActor actor, AuditOperation operation, String resourceId, String description) {
         audit.record(new AuditLogService.Record(
                 operation, resourceId, description, actor.username(), actor.ipAddress(), actor.userAgent()));
     }

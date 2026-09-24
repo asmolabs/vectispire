@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api.scim;
 
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimGroupDto;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
@@ -52,7 +53,7 @@ public class ScimGroupsController {
 
     @PostMapping(consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimGroupDto> createGroup(@RequestBody ScimGroupDto dto, HttpServletRequest request) {
-        return switch (provisioning.createGroup(dto.displayName(), memberValuesOf(dto), ScimUsersController.origin(request))) {
+        return switch (provisioning.createGroup(dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.GroupCreation.NameTaken taken ->
                     ResponseEntity.status(HttpStatus.CONFLICT).build();
             case ScimProvisioningService.GroupCreation.Created(ScimProvisioningService.GroupView group) ->
@@ -64,7 +65,7 @@ public class ScimGroupsController {
     public ResponseEntity<ScimGroupDto> updateGroup(
             @PathVariable Long id, @RequestBody ScimGroupDto dto, HttpServletRequest request) {
 
-        return provisioning.replaceGroup(id, dto.displayName(), memberValuesOf(dto), ScimUsersController.origin(request))
+        return provisioning.replaceGroup(id, dto.displayName(), memberValuesOf(dto), RequestActors.unnamed(request))
                 .map(group -> ResponseEntity.ok(toDto(group)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -73,7 +74,7 @@ public class ScimGroupsController {
     public ResponseEntity<ScimGroupDto> patchGroup(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
 
-        return provisioning.patchGroup(id, ScimUsersController.operationsOf(patch), ScimUsersController.origin(request))
+        return provisioning.patchGroup(id, ScimUsersController.operationsOf(patch), RequestActors.unnamed(request))
                 .map(group -> ResponseEntity.ok(toDto(group)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -81,7 +82,7 @@ public class ScimGroupsController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteGroup(@PathVariable Long id, HttpServletRequest request) {
-        provisioning.deleteGroup(id, ScimUsersController.origin(request));
+        provisioning.deleteGroup(id, RequestActors.unnamed(request));
     }
 
     private static List<String> memberValuesOf(ScimGroupDto dto) {

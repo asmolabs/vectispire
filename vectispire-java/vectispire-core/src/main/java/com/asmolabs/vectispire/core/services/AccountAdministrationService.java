@@ -58,14 +58,6 @@ public class AccountAdministrationService {
         this.clock = clock;
     }
 
-    /**
-     * Who is acting, as the audit entry names them.
-     *
-     * @param id the acting account, or null for a caller that is not one — used to recognise a
-     *     change to one's own account
-     */
-    public record Actor(Long id, String username, String ipAddress, String userAgent) {}
-
     /** An account and how many live sessions it holds. */
     public record AccountView(UserEntity user, long activeSessions) {}
 
@@ -85,7 +77,7 @@ public class AccountAdministrationService {
         return views;
     }
 
-    public AccountView create(NewAccount request, Actor actor) {
+    public AccountView create(NewAccount request, RequestActor actor) {
         String username = trim(request.username());
         String password = request.password() == null ? "" : request.password();
         String role = trim(request.role()).isEmpty() ? Role.USER.name() : trim(request.role()).toUpperCase(Locale.ROOT);
@@ -123,8 +115,12 @@ public class AccountAdministrationService {
      *
      * <p>The three carry the same guard rails, so there is one entry point rather than three to
      * keep in step.
+     *
+     * @param actingAccountId the account making the change, or null for a caller that is not one —
+     *     used to recognise a change to one's own account. Apart from the audit identity, because
+     *     only this service needs it
      */
-    public AccountView update(long id, AccountChange change, Actor actor) {
+    public AccountView update(long id, AccountChange change, Long actingAccountId, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
         String role = change.role() == null ? user.getRole() : trim(change.role()).toUpperCase(Locale.ROOT);
@@ -139,7 +135,7 @@ public class AccountAdministrationService {
         }
 
         refuseIfInvalid(AccountRules.refuseSelfLockout(new AccountRules.Change(
-                isSelf(actor, id),
+                isSelf(actingAccountId, id),
                 isAdministrative(user.getRole()) && user.getIsActive(),
                 isAdministrative(role),
                 isActive,
@@ -206,7 +202,7 @@ public class AccountAdministrationService {
      * <em>removing</em> one: a screen that sends what it wants and a server that only adds is a
      * revocation that silently does nothing.
      */
-    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> wanted, Actor actor) {
+    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> wanted, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
         accounts.replaceTargets(id, wanted.stream()
@@ -221,11 +217,12 @@ public class AccountAdministrationService {
         return wanted;
     }
 
-    public void delete(long id, Actor actor) {
+    /** @param actingAccountId as for {@link #update}: refuses deleting one's own account */
+    public void delete(long id, Long actingAccountId, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
         refuseIfInvalid(AccountRules.refuseDeletion(
-                isSelf(actor, id), isAdministrative(user.getRole()) && user.getIsActive(), (int) countOtherActiveAdmins(id)));
+                isSelf(actingAccountId, id), isAdministrative(user.getRole()) && user.getIsActive(), (int) countOtherActiveAdmins(id)));
 
         accounts.delete(id);
         record(actor, id, "Account deleted: " + user.getUsername());
@@ -235,8 +232,8 @@ public class AccountAdministrationService {
         return users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
     }
 
-    private static boolean isSelf(Actor actor, long id) {
-        return actor.id() != null && actor.id().equals(id);
+    private static boolean isSelf(Long actingAccountId, long id) {
+        return actingAccountId != null && actingAccountId.equals(id);
     }
 
     private long countOtherActiveAdmins(long excludedId) {
@@ -252,7 +249,7 @@ public class AccountAdministrationService {
         return counts;
     }
 
-    private void record(Actor actor, long id, String description) {
+    private void record(RequestActor actor, long id, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.USER_UPDATED,
                 String.valueOf(id),

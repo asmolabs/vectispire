@@ -216,7 +216,7 @@ public class AgentsController {
                 scanId,
                 body,
                 signature,
-                new AgentProtocolService.Origin(request.getRemoteAddr(), request.getHeader("User-Agent")));
+                RequestActors.unnamed(request));
 
         return switch (outcome) {
             case AgentProtocolService.Submission.Accepted accepted -> Map.of("accepted", true);

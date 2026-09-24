@@ -47,9 +47,6 @@ public class SshKeyAdministrationService {
         this.clock = clock;
     }
 
-    /** Who asked, as the audit log records it. */
-    public record Actor(String username, String ipAddress, String userAgent) {}
-
     /**
      * @param encryptionState deserves a column and not a log line: a key readable only under a
      *     previous encryption key has not finished being rotated, and one that <em>no</em>
@@ -81,7 +78,7 @@ public class SshKeyAdministrationService {
                 .toList();
     }
 
-    public KeyView add(String rawName, String rawPrivateKey, String rawPublicKey, Actor actor) {
+    public KeyView add(String rawName, String rawPrivateKey, String rawPublicKey, RequestActor actor) {
         String name = trim(rawName);
         String privateKey = trim(rawPrivateKey);
         String publicKey = trim(rawPublicKey);
@@ -120,7 +117,7 @@ public class SshKeyAdministrationService {
                 0);
     }
 
-    public void remove(UUID id, Actor actor) {
+    public void remove(UUID id, RequestActor actor) {
         SshKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
 
         long inUse = repositories.countBySshKeyId(id);
@@ -143,7 +140,7 @@ public class SshKeyAdministrationService {
         return usage;
     }
 
-    private void record(Actor actor, String resourceId, String description) {
+    private void record(RequestActor actor, String resourceId, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.SETTING_UPDATED,
                 resourceId,

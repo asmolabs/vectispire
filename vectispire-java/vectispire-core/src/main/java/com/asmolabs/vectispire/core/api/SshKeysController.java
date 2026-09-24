@@ -62,7 +62,7 @@ public class SshKeysController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        return summaryOf(administration.add(body.name(), body.privateKey(), body.publicKey(), actor(principal, request)));
+        return summaryOf(administration.add(body.name(), body.privateKey(), body.publicKey(), RequestActors.of(principal, request)));
     }
 
     @DeleteMapping("/{id}")
@@ -72,18 +72,11 @@ public class SshKeysController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        administration.remove(id, actor(principal, request));
+        administration.remove(id, RequestActors.of(principal, request));
     }
 
     private static SshKeySummary summaryOf(SshKeyAdministrationService.KeyView key) {
         return new SshKeySummary(
                 key.id(), key.name(), key.publicKey(), key.createdAt(), key.encryptionState(), key.usedByRepositories());
-    }
-
-    private static SshKeyAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
-        return new SshKeyAdministrationService.Actor(
-                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent"));
     }
 }

@@ -84,7 +84,7 @@ public class UsersController {
         return summaryOf(accounts.create(
                 new AccountAdministrationService.NewAccount(
                         body.username(), body.password(), body.role(), body.email(), body.displayName()),
-                actor(principal, request)));
+                RequestActors.of(principal, request)));
     }
 
     /**
@@ -100,7 +100,8 @@ public class UsersController {
         return summaryOf(accounts.update(
                 id,
                 new AccountAdministrationService.AccountChange(body.role(), body.isActive(), body.password()),
-                actor(principal, request)));
+                actingAccountId(principal),
+                RequestActors.of(principal, request)));
     }
 
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
@@ -125,7 +126,7 @@ public class UsersController {
                         .map(assignment -> new AccountAdministrationService.TargetAssignment(
                                 assignment.kind(), assignment.id()))
                         .toList(),
-                actor(principal, request));
+                RequestActors.of(principal, request));
         return wanted;
     }
 
@@ -135,15 +136,11 @@ public class UsersController {
             @PathVariable long id,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
-        accounts.delete(id, actor(principal, request));
+        accounts.delete(id, actingAccountId(principal), RequestActors.of(principal, request));
     }
 
-    private static AccountAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
-        return new AccountAdministrationService.Actor(
-                principal.user().map(UserEntity::getId).orElse(null),
-                principal.user().map(UserEntity::getUsername).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent"));
+    private static Long actingAccountId(VectispirePrincipal principal) {
+        return principal.user().map(UserEntity::getId).orElse(null);
     }
 
     private static UserAdminSummary summaryOf(AccountView view) {

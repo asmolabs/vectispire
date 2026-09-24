@@ -80,9 +80,6 @@ public class AgentAdministrationService {
         this.clock = clock;
     }
 
-    /** Who asked, as the audit log records it. */
-    public record Actor(String username, String ipAddress, String userAgent) {}
-
     /**
      * @param online seen recently, not "enabled" — see {@link #isOnline}
      * @param runningScans the scans this agent holds a lease on right now
@@ -274,7 +271,7 @@ public class AgentAdministrationService {
      * <p>Both together because an agent with no key can do nothing: separating them would leave
      * an inert row the operator would believe was working.
      */
-    public Declared declare(Declaration declaration, Actor actor) {
+    public Declared declare(Declaration declaration, RequestActor actor) {
         String name = declaration.name() == null ? "" : declaration.name().trim();
         if (name.isEmpty()) {
             throw new IllegalArgumentException("The agent's name is required.");
@@ -325,7 +322,7 @@ public class AgentAdministrationService {
     }
 
     /** Enables or disables. A disabled agent claims nothing, without losing its history. */
-    public Changed change(UUID id, Change change, Actor actor) {
+    public Changed change(UUID id, Change change, RequestActor actor) {
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
 
         boolean enabled = change.enabled() == null ? agent.getEnabled() : change.enabled();
@@ -365,7 +362,7 @@ public class AgentAdministrationService {
      * @param publicKey base64 Ed25519, {@code "generate"} to have a pair made here, or null/blank
      *     to stop requiring signed results
      */
-    public PinnedKey pinSigningKey(UUID id, String publicKey, Actor actor) {
+    public PinnedKey pinSigningKey(UUID id, String publicKey, RequestActor actor) {
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
         String supplied = publicKey == null ? "" : publicKey.trim();
 
@@ -405,7 +402,7 @@ public class AgentAdministrationService {
         return new PinnedKey(id, true, null);
     }
 
-    public void remove(UUID id, Actor actor) {
+    public void remove(UUID id, RequestActor actor) {
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
 
         long running = scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), id.toString());
@@ -467,7 +464,7 @@ public class AgentAdministrationService {
                 && Duration.between(agent.getLastSeenAt(), asOf).compareTo(ONLINE_TTL) < 0;
     }
 
-    private void recordSigningKey(Actor actor, UUID id, String description) {
+    private void recordSigningKey(RequestActor actor, UUID id, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.AGENT_SIGNING_KEY_PINNED,
                 id.toString(),
@@ -477,7 +474,7 @@ public class AgentAdministrationService {
                 actor.userAgent()));
     }
 
-    private void record(Actor actor, UUID id, String description) {
+    private void record(RequestActor actor, UUID id, String description) {
         audit.record(new AuditLogService.Record(
                 AuditOperation.AGENT_UPDATED,
                 id.toString(),

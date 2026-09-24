@@ -78,9 +78,6 @@ public class TeamAdministrationService {
         this.clock = clock;
     }
 
-    /** Who is acting, as the audit entry names them. */
-    public record Actor(String name, String ipAddress, String userAgent) {}
-
     /**
      * A team with what the list shows of it.
      *
@@ -112,7 +109,7 @@ public class TeamAdministrationService {
                 .toList();
     }
 
-    public TeamView create(String requestedName, String description, Actor actor) {
+    public TeamView create(String requestedName, String description, RequestActor actor) {
         String name = TeamRules.validateName(requestedName);
         refuseIfNameTaken(name, null);
 
@@ -127,7 +124,7 @@ public class TeamAdministrationService {
     }
 
     /** Either field may be null, which leaves it as it is. */
-    public TeamView rename(long id, String requestedName, String description, Actor actor) {
+    public TeamView rename(long id, String requestedName, String description, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         String previous = team.getName();
 
@@ -173,7 +170,7 @@ public class TeamAdministrationService {
      * team Backend, 11 people, 40 repositories" are not the same sentence to whoever reads the
      * log afterwards.
      */
-    public void delete(long id, Actor actor) {
+    public void delete(long id, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         int members = memberships.findByTeamId(id).size();
         int owned = targets.findByTeamId(id).size();
@@ -201,7 +198,7 @@ public class TeamAdministrationService {
      * @param requested as sent; nulls and repeats are dropped
      * @return the membership as stored
      */
-    public List<Long> replaceMembers(long id, List<Long> requested, Actor actor) {
+    public List<Long> replaceMembers(long id, List<Long> requested, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         List<Long> wanted = requested.stream().filter(Objects::nonNull).distinct().toList();
 
@@ -234,7 +231,7 @@ public class TeamAdministrationService {
      * @param requested as sent; a null entry, or one with no id, is skipped
      * @return the assignments as stored
      */
-    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> requested, Actor actor) {
+    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> requested, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         List<TargetAssignment> wanted = new ArrayList<>();
         for (TargetAssignment assignment : requested) {
@@ -270,7 +267,7 @@ public class TeamAdministrationService {
      *
      * @param requestedUrl as sent, possibly null
      */
-    public TeamView setWebhook(long id, String requestedUrl, Actor actor) {
+    public TeamView setWebhook(long id, String requestedUrl, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         String url = requestedUrl == null ? "" : requestedUrl.trim();
 
@@ -320,12 +317,12 @@ public class TeamAdministrationService {
         return ids.collect(Collectors.groupingBy(id -> id, Collectors.counting()));
     }
 
-    private void record(Actor actor, long teamId, AuditOperation operation, String description) {
+    private void record(RequestActor actor, long teamId, AuditOperation operation, String description) {
         audit.record(new AuditLogService.Record(
                 operation,
                 String.valueOf(teamId),
                 description,
-                actor.name(),
+                actor.username(),
                 actor.ipAddress(),
                 actor.userAgent()));
     }
