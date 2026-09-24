@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
@@ -28,6 +28,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
         MessageModule,
         ProgressSpinnerModule,
         DialogModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './epss.html'
 })
 export class Epss implements OnInit {

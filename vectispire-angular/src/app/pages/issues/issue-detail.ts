@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -43,6 +43,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     selector: 'app-issue-detail',
     standalone: true,
     imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, InputTextModule, TableModule, TagModule, MessageModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issue-detail.html'
 })
 export class IssueDetailPage {

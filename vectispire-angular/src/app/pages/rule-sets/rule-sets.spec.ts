@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -36,7 +36,7 @@ describe('the catalogue preview', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [RuleSets],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         fixture = TestBed.createComponent(RuleSets);

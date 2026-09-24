@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { messageOf } from '@/app/core/api-error';
@@ -30,6 +30,7 @@ import type { MonitoredContainer, MonitoredRepository, ScopeView } from '@/app/c
     selector: 'zs-certified-scope',
     standalone: true,
     imports: [CommonModule, FormsModule, MessageModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './certified-scope.html'
 })
 export class CertifiedScope {

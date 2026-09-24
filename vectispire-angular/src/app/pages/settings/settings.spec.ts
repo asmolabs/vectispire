@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -68,7 +68,7 @@ describe('the settings screen', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [Settings],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         fixture = TestBed.createComponent(Settings);

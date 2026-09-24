@@ -8,5 +8,13 @@
         // the whole point: a copy would drift, and a drifting checker is worse than none.
         "resolveJsonModule": true
     },
-    "include": ["src/**/*.spec.ts", "src/**/*.d.ts", "src/app/core/testing/*.ts", "openapi.json"]
+    "include": ["src/**/*.spec.ts", "src/**/*.d.ts", "src/app/core/testing/*.ts", "openapi.json"],
+    "angularCompilerOptions": {
+        "extendedDiagnostics": {
+            "checks": {
+                "nullishCoalescingNotNullable": "suppress",
+                "optionalChainNotNullable": "suppress"
+            }
+        }
+    }
 }

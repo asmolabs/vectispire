@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -27,6 +27,7 @@ export type { SettingsTab } from './settings-state';
     standalone: true,
     imports: [CommonModule, ButtonModule, MessageModule, TranslatePipe, SettingsCatalog, SettingsTicketing, SettingsSiem, SettingsThreatIntel],
     providers: [SettingsState],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './settings.html'
 })
 export class Settings {

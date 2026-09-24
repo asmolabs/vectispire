@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -29,6 +29,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     selector: 'zs-security',
     standalone: true,
     imports: [CommonModule, TableModule, TagModule, ButtonModule, MessageModule, RouterLink, TranslatePipe, RuleCoverageBanner],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './security.html'
 })
 export class Security {

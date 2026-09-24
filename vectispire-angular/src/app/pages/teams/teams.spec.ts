@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -45,7 +45,7 @@ describe('the teams screen', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Teams],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         useEnglish();

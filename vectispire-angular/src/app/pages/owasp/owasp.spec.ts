@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -32,7 +32,7 @@ describe('the OWASP report screen', () => {
         silenceAnchorNavigation();
         await TestBed.configureTestingModule({
             imports: [Owasp],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         // The labels come from the bundle: asserting on unresolved keys would prove `t()` was

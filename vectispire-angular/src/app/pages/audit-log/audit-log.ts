@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -36,6 +36,7 @@ import { LatestRequest } from '@/app/core/latest-request';
     selector: 'app-audit-log',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './audit-log.html'
 })
 export class AuditLog {

@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -83,7 +83,7 @@ describe('the licence inventory screen', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Licenses],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         // A security lead: it is the role the server requires in order to write the policy, and the

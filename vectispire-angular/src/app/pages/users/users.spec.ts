@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -51,7 +51,7 @@ describe('the accounts screen', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Users],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         fixture = TestBed.createComponent(Users);
@@ -183,7 +183,7 @@ describe('the accounts screen', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Users],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         const wide = TestBed.createComponent(Users);

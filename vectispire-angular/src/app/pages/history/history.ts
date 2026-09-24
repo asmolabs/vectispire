@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -65,6 +65,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     selector: 'app-history',
     standalone: true,
     imports: [CommonModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, SelectModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './history.html'
 })
 export class History {

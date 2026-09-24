@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -26,6 +26,7 @@ import type { RegisteredVerdict, VerdictRegister } from '@/app/core/api.models';
     selector: 'zs-gate-verdicts',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, MessageModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './gate-verdicts.html'
 })
 export class GateVerdicts {

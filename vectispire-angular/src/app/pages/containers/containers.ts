@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { AssetTier } from '@/app/core/api.models';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -25,6 +25,7 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
     selector: 'app-containers',
     standalone: true,
     imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './containers.html'
 })
 export class Containers {

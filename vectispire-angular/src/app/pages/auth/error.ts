@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { RippleModule } from '@openng/optimus-ui/ripple';
@@ -11,6 +11,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     selector: 'app-error',
     imports: [CommonModule, ButtonModule, RippleModule, RouterModule, AppFloatingConfigurator, TranslatePipe],
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './error.html',
 })
 export class Error {}

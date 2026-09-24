@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -23,6 +23,7 @@ import { pollWhile } from '@/app/core/poll-while';
     selector: 'app-agents',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './agents.html'
 })
 export class Agents implements OnInit {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -44,6 +44,7 @@ import type {
         SelectModule,
         TranslatePipe
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './owasp-grid.html'
 })
 export class OwaspGridComponent {

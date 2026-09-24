@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -26,6 +26,7 @@ import type { AuditVerification, ComplianceEvaluation, ComplianceSummary } from 
     selector: 'app-attestation',
     standalone: true,
     imports: [CommonModule, RouterLink, ButtonModule, MessageModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attestation.html'
 })
 export class Attestation {

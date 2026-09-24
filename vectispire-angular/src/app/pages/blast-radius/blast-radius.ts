@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ExposureApi } from '../../core/api/exposure.api';
@@ -9,7 +9,6 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
-import { RouterLink } from '@angular/router';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
@@ -25,7 +24,8 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        RouterLink, TranslatePipe],
+        TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './blast-radius.html'
 })
 export class BlastRadius implements OnInit {

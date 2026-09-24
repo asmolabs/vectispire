@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -53,6 +53,7 @@ const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_ris
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, SelectModule, ToggleSwitchModule, TranslatePipe, SettingsModelReview],
     templateUrl: './settings-catalog.html',
     // No box of its own: the cards lay out exactly as they did when they were the page's children.
+    changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
 })
 export class SettingsCatalog {

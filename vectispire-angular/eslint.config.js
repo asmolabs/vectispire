@@ -25,7 +25,14 @@ module.exports = tseslint.config(
             // The prefixes the code actually carries, and the one `angular.json` declares for new
             // ones. The old file demanded `p`, which no selector here has ever used.
             '@angular-eslint/component-selector': ['error', { type: 'element', prefix: ['app', 'zs', 'vs'], style: 'kebab-case' }],
-            '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: ['app', 'zs', 'vs'], style: 'camelCase' }]
+            '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: ['app', 'zs', 'vs'], style: 'camelCase' }],
+            // Angular 22 made OnPush the default, and its migration pinned every existing component
+            // to `ChangeDetectionStrategy.Eager` so behaviour did not change underneath us: several
+            // screens still keep state in plain fields assigned from callbacks, which OnPush would
+            // stop rendering without an error. The rule reports exactly those 59 pins. Moving a screen
+            // to OnPush means converting its state to signals and checking it in the browser — one
+            // component at a time, not by silencing the pin. Switch this back on when none is left.
+            '@angular-eslint/prefer-on-push-component-change-detection': 'off'
         }
     },
     {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -70,6 +70,7 @@ interface Draft {
         ToggleSwitchModule,
         TranslatePipe
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './gate-policies.html'
 })
 export class GatePolicies {

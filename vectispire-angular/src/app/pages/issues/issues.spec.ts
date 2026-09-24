@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -44,7 +44,7 @@ describe('the issue backlog', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [Issues],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         useEnglish();
@@ -169,7 +169,7 @@ describe('the issue backlog', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Issues],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         useEnglish();
@@ -193,7 +193,7 @@ describe('the issue backlog', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Issues],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         useEnglish();
@@ -263,7 +263,7 @@ describe('triaging a selection', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Issues],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         useEnglish();
@@ -424,7 +424,7 @@ describe('the backlog opened from a dashboard link', () => {
         TestBed.configureTestingModule({
             imports: [Issues],
             providers: [
-                provideHttpClient(),
+                provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 provideRouter([]),
                 { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(queryParams) } } }

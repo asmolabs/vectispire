@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { TagModule } from '@openng/optimus-ui/tag';
 import type { LastScan } from '../core/api.models';
 
@@ -35,6 +35,7 @@ const STATUS_KEYS: Record<string, { key: string; severity: 'success' | 'warn' | 
     selector: 'app-last-scan',
     standalone: true,
     imports: [CommonModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './last-scan.html'
 })
 export class LastScanTag {

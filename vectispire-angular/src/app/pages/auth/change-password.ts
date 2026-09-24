@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -25,6 +25,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     selector: 'app-change-password',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, MessageModule, PasswordModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './change-password.html'
 })
 export class ChangePassword {

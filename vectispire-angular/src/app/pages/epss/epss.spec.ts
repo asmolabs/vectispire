@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -31,7 +31,7 @@ describe('EPSS prioritisation', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [Epss],
-            providers: [provideHttpClient(), provideHttpClientTesting()]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({

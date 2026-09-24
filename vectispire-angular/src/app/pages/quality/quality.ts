@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -25,6 +25,7 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
     selector: 'zs-quality',
     standalone: true,
     imports: [CommonModule, ButtonModule, MessageModule, RouterLink, RuleCoverageBanner, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './quality.html'
 })
 export class Quality {

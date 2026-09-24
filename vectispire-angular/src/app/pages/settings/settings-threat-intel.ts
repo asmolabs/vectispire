@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -20,6 +20,7 @@ import { SettingsState } from './settings-state';
     standalone: true,
     imports: [CommonModule, ButtonModule, CardModule, MessageModule, TranslatePipe],
     templateUrl: './settings-threat-intel.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
 })
 export class SettingsThreatIntel {

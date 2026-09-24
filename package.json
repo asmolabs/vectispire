@@ -8,7 +8,7 @@
         "vectispire-angular"
     ],
     "engines": {
-        "node": ">=22 <25"
+        "node": "^22.22.3 || ^24.15.0"
     },
     "scripts": {
         "build": "npm run build --workspaces --if-present",
@@ -22,5 +22,10 @@
         "c4:generate": "./scripts/generate-c4-diagrams.sh",
         "prepare": "git config core.hooksPath .githooks || true"
     },
-    "devDependencies": {}
+    "devDependencies": {},
+    "overrides": {
+        "openapi-typescript": {
+            "typescript": "~6.0.3"
+        }
+    }
 }

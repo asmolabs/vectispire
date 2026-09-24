@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { AssetTier } from '@/app/core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -42,6 +42,7 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
     selector: 'app-repositories',
     standalone: true,
     imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, SelectModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe, RuleCoverageBanner],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './repositories.html'
 })
 export class Repositories {

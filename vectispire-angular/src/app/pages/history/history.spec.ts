@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -83,7 +83,7 @@ describe('the history screen', () => {
         silenceAnchorNavigation();
         await TestBed.configureTestingModule({
             imports: [History],
-            providers: [provideHttpClient(), provideHttpClientTesting()]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
         }).compileComponents();
 
         useEnglish();

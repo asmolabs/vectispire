@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SessionStore } from '@/app/core/session.store';
@@ -25,6 +25,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
         MessageModule,
         ProgressSpinnerModule,
         RouterLink, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './notifications.html'
 })
 export class Notifications implements OnInit {

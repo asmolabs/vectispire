@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -33,6 +33,7 @@ import { LatestRequest } from '@/app/core/latest-request';
     selector: 'app-owasp',
     standalone: true,
     imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule, OwaspGridComponent, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './owasp.html'
 })
 export class Owasp {

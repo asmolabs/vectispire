@@ -1,4 +1,4 @@
-import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/core/auth.interceptor';
 import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withEnabledBlockingInitialNavigation, withInMemoryScrolling } from '@angular/router';
@@ -20,7 +20,7 @@ export const appConfig: ApplicationConfig = {
             // configuration everybody assumes is implicit.
             withComponentInputBinding()
         ),
-        provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+        provideHttpClient(withInterceptors([authInterceptor])),
         provideZonelessChangeDetection(),
         provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),
         provideAppInitializer(async () => {

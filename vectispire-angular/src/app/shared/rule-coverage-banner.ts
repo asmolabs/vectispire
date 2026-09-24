@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { RuleSetsApi } from '@/app/core/api/rule-sets.api';
@@ -26,6 +26,7 @@ import type { RuleCoverageAssessment } from '@/app/core/api.models';
     selector: 'zs-rule-coverage-banner',
     standalone: true,
     imports: [CommonModule, ButtonModule, RouterLink, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './rule-coverage-banner.html'
 })
 export class RuleCoverageBanner {

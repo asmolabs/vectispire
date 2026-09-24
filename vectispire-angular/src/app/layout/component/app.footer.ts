@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BrandingService } from '@/app/core/branding.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
@@ -7,6 +7,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     standalone: true,
     selector: 'app-footer',
     imports: [CommonModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `<div class="layout-footer flex flex-wrap items-center justify-between gap-3 text-xs text-muted-color px-4 py-3">
         <div>
             <span class="font-semibold text-surface-900 dark:text-surface-0">{{ branding.brandName() }}</span>

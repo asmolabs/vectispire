@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -35,6 +35,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     selector: 'app-scan-detail',
     standalone: true,
     imports: [CommonModule, RouterLink, ButtonModule, CardModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe, RuleCoverageBanner],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './scan-detail.html'
 })
 export class ScanDetailPage {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -29,6 +29,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
     selector: 'app-ssh-keys',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule, TextareaModule, TooltipModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './ssh-keys.html'
 })
 export class SshKeys {

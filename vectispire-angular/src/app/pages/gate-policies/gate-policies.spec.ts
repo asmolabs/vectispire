@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -71,7 +71,7 @@ describe('the gate policy screen', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [GatePolicies],
-            providers: [provideHttpClient(), provideHttpClientTesting()]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting()]
         }).compileComponents();
 
         fixture = TestBed.createComponent(GatePolicies);

@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -47,6 +47,7 @@ import { LatestRequest } from '@/app/core/latest-request';
     selector: 'zs-issues',
     standalone: true,
     imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule, ToggleSwitchModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issues.html'
 })
 export class Issues {

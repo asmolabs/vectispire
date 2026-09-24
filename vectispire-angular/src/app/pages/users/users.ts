@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -26,6 +26,7 @@ const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? 
     selector: 'app-users',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, MultiSelectModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './users.html'
 })
 export class Users {

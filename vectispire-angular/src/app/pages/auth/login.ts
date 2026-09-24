@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -30,6 +30,7 @@ import { BrandingService } from '@/app/core/branding.service';
     selector: 'zs-login',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, PasswordModule, MessageModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './login.html'
 })
 export class Login {

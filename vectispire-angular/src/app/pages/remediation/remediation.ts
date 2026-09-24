@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -36,6 +36,7 @@ import { LatestRequest } from '@/app/core/latest-request';
     selector: 'app-remediation',
     standalone: true,
     imports: [CommonModule, RouterLink, FormsModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation.html'
 })
 export class Remediation {

@@ -1,4 +1,4 @@
-import { Component, computed, model } from '@angular/core';
+import { Component, computed, model, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { InputNumberModule } from '@openng/optimus-ui/inputnumber';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -45,6 +45,7 @@ import { I18nService } from '../core/i18n/i18n.service';
     selector: 'app-schedule-fields',
     standalone: true,
     imports: [CommonModule, FormsModule, InputNumberModule, InputTextModule, MessageModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './schedule-fields.html'
 })
 export class ScheduleFields {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -39,6 +39,7 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
     selector: 'app-rule-sets',
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule, RuleCoverageBanner, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './rule-sets.html'
 })
 export class RuleSets {

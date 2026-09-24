@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
@@ -52,6 +52,7 @@ function isLocalEndpoint(url: string): boolean {
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, MessageModule, TranslatePipe],
     templateUrl: './settings-model-review.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
 })
 export class SettingsModelReview {

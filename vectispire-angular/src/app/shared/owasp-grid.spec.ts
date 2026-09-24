@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -40,7 +40,7 @@ describe('la grille OWASP', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [OwaspGridComponent],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
         fixture = TestBed.createComponent(OwaspGridComponent);
@@ -73,7 +73,7 @@ describe('la grille OWASP', () => {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [OwaspGridComponent],
-            providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
         const failed = TestBed.createComponent(OwaspGridComponent);
         const client = TestBed.inject(HttpTestingController);

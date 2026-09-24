@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { DialogModule } from '@openng/optimus-ui/dialog';
@@ -27,7 +26,6 @@ import type {
     imports: [
         CommonModule,
         FormsModule,
-        RouterLink,
         ButtonModule,
         CardModule,
         DialogModule,
@@ -37,6 +35,7 @@ import type {
         TagModule,
         TranslatePipe
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './attack-paths.html'
 })
 export class AttackPaths implements OnInit {

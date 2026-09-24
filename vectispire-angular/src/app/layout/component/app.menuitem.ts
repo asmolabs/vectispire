@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal, OnInit, AfterViewInit } from '@angular/core';
+import { Component, computed, inject, input, signal, OnInit, AfterViewInit, ChangeDetectionStrategy } from '@angular/core';
 import { MenuItem } from '@openng/optimus-ui/api';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -66,6 +66,7 @@ export type AppMenuItem = MenuItem & { path?: string; class?: string; badgeClass
         '[class.active-menuitem]': 'isActive()',
         '[class.layout-root-menuitem]': 'root()'
     },
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             .p-submenu-enter {

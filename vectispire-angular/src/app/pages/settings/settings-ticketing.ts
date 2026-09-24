@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
@@ -23,6 +23,7 @@ import { SettingsState } from './settings-state';
     standalone: true,
     imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, TranslatePipe],
     templateUrl: './settings-ticketing.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
 })
 export class SettingsTicketing {

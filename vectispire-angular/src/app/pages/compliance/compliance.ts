@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { CosignCliHelper } from '@/app/core/api.models';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DialogModule } from '@openng/optimus-ui/dialog';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -22,6 +22,7 @@ import { LatestRequest } from '@/app/core/latest-request';
     selector: 'app-compliance',
     standalone: true,
     imports: [CommonModule, FormsModule, DialogModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, SelectModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance.html'
 })
 export class Compliance {
