@@ -46,7 +46,7 @@ export class Settings {
             { id: 'ai' as const, label: this.i18n.t('settings.tabs.ai'), icon: 'pi pi-sparkles' },
             { id: 'integrations' as const, label: this.i18n.t('settings.tabs.integrations'), icon: 'pi pi-link' },
             { id: 'threat-intel' as const, label: this.i18n.t('settings.tabs.threat_intel'), icon: 'pi pi-globe' },
-            { id: 'governance' as const, label: this.i18n.t('settings.tabs.governance'), icon: 'pi pi-balance-scale' }
+            { id: 'governance' as const, label: this.i18n.t('settings.tabs.governance'), icon: 'pi pi-building-columns' }
         ];
     });
 

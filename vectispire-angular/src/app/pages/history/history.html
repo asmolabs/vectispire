@@ -98,7 +98,7 @@
                         <p-tag [value]="scan.version" severity="secondary" />
                     }
                     @if (scan.status === 'completed') {
-                        <p-button label="OpenVEX" icon="pi pi-file-code" [text]="true" size="small" (onClick)="downloadVex(scan.id)" />
+                        <p-button label="OpenVEX" icon="pi pi-file" [text]="true" size="small" (onClick)="downloadVex(scan.id)" />
                     }
                 </div>
                 <div class="text-sm text-muted-color mt-1">

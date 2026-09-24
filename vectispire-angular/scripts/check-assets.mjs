@@ -17,6 +17,7 @@
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const failures = [];
@@ -100,6 +101,21 @@ check('declared fonts present', 'src/assets/styles.scss', (content) => {
     return missing.length ? `police(s) absentes ou invalides : ${missing.join(', ')}` : null;
 });
 
+// **Every `pi-*` class must exist in the installed primeicons.** An unknown one is not an
+// error anywhere — the `<i>` renders as an empty box of the right size and the button next
+// to it still works. Four of them (`pi-balance-scale`, `pi-file-code`, `pi-gitlab`,
+// `pi-terminal`) exist in no primeicons release and were shipped blank on seven screens until
+// somebody read the icon list. The known set is read from the stylesheet itself, which also
+// covers the modifiers (`pi-fw`, `pi-spin`), so a primeicons upgrade that drops an icon
+// fails here too.
+const iconSheet = createRequire(import.meta.url).resolve('primeicons/primeicons.css');
+const knownIcons = new Set([...readFileSync(iconSheet, 'utf8').matchAll(/\.(pi-[a-z0-9-]+)/g)].map((m) => m[1]));
+const sources = [...walk(join(root, 'src', 'app'))].filter((path) => /\.(html|ts)$/.test(path) && !path.endsWith('.spec.ts'));
+for (const path of sources) {
+    const unknown = [...readFileSync(path, 'utf8').matchAll(/\bpi-[a-z0-9]+(?:-[a-z0-9]+)*\b/g)].map((m) => m[0]).filter((icon) => !knownIcons.has(icon));
+    if (unknown.length) failures.push(`primeicons: ${path.slice(root.length + 1)} uses ${[...new Set(unknown)].join(', ')}, absent from ${iconSheet.slice(iconSheet.indexOf('node_modules'))}`);
+}
+
 // La licence de la police doit voyager avec elle (SIL OFL 1.1, article 2).
 check('font licence present', 'public/fonts/LICENSE.txt', (content) => (content.includes('SIL OPEN FONT LICENSE') ? null : "le fichier ne contient pas le texte de la licence OFL"));
 
@@ -109,4 +125,4 @@ if (failures.length) {
     process.exit(1);
 }
 
-console.log('Asset check: no third-party reference, fonts present and valid.');
+console.log('Asset check: no third-party reference, fonts present and valid, every primeicons class exists.');
