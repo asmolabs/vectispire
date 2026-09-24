@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
@@ -82,7 +83,8 @@ public class AttackPathService {
         return Optional.of(buildGraph(
                 repoOpt.get(),
                 apiInventory.forRepository(repositoryId).endpoints(),
-                issues.findByRepositoryAndState(repositoryId, "open", IssueRows.GraphNode.class)));
+                issues.findUnsettledByRepositoryAndState(
+                        repositoryId, "open", TriageStatus.settledWireNames(), IssueRows.GraphNode.class)));
     }
 
     /**
@@ -386,7 +388,8 @@ public class AttackPathService {
         Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
                 apiInventory.endpointViewsByRepository(repoIds);
         Map<Long, List<IssueRows.GraphNode>> issuesByRepo = issues
-                .findByStateAndRepoIdIn("open", repoIds, IssueRows.GraphNode.class).stream()
+                .findByStateAndRepoIdInAndTriageStatusNotIn(
+                        "open", repoIds, TriageStatus.settledWireNames(), IssueRows.GraphNode.class).stream()
                 .collect(Collectors.groupingBy(IssueRows.GraphNode::repoId));
 
         List<AttackPathGraph> graphs = new ArrayList<>();

@@ -48,7 +48,8 @@ finding needs triage, a workaround, or a different library.
 Expanding a row shows the vulnerabilities the upgrade closes — each one links into the filtered
 findings list — and the repositories and images it touches. The counters at the top of the page
 give the plan its scale: how many findings are open in total, how many are critical, the estimated
-effort for the whole estate, and how much of it the ten rows below close.
+effort for the whole estate, and how much of it the ten rows below close. Findings triaged **not
+affected** or **fixed** are not in any of them: they are not work to plan.
 
 ## Scope and depth
 

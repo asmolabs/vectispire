@@ -99,6 +99,27 @@ class AttackPathDatabaseTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a vulnerability argued not affected is no node, in the single graph or in the overview")
+    void aSettledIssueIsNoHop() {
+        // The screen's whole claim is "this can be reached". A CVE the team argued not affected
+        // was still drawn as a node on the path, in both code paths.
+        issue(exposed, "CVE-2023-0001", Severity.CRITICAL, FindingType.VULNERABILITY);
+        IssueEntity dismissed = issues.findAll().stream()
+                .filter(i -> "CVE-2023-0001".equals(i.getIdentifier()))
+                .findFirst()
+                .orElseThrow();
+        dismissed.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        issues.save(dismissed);
+
+        AttackPathGraph direct = attackPaths.getAttackPathGraph(exposed).orElseThrow();
+        AttackPathGraph fromOverview = attackPaths.getOverview(Visibility.everything()).getFirst();
+
+        assertThat(direct.nodes()).noneSatisfy(node -> assertThat(node.label()).contains("CVE-2023-0001"));
+        assertThat(fromOverview.nodes()).noneSatisfy(node -> assertThat(node.label()).contains("CVE-2023-0001"));
+        assertThat(direct.nodes()).anySatisfy(node -> assertThat(node.label()).contains("CVE-2021-44228"));
+    }
+
+    @Test
     @DisplayName("the overview returns the same graphs the per-target route does")
     void theOverviewAgreesWithTheSingleTarget() {
         long quiet = repository("ssh://git@example.com/team/quiet.git", "quiet");

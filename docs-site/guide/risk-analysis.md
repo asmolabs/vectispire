@@ -26,6 +26,9 @@ individually: an exposed component, a vulnerability that reaches it, a credentia
 committed near it. A route made of three medium findings can matter more than any one high
 finding on the same target, and no severity-sorted list will ever show it.
 
+A finding triaged **not affected** or **fixed** is no hop on a route: the screen's claim is that
+something can be reached, and the team has already argued it cannot.
+
 ## Blast radius
 
 Blast radius works from a component outwards: if this package is compromised, what does it

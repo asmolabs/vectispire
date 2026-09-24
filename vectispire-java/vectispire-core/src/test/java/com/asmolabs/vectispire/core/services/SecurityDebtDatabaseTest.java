@@ -113,6 +113,16 @@ class SecurityDebtDatabaseTest extends VectispireContextTest {
         // counts are the only place it would show.
         issue(alpha, null, "fp-a9", "CVE-2020-9999", FindingType.VULNERABILITY, Severity.CRITICAL,
                 IssueState.RESOLVED);
+
+        // Open, but argued not affected: not work to plan. Counted, it added 1.5 hours and a
+        // critical to every figure below, and could lead the ranking of fixes.
+        IssueEntity dismissed = build(alpha, null, "fp-a10", "CVE-2020-8888", FindingType.VULNERABILITY,
+                Severity.CRITICAL, IssueState.OPEN);
+        dismissed.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        dismissed.setPackageName("dismissed-lib");
+        dismissed.setPackageVersion("1.0.0");
+        dismissed.setFixVersions("1.0.1");
+        issues.save(dismissed);
     }
 
     @Test

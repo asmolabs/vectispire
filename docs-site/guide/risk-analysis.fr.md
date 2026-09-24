@@ -29,6 +29,9 @@ La visionneuse de chemins d'attaque enchaîne les constats en itinéraires plut�
 à côté. Un itinéraire fait de trois constats moyens peut compter davantage que n'importe quel
 constat élevé sur la même cible, et aucune liste triée par gravité ne le montrera jamais.
 
+Un constat trié **non affecté** ou **corrigé** n'est pas une étape d'un itinéraire : l'écran affirme
+que quelque chose est atteignable, et l'équipe a déjà soutenu que ce ne l'était pas.
+
 ## Rayon d'impact
 
 Le rayon d'impact travaille depuis un composant vers l'extérieur : si ce paquet est compromis,

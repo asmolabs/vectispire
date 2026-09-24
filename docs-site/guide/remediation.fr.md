@@ -49,7 +49,8 @@ une autre bibliothèque.
 Déplier une ligne montre les vulnérabilités que la mise à jour ferme — chacune renvoie vers la
 liste filtrée — ainsi que les dépôts et les images concernés. Les compteurs en haut de page
 donnent son échelle au plan : combien de constats sont ouverts en tout, combien sont critiques,
-l'effort estimé sur l'ensemble du parc, et la part que ferment les dix lignes en dessous.
+l'effort estimé sur l'ensemble du parc, et la part que ferment les dix lignes en dessous. Les
+constats triés **non affecté** ou **corrigé** n'y figurent pas : ce n'est pas du travail à planifier.
 
 ## Portée et profondeur
 

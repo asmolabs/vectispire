@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
+import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
@@ -120,7 +121,9 @@ public class ComplianceService {
 
     private Map<String, TargetCounts> openCountsByTarget() {
         Map<String, TargetCounts> counts = new java.util.HashMap<>();
-        for (Object[] row : issues.countOpenGroupedByTarget(IssueState.OPEN.wireName())) {
+        // Settled triage left out, as countOpen below already does for the fleet: the per-target
+        // table and the fleet figures above it were two answers to one question.
+        for (Object[] row : issues.countOpenGroupedByTarget(IssueState.OPEN.wireName(), TriageStatus.settledWireNames())) {
             Long repoId = (Long) row[0];
             Long containerId = (Long) row[1];
             if (repoId == null && containerId == null) {

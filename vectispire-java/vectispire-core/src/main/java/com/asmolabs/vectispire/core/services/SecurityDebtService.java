@@ -187,10 +187,16 @@ public class SecurityDebtService {
                         .toList());
     }
 
+    /**
+     * The open issues whose triage is not settled — the debt, the ranking of fixes and the coverage
+     * all read this. A finding argued {@code not_affected} or marked {@code fixed} is not work to
+     * plan; counting it inflated the effort estimate and could put an upgrade at the top of the
+     * plan for issues the team had already dismissed.
+     */
     private static Specification<IssueEntity> openIssuesOf(Long repoId, Long containerId, Visibility allowed) {
         return new IssueFilters(
                         IssueState.OPEN.wireName(), null, null, null, repoId, containerId,
-                        false, false, null, allowed)
+                        false, false, null, true, Map.of(), allowed)
                 .toSpecification();
     }
 

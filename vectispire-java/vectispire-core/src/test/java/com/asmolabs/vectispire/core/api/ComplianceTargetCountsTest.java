@@ -130,4 +130,24 @@ class ComplianceTargetCountsTest extends ApiTestBase {
         // here as two, and nowhere else.
         assertThat(targetNamed(summary(), target).get("openIssuesCount").asLong()).isEqualTo(1);
     }
+
+    @Test
+    @DisplayName("an open issue whose triage is settled counts for no target either, as it counts for no fleet figure")
+    void settledTriageIsExcluded() throws Exception {
+        long target = repository("https://example.invalid/triaged.git");
+
+        issue(target, "CVE-KEPT", Severity.HIGH, FindingType.VULNERABILITY, false);
+        issue(target, "CVE-DISMISSED", Severity.CRITICAL, FindingType.VULNERABILITY, true);
+        IssueEntity dismissed = issues.findAll().stream()
+                .filter(i -> "CVE-DISMISSED".equals(i.getIdentifier()))
+                .findFirst()
+                .orElseThrow();
+        dismissed.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
+        issues.save(dismissed);
+
+        // The fleet counts in the same summary already excluded it; this table did not, so a
+        // target read "1 critical, 1 KEV" under a fleet total that said none.
+        JsonNode row = targetNamed(summary(), target);
+        assertThat(row.get("openIssuesCount").asLong()).isEqualTo(1);
+    }
 }

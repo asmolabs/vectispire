@@ -102,9 +102,9 @@ public interface Issues
     @Query("""
             select i.repoId, i.containerId, i.severity, i.type, i.isKev, count(i.id)
               from IssueEntity i
-             where i.state = :state
+             where i.state = :state and i.triageStatus not in :settled
              group by i.repoId, i.containerId, i.severity, i.type, i.isKev""")
-    List<Object[]> countOpenGroupedByTarget(@Param("state") String state);
+    List<Object[]> countOpenGroupedByTarget(@Param("state") String state, @Param("settled") Collection<String> settled);
 
     /**
      * Open issues of one type, counted by the identifier that produced them.
@@ -185,17 +185,24 @@ public interface Issues
     List<IssueEntity> findByRepositoryAndState(@Param("repoId") Long repoId, @Param("state") String state);
 
     /**
-     * The same rows and the same order, in whatever narrow shape the caller declares.
+     * One repository's issues in a state whose triage is not settled, in whatever narrow shape the
+     * caller declares.
      *
      * <p>The attack graph reads thirteen columns off each issue and none of the rest; it was
-     * materialising a managed row per issue to do it.
+     * materialising a managed row per issue to do it. <b>And it drew settled issues</b>: a CVE
+     * argued {@code not_affected} became a node on an exploitation path, the one screen whose whole
+     * claim is "this can be reached". {@code not in} the settled statuses rather than {@code in}
+     * the others, so a status this version does not know still counts — see {@code IssueFilters}.
      */
     @Query("""
             select i from IssueEntity i
-             where i.repoId = :repoId and i.state = :state
+             where i.repoId = :repoId and i.state = :state and i.triageStatus not in :settled
              order by i.type asc, i.identifier asc, i.id asc""")
-    <T> List<T> findByRepositoryAndState(
-            @Param("repoId") Long repoId, @Param("state") String state, Class<T> shape);
+    <T> List<T> findUnsettledByRepositoryAndState(
+            @Param("repoId") Long repoId,
+            @Param("state") String state,
+            @Param("settled") Collection<String> settled,
+            Class<T> shape);
 
     /** One repository's open issues, for a page that shows one target rather than all of them. */
     @Query("""
@@ -265,8 +272,14 @@ public interface Issues
      */
     List<IssueEntity> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds);
 
-    /** The same rows, in whatever narrow shape the caller declares — see {@code IssueRows}. */
-    <T> List<T> findByStateAndRepoIdIn(String state, java.util.Collection<Long> repoIds, Class<T> shape);
+    /**
+     * The same, less the settled triage, in whatever narrow shape the caller declares — the attack
+     * path overview's read, which must agree with {@link #findUnsettledByRepositoryAndState}: the
+     * overview and the single graph were two code paths giving one answer until only one of them
+     * dropped dismissed issues.
+     */
+    <T> List<T> findByStateAndRepoIdInAndTriageStatusNotIn(
+            String state, java.util.Collection<Long> repoIds, java.util.Collection<String> settled, Class<T> shape);
 
     List<IssueEntity> findByStateAndRepoIdIsNullAndContainerId(String state, Long containerId);
 
