@@ -31,9 +31,12 @@ import org.springframework.stereotype.Service;
  * the outbound guard exists to close. Fixing the upstream removes the question instead of
  * answering it, and decision 0006 names exactly one permitted source anyway.
  *
- * <p><b>A tag, never a branch.</b> Cloned as {@code refs/tags/…} at depth 1: the same tag
- * fetched twice yields the same rules, which is what keeps a scan reproducible. The resolved
- * commit is recorded so that "which rules ran" has an answer a year later.
+ * <p><b>The head of {@code main}, and the commit it resolved to.</b> This said "a tag, never a
+ * branch", cloned as {@code refs/tags/…} so that the same tag always yields the same rules — but
+ * the upstream publishes no tags, and the code clones {@code refs/heads/main} at depth 1. Two
+ * fetches can therefore bring different rules. What keeps a scan explainable is the resolved
+ * commit, recorded with the stored set, so "which rules ran" still has an answer a year later;
+ * what the fetch does not offer is choosing a past version.
  */
 @Service
 public class RuleCatalogueFetcher {
@@ -107,7 +110,8 @@ public class RuleCatalogueFetcher {
         }
     }
 
-    private static List<RuleCatalogue.Entry> read(Path checkout) {
+    /** Package-private so the reading rules can be pinned on a local tree, without the network. */
+    static List<RuleCatalogue.Entry> read(Path checkout) {
         List<RuleCatalogue.Entry> entries = new ArrayList<>();
         long[] total = {0};
         try (var paths = Files.walk(checkout)) {
@@ -150,7 +154,7 @@ public class RuleCatalogueFetcher {
      * are about to receive. Absence is a refusal, not a default — rules with no licence in front
      * of them are rules nobody agreed to.
      */
-    private static String licenceOf(List<RuleCatalogue.Entry> entries) {
+    static String licenceOf(List<RuleCatalogue.Entry> entries) {
         return entries.stream()
                 .filter(entry -> !entry.path().contains("/"))
                 .filter(entry -> entry.path().toLowerCase(Locale.ROOT).startsWith("license"))
