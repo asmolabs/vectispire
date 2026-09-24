@@ -144,7 +144,7 @@ public class VisibilityService {
      *
      * <p><b>This was declared and never enforced.</b> The key row has carried {@code targetKind}
      * and {@code targetId} from the start, the administration screen offers to restrict a key to
-     * one target, and the controller even checks that the target exists — while nothing read the
+     * one target, and issuing one even checks that the target exists — while nothing read the
      * columns again. A key advertised as "restricted to repository 5" could read everything,
      * which is worse than no restriction at all: the interface promised one.
      */

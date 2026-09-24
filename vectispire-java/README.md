@@ -180,7 +180,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | Resetting a password did not close the account's sessions, so a stolen token kept working for twelve hours while the screen confirmed the change | `AccountAdministrationService` |
 | The dispatcher consulted the transport and not the agent's `credentialsMode`, so an agent declared `local` received every repository's decrypted deployment key | `ScanDispatcher` |
 | A malformed notification threshold fell back to `UNKNOWN`, which ranks last — the threshold silently let everything through | `NotificationService` |
-| The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityController` |
+| The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityQueryService` |
 | The backlog grouping took a column name as a string parameter | `Issues` |
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |

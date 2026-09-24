@@ -186,7 +186,7 @@ public class IssueTriageService {
      * this check existed may carry no actor at all, and refusing those would strand them with
      * no way forward — the request cannot be re-made without first being approved. An unknown
      * requester is therefore admitted. Every request created since carries the authenticated
-     * username, or the literal {@code unknown} the controller substitutes, and two of those
+     * username, or the literal {@code unknown} {@code IssueDecisionService} substitutes, and two of those
      * compare equal — so the gap closes as the old rows are worked off rather than staying
      * open.
      */

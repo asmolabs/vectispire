@@ -64,9 +64,9 @@ public class SessionCleanupService {
     }
 
     /**
-     * @param challenges sign-ins abandoned between the password and the code. {@code AuthController}
-     *     sweeps on write, which only clears what a <em>new</em> sign-in pays for; on an instance
-     *     nobody signs into, the rows would sit until one did
+     * @param challenges sign-ins abandoned between the password and the code. {@code
+     *     AuthenticationFlowService} sweeps on write, which only clears what a <em>new</em> sign-in
+     *     pays for; on an instance nobody signs into, the rows would sit until one did
      */
     public record CleanupResult(int sessions, int attempts, int challenges, int verdicts) {}
 

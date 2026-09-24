@@ -23,8 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
  * stolen, resets the password, and expects the stolen token to stop working. With two
  * transactions, a failure between them — a lock timeout, a connection dropped, the process
  * killed — leaves the password changed, the screen confirming, and the stolen session alive for
- * the rest of its twelve hours. The behaviour {@code UsersController} documents at length as the
- * one that had been missing came back in exactly the circumstances where it is least likely to
+ * the rest of its twelve hours. The behaviour {@link AccountAdministrationService#update} documents
+ * at length as the one that had been missing came back in exactly the circumstances where it is least likely to
  * be noticed: when something has already gone wrong.
  *
  * <p><b>The audit entry deliberately stays outside.</b> {@link AuditLogService#record} runs
