@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -33,6 +34,9 @@ import org.springframework.http.MediaType;
  * one, and on the SQLite fixture that second connection waited on the first one's lock on the
  * file: every write answered {@code SQLITE_BUSY}. Each case below therefore asserts the audit entry
  * as well as the effect — the entry is the part that used to deadlock.
+ *
+ * <p>PATCH is sent as the directory sends it, JSON through the real message converter: the body's
+ * {@code value} failed to deserialize at that layer, and only a request crossing it could say so.
  */
 @DisplayName("the SCIM group routes")
 class ScimGroupsRoutesTest extends ApiTestBase {
@@ -135,6 +139,43 @@ class ScimGroupsRoutesTest extends ApiTestBase {
                         .contentType(SCIM)
                         .content(write(Map.of("displayName", "Nobody"))))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("patch a group: add a member, then remove one")
+    void patchesGroup() throws Exception {
+        long kept = account("scim-kept");
+        long added = account("scim-added");
+        long id = team("Security");
+        members.save(new TeamMemberEntity(id, kept, TeamMemberEntity.Origin.SCIM));
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "add",
+                                "path", "members",
+                                "value", List.of(Map.of("value", String.valueOf(added)))))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(2));
+
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId())
+                .containsExactlyInAnyOrder(kept, added);
+
+        mvc.perform(authenticated(patch("/scim/v2/Groups/" + id), asAdmin())
+                        .contentType(SCIM)
+                        .content(write(Map.of("Operations", List.of(Map.of(
+                                "op", "remove",
+                                "path", "members[value eq \"" + kept + "\"]"))))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(1));
+
+        assertThat(members.findByTeamId(id))
+                .extracting(member -> member.getId().userId())
+                .containsExactly(added);
+        assertThat(auditLogs.findAll())
+                .filteredOn(entry -> "SCIM patched team: Security".equals(entry.getDescription()))
+                .hasSize(2);
     }
 
     @Test

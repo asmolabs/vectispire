@@ -10,7 +10,6 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -22,6 +21,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.JsonNode;
 
 /**
  * What an identity provider may do to accounts and teams through SCIM (RFC 7644).
@@ -79,6 +79,16 @@ public class ScimProvisioningService {
     public record UserAttributes(
             String userName, String displayName, String email, String externalId, Boolean active, String role) {}
 
+    /**
+     * One operation of a PATCH, its value left as the tree the request carried.
+     *
+     * @param value a Jackson <b>3</b> node, unlike the Jackson 2 the rest of this codebase is
+     *     written against ({@code CoreConfiguration} says why). The HTTP layer is Spring Boot 4's
+     *     Jackson 3, and it cannot build a Jackson 2 {@code JsonNode}: with one here, every SCIM
+     *     PATCH that reached the route failed to deserialize and answered 500 — deactivating an
+     *     account from the directory included. The unit test built the node by hand and never
+     *     crossed that layer.
+     */
     public record PatchOperation(String op, String path, JsonNode value) {}
 
     public sealed interface UserCreation {
@@ -249,8 +259,8 @@ public class ScimProvisioningService {
             if (value.has("active") && value.get("active").isBoolean()) {
                 user.setIsActive(value.get("active").asBoolean());
             }
-            if (value.has("displayName") && value.get("displayName").isTextual()) {
-                user.setDisplayName(value.get("displayName").asText());
+            if (value.has("displayName") && value.get("displayName").isString()) {
+                user.setDisplayName(value.get("displayName").asString());
             }
         }
     }
@@ -421,14 +431,14 @@ public class ScimProvisioningService {
         if (value.isArray()) {
             for (JsonNode item : value) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asText()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
         } else if (value.isObject() && value.has("members") && value.get("members").isArray()) {
             for (JsonNode item : value.get("members")) {
                 if (item.has("value")) {
-                    resolveUserId(item.get("value").asText()).ifPresent(userId ->
+                    resolveUserId(item.get("value").asString()).ifPresent(userId ->
                             members.save(new TeamMemberEntity(teamId, userId, TeamMemberEntity.Origin.SCIM)));
                 }
             }
