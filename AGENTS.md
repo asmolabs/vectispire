@@ -28,7 +28,9 @@ npm test
 
 **GitHub is the forge.** The repository is `asmolabs/vectispire`; the pipeline that runs is
 [`.github/workflows/`](.github/workflows/) — `ci.yml`, `nightly.yml`, `release.yml`, and
-`docs.yml`, which publishes the user guide to GitHub Pages. It is a
+`docs.yml`, which builds the user guide on `develop` and pull requests and publishes it to
+GitHub Pages from `main`. [`.github/dependabot.yml`](.github/dependabot.yml) proposes weekly,
+grouped updates as pull requests against `develop` — never MkDocs 2, never Node 25. It is a
 rewrite of the GitLab pipeline rather than a translation, because the Docker-in-Docker
 workarounds invert when the daemon shares the runner's filesystem: `docker run -v "$PWD:…"`
 works again, a job's `services:` share its network, and the nightly schedule is `cron:` **in the

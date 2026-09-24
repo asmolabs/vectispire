@@ -29,9 +29,23 @@
 
 name: docs
 
+# **Built on `develop` and on pull requests, published from `main` only.** The site used to be
+# built for the first time at publication: a page broken on `develop` — or a Dependabot bump of a
+# plugin — reached `main` green, and `--strict` then refused it there, with the previous site
+# still served and nobody reading the log. The build now runs where the change is proposed; the
+# `deploy` job, and the steps that talk to Pages, stay behind a `main` condition.
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
+    paths:
+      - 'docs-site/**'
+      - 'mkdocs.yml'
+      - 'ci/docs/requirements.in'
+      - 'ci/docs/requirements.txt'
+      - '.github/workflows/docs.yml'
+  # The same paths as above — repeated rather than anchored, so every tool reading the workflow
+  # sees the list without resolving YAML aliases.
+  pull_request:
     paths:
       - 'docs-site/**'
       - 'mkdocs.yml'
@@ -51,9 +65,11 @@ on:
 permissions:
   contents: read
 
-# A publication in flight is not cancelled: the half-deployed page would be served.
+# A publication in flight is not cancelled: the half-deployed page would be served. Builds that
+# publish nothing get a group of their own per ref, so a pull request never queues behind — or
+# ahead of — a publication.
 concurrency:
-  group: pages
+  group: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && 'pages' || format('docs-{0}', github.ref) }}
   cancel-in-progress: false
 
 jobs:
@@ -78,13 +94,16 @@ jobs:
       # `--strict` turns warnings into failure: a dead link or a page missing from the navigation
       # stops the publication instead of going live with nobody reading the log.
       - run: mkdocs build --strict
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Write to Pages, and an OIDC token because `deploy-pages` authenticates with one, with no
