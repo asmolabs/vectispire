@@ -16,7 +16,8 @@ vectispire:
     retry-delay: ${VECTISPIRE_AGENT_RETRY:10s}
     # Well under the lease, so one missed beat cannot expire a scan that is progressing.
     heartbeat: ${VECTISPIRE_AGENT_HEARTBEAT:60s}
-    version: ${VECTISPIRE_VERSION:1}
+    # No `version`: the agent announces its own build's, read from build-info. It used to read
+    # VECTISPIRE_VERSION — the control plane's export override — with a default of "1".
 
     # **The private half of the key an administrator pinned on this agent's row.** Empty: results
     # are accepted on the API key alone, which is the prior behaviour and every agent's behaviour

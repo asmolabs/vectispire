@@ -23,7 +23,7 @@ class AgentLoopTest {
 
     private static final AgentProperties PROPERTIES = new AgentProperties(
             "https://vectispire.example", "zsk-token",
-            Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(5), "docker", "1");
+            Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(5), "docker");
 
     private AgentProtocol protocol;
     private AgentLoop loop;

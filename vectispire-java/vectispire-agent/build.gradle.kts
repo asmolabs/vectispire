@@ -144,3 +144,14 @@ val jibExtras = tasks.register<Copy>("jibExtras") {
 tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configureEach {
     dependsOn(jibExtras)
 }
+
+/**
+ * `META-INF/build-info.properties`, so the agent announces the version it was built as. The agents
+ * screen showed "1" for every agent, a configuration default. Without the build time, which would
+ * make every build a different jar and a different Jib layer.
+ */
+springBoot {
+    buildInfo {
+        excludes = setOf("time")
+    }
+}

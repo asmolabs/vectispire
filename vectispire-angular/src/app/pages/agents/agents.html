@@ -272,7 +272,7 @@
                 <td>
                     @if (agent.hostname) {
                         <div class="text-sm">{{ agent.hostname }}</div>
-                        <div class="text-xs text-muted-color">{{ agent.platform }} · {{ agent.version }}</div>
+                        <div class="text-xs text-muted-color">{{ agent.platform }}@if (agent.version) { · {{ agent.version }}}</div>
                     } @else {
                         <span class="text-muted-color">—</span>
                     }

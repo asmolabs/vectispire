@@ -34,7 +34,6 @@ public record AgentProperties(
         @DefaultValue("10s") Duration retryDelay,
         @DefaultValue("60s") Duration heartbeat,
         @DefaultValue("docker") String scannerEngine,
-        @DefaultValue("1") String version,
         @DefaultValue("") String signingKey,
         @DefaultValue Images images) {
 
@@ -53,9 +52,8 @@ public record AgentProperties(
             Duration claimWait,
             Duration retryDelay,
             Duration heartbeat,
-            String scannerEngine,
-            String version) {
-        this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, version, "",
+            String scannerEngine) {
+        this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, "",
                 new Images("", "", "", "", ""));
     }
 

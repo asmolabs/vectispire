@@ -20,6 +20,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 @DisplayName("the four calls an agent knows")
 class AgentProtocolTest {
@@ -47,6 +48,27 @@ class AgentProtocolTest {
         assertThatThrownBy(() -> protocol.hello(description()))
                 .isInstanceOf(AgentProtocol.ContractMismatchException.class)
                 .hasMessageContaining("Update the agent.");
+    }
+
+    @Test
+    @DisplayName("an agent built without a version announces none, instead of failing to start or saying \"1\"")
+    @SuppressWarnings("unchecked")
+    void aMissingVersionIsLeftOut() {
+        // The version came from configuration, defaulting to "1" for every agent; it now comes
+        // from build-info, which a build may lack — and `Map.of` throws on a null value, which
+        // would have stopped the agent at its first call. A 409 is answered so the call is made
+        // and its body inspected, whatever the control plane would have said.
+        answers(409, "{\"detail\":\"Update the agent.\"}");
+
+        assertThatThrownBy(() -> protocol.hello(new AgentProtocol.Description("host", "linux", null, "docker")))
+                .isInstanceOf(AgentProtocol.ContractMismatchException.class);
+        assertThatThrownBy(() -> protocol.hello(new AgentProtocol.Description("host", "linux", "2.3.4", "docker")))
+                .isInstanceOf(AgentProtocol.ContractMismatchException.class);
+
+        ArgumentCaptor<Object> bodies = ArgumentCaptor.forClass(Object.class);
+        verify(http, times(2)).call(eq("/api/v1/agent/hello"), eq("POST"), bodies.capture(), any());
+        assertThat((java.util.Map<String, Object>) bodies.getAllValues().get(0)).doesNotContainKey("version");
+        assertThat((java.util.Map<String, Object>) bodies.getAllValues().get(1)).containsEntry("version", "2.3.4");
     }
 
     @Test

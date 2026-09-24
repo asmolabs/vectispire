@@ -16,8 +16,10 @@ import java.time.Clock;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,12 +42,21 @@ public class AgentRunner implements ApplicationRunner {
     private final AgentProperties properties;
     private final ObjectMapper json;
     private final Clock clock;
+    private final String version;
     private final AtomicBoolean stopping = new AtomicBoolean();
 
-    public AgentRunner(AgentProperties properties, ObjectMapper json, Clock clock) {
+    public AgentRunner(
+            AgentProperties properties, ObjectMapper json, Clock clock, ObjectProvider<BuildProperties> build) {
         this.properties = properties;
         this.json = json;
         this.clock = clock;
+        // **The agent's own build, not a setting.** It was `vectispire.agent.version`, read from
+        // VECTISPIRE_VERSION with a default of "1": the agents screen showed "1" for every agent,
+        // and the variable an operator sets to change the version stated in exported documents
+        // changed what every agent claimed to be as well. Null when built without build-info; the
+        // control plane records an agent that announces none as announcing none.
+        BuildProperties info = build.getIfAvailable();
+        this.version = info == null ? null : info.getVersion();
     }
 
     @Override
@@ -89,7 +100,7 @@ public class AgentRunner implements ApplicationRunner {
         AgentProtocol.Identity identity = protocol.hello(new AgentProtocol.Description(
                 hostName(),
                 System.getProperty("os.name") + " " + System.getProperty("os.version"),
-                properties.version(),
+                version,
                 properties.scannerEngine()));
 
         log.info(

@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -110,21 +111,22 @@ public class AgentProtocol {
      * configuration change.
      */
     public Identity hello(Description description) {
-        AgentHttp.Response response = http.call(
-                "/api/v1/agent/hello",
-                "POST",
-                Map.of(
-                        "contract_version", AgentContract.VERSION,
-                        "hostname", description.hostname(),
-                        "platform", description.platform(),
-                        "version", description.version(),
-                        "scanner_engine", description.scannerEngine(),
-                        // Announced at every start and never persisted: the control plane seals
-                        // for the living pair, not for a key kept from a previous life. An older
-                        // control plane ignores the field, and the agent then receives the key in
-                        // the clear — degraded, not broken.
-                        "sealing_public_key", keyPair.map(SealedEnvelope.KeyPair::publicKey).orElse("")),
-                Duration.ofSeconds(30));
+        Map<String, Object> body = new LinkedHashMap<>(Map.of(
+                "contract_version", AgentContract.VERSION,
+                "hostname", description.hostname(),
+                "platform", description.platform(),
+                "scanner_engine", description.scannerEngine(),
+                // Announced at every start and never persisted: the control plane seals
+                // for the living pair, not for a key kept from a previous life. An older
+                // control plane ignores the field, and the agent then receives the key in
+                // the clear — degraded, not broken.
+                "sealing_public_key", keyPair.map(SealedEnvelope.KeyPair::publicKey).orElse("")));
+        // Only when known. It comes from build-info now, absent from a build without it, and
+        // `Map.of` refuses a null: a missing version must not stop an agent from starting.
+        if (description.version() != null) {
+            body.put("version", description.version());
+        }
+        AgentHttp.Response response = http.call("/api/v1/agent/hello", "POST", body, Duration.ofSeconds(30));
 
         if (response.status() == 409) {
             throw new ContractMismatchException(response.messageOr("Incompatible contract."));
