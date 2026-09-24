@@ -75,7 +75,7 @@ jobs:
       # ships its browsers in this image and refuses to launch one it did not build; the tag
       # inherited from an earlier workflow had drifted thirteen minor versions, which nobody could
       # know because that workflow never ran.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       VECTISPIRE_DB_URL: jdbc:sqlite:/tmp/e2e.db
       # SQLite cannot boot under the shipped `ddl-auto: validate` — its affinities report a
@@ -132,7 +132,7 @@ jobs:
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"
-          have="v1.62.1-noble"
+          have="v1.63.0-noble"
           if [ "$want" != "$have" ]; then
             echo "playwright image $have does not match the installed $want"
             echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"

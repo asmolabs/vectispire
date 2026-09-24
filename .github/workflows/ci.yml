@@ -527,7 +527,7 @@ jobs:
       # **Must match `@playwright/test` in `package-lock.json`** — currently 1.62.1. Playwright
       # ships its browsers inside this image and refuses to launch one it did not build. The check
       # step below is what makes a mismatch readable rather than fatal in the middle of the suite.
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     env:
       VECTISPIRE_DB_URL: jdbc:sqlite:/tmp/e2e.db
       # SQLite does not start under the shipped `ddl-auto: validate` — its affinities render a
@@ -576,7 +576,7 @@ jobs:
       - name: the Playwright image matches the installed Playwright
         run: |
           want="v$(node -p "require('@playwright/test/package.json').version")-noble"
-          have="v1.62.1-noble"
+          have="v1.63.0-noble"
           if [ "$want" != "$have" ]; then
             echo "playwright image $have does not match the installed $want"
             echo "fix: set the e2e job's image to mcr.microsoft.com/playwright:$want"
