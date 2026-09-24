@@ -16,8 +16,6 @@ import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,12 +26,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
+import com.asmolabs.vectispire.core.services.GateRegisterService;
 import java.time.Instant;
-import org.springframework.data.domain.Limit;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
@@ -45,16 +40,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequiresAccount
 public class GateController {
 
-    /** A register is read, not paged through: past a few hundred rows nobody is reading. */
-    private static final int MAX_VERDICTS = 500;
-
     private final GateService gate;
     private final TrustedProxies proxies;
-    private final GateVerdicts verdicts;
+    private final GateRegisterService verdicts;
     private final VisibilityService visibility;
 
     public GateController(
-            GateService gate, VisibilityService visibility, TrustedProxies proxies, GateVerdicts verdicts) {
+            GateService gate, VisibilityService visibility, TrustedProxies proxies, GateRegisterService verdicts) {
         this.gate = gate;
         this.proxies = proxies;
         this.verdicts = verdicts;
@@ -220,56 +212,14 @@ public class GateController {
             @RequestParam(required = false, defaultValue = "100") int limit,
             @RequestParam(required = false) String cursor) {
 
-        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        int capped = Math.clamp(limit, 1, MAX_VERDICTS);
-
-        // **An unreadable identifier goes back to the first page**, like an absent cursor. The
-        // record promises that an unusable cursor reads as "from the beginning"; letting
-        // `UUID.fromString` throw here would make it a 400 on a value the client did not compose —
-        // it sent back what the server had given it.
-        List<GateVerdictEntity> read = RegisterCursor.parse(cursor)
-                .flatMap(from -> uuid(from.id()).map(id -> verdicts.pageAfter(from.at(), id, Limit.of(capped))))
-                .orElseGet(() -> verdicts.firstPage(Limit.of(capped)));
-
-        List<RegisteredVerdict> visible = read.stream()
-                .filter(row -> allowed.permits(targetOf(row)))
-                .map(GateController::view)
-                .toList();
+        GateRegisterService.Page page = verdicts.page(
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()), limit, cursor);
 
         return new VerdictRegister(
-                visible,
-                visible.stream().filter(RegisteredVerdict::passed).count(),
-                visible.stream().filter(view -> !view.passed()).count(),
-                nextCursor(read, capped));
-    }
-
-    private static Optional<UUID> uuid(String value) {
-        try {
-            return Optional.of(UUID.fromString(value));
-        } catch (IllegalArgumentException unreadable) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Where the next page starts, or nothing when this one reached the end.
-     *
-     * <p>A short read means the register is exhausted — there is nothing after it to point at. A
-     * full one means there may be more, and the cursor names the last row <em>read</em>, whether
-     * or not the caller was allowed to see it.
-     */
-    private static String nextCursor(List<GateVerdictEntity> read, int limit) {
-        if (read.size() < limit) {
-            return null;
-        }
-        GateVerdictEntity last = read.getLast();
-        return new RegisterCursor(last.getDecidedAt(), last.getId().toString()).encoded();
-    }
-
-    private static ScanTarget targetOf(GateVerdictEntity row) {
-        return row.getRepoId() != null
-                ? new ScanTarget.Repository(row.getRepoId())
-                : new ScanTarget.Container(row.getContainerId());
+                page.visible().stream().map(GateController::view).toList(),
+                page.passed(),
+                page.refused(),
+                page.nextCursor());
     }
 
     private static RegisteredVerdict view(GateVerdictEntity row) {

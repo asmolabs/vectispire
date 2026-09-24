@@ -63,8 +63,9 @@ class SettingsCredentialWriteTest {
         // By default approvers exist: the opposite is the subject of a case of its own.
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(3L);
         controller = new SettingsController(
-                settings, mock(TicketService.class), mock(AuditLogService.class), aiReview,
-                mock(NotificationService.class), users);
+                new com.asmolabs.vectispire.core.services.SettingsAdministrationService(settings, aiReview, users),
+                mock(TicketService.class), mock(AuditLogService.class), aiReview,
+                mock(NotificationService.class));
 
         when(settings.get(any(Setting.class))).thenReturn("");
         when(aiReview.ollamaUrl()).thenReturn("http://localhost:11434");

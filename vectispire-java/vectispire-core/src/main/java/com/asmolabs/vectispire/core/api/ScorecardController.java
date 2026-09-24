@@ -1,14 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.ScorecardBadgeService;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.VisibilityService;
@@ -31,8 +29,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -45,20 +41,17 @@ public class ScorecardController {
 
     private final SecurityScorecardService scorecardService;
     private final VisibilityService visibility;
-    private final GitRepositories repositories;
+    private final ScorecardBadgeService badges;
     private final AuditLogService audit;
-
-    /** 32 bytes, url-safe, unpadded: it lives in a README's URL and must survive being copied. */
-    private static final SecureRandom TOKENS = new SecureRandom();
 
     public ScorecardController(
             SecurityScorecardService scorecardService,
             VisibilityService visibility,
-            GitRepositories repositories,
+            ScorecardBadgeService badges,
             AuditLogService audit) {
         this.scorecardService = scorecardService;
         this.visibility = visibility;
-        this.repositories = repositories;
+        this.badges = badges;
         this.audit = audit;
     }
 
@@ -126,17 +119,13 @@ public class ScorecardController {
     public ResponseEntity<String> getPublishedBadge(
             @Parameter(description = "Badge token", required = true) @PathVariable("token") String token) {
 
-        RepositoryEntity repository = repositories.findByBadgeToken(token)
+        String svg = badges.publishedSvg(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No badge under this token."));
-
-        SecurityScorecard scorecard = scorecardService.getRepositoryScorecard(repository.getId()).orElse(null);
-        String grade = scorecard != null ? scorecard.grade().getLabel() : "unknown";
-        String color = scorecard != null ? scorecard.grade().getBadgeColor() : "#555";
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
                 .contentType(MediaType.parseMediaType("image/svg+xml"))
-                .body(SvgBadgeGenerator.generateBadge("security grade", grade, color));
+                .body(svg);
     }
 
     /** Whether a badge is published for this repository, and under which URL. */
@@ -147,8 +136,7 @@ public class ScorecardController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId) {
 
-        requireVisible(principal, new ScanTarget.Repository(repoId));
-        return stateOf(repositories.findById(repoId)
+        return stateOf(badges.state(repoId, allowed(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
     }
 
@@ -159,9 +147,8 @@ public class ScorecardController {
      * repository's posture may be read by anyone holding the link, which is not something to
      * inherit from the fact that a badge route exists.
      *
-     * <p>Idempotent on purpose: publishing twice returns the same token rather than rotating it
-     * and quietly breaking every README that already carries the first one. Rotation is a
-     * revoke followed by a publish, which is two deliberate acts.
+     * <p>Idempotent — see {@link ScorecardBadgeService#publish} — and audited only when it did
+     * publish, so the log holds one entry per decision rather than one per click.
      */
     @Operation(summary = "Publish a repository's security badge")
     @PostMapping("/repositories/{repoId}/badge")
@@ -171,23 +158,15 @@ public class ScorecardController {
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId,
             HttpServletRequest request) {
 
-        requireVisible(principal, new ScanTarget.Repository(repoId));
-        RepositoryEntity repository = repositories.findById(repoId)
+        ScorecardBadgeService.Badge badge = badges.publish(repoId, allowed(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
 
-        if (repository.getBadgeToken() != null) {
-            return stateOf(repository);
+        if (badge.changed()) {
+            record(principal, request, repoId,
+                    "Security badge published for repository " + repoId
+                            + ": its grade is now readable by anyone holding the badge URL.");
         }
-
-        byte[] raw = new byte[32];
-        TOKENS.nextBytes(raw);
-        repository.setBadgeToken(Base64.getUrlEncoder().withoutPadding().encodeToString(raw));
-        repositories.save(repository);
-
-        record(principal, request, repoId,
-                "Security badge published for repository " + repoId
-                        + ": its grade is now readable by anyone holding the badge URL.");
-        return stateOf(repository);
+        return stateOf(badge);
     }
 
     /** Revokes the badge. Every README carrying the old URL starts answering 404. */
@@ -199,20 +178,17 @@ public class ScorecardController {
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId,
             HttpServletRequest request) {
 
-        requireVisible(principal, new ScanTarget.Repository(repoId));
-        RepositoryEntity repository = repositories.findById(repoId)
+        ScorecardBadgeService.Badge badge = badges.revoke(repoId, allowed(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
 
-        if (repository.getBadgeToken() != null) {
-            repository.setBadgeToken(null);
-            repositories.save(repository);
+        if (badge.changed()) {
             record(principal, request, repoId, "Security badge revoked for repository " + repoId + ".");
         }
-        return stateOf(repository);
+        return stateOf(badge);
     }
 
-    private BadgeState stateOf(RepositoryEntity repository) {
-        String token = repository.getBadgeToken();
+    private static BadgeState stateOf(ScorecardBadgeService.Badge badge) {
+        String token = badge.token();
         return token == null
                 ? new BadgeState(false, null, null)
                 : new BadgeState(true, token, "/api/v1/scorecards/badges/" + token + ".svg");
@@ -230,8 +206,11 @@ public class ScorecardController {
     }
 
     private void requireVisible(VectispirePrincipal principal, ScanTarget target) {
-        Visibilities.requireVisible(
-                target, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        Visibilities.requireVisible(target, allowed(principal));
+    }
+
+    private Visibility allowed(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
 }

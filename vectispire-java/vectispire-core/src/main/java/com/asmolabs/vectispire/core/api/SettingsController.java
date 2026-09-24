@@ -2,19 +2,14 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
-import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.core.services.AiReviewService;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.NotificationService;
-import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.services.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
@@ -27,10 +22,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.security.access.AccessDeniedException;
-import java.util.Set;
-import java.util.Arrays;
-import com.asmolabs.vectispire.core.repositories.Users;
 
 /**
  * The settings, read by everybody and written by administrators.
@@ -52,36 +43,23 @@ import com.asmolabs.vectispire.core.repositories.Users;
 @RequiresAccount
 public class SettingsController {
 
-    /** The sections whose contents are a rule, not a setting. */
-    private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
-            Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE);
-
-    private static final List<String> APPROVER_ROLES = Arrays.stream(Role.values())
-            .filter(Role::canApproveTriage)
-            .map(Enum::name)
-            .toList();
-
-    private final SettingsService settings;
+    private final SettingsAdministrationService administration;
     private final TicketService tickets;
     private final AuditLogService audit;
     private final AiReviewService aiReview;
     private final NotificationService notifications;
-    /** Lu pour une seule question : reste-t-il quelqu'un pour approuver ? */
-    private final Users users;
 
     public SettingsController(
-            SettingsService settings,
+            SettingsAdministrationService administration,
             TicketService tickets,
             AuditLogService audit,
             AiReviewService aiReview,
-            NotificationService notifications,
-            Users users) {
-        this.settings = settings;
+            NotificationService notifications) {
+        this.administration = administration;
         this.tickets = tickets;
         this.audit = audit;
         this.aiReview = aiReview;
         this.notifications = notifications;
-        this.users = users;
     }
 
     /**
@@ -126,39 +104,24 @@ public class SettingsController {
      */
     @GetMapping
     public Catalog list(@AuthenticationPrincipal VectispirePrincipal principal) {
-        Map<String, String> stored = settings.stored();
-        // **A sensitive setting's value only leaves for an administrator.** A webhook URL is a
-        // bearer capability: whoever reads it can post in the channel where the team awaits
-        // Vectispire's alerts. The catalog itself stays readable by everybody — the screen needs
-        // the labels and the types.
-        boolean isAdmin = principal.user()
-                .flatMap(user -> Role.of(user.getRole()))
-                .map(Role::isAdministrative)
-                .orElse(false);
-
-        List<SettingView> views = new ArrayList<>();
-        for (Setting setting : Setting.values()) {
-            views.add(new SettingView(
-                    setting.key(),
-                    setting.type().name().toLowerCase(java.util.Locale.ROOT),
-                    // The label, not the enum constant. `Section` carries one and nothing called
-                    // it, so every card on this screen was titled `model_review` and
-                    // `end_of_life` — the raw name, lowercased, straight from the wire.
-                    setting.section().label(),
-                    setting.label(),
-                    setting.help(),
-                    setting.defaultValue(),
-                    // **A credential's value leaves for nobody, an administrator included.** What
-                    // is stored is a ciphertext; returning it puts the encrypted blob in a browser
-                    // tab and a proxy log, and it is of no use to a form that cannot re-submit it
-                    // anyway. The screens ask "is one configured" through the route that owns it.
-                    setting.isEncrypted() || (setting.isSecret() && !isAdmin)
-                            ? null
-                            : stored.getOrDefault(setting.key(), setting.defaultValue()),
-                    stored.containsKey(setting.key()),
-                    GOVERNANCE_SECTIONS.contains(setting.section())));
-        }
-        return new Catalog(views);
+        return new Catalog(administration.catalog(principal.user()).stream()
+                .map(entry -> {
+                    Setting setting = entry.setting();
+                    return new SettingView(
+                            setting.key(),
+                            setting.type().name().toLowerCase(java.util.Locale.ROOT),
+                            // The label, not the enum constant. `Section` carries one and nothing
+                            // called it, so every card on this screen was titled `model_review` and
+                            // `end_of_life` — the raw name, lowercased, straight from the wire.
+                            setting.section().label(),
+                            setting.label(),
+                            setting.help(),
+                            setting.defaultValue(),
+                            entry.value(),
+                            entry.configured(),
+                            entry.governorOnly());
+                })
+                .toList());
     }
 
     @RequiresSecurityLead
@@ -168,134 +131,17 @@ public class SettingsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        if (body == null || body.isEmpty()) {
-            throw new IllegalArgumentException("No setting supplied.");
-        }
-
-        record Change(Setting setting, String value) {}
-        List<Change> changes = new ArrayList<>();
-        for (Map.Entry<String, String> entry : body.entrySet()) {
-            Setting setting = Setting.byKey(entry.getKey())
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown setting: \"" + entry.getKey() + "\"."));
-            String value = entry.getValue() == null ? "" : entry.getValue().trim();
-            // **The acceptance record is written by this server or not at all.** It is in the
-            // catalog so a screen can display it; accepting it on the wire would let the person
-            // who opened the public endpoint also choose whose name and date sit against that
-            // decision, which is the one thing the record exists to prevent.
-            if (setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_BY
-                    || setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_AT) {
-                throw new IllegalArgumentException(
-                        setting.label() + " is recorded by the server when the public endpoint is turned on, "
-                                + "and cannot be set here.");
-            }
-            // **A credential has one door, and this is not it.** Each of these has a route that
-            // encrypts the value before it reaches the database; this path stores what it is
-            // handed. Left open, it wrote tracker tokens, webhook secrets and provider keys in the
-            // clear — 200 OK, no warning — and the audit description below would then have carried
-            // the value itself into a log that is deliberately never purged.
-            // **The two settings that decide rules, reserved to the governor.** They are
-            // `target_visibility` — who sees which targets — and `triage_four_eyes_required` — does
-            // dismissing a vulnerability take two people. Four-eyes was bypassable by anyone who
-            // could both switch it off and triage: switch off, settle alone, switch back on, one
-            // audit entry for a trace. What closes the hole is not removing the right to approve —
-            // the service settles everyone's decision when the setting is off — but breaking the
-            // conjunction. The one role that can lift the rule is the one that cannot act under
-            // it.
-            if (GOVERNANCE_SECTIONS.contains(setting.section()) && !governsPlatform(principal)) {
-                throw new AccessDeniedException(
-                        setting.label() + " decides a rule rather than a setting: only a platform "
-                                + "governor may change it, because it is the one role that cannot "
-                                + "act under it.");
-            }
-            // **Switching on a two-person control requires that there be two.** Without this
-            // guard, switching it on where no approver is active puts every decision in a queue
-            // nobody can empty — a control that blocks instead of controlling, and whose failure
-            // shows only at the first triage.
-            if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value) && noApproverExists()) {
-                throw new IllegalArgumentException(
-                        "No active account can approve a triage: switching four-eyes on would put "
-                                + "every decision in a queue nobody can empty. Create an "
-                                + "administrator, a CISO or a security lead first.");
-            }
-            if (setting.isEncrypted()) {
-                throw new IllegalArgumentException(
-                        setting.label() + " is a credential and is written by its own route, which encrypts it. "
-                                + "Setting it here would store it in the clear.");
-            }
-            setting.validate(value).ifPresent(problem -> {
-                throw new IllegalArgumentException(setting.label() + " — " + problem);
-            });
-            changes.add(new Change(setting, value));
-        }
-
-        // **The AI destination is checked against the state this save will produce**, not the one
-        // in the database now: half of it may be in this very request. Done before any write, like
-        // every other validation here — a refusal has to leave the configuration untouched.
-        Map<Setting, String> pending = new java.util.EnumMap<>(Setting.class);
-        changes.forEach(change -> pending.put(change.setting(), change.value()));
-        String previousAcknowledgement = settings.get(Setting.AI_REVIEW_ALLOW_REMOTE);
-        boolean remoteAfter = "true".equals(
-                pending.getOrDefault(Setting.AI_REVIEW_ALLOW_REMOTE, previousAcknowledgement));
-        AiProvider providerAfter = AiProvider.of(
-                pending.getOrDefault(Setting.AI_REVIEW_PROVIDER, settings.get(Setting.AI_REVIEW_PROVIDER)));
-        String urlAfter = providerAfter == AiProvider.OPENAI
-                ? pending.getOrDefault(Setting.AI_REVIEW_OPENAI_URL, aiReview.openAiUrl())
-                : pending.getOrDefault(Setting.AI_REVIEW_OLLAMA_URL, aiReview.ollamaUrl());
-        if (urlAfter.isBlank()) {
-            urlAfter = providerAfter == AiProvider.OPENAI ? AiReview.DEFAULT_OPENAI_URL : AiReview.DEFAULT_OLLAMA_URL;
-        }
-
-        // **A save that takes the acknowledgement away is never refused.** The check below asks
-        // whether the resulting configuration may send code off-site, and answers by refusing a
-        // public destination — which meant that switching the acknowledgement off while the
-        // provider was still `openai` produced a 422 naming a URL the operator had not touched.
-        // The only way out was to send both changes at once, and nothing said so. A guard that
-        // stops the configuration from becoming *safer* is pointing the wrong way.
-        //
-        // Letting it through costs nothing: `validatedUrl()` runs the same guard on every single
-        // review, so `openai` with the acknowledgement off simply sends nowhere. The refusal was
-        // buying a state that the review path already refused.
-        boolean withdrawsAcknowledgement = !remoteAfter && "true".equals(previousAcknowledgement);
-        if (!withdrawsAcknowledgement) {
-            aiReview.requireLocalUnlessAcknowledged(providerAfter, urlAfter, remoteAfter);
-        }
-
-        // All validated before any is written: a partial write would leave the configuration
-        // half-way between two intended states.
-        changes.forEach(change -> settings.set(change.setting(), change.value()));
-
-        // **The acceptance is stamped here, by the server, or erased here.** Recorded after the
-        // write so it describes a configuration that exists, and only on the transition — saving
-        // an unrelated setting while the switch is already on must not rewrite whose decision it
-        // was, or the record would name whoever edited the screen last.
-        if (pending.containsKey(Setting.AI_REVIEW_ALLOW_REMOTE)
-                && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
-            if (remoteAfter) {
-                aiReview.recordRiskAcknowledgement(
-                        principal.user().map(user -> user.getUsername()).orElse(""), Instant.now());
-            } else {
-                aiReview.clearRiskAcknowledgement();
-            }
-        }
+        SettingsAdministrationService.Applied applied = administration.update(body, principal.user());
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.SETTING_UPDATED,
-                changes.stream().map(change -> change.setting().key()).reduce((a, b) -> a + "," + b).orElse(""),
-                changes.stream()
-                        .map(change -> {
-                            if (change.setting() == Setting.FOUR_EYES_APPROVAL_REQUIRED) {
-                                return "Double validation (Four-Eyes Approval) for VEX triage set to " 
-                                        + ("true".equalsIgnoreCase(change.value()) ? "ENABLED" : "DISABLED");
-                            }
-                            return change.setting().key() + " = " + (change.value().isEmpty() ? "(empty)" : change.value());
-                        })
-                        .reduce((a, b) -> a + "; " + b)
-                        .orElse(""),
+                applied.keys(),
+                applied.description(),
                 principal.user().map(user -> user.getUsername()).orElse(null),
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));
 
-        return Map.of("updated", changes.size());
+        return Map.of("updated", applied.count());
     }
 
     /**
@@ -426,59 +272,16 @@ public class SettingsController {
     @RequiresSecurityLead
     @PostMapping("/ollama-test")
     public OllamaCheck testOllama() {
-        String model = aiReview.selectedModel();
-        AiProvider provider = aiReview.provider();
-        // Two forms on purpose: `name` goes into sentences a person reads, `wireName` into the
-        // field a client compares against.
-        String name = provider.displayName();
-        boolean remoteAllowed = aiReview.allowRemote();
-        String url;
-        try {
-            url = aiReview.validatedUrl();
-        } catch (RuntimeException refused) {
-            // A public URL with no acknowledgement lands here. It is a configuration answer, and
-            // the operator needs the reason rather than a red cross.
-            return new OllamaCheck(
-                    false, false, model, aiReview.baseUrl(), List.of(), refused.getMessage(),
-                    provider.wireName(), remoteAllowed);
-        }
-
-        // **Checked before the call, not after it fails.** OpenAI answers an unauthenticated
-        // request with a 401 that `availableModels` swallows into "unreachable" — sending the
-        // operator to check a network path that is fine, over a key they never set.
-        if (provider == AiProvider.OPENAI && !aiReview.hasOpenAiKey()) {
-            return new OllamaCheck(false, false, model, url, List.of(),
-                    "No API key is stored for " + url + ". Set one, or point this at a local endpoint that "
-                            + "authenticates nobody.",
-                    provider.wireName(), remoteAllowed);
-        }
-
-        List<String> models = aiReview.availableModels();
-        // `availableModels` never throws and falls back to suggestions, which is right for a
-        // dropdown and wrong for a test: the fallback list is indistinguishable from an installed
-        // one unless the URL is asked a second time. Equality with the suggestions is what
-        // separates "the host answered" from "the host did not".
-        boolean reachable = !models.equals(AiReview.FALLBACK_MODEL_SUGGESTIONS)
-                && !models.equals(AiReview.OPENAI_MODEL_SUGGESTIONS);
-
-        if (!reachable) {
-            return new OllamaCheck(false, false, model, url, List.of(),
-                    "No answer from " + url + ". Is " + name + " running, and reachable from this process?",
-                    provider.wireName(), remoteAllowed);
-        }
-        boolean installed = models.contains(model);
+        SettingsAdministrationService.EndpointCheck check = administration.checkAiEndpoint();
         return new OllamaCheck(
-                true,
-                installed,
-                model,
-                url,
-                models,
-                installed
-                        ? "Reachable, and \"" + model + "\" is available."
-                        : "Reachable, but \"" + model + "\" is not available there. Pick one of the "
-                                + models.size() + " it offers.",
-                provider.wireName(),
-                remoteAllowed);
+                check.reachable(),
+                check.modelInstalled(),
+                check.model(),
+                check.url(),
+                check.models(),
+                check.detail(),
+                check.provider(),
+                check.remoteAllowed());
     }
 
     /**
@@ -557,23 +360,5 @@ public class SettingsController {
         return Map.of("configured", tickets.hasWebhookSecret());
     }
 
-    /** The role that decides the rules, and the only one that cannot act under them. */
-    private static boolean governsPlatform(VectispirePrincipal principal) {
-        return principal.user().flatMap(u -> Role.of(u.getRole())).map(Role::governsPlatform).orElse(false);
-    }
-
-    /**
-     * Is anyone left to approve?
-     *
-     * <p>Counted in the database rather than deduced from a role: the question is about
-     * <em>active</em> accounts, and an estate may perfectly well declare a role nobody holds.
-     */
-    private boolean noApproverExists() {
-        return users.countActiveAdministratorsExcluding(APPROVER_ROLES, -1L) == 0;
-    }
-
-    private static boolean isTruthy(String value) {
-        return "true".equalsIgnoreCase(value) || "1".equals(value);
-    }
 
 }

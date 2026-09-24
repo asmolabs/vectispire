@@ -3,11 +3,9 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.ScanQueryService;
 import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,8 +14,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.List;
-import java.util.NoSuchElementException;
-import org.springframework.data.domain.Limit;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -43,20 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresAccount
 public class ScansController {
 
-    private static final int MAX_FINDINGS = 500;
-    private static final int MAX_HISTORY = 200;
-
-    private final Scans scans;
-    private final Findings findings;
-    private final TargetNaming naming;
-
+    private final ScanQueryService scans;
     private final VisibilityService visibility;
 
-    public ScansController(
-            Scans scans, Findings findings, TargetNaming naming, VisibilityService visibility) {
+    public ScansController(ScanQueryService scans, VisibilityService visibility) {
         this.scans = scans;
-        this.findings = findings;
-        this.naming = naming;
         this.visibility = visibility;
     }
 
@@ -116,15 +103,9 @@ public class ScansController {
             @Parameter(description = "Filter by container ID") @RequestParam(name = "container_id", required = false) Long containerId,
             @Parameter(description = "Maximum results to return") @RequestParam(required = false, defaultValue = "50") int limit) {
 
-        TargetNaming.Names names = naming.all();
-        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        // Filtered after the query rather than inside it: the history is capped at two hundred
-        // rows, so the cost is a predicate on a short list — and expressing "one of these
-        // (kind, id) pairs" in the query would duplicate `IssueFilters`' predicate for a page
-        // that cannot grow.
-        return scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
-                .filter(scan -> allowed.permits(targetOf(scan)))
-                .map(scan -> summaryOf(scan, names))
+        ScanQueryService.History history = scans.history(allowed(principal), repoId, containerId, limit);
+        return history.scans().stream()
+                .map(scan -> summaryOf(scan, history.names()))
                 .toList();
     }
 
@@ -134,15 +115,11 @@ public class ScansController {
     public ScanDetail detail(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
-        ScanEntity scan = scans.findById(id).orElse(null);
-        Visibilities.requireVisible(
-                scan, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-
-        List<FindingEntity> page = findings.findByScanId(id, Limit.of(MAX_FINDINGS));
-        long total = findings.countByScanId(id);
+        ScanQueryService.Detail detail = scans.detail(id, allowed(principal));
+        ScanEntity scan = detail.scan();
 
         return new ScanDetail(
-                summaryOf(scan, naming.all()),
+                summaryOf(scan, detail.names()),
                 scan.getSubPath(),
                 scan.getProjectType(),
                 scan.getVersion(),
@@ -150,9 +127,9 @@ public class ScansController {
                 // of it. It is served whole by `/{id}/sbom` instead, so a caller who wants it
                 // asks for it.
                 scan.getSbom() != null,
-                page.stream().map(ScansController::viewOf).toList(),
-                total,
-                total > page.size());
+                detail.findings().stream().map(ScansController::viewOf).toList(),
+                detail.findingsTotal(),
+                detail.findingsTruncated());
     }
 
     /**
@@ -180,14 +157,7 @@ public class ScansController {
     public ResponseEntity<String> sbom(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
-        ScanEntity scan = scans.findById(id).orElse(null);
-        Visibilities.requireVisible(
-                scan, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-
-        String document = scan.getSbom();
-        if (document == null) {
-            throw new NoSuchElementException("This scan produced no SBOM.");
-        }
+        String document = scans.sbom(id, allowed(principal));
 
         // An attachment: the payload runs to megabytes of JSON, and a browser asked to render it
         // inline freezes on the tab rather than saving the file the caller came for.
@@ -202,12 +172,8 @@ public class ScansController {
                 .body(document);
     }
 
-    /** A scan with neither target is invisible rather than visible: see {@code Visibilities}. */
-    private static ScanTarget targetOf(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return new ScanTarget.Repository(scan.getRepoId());
-        }
-        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
+    private Visibility allowed(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
     private static ScanSummary summaryOf(ScanEntity scan, TargetNaming.Names names) {

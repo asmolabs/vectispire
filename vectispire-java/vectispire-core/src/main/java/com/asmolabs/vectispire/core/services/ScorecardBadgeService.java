@@ -1,0 +1,112 @@
+package com.asmolabs.vectispire.core.services;
+
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
+import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import org.springframework.stereotype.Service;
+
+/**
+ * Publishing a repository's grade as a README badge, and serving the badges that were published.
+ *
+ * <p><b>Publishing is a decision somebody makes</b>, never inherited from the route existing: a
+ * published badge says that this repository's posture may be read by anyone holding the link.
+ *
+ * <p>No transaction of its own: each change is one {@code save}, as it was on the route.
+ */
+@Service
+public class ScorecardBadgeService {
+
+    /** 32 bytes, url-safe, unpadded: it lives in a README's URL and must survive being copied. */
+    private static final SecureRandom TOKENS = new SecureRandom();
+
+    private final GitRepositories repositories;
+    private final SecurityScorecardService scorecards;
+
+    public ScorecardBadgeService(GitRepositories repositories, SecurityScorecardService scorecards) {
+        this.repositories = repositories;
+        this.scorecards = scorecards;
+    }
+
+    /**
+     * @param token the published token, {@code null} when none is
+     * @param changed whether this call published or revoked anything — only a change is audited,
+     *     so that asking twice does not write two entries for one decision
+     */
+    public record Badge(Long repositoryId, String token, boolean changed) {}
+
+    /**
+     * The SVG of the repository published under this token, or empty for a token nobody holds.
+     *
+     * <p><b>An unknown token and a revoked one are the same absence.</b> Telling them apart would
+     * say that a repository once had a badge, which is a fact about the estate.
+     */
+    public Optional<String> publishedSvg(String token) {
+        return repositories.findByBadgeToken(token).map(repository -> {
+            SecurityScorecard scorecard = scorecards.getRepositoryScorecard(repository.getId()).orElse(null);
+            String grade = scorecard != null ? scorecard.grade().getLabel() : "unknown";
+            String color = scorecard != null ? scorecard.grade().getBadgeColor() : "#555";
+            return SvgBadgeGenerator.generateBadge("security grade", grade, color);
+        });
+    }
+
+    /** Empty when the repository does not exist; a hidden one is refused before it is looked up. */
+    public Optional<Badge> state(long repoId, Visibility allowed) {
+        return visible(repoId, allowed).map(repository -> badgeOf(repository, false));
+    }
+
+    /**
+     * Publishes, or answers the badge already published.
+     *
+     * <p>Idempotent on purpose: publishing twice returns the same token rather than rotating it
+     * and quietly breaking every README that already carries the first one. Rotation is a revoke
+     * followed by a publish, which is two deliberate acts.
+     */
+    public Optional<Badge> publish(long repoId, Visibility allowed) {
+        return visible(repoId, allowed).map(repository -> {
+            if (repository.getBadgeToken() != null) {
+                return badgeOf(repository, false);
+            }
+            byte[] raw = new byte[32];
+            TOKENS.nextBytes(raw);
+            repository.setBadgeToken(Base64.getUrlEncoder().withoutPadding().encodeToString(raw));
+            repositories.save(repository);
+            return badgeOf(repository, true);
+        });
+    }
+
+    /** Revokes the badge. Every README carrying the old URL starts answering 404. */
+    public Optional<Badge> revoke(long repoId, Visibility allowed) {
+        return visible(repoId, allowed).map(repository -> {
+            if (repository.getBadgeToken() == null) {
+                return badgeOf(repository, false);
+            }
+            repository.setBadgeToken(null);
+            repositories.save(repository);
+            return badgeOf(repository, true);
+        });
+    }
+
+    /**
+     * The allowance first, then the row — the order the routes have always used.
+     *
+     * <p>A hidden repository is refused in the words `Visibilities.requireVisible` gives a target,
+     * before anything is read, so that no lookup distinguishes it from one the reader may see.
+     */
+    private Optional<RepositoryEntity> visible(long repoId, Visibility allowed) {
+        if (!allowed.permits(new ScanTarget.Repository(repoId))) {
+            throw new NoSuchElementException("Target not found.");
+        }
+        return repositories.findById(repoId);
+    }
+
+    private static Badge badgeOf(RepositoryEntity repository, boolean changed) {
+        return new Badge(repository.getId(), repository.getBadgeToken(), changed);
+    }
+}

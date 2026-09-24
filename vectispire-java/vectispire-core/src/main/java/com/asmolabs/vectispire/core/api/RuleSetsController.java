@@ -5,18 +5,16 @@ import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.core.services.RuleCatalogueFetcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
-import java.util.Set;
-import org.springframework.web.bind.annotation.RequestParam;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.vectispire.core.repositories.RuleSetSummary;
 import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.RuleSetAdministrationService;
+import com.asmolabs.vectispire.core.services.RuleSetAdministrationService.RuleSetListing;
 import com.asmolabs.vectispire.core.services.RuleSetService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.NoSuchElementException;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -48,21 +46,21 @@ import io.swagger.v3.oas.annotations.Operation;
 public class RuleSetsController {
 
     private final RuleSetService ruleSets;
+    private final RuleSetAdministrationService administration;
     private final RuleCatalogueFetcher fetcher;
     private final AuditLogService audit;
 
     private final RuleCoverageService coverageService;
 
     public RuleSetsController(
-            RuleSetService ruleSets, RuleCatalogueFetcher fetcher, AuditLogService audit,
-            RuleCoverageService coverageService) {
+            RuleSetService ruleSets, RuleSetAdministrationService administration, RuleCatalogueFetcher fetcher,
+            AuditLogService audit, RuleCoverageService coverageService) {
         this.ruleSets = ruleSets;
+        this.administration = administration;
         this.fetcher = fetcher;
         this.audit = audit;
         this.coverageService = coverageService;
     }
-
-    public record RuleSetListing(List<RuleSetSummary> ruleSets) {}
 
     public record UploadRequest(String name, List<UploadedFile> files) {}
 
@@ -95,7 +93,7 @@ public class RuleSetsController {
 
     @GetMapping
     public RuleSetListing list() {
-        return new RuleSetListing(ruleSets.list());
+        return administration.list();
     }
 
     /**
@@ -193,37 +191,17 @@ public class RuleSetsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RuleCatalogue.requireCommit(body.commit());
-        RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
-
-        // **Both must still match.** The upstream is a moving branch, so between reading the
-        // licence and accepting it the head can advance. Refusing is the only honest answer: an
-        // acceptance that silently applied to a different commit would be worth nothing, and
-        // this is the one place where "it probably did not change" is not good enough.
-        if (!fetched.commit().equalsIgnoreCase(body.commit())) {
-            throw new IllegalArgumentException(
-                    "The upstream moved between the preview and this request: you read " + body.commit()
-                            + ", it is now " + fetched.commit() + ". Read the catalogue again.");
-        }
-        if (!fetched.licenceSha256().equals(body.licenceSha256())) {
-            throw new IllegalArgumentException(
-                    "The licence changed between the preview and this request. Read it again before accepting: "
-                            + "what you agreed to is not what this commit carries.");
-        }
-
-        Set<String> languages = body.languages() == null ? Set.of() : Set.copyOf(body.languages());
-        List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages);
-
         String actor = principal.user().map(user -> user.getUsername()).orElse(null);
-        SemgrepRuleSetEntity stored =
-                ruleSets.store(files, RuleCatalogue.nameFor(fetched.commit(), languages), actor);
+        RuleSetAdministrationService.CatalogueImport imported =
+                administration.importCatalogue(body.commit(), body.languages(), body.licenceSha256(), actor);
+        SemgrepRuleSetEntity stored = imported.stored();
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.RULE_SET_UPLOADED,
                 String.valueOf(stored.getId()),
-                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ", languages " + String.join(", ", new java.util.TreeSet<>(languages)) + ": "
+                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + imported.commit() + ", languages " + String.join(", ", imported.languages()) + ": "
                         + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
-                        + " accepted, sha256 " + fetched.licenceSha256() + ".",
+                        + " accepted, sha256 " + imported.licenceSha256() + ".",
                 actor,
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));
@@ -242,8 +220,7 @@ public class RuleSetsController {
      */
     @GetMapping("/{id}/impact")
     public TriageImpact impact(@PathVariable long id) {
-        return ruleSets.impactOf(
-                ruleSets.byId(id).orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + ".")));
+        return administration.impact(id);
     }
 
     /**

@@ -1,35 +1,19 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
-import com.asmolabs.vectispire.common.domain.teams.TeamRules;
-import com.asmolabs.vectispire.core.repositories.TeamTargets;
-import com.asmolabs.vectispire.core.repositories.UserTargets;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.RepositoryAdministrationService;
+import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Changes;
+import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Listed;
 import com.asmolabs.vectispire.core.services.VisibilityService;
-import com.asmolabs.vectispire.core.services.CronExpressions;
-import com.asmolabs.vectispire.core.services.ScanTriggerService;
-import com.asmolabs.vectispire.core.services.TargetDeletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
@@ -58,36 +42,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresAccount
 public class RepositoriesController {
 
-    private final GitRepositories repositories;
-    private final Scans scans;
-    private final Issues issues;
-    private final ScanTriggerService trigger;
+    private final RepositoryAdministrationService inventory;
     private final AuditLogService audit;
     private final VisibilityService visibility;
 
-    private final UserTargets userTargets;
-    private final TeamTargets teamTargets;
-    private final TargetDeletionService targetDeletion;
-
     public RepositoriesController(
-            GitRepositories repositories,
-            Scans scans,
-            Issues issues,
-            ScanTriggerService trigger,
-            AuditLogService audit,
-            VisibilityService visibility,
-            UserTargets userTargets,
-            TeamTargets teamTargets,
-            TargetDeletionService targetDeletion) {
-        this.userTargets = userTargets;
-        this.teamTargets = teamTargets;
-        this.repositories = repositories;
-        this.scans = scans;
-        this.issues = issues;
-        this.trigger = trigger;
+            RepositoryAdministrationService inventory, AuditLogService audit, VisibilityService visibility) {
+        this.inventory = inventory;
         this.audit = audit;
         this.visibility = visibility;
-        this.targetDeletion = targetDeletion;
     }
 
     public record LastScan(Long id, String status, Instant createdAt, String error) {}
@@ -132,28 +95,8 @@ public class RepositoriesController {
     @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
     @GetMapping
     public List<RepositorySummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
-        Visibility allowed = visibility.of(
-                principal.user().orElse(null), principal.credentialRestriction());
-        Map<Long, LastScan> latest = latestScans();
-        Map<Long, Long> open = openIssueCounts();
-
-        return repositories.findAll().stream()
-                .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
-                .map(repository -> new RepositorySummary(
-                        repository.getId(),
-                        RepositoryUrl.redact(repository.getUrl()),
-                        repository.getBranch(),
-                        repository.getName(),
-                        repository.getSubPath(),
-                        displayName(repository),
-                        repository.getScanIntervalMinutes(),
-                        repository.getScanCron(),
-                        repository.getRequiredAgentLabel(),
-                        repository.getSshKeyId(),
-                        repository.getLastScheduledScanAt(),
-                        latest.get(repository.getId()),
-                        open.getOrDefault(repository.getId(), 0L),
-                        repository.getTier()))
+        return inventory.list(allowed(principal)).stream()
+                .map(RepositoriesController::summaryOf)
                 .toList();
     }
 
@@ -166,34 +109,9 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String url = trim(body.url());
-        // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
-        // is arbitrary code execution, not a typo.
-        RepositoryUrl.validate(url).ifPresent(message -> {
-            throw new IllegalArgumentException(message);
-        });
-
-        RepositoryEntity repository = new RepositoryEntity();
-        repository.setUrl(url);
-        repository.setBranch(trim(body.branch()).isEmpty() ? "main" : trim(body.branch()));
-        repository.setName(optional(body.name()));
-        repository.setSubPath(optional(body.subPath()));
-        repository.setScanIntervalMinutes(body.scanIntervalMinutes());
-        // Validated at the entry point: discovering that an expression was rejected by watching
-        // scans *not* happen is the expensive way.
-        repository.setScanCron(validatedCron(body.scanCron()));
-        // Normalized on entry: without it, "Production" here and "production" on the agent would
-        // never meet, and the scan would wait for an agent that is present.
-        repository.setRequiredAgentLabel(AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
-        repository.setSshKeyId(sshKeyId(body.sshKeyId()));
-        repository.setTier(body.tier() != null ? AssetTier.fromString(body.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
-
-        RepositoryEntity saved = repositories.save(repository);
+        RepositoryEntity saved = inventory.create(changesOf(body));
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + RepositoryUrl.redact(saved.getUrl()));
-        return list(principal).stream()
-                .filter(summary -> summary.id().equals(saved.getId()))
-                .findFirst()
-                .orElseThrow();
+        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
     /**
@@ -220,60 +138,15 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity repository = repositories
-                .findById(id)
-                .orElseThrow(() -> new NoSuchElementException("No repository with id " + id + "."));
-        Visibilities.requireVisible(
-                new ScanTarget.Repository(id),
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-
-        String previousUrl = repository.getUrl();
-        // The list sends the URL masked; a form saved without touching it sends the mask back,
-        // which must leave the stored URL — credential included — as it was.
-        if (body.url() != null && !RepositoryUrl.isMaskedFormOf(trim(body.url()), previousUrl)) {
-            String url = trim(body.url());
-            // Validated on update exactly as on create: an unvalidated URL reaching a git clone
-            // is arbitrary code execution, and a row edited later is no safer than a row added.
-            RepositoryUrl.validate(url).ifPresent(message -> {
-                throw new IllegalArgumentException(message);
-            });
-            repository.setUrl(url);
-        }
-        if (body.branch() != null) {
-            repository.setBranch(trim(body.branch()).isEmpty() ? "main" : trim(body.branch()));
-        }
-        if (body.name() != null) {
-            repository.setName(optional(body.name()));
-        }
-        if (body.subPath() != null) {
-            repository.setSubPath(optional(body.subPath()));
-        }
-        if (body.scanIntervalMinutes() != null) {
-            repository.setScanIntervalMinutes(body.scanIntervalMinutes());
-        }
-        if (body.scanCron() != null) {
-            repository.setScanCron(validatedCron(body.scanCron()));
-        }
-        if (body.requiredAgentLabel() != null) {
-            repository.setRequiredAgentLabel(
-                    AgentLabels.normalizeRequirement(body.requiredAgentLabel()).orElse(null));
-        }
-        if (body.sshKeyId() != null) {
-            repository.setSshKeyId(sshKeyId(body.sshKeyId()));
-        }
-        if (body.tier() != null) {
-            repository.setTier(AssetTier.fromString(body.tier()).name());
-        }
-
-        RepositoryEntity saved = repositories.save(repository);
+        RepositoryAdministrationService.Updated updated =
+                inventory.update(id, changesOf(body), allowed(principal));
+        RepositoryEntity saved = updated.repository();
+        String previousUrl = updated.previousUrl();
         String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
         record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
                 "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved);
 
-        return list(principal).stream()
-                .filter(summary -> summary.id().equals(saved.getId()))
-                .findFirst()
-                .orElseThrow();
+        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
     /**
@@ -290,13 +163,10 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-
-        ScanEntity scan = trigger.trigger(repository);
-        record(principal, request, AuditOperation.SCAN_TRIGGERED, scan.getId(),
-                "Scan requested: " + RepositoryUrl.redact(repository.getUrl()));
-        return new QueuedScan(scan.getId(), scan.getStatus());
+        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id);
+        record(principal, request, AuditOperation.SCAN_TRIGGERED, triggered.scan().getId(),
+                "Scan requested: " + RepositoryUrl.redact(triggered.repository().getUrl()));
+        return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
     }
 
     @Operation(summary = "Delete repository", description = "Removes repository and cascades deletion of its issues, findings and history.")
@@ -309,27 +179,46 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-
-        targetDeletion.deleteRepository(id);
+        RepositoryEntity repository = inventory.delete(id);
         record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()));
     }
 
-    private Map<Long, LastScan> latestScans() {
-        Map<Long, LastScan> latest = new HashMap<>();
-        for (LatestScanRow row : scans.findLatestPerRepository()) {
-            latest.put(row.targetId(), new LastScan(row.scanId(), row.status(), row.createdAt(), row.error()));
-        }
-        return latest;
+    private Visibility allowed(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
-    private Map<Long, Long> openIssueCounts() {
-        Map<Long, Long> counts = new HashMap<>();
-        for (OpenIssueCount row : issues.countOpenByRepository(IssueState.OPEN.wireName())) {
-            counts.put(row.targetId(), row.count());
-        }
-        return counts;
+    private static RepositorySummary summaryOf(Listed listed) {
+        RepositoryEntity repository = listed.repository();
+        return new RepositorySummary(
+                repository.getId(),
+                RepositoryUrl.redact(repository.getUrl()),
+                repository.getBranch(),
+                repository.getName(),
+                repository.getSubPath(),
+                displayName(repository),
+                repository.getScanIntervalMinutes(),
+                repository.getScanCron(),
+                repository.getRequiredAgentLabel(),
+                repository.getSshKeyId(),
+                repository.getLastScheduledScanAt(),
+                listed.latestScan()
+                        .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
+                        .orElse(null),
+                listed.openIssues(),
+                repository.getTier());
+    }
+
+    private static Changes changesOf(RepositoryCreateRequest body) {
+        return new Changes(
+                body.url(),
+                body.branch(),
+                body.name(),
+                body.subPath(),
+                body.scanIntervalMinutes(),
+                body.scanCron(),
+                body.requiredAgentLabel(),
+                body.sshKeyId(),
+                body.tier());
     }
 
     private void record(
@@ -362,53 +251,5 @@ public class RepositoriesController {
      */
     private static String displayName(RepositoryEntity repository) {
         return RepositoryUrl.displayName(repository.getName(), repository.getUrl());
-    }
-
-    /**
-     * A valid cron expression, {@code null}, or a 400 the operator can read.
-     *
-     * <p>A 400 and not a 500: the expression came from the user, and the message carries the
-     * expected format.
-     */
-    private static String validatedCron(String expression) {
-        String trimmed = trim(expression);
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        if (!CronExpressions.isValid(trimmed)) {
-            throw new IllegalArgumentException(
-                    "Unusable cron expression: \"" + trimmed + "\". Expected five fields, for example "
-                            + "\"0 2 * * *\" (every day at 02:00) or \"0 */6 * * *\" (every six hours).");
-        }
-        return trimmed;
-    }
-
-    private static String trim(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private static String optional(String value) {
-        String trimmed = trim(value);
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    /**
-     * Reads the deployment key the form named, where blank means "no key".
-     *
-     * <p>Rejecting a malformed identifier here rather than storing it matters: a repository
-     * pointing at a key that does not exist falls back to the host's own SSH and fails at clone
-     * time with "requires authentication" — an error that names neither the wrong identifier nor
-     * this form. The 400 arrives while the operator is still looking at the field.
-     */
-    private static UUID sshKeyId(String value) {
-        String trimmed = trim(value);
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        try {
-            return UUID.fromString(trimmed);
-        } catch (IllegalArgumentException malformed) {
-            throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid SSH key identifier.");
-        }
     }
 }
