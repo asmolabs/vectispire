@@ -76,12 +76,14 @@ public class CycloneDxGeneratorService {
             vulnerabilities.add(buildVulnerability(issue, purl));
         }
 
+        // No version: the monitored fleet is not a released thing, and "1.0.0" claimed one. The
+        // field is optional in CycloneDX 1.5, and absent says what is true.
         Component rootApp = new Component(
                 "urn:vectispire:inventory:aggregate",
                 "application",
                 "com.asmolabs.vectispire",
                 "vectispire-monitored-fleet",
-                "1.0.0",
+                null,
                 null,
                 null);
 

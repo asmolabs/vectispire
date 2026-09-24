@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api.config;
 
+import com.asmolabs.vectispire.core.services.ProductVersion;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -23,12 +24,21 @@ public class OpenApiConfiguration {
     public static final String AGENT_KEY_AUTH = "AgentKeyAuth";
     public static final String API_KEY_AUTH = "ApiKeyAuth";
 
+    /**
+     * @param version the product's, as every exported document states it. It was "4.1.0" — a
+     *     number that matched no release of Vectispire and read, to a client generating from this
+     *     document, as the version of the API it was talking to. The API has no version of its own
+     *     beyond the {@code /api/v1} prefix, so the document carries the build's; a release that
+     *     bumps it regenerates {@code openapi.json}, which {@code ClientContractSpecTest} asks for.
+     */
     @Bean
-    public OpenAPI vectispireOpenApi() {
+    public OpenAPI vectispireOpenApi(ProductVersion version) {
         return new OpenAPI()
                 .info(new Info()
                         .title("Vectispire Control Plane REST API")
-                        .version("4.1.0")
+                        // Required by OpenAPI, so "unknown" rather than absent — reached only by a
+                        // build without build-info, and saying so rather than guessing.
+                        .version(version.get() == null ? "unknown" : version.get())
                         .description("Automated supply-chain security, SBOM analysis, vulnerability triage, attack surface inventory, and compliance governance platform.")
                         .contact(new Contact()
                                 .name("Asmolabs Security Team")

@@ -19,8 +19,10 @@ public record SarifLog(@JsonProperty("$schema") String schema, String version, L
     public static final String VERSION = "2.1.0";
     public static final String SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json";
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Run(SarifTool tool, List<Result> results, Map<String, Object> properties) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record SarifTool(Driver driver) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -46,6 +48,7 @@ public record SarifLog(@JsonProperty("$schema") String schema, String version, L
             Map<String, Object> properties,
             List<Suppression> suppressions) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Text(String text) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -54,15 +57,19 @@ public record SarifLog(@JsonProperty("$schema") String schema, String version, L
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record PhysicalLocation(ArtifactLocation artifactLocation, Region region) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record ArtifactLocation(String uri) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Region(int startLine) {}
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record LogicalLocation(String name, String kind) {}
 
     /**
      * @param kind {@code external} — the decision was taken in Vectispire, not in a source
      *     annotation, which is what that kind documents
      */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Suppression(String kind, String justification) {}
 }

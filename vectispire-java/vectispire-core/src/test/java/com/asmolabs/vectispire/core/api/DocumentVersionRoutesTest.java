@@ -22,7 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 /**
  * Every document Vectispire signs or hands over names the version Gradle built.
  *
- * <p>Five documents stated a producer version and they took it from four places: two literals
+ * <p>Six documents stated a producer version — the OpenAPI document too, at 4.1.0 — and they took it from four places: two literals
  * ({@code 1.0.0} in the scan CSAF, {@code 0.9.0} in CycloneDX and the attestation), a configuration
  * default and a domain fallback. None of them was checked at the level a reader sees — the served
  * document — which is how the scan CSAF kept announcing a release that does not exist after the
@@ -84,6 +84,28 @@ class DocumentVersionRoutesTest extends ApiTestBase {
     void cycloneDx() throws Exception {
         mvc.perform(authenticated(get("/api/v1/cyclonedx/scans/" + scanId + "/cyclonedx-vex.json"), admin))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.metadata.tools[0].version").value(built));
+    }
+
+    @Test
+    @DisplayName("the OpenAPI document, which announced 4.1.0")
+    void openApi() throws Exception {
+        mvc.perform(authenticated(get("/v3/api-docs"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.info.version").value(built));
+    }
+
+    @Test
+    @DisplayName("the aggregate CycloneDX root, which is not a release, carries no version and no null fields")
+    void theAggregateRootIsNotVersioned() throws Exception {
+        // It said 1.0.0 for "the monitored fleet", and serialised "purl": null and "scope": null:
+        // the NON_NULL on the document did not reach the records nested in it.
+        mvc.perform(authenticated(get("/api/v1/cyclonedx/aggregate.json"), admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.metadata.component.name").value("vectispire-monitored-fleet"))
+                .andExpect(jsonPath("$.metadata.component.version").doesNotExist())
+                .andExpect(jsonPath("$.metadata.component.purl").doesNotExist())
+                .andExpect(jsonPath("$.metadata.component.scope").doesNotExist())
                 .andExpect(jsonPath("$.metadata.tools[0].version").value(built));
     }
 

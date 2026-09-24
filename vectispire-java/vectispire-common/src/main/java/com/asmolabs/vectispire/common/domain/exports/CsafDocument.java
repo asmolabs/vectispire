@@ -55,6 +55,7 @@ public record CsafDocument(
      * produced. That is honest and it is what the schema asks for; inventing a longer history for
      * a document that has none would be worse than the omission it replaces.
      */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Revision(String number, String date, String summary) {}
 
     @JsonInclude(JsonInclude.Include.NON_NULL)

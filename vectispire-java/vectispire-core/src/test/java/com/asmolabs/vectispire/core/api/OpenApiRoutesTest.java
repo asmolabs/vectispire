@@ -31,7 +31,8 @@ class OpenApiRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.openapi").exists())
                 .andExpect(jsonPath("$.info.title").value("Vectispire Control Plane REST API"))
-                .andExpect(jsonPath("$.info.version").value("4.1.0"))
+                // The version is DocumentVersionRoutesTest's: it is the build's, and this line used to
+                // pin "4.1.0", a number no release of Vectispire ever carried.
                 .andExpect(jsonPath("$.paths['/api/v1/auth/login']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/attack-surface']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/repositories']").exists())
