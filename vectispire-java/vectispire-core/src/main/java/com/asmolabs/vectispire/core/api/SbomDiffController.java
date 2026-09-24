@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.SbomDiffService;
@@ -24,11 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SbomDiffController {
 
     private final SbomDiffService sbomDiffService;
-    private final Scans scans;
+    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
     public SbomDiffController(
-            SbomDiffService sbomDiffService, Scans scans, VisibilityService visibility) {
+            SbomDiffService sbomDiffService, ScanDocumentService scans, VisibilityService visibility) {
         this.sbomDiffService = sbomDiffService;
         this.scans = scans;
         this.visibility = visibility;
@@ -73,7 +73,7 @@ public class SbomDiffController {
 
     private void requireVisibleScan(long scanId, Visibility allowed) {
         Visibilities.requireVisible(
-                scans.findById(scanId).orElse(null),
+                scans.scan(scanId).orElse(null),
                 allowed);
     }
 

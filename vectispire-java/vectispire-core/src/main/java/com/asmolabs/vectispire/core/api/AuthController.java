@@ -1,23 +1,17 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.auth.Sessions;
-import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
-import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.MfaChallengeEntity;
-import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.MfaChallenges;
-import com.asmolabs.vectispire.core.repositories.UserSessions;
-import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
+import com.asmolabs.vectispire.core.services.AuthenticationFlowService;
+import com.asmolabs.vectispire.core.services.AuthenticationFlowService.Handoff;
+import com.asmolabs.vectispire.core.services.AuthenticationFlowService.SignIn;
+import com.asmolabs.vectispire.core.services.AuthenticationFlowService.Verification;
 import com.asmolabs.vectispire.core.services.TotpService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,14 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Clock;
-import java.util.Optional;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +32,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import com.asmolabs.vectispire.core.services.SignInMethodPolicy;
 
 /**
  * Signing in, signing out, and "who am I".
@@ -56,63 +45,24 @@ import com.asmolabs.vectispire.core.services.SignInMethodPolicy;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    /** Absent when no issuer is configured: single sign-on is optional, and absent when off. */
-    private final Optional<ClientRegistrationRepository> providers;
-
-    private final SignInMethodPolicy methods;
+    private final AuthenticationFlowService flows;
     private final AuthService auth;
-    private final AuditLogService audit;
-    private final Users users;
-    private final UserSessions sessions;
-    private final Clock clock;
-
     private final TotpService totp;
     private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
-    private final MfaChallenges mfaChallenges;
-
-    /**
-     * **A TOTP code is six digits, so the number of tries is the whole security of the second
-     * factor.** Unlimited tries against a five-minute window is a million-code space explored at
-     * whatever rate the server sustains, which is not a second factor — it is a delay. Three,
-     * then the challenge is destroyed and the password exchange starts again.
-     */
-    private static final int MAX_MFA_ATTEMPTS = 3;
-
-    /**
-     * A bound on how many challenges may be held at once.
-     *
-     * <p>Each successful password exchange by an MFA-enabled account leaves one entry, and only
-     * a success or a later presentation removes it: an abandoned sign-in leaks the entry until
-     * the process restarts. The sweep in {@link #rememberChallenge} clears what has expired, and
-     * this cap is what stops the map growing without bound between two sweeps.
-     */
-    private static final int MAX_MFA_CHALLENGES = 10_000;
 
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
     public record MfaEnableRequest(String secret, String code) {}
     public record MfaDisableRequest(String code) {}
 
     public AuthController(
+            AuthenticationFlowService flows,
             AuthService auth,
-            AuditLogService audit,
-            Users users,
-            UserSessions sessions,
-            Optional<ClientRegistrationRepository> providers,
-            SignInMethodPolicy methods,
             TotpService totp,
-            com.asmolabs.vectispire.core.services.BrandingProperties branding,
-            MfaChallenges mfaChallenges,
-            Clock clock) {
-        this.providers = providers;
-        this.methods = methods;
+            com.asmolabs.vectispire.core.services.BrandingProperties branding) {
+        this.flows = flows;
         this.auth = auth;
-        this.audit = audit;
-        this.users = users;
-        this.sessions = sessions;
         this.totp = totp;
         this.branding = branding;
-        this.mfaChallenges = mfaChallenges;
-        this.clock = clock;
     }
 
     /** @param clientId the throttle's second counter. Never the IP alone — see {@link AuthService} */
@@ -134,55 +84,31 @@ public class AuthController {
     @OpenToAnonymous
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest body, HttpServletRequest request) {
-        if (!methods.passwordAllowed()) {
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.LOGIN_BLOCKED,
-                    text(body == null ? null : body.username()),
-                    "Password sign-in is disabled on this deployment",
-                    text(body == null ? null : body.username()),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN, "Password sign-in is disabled here. Use single sign-on.");
-        }
-
-        AuthService.LoginResult result = auth.login(new AuthService.LoginRequest(
+        SignIn outcome = flows.signIn(new AuthenticationFlowService.Attempt(
                 text(body == null ? null : body.username()),
                 text(body == null ? null : body.password()),
                 clientId(body, request),
                 request.getHeader("User-Agent"),
                 request.getRemoteAddr()));
 
-        audit.record(new AuditLogService.Record(
-                result.audit().operation(),
-                result.audit().resourceId(),
-                result.audit().description(),
-                result.audit().userId(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return switch (result.outcome()) {
-            case AuthService.Outcome.Blocked blocked -> throw throttled(blocked.retryAfter());
-            case AuthService.Outcome.Invalid ignored ->
+        return switch (outcome) {
+            case SignIn.PasswordDisabled ignored -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Password sign-in is disabled here. Use single sign-on.");
+            case SignIn.Throttled throttled -> throw throttled(throttled.retryAfter());
+            case SignIn.Refused ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials.");
-            case AuthService.Outcome.Success success -> {
-                if (success.user().getMfaEnabled()) {
-                    String mfaToken = java.util.UUID.randomUUID().toString();
-                    rememberChallenge(
-                            mfaToken,
-                            success.user().getId(),
-                            clock.instant().plusSeconds(300),
-                            request.getHeader("User-Agent"),
-                            request.getRemoteAddr());
-                    yield new LoginResponse(null, null, null, true, mfaToken);
-                }
-                yield new LoginResponse(
-                        success.issued().token(),
-                        success.issued().session().getExpiresAt(),
-                        summaryOf(success.user()),
-                        false,
-                        null);
-            }
+            // 503 rather than 500: the condition is transient by construction, and five minutes
+            // clears it.
+            case SignIn.ChallengesSaturated ignored -> throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Too many sign-ins are awaiting verification. Try again in a few minutes.");
+            case SignIn.ChallengeIssued challenge -> new LoginResponse(null, null, null, true, challenge.mfaToken());
+            case SignIn.SignedIn signedIn -> new LoginResponse(
+                    signedIn.issued().token(),
+                    signedIn.issued().session().getExpiresAt(),
+                    summaryOf(signedIn.user()),
+                    false,
+                    null);
         };
     }
 
@@ -195,111 +121,24 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "MFA token and verification code are required.");
         }
 
-        // Hashed before it touches the store, like a session token: what is indexed is not a
-        // credential, so a reader of the table holds nothing they can present.
-        String challengeKey = Sessions.hashOf(body.mfaToken());
-        MfaChallengeEntity challenge = mfaChallenges.findById(challengeKey).orElse(null);
-        if (challenge == null || clock.instant().isAfter(challenge.getExpiresAt())) {
-            mfaChallenges.deleteById(challengeKey);
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "MFA challenge has expired or is invalid. Please sign in again.");
-        }
-
-        UserEntity user = users.findById(challenge.getUserId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
-
-        if (!totp.verify(user, body.code())) {
-            // **The challenge dies on the last try, and that is the control.** Leaving it alive
-            // after a wrong code is what turns a six-digit secret into a five-minute exhaustive
-            // search: the attacker keeps the same token and keeps going. Counting on the
-            // challenge rather than the account also means a wrong guess cannot be used to lock
-            // a legitimate user out — the worst it costs them is re-entering their password.
-            // Incremented by the database, not read-then-written here: two wrong codes racing
-            // would otherwise each read the same count and the challenge would absorb one guess
-            // more than it is allowed.
-            mfaChallenges.countAttempt(challengeKey);
-            boolean exhausted = mfaChallenges
-                            .findById(challengeKey)
-                            .map(MfaChallengeEntity::getAttempts)
-                            .orElse(MAX_MFA_ATTEMPTS)
-                    >= MAX_MFA_ATTEMPTS;
-            if (exhausted) {
-                mfaChallenges.deleteById(challengeKey);
-            }
-
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.LOGIN_FAILURE,
-                    user.getUsername(),
-                    exhausted
-                            ? "MFA challenge destroyed after " + MAX_MFA_ATTEMPTS
-                                    + " invalid verification codes"
-                            : "Invalid MFA verification code attempt",
-                    user.getUsername(),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-
-            // The same message either way: which of the two it is tells an attacker how many
-            // tries are left, and tells a legitimate user nothing they cannot see by trying.
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
-        }
-
-        mfaChallenges.deleteById(challengeKey);
-        AuthService.IssuedSession session =
-                auth.openSessionForUser(user, challenge.getUserAgent(), challenge.getIpAddress());
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.LOGIN_SUCCESS,
-                user.getUsername(),
-                "Signed in with MFA / TOTP: " + user.getUsername(),
-                user.getUsername(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return new LoginResponse(
-                session.token(),
-                session.session().getExpiresAt(),
-                summaryOf(user),
-                false,
-                null);
-    }
-
-    /**
-     * Stores a challenge, sweeping the ones nobody came back for.
-     *
-     * <p>An abandoned sign-in — the user closes the tab between the password and the code —
-     * leaves an entry that only a later presentation of the same token would remove, and there
-     * will not be one. Sweeping on write rather than on a timer keeps the cost proportional to
-     * the traffic that creates the entries.
-     *
-     * <p>The cap after the sweep is the backstop for the case the sweep cannot help with: ten
-     * thousand <em>live</em> challenges means something is generating them faster than they
-     * expire, and refusing is better than growing. It answers 503 rather than 500 because the
-     * condition is transient by construction — five minutes clears it.
-     *
-     * <p><b>In the database, so any instance can answer.</b> This used to be a map on this
-     * controller, which made multi-factor sign-in the one feature a documented multi-instance
-     * deployment broke: the password is exchanged on one instance and the code arrives on
-     * another, which has never heard of the token. The user was told the challenge had expired,
-     * a second after it was created, and nothing in the logs distinguished that from a real
-     * timeout. Session affinity on {@code /api/v1/auth/**} is no longer required.
-     */
-    private void rememberChallenge(String token, Long userId, Instant expiresAt, String userAgent, String ip) {
-        Instant now = clock.instant();
-        mfaChallenges.deleteExpired(now);
-
-        if (mfaChallenges.countByExpiresAtAfter(now) >= MAX_MFA_CHALLENGES) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "Too many sign-ins are awaiting verification. Try again in a few minutes.");
-        }
-
-        MfaChallengeEntity challenge = new MfaChallengeEntity();
-        challenge.setTokenHash(Sessions.hashOf(token));
-        challenge.setUserId(userId);
-        challenge.setExpiresAt(expiresAt);
-        challenge.setAttempts(0);
-        challenge.setUserAgent(userAgent);
-        challenge.setIpAddress(ip);
-        mfaChallenges.save(challenge);
+        return switch (flows.verify(
+                body.mfaToken(), body.code(), request.getHeader("User-Agent"), request.getRemoteAddr())) {
+            case Verification.ChallengeInvalid ignored -> throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "MFA challenge has expired or is invalid. Please sign in again.");
+            case Verification.AccountMissing ignored ->
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found.");
+            // The same message whether or not that code destroyed the challenge: which of the two
+            // it is tells an attacker how many tries are left, and tells a legitimate user nothing
+            // they cannot see by trying.
+            case Verification.WrongCode ignored ->
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
+            case Verification.Verified verified -> new LoginResponse(
+                    verified.issued().token(),
+                    verified.issued().session().getExpiresAt(),
+                    summaryOf(verified.user()),
+                    false,
+                    null);
+        };
     }
 
     @Operation(summary = "Setup MFA / TOTP", description = "Generates a new TOTP secret and QR code URI for 2FA setup.")
@@ -360,10 +199,11 @@ public class AuthController {
     @OpenToAnonymous
     @GetMapping("/methods")
     public SignInMethods methods() {
+        AuthenticationFlowService.SignInOptions options = flows.options();
         return new SignInMethods(
-                providers.isPresent(),
-                providers.map(this::labelOf).orElse(null),
-                methods.passwordAllowed(),
+                options.singleSignOn(),
+                options.label(),
+                options.password(),
                 branding.name(),
                 branding.gitlabUrl());
     }
@@ -382,12 +222,14 @@ public class AuthController {
         }
         clearHandoff(response, request.isSecure());
 
-        SessionEntity session = auth.resolve("Bearer " + token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "This sign-on has expired."));
-        UserEntity user = users.findById(session.getUserId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found."));
-
-        return new LoginResponse(token, session.getExpiresAt(), summaryOf(user), false, null);
+        return switch (flows.exchange(token)) {
+            case Handoff.Expired ignored ->
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "This sign-on has expired.");
+            case Handoff.AccountMissing ignored ->
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found.");
+            case Handoff.Exchanged exchanged ->
+                new LoginResponse(token, exchanged.session().getExpiresAt(), summaryOf(exchanged.user()), false, null);
+        };
     }
 
     private static String handoffToken(HttpServletRequest request) {
@@ -412,17 +254,6 @@ public class AuthController {
         response.addCookie(cleared);
     }
 
-    private String labelOf(ClientRegistrationRepository repository) {
-        if (repository instanceof Iterable<?> registrations) {
-            for (Object registration : registrations) {
-                if (registration instanceof ClientRegistration client) {
-                    return client.getClientName();
-                }
-            }
-        }
-        return "single sign-on";
-    }
-
     @RequiresAccount
     @PasswordChangeGate
     @DeleteMapping("/session")
@@ -433,16 +264,8 @@ public class AuthController {
     }
 
     /**
-     * Changes one's own password.
-     *
-     * <p>The current password is required even when {@code mustChangePassword} is set: without
-     * it, a workstation left unlocked for a minute would be enough to take the account. There is
-     * no "first login" exemption — the person has just typed that password to get here.
-     *
-     * <p>The account's <b>other</b> sessions are closed. Changing a password is what one does
-     * when one believes it compromised: leaving sessions alive elsewhere would empty the gesture
-     * of its meaning. The current session survives, or the screen would bounce back to the login
-     * page immediately after succeeding.
+     * Changes one's own password; the rules, and why the other sessions close, are on
+     * {@link AuthenticationFlowService#changePassword}.
      */
     @RequiresAccount
     @PasswordChangeGate
@@ -452,34 +275,19 @@ public class AuthController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        UserEntity user = principal.requireUser();
-        String current = text(body == null ? null : body.currentPassword());
-        String next = text(body == null ? null : body.newPassword());
+        AuthenticationFlowService.PasswordChange outcome = flows.changePassword(
+                principal.requireUser(),
+                principal.session(),
+                text(body == null ? null : body.currentPassword()),
+                text(body == null ? null : body.newPassword()),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"));
 
-        if (!PasswordHasher.verify(current, user.getPassword())) {
+        if (outcome == AuthenticationFlowService.PasswordChange.CURRENT_PASSWORD_WRONG) {
             // 401 and not 400: what is missing is proof of identity, not a well-formed field,
             // and the screen has to be able to tell the two apart.
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect.");
         }
-        AccountRules.validatePassword(next).ifPresent(message -> {
-            throw new IllegalArgumentException(message);
-        });
-        if (next.equals(current)) {
-            throw new IllegalArgumentException("The new password is the same as the old one.");
-        }
-
-        users.changePassword(user.getId(), PasswordHasher.hash(next), clock.instant());
-        principal.session()
-                .ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.getTokenHash()));
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.PASSWORD_CHANGED,
-                String.valueOf(user.getId()),
-                "Password changed by " + user.getUsername(),
-                user.getUsername(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
         return Map.of("mustChangePassword", false);
     }
 

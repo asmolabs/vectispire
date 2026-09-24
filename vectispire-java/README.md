@@ -58,7 +58,7 @@ the same commit that violates it; a missing dependency cannot.
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
-| An expired session, a reset password and a role change all close the sessions | `UsersController` |
+| An expired session, a reset password and a role change all close the sessions | `AccountAdministrationService` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
@@ -176,7 +176,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | | |
 |---|---|
 | `mustChangePassword` was enforced by the Angular client alone — a direct API call ignored it, and the bootstrap password stayed a valid SUPERUSER credential with no expiry | `PasswordChangeInterceptor` |
-| Resetting a password did not close the account's sessions, so a stolen token kept working for twelve hours while the screen confirmed the change | `UsersController` |
+| Resetting a password did not close the account's sessions, so a stolen token kept working for twelve hours while the screen confirmed the change | `AccountAdministrationService` |
 | The dispatcher consulted the transport and not the agent's `credentialsMode`, so an agent declared `local` received every repository's decrypted deployment key | `ScanDispatcher` |
 | A malformed notification threshold fell back to `UNKNOWN`, which ranks last — the threshold silently let everything through | `NotificationService` |
 | The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityController` |

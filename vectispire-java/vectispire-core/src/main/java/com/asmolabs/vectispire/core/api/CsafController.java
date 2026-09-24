@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.CsafGeneratorService;
@@ -27,10 +27,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class CsafController {
 
     private final CsafGeneratorService csafService;
-    private final Scans scans;
+    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
-    public CsafController(CsafGeneratorService csafService, Scans scans, VisibilityService visibility) {
+    public CsafController(CsafGeneratorService csafService, ScanDocumentService scans, VisibilityService visibility) {
         this.csafService = csafService;
         this.scans = scans;
         this.visibility = visibility;
@@ -66,7 +66,7 @@ public class CsafController {
      */
     private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
         Visibilities.requireVisible(
-                scans.findById(scanId).orElse(null),
+                scans.scan(scanId).orElse(null),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 

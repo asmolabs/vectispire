@@ -1,0 +1,283 @@
+package com.asmolabs.vectispire.core.services;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.users.AccountRules;
+import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
+import com.asmolabs.vectispire.core.repositories.UserSessions;
+import com.asmolabs.vectispire.core.repositories.UserTargets;
+import com.asmolabs.vectispire.core.repositories.Users;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import org.springframework.stereotype.Service;
+
+/**
+ * An administrator managing other people's accounts: the guard rails, the audit trail, and what
+ * each gesture revokes.
+ *
+ * <p><b>Beside {@link AccountAdminService}, not merged into it.</b> That class exists for its
+ * transaction boundaries and says so; the rules here — who may be demoted, which change closes
+ * the sessions — decide <em>what</em> to write, and call it to write it atomically. The audit
+ * entry is written here, after it returns, for the reason that class gives: an audited action
+ * that rolls back is still recorded as attempted only if its entry is outside the boundary.
+ *
+ * <p>Every refusal is an {@link IllegalArgumentException} carrying text meant for the screen, and
+ * every missing account a {@link NoSuchElementException} — the 400 and the 404 the handler maps.
+ */
+@Service
+public class AccountAdministrationService {
+
+    private final Users users;
+    private final UserSessions sessions;
+    private final UserTargets assignments;
+    private final AccountAdminService accounts;
+    private final AuditLogService audit;
+    private final Clock clock;
+
+    public AccountAdministrationService(
+            Users users,
+            UserSessions sessions,
+            UserTargets assignments,
+            AccountAdminService accounts,
+            AuditLogService audit,
+            Clock clock) {
+        this.users = users;
+        this.sessions = sessions;
+        this.assignments = assignments;
+        this.accounts = accounts;
+        this.audit = audit;
+        this.clock = clock;
+    }
+
+    /**
+     * Who is acting, as the audit entry names them.
+     *
+     * @param id the acting account, or null for a caller that is not one — used to recognise a
+     *     change to one's own account
+     */
+    public record Actor(Long id, String username, String ipAddress, String userAgent) {}
+
+    /** An account and how many live sessions it holds. */
+    public record AccountView(UserEntity user, long activeSessions) {}
+
+    /** @param kind {@code repository} or {@code container}, stored as sent */
+    public record TargetAssignment(String kind, Long id) {}
+
+    public record NewAccount(String username, String password, String role, String email, String displayName) {}
+
+    /** Every field optional: absent means "leave it as it is". */
+    public record AccountChange(String role, Boolean isActive, String password) {}
+
+    public List<AccountView> list() {
+        Map<Long, Long> active = activeSessionsByUser();
+        List<AccountView> views = new ArrayList<>();
+        users.findAllByOrderByUsernameAsc()
+                .forEach(user -> views.add(new AccountView(user, active.getOrDefault(user.getId(), 0L))));
+        return views;
+    }
+
+    public AccountView create(NewAccount request, Actor actor) {
+        String username = trim(request.username());
+        String password = request.password() == null ? "" : request.password();
+        String role = trim(request.role()).isEmpty() ? Role.USER.name() : trim(request.role()).toUpperCase(Locale.ROOT);
+
+        refuseIfInvalid(AccountRules.validateUsername(username));
+        refuseIfInvalid(AccountRules.validatePassword(password));
+        if (Role.of(role).isEmpty()) {
+            throw new IllegalArgumentException("Unknown role: " + role + ".");
+        }
+        if (users.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("The username \"" + username + "\" is already taken.");
+        }
+
+        Instant createdAt = clock.instant();
+        UserEntity user = new UserEntity();
+        user.setUsername(username);
+        user.setEmail(optional(request.email()));
+        user.setDisplayName(optional(request.displayName()));
+        user.setPassword(PasswordHasher.hash(password));
+        user.setRole(role);
+        user.setIsActive(true);
+        // The password set here is known to the administrator who typed it: it is a pass, not
+        // the account's secret.
+        user.setMustChangePassword(true);
+        user.setCreatedAt(createdAt);
+        user.setUpdatedAt(createdAt);
+
+        UserEntity saved = users.save(user);
+        record(actor, saved.getId(), "Account created: " + username + " (" + role + ")");
+        return new AccountView(saved, 0);
+    }
+
+    /**
+     * Role, activation and password reset.
+     *
+     * <p>The three carry the same guard rails, so there is one entry point rather than three to
+     * keep in step.
+     */
+    public AccountView update(long id, AccountChange change, Actor actor) {
+        UserEntity user = requireAccount(id);
+
+        String role = change.role() == null ? user.getRole() : trim(change.role()).toUpperCase(Locale.ROOT);
+        boolean isActive = change.isActive() == null ? user.getIsActive() : change.isActive();
+        String password = change.password();
+
+        if (Role.of(role).isEmpty()) {
+            throw new IllegalArgumentException("Unknown role: " + role + ".");
+        }
+        if (password != null) {
+            refuseIfInvalid(AccountRules.validatePassword(password));
+        }
+
+        refuseIfInvalid(AccountRules.refuseSelfLockout(new AccountRules.Change(
+                isSelf(actor, id),
+                isAdministrative(user.getRole()) && user.getIsActive(),
+                isAdministrative(role),
+                isActive,
+                (int) countOtherActiveAdmins(id))));
+
+        List<String> changes = new ArrayList<>();
+        String previousRole = user.getRole();
+        if (!role.equals(user.getRole())) {
+            changes.add("role " + user.getRole() + " → " + role);
+        }
+        if (isActive != user.getIsActive()) {
+            changes.add(isActive ? "reactivated" : "deactivated");
+        }
+        if (password != null) {
+            changes.add("password reset");
+        }
+
+        user.setRole(role);
+        user.setIsActive(isActive);
+        user.setUpdatedAt(clock.instant());
+        if (password != null) {
+            user.setPassword(PasswordHasher.hash(password));
+            user.setMustChangePassword(true);
+        }
+        // **Three gestures close the sessions, not one.**
+        //
+        // Deactivating, obviously: otherwise the account stays inside until its session expires
+        // and "deactivated" stops meaning anything.
+        //
+        // But resetting a password too, and that is the one that was missing — even though it is
+        // the incident-response gesture. An administrator told of a stolen token resets the
+        // password, the screen confirms, and the stolen token goes on authenticating for up to
+        // twelve hours, its idle window pushed back on every call. The password changes, the
+        // access does not.
+        //
+        // And changing a role: an open session carries the role re-read on every request, so a
+        // demotion does take effect — but closing the session makes that explicit rather than
+        // dependent on that detail.
+        // The save and the revocation share a transaction, in `AccountAdminService`. They used
+        // to be two, which meant a failure between them left the password changed and the
+        // session that the change was meant to close still open — the very outcome the
+        // paragraph above describes as the defect being fixed.
+        boolean revoke = !isActive || password != null || !role.equals(previousRole);
+        accounts.save(user, revoke);
+
+        if (!changes.isEmpty()) {
+            record(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
+        }
+        return new AccountView(user, revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
+    }
+
+    /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
+    public List<TargetAssignment> targets(long id) {
+        requireAccount(id);
+        return assignments.findByUserId(id).stream()
+                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .toList();
+    }
+
+    /**
+     * Replaces the set wholesale.
+     *
+     * <p>Wholesale rather than add-and-remove, because the operation that matters is
+     * <em>removing</em> one: a screen that sends what it wants and a server that only adds is a
+     * revocation that silently does nothing.
+     */
+    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> wanted, Actor actor) {
+        UserEntity user = requireAccount(id);
+
+        accounts.replaceTargets(id, wanted.stream()
+                .map(assignment -> new UserTargetEntity(id, assignment.kind(), assignment.id()))
+                .toList());
+
+        // Audited like a role change, because it is the same kind of decision: it changes what
+        // somebody can read, by a gesture just as quiet.
+        record(actor, id,
+                "Visible targets of " + user.getUsername() + ": "
+                        + (wanted.isEmpty() ? "none" : wanted.size() + " assigned"));
+        return wanted;
+    }
+
+    public void delete(long id, Actor actor) {
+        UserEntity user = requireAccount(id);
+
+        refuseIfInvalid(AccountRules.refuseDeletion(
+                isSelf(actor, id), isAdministrative(user.getRole()) && user.getIsActive(), (int) countOtherActiveAdmins(id)));
+
+        accounts.delete(id);
+        record(actor, id, "Account deleted: " + user.getUsername());
+    }
+
+    private UserEntity requireAccount(long id) {
+        return users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
+    }
+
+    private static boolean isSelf(Actor actor, long id) {
+        return actor.id() != null && actor.id().equals(id);
+    }
+
+    private long countOtherActiveAdmins(long excludedId) {
+        return users.countActiveAdministratorsExcluding(
+                Role.administrative().stream().map(Enum::name).toList(), excludedId);
+    }
+
+    private Map<Long, Long> activeSessionsByUser() {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : sessions.countActiveByUser(clock.instant())) {
+            counts.put(((Number) row[0]).longValue(), ((Number) row[1]).longValue());
+        }
+        return counts;
+    }
+
+    private void record(Actor actor, long id, String description) {
+        audit.record(new AuditLogService.Record(
+                AuditOperation.USER_UPDATED,
+                String.valueOf(id),
+                description,
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    private static boolean isAdministrative(String role) {
+        return Role.of(role).map(Role::isAdministrative).orElse(false);
+    }
+
+    private static void refuseIfInvalid(Optional<String> refusal) {
+        refusal.ifPresent(message -> {
+            throw new IllegalArgumentException(message);
+        });
+    }
+
+    private static String trim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private static String optional(String value) {
+        String trimmed = trim(value);
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+}

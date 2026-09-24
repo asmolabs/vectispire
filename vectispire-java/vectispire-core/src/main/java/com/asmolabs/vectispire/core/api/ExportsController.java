@@ -1,29 +1,13 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
-import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
-import com.asmolabs.vectispire.common.domain.exports.IssueCsv;
-import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
-import com.asmolabs.vectispire.common.domain.exports.OpenVexExport;
-import com.asmolabs.vectispire.common.domain.exports.SarifExport;
+import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.SlaService;
-import com.asmolabs.vectispire.core.services.ExportProperties;
-import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.ExportQueryService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
-import com.asmolabs.vectispire.core.services.IssueViews;
-import com.asmolabs.vectispire.core.services.PostureReport;
-import com.asmolabs.vectispire.core.services.TargetNaming;
-import java.time.Clock;
-import java.util.List;
-import java.util.NoSuchElementException;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,97 +19,54 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The three formats Vectispire hands to somebody else: a code-scanning platform, an auditor, a
+ * The formats Vectispire hands to somebody else: a code-scanning platform, an auditor, a
  * spreadsheet.
  *
- * <p>The documents are built by the domain. This controller only picks the issues and sets the
- * headers — deliberately all it is allowed to do.
+ * <p>The documents are built by the domain and assembled by {@link ExportQueryService}. This
+ * controller refuses a target the caller may not see and sets the headers — deliberately all it
+ * is allowed to do.
  */
 @RestController
 @RequestMapping("/api/v1/targets/{kind}/{id}")
 @RequiresAccount
 public class ExportsController {
 
-    /**
-     * Exports do not paginate: a partial document handed to an auditor would be worse than a
-     * heavy one. The ceiling stays as a guard against a pathological backlog.
-     */
-    private static final int MAX_EXPORTED = 50_000;
-
-    private final Issues issues;
-    private final GateService gate;
-    private final TargetNaming naming;
-    private final ExportProperties properties;
-    private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
+    private final ExportQueryService exports;
     private final VisibilityService visibility;
-    private final Clock clock;
 
-    private final SlaService sla;
-
-    public ExportsController(
-            Issues issues,
-            GateService gate,
-            TargetNaming naming,
-            ExportProperties properties,
-            com.asmolabs.vectispire.core.services.BrandingProperties branding,
-            VisibilityService visibility,
-            Clock clock,
-            SlaService sla) {
-        this.sla = sla;
-        this.issues = issues;
-        this.gate = gate;
-        this.naming = naming;
-        this.properties = properties;
-        this.branding = branding;
+    public ExportsController(ExportQueryService exports, VisibilityService visibility) {
+        this.exports = exports;
         this.visibility = visibility;
-        this.clock = clock;
     }
 
     /**
      * The backlog as SARIF 2.1.0.
      *
      * <p>What takes a finding out of the dashboard and puts it on the merge request that
-     * introduced it. Quality findings carry their own tags: marking them "security" would raise
-     * them as security alerts.
+     * introduced it.
      */
     @GetMapping("/issues.sarif")
     public ResponseEntity<SarifLog> sarif(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id) {
-        requireVisible(principal, kind, id);
-        String name = targetName(kind, id);
+        ScanTarget target = requireVisible(principal, kind, id);
+        SarifLog document = exports.sarif(target);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".sarif"))
                 .contentType(MediaType.parseMediaType("application/sarif+json"))
-                .body(SarifExport.build(
-                        exportable(kind, id, null),
-                        new SarifExport.Options(name, properties.toolVersion(), properties.publicUrl().orElse(null))));
+                .body(document);
     }
 
-    /**
-     * The triage decisions as OpenVEX.
-     *
-     * <p>The author, the identifier and the timestamp belong to whoever publishes the document:
-     * a VEX is an assertion about who said what, and when. The caller may therefore supply the
-     * author.
-     */
+    /** The triage decisions as OpenVEX; the caller may name the author. */
     @GetMapping("/vex")
     public ResponseEntity<OpenVexDocument> vex(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
-        requireVisible(principal, kind, id);
-
-        String name = targetName(kind, id);
-        OpenVexDocument document = OpenVexExport.build(
-                exportable(kind, id, null),
-                new OpenVexExport.Options(
-                        author == null || author.isBlank() ? properties.vexAuthor() : author,
-                        name,
-                        properties.publicUrl().orElse("urn:vectispire") + "/vex/" + kind + "/" + id,
-                        clock.instant()));
+        ScanTarget target = requireVisible(principal, kind, id);
+        OpenVexDocument document = exports.openVex(target, author);
 
         // Downloaded like the other three. It used to render in the tab, which is fine for a
         // developer poking at the API and useless for the button that hands the document to
@@ -140,23 +81,13 @@ public class ExportsController {
      * The triage decisions as OASIS CSAF 2.0 (VEX profile).
      */
     @GetMapping("/issues.csaf.json")
-    public ResponseEntity<com.asmolabs.vectispire.common.domain.exports.CsafDocument> csaf(
+    public ResponseEntity<CsafDocument> csaf(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
-        requireVisible(principal, kind, id);
-
-        String name = targetName(kind, id);
-        com.asmolabs.vectispire.common.domain.exports.CsafDocument document =
-                com.asmolabs.vectispire.common.domain.exports.CsafExport.build(
-                        exportable(kind, id, null),
-                        new com.asmolabs.vectispire.common.domain.exports.CsafExport.Options(
-                                name,
-                                author == null || author.isBlank() ? properties.vexAuthor() : author,
-                                properties.toolVersion(),
-                                properties.publicUrl().orElse("https://vectispire.internal"),
-                                clock.instant()));
+        ScanTarget target = requireVisible(principal, kind, id);
+        CsafDocument document = exports.csaf(target, author);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".csaf.json"))
@@ -167,10 +98,8 @@ public class ExportsController {
     /**
      * The posture, as something a person reads.
      *
-     * <p>The other three exports go to machines — a code host, a downstream consumer, a
-     * spreadsheet. This one goes to an auditor or a steering committee, and carries the verdict
-     * and the observation together: a target nobody scanned passes every policy, and a document
-     * that outlives the screen must not let that read as a clean bill of health.
+     * <p>The other exports go to machines — a code host, a downstream consumer, a spreadsheet.
+     * This one goes to an auditor or a steering committee.
      */
     @GetMapping("/posture.pdf")
     public ResponseEntity<byte[]> pdf(
@@ -178,29 +107,8 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
-        requireVisible(principal, kind, id);
-
-        ScanTarget target = isRepository(kind) ? new ScanTarget.Repository(id) : new ScanTarget.Container(id);
-        // The same construction the Security screen renders, narrowed to one target. Computing
-        // the verdict a second way here would let the document and the screen disagree, which
-        // is the one disagreement nobody would think to check.
-        SecurityOverview.TargetPosture posture = gate.overview(Visibility.only(List.of(target))).targets().stream()
-                .findFirst()
-                .orElseThrow(() -> new NoSuchElementException("No " + kind + " with id " + id + "."));
-
-        byte[] document = PostureReport.render(
-                new PostureReport.Subject(
-                        targetName(kind, id),
-                        kind,
-                        posture.verdict().passed(),
-                        posture.observed(),
-                        posture.observation().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '),
-                        posture.policy().describeSource(),
-                        posture.lastScan().map(SecurityOverview.LatestScan::createdAt).orElse(null),
-                        clock.instant(),
-                        branding.name()),
-                exportable(kind, id, state),
-                sla.policy());
+        ScanTarget target = requireVisible(principal, kind, id);
+        byte[] document = exports.posturePdf(target, state);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".pdf"))
@@ -214,13 +122,12 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
-        requireVisible(principal, kind, id);
-
-        targetName(kind, id);
+        ScanTarget target = requireVisible(principal, kind, id);
+        String document = exports.csv(target, state);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".csv"))
                 .contentType(MediaType.parseMediaType("text/csv; charset=utf-8"))
-                .body(IssueCsv.build(exportable(kind, id, state)));
+                .body(document);
     }
 
     /**
@@ -228,45 +135,20 @@ public class ExportsController {
      * It is therefore the route where a missing check costs most, and the one a caller reaches
      * by guessing a number rather than by clicking a link.
      */
-    private void requireVisible(VectispirePrincipal principal, String kind, long id) {
+    private ScanTarget requireVisible(VectispirePrincipal principal, String kind, long id) {
+        ScanTarget target = targetOf(kind, id);
         Visibilities.requireVisible(
-                isRepository(kind) ? new ScanTarget.Repository(id) : new ScanTarget.Container(id),
+                target,
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        return target;
     }
 
-    private List<ExportableIssue> exportable(String kind, long targetId, String state) {
-        boolean isRepository = isRepository(kind);
-        IssueFilters filters = new IssueFilters(
-                "all".equals(state) ? null : state,
-                null,
-                null,
-                null,
-                isRepository ? targetId : null,
-                isRepository ? null : targetId,
-                false,
-                false,
-                null);
-
-        return issues.findAll(filters.toSpecification(), PageRequest.ofSize(MAX_EXPORTED)).stream()
-                .map(IssueViews::forExport)
-                .toList();
-    }
-
-    private String targetName(String kind, long id) {
-        TargetNaming.Names names = naming.all();
-        String name = isRepository(kind) ? names.repositories().get(id) : names.containers().get(id);
-        if (name == null) {
-            throw new NoSuchElementException("No " + kind + " with id " + id + ".");
-        }
-        return name;
-    }
-
-    private static boolean isRepository(String kind) {
+    private static ScanTarget targetOf(String kind, long id) {
         if ("repository".equals(kind)) {
-            return true;
+            return new ScanTarget.Repository(id);
         }
         if ("container".equals(kind)) {
-            return false;
+            return new ScanTarget.Container(id);
         }
         throw new IllegalArgumentException("Unknown target kind: " + kind + ". Expected \"repository\" or \"container\".");
     }

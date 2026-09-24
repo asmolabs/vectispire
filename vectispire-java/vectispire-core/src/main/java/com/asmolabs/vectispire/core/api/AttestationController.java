@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.AttestationService;
@@ -21,11 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AttestationController {
 
     private final AttestationService service;
-    private final Scans scans;
+    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
     public AttestationController(
-            AttestationService service, Scans scans, VisibilityService visibility) {
+            AttestationService service, ScanDocumentService scans, VisibilityService visibility) {
         this.service = service;
         this.scans = scans;
         this.visibility = visibility;
@@ -46,7 +46,7 @@ public class AttestationController {
      */
     private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
         Visibilities.requireVisible(
-                scans.findById(scanId).orElse(null),
+                scans.scan(scanId).orElse(null),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
