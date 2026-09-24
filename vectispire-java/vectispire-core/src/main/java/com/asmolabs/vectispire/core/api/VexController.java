@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.services.VexGeneratorService;
 import com.asmolabs.vectispire.core.services.VexIngestorService;
+import com.asmolabs.vectispire.core.services.IssueDecisionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * REST controller exposing standardized OpenVEX v0.2.0 documents and handling multi-format VEX ingestion.
@@ -71,11 +73,20 @@ public class VexController {
 
     // **A VEX document says "not affected".** Accepting one from any account means any
     // account can silence findings across the estate — the same decision the four-eyes workflow
-    // makes deliberately expensive when a human takes it through the interface.
+    // makes deliberately expensive when a human takes it through the interface. The caller is
+    // handed to the service, which takes the decision in their name, within what they may see,
+    // and refuses the platform governor — see VexIngestorService.
     @RequiresSecurityLead
     @PostMapping(value = "/ingest", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public VexIngestorService.IngestionResult ingestVex(@RequestBody String payload) {
-        return vexIngestor.ingestPayload(payload);
+    public VexIngestorService.IngestionResult ingestVex(
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            @RequestBody String payload,
+            HttpServletRequest request) {
+        return vexIngestor.ingestPayload(payload, new IssueDecisionService.Caller(
+                principal.user(),
+                allowanceOf(principal),
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent")));
     }
 
     /**

@@ -1,8 +1,11 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
@@ -12,8 +15,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Ingests upstream vendor VEX documents (OpenVEX, OASIS CSAF 2.0, and CycloneDX VEX)
@@ -28,17 +32,39 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Trying formats in turn is right: a caller uploads a file and should not have to declare its
  * shape. Swallowing the reason is not. What is kept now is <em>why</em> each attempt failed, and
  * a payload that matched no format at all returns that instead of silence.
+ *
+ * <p><b>An import is a triage decision taken by the person who uploads it.</b> It used to be
+ * taken by nobody: the decision was recorded as made by {@code upstream_vex (<author>)}, the author
+ * being whatever the uploaded document said; four-eyes was skipped with a hard-coded approval; no
+ * audit entry was written; every matching issue on every target was settled whatever the caller
+ * could see; and the platform governor — the one role that "causes no effects and approves
+ * nothing" — could do it. A single upload marked a CVE not affected across the estate with no
+ * trace of who did it, and the dismissal flowed into the signed CSAF, CycloneDX and OpenVEX
+ * exports. Now the caller is the actor, the document's author stays in the comment, the caller's
+ * visibility bounds the match, four-eyes applies as it does in the interface, the governor is
+ * refused, and one audit entry records the import.
  */
 @Service
 public class VexIngestorService {
 
     private final Issues issuesRepo;
     private final IssueTriageService triageService;
+    private final SettingsService settings;
+    private final AuditLogService audit;
+    private final TransactionTemplate transactions;
     private final ObjectMapper json;
 
-    public VexIngestorService(Issues issuesRepo, IssueTriageService triageService) {
+    public VexIngestorService(
+            Issues issuesRepo,
+            IssueTriageService triageService,
+            SettingsService settings,
+            AuditLogService audit,
+            TransactionTemplate transactions) {
         this.issuesRepo = issuesRepo;
         this.triageService = triageService;
+        this.settings = settings;
+        this.audit = audit;
+        this.transactions = transactions;
         this.json = new ObjectMapper()
                 .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
                 .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -50,22 +76,63 @@ public class VexIngestorService {
             int triagedIssues,
             List<String> appliedCves) {}
 
-    @Transactional
-    public IngestionResult ingestPayload(String payload) {
+    /** Who imports, what they may see and whether their dismissals settle or wait for approval. */
+    private record Importer(IssueDecisionService.Caller caller, boolean canApprove) {}
+
+    /**
+     * Imports a document on behalf of {@code caller}.
+     *
+     * <p>The triage writes share one transaction; the audit entry is written after it commits. The
+     * entry opens a transaction of its own, and on SQLite — where the lock is the file — a second
+     * connection opened inside the first waits on its write lock until it times out.
+     *
+     * @throws AccessDeniedException for the platform governor, whose role decides the rules and
+     *     takes no triage decision under them
+     */
+    public IngestionResult ingestPayload(String payload, IssueDecisionService.Caller caller) {
+        if (caller.user().flatMap(user -> Role.of(user.getRole())).map(Role::governsPlatform).orElse(false)) {
+            throw new AccessDeniedException(
+                    "Importing VEX settles triage decisions, and the platform governor takes none: "
+                            + "it decides the rules the others act under.");
+        }
         if (payload == null || payload.isBlank()) {
             return new IngestionResult(0, 0, 0, List.of());
         }
+        JsonNode root;
         try {
-            JsonNode root = json.readTree(payload);
-            return ingestAuto(root);
+            root = json.readTree(payload);
         } catch (Exception notJson) {
             throw new IllegalArgumentException(
                     "This is not a JSON document: " + firstLineOf(notJson), notJson);
         }
+
+        Importer importer = new Importer(caller, canApprove(caller));
+        IngestionResult result = transactions.execute(status -> ingestAuto(root, importer));
+
+        audit.record(new AuditLogService.Record(
+                AuditOperation.ISSUE_TRIAGED,
+                result.triagedIssues() + " issues",
+                "VEX import: " + result.triagedIssues() + " issue(s) triaged not affected"
+                        + (importer.canApprove() ? "" : " (pending approval)")
+                        + " for " + result.appliedCves().size() + " vulnerabilit"
+                        + (result.appliedCves().size() == 1 ? "y" : "ies")
+                        + (result.appliedCves().isEmpty() ? "" : " — " + String.join(", ", result.appliedCves()))
+                        + " — per-issue transitions are in each issue's triage history",
+                caller.actor(),
+                caller.ipAddress(),
+                caller.userAgent()));
+        return result;
     }
 
-    @Transactional
-    public IngestionResult ingestAuto(JsonNode root) {
+    /** Four-eyes, exactly as {@code IssueDecisionService} applies it to a decision taken by hand. */
+    private boolean canApprove(IssueDecisionService.Caller caller) {
+        return !settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED) || caller.user()
+                .flatMap(user -> Role.of(user.getRole()))
+                .map(Role::canApproveTriage)
+                .orElse(false);
+    }
+
+    private IngestionResult ingestAuto(JsonNode root, Importer importer) {
         if (root == null) {
             return new IngestionResult(0, 0, 0, List.of());
         }
@@ -76,7 +143,7 @@ public class VexIngestorService {
         if (root.has("bomFormat") && "CycloneDX".equalsIgnoreCase(root.get("bomFormat").asText())) {
             try {
                 CycloneDxDocument cdx = json.treeToValue(root, CycloneDxDocument.class);
-                return ingestCycloneDx(cdx);
+                return ingestCycloneDx(cdx, importer);
             } catch (Exception refused) {
                 refusals.add("CycloneDX: " + firstLineOf(refused));
             }
@@ -86,7 +153,7 @@ public class VexIngestorService {
         if (root.has("statements") || (root.has("@context") && root.get("@context").asText().contains("openvex"))) {
             try {
                 OpenVexDocument openVex = json.treeToValue(root, OpenVexDocument.class);
-                return ingestOpenVex(openVex);
+                return ingestOpenVex(openVex, importer);
             } catch (Exception refused) {
                 refusals.add("OpenVEX: " + firstLineOf(refused));
             }
@@ -96,7 +163,7 @@ public class VexIngestorService {
         try {
             OpenVexDocument doc = json.treeToValue(root, OpenVexDocument.class);
             if (doc.statements() != null && !doc.statements().isEmpty()) {
-                return ingestOpenVex(doc);
+                return ingestOpenVex(doc, importer);
             }
         } catch (Exception refused) {
             refusals.add("OpenVEX: " + firstLineOf(refused));
@@ -109,8 +176,7 @@ public class VexIngestorService {
                 : "No VEX format could read this document — " + String.join("; ", refusals));
     }
 
-    @Transactional
-    public IngestionResult ingestCycloneDx(CycloneDxDocument doc) {
+    private IngestionResult ingestCycloneDx(CycloneDxDocument doc, Importer importer) {
         if (doc == null || doc.vulnerabilities() == null || doc.vulnerabilities().isEmpty()) {
             return new IngestionResult(0, 0, 0, List.of());
         }
@@ -130,7 +196,7 @@ public class VexIngestorService {
             }
 
             if (vuln.analysis() != null && "not_affected".equalsIgnoreCase(vuln.analysis().state())) {
-                List<IssueEntity> matchingIssues = issuesRepo.findByIdentifier(cveId);
+                List<IssueEntity> matchingIssues = visibleTo(importer, issuesRepo.findByIdentifier(cveId));
                 matched += matchingIssues.size();
 
                 com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapCycloneDxJustification(vuln.analysis().justification());
@@ -147,11 +213,11 @@ public class VexIngestorService {
                             issue.getId(),
                             new Triage.Request(
                                     TriageStatus.NOT_AFFECTED,
-                                    "upstream_vex (CycloneDX: " + author + ")",
+                                    importer.caller().actor(),
                                     justification,
                                     comment,
                                     null),
-                            true);
+                            importer.canApprove());
                     triaged++;
                 }
                 appliedCves.add(cveId);
@@ -161,8 +227,7 @@ public class VexIngestorService {
         return new IngestionResult(doc.vulnerabilities().size(), matched, triaged, appliedCves);
     }
 
-    @Transactional
-    public IngestionResult ingestOpenVex(OpenVexDocument doc) {
+    private IngestionResult ingestOpenVex(OpenVexDocument doc, Importer importer) {
         if (doc == null || doc.statements() == null || doc.statements().isEmpty()) {
             return new IngestionResult(0, 0, 0, List.of());
         }
@@ -186,7 +251,7 @@ public class VexIngestorService {
             }
 
             if (statement.status() == VexStatus.NOT_AFFECTED) {
-                List<IssueEntity> matchingIssues = issuesRepo.findByIdentifier(cveId);
+                List<IssueEntity> matchingIssues = visibleTo(importer, issuesRepo.findByIdentifier(cveId));
                 matched += matchingIssues.size();
 
                 com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapJustification(statement.justification());
@@ -204,11 +269,11 @@ public class VexIngestorService {
                             issue.getId(),
                             new Triage.Request(
                                     TriageStatus.NOT_AFFECTED,
-                                    "upstream_vex (" + author + ")",
+                                    importer.caller().actor(),
                                     justification,
                                     comment,
                                     null),
-                            true);
+                            importer.canApprove());
                     triaged++;
                 }
                 appliedCves.add(cveId);
@@ -216,6 +281,16 @@ public class VexIngestorService {
         }
 
         return new IngestionResult(doc.statements().size(), matched, triaged, appliedCves);
+    }
+
+    /**
+     * The issues the importer may see. A document names a CVE, not a target: without this, one
+     * upload settled the CVE on every target in the deployment, including the caller's blind spots.
+     */
+    private static List<IssueEntity> visibleTo(Importer importer, List<IssueEntity> issues) {
+        return issues.stream()
+                .filter(issue -> RowVisibility.isVisible(issue, importer.caller().visibility()))
+                .toList();
     }
 
     /** Jackson's messages carry the whole path on later lines; the first says what went wrong. */

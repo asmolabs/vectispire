@@ -81,7 +81,7 @@ class VexInteroperabilityTest extends VectispireContextTest {
     void readsAConformantDocument() {
         excepted("CVE-2026-0001", "pkg:maven/org.example/lib@1.0.0");
 
-        VexIngestorService.IngestionResult result = ingestor.ingestPayload(CONFORMANT);
+        VexIngestorService.IngestionResult result = ingestor.ingestPayload(CONFORMANT, ciso());
 
         assertThat(result.statementsProcessed())
                 .as("every conformant producer emits products as objects; refusing them silently "
@@ -100,7 +100,7 @@ class VexInteroperabilityTest extends VectispireContextTest {
                 .replace("[{\"@id\": \"pkg:maven/org.example/lib@1.0.0\"}]",
                         "[\"pkg:maven/org.example/other@2.0.0\"]");
 
-        assertThat(ingestor.ingestPayload(olderForm).statementsProcessed())
+        assertThat(ingestor.ingestPayload(olderForm, ciso()).statementsProcessed())
                 .as("Vectispire emitted this form itself for a long time; refusing it now would "
                         + "reject the documents it taught its own users to keep")
                 .isEqualTo(1);
@@ -114,11 +114,23 @@ class VexInteroperabilityTest extends VectispireContextTest {
         String emitted = serialise(generator.generateAggregate(
                 com.asmolabs.vectispire.common.domain.access.Visibility.everything()));
 
-        assertThat(ingestor.ingestPayload(emitted).statementsProcessed())
+        assertThat(ingestor.ingestPayload(emitted, ciso()).statementsProcessed())
                 .as("two serialisations of one standard inside one product is how the two come to "
                         + "disagree, and this is the assertion that notices")
                 .isPositive();
         assertThat(repoId).isPositive();
+    }
+
+    /** The import takes decisions in its caller's name; these tests are about the format, not who. */
+    private static IssueDecisionService.Caller ciso() {
+        com.asmolabs.vectispire.core.persistence.UserEntity user = new com.asmolabs.vectispire.core.persistence.UserEntity();
+        user.setUsername("ciso");
+        user.setRole(com.asmolabs.vectispire.common.domain.users.Role.CISO.name());
+        return new IssueDecisionService.Caller(
+                java.util.Optional.of(user),
+                com.asmolabs.vectispire.common.domain.access.Visibility.everything(),
+                "192.0.2.1",
+                "test");
     }
 
     private String serialise(Object document) {
