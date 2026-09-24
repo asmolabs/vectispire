@@ -37,11 +37,20 @@ The series is narrowed by your visibility like every other view — see
 
 ## Security posture grade
 
-Repositories carry a posture grade and a set of recommendations, alongside their business
-criticality tier. The tier is what you set when registering the repository; the grade is
-computed from the backlog. A Tier 1 service at a poor grade is the first line to read on
+The maturity ranking gives each repository and container a grade from A to F, alongside its
+business criticality tier. The tier is what you set when registering the repository; the grade
+is computed from the backlog. A Tier 1 service at a poor grade is the first line to read on
 this page.
 
-A repository can also expose a **dynamic badge for its README**, which is how the grade
-gets in front of the people committing to it rather than only the people reading this
-dashboard.
+The ranking's rule is its own: starting from 100, every **unresolved** issue costs points by
+severity — critical 25, high 10, medium 3, anything else 1, and an issue with no severity is
+counted as medium. The grade is A from 90, B from 75, C from 50, D from 30, F below. Unresolved
+includes issues triaged not affected: this ranking measures what a target still carries, not
+what has been decided about it.
+
+**This is not the scorecard grade.** A repository's scorecard, and the README badge built from
+it, uses a different rule — exploited vulnerabilities, reachability, licences, triage — and a
+scale from A+ to F, described in
+[How the scorecard grade is computed](repositories.md#how-the-scorecard-grade-is-computed). The
+same repository can therefore read B here and C on its badge; neither is wrong, they answer
+different questions.

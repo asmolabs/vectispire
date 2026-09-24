@@ -39,11 +39,21 @@ La série est restreinte par votre visibilité, comme toutes les autres vues —
 
 ## Note de posture de sécurité
 
-Les dépôts portent une note de posture et un jeu de recommandations, à côté de leur niveau de
-criticité métier. Le niveau est ce que vous posez à l'enregistrement du dépôt ; la note est
-calculée depuis le backlog. Un service de niveau 1 avec une mauvaise note est la première ligne
-à lire sur cette page.
+Le classement de maturité donne à chaque dépôt et conteneur une note de A à F, à côté de son
+niveau de criticité métier. Le niveau est ce que vous posez à l'enregistrement du dépôt ; la
+note est calculée depuis le backlog. Un service de niveau 1 avec une mauvaise note est la
+première ligne à lire sur cette page.
 
-Un dépôt peut aussi exposer une **pastille dynamique pour son README**, ce qui met la note sous
-les yeux des gens qui y commitent plutôt que seulement sous ceux des gens qui lisent ce tableau
-de bord.
+La règle de ce classement lui est propre : à partir de 100, chaque problème **non résolu** coûte
+des points selon sa sévérité — critique 25, haute 10, moyenne 3, tout le reste 1, et un
+problème sans sévérité compte comme moyen. La note est A à partir de 90, B à partir de 75, C à
+partir de 50, D à partir de 30, F en dessous. Non résolu inclut les problèmes triés non
+affectés : ce classement mesure ce qu'une cible porte encore, pas ce qui a été décidé à son
+sujet.
+
+**Ce n'est pas la note du scorecard.** La fiche scorecard d'un dépôt, et la pastille README qui
+en est tirée, suivent une autre règle — vulnérabilités exploitées, atteignabilité, licences,
+triage — et une échelle de A+ à F, décrite dans
+[Comment la note du scorecard est calculée](repositories.md#comment-la-note-du-scorecard-est-calculee).
+Le même dépôt peut donc afficher B ici et C sur sa pastille ; aucune des deux n'a tort, elles
+répondent à des questions différentes.

@@ -58,6 +58,62 @@ Each repository can expose a dynamic badge for its own README, showing the secur
 posture grade. It puts the number in front of the people who commit, which is where it
 changes behaviour.
 
+## How the scorecard grade is computed
+
+The grade on a repository's **scorecard** and on its badge is the same number. It is computed
+when asked for, from the repository's backlog as it stands — nothing is stored.
+
+**What counts.** Open issues of that repository only. Resolved issues are left out, and so are
+issues triaged **not affected** or **fixed** — the two decisions that already stop an issue
+failing the gate. An issue whose dismissal is **awaiting approval** still counts: a request is
+not a decision. A triage status Vectispire does not recognise counts too, rather than being
+read as settled.
+
+**The score** starts at 100:
+
+| Element | Points | Per |
+|---|---|---|
+| Actively exploited vulnerability (CISA KEV) | −25 | issue |
+| Critical, reachable | −15 | issue |
+| Critical, not reachable or reachability unknown | −8 | issue |
+| High | −4 | issue |
+| Licence not allowed by the licence policy | −5 | component |
+| At least one completed scan | +5 | once |
+
+Penalties add up: a reachable, actively exploited critical costs 40. Medium and low severities
+cost nothing. The result is held between 0 and 100.
+
+**The grade:**
+
+| Score | Grade |
+|---|---|
+| 95 and above | A+ |
+| 85 – 94 | A |
+| 70 – 84 | B |
+| 55 – 69 | C |
+| 40 – 54 | D |
+| below 40 | F |
+
+For example, a scanned repository with one reachable critical, one unreachable critical, one
+high, one actively exploited medium and one disallowed licence scores
+100 − 15 − 8 − 4 − 25 − 5 + 5 = **48, grade D**.
+
+**What does not move the grade.** Issues past their remediation deadline are counted on the
+scorecard and produce a recommendation, but cost no points: deadlines are a setting of each
+deployment (see [Remediation times](remediation-delays.md#where-the-deadlines-come-from)), and a badge must not
+change grade because somebody edited a window.
+
+**The recommendations** list, when they apply: disallowed licences, no completed scan yet —
+an in-toto attestation is issued from a completed scan, so there is none before —, actively
+exploited vulnerabilities, criticals, highs, and overdue issues.
+
+The penalties have no ceiling, so the scale saturates at the bottom: five reachable, exploited
+criticals already make an F, and five hundred make the same F. Read the counts on the
+scorecard, not only the letter.
+
+This grade is **not** the one in the dashboard's maturity ranking, which uses another rule —
+see [Dashboard](dashboard.md#security-posture-grade).
+
 ## Deleting a repository
 
 Removing a repository removes its scans and its issue history with it. Where you need the
