@@ -24,6 +24,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0018](0018-the-docker-socket-is-never-mounted.md) | The Docker socket is never mounted into the control plane | accepted |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | The server sends a token; the screen holds the sentence | accepted |
 | [0020](0020-screenshots-stay-png.md) | Screenshots stay PNG, and the trigger to change that is named | accepted |
+| [0021](0021-the-docs-site-stays-on-mkdocs-1.md) | The documentation site stays on MkDocs 1, until something else can publish it in two languages | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
