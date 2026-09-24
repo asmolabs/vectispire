@@ -174,8 +174,16 @@ public class ScanQueue {
      * <p>Filtered in SQL rather than by loading every running scan and comparing in memory: that
      * version worked only while the column was text, and stopped as soon as it became a real
      * timestamp on one engine out of four.
+     *
+     * <p><b>No transaction around the loop, deliberately.</b> Each release is a conditional update
+     * with a transaction of its own, and nothing here needs the set to change atomically: a scan
+     * requeued while its neighbour is not is a correct outcome. Wrapping the read and the updates
+     * in one transaction broke on SQLite in WAL: the read pins a snapshot, a renewal or a final
+     * write commits meanwhile, and the update's upgrade to a write lock is then refused at once
+     * with {@code SQLITE_BUSY} — no busy timeout applies to a stale snapshot — instead of waiting
+     * and finding the condition false. PostgreSQL and MySQL re-check the condition either way;
+     * the nightly's SQLite run was the one that could tell.
      */
-    @Transactional
     public Reclaimed reclaimLapsedLeases() {
         Instant asOf = clock.instant();
         List<ScanEntity> lapsed = scans.findLapsed(ScanStatus.SCANNING.wireName(), asOf);
