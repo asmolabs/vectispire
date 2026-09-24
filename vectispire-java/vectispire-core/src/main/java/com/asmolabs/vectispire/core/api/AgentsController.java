@@ -1,23 +1,18 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
-import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.services.AgentProtocolService;
 import com.asmolabs.vectispire.core.services.RuleSetService;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -58,29 +53,20 @@ public class AgentsController {
     private final ScanDispatcher dispatcher;
     private final AgentJobPoller poller;
     private final RuleSetService ruleSets;
-    private final Agents agents;
+    private final AgentProtocolService protocol;
     private final TrustedProxies proxies;
-    private final AuditLogService audit;
-    private final ObjectMapper json;
-    private final Clock clock;
 
     public AgentsController(
             ScanDispatcher dispatcher,
             AgentJobPoller poller,
             RuleSetService ruleSets,
-            Agents agents,
-            TrustedProxies proxies,
-            AuditLogService audit,
-            ObjectMapper json,
-            Clock clock) {
+            AgentProtocolService protocol,
+            TrustedProxies proxies) {
         this.dispatcher = dispatcher;
         this.poller = poller;
         this.ruleSets = ruleSets;
-        this.agents = agents;
+        this.protocol = protocol;
         this.proxies = proxies;
-        this.audit = audit;
-        this.json = json;
-        this.clock = clock;
     }
 
     public record HelloRequest(
@@ -110,9 +96,16 @@ public class AgentsController {
     @PostMapping("/hello")
     public HelloResponse hello(@RequestBody HelloRequest body, @AuthenticationPrincipal VectispirePrincipal principal) {
         AgentEntity agent = authenticate(principal);
-        String announced = body.contractVersion() == null ? "" : body.contractVersion();
+        AgentProtocolService.Hello answer = protocol.hello(agent, new AgentProtocolService.Announcement(
+                body.contractVersion(),
+                body.sealingPublicKey(),
+                body.hostname(),
+                body.platform(),
+                body.version(),
+                body.scannerEngine(),
+                body.capabilities()));
 
-        if (!AgentContract.isCompatible(announced)) {
+        if (answer instanceof AgentProtocolService.Hello.IncompatibleContract(String announced)) {
             // 409 and not 400: the request is well formed, the two sides simply disagree about
             // the protocol — and the fix is a deployment, not another call.
             throw new ResponseStatusException(
@@ -120,26 +113,6 @@ public class AgentsController {
                     "This agent speaks contract \"" + (announced.isEmpty() ? "unknown" : announced)
                             + "\" and Vectispire speaks \"" + AgentContract.VERSION + "\". Update the agent.");
         }
-
-        // **Refused when unusable, rather than stored as it stands.** An unreadable value would
-        // raise in the middle of a claim; `null` simply drops this agent back to the earlier
-        // behaviour — a clear key over an encrypted link — which is a degraded mode, not a
-        // failure.
-        String sealingKey = text(body.sealingPublicKey());
-        if (sealingKey != null && !SealedEnvelope.isUsablePublicKey(sealingKey)) {
-            throw new IllegalArgumentException("The announced sealing key is not a readable X25519 public key.");
-        }
-
-        agents.recordHeartbeat(
-                agent.getId(),
-                clock.instant(),
-                text(body.hostname()),
-                text(body.platform()),
-                text(body.version()),
-                text(body.scannerEngine()),
-                text(body.capabilities()),
-                announced,
-                sealingKey);
 
         return new HelloResponse(
                 agent.getId(),
@@ -215,18 +188,14 @@ public class AgentsController {
     /**
      * The result of a scan executed elsewhere.
      *
-     * <p><b>The attestation is checked here, and it used to be checked nowhere.</b> This method
-     * has always taken an {@code X-Vectispire-Agent-Signature} header, documented it as a
+     * <p><b>The attestation is checked, and it used to be checked nowhere.</b> This method has
+     * always taken an {@code X-Vectispire-Agent-Signature} header, documented it as a
      * cryptographic attestation, and published it in the OpenAPI document — while never reading
      * the parameter, and while no agent ever produced one. An announced guarantee that does not
-     * run is worse than an absent one: it is the reason nobody looked.
+     * run is worse than an absent one: it is the reason nobody looked. The check itself is
+     * {@link AgentProtocolService#submitResult}'s.
      *
-     * <p>What it guards is the operation described in {@link ResultAttestation}: artifacts that
-     * are present and empty resolve a target's whole backlog of that type. An agent with a pinned
-     * signing key must now prove it is that agent; an agent without one behaves exactly as before.
-     *
-     * <p><b>The body arrives as bytes, and that is what the signature covers.</b> Parsing first
-     * and signing the re-serialization would sign what the server chose to write. The Swagger
+     * <p><b>The body arrives as bytes, and that is what the signature covers.</b> The Swagger
      * annotation restores the schema the raw type erases, so the published contract still says
      * {@link ScanArtifacts}.
      */
@@ -242,72 +211,28 @@ public class AgentsController {
             HttpServletRequest request) {
 
         AgentEntity agent = authenticate(principal);
-        requireAttestation(agent, scanId, body, signature, request);
+        AgentProtocolService.Submission outcome = protocol.submitResult(
+                agent,
+                scanId,
+                body,
+                signature,
+                new AgentProtocolService.Origin(request.getRemoteAddr(), request.getHeader("User-Agent")));
 
-        ScanArtifacts artifacts;
-        try {
-            artifacts = json.readValue(body, ScanArtifacts.class);
-        } catch (java.io.IOException unreadable) {
+        return switch (outcome) {
+            case AgentProtocolService.Submission.Accepted accepted -> Map.of("accepted", true);
+            // 403 rather than 401: the API key was accepted, so re-authenticating changes nothing.
+            // The refusal has already been audited, before this answer.
+            case AgentProtocolService.Submission.NotAttested refused -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "This agent's results must be signed: the " + ResultAttestation.HEADER
+                            + " header is absent or does not verify against the key pinned for \""
+                            + agent.getName() + "\".");
             // 400 and not 500: the agent sent something, and what it sent is the problem.
-            throw new ResponseStatusException(
+            case AgentProtocolService.Submission.Unreadable unreadable -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "The result body is not a readable ScanArtifacts document.");
-        }
-
-        if (!dispatcher.acceptAgentResult(scanId, agent, artifacts)) {
-            throw new ResponseStatusException(
+            case AgentProtocolService.Submission.NoLongerYours discarded -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "This scan is no longer yours: its results were discarded.");
-        }
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.AGENT_RESULT_SUBMITTED,
-                String.valueOf(scanId),
-                "Result accepted from agent \"" + agent.getName() + "\""
-                        + (agent.getSigningPublicKey() == null ? " (not attested)." : ", attestation verified."),
-                agent.getName(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        return Map.of("accepted", true);
-    }
-
-    /**
-     * Refuses a result that a pinned key does not vouch for.
-     *
-     * <p><b>Pinning the key is the switch.</b> There is no second setting saying "and now enforce
-     * it" — an operator who writes the key has said what they mean, and a control with an
-     * enforcement flag of its own is a control somebody leaves in audit mode for a year.
-     *
-     * <p>403 rather than 401: the API key was accepted, so re-authenticating changes nothing. The
-     * refusal is audited before it is thrown, because a probe that leaves no trace is the one
-     * nobody investigates.
-     */
-    private void requireAttestation(
-            AgentEntity agent, long scanId, byte[] body, String signature, HttpServletRequest request) {
-
-        String pinned = agent.getSigningPublicKey();
-        if (pinned == null || pinned.isBlank()) {
-            return;
-        }
-        if (ResultAttestation.verify(pinned, scanId, body, signature)) {
-            return;
-        }
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.AGENT_RESULT_REFUSED,
-                String.valueOf(scanId),
-                (signature == null || signature.isBlank()
-                                ? "Result submitted with no attestation"
-                                : "Result submitted with an attestation that does not verify")
-                        + " by agent \"" + agent.getName() + "\", whose signing key is pinned.",
-                agent.getName(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        throw new ResponseStatusException(
-                HttpStatus.FORBIDDEN,
-                "This agent's results must be signed: the " + ResultAttestation.HEADER
-                        + " header is absent or does not verify against the key pinned for \""
-                        + agent.getName() + "\".");
+        };
     }
 
     private static AgentEntity authenticate(VectispirePrincipal principal) {
@@ -322,10 +247,5 @@ public class AgentsController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Agent \"" + agent.getName() + "\" is disabled.");
         }
         return agent;
-    }
-
-    private static String text(String value) {
-        String trimmed = value == null ? "" : value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }

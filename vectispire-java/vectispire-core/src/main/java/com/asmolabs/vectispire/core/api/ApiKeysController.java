@@ -1,29 +1,14 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
-import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
-import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.services.AuditLogService;
-import com.asmolabs.vectispire.core.services.TargetNaming;
+import com.asmolabs.vectispire.core.services.ApiKeyAdministrationService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Clock;
 import java.time.Instant;
-import java.time.Period;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,26 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiresAdministrator
 public class ApiKeysController {
 
-    private final ApiKeysRepository keys;
-    private final GitRepositories repositories;
-    private final Containers containers;
-    private final TargetNaming naming;
-    private final AuditLogService audit;
-    private final Clock clock;
+    private final ApiKeyAdministrationService administration;
 
-    public ApiKeysController(
-            ApiKeysRepository keys,
-            GitRepositories repositories,
-            Containers containers,
-            TargetNaming naming,
-            AuditLogService audit,
-            Clock clock) {
-        this.keys = keys;
-        this.repositories = repositories;
-        this.containers = containers;
-        this.naming = naming;
-        this.audit = audit;
-        this.clock = clock;
+    public ApiKeysController(ApiKeyAdministrationService administration) {
+        this.administration = administration;
     }
 
     /**
@@ -67,8 +36,8 @@ public class ApiKeysController {
      *
      * <p>{@code keyHash} is not on it; {@code prefix} is, and it is not a secret.
      *
-     * @param isExpired computed here and not on the screen: an expired key is refused by the
-     *     server, and two notions of "expired" would eventually disagree by a timezone
+     * @param isExpired computed by the server and not on the screen: an expired key is refused by
+     *     the server, and two notions of "expired" would eventually disagree by a timezone
      */
     public record ApiKeySummary(
             UUID id,
@@ -99,56 +68,21 @@ public class ApiKeysController {
 
     @GetMapping
     public List<ApiKeySummary> list() {
-        Instant asOf = clock.instant();
-        TargetNaming.Names names = naming.all();
-        return keys.findAllByOrderByCreatedAtDesc().stream()
-                .map(key -> summaryOf(key, asOf, names))
-                .toList();
+        return administration.list().stream().map(ApiKeysController::summaryOf).toList();
     }
 
-    /**
-     * Issues a key and <b>returns it once</b>.
-     *
-     * <p>This is the only place the plaintext exists. An earlier implementation permanently
-     * displayed the row's identifier as though it were the secret — so there had never been a
-     * secret. Making it unrecoverable is the point.
-     */
+    /** Issues a key and returns it once — see {@link ApiKeyAdministrationService#issue}. */
     @PostMapping
     public IssuedKey create(
             @RequestBody ApiKeyCreateRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String name = body.name() == null ? "" : body.name().trim();
-        if (name.isEmpty()) {
-            throw new IllegalArgumentException("A name is required.");
-        }
-
-        List<ApiKeyScope> scopes = ApiKeys.normalizeScopes(body.scopes());
-        Optional<Period> lifetime = ApiKeys.normalizeLifetime(body.expiresInDays());
-        String targetKind = normalizeTargetKind(body);
-        if (targetKind != null) {
-            assertTargetExists(targetKind, body.targetId());
-        }
-
-        ApiKeys.IssuedKey issued = ApiKeys.generate();
-        Instant issuedAt = clock.instant();
-
-        ApiKeyEntity key = new ApiKeyEntity();
-        key.setName(name);
-        key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
-        key.setPrefix(issued.prefix());
-        key.setScopes(String.join(",", scopes.stream().map(ApiKeyScope::wireName).toList()));
-        key.setTargetKind(targetKind);
-        key.setTargetId(targetKind == null ? null : body.targetId());
-        key.setCreatedAt(issuedAt);
-        key.setExpiresAt(lifetime.map(issuedAt::plus).orElse(null));
-
-        ApiKeyEntity saved = keys.save(key);
-        record(principal, request, AuditOperation.API_KEY_CREATED, saved.getId().toString(),
-                "API key issued: " + name + " (" + saved.getScopes() + ")");
-
-        return new IssuedKey(summaryOf(saved, issuedAt, naming.all()), issued.fullKey());
+        ApiKeyAdministrationService.Issued issued = administration.issue(
+                new ApiKeyAdministrationService.Request(
+                        body.name(), body.scopes(), body.targetKind(), body.targetId(), body.expiresInDays()),
+                actor(principal, request));
+        return new IssuedKey(summaryOf(issued.key()), issued.secret());
     }
 
     @DeleteMapping("/{id}")
@@ -158,96 +92,37 @@ public class ApiKeysController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
-
-        // Revoking deletes the row: a "disabled" key that a scan could re-enable by accident
-        // would be worse than an absent one. The audit trail keeps the record.
-        keys.deleteById(id);
-        record(principal, request, AuditOperation.API_KEY_DELETED, id.toString(),
-                "API key revoked: " + key.getName());
+        administration.revoke(id, actor(principal, request));
     }
 
     /** The targets a key can be restricted to, so the screen offers names rather than numbers. */
     @GetMapping("/targets")
     public Targets targets() {
-        List<TargetOption> repositoryOptions = new ArrayList<>();
-        repositories.findAll()
-                .forEach(repository -> repositoryOptions.add(
-                        new TargetOption(repository.getId(), TargetNaming.of(repository))));
-
-        List<TargetOption> containerOptions = new ArrayList<>();
-        containers.findAll()
-                .forEach(container -> containerOptions.add(
-                        new TargetOption(container.getId(), TargetNaming.of(container))));
-
-        return new Targets(repositoryOptions, containerOptions);
+        ApiKeyAdministrationService.TargetOptions options = administration.targets();
+        return new Targets(
+                options.repositories().stream().map(o -> new TargetOption(o.id(), o.label())).toList(),
+                options.containers().stream().map(o -> new TargetOption(o.id(), o.label())).toList());
     }
 
-    private void assertTargetExists(String kind, Long id) {
-        boolean exists = "repository".equals(kind)
-                ? repositories.existsById(id)
-                : containers.existsById(id);
-        if (!exists) {
-            // A key restricted to a target that does not exist can do nothing, and finding that
-            // out would happen on the pipeline's first call.
-            throw new InvalidApiKeyException("No \"" + kind + "\" target with id " + id + ".");
-        }
-    }
-
-    /** Empty for an unrestricted key; refused when the kind and the identifier disagree. */
-    private static String normalizeTargetKind(ApiKeyCreateRequest body) {
-        String kind = body.targetKind() == null ? "" : body.targetKind().trim().toLowerCase(java.util.Locale.ROOT);
-        if (kind.isEmpty() && body.targetId() == null) {
-            return null;
-        }
-        if (kind.isEmpty() || body.targetId() == null) {
-            throw new InvalidApiKeyException("A restricted key needs both a target kind and a target id.");
-        }
-        if (!"repository".equals(kind) && !"container".equals(kind)) {
-            throw new InvalidApiKeyException("Unknown target kind: \"" + kind + "\".");
-        }
-        return kind;
-    }
-
-    private ApiKeySummary summaryOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names) {
+    private static ApiKeySummary summaryOf(ApiKeyAdministrationService.KeyView key) {
         return new ApiKeySummary(
-                key.getId(),
-                key.getName(),
-                key.getPrefix(),
-                key.getScopes() == null || key.getScopes().isEmpty()
-                        ? List.of()
-                        : List.of(key.getScopes().split(",")),
-                key.getTargetKind(),
-                key.getTargetId(),
-                targetLabel(key, names),
-                key.getCreatedAt(),
-                key.getLastUsedAt(),
-                key.getExpiresAt(),
-                key.getExpiresAt() != null && !key.getExpiresAt().isAfter(asOf));
+                key.id(),
+                key.name(),
+                key.prefix(),
+                key.scopes(),
+                key.targetKind(),
+                key.targetId(),
+                key.targetLabel(),
+                key.createdAt(),
+                key.lastUsedAt(),
+                key.expiresAt(),
+                key.expired());
     }
 
-    /** A target deleted since the key was issued: say so rather than showing a blank. */
-    private static String targetLabel(ApiKeyEntity key, TargetNaming.Names names) {
-        if (key.getTargetKind() == null || key.getTargetId() == null) {
-            return null;
-        }
-        return "repository".equals(key.getTargetKind())
-                ? names.repositories().getOrDefault(key.getTargetId(), key.getTargetKind() + " " + key.getTargetId() + " (deleted)")
-                : names.containers().getOrDefault(key.getTargetId(), key.getTargetKind() + " " + key.getTargetId() + " (deleted)");
-    }
-
-    private void record(
-            VectispirePrincipal principal,
-            HttpServletRequest request,
-            AuditOperation operation,
-            String resourceId,
-            String description) {
-        audit.record(new AuditLogService.Record(
-                operation,
-                resourceId,
-                description,
-                principal.user().map(user -> user.getUsername()).orElse(null),
+    private static ApiKeyAdministrationService.Actor actor(VectispirePrincipal principal, HttpServletRequest request) {
+        return new ApiKeyAdministrationService.Actor(
+                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
                 request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
+                request.getHeader("User-Agent"));
     }
 }

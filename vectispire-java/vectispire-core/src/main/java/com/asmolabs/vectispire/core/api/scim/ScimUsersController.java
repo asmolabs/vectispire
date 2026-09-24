@@ -1,29 +1,15 @@
 package com.asmolabs.vectispire.core.api.scim;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
-import com.asmolabs.vectispire.common.domain.users.AccountRules;
-import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimErrorResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimUserDto;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.AuditLogService;
-import com.asmolabs.vectispire.core.services.AuthService;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.asmolabs.vectispire.core.services.ScimProvisioningService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,8 +25,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-
 /**
  * SCIM 2.0 /Users endpoint (RFC 7644 Section 3.2).
  *
@@ -52,18 +36,10 @@ import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 @RequiresAdministrator
 public class ScimUsersController {
 
-    private static final Logger log = LoggerFactory.getLogger(ScimUsersController.class);
+    private final ScimProvisioningService provisioning;
 
-    private final Users users;
-    private final AuthService auth;
-    private final AuditLogService audit;
-    private final Clock clock;
-
-    public ScimUsersController(Users users, AuthService auth, AuditLogService audit, Clock clock) {
-        this.users = users;
-        this.auth = auth;
-        this.audit = audit;
-        this.clock = clock;
+    public ScimUsersController(ScimProvisioningService provisioning) {
+        this.provisioning = provisioning;
     }
 
     @GetMapping
@@ -72,20 +48,13 @@ public class ScimUsersController {
             @RequestParam(defaultValue = "1") int startIndex,
             @RequestParam(defaultValue = "100") int count) {
 
-        List<UserEntity> matched;
-        if (filter != null && !filter.isBlank()) {
-            matched = filterUsers(filter.trim());
-        } else {
-            matched = users.findAllByOrderByUsernameAsc();
-        }
-
-        List<ScimUserDto> resources = matched.stream().map(this::toDto).toList();
+        List<ScimUserDto> resources = provisioning.users(filter).stream().map(ScimUsersController::toDto).toList();
         return ScimListResponse.of(resources);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ScimUserDto> getUser(@PathVariable Long id) {
-        return users.findById(id)
+        return provisioning.user(id)
                 .map(u -> ResponseEntity.ok(toDto(u)))
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
@@ -94,138 +63,36 @@ public class ScimUsersController {
     public ResponseEntity<ScimUserDto> createUser(
             @RequestBody ScimUserDto dto, HttpServletRequest request) {
 
-        String username = dto.userName() == null ? "" : dto.userName().trim().toLowerCase(Locale.ROOT);
-        AccountRules.validateUsername(username).ifPresent(msg -> {
-            throw new IllegalArgumentException(msg);
-        });
-
-        if (users.findByUsername(username).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
-        Instant now = clock.instant();
-        UserEntity user = new UserEntity();
-        user.setUsername(username);
-        user.setDisplayName(extractDisplayName(dto));
-        user.setEmail(extractEmail(dto));
-        user.setKeycloakId(dto.externalId());
-        user.setIsActive(dto.active() == null || dto.active());
-        user.setRole(extractRole(dto));
-        user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
-        user.setMustChangePassword(true);
-        user.setCreatedAt(now);
-        user.setUpdatedAt(now);
-
-        UserEntity saved = users.save(user);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.USER_CREATED,
-                "SCIM",
-                "SCIM provisioned account: " + username,
-                username,
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
-        ScimUserDto responseDto = toDto(saved);
-        return ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.getId())).body(responseDto);
+        return switch (provisioning.createUser(attributesOf(dto), origin(request))) {
+            case ScimProvisioningService.UserCreation.UsernameTaken taken ->
+                    ResponseEntity.status(HttpStatus.CONFLICT).build();
+            case ScimProvisioningService.UserCreation.Created(UserEntity saved) ->
+                    ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.getId())).body(toDto(saved));
+        };
     }
 
     @PutMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> updateUser(
             @PathVariable Long id, @RequestBody ScimUserDto dto, HttpServletRequest request) {
 
-        Optional<UserEntity> found = users.findById(id);
-        if (found.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        UserEntity user = found.get();
-        boolean wasActive = Boolean.TRUE.equals(user.getIsActive());
-        boolean nowActive = dto.active() == null || dto.active();
-
-        user.setDisplayName(extractDisplayName(dto));
-        user.setEmail(extractEmail(dto));
-        if (dto.externalId() != null) {
-            user.setKeycloakId(dto.externalId());
-        }
-        user.setIsActive(nowActive);
-        user.setRole(extractRole(dto));
-        user.setUpdatedAt(clock.instant());
-
-        UserEntity saved = users.save(user);
-
-        // Immediate session deprovisioning upon deactivation
-        if (wasActive && !nowActive) {
-            auth.revokeAllForUser(saved.getId());
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.USER_UPDATED,
-                    "SCIM",
-                    "SCIM deactivated account and revoked all active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-        } else {
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.USER_UPDATED,
-                    "SCIM",
-                    "SCIM updated account: " + saved.getUsername(),
-                    saved.getUsername(),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-        }
-
-        return ResponseEntity.ok(toDto(saved));
+        return provisioning.replaceUser(id, attributesOf(dto), origin(request))
+                .map(saved -> ResponseEntity.ok(toDto(saved)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @PatchMapping(value = "/{id}", consumes = {"application/scim+json", "application/json"})
     public ResponseEntity<ScimUserDto> patchUser(
             @PathVariable Long id, @RequestBody ScimPatchOp patch, HttpServletRequest request) {
 
-        Optional<UserEntity> found = users.findById(id);
-        if (found.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        UserEntity user = found.get();
-        boolean wasActive = Boolean.TRUE.equals(user.getIsActive());
-
-        if (patch.operations() != null) {
-            for (ScimPatchOp.PatchOperation op : patch.operations()) {
-                applyPatch(user, op);
-            }
-        }
-        user.setUpdatedAt(clock.instant());
-        UserEntity saved = users.save(user);
-
-        boolean nowActive = Boolean.TRUE.equals(saved.getIsActive());
-        if (wasActive && !nowActive) {
-            auth.revokeAllForUser(saved.getId());
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.USER_UPDATED,
-                    "SCIM",
-                    "SCIM deactivated account and revoked active sessions for " + saved.getUsername(),
-                    saved.getUsername(),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-        }
-
-        return ResponseEntity.ok(toDto(saved));
+        return provisioning.patchUser(id, operationsOf(patch), origin(request))
+                .map(saved -> ResponseEntity.ok(toDto(saved)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteUser(@PathVariable Long id, HttpServletRequest request) {
-        users.findById(id).ifPresent(user -> {
-            auth.revokeAllForUser(user.getId());
-            users.delete(user);
-            audit.record(new AuditLogService.Record(
-                    AuditOperation.USER_DELETED,
-                    "SCIM",
-                    "SCIM deleted account: " + user.getUsername(),
-                    user.getUsername(),
-                    request.getRemoteAddr(),
-                    request.getHeader("User-Agent")));
-        });
+        provisioning.deleteUser(id, origin(request));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -234,38 +101,29 @@ public class ScimUsersController {
                 .body(ScimErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
     }
 
-    private void applyPatch(UserEntity user, ScimPatchOp.PatchOperation op) {
-        String path = op.path() == null ? "" : op.path().toLowerCase(Locale.ROOT);
-        JsonNode value = op.value();
-
-        if ("active".equals(path) && value != null && value.isBoolean()) {
-            user.setIsActive(value.asBoolean());
-        } else if (value != null && value.isObject()) {
-            if (value.has("active") && value.get("active").isBoolean()) {
-                user.setIsActive(value.get("active").asBoolean());
-            }
-            if (value.has("displayName") && value.get("displayName").isTextual()) {
-                user.setDisplayName(value.get("displayName").asText());
-            }
-        }
+    static List<ScimProvisioningService.PatchOperation> operationsOf(ScimPatchOp patch) {
+        return patch.operations() == null
+                ? null
+                : patch.operations().stream()
+                        .map(op -> new ScimProvisioningService.PatchOperation(op.op(), op.path(), op.value()))
+                        .toList();
     }
 
-    private List<UserEntity> filterUsers(String filter) {
-        // Basic SCIM filter parser: supports `userName eq "val"` or `externalId eq "val"`
-        String[] parts = filter.split("\\s+eq\\s+", 2);
-        if (parts.length == 2) {
-            String attr = parts[0].trim().toLowerCase(Locale.ROOT);
-            String val = parts[1].trim().replaceAll("^\"|\"$", "");
-            if ("username".equals(attr)) {
-                return users.findByUsername(val.toLowerCase(Locale.ROOT)).map(List::of).orElse(List.of());
-            } else if ("externalid".equals(attr)) {
-                return users.findByKeycloakId(val).map(List::of).orElse(List.of());
-            }
-        }
-        return users.findAllByOrderByUsernameAsc();
+    static ScimProvisioningService.Origin origin(HttpServletRequest request) {
+        return new ScimProvisioningService.Origin(request.getRemoteAddr(), request.getHeader("User-Agent"));
     }
 
-    private ScimUserDto toDto(UserEntity user) {
+    private static ScimProvisioningService.UserAttributes attributesOf(ScimUserDto dto) {
+        return new ScimProvisioningService.UserAttributes(
+                dto.userName(),
+                displayNameOf(dto),
+                emailOf(dto),
+                dto.externalId(),
+                dto.active(),
+                dto.roles() != null && !dto.roles().isEmpty() ? dto.roles().get(0).value() : null);
+    }
+
+    private static ScimUserDto toDto(UserEntity user) {
         List<ScimUserDto.Email> emails = user.getEmail() != null && !user.getEmail().isBlank()
                 ? List.of(new ScimUserDto.Email(user.getEmail(), "work", true))
                 : List.of();
@@ -292,7 +150,8 @@ public class ScimUsersController {
                 meta);
     }
 
-    private static String extractDisplayName(ScimUserDto dto) {
+    /** SCIM carries the name in two places; the flat one wins when both are there. */
+    private static String displayNameOf(ScimUserDto dto) {
         if (dto.displayName() != null && !dto.displayName().isBlank()) {
             return dto.displayName().trim();
         }
@@ -302,20 +161,10 @@ public class ScimUsersController {
         return null;
     }
 
-    private static String extractEmail(ScimUserDto dto) {
+    private static String emailOf(ScimUserDto dto) {
         if (dto.emails() != null && !dto.emails().isEmpty()) {
             return dto.emails().get(0).value();
         }
         return null;
-    }
-
-    private static String extractRole(ScimUserDto dto) {
-        if (dto.roles() != null && !dto.roles().isEmpty()) {
-            String val = dto.roles().get(0).value();
-            if (val != null && Role.of(val.toUpperCase(Locale.ROOT)).isPresent()) {
-                return val.toUpperCase(Locale.ROOT);
-            }
-        }
-        return Role.USER.name();
     }
 }

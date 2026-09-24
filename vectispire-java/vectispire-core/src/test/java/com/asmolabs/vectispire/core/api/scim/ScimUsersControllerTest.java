@@ -10,9 +10,12 @@ import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimUserDto;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.TeamMembers;
+import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
+import com.asmolabs.vectispire.core.services.ScimProvisioningService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.BooleanNode;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,7 +46,8 @@ class ScimUsersControllerTest {
         auth = mock(AuthService.class);
         audit = mock(AuditLogService.class);
         clock = Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC);
-        controller = new ScimUsersController(users, auth, audit, clock);
+        controller = new ScimUsersController(new ScimProvisioningService(
+                users, mock(Teams.class), mock(TeamMembers.class), auth, audit, clock));
         request = mock(HttpServletRequest.class);
     }
 
