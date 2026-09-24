@@ -1,11 +1,9 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.core.services.AiReviewService;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.NotificationService;
 import com.asmolabs.vectispire.core.services.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.services.TicketService;
@@ -31,9 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  * table cannot fill with keys no service reads — the exact state that makes an operator believe
  * they configured something.
  *
- * <p><b>Every write is audited</b>, like any administration action: moving the notification
- * threshold from high to critical changes what the organization sees, and that is the kind of
- * decision one wants to be able to date.
+ * <p><b>Every write is audited</b> — by {@link SettingsAdministrationService}, which performs it.
  */
 @RestController
 @RequestMapping("/api/v1/settings")
@@ -45,19 +41,17 @@ public class SettingsController {
 
     private final SettingsAdministrationService administration;
     private final TicketService tickets;
-    private final AuditLogService audit;
     private final AiReviewService aiReview;
     private final NotificationService notifications;
 
+    /** The three services below are read for their "configured" state only; every write goes through {@code administration}. */
     public SettingsController(
             SettingsAdministrationService administration,
             TicketService tickets,
-            AuditLogService audit,
             AiReviewService aiReview,
             NotificationService notifications) {
         this.administration = administration;
         this.tickets = tickets;
-        this.audit = audit;
         this.aiReview = aiReview;
         this.notifications = notifications;
     }
@@ -131,16 +125,8 @@ public class SettingsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        SettingsAdministrationService.Applied applied = administration.update(body, principal.user());
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                applied.keys(),
-                applied.description(),
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        SettingsAdministrationService.Applied applied =
+                administration.update(body, principal.user(), RequestActors.of(principal, request));
         return Map.of("updated", applied.count());
     }
 
@@ -161,18 +147,7 @@ public class SettingsController {
             HttpServletRequest request) {
 
         String token = body == null || body.token() == null ? "" : body.token();
-        tickets.setToken(token);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                Setting.TICKET_TOKEN.key(),
-                // The value is **not** logged, unlike the other settings: the audit trail is
-                // readable by every administrator.
-                token.isBlank() ? "Tracker token cleared." : "Tracker token stored.",
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        administration.setTicketToken(token, RequestActors.of(principal, request));
         return Map.of("configured", !token.isBlank());
     }
 
@@ -197,21 +172,7 @@ public class SettingsController {
             HttpServletRequest request) {
 
         String secret = body == null || body.secret() == null ? "" : body.secret();
-        notifications.setSigningSecret(secret);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                Setting.WEBHOOK_SIGNING_SECRET.key(),
-                // Never the value. Whoever reads this table could otherwise forge a message into
-                // every channel this deployment announces to — and the audit log is deliberately
-                // never purged, so it would outlive the secret's own rotation.
-                secret.isBlank()
-                        ? "Webhook signing secret cleared — messages are sent unsigned."
-                        : "Webhook signing secret stored — messages are signed.",
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        administration.setWebhookSigningSecret(secret, RequestActors.of(principal, request));
         return Map.of("configured", !secret.isBlank());
     }
 
@@ -299,20 +260,7 @@ public class SettingsController {
             HttpServletRequest request) {
 
         String key = body == null || body.secret() == null ? "" : body.secret();
-        aiReview.setOpenAiKey(key);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                Setting.AI_REVIEW_OPENAI_KEY.key(),
-                // Never the value: whoever reads this table would otherwise be able to spend the
-                // account, and the audit log is deliberately never purged.
-                key.isBlank()
-                        ? "AI provider API key cleared."
-                        : "AI provider API key stored.",
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        administration.setOpenAiKey(key, RequestActors.of(principal, request));
         return Map.of("configured", !key.isBlank());
     }
 
@@ -337,20 +285,7 @@ public class SettingsController {
             HttpServletRequest request) {
 
         String secret = body == null || body.secret() == null ? "" : body.secret();
-        tickets.setWebhookSecret(secret);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                Setting.TICKET_WEBHOOK_SECRET.key(),
-                // Never the value: it would let whoever reads this table forge a triage decision,
-                // and the audit log is deliberately never purged.
-                secret.isBlank()
-                        ? "Inbound webhook secret cleared — the webhook route accepts anonymous callers again."
-                        : "Inbound webhook secret stored — the webhook route authenticates its caller.",
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        administration.setTicketWebhookSecret(secret, RequestActors.of(principal, request));
         return Map.of("configured", !secret.isBlank());
     }
 

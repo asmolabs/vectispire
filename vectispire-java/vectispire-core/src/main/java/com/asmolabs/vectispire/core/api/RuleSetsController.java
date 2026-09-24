@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.core.services.RuleCatalogueFetcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -9,10 +8,8 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.RuleSetAdministrationService;
 import com.asmolabs.vectispire.core.services.RuleSetAdministrationService.RuleSetListing;
-import com.asmolabs.vectispire.core.services.RuleSetService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
@@ -45,20 +42,16 @@ import io.swagger.v3.oas.annotations.Operation;
 @RequiresGovernanceRead
 public class RuleSetsController {
 
-    private final RuleSetService ruleSets;
     private final RuleSetAdministrationService administration;
     private final RuleCatalogueFetcher fetcher;
-    private final AuditLogService audit;
 
     private final RuleCoverageService coverageService;
 
     public RuleSetsController(
-            RuleSetService ruleSets, RuleSetAdministrationService administration, RuleCatalogueFetcher fetcher,
-            AuditLogService audit, RuleCoverageService coverageService) {
-        this.ruleSets = ruleSets;
+            RuleSetAdministrationService administration, RuleCatalogueFetcher fetcher,
+            RuleCoverageService coverageService) {
         this.administration = administration;
         this.fetcher = fetcher;
-        this.audit = audit;
         this.coverageService = coverageService;
     }
 
@@ -110,19 +103,8 @@ public class RuleSetsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String actor = principal.user().map(user -> user.getUsername()).orElse(null);
-        SemgrepRuleSetEntity stored = ruleSets.store(
-                body.files() == null ? List.of() : body.files(), body.name(), actor);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.RULE_SET_UPLOADED,
-                String.valueOf(stored.getId()),
-                "Rule set \"" + stored.getName() + "\" uploaded: " + stored.getFileCount() + " files, "
-                        + stored.getRuleCount() + " rules.",
-                actor,
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        SemgrepRuleSetEntity stored =
+                administration.upload(body.files(), body.name(), RequestActors.of(principal, request));
         return new Uploaded(
                 stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
     }
@@ -191,21 +173,8 @@ public class RuleSetsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String actor = principal.user().map(user -> user.getUsername()).orElse(null);
-        RuleSetAdministrationService.CatalogueImport imported =
-                administration.importCatalogue(body.commit(), body.languages(), body.licenceSha256(), actor);
-        SemgrepRuleSetEntity stored = imported.stored();
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.RULE_SET_UPLOADED,
-                String.valueOf(stored.getId()),
-                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + imported.commit() + ", languages " + String.join(", ", imported.languages()) + ": "
-                        + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
-                        + " accepted, sha256 " + imported.licenceSha256() + ".",
-                actor,
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        SemgrepRuleSetEntity stored = administration.importCatalogue(
+                body.commit(), body.languages(), body.licenceSha256(), RequestActors.of(principal, request));
         return new Uploaded(
                 stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
     }
@@ -238,17 +207,7 @@ public class RuleSetsController {
             HttpServletRequest request) {
 
         String note = body == null || body.note() == null || body.note().isBlank() ? null : body.note().trim();
-        SemgrepRuleSetEntity activated = ruleSets.activate(id, note);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.RULE_SET_ACTIVATED,
-                String.valueOf(activated.getId()),
-                "Rule set \"" + activated.getName() + "\" activated. "
-                        + (activated.getActivationNote() == null ? "No impact recorded." : activated.getActivationNote()),
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        SemgrepRuleSetEntity activated = administration.activate(id, note, RequestActors.of(principal, request));
         return Map.of("id", activated.getId(), "contentHash", activated.getContentHash());
     }
 
@@ -258,15 +217,7 @@ public class RuleSetsController {
     public Map<String, Object> deactivate(
             @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
 
-        ruleSets.deactivateAll();
-        audit.record(new AuditLogService.Record(
-                AuditOperation.RULE_SET_DEACTIVATED,
-                "all",
-                "Uploaded rule sets deactivated; scans fall back to the bundled rules.",
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
-
+        administration.deactivate(RequestActors.of(principal, request));
         return java.util.Collections.singletonMap("active", null);
     }
 }

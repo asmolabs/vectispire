@@ -1,11 +1,9 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.SiemExporterService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,11 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class SiemController {
 
     private final SiemExporterService exporterService;
-    private final AuditLogService audit;
 
-    public SiemController(SiemExporterService exporterService, AuditLogService audit) {
+    public SiemController(SiemExporterService exporterService) {
         this.exporterService = exporterService;
-        this.audit = audit;
     }
 
     public record SiemConfigRequest(
@@ -68,21 +64,8 @@ public class SiemController {
                 request.protocol(),
                 request.endpoint(),
                 request.authHeader(),
-                request.minSeverity());
-
-        String username = principal != null && principal.user().isPresent()
-                ? principal.user().get().getUsername()
-                : "system";
-        String ip = httpRequest != null ? httpRequest.getRemoteAddr() : null;
-        String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                String.valueOf(saved.getId()),
-                "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol() + ")",
-                username,
-                ip,
-                userAgent));
+                request.minSeverity(),
+                RequestActors.of(principal, httpRequest, "system"));
 
         return toResponse(saved);
     }

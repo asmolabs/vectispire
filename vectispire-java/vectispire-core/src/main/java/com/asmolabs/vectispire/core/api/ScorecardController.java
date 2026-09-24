@@ -2,10 +2,8 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.ScorecardBadgeService;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
@@ -42,17 +40,12 @@ public class ScorecardController {
     private final SecurityScorecardService scorecardService;
     private final VisibilityService visibility;
     private final ScorecardBadgeService badges;
-    private final AuditLogService audit;
 
     public ScorecardController(
-            SecurityScorecardService scorecardService,
-            VisibilityService visibility,
-            ScorecardBadgeService badges,
-            AuditLogService audit) {
+            SecurityScorecardService scorecardService, VisibilityService visibility, ScorecardBadgeService badges) {
         this.scorecardService = scorecardService;
         this.visibility = visibility;
         this.badges = badges;
-        this.audit = audit;
     }
 
     @Operation(summary = "Get repository scorecard", description = "Calculates security grade (A+ to F), risk posture, and metric breakdown for a repository.")
@@ -158,15 +151,8 @@ public class ScorecardController {
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId,
             HttpServletRequest request) {
 
-        ScorecardBadgeService.Badge badge = badges.publish(repoId, allowed(principal))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
-
-        if (badge.changed()) {
-            record(principal, request, repoId,
-                    "Security badge published for repository " + repoId
-                            + ": its grade is now readable by anyone holding the badge URL.");
-        }
-        return stateOf(badge);
+        return stateOf(badges.publish(repoId, allowed(principal), RequestActors.of(principal, request))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
     }
 
     /** Revokes the badge. Every README carrying the old URL starts answering 404. */
@@ -178,13 +164,8 @@ public class ScorecardController {
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId,
             HttpServletRequest request) {
 
-        ScorecardBadgeService.Badge badge = badges.revoke(repoId, allowed(principal))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
-
-        if (badge.changed()) {
-            record(principal, request, repoId, "Security badge revoked for repository " + repoId + ".");
-        }
-        return stateOf(badge);
+        return stateOf(badges.revoke(repoId, allowed(principal), RequestActors.of(principal, request))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
     }
 
     private static BadgeState stateOf(ScorecardBadgeService.Badge badge) {
@@ -192,17 +173,6 @@ public class ScorecardController {
         return token == null
                 ? new BadgeState(false, null, null)
                 : new BadgeState(true, token, "/api/v1/scorecards/badges/" + token + ".svg");
-    }
-
-    private void record(
-            VectispirePrincipal principal, HttpServletRequest request, Long repoId, String description) {
-        audit.record(new AuditLogService.Record(
-                AuditOperation.BADGE_PUBLISHED,
-                "repository:" + repoId + ":badge",
-                description,
-                principal == null ? null : principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
     }
 
     private void requireVisible(VectispirePrincipal principal, ScanTarget target) {

@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -8,9 +7,10 @@ import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.GatePolicyAdministrationService;
 import com.asmolabs.vectispire.core.services.GateService;
 import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
+import com.asmolabs.vectispire.core.services.RequestActor;
 import com.asmolabs.vectispire.core.services.IssueViews;
 import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -50,13 +50,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class GatePoliciesController {
 
     private final GateService gate;
+    private final GatePolicyAdministrationService administration;
     private final TargetNaming names;
-    private final AuditLogService audit;
 
-    public GatePoliciesController(GateService gate, TargetNaming names, AuditLogService audit) {
+    public GatePoliciesController(
+            GateService gate, GatePolicyAdministrationService administration, TargetNaming names) {
         this.gate = gate;
+        this.administration = administration;
         this.names = names;
-        this.audit = audit;
     }
 
     /**
@@ -128,7 +129,7 @@ public class GatePoliciesController {
             HttpServletRequest request,
             @RequestBody PolicyRequest body) {
 
-        return store(PolicyScope.global(), "the global policy", principal, request, body);
+        return store(PolicyScope.global(), principal, request, body);
     }
 
     @RequiresSecurityLead
@@ -140,8 +141,7 @@ public class GatePoliciesController {
             @PathVariable long id,
             @RequestBody PolicyRequest body) {
 
-        PolicyScope scope = PolicyScope.of(target(kind, id));
-        return store(scope, kind + " " + id, principal, request, body);
+        return store(PolicyScope.of(target(kind, id)), principal, request, body);
     }
 
     /**
@@ -160,32 +160,21 @@ public class GatePoliciesController {
             @PathVariable String kind,
             @PathVariable long id) {
 
-        PolicyScope scope = PolicyScope.of(target(kind, id));
-        if (!gate.clear(scope)) {
+        if (!administration.clear(PolicyScope.of(target(kind, id)), actor(principal, request))) {
             throw new NoSuchElementException("No policy stored for " + kind + " " + id + ".");
         }
-        record(principal, request, scope, "Gate policy removed; the target inherits again.");
     }
 
     private GatePolicyView store(
-            PolicyScope scope,
-            String what,
-            VectispirePrincipal principal,
-            HttpServletRequest request,
-            PolicyRequest body) {
+            PolicyScope scope, VectispirePrincipal principal, HttpServletRequest request, PolicyRequest body) {
 
-        GatePolicy policy = policyOf(body);
-        GatePolicyEntity stored = gate.store(
-                scope, policy, body.note(), principal == null ? null : principal.getName());
-
-        record(
-                principal,
-                request,
-                scope,
-                "Gate policy for " + what + " set to version " + stored.getVersion() + ": "
-                        + describe(policy) + ".");
-
+        GatePolicyEntity stored = administration.store(scope, policyOf(body), body.note(), actor(principal, request));
         return view(stored, names.all());
+    }
+
+    /** The principal's own name, agent keys included: the author a stored version carries. */
+    private static RequestActor actor(VectispirePrincipal principal, HttpServletRequest request) {
+        return RequestActors.named(principal == null ? null : principal.getName(), request);
     }
 
     /**
@@ -291,44 +280,5 @@ public class GatePoliciesController {
                 null,
                 null,
                 null);
-    }
-
-    private static String describe(GatePolicy policy) {
-        List<String> parts = new ArrayList<>();
-        parts.add("fail on "
-                + (policy.failOnSeverity() == null ? "no severity" : policy.failOnSeverity().wireName()));
-        if (policy.failOnKev()) {
-            parts.add("fail on actively exploited");
-        }
-        if (policy.fixableOnly()) {
-            parts.add("fixable only");
-        }
-        if (policy.includeTriaged()) {
-            parts.add("triaged findings counted");
-        }
-        if (policy.includeAiReview()) {
-            parts.add("model review counted");
-        }
-        if (policy.failOnUncoveredLanguages()) {
-            parts.add("fail when no rule covers the target");
-        }
-        return String.join(", ", parts);
-    }
-
-    /**
-     * <b>Audited, because it decides what fails a build.</b> {@code GATE_POLICY_UPDATED} has
-     * been in the enum since the beginning with nothing writing it; loosening a threshold is
-     * exactly the change somebody has to be able to find afterwards.
-     */
-    private void record(
-            VectispirePrincipal principal, HttpServletRequest request, PolicyScope scope, String description) {
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.GATE_POLICY_UPDATED,
-                scope.kind() + ":" + scope.id(),
-                description,
-                principal == null ? null : principal.getName(),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
     }
 }

@@ -237,9 +237,11 @@ class OwaspReportTest extends ApiTestBase {
                     new com.asmolabs.vectispire.core.services.SettingsAdministrationService(
                             Mockito.mock(com.asmolabs.vectispire.core.services.SettingsService.class),
                             ai,
-                            Mockito.mock(com.asmolabs.vectispire.core.repositories.Users.class)),
+                            Mockito.mock(com.asmolabs.vectispire.core.repositories.Users.class),
+                            Mockito.mock(com.asmolabs.vectispire.core.services.TicketService.class),
+                            Mockito.mock(com.asmolabs.vectispire.core.services.NotificationService.class),
+                            Mockito.mock(com.asmolabs.vectispire.core.services.AuditLogService.class)),
                     Mockito.mock(com.asmolabs.vectispire.core.services.TicketService.class),
-                    Mockito.mock(com.asmolabs.vectispire.core.services.AuditLogService.class),
                     ai,
                     Mockito.mock(com.asmolabs.vectispire.core.services.NotificationService.class));
         }

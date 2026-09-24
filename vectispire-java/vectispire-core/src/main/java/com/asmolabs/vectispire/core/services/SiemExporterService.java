@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
@@ -31,20 +32,31 @@ public class SiemExporterService {
     private final OutboundPost outbound;
     private final EncryptionService encryption;
     private final SettingsService settings;
+    private final AuditLogService audit;
 
     public SiemExporterService(
-            SiemConfigs repository, OutboundPost outbound, EncryptionService encryption, SettingsService settings) {
+            SiemConfigs repository,
+            OutboundPost outbound,
+            EncryptionService encryption,
+            SettingsService settings,
+            AuditLogService audit) {
         this.repository = repository;
         this.outbound = outbound;
         this.encryption = encryption;
         this.settings = settings;
+        this.audit = audit;
     }
 
     public Optional<SiemConfigEntity> getConfig() {
         return repository.findById(SiemConfigEntity.SINGLETON_ID);
     }
 
-    public SiemConfigEntity saveConfig(boolean enabled, String protocol, String endpoint, String authHeader, String minSeverity) {
+    /**
+     * Stores the configuration and audits the change — never the header, which is a credential and
+     * the audit log is never purged.
+     */
+    public SiemConfigEntity saveConfig(
+            boolean enabled, String protocol, String endpoint, String authHeader, String minSeverity, RequestActor actor) {
         SiemConfigEntity entity = repository.findById(SiemConfigEntity.SINGLETON_ID)
                 .orElseGet(() -> {
                     SiemConfigEntity fresh = new SiemConfigEntity();
@@ -66,7 +78,13 @@ public class SiemExporterService {
         }
         entity.setMinSeverity(minSeverity != null ? minSeverity : "HIGH");
         entity.setUpdatedAt(Instant.now());
-        return repository.save(entity);
+        SiemConfigEntity saved = repository.save(entity);
+
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                String.valueOf(saved.getId()),
+                "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol() + ")"));
+        return saved;
     }
 
     @Async

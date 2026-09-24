@@ -2,13 +2,11 @@ package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.core.api.RepositoriesController.LastScan;
 import com.asmolabs.vectispire.core.api.RepositoriesController.QueuedScan;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Listed;
@@ -39,13 +37,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContainersController {
 
     private final ContainerAdministrationService inventory;
-    private final AuditLogService audit;
     private final VisibilityService visibility;
 
-    public ContainersController(
-            ContainerAdministrationService inventory, AuditLogService audit, VisibilityService visibility) {
+    public ContainersController(ContainerAdministrationService inventory, VisibilityService visibility) {
         this.inventory = inventory;
-        this.audit = audit;
         this.visibility = visibility;
     }
 
@@ -88,9 +83,7 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerEntity saved = inventory.create(changesOf(body));
-        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
-                "Image added: " + referenceOf(saved).format());
+        ContainerEntity saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
         return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
@@ -128,14 +121,8 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerAdministrationService.Updated updated =
-                inventory.update(id, changesOf(body), allowed(principal));
-        ContainerEntity saved = updated.container();
-        String previousReference = updated.previousReference();
-        String moved = referenceOf(saved).format().equals(previousReference) ? "" : " (was " + previousReference + ")";
-        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
-                "Image updated: " + referenceOf(saved).format() + moved);
-
+        ContainerEntity saved =
+                inventory.update(id, changesOf(body), allowed(principal), RequestActors.of(principal, request));
         return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
@@ -146,9 +133,7 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerAdministrationService.Triggered triggered = inventory.trigger(id);
-        record(principal, request, AuditOperation.SCAN_TRIGGERED, triggered.scan().getId(),
-                "Scan requested: " + referenceOf(triggered.container()).format());
+        ContainerAdministrationService.Triggered triggered = inventory.trigger(id, RequestActors.of(principal, request));
         return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
     }
 
@@ -160,9 +145,7 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerEntity container = inventory.delete(id);
-        record(principal, request, AuditOperation.SETTING_UPDATED, id,
-                "Image deleted: " + referenceOf(container).format());
+        inventory.delete(id, RequestActors.of(principal, request));
     }
 
     private Visibility allowed(VectispirePrincipal principal) {
@@ -199,21 +182,6 @@ public class ContainersController {
                 body.scanCron(),
                 body.requiredAgentLabel(),
                 body.tier());
-    }
-
-    private void record(
-            VectispirePrincipal principal,
-            HttpServletRequest request,
-            AuditOperation operation,
-            long resourceId,
-            String description) {
-        audit.record(new AuditLogService.Record(
-                operation,
-                String.valueOf(resourceId),
-                description,
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
     }
 
     private static ImageReference referenceOf(ContainerEntity container) {

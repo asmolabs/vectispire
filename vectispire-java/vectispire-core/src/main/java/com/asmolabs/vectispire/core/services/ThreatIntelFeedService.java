@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -28,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Service managing live threat intelligence feeds (CISA KEV, EPSS) and re-evaluating
@@ -43,18 +45,24 @@ public class ThreatIntelFeedService {
     private final Issues issuesRepo;
     private final Findings findingsRepo;
     private final SiemExporterService siemExporter;
+    private final AuditLogService audit;
+    private final TransactionTemplate transactions;
 
     public ThreatIntelFeedService(
             ThreatIntels intelRepo,
             ThreatIntelSyncs syncRepo,
             Issues issuesRepo,
             Findings findingsRepo,
-            SiemExporterService siemExporter) {
+            SiemExporterService siemExporter,
+            AuditLogService audit,
+            TransactionTemplate transactions) {
         this.intelRepo = intelRepo;
         this.syncRepo = syncRepo;
         this.issuesRepo = issuesRepo;
         this.findingsRepo = findingsRepo;
         this.siemExporter = siemExporter;
+        this.audit = audit;
+        this.transactions = transactions;
     }
 
     public ThreatIntelSyncStatus getStatus() {
@@ -66,6 +74,24 @@ public class ThreatIntelFeedService {
                         sync.getStatus(),
                         0))
                 .orElseGet(() -> new ThreatIntelSyncStatus(null, 0, 0, "NEVER_SYNCED", 0));
+    }
+
+    /**
+     * A synchronization somebody asked for, audited once it has committed.
+     *
+     * <p><b>The boundary is a {@link TransactionTemplate}, not the annotation below.</b> The audit
+     * entry opens its own transaction, and inside the sync's it would wait on the parent's lock on
+     * SQLite, where the lock is the file; calling the annotated method through {@code this} would
+     * bypass the proxy and run it with no transaction at all. The template opens the same boundary
+     * the annotation does, and closes it before the entry is written.
+     */
+    public ThreatIntelSyncStatus syncThreatIntel(RequestActor actor) {
+        ThreatIntelSyncStatus result = transactions.execute(status -> syncThreatIntel());
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                "threat_intel",
+                "Live Threat Intel feed synchronized (KEV=" + result.totalKev() + ", updated=" + result.backlogUpdatedCount() + ")"));
+        return result;
     }
 
     @Transactional

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
@@ -34,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Service managing open source license inventory, copyleft risk classification, and policy compliance.
@@ -50,6 +52,8 @@ public class LicenseGovernanceService {
     private final GitRepositories gitRepo;
     private final Containers containersRepo;
     private final ObjectMapper objectMapper;
+    private final AuditLogService audit;
+    private final TransactionTemplate transactions;
 
     public LicenseGovernanceService(
             LicensePolicies policyRepo,
@@ -58,7 +62,9 @@ public class LicenseGovernanceService {
             Scans scansRepo,
             GitRepositories gitRepo,
             Containers containersRepo,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            AuditLogService audit,
+            TransactionTemplate transactions) {
         this.policyRepo = policyRepo;
         this.componentsRepo = componentsRepo;
         this.findingsRepo = findingsRepo;
@@ -66,12 +72,31 @@ public class LicenseGovernanceService {
         this.gitRepo = gitRepo;
         this.containersRepo = containersRepo;
         this.objectMapper = objectMapper;
+        this.audit = audit;
+        this.transactions = transactions;
     }
 
     public LicensePolicy getPolicy() {
         return policyRepo.findById(LicensePolicyEntity.SINGLETON_ID)
                 .map(this::toDomainPolicy)
                 .orElseGet(LicensePolicy::defaultPolicy);
+    }
+
+    /**
+     * Stores the policy, then audits it.
+     *
+     * <p>Through a {@link TransactionTemplate} rather than by calling the annotated method below:
+     * through {@code this} the annotation is bypassed, and the audit entry has to follow the commit
+     * rather than sit inside it — it opens its own transaction, which on SQLite waits on the
+     * parent's lock, the lock being the file.
+     */
+    public LicensePolicy updatePolicy(LicensePolicy policy, RequestActor actor) {
+        LicensePolicy updated = transactions.execute(status -> updatePolicy(policy));
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                "license_policy",
+                "Updated open source license compliance policy (disallowed=" + policy.disallowedCategories() + ")"));
+        return updated;
     }
 
     @Transactional

@@ -77,6 +77,7 @@ the same commit that violates it; a missing dependency cannot.
 | A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
+| A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 

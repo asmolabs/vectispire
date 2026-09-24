@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
@@ -27,7 +28,10 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>No transaction of its own, on purpose.</b> Each write is one {@code save}, which carries
  * the repository's own transaction; the route this was lifted from never opened a wider one, and
- * wrapping the lookup and the save together here would change what a concurrent edit sees.
+ * wrapping the lookup and the save together here would change what a concurrent edit sees. It is
+ * also what lets each write be audited here, straight after it: the audit entry opens its own
+ * transaction, and inside an outer one it would wait on its parent's lock on SQLite, where the
+ * lock is the file.
  */
 @Service
 public class RepositoryAdministrationService {
@@ -37,18 +41,21 @@ public class RepositoryAdministrationService {
     private final Issues issues;
     private final ScanTriggerService trigger;
     private final TargetDeletionService targetDeletion;
+    private final AuditLogService audit;
 
     public RepositoryAdministrationService(
             GitRepositories repositories,
             Scans scans,
             Issues issues,
             ScanTriggerService trigger,
-            TargetDeletionService targetDeletion) {
+            TargetDeletionService targetDeletion,
+            AuditLogService audit) {
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
         this.trigger = trigger;
         this.targetDeletion = targetDeletion;
+        this.audit = audit;
     }
 
     /** A target's most recent scan, whatever its outcome. Shared with the container inventory. */
@@ -73,9 +80,6 @@ public class RepositoryAdministrationService {
             String requiredAgentLabel,
             String sshKeyId,
             String tier) {}
-
-    /** @param previousUrl what the row pointed at before, credential included — never shown as is */
-    public record Updated(RepositoryEntity repository, String previousUrl) {}
 
     public record Triggered(RepositoryEntity repository, ScanEntity scan) {}
 
@@ -106,7 +110,7 @@ public class RepositoryAdministrationService {
                 .findFirst();
     }
 
-    public RepositoryEntity create(Changes changes) {
+    public RepositoryEntity create(Changes changes, RequestActor actor) {
         String url = trim(changes.url());
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
@@ -129,7 +133,10 @@ public class RepositoryAdministrationService {
         repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
         repository.setTier(changes.tier() != null ? AssetTier.fromString(changes.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
-        return repositories.save(repository);
+        RepositoryEntity saved = repositories.save(repository);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Repository added: " + RepositoryUrl.redact(saved.getUrl())));
+        return saved;
     }
 
     /**
@@ -140,8 +147,10 @@ public class RepositoryAdministrationService {
      *
      * <p>The absent row is refused before the allowance is consulted, each in its own words,
      * because that is the order and the wording this route has always answered with.
+     *
+     * <p>The audit entry names the previous URL as well, redacted, for the reason the route gives.
      */
-    public Updated update(long id, Changes changes, Visibility allowed) {
+    public RepositoryEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
         RepositoryEntity repository = repositories
                 .findById(id)
                 .orElseThrow(() -> new NoSuchElementException("No repository with id " + id + "."));
@@ -189,21 +198,31 @@ public class RepositoryAdministrationService {
             repository.setTier(AssetTier.fromString(changes.tier()).name());
         }
 
-        return new Updated(repositories.save(repository), previousUrl);
+        RepositoryEntity saved = repositories.save(repository);
+        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                String.valueOf(saved.getId()),
+                "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved));
+        return saved;
     }
 
-    public Triggered trigger(long id) {
+    public Triggered trigger(long id, RequestActor actor) {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-        return new Triggered(repository, trigger.trigger(repository));
+        ScanEntity scan = trigger.trigger(repository);
+        audit.record(actor.entry(
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
+        return new Triggered(repository, scan);
     }
 
-    /** Deletes the repository and everything hanging off it; answers the row as it was. */
-    public RepositoryEntity delete(long id) {
+    /** Deletes the repository and everything hanging off it. */
+    public void delete(long id, RequestActor actor) {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
         targetDeletion.deleteRepository(id);
-        return repository;
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(id), "Repository deleted: " + RepositoryUrl.redact(repository.getUrl())));
     }
 
     private Map<Long, LatestScan> latestScans() {

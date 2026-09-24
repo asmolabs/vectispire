@@ -109,6 +109,25 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("no controller writes the audit log: the service that performs an action records it")
+    void controllersWriteNoAuditEntry() {
+        // An entry written by the route is an entry the next caller of the same service does not
+        // write — a second route, a scheduled job — and whether it is written before or after the
+        // commit becomes each controller's own guess. Ten controllers still held `AuditLogService`
+        // when this was added. `api.security` is left out on purpose: the filter chain audits what
+        // happens before any controller runs — a refused bearer token, a denied route, a
+        // single-sign-on callback — events that belong to no service method the entry could move to.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core.api..")
+                .and().resideOutsideOfPackage(ROOT + ".core.api.security..")
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName(ROOT + ".core.services.AuditLogService")
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName(ROOT + ".core.services.AuditLogService$Record")
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("the domain depends on no framework and no driver")
     void domainIsPure() {
         // A pure calculation importing Hibernate stops being testable without a database;

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+
 /**
  * Who did something, and from where, as an audit entry records it.
  *
@@ -20,4 +22,10 @@ package com.asmolabs.vectispire.core.services;
  * @param ipAddress the client address the servlet container resolved
  * @param userAgent the {@code User-Agent} header as sent, or null
  */
-public record RequestActor(String username, String ipAddress, String userAgent) {}
+public record RequestActor(String username, String ipAddress, String userAgent) {
+
+    /** An audit entry attributed to this actor. */
+    public AuditLogService.Record entry(AuditOperation operation, String resourceId, String description) {
+        return new AuditLogService.Record(operation, resourceId, description, username, ipAddress, userAgent);
+    }
+}

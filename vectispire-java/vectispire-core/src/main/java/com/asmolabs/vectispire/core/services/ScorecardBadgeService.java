@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -18,7 +19,8 @@ import org.springframework.stereotype.Service;
  * <p><b>Publishing is a decision somebody makes</b>, never inherited from the route existing: a
  * published badge says that this repository's posture may be read by anyone holding the link.
  *
- * <p>No transaction of its own: each change is one {@code save}, as it was on the route.
+ * <p>No transaction of its own: each change is one {@code save}, as it was on the route — and the
+ * audit entry after it can open its own without waiting on a parent's lock.
  */
 @Service
 public class ScorecardBadgeService {
@@ -28,10 +30,13 @@ public class ScorecardBadgeService {
 
     private final GitRepositories repositories;
     private final SecurityScorecardService scorecards;
+    private final AuditLogService audit;
 
-    public ScorecardBadgeService(GitRepositories repositories, SecurityScorecardService scorecards) {
+    public ScorecardBadgeService(
+            GitRepositories repositories, SecurityScorecardService scorecards, AuditLogService audit) {
         this.repositories = repositories;
         this.scorecards = scorecards;
+        this.audit = audit;
     }
 
     /**
@@ -67,8 +72,11 @@ public class ScorecardBadgeService {
      * <p>Idempotent on purpose: publishing twice returns the same token rather than rotating it
      * and quietly breaking every README that already carries the first one. Rotation is a revoke
      * followed by a publish, which is two deliberate acts.
+     *
+     * <p>Audited only when it did publish, so the log holds one entry per decision rather than
+     * one per click.
      */
-    public Optional<Badge> publish(long repoId, Visibility allowed) {
+    public Optional<Badge> publish(long repoId, Visibility allowed, RequestActor actor) {
         return visible(repoId, allowed).map(repository -> {
             if (repository.getBadgeToken() != null) {
                 return badgeOf(repository, false);
@@ -77,18 +85,22 @@ public class ScorecardBadgeService {
             TOKENS.nextBytes(raw);
             repository.setBadgeToken(Base64.getUrlEncoder().withoutPadding().encodeToString(raw));
             repositories.save(repository);
+            record(actor, repoId,
+                    "Security badge published for repository " + repoId
+                            + ": its grade is now readable by anyone holding the badge URL.");
             return badgeOf(repository, true);
         });
     }
 
     /** Revokes the badge. Every README carrying the old URL starts answering 404. */
-    public Optional<Badge> revoke(long repoId, Visibility allowed) {
+    public Optional<Badge> revoke(long repoId, Visibility allowed, RequestActor actor) {
         return visible(repoId, allowed).map(repository -> {
             if (repository.getBadgeToken() == null) {
                 return badgeOf(repository, false);
             }
             repository.setBadgeToken(null);
             repositories.save(repository);
+            record(actor, repoId, "Security badge revoked for repository " + repoId + ".");
             return badgeOf(repository, true);
         });
     }
@@ -104,6 +116,10 @@ public class ScorecardBadgeService {
             throw new NoSuchElementException("Target not found.");
         }
         return repositories.findById(repoId);
+    }
+
+    private void record(RequestActor actor, long repoId, String description) {
+        audit.record(actor.entry(AuditOperation.BADGE_PUBLISHED, "repository:" + repoId + ":badge", description));
     }
 
     private static Badge badgeOf(RepositoryEntity repository, boolean changed) {

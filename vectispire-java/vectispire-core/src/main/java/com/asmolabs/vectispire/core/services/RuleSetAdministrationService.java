@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
@@ -14,17 +15,26 @@ import org.springframework.stereotype.Service;
 
 /**
  * The decisions behind the rule set routes that {@link RuleSetService} does not already make:
- * importing the upstream catalogue under an accepted licence, and reading a set's impact.
+ * importing the upstream catalogue under an accepted licence, reading a set's impact, and
+ * auditing every change to what the scanner looks for.
+ *
+ * <p><b>Audited, because changing the rule set is the same class of decision as changing a gate
+ * policy.</b> The entries are written here, after {@link RuleSetService} has committed: its writes
+ * are {@code @Transactional}, and an audit entry — its own transaction — written inside one would
+ * wait on the parent's lock on SQLite, where the lock is the file. This class opens no transaction
+ * of its own, which is what keeps the two apart.
  */
 @Service
 public class RuleSetAdministrationService {
 
     private final RuleSetService ruleSets;
     private final RuleCatalogueFetcher fetcher;
+    private final AuditLogService audit;
 
-    public RuleSetAdministrationService(RuleSetService ruleSets, RuleCatalogueFetcher fetcher) {
+    public RuleSetAdministrationService(RuleSetService ruleSets, RuleCatalogueFetcher fetcher, AuditLogService audit) {
         this.ruleSets = ruleSets;
         this.fetcher = fetcher;
+        this.audit = audit;
     }
 
     /**
@@ -36,14 +46,6 @@ public class RuleSetAdministrationService {
      */
     public record RuleSetListing(List<RuleSetSummary> ruleSets) {}
 
-    /**
-     * What an import stored, and the terms it was stored under — what the audit entry must name.
-     *
-     * @param languages sorted, so that the same selection always reads the same in the log
-     */
-    public record CatalogueImport(
-            SemgrepRuleSetEntity stored, String commit, SortedSet<String> languages, String licenceSha256) {}
-
     public RuleSetListing list() {
         return new RuleSetListing(ruleSets.list());
     }
@@ -54,6 +56,18 @@ public class RuleSetAdministrationService {
                 ruleSets.byId(id).orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + ".")));
     }
 
+    /** Stores an upload, attributed to the actor. Does not activate it. */
+    public SemgrepRuleSetEntity upload(List<UploadedFile> files, String name, RequestActor actor) {
+        SemgrepRuleSetEntity stored = ruleSets.store(files == null ? List.of() : files, name, actor.username());
+
+        audit.record(actor.entry(
+                AuditOperation.RULE_SET_UPLOADED,
+                String.valueOf(stored.getId()),
+                "Rule set \"" + stored.getName() + "\" uploaded: " + stored.getFileCount() + " files, "
+                        + stored.getRuleCount() + " rules."));
+        return stored;
+    }
+
     /**
      * Fetches the chosen languages at the commit the caller read, and stores them. Does not
      * activate.
@@ -61,9 +75,13 @@ public class RuleSetAdministrationService {
      * <p><b>The acceptance is bound to a licence, not to a checkbox</b>: the digest the caller
      * echoes back must match the one just fetched, or "accepted" would mean "clicked a button next
      * to some text at some point".
+     *
+     * <p>The audit entry carries the tag, the commit and that digest, so that "which terms did we
+     * agree to, and who agreed" has an answer a year from now. The languages are sorted, so the
+     * same selection always reads the same in the log.
      */
-    public CatalogueImport importCatalogue(
-            String commit, List<String> requestedLanguages, String licenceSha256, String actor) {
+    public SemgrepRuleSetEntity importCatalogue(
+            String commit, List<String> requestedLanguages, String licenceSha256, RequestActor actor) {
 
         RuleCatalogue.requireCommit(commit);
         RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
@@ -87,7 +105,41 @@ public class RuleSetAdministrationService {
         List<UploadedFile> files = RuleCatalogue.select(fetched.contents(), languages);
 
         SemgrepRuleSetEntity stored =
-                ruleSets.store(files, RuleCatalogue.nameFor(fetched.commit(), languages), actor);
-        return new CatalogueImport(stored, fetched.commit(), new TreeSet<>(languages), fetched.licenceSha256());
+                ruleSets.store(files, RuleCatalogue.nameFor(fetched.commit(), languages), actor.username());
+
+        SortedSet<String> sorted = new TreeSet<>(languages);
+        audit.record(actor.entry(
+                AuditOperation.RULE_SET_UPLOADED,
+                String.valueOf(stored.getId()),
+                "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ", languages " + String.join(", ", sorted) + ": "
+                        + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
+                        + " accepted, sha256 " + fetched.licenceSha256() + "."));
+        return stored;
+    }
+
+    /**
+     * Activates a set, recording the impact the operator was shown.
+     *
+     * @param note what the screen showed when they confirmed — what makes "why did four hundred
+     *     issues close that afternoon" answerable six months later
+     */
+    public SemgrepRuleSetEntity activate(long id, String note, RequestActor actor) {
+        SemgrepRuleSetEntity activated = ruleSets.activate(id, note);
+
+        audit.record(actor.entry(
+                AuditOperation.RULE_SET_ACTIVATED,
+                String.valueOf(activated.getId()),
+                "Rule set \"" + activated.getName() + "\" activated. "
+                        + (activated.getActivationNote() == null ? "No impact recorded." : activated.getActivationNote())));
+        return activated;
+    }
+
+    /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */
+    public void deactivate(RequestActor actor) {
+        ruleSets.deactivateAll();
+        audit.record(actor.entry(
+                AuditOperation.RULE_SET_DEACTIVATED,
+                "all",
+                "Uploaded rule sets deactivated; scans fall back to the bundled rules."));
     }
 }

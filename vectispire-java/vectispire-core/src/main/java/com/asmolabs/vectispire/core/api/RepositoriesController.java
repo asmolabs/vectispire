@@ -2,11 +2,9 @@ package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Listed;
@@ -43,13 +41,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class RepositoriesController {
 
     private final RepositoryAdministrationService inventory;
-    private final AuditLogService audit;
     private final VisibilityService visibility;
 
-    public RepositoriesController(
-            RepositoryAdministrationService inventory, AuditLogService audit, VisibilityService visibility) {
+    public RepositoriesController(RepositoryAdministrationService inventory, VisibilityService visibility) {
         this.inventory = inventory;
-        this.audit = audit;
         this.visibility = visibility;
     }
 
@@ -109,8 +104,7 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity saved = inventory.create(changesOf(body));
-        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(), "Repository added: " + RepositoryUrl.redact(saved.getUrl()));
+        RepositoryEntity saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
         return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
@@ -138,14 +132,8 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryAdministrationService.Updated updated =
-                inventory.update(id, changesOf(body), allowed(principal));
-        RepositoryEntity saved = updated.repository();
-        String previousUrl = updated.previousUrl();
-        String moved = saved.getUrl().equals(previousUrl) ? "" : " (was " + RepositoryUrl.redact(previousUrl) + ")";
-        record(principal, request, AuditOperation.SETTING_UPDATED, saved.getId(),
-                "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved);
-
+        RepositoryEntity saved =
+                inventory.update(id, changesOf(body), allowed(principal), RequestActors.of(principal, request));
         return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
     }
 
@@ -163,9 +151,7 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id);
-        record(principal, request, AuditOperation.SCAN_TRIGGERED, triggered.scan().getId(),
-                "Scan requested: " + RepositoryUrl.redact(triggered.repository().getUrl()));
+        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id, RequestActors.of(principal, request));
         return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
     }
 
@@ -179,8 +165,7 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity repository = inventory.delete(id);
-        record(principal, request, AuditOperation.SETTING_UPDATED, id, "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()));
+        inventory.delete(id, RequestActors.of(principal, request));
     }
 
     private Visibility allowed(VectispirePrincipal principal) {
@@ -219,21 +204,6 @@ public class RepositoriesController {
                 body.requiredAgentLabel(),
                 body.sshKeyId(),
                 body.tier());
-    }
-
-    private void record(
-            VectispirePrincipal principal,
-            HttpServletRequest request,
-            AuditOperation operation,
-            long resourceId,
-            String description) {
-        audit.record(new AuditLogService.Record(
-                operation,
-                String.valueOf(resourceId),
-                description,
-                principal.user().map(user -> user.getUsername()).orElse(null),
-                request.getRemoteAddr(),
-                request.getHeader("User-Agent")));
     }
 
     /**

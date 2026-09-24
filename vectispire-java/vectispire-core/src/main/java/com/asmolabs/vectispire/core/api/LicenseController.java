@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
@@ -12,7 +11,6 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.LicenseGovernanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -34,12 +32,9 @@ public class LicenseController {
 
     private final LicenseGovernanceService licenseService;
     private final VisibilityService visibility;
-    private final AuditLogService audit;
 
-    public LicenseController(LicenseGovernanceService licenseService, AuditLogService audit,
-            VisibilityService visibility) {
+    public LicenseController(LicenseGovernanceService licenseService, VisibilityService visibility) {
         this.licenseService = licenseService;
-        this.audit = audit;
         this.visibility = visibility;
     }
 
@@ -80,21 +75,7 @@ public class LicenseController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        String username = principal != null && principal.user().isPresent()
-                ? principal.user().get().getUsername()
-                : "system";
-
-        LicensePolicy updated = licenseService.updatePolicy(policy);
-
-        audit.record(new AuditLogService.Record(
-                AuditOperation.SETTING_UPDATED,
-                "license_policy",
-                "Updated open source license compliance policy (disallowed=" + policy.disallowedCategories() + ")",
-                username,
-                request != null ? request.getRemoteAddr() : null,
-                request != null ? request.getHeader("User-Agent") : null));
-
-        return updated;
+        return licenseService.updatePolicy(policy, RequestActors.of(principal, request, "system"));
     }
 
     @GetMapping("/conflicts")

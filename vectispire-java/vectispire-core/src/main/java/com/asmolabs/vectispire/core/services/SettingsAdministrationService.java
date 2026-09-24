@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -24,6 +25,11 @@ import org.springframework.stereotype.Service;
  * <p><b>The catalog decides everything.</b> A key that is not in it is refused on write, so the
  * settings table cannot fill with keys no service reads — the exact state that makes an operator
  * believe they configured something.
+ *
+ * <p><b>Every write is audited</b>, like any administration action: moving the notification
+ * threshold from high to critical changes what the organization sees, and that is the kind of
+ * decision one wants to be able to date. The four credentials are audited too, and never with
+ * their value.
  */
 @Service
 public class SettingsAdministrationService {
@@ -41,11 +47,23 @@ public class SettingsAdministrationService {
     private final AiReviewService aiReview;
     /** Read for one question only: is anybody left to approve? */
     private final Users users;
+    private final TicketService tickets;
+    private final NotificationService notifications;
+    private final AuditLogService audit;
 
-    public SettingsAdministrationService(SettingsService settings, AiReviewService aiReview, Users users) {
+    public SettingsAdministrationService(
+            SettingsService settings,
+            AiReviewService aiReview,
+            Users users,
+            TicketService tickets,
+            NotificationService notifications,
+            AuditLogService audit) {
         this.settings = settings;
         this.aiReview = aiReview;
         this.users = users;
+        this.tickets = tickets;
+        this.notifications = notifications;
+        this.audit = audit;
     }
 
     /**
@@ -111,7 +129,7 @@ public class SettingsAdministrationService {
      * <p>All validated before any is written: a partial write would leave the configuration
      * half-way between two intended states.
      */
-    public Applied update(Map<String, String> body, Optional<UserEntity> writer) {
+    public Applied update(Map<String, String> body, Optional<UserEntity> writer, RequestActor actor) {
         if (body == null || body.isEmpty()) {
             throw new IllegalArgumentException("No setting supplied.");
         }
@@ -220,7 +238,7 @@ public class SettingsAdministrationService {
             }
         }
 
-        return new Applied(
+        Applied applied = new Applied(
                 changes.size(),
                 changes.stream().map(change -> change.setting().key()).reduce((a, b) -> a + "," + b).orElse(""),
                 changes.stream()
@@ -233,6 +251,70 @@ public class SettingsAdministrationService {
                         })
                         .reduce((a, b) -> a + "; " + b)
                         .orElse(""));
+
+        audit.record(actor.entry(AuditOperation.SETTING_UPDATED, applied.keys(), applied.description()));
+        return applied;
+    }
+
+    /**
+     * Stores the tracker token, or clears it when blank.
+     *
+     * <p>The value is <b>not</b> logged, unlike the other settings: the audit trail is readable by
+     * every administrator.
+     */
+    public void setTicketToken(String token, RequestActor actor) {
+        tickets.setToken(token);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                Setting.TICKET_TOKEN.key(),
+                token.isBlank() ? "Tracker token cleared." : "Tracker token stored."));
+    }
+
+    /**
+     * Stores the webhook signing secret, or clears it when blank.
+     *
+     * <p>Never the value in the entry. Whoever reads the audit table could otherwise forge a
+     * message into every channel this deployment announces to — and the audit log is deliberately
+     * never purged, so it would outlive the secret's own rotation.
+     */
+    public void setWebhookSigningSecret(String secret, RequestActor actor) {
+        notifications.setSigningSecret(secret);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                Setting.WEBHOOK_SIGNING_SECRET.key(),
+                secret.isBlank()
+                        ? "Webhook signing secret cleared — messages are sent unsigned."
+                        : "Webhook signing secret stored — messages are signed."));
+    }
+
+    /**
+     * Stores the OpenAI-compatible provider's key, or clears it when blank.
+     *
+     * <p>Never the value in the entry: whoever reads the audit table would otherwise be able to
+     * spend the account, and the audit log is deliberately never purged.
+     */
+    public void setOpenAiKey(String key, RequestActor actor) {
+        aiReview.setOpenAiKey(key);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                Setting.AI_REVIEW_OPENAI_KEY.key(),
+                key.isBlank() ? "AI provider API key cleared." : "AI provider API key stored."));
+    }
+
+    /**
+     * Stores the secret the tracker presents when it calls us, or clears it when blank.
+     *
+     * <p>Never the value in the entry: it would let whoever reads the audit table forge a triage
+     * decision, and the audit log is deliberately never purged.
+     */
+    public void setTicketWebhookSecret(String secret, RequestActor actor) {
+        tickets.setWebhookSecret(secret);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED,
+                Setting.TICKET_WEBHOOK_SECRET.key(),
+                secret.isBlank()
+                        ? "Inbound webhook secret cleared — the webhook route accepts anonymous callers again."
+                        : "Inbound webhook secret stored — the webhook route authenticates its caller."));
     }
 
     /**

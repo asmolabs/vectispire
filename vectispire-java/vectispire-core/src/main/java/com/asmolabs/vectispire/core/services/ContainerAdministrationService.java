@@ -5,6 +5,7 @@ import static com.asmolabs.vectispire.core.services.RepositoryAdministrationServ
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
@@ -29,7 +30,9 @@ import org.springframework.stereotype.Service;
  *
  * <p>No transaction of its own, for the same reason as {@link RepositoryAdministrationService}:
  * every write is a single {@code save} carrying the repository's transaction, which is all the
- * routes ever had.
+ * routes ever had. It is also what lets each write be audited here, straight after it: the audit
+ * entry opens its own transaction, and inside an outer one it would wait on its parent's lock on
+ * SQLite, where the lock is the file.
  */
 @Service
 public class ContainerAdministrationService {
@@ -39,18 +42,21 @@ public class ContainerAdministrationService {
     private final Issues issues;
     private final ScanTriggerService trigger;
     private final TargetDeletionService targetDeletion;
+    private final AuditLogService audit;
 
     public ContainerAdministrationService(
             Containers containers,
             Scans scans,
             Issues issues,
             ScanTriggerService trigger,
-            TargetDeletionService targetDeletion) {
+            TargetDeletionService targetDeletion,
+            AuditLogService audit) {
         this.containers = containers;
         this.scans = scans;
         this.issues = issues;
         this.trigger = trigger;
         this.targetDeletion = targetDeletion;
+        this.audit = audit;
     }
 
     /** An image as the inventory shows it: the row, its latest scan, and what waits on it. */
@@ -65,9 +71,6 @@ public class ContainerAdministrationService {
             String scanCron,
             String requiredAgentLabel,
             String tier) {}
-
-    /** @param previousReference the formatted reference before the change, for the audit entry */
-    public record Updated(ContainerEntity container, String previousReference) {}
 
     public record Triggered(ContainerEntity container, ScanEntity scan) {}
 
@@ -91,7 +94,7 @@ public class ContainerAdministrationService {
                 .findFirst();
     }
 
-    public ContainerEntity create(Changes changes) {
+    public ContainerEntity create(Changes changes, RequestActor actor) {
         ImageReference reference = new ImageReference(
                 optional(changes.registry()),
                 trim(changes.imageName()),
@@ -111,7 +114,10 @@ public class ContainerAdministrationService {
         container.setRequiredAgentLabel(AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
         container.setTier(changes.tier() != null ? AssetTier.fromString(changes.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
 
-        return containers.save(container);
+        ContainerEntity saved = containers.save(container);
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image added: " + referenceOf(saved).format()));
+        return saved;
     }
 
     /**
@@ -120,8 +126,10 @@ public class ContainerAdministrationService {
      *
      * <p>The absent row is refused before the allowance is consulted, each in its own words: the
      * order and the wording this route has always answered with.
+     *
+     * <p>The audit entry names the previous reference as well, for the reason the route gives.
      */
-    public Updated update(long id, Changes changes, Visibility allowed) {
+    public ContainerEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
         ContainerEntity container = containers
                 .findById(id)
                 .orElseThrow(() -> new NoSuchElementException("No image with id " + id + "."));
@@ -162,21 +170,30 @@ public class ContainerAdministrationService {
             container.setTier(AssetTier.fromString(changes.tier()).name());
         }
 
-        return new Updated(containers.save(container), previousReference);
+        ContainerEntity saved = containers.save(container);
+        String now = referenceOf(saved).format();
+        String moved = now.equals(previousReference) ? "" : " (was " + previousReference + ")";
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image updated: " + now + moved));
+        return saved;
     }
 
-    public Triggered trigger(long id) {
+    public Triggered trigger(long id, RequestActor actor) {
         ContainerEntity container = containers.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Image not found."));
-        return new Triggered(container, trigger.trigger(container));
+        ScanEntity scan = trigger.trigger(container);
+        audit.record(actor.entry(
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + referenceOf(container).format()));
+        return new Triggered(container, scan);
     }
 
-    /** Deletes the image and everything hanging off it; answers the row as it was. */
-    public ContainerEntity delete(long id) {
+    /** Deletes the image and everything hanging off it. */
+    public void delete(long id, RequestActor actor) {
         ContainerEntity container = containers.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Image not found."));
         targetDeletion.deleteContainer(id);
-        return container;
+        audit.record(actor.entry(
+                AuditOperation.SETTING_UPDATED, String.valueOf(id), "Image deleted: " + referenceOf(container).format()));
     }
 
     public static ImageReference referenceOf(ContainerEntity container) {
