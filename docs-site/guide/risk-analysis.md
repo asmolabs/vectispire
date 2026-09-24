@@ -13,6 +13,10 @@ point: CVSS says how bad it would be, EPSS says how likely anyone is to try.
 CISA **KEV** status sits alongside it — not a prediction but a record that exploitation has
 been observed. A KEV entry outranks a high EPSS, which outranks a high CVSS.
 
+The ranking covers open vulnerabilities whose triage is not settled: one triaged **not affected**
+or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
+approval stays ranked — a request is not a decision.
+
 ## Attack paths
 
 ![An attack path: an unauthenticated route reaching a vulnerable component, reaching the data store — with the narrative the chain produces.](../assets/screens/en/attack-paths.png)

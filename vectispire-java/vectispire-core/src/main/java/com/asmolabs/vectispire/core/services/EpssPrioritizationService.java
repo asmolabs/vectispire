@@ -74,14 +74,17 @@ public class EpssPrioritizationService {
     public EpssFleetSummary getFleetSummary(Visibility allowed) {
         // **A projection, not a row.** This read materialised a managed IssueEntity per issue to
         // rank on twelve columns — 23, 223 then 623 entity loads for 20, 220 and 620 issues.
+        //
+        // **Settled triage is left out**, as on the scorecard, the maturity ranking and the gate. The
+        // ranking used to keep every issue not closed or resolved, dismissals included, so a CVE
+        // argued `not_affected` could head the list of what to fix first — the most actionable
+        // screen contradicting the decision already taken about the row. `pending_approval` and
+        // any status this version does not know still rank: neither is a decision.
         List<IssueRows.EpssRow> openIssues = issuesRepo.findBy(
-                        new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
+                        new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
                                 .toSpecification(),
                         query -> query.as(IssueRows.EpssRow.class).all())
                 .stream()
-                // `excludeSettled` is not what this wants: the original kept everything that is not
-                // closed or resolved, including dismissed triage, so the state filter is spelled out
-                // rather than borrowed from a flag that means something adjacent.
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
 

@@ -111,6 +111,30 @@ class EpssPrioritizationDatabaseTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("a settled triage is not ranked; a dismissal awaiting approval, or a status nobody recognizes, still is")
+    void settledTriageIsNotRanked() {
+        IssueEntity dismissed = issue(repository.getId(), null, "CVE-2026-5001", 9.8, 0.9, "open");
+        dismissed.setTriageStatus("not_affected");
+        issues.save(dismissed);
+        IssueEntity fixed = issue(repository.getId(), null, "CVE-2026-5002", 9.8, 0.9, "open");
+        fixed.setTriageStatus("fixed");
+        issues.save(fixed);
+        IssueEntity requested = issue(repository.getId(), null, "CVE-2026-5003", 5.0, 0.1, "open");
+        requested.setTriageStatus("pending_approval");
+        issues.save(requested);
+        IssueEntity unreadable = issue(repository.getId(), null, "CVE-2026-5004", 5.0, 0.1, "open");
+        unreadable.setTriageStatus("untriaged");
+        issues.save(unreadable);
+
+        EpssFleetSummary summary = epss.getFleetSummary(Visibility.everything());
+
+        assertThat(summary.totalVulnerabilities()).isEqualTo(2);
+        assertThat(summary.topPriorities())
+                .extracting(EpssPrioritizedIssue::issueId)
+                .containsExactlyInAnyOrder(requested.getId(), unreadable.getId());
+    }
+
+    @Test
     @DisplayName("each row is named after its own target: repository by name, container by image and tag")
     void rowsAreNamed() {
         ContainerEntity container = new ContainerEntity();

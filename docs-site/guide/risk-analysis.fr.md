@@ -15,6 +15,11 @@ Le statut **KEV** de la CISA se tient à côté — non pas une prédiction, mai
 l'exploitation a été observée. Une entrée KEV passe devant un EPSS élevé, qui passe devant un
 CVSS élevé.
 
+Le classement porte sur les vulnérabilités ouvertes dont le triage n'est pas réglé : une
+vulnérabilité triée **non affecté** ou **corrigé** en sort, comme elle sort de la barrière et du
+scorecard. Une exclusion encore en attente d'approbation reste classée — une demande n'est pas une
+décision.
+
 ## Chemins d'attaque
 
 ![Un chemin d'attaque : une route non authentifiée atteignant un composant vulnérable, puis la base — avec le récit que la chaîne produit.](../assets/screens/fr/attack-paths.png)
