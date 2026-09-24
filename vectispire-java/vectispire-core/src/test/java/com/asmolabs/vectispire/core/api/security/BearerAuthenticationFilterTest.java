@@ -15,7 +15,6 @@ import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
@@ -43,7 +42,6 @@ class BearerAuthenticationFilterTest {
 
     private final AuthService auth = mock(AuthService.class);
     private final ApiKeyAuthService apiKeys = mock(ApiKeyAuthService.class);
-    private final Users users = mock(Users.class);
     private final VisibilityService visibility = mock(VisibilityService.class);
     private BearerAuthenticationFilter filter;
 
@@ -52,7 +50,7 @@ class BearerAuthenticationFilterTest {
         SecurityContextHolder.clearContext();
         when(auth.resolve(any())).thenReturn(Optional.empty());
         when(apiKeys.resolve(anyString())).thenReturn(Optional.empty());
-        filter = new BearerAuthenticationFilter(auth, apiKeys, users, visibility);
+        filter = new BearerAuthenticationFilter(auth, apiKeys, visibility);
     }
 
     @AfterEach
@@ -65,7 +63,7 @@ class BearerAuthenticationFilterTest {
     void aSessionBecomesItsUser() throws Exception {
         SessionEntity session = session(7L);
         when(auth.resolve("Bearer s")).thenReturn(Optional.of(session));
-        when(users.findById(7L)).thenReturn(Optional.of(user(7L, true)));
+        when(auth.activeUserOf(session)).thenReturn(Optional.of(user(7L, true)));
 
         assertThat(authenticate("Bearer s")).isInstanceOf(VectispirePrincipal.class)
                 .satisfies(principal -> assertThat(((VectispirePrincipal) principal).user()).isPresent());
@@ -76,7 +74,7 @@ class BearerAuthenticationFilterTest {
     void aDeactivatedAccountIsRefused() throws Exception {
         SessionEntity session = session(7L);
         when(auth.resolve("Bearer s")).thenReturn(Optional.of(session));
-        when(users.findById(7L)).thenReturn(Optional.of(user(7L, false)));
+        when(auth.activeUserOf(session)).thenReturn(Optional.empty());
 
         assertThat(authenticate("Bearer s")).isNull();
         verify(auth).revoke(session);

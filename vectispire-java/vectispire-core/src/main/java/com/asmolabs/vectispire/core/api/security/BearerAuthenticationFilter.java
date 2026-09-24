@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.core.api.scim.ScimProperties;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
@@ -31,25 +30,22 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
     private final AuthService auth;
     private final ApiKeyAuthService apiKeys;
-    private final Users users;
     private final VisibilityService visibility;
     private final Optional<ScimProperties> scimProperties;
 
     public BearerAuthenticationFilter(
-            AuthService auth, ApiKeyAuthService apiKeys, Users users, VisibilityService visibility) {
-        this(auth, apiKeys, users, visibility, Optional.empty());
+            AuthService auth, ApiKeyAuthService apiKeys, VisibilityService visibility) {
+        this(auth, apiKeys, visibility, Optional.empty());
     }
 
     @Autowired
     public BearerAuthenticationFilter(
             AuthService auth,
             ApiKeyAuthService apiKeys,
-            Users users,
             VisibilityService visibility,
             Optional<ScimProperties> scimProperties) {
         this.auth = auth;
         this.apiKeys = apiKeys;
-        this.users = users;
         this.visibility = visibility;
         this.scimProperties = scimProperties;
     }
@@ -69,7 +65,7 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private Optional<VectispirePrincipal> authenticate(String header, String path) {
         Optional<SessionEntity> session = auth.resolve(header);
         if (session.isPresent()) {
-            Optional<UserEntity> user = users.findById(session.get().getUserId()).filter(UserEntity::getIsActive);
+            Optional<UserEntity> user = auth.activeUserOf(session.get());
             if (user.isEmpty()) {
                 auth.revoke(session.get());
                 return Optional.empty();

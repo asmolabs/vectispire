@@ -81,7 +81,10 @@ class ArchitectureTest {
                 // Read downwards: who is allowed to see me.
                 .whereLayer("api").mayNotBeAccessedByAnyLayer()
                 .whereLayer("services").mayOnlyBeAccessedByLayers("api")
-                .whereLayer("repositories").mayOnlyBeAccessedByLayers("services", "api")
+                // Not `api`: a controller maps HTTP, a service reads, decides and writes. Thirty-three
+                // controllers reached repositories directly when this line still allowed it; they
+                // were moved behind services on 2026-09-24, under a ratchet that shrank to nothing.
+                .whereLayer("repositories").mayOnlyBeAccessedByLayers("services")
                 .whereLayer("persistence").mayOnlyBeAccessedByLayers("repositories", "services", "api")
                 .whereLayer("scanning").mayOnlyBeAccessedByLayers("services", "api")
                 // No optional layers and no empty-should escape any more: every layer is
@@ -90,67 +93,19 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    /**
-     * Controllers that still reach a repository or open a transaction themselves — and may only leave.
-     *
-     * <p><b>The rule: a controller maps HTTP, a service decides and reads.</b> No repository, no
-     * transaction, no business rule in {@code api}. The layering above allowed {@code api} to
-     * reach {@code repositories} directly, and thirty-three controllers did: that is how
-     * {@code AgentsAdminController} came to hold five repositories and a transaction template with
-     * no service at all, and why a lookup written once in a controller was written again in the
-     * next one, each with its own idea of visibility.
-     *
-     * <p><b>A ratchet, because thirty-three are not moved in one commit.</b> A controller not
-     * listed here fails the moment it takes a repository or a transaction; one listed here fails
-     * the moment it no longer does, so the entry is removed in the same commit and the list only
-     * shrinks. When it is empty, this list goes and the layering above loses {@code api} from
-     * the repositories' allowed callers.
-     */
-    private static final java.util.Set<String> CONTROLLERS_STILL_REACHING_DATA = java.util.Set.of(
-            "AgentsAdminController",
-            "AgentsController",
-            "ApiKeysController",
-            "AuditLogController",
-            "ScimGroupsController",
-            "ScimUsersController",
-            "SshKeysController",
-            "TicketingController",
-            "TicketingWebhookController");
-
     @Test
-    @DisplayName("a controller reaches data only through a service — and the list of those that do not only shrinks")
-    void controllersGoThroughServices() {
-        java.util.Set<String> reaching = classes.stream()
-                .filter(c -> c.getPackageName().startsWith(ROOT + ".core.api"))
-                // Controllers, and the classes nested in them — the security filters and
-                // interceptors beside them are infrastructure, not routes.
-                .filter(c -> controllerOf(c).isPresent())
-                .filter(c -> c.getDirectDependenciesFromSelf().stream().anyMatch(d ->
-                        d.getTargetClass().getPackageName().startsWith(ROOT + ".core.repositories")
-                                || d.getTargetClass().getName().equals("org.springframework.transaction.support.TransactionTemplate")
-                                || d.getTargetClass().getName().equals("org.springframework.transaction.annotation.Transactional")))
-                .map(c -> c.getName().substring(c.getName().lastIndexOf('.') + 1).replaceAll("\\$.*", ""))
-                .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
-
-        org.assertj.core.api.Assertions.assertThat(reaching)
-                .as("these controllers reach a repository or a transaction directly. Put the lookup, "
-                        + "the rule and the write in a service method, and keep the controller to HTTP")
-                .isSubsetOf(CONTROLLERS_STILL_REACHING_DATA);
-        org.assertj.core.api.Assertions.assertThat(CONTROLLERS_STILL_REACHING_DATA)
-                .as("these controllers no longer reach data directly: remove them from the list, "
-                        + "so the ratchet cannot give the room back")
-                .isSubsetOf(reaching);
-    }
-
-    private static java.util.Optional<com.tngtech.archunit.core.domain.JavaClass> controllerOf(
-            com.tngtech.archunit.core.domain.JavaClass type) {
-        com.tngtech.archunit.core.domain.JavaClass outer = type;
-        while (outer.getEnclosingClass().isPresent()) {
-            outer = outer.getEnclosingClass().get();
-        }
-        boolean controller = outer.isAnnotatedWith("org.springframework.web.bind.annotation.RestController")
-                || outer.isAnnotatedWith("org.springframework.stereotype.Controller");
-        return controller ? java.util.Optional.of(outer) : java.util.Optional.empty();
+    @DisplayName("the api layer opens no transaction: a transaction is a decision, and decisions are the services'")
+    void apiOpensNoTransaction() {
+        // The layering above keeps `api` out of the repositories; this keeps it out of the
+        // transaction boundary, which is the other half of "a controller maps HTTP". Three
+        // controllers held a `TransactionTemplate` or `@Transactional` before the move.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core.api..")
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName("org.springframework.transaction.support.TransactionTemplate")
+                .orShould().dependOnClassesThat()
+                .haveFullyQualifiedName("org.springframework.transaction.annotation.Transactional")
+                .check(classes);
     }
 
     @Test

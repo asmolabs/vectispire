@@ -157,6 +157,19 @@ public class AuthService {
     }
 
     /**
+     * The account a session belongs to, if it may still act.
+     *
+     * <p>Asked by the bearer filter after {@link #resolve}: a session outlives nothing about its
+     * account, so a deactivated account's session is refused — and closed — here rather than
+     * honoured until it expires. Behind a service because a filter in {@code api} does not reach
+     * repositories, any more than a controller does.
+     */
+    @Transactional(readOnly = true)
+    public Optional<UserEntity> activeUserOf(SessionEntity session) {
+        return users.findById(session.getUserId()).filter(UserEntity::getIsActive);
+    }
+
+    /**
      * Resolves a token into an active session, refreshing its activity timestamp.
      *
      * <p>An expired session is <b>deleted</b> rather than merely refused: leaving it would grow
