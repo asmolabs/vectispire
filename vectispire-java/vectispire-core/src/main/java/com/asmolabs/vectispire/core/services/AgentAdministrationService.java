@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
@@ -48,6 +49,16 @@ public class AgentAdministrationService {
 
     /** Past this without a word, an agent counts as offline. */
     private static final Duration ONLINE_TTL = Duration.ofSeconds(120);
+
+    /** What the agent's key is called, in front of the agent's name, in a column of 255. */
+    private static final String KEY_NAME_PREFIX = "Agent ";
+
+    /** The key's column, not the agent's, is the narrower: see {@link #declare}. */
+    private static final int MAX_NAME_LENGTH = 255 - KEY_NAME_PREFIX.length();
+
+    private static final int MAX_DESCRIPTION_LENGTH = 500;
+
+    private static final int MAX_LABELS_LENGTH = 255;
 
     private final Agents agents;
     private final ApiKeysRepository keys;
@@ -276,6 +287,12 @@ public class AgentAdministrationService {
         if (name.isEmpty()) {
             throw new IllegalArgumentException("The agent's name is required.");
         }
+        // Checked against the narrower of its two columns: the agent's own is 255, but its key is
+        // named "Agent " + name in another 255, and past that the key's insert failed — a 500, and
+        // the whole declaration rolled back with it.
+        BoundedText.within(name, MAX_NAME_LENGTH, "The agent's name");
+        String description = BoundedText.optional(declaration.description(), MAX_DESCRIPTION_LENGTH, "The description");
+        String labels = joinedLabels(declaration.labels());
 
         CredentialsMode mode = declaration.credentialsMode() == null || declaration.credentialsMode().isBlank()
                 ? CredentialsMode.LOCAL
@@ -291,7 +308,7 @@ public class AgentAdministrationService {
         // for the reason given on the class.
         AgentEntity saved = transactions.execute(status -> {
             ApiKeyEntity key = new ApiKeyEntity();
-            key.setName("Agent " + name);
+            key.setName(KEY_NAME_PREFIX + name);
             key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
             key.setPrefix(issued.prefix());
             // The only scope: an agent has no business reading the backlog or exporting anything.
@@ -303,12 +320,12 @@ public class AgentAdministrationService {
 
             AgentEntity agent = new AgentEntity();
             agent.setName(name);
-            agent.setDescription(text(declaration.description()));
+            agent.setDescription(description);
             agent.setKind(AgentKind.REMOTE.wireName());
             agent.setCredentialsMode(mode.wireName());
             // Normalized on save, like the requirement a target carries: the two are compared, and
             // two divergent normalizations would leave a scan waiting for an agent that is present.
-            agent.setLabels(joinedLabels(declaration.labels()));
+            agent.setLabels(labels);
             agent.setEnabled(true);
             agent.setMaxConcurrent(declaration.maxConcurrent() == null ? 1 : declaration.maxConcurrent());
             agent.setApiKeyId(savedKey.getId());
@@ -484,13 +501,11 @@ public class AgentAdministrationService {
                 actor.userAgent()));
     }
 
+    /** Normalized, then bounded: the joined form is what the column holds. */
     private static String joinedLabels(String raw) {
         List<String> labels = AgentLabels.parse(raw);
-        return labels.isEmpty() ? null : String.join(",", labels);
-    }
-
-    private static String text(String value) {
-        String trimmed = value == null ? "" : value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return labels.isEmpty()
+                ? null
+                : BoundedText.within(String.join(",", labels), MAX_LABELS_LENGTH, "The labels");
     }
 }

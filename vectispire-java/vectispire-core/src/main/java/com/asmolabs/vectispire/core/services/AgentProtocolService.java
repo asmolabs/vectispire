@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
@@ -89,15 +90,24 @@ public class AgentProtocolService {
             throw new IllegalArgumentException("The announced sealing key is not a readable X25519 public key.");
         }
 
+        // **Clipped to the columns, never refused.** This is the agent describing itself — a
+        // hostname, a platform string, the version it was built as — and nobody can correct it from
+        // this side: a refusal would drop the heartbeat, the agent would read as offline and stop
+        // being given work, over a display field. Past the column the database used to refuse the
+        // update instead, with the same outcome and a 500 in the agent's log. The two values that
+        // decide something, the contract version and the sealing key, are checked above and never
+        // clipped.
         agents.recordHeartbeat(
                 agent.getId(),
                 clock.instant(),
-                text(announcement.hostname()),
-                text(announcement.platform()),
-                text(announcement.version()),
-                text(announcement.scannerEngine()),
-                text(announcement.capabilities()),
-                announced,
+                BoundedText.clip(text(announcement.hostname()), 255),
+                BoundedText.clip(text(announcement.platform()), 255),
+                BoundedText.clip(text(announcement.version()), 50),
+                BoundedText.clip(text(announcement.scannerEngine()), 50),
+                BoundedText.clip(text(announcement.capabilities()), BoundedText.TEXT_MAX),
+                // Trimmed, as the compatibility check read it: padding it accepted would otherwise
+                // overflow a column sized for the version itself.
+                announced.trim(),
                 sealingKey);
 
         return new Hello.Accepted();
