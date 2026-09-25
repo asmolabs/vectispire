@@ -1,13 +1,18 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.settings.SettingType;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +31,12 @@ public class SiemExporterService {
 
     /** Binds the stored header to its own column, so a ciphertext moved elsewhere does not decrypt. */
     static final String AUTH_HEADER_CONTEXT = "siem_config:auth_header";
+
+    /** The width of {@code endpoint}. */
+    private static final int MAX_ENDPOINT_LENGTH = 1024;
+
+    /** Encrypted, 1,500 ASCII characters become at most 2,043: see V32 and {@link #requireUsableHeader}. */
+    private static final int MAX_AUTH_HEADER_LENGTH = 1_500;
 
     private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
     private final SiemConfigs repository;
@@ -57,6 +68,28 @@ public class SiemExporterService {
      */
     public SiemConfigEntity saveConfig(
             boolean enabled, String protocol, String endpoint, String authHeader, String minSeverity, RequestActor actor) {
+        // Every field is checked before the row is touched, so a refusal leaves the stored
+        // configuration exactly as it was. Each of these reached its column unchecked, and a value
+        // past it was refused by the database at the write, as a 500.
+        SiemProtocol parsedProtocol = protocol == null || protocol.isBlank()
+                ? SiemProtocol.WEBHOOK
+                : SiemProtocol.byName(protocol).orElseThrow(() -> new IllegalArgumentException(
+                        "Unknown SIEM protocol \"" + protocol.trim() + "\". Expected one of: "
+                                + String.join(", ", Arrays.stream(SiemProtocol.values()).map(Enum::name).toList())
+                                + "."));
+        Severity threshold = minSeverity == null || minSeverity.isBlank()
+                ? Severity.HIGH
+                : SettingType.THRESHOLDS.stream()
+                        .filter(candidate -> candidate.wireName().equalsIgnoreCase(minSeverity.trim()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "Unknown minimum severity \"" + minSeverity.trim()
+                                        + "\". Expected one of: CRITICAL, HIGH, MEDIUM, LOW."));
+        BoundedText.within(endpoint == null ? null : endpoint.trim(), MAX_ENDPOINT_LENGTH, "The endpoint");
+        if (authHeader != null && !authHeader.isBlank()) {
+            requireUsableHeader(authHeader.trim());
+        }
+
         SiemConfigEntity entity = repository.findById(SiemConfigEntity.SINGLETON_ID)
                 .orElseGet(() -> {
                     SiemConfigEntity fresh = new SiemConfigEntity();
@@ -75,7 +108,7 @@ public class SiemExporterService {
             entity.setAuthHeader(null);
         }
         entity.setEnabled(enabled);
-        entity.setProtocol(protocol != null ? protocol : "WEBHOOK");
+        entity.setProtocol(parsedProtocol.name());
         entity.setEndpoint(endpoint);
         // **Blank keeps the stored header.** The screen says so ("leave empty to keep current")
         // and the response never sends the header back, so the form cannot resubmit it: writing
@@ -87,7 +120,8 @@ public class SiemExporterService {
         if (authHeader != null && !authHeader.isBlank()) {
             entity.setAuthHeader(encryption.encrypt(authHeader.trim(), AUTH_HEADER_CONTEXT));
         }
-        entity.setMinSeverity(minSeverity != null ? minSeverity : "HIGH");
+        // Stored in capitals, as the screen sends it and the default has always been written.
+        entity.setMinSeverity(threshold.name());
         entity.setUpdatedAt(Instant.now());
         SiemConfigEntity saved = repository.save(entity);
 
@@ -96,6 +130,22 @@ public class SiemExporterService {
                 String.valueOf(saved.getId()),
                 "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol() + ")"));
         return saved;
+    }
+
+    /**
+     * A header value that can be sent, and whose ciphertext fits the column.
+     *
+     * <p>Visible ASCII and spaces only: that is what an HTTP field value may carry, and a line break
+     * in it is a header injection on every export. Bounded so that, encrypted — a third longer and
+     * forty characters of envelope — it stays inside the 2,048 characters V32 gave the column.
+     */
+    private static void requireUsableHeader(String header) {
+        BoundedText.within(header, MAX_AUTH_HEADER_LENGTH, "The authorization header");
+        if (!header.chars().allMatch(c -> c >= 0x20 && c < 0x7f)) {
+            throw new IllegalArgumentException(
+                    "The authorization header may hold printable ASCII only: no line break, no control or "
+                            + "accented character.");
+        }
     }
 
     @Async

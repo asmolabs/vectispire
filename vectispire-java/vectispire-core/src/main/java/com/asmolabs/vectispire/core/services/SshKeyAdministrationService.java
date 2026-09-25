@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
@@ -27,6 +28,11 @@ public class SshKeyAdministrationService {
      * and many where it would be a leak.
      */
     private static final Pattern PRIVATE_KEY_HEADER = Pattern.compile("^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----");
+
+    private static final int NAME_LENGTH = 255;
+
+    /** Encrypted, this still fits MySQL's 65,535-byte {@code text}: see {@link #add}. */
+    private static final int MAX_KEY_LENGTH = BoundedText.TEXT_MAX;
 
     private final SshKeys keys;
     private final GitRepositories repositories;
@@ -89,6 +95,13 @@ public class SshKeyAdministrationService {
         if (privateKey.isEmpty()) {
             throw new IllegalArgumentException("The private key is required.");
         }
+        // The name goes into a varchar(255), the keys into `text` — the private one encrypted, a
+        // third longer. An RSA key of 16,384 bits is under 13,000 characters in PEM; the ceiling
+        // keeps any key that exists and refuses the paste of a whole file tree, which the database
+        // used to refuse instead, as a 500.
+        BoundedText.within(name, NAME_LENGTH, "The name");
+        BoundedText.within(privateKey, MAX_KEY_LENGTH, "The private key");
+        BoundedText.within(publicKey, MAX_KEY_LENGTH, "The public key");
         if (!PRIVATE_KEY_HEADER.matcher(privateKey).find()) {
             // Refused on entry: otherwise the error only shows at the first clone, in an agent's
             // log, and looks like a network problem.

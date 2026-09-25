@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
@@ -46,6 +47,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class TeamAdministrationService {
+
+    /** The width of {@code t_team_webhook.url}. */
+    private static final int MAX_WEBHOOK_URL_LENGTH = 500;
 
     private final Teams teams;
     private final TeamMembers memberships;
@@ -276,6 +280,9 @@ public class TeamAdministrationService {
             record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                     "Webhook removed from " + team.getName());
         } else {
+            // Before the guard, which resolves the host: a URL the column cannot hold is refused
+            // without a DNS lookup, and without the 500 the insert used to answer.
+            BoundedText.within(url, MAX_WEBHOOK_URL_LENGTH, "The webhook URL");
             outbound.validate(url, policy(), "team webhook URL");
             webhooks.save(new TeamWebhookEntity(id, url));
             // **The URL is not in the entry.** An audit log is read by people who are not

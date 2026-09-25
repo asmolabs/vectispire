@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.GitTokenEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
@@ -25,6 +26,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class GitTokenAdministrationService {
+
+    private static final int NAME_LENGTH = 255;
+
+    /** Encrypted, this still fits MySQL's 65,535-byte {@code text}: see {@link #add}. */
+    private static final int MAX_TOKEN_LENGTH = 8_192;
 
     private final GitTokens tokens;
     private final GitRepositories repositories;
@@ -93,6 +99,13 @@ public class GitTokenAdministrationService {
         if (token.isEmpty()) {
             throw new IllegalArgumentException("The token is required.");
         }
+        // The name and the username go into varchar(255) columns, and past them the database
+        // refused the row at the write, as a 500. The token goes into `text` encrypted: a third
+        // longer, and bounded so that the ciphertext always fits MySQL's 64 KB. No forge issues a
+        // token within two orders of magnitude of the ceiling.
+        BoundedText.within(name, NAME_LENGTH, "The name");
+        BoundedText.within(username, NAME_LENGTH, "The username");
+        BoundedText.within(token, MAX_TOKEN_LENGTH, "The token");
         if (token.chars().anyMatch(Character::isWhitespace)) {
             // A pasted line break or a "Bearer " prefix: the forge would refuse it at the first clone,
             // far from here, as an authentication failure.

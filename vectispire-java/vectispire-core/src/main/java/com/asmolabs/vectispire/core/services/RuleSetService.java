@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.RuleSetSummary;
@@ -44,6 +45,8 @@ public class RuleSetService {
 
     private static final TypeReference<List<StoredFile>> FILES = new TypeReference<>() {};
 
+    private static final int MAX_NAME_LENGTH = 255;
+
     private final RuleSets ruleSets;
     private final Issues issues;
     private final ObjectMapper json;
@@ -68,6 +71,11 @@ public class RuleSetService {
         String label = name == null ? "" : name.trim();
         if (label.isEmpty()) {
             throw new InvalidRuleSetException("A rule set needs a name.");
+        }
+        // The column is 255; past it the insert failed at the flush, as a 500, after every file
+        // had been parsed and hashed.
+        if (label.length() > MAX_NAME_LENGTH) {
+            throw new InvalidRuleSetException("A rule set's name is at most " + MAX_NAME_LENGTH + " characters.");
         }
 
         List<StoredFile> stored = RuleSet.accept(files);
@@ -155,6 +163,12 @@ public class RuleSetService {
         SemgrepRuleSetEntity target = ruleSets
                 .findById(id)
                 .orElseThrow(() -> new InvalidRuleSetException("No rule set with id " + id + "."));
+
+        // What the operator was shown when they confirmed, kept as the activation's record — and a
+        // `text` column, so bounded like every other stored text.
+        if (note != null && note.length() > BoundedText.TEXT_MAX) {
+            throw new InvalidRuleSetException("The activation note is longer than " + BoundedText.TEXT_MAX + " characters.");
+        }
 
         ruleSets.deactivateAll();
         ruleSets.activate(target.getId(), note);
