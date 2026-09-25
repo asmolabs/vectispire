@@ -58,9 +58,13 @@ l'autorité sur le schéma DDL pour prévenir toute divergence ou perte silencie
 
 1. **Le socket n'est monté dans aucun conteneur Vectispire** ([ADR
    0018](../../fr/decisions/0018-the-docker-socket-is-never-mounted.md)). Un `docker-socket-proxy`
-   le détient en lecture seule sur un réseau `internal`, et le plan de contrôle comme l'agent
-   atteignent le démon à travers lui via `DOCKER_HOST`. Le proxy autorise `PING`, `VERSION`,
-   `INFO`, `CONTAINERS`, `IMAGES` et `POST`, et refuse tout le reste — `EXEC` en premier.
+   le détient en lecture seule sur un réseau `internal` partagé avec le seul plan de contrôle, qui
+   atteint le démon à travers lui via `DOCKER_HOST` ; l'agent du profil `with-agent` a son propre
+   proxy. Le proxy autorise `PING`, `VERSION`, `INFO`, `CONTAINERS`, `IMAGES` et `POST`, et refuse
+   tout le reste — `EXEC` en premier. Aucun réglage ne peut viser l'un des proxys ni la base :
+   `OutboundUrlGuard` les refuse sous toutes les politiques. La base vit sur un réseau `internal`
+   avec le seul plan de contrôle et ne publie aucun port, et les secrets arrivent dans les
+   conteneurs en fichiers sous `/run/secrets`, pas en environnement qu'un inspect rendrait.
 2. **Cela réduit la surface, cela ne pose pas de frontière.** `POST /containers/create` accepte des
    `Binds`, et c'est l'appel dont Vectispire vit. Une exécution de code dans le plan de contrôle
    peut encore demander un conteneur qui monte l'hôte. La frontière, c'est une deuxième machine :

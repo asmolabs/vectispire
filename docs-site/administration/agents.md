@@ -39,6 +39,12 @@ scope and **no database access** — that is a security property rather than a d
 agent with a database connection would also need `ENCRYPTION_KEY`, which is the ability to
 decrypt every deploy key Vectispire holds.
 
+In the shipped composition the agent reaches only the API and a daemon proxy of its own; the
+database and the control plane's proxy are on networks it is not attached to. That keeps it from
+*asking* for the key — it does not make one host two: both proxies reach the same daemon, and
+daemon access is root there. The profile is for evaluating the protocol. For the isolation, run
+the agent on another machine and set `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane.
+
 ## Credentials modes
 
 | Mode | What the controller sends | When |

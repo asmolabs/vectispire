@@ -39,9 +39,10 @@ legitimate way to run Vectispire — had no middle ground between "socket mounte
 ## Decision
 
 **No Vectispire container mounts `/var/run/docker.sock`.** A `docker-proxy` service does, read-only,
-and the control plane and the agent reach the daemon through it over `DOCKER_HOST`. That proxy sits
-on an `internal: true` network shared with those two services and nothing else, so it is neither
-reachable from the rest of the composition nor able to call out.
+and the control plane reaches the daemon through it over `DOCKER_HOST`. That proxy sits on an
+`internal: true` network shared with the control plane and nothing else, so it is neither reachable
+from the rest of the composition nor able to call out. The agent, when the `with-agent` profile
+runs, has a proxy of its own on a network of its own — see the amendment below.
 
 `ContainerRunner` needed no change: it already honours `DOCKER_HOST` and `VECTISPIRE_DOCKER_HOST`
 ahead of any socket autodetection.
@@ -91,6 +92,40 @@ something no deployment had before.
 `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane. Then the host that can be made to run
 containers is not the host that holds `ENCRYPTION_KEY`, and that is a property no proxy
 configuration can provide. The documentation says so at the point where an operator chooses.
+
+## Amendment, 25 September 2026: one proxy per client, and nothing left to inspect
+
+A security review found the composition undoing part of what this decision set up, and each point
+was checked against a running stack before it was changed:
+
+- **The agent shared the control plane's proxy, and sat on the database's network.** Through
+  `CONTAINERS: 1`, `GET /containers/vectispire-control-plane/json` returned the control plane's
+  environment — `ENCRYPTION_KEY`, the database password, the first administrator's password — and
+  the agent could open `db:3306` directly. That is exactly the key-plus-database pairing
+  [decision 0003](0003-long-polling-for-agents.md) forbids the agent at compile time. The agent now
+  has its own proxy (`agent-docker-proxy`, on `vectispire-agent-docker`) and reaches only the API,
+  on `vectispire-agent`; the database lives on `vectispire-db`, `internal: true`, with the control
+  plane alone.
+- **Secrets were environment variables**, and the environment is part of every inspect. The compose
+  file now hands them over as `secrets:` copied into `/run/secrets/`: `ENCRYPTION_KEY_FILE` for the
+  key, a config tree (`spring.config.import: optional:configtree:/run/secrets/`) for the passwords,
+  and MySQL's `_FILE` variables for its own. `docker inspect` shows none of them.
+- **The loopback port for the database was not loopback-only.** `127.0.0.1:3306:3306` looked bound
+  to the host, but Docker accepts traffic to a published container port from any other network on
+  the host before its isolation between networks applies: a fresh container on the agent's network
+  opened the database on its container address. The port is gone; `docker compose exec db mysql`
+  replaces it.
+- **The control plane could be made to post to its own proxy.** The Ollama, webhook, SIEM and tracker
+  URLs may point at internal hosts — an Ollama server lives there — and the proxy is internal too. A
+  security lead setting one to `http://docker-proxy:2375/containers/create` had the control plane
+  call the daemon for them. `OutboundUrlGuard` now refuses the endpoint `DOCKER_HOST` names and the
+  database's under every policy, by name and by resolved address, on their port.
+- **The `with-agent` profile could not start**: the agent waited for the control plane to be
+  healthy, and the published image, built by Jib, has no healthcheck. The compose file declares one.
+
+What this does *not* change is the paragraph above: both proxies reach the one daemon of the host,
+and `POST /containers/create` with a bind of `/` is still root on it — where the database files and
+the secrets also live. On one machine the agent profile evaluates the protocol, not the isolation.
 
 ## Consequences
 

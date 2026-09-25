@@ -70,7 +70,10 @@ class SchemaParityIntegrationTest {
                     registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
                 },
                 () -> {
-                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + Engine.sqliteFile());
+                    // Once, outside the supplier: it deletes the file, and the property is read
+                    // more than once — see `Engine.configure`.
+                    java.nio.file.Path file = Engine.sqliteFile();
+                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
                     registry.add("spring.datasource.username", () -> "");
                     registry.add("spring.datasource.password", () -> "");
                     registry.add("spring.jpa.database-platform",

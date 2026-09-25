@@ -169,4 +169,59 @@ class OutboundUrlGuardTest {
                     .isPresent();
         }
     }
+
+    @Nested
+    @DisplayName("Vectispire's own infrastructure, refused under every policy")
+    class Reserved {
+
+        // docker-proxy resolves to 172.18.0.3, the database to 172.18.0.4; everything else to 172.18.0.9.
+        private final OutboundUrlGuard guard = new OutboundUrlGuard(
+                hostname -> List.of(InetAddress.ofLiteral(switch (hostname) {
+                            case "docker-proxy" -> "172.18.0.3";
+                            case "db" -> "172.18.0.4";
+                            default -> hostname.matches("[0-9.]+") ? hostname : "172.18.0.9";
+                        }).getAddress()),
+                List.of(
+                        OutboundUrlGuard.ReservedEndpoint.of("tcp://docker-proxy:2375", 2375, "the Docker daemon").orElseThrow(),
+                        OutboundUrlGuard.ReservedEndpoint.of("jdbc:mysql://db/vectispire", 3306, "the database").orElseThrow()));
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {
+            "http://docker-proxy:2375/containers/create",
+            "http://DOCKER-PROXY:2375/v1.43/containers/create",
+            "http://172.18.0.3:2375/containers/create",
+            "http://db:3306/",
+            "http://172.18.0.4:3306/"
+        })
+        void refusesTheDaemonAndTheDatabase(String url) {
+            // INTERNAL_REQUIRED is the Ollama default, and the proxy is internal: no policy would
+            // have stopped a security lead pointing it at the daemon.
+            for (OutboundPolicy policy : OutboundPolicy.values()) {
+                if (policy == OutboundPolicy.PUBLIC_ONLY) {
+                    continue; // refused already for being private, which is not what is under test
+                }
+                assertThatThrownBy(() -> guard.validate(url, policy, "Ollama"))
+                        .isInstanceOf(UnsafeUrlException.class)
+                        .hasMessageContaining("no setting may send requests to");
+            }
+        }
+
+        @Test
+        @DisplayName("another port on the same internal network stays reachable")
+        void anotherPortIsNotReserved() {
+            assertThat(guard.validate("http://172.18.0.3:11434/api", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isEqualTo("http://172.18.0.3:11434/api");
+            assertThat(guard.validate("http://ollama:11434/api", OutboundPolicy.INTERNAL_REQUIRED, "Ollama"))
+                    .isEqualTo("http://ollama:11434/api");
+        }
+
+        @Test
+        @DisplayName("a Unix socket or a file database reserves nothing, having no address")
+        void socketsReserveNothing() {
+            assertThat(OutboundUrlGuard.ReservedEndpoint.of("unix:///var/run/docker.sock", 2375, "d")).isEmpty();
+            assertThat(OutboundUrlGuard.ReservedEndpoint.of("jdbc:sqlite:/tmp/v.db", 3306, "db")).isEmpty();
+            assertThat(OutboundUrlGuard.ReservedEndpoint.of("jdbc:postgresql://pg:6543/v", 5432, "db").orElseThrow().port())
+                    .isEqualTo(6543);
+        }
+    }
 }

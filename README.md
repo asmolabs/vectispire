@@ -126,9 +126,11 @@ docker run --rm -e VECTISPIRE_URL=... -e VECTISPIRE_AGENT_TOKEN=zsk_... \
 ```
 
 **The socket is not mounted, here or anywhere.** `docker-compose.yml` puts a
-`docker-socket-proxy` on an internal network and both the control plane and the agent reach the
-daemon through `DOCKER_HOST` — reaching a daemon is root on the host that runs it, and the shipped
-composition used to hand that to the process holding `ENCRYPTION_KEY`. What the proxy buys and what
+`docker-socket-proxy` on an internal network and the control plane reaches the daemon through
+`DOCKER_HOST` — reaching a daemon is root on the host that runs it, and the shipped composition used
+to hand that to the process holding `ENCRYPTION_KEY`. The agent of the `with-agent` profile has a
+proxy of its own and reaches neither the database nor the control plane's proxy, and the secrets
+arrive as files under `/run/secrets`, where no `docker inspect` shows them. What the proxy buys and what
 it does not is written out in
 [decision 0018](docs/architecture/en/decisions/0018-the-docker-socket-is-never-mounted.md).
 

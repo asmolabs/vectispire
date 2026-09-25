@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -59,14 +60,65 @@ public final class OutboundUrlGuard {
         List<byte[]> resolve(String hostname);
     }
 
+    /**
+     * An endpoint of Vectispire's own infrastructure, refused as a destination under every policy.
+     *
+     * <p><b>Why a policy is not enough.</b> The Docker daemon's proxy and the database sit on the
+     * internal network, which {@link OutboundPolicy#INTERNAL_ALLOWED} and
+     * {@link OutboundPolicy#INTERNAL_REQUIRED} exist to reach — an Ollama server lives there too.
+     * So a security lead setting the Ollama URL, or a webhook once private destinations were
+     * allowed, to {@code http://docker-proxy:2375/containers/create} had the control plane post
+     * to the daemon on their behalf: a privileged container, a bind of {@code /}, root on the host,
+     * from a settings screen. The port is part of the match so that the same loopback address can
+     * still serve an Ollama on another port.
+     *
+     * @param what how the refusal names it to whoever set the URL
+     */
+    public record ReservedEndpoint(String host, int port, String what) {
+
+        /**
+         * The endpoint a connection string names, if it names one over the network.
+         *
+         * <p>Empty for a Unix socket, a file database, or anything unreadable: there is then no
+         * address an HTTP request could reach.
+         *
+         * @param defaultPort used when the string carries none
+         */
+        public static Optional<ReservedEndpoint> of(String connection, int defaultPort, String what) {
+            if (connection == null || connection.isBlank()) {
+                return Optional.empty();
+            }
+            try {
+                URI uri = new URI(connection.trim().replaceFirst("^jdbc:", ""));
+                if (uri.getHost() == null) {
+                    return Optional.empty();
+                }
+                String host = uri.getHost().replaceAll("^\\[|]$", "");
+                return Optional.of(new ReservedEndpoint(host, uri.getPort() > 0 ? uri.getPort() : defaultPort, what));
+            } catch (Exception unreadable) {
+                return Optional.empty();
+            }
+        }
+    }
+
     private final HostResolver resolver;
+    private final List<ReservedEndpoint> reserved;
 
     public OutboundUrlGuard() {
         this(OutboundUrlGuard::resolveHostname);
     }
 
     public OutboundUrlGuard(HostResolver resolver) {
+        this(resolver, List.of());
+    }
+
+    public OutboundUrlGuard(List<ReservedEndpoint> reserved) {
+        this(OutboundUrlGuard::resolveHostname, reserved);
+    }
+
+    public OutboundUrlGuard(HostResolver resolver, List<ReservedEndpoint> reserved) {
         this.resolver = resolver;
+        this.reserved = List.copyOf(reserved);
     }
 
     /**
@@ -149,6 +201,7 @@ public final class OutboundUrlGuard {
         for (byte[] address : addresses) {
             check(address, policy, label);
         }
+        refuseReserved(hostname, portOf(parsed, scheme), addresses, label);
         return new Checked(candidate, hostname, addresses);
     }
 
@@ -169,6 +222,35 @@ public final class OutboundUrlGuard {
             throw new UnsafeUrlException(label + ": the host resolves to a public address (" + text
                     + "). A local or internal destination is expected here — this endpoint receives source code.");
         }
+    }
+
+    /**
+     * By name and by address: the name alone lets {@code 172.18.0.3:2375} through, and the address
+     * alone misses a name that no longer resolves from here. The reserved host is resolved at each
+     * check rather than once, because a container's address changes when it is recreated.
+     */
+    private void refuseReserved(String hostname, int port, List<byte[]> addresses, String label) {
+        for (ReservedEndpoint endpoint : reserved) {
+            if (endpoint.port() != port) {
+                continue;
+            }
+            boolean sameHost = endpoint.host().equalsIgnoreCase(hostname);
+            if (!sameHost) {
+                List<byte[]> own = resolver.resolve(endpoint.host());
+                sameHost = addresses.stream().anyMatch(address -> own.stream().anyMatch(o -> Arrays.equals(o, address)));
+            }
+            if (sameHost) {
+                throw new UnsafeUrlException(label + ": " + hostname + ":" + port + " is " + endpoint.what()
+                        + ", which no setting may send requests to.");
+            }
+        }
+    }
+
+    private static int portOf(URI parsed, String scheme) {
+        if (parsed.getPort() > 0) {
+            return parsed.getPort();
+        }
+        return "https".equals(scheme) ? 443 : 80;
     }
 
     /** The reason, or empty when the URL is acceptable. Non-throwing variant. */

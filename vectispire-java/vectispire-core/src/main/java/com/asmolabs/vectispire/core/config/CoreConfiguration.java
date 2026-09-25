@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import java.time.Clock;
@@ -83,17 +82,6 @@ public class CoreConfiguration {
     @Bean
     SealedEnvelope sealedEnvelope() {
         return new SealedEnvelope();
-    }
-
-    /**
-     * The guard every outbound URL passes, with the default resolver.
-     *
-     * <p>A bean rather than a {@code new} at each call site, so a deployment that needs a
-     * different resolver — a test, a machine with no DNS — replaces one thing and not seven.
-     */
-    @Bean
-    OutboundUrlGuard outboundUrlGuard() {
-        return new OutboundUrlGuard();
     }
 
     @Bean

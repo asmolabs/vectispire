@@ -40,6 +40,13 @@ Un agent **interroge en HTTP**, il n'a donc besoin d'aucun port entrant. Sa clé
 détail. Un agent disposant d'une connexion à la base aurait aussi besoin d'`ENCRYPTION_KEY`,
 c'est-à-dire de la capacité à déchiffrer toutes les clés de déploiement que Vectispire détient.
 
+Dans la composition fournie, l'agent n'atteint que l'API et un proxy du démon qui lui est propre ;
+la base et le proxy du plan de contrôle sont sur des réseaux auxquels il n'est pas rattaché. Cela
+l'empêche de *demander* la clé — cela ne fait pas deux hôtes d'un seul : les deux proxys atteignent
+le même démon, et l'accès au démon y est root. Le profil sert à évaluer le protocole. Pour
+l'isolation, faites tourner l'agent sur une autre machine et réglez `VECTISPIRE_EMBEDDED_WORKER=false`
+sur le plan de contrôle.
+
 ## Modes d'identifiants {#credentials-modes}
 
 | Mode | Ce que le contrôleur envoie | Quand |

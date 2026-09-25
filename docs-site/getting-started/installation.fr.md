@@ -45,6 +45,21 @@ un agent distant dédié :
 docker compose --profile with-agent up -d
 ```
 
+!!! info "Ce que la composition tient à part"
+    - **Les secrets arrivent en fichiers.** `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`,
+      `ENCRYPTION_KEY` et `VECTISPIRE_BOOTSTRAP_PASSWORD` se lisent toujours dans `.env`, mais
+      Compose les remet aux conteneurs en fichiers sous `/run/secrets/`, pas en environnement :
+      l'environnement d'un conteneur est ce que `docker inspect` rend à quiconque parle au démon.
+    - **La base ne répond qu'au plan de contrôle.** Elle vit sur un réseau interne avec le seul
+      plan de contrôle et ne publie aucun port — un port lié à `127.0.0.1` reste joignable depuis
+      tous les autres conteneurs de l'hôte. Pour une session SQL :
+      `docker compose exec db mysql -u vectispire -p vectispire`.
+    - **L'agent atteint l'API et son propre proxy du démon, rien d'autre** — ni la base, ni le
+      proxy du plan de contrôle.
+    - **Aucun réglage ne peut viser le proxy du démon ni la base.** Une URL d'Ollama, de webhook,
+      de SIEM ou de tracker qui nomme l'un d'eux est refusée, quelle que soit la politique de
+      destination.
+
 La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
 
 ```

@@ -381,6 +381,30 @@ jobs:
             *) echo "the image did not become healthy in 180s — last 100 lines:"
                docker logs --tail 100 vectispire-smoke; exit 1 ;;
           esac
+      # **The agent image is started too, because it was not.** From 25 August to 25 September it
+      # could not start at all: a second constructor on `AgentProperties` left Spring with none to
+      # bind, and the context failed before the first line of agent code. The build was green
+      # throughout — every test constructed the record with `new` — and this job only started the
+      # control plane. What is asserted is the context coming up; the key is fake, so the
+      # announcement that follows is refused, and that refusal is not the question.
+      - name: the agent image starts
+        run: |
+          docker run -d --name vectispire-agent-smoke --network smoke \
+            -e VECTISPIRE_URL=http://vectispire-smoke:3180 \
+            -e VECTISPIRE_AGENT_TOKEN=smoke-not-a-real-key \
+            vectispire-agent:latest
+          deadline=$(( $(date +%s) + 90 ))
+          while :; do
+            logs="$(docker logs vectispire-agent-smoke 2>&1)"
+            if printf '%s' "$logs" | grep -q "Started VectispireAgentApplication"; then
+              echo "the agent image starts its context"; exit 0
+            fi
+            if printf '%s' "$logs" | grep -q "Application run failed" || [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "the agent image did not start — last 60 lines:"
+              printf '%s\n' "$logs" | tail -60; exit 1
+            fi
+            sleep 1
+          done
       - if: always()
         run: docker logs --tail 200 vectispire-smoke || true
 

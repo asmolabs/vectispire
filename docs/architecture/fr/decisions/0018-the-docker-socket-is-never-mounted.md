@@ -41,10 +41,10 @@ monté » et « pas de scan ».
 ## Décision
 
 **Aucun conteneur Vectispire ne monte `/var/run/docker.sock`.** Un service `docker-proxy` le monte,
-en lecture seule, et le plan de contrôle comme l'agent atteignent le démon à travers lui via
-`DOCKER_HOST`. Ce proxy vit sur un réseau `internal: true` partagé avec ces deux services et rien
-d'autre : il n'est ni joignable depuis le reste de la composition, ni capable d'appeler à
-l'extérieur.
+en lecture seule, et le plan de contrôle atteint le démon à travers lui via `DOCKER_HOST`. Ce proxy
+vit sur un réseau `internal: true` partagé avec le plan de contrôle et rien d'autre : il n'est ni
+joignable depuis le reste de la composition, ni capable d'appeler à l'extérieur. L'agent, quand le
+profil `with-agent` tourne, a son propre proxy sur son propre réseau — voir l'amendement plus bas.
 
 `ContainerRunner` n'a rien demandé : il honorait déjà `DOCKER_HOST` et `VECTISPIRE_DOCKER_HOST`
 avant toute autodétection de socket.
@@ -95,6 +95,43 @@ système demande à un démon, ce qu'aucun déploiement n'avait jusqu'ici.
 avec `VECTISPIRE_EMBEDDED_WORKER=false` sur le plan de contrôle. L'hôte que l'on peut faire exécuter
 des conteneurs n'est alors plus l'hôte qui détient `ENCRYPTION_KEY`, et c'est une propriété qu'aucune
 configuration de proxy ne donne. La documentation le dit à l'endroit où un opérateur choisit.
+
+## Amendement du 25 septembre 2026 : un proxy par client, et plus rien à inspecter
+
+Une revue de sécurité a trouvé la composition en train de défaire une partie de ce que cette
+décision avait mis en place ; chaque point a été vérifié sur une pile en marche avant d'être changé :
+
+- **L'agent partageait le proxy du plan de contrôle, et vivait sur le réseau de la base.** Grâce à
+  `CONTAINERS: 1`, `GET /containers/vectispire-control-plane/json` rendait l'environnement du plan de
+  contrôle — `ENCRYPTION_KEY`, le mot de passe de la base, celui du premier administrateur — et
+  l'agent pouvait ouvrir `db:3306` directement. C'est exactement l'association clé plus base que la
+  [décision 0003](0003-long-polling-for-agents.md) interdit à l'agent dès la compilation. L'agent a
+  désormais son propre proxy (`agent-docker-proxy`, sur `vectispire-agent-docker`) et n'atteint que
+  l'API, sur `vectispire-agent` ; la base vit sur `vectispire-db`, `internal: true`, avec le seul
+  plan de contrôle.
+- **Les secrets étaient des variables d'environnement**, et l'environnement fait partie de chaque
+  inspect. La composition les remet désormais en `secrets:` copiés dans `/run/secrets/` :
+  `ENCRYPTION_KEY_FILE` pour la clé, un config tree (`spring.config.import:
+  optional:configtree:/run/secrets/`) pour les mots de passe, et les variables `_FILE` de MySQL pour
+  les siens. `docker inspect` n'en montre plus aucun.
+- **Le port de la base en boucle locale ne l'était pas.** `127.0.0.1:3306:3306` semblait réservé à
+  l'hôte, mais Docker accepte le trafic vers un port publié depuis n'importe quel autre réseau de
+  l'hôte avant d'appliquer son isolation entre réseaux : un conteneur neuf sur le réseau de l'agent
+  ouvrait la base sur son adresse de conteneur. Le port a disparu ; `docker compose exec db mysql` le
+  remplace.
+- **On pouvait faire écrire le plan de contrôle à son propre proxy.** Les URL d'Ollama, du webhook,
+  du SIEM et du tracker peuvent viser des hôtes internes — un serveur Ollama y vit — et le proxy est
+  interne lui aussi. Un responsable sécurité qui en réglait une sur
+  `http://docker-proxy:2375/containers/create` faisait appeler le démon par le plan de contrôle.
+  `OutboundUrlGuard` refuse désormais, sous toutes les politiques, l'extrémité que nomme
+  `DOCKER_HOST` et celle de la base, par nom et par adresse résolue, sur leur port.
+- **Le profil `with-agent` ne démarrait pas** : l'agent attendait que le plan de contrôle soit sain,
+  et l'image publiée, construite par Jib, n'a pas de healthcheck. La composition en déclare un.
+
+Ce que cela ne change *pas*, c'est le paragraphe ci-dessus : les deux proxys atteignent l'unique
+démon de l'hôte, et `POST /containers/create` avec un montage de `/` y reste root — là où vivent
+aussi les fichiers de la base et les secrets. Sur une seule machine, le profil agent évalue le
+protocole, pas l'isolation.
 
 ## Conséquences
 

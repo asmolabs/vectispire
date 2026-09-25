@@ -100,7 +100,14 @@ public enum Engine {
                     registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
                 },
                 () -> {
-                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + sqliteFile());
+                    // **Computed once, outside the supplier.** `sqliteFile()` deletes the file, and
+                    // the supplier runs at every read of the property: while only the datasource
+                    // read it, that was once. The outbound guard reads it too, to reserve the
+                    // database's address, and the second read deleted the file under the open
+                    // connection — every suite failed on SQLITE_READONLY_DBMOVED. A property must
+                    // answer the same thing each time it is asked.
+                    Path file = sqliteFile();
+                    registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + file);
                     registry.add("spring.datasource.username", () -> "");
                     registry.add("spring.datasource.password", () -> "");
                     registry.add("spring.jpa.database-platform",

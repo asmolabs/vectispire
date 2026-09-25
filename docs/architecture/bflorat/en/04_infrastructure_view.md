@@ -58,9 +58,14 @@ DDL migrations to prevent schema drift or silent data loss.
 
 1. **The socket is mounted into no Vectispire container** ([ADR
    0018](../../en/decisions/0018-the-docker-socket-is-never-mounted.md)). A `docker-socket-proxy`
-   holds it read-only on an `internal` network, and the control plane and the agent reach the
-   daemon through it over `DOCKER_HOST`. The proxy allows `PING`, `VERSION`, `INFO`, `CONTAINERS`,
-   `IMAGES` and `POST`, and refuses everything else — `EXEC` first among them.
+   holds it read-only on an `internal` network shared with the control plane alone, which reaches
+   the daemon through it over `DOCKER_HOST`; the agent of the `with-agent` profile has a proxy of
+   its own. The proxy allows `PING`, `VERSION`, `INFO`, `CONTAINERS`, `IMAGES` and `POST`, and
+   refuses everything else — `EXEC` first among them. No setting may name either proxy or the
+   database as a destination: `OutboundUrlGuard` refuses both under every policy.
+   The database sits on an `internal` network with the control plane alone and publishes no port,
+   and the secrets reach the containers as files under `/run/secrets`, not as environment an
+   inspect would return.
 2. **That narrows the surface; it does not draw a boundary.** `POST /containers/create` accepts
    `Binds`, and it is the call Vectispire exists to make. Code execution inside the control plane
    can still ask for a container that mounts the host. The boundary is a second machine: a remote

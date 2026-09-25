@@ -45,6 +45,20 @@ dedicated remote agent:
 docker compose --profile with-agent up -d
 ```
 
+!!! info "What the composition keeps apart"
+    - **Secrets arrive as files.** `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `ENCRYPTION_KEY` and
+      `VECTISPIRE_BOOTSTRAP_PASSWORD` are still read from `.env`, but Compose hands them to the
+      containers as files under `/run/secrets/`, not as environment: a container's environment is
+      what `docker inspect` returns to anything that can talk to the daemon.
+    - **The database answers the control plane only.** It sits on an internal network with the
+      control plane alone and publishes no port — a port bound to `127.0.0.1` is still reachable
+      from every other container on the host. For a SQL session:
+      `docker compose exec db mysql -u vectispire -p vectispire`.
+    - **The agent reaches the API and its own daemon proxy, nothing else** — not the database, not
+      the control plane's proxy.
+    - **No setting may point at the daemon's proxy or at the database.** An Ollama, webhook, SIEM
+      or tracker URL naming either is refused, whatever the destination policy.
+
 The composition pulls two published images, so nothing here needs a JDK or a Gradle cache:
 
 ```

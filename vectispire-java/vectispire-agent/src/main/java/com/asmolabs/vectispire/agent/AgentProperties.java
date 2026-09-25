@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.agent;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
@@ -57,6 +58,14 @@ public record AgentProperties(
                 new Images("", "", "", "", ""));
     }
 
+    /**
+     * **The one Spring binds, and it has to be told.** A record with a single constructor binds
+     * through it without being asked; the convenience constructor above made two, and the binder,
+     * finding no default one and no marker, refused to create the bean at all. The agent image
+     * stopped at start — "No default constructor found" — and nothing saw it: no test binds these
+     * properties, and the CI smoke test starts the control plane image, not this one.
+     */
+    @ConstructorBinding
     public AgentProperties {
         url = url == null ? "" : url.trim().replaceAll("/+$", "");
         token = token == null ? "" : token.trim();

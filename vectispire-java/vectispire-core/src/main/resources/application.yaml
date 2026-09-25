@@ -4,6 +4,15 @@ spring:
   application:
     name: vectispire
 
+  config:
+    # **Secrets as files, read under the name of the variable they replace.** A file
+    # `/run/secrets/ENCRYPTION_KEY` answers `${ENCRYPTION_KEY}` below exactly as the variable would,
+    # so the shipped compose hands the three secrets over this way and nothing else changes. The
+    # environment was the wrong place for them: it is part of what the daemon's inspect returns to
+    # any client of the socket proxy. A variable, when set, still wins; `optional:` because a
+    # deployment without the directory is a deployment without file secrets, not a broken one.
+    import: optional:configtree:/run/secrets/
+
   datasource:
     # **MySQL is the default engine**, and the same one `docker-compose.yml` ships — the two
     # used to disagree, so a reader had to guess which was authoritative. The engine is chosen

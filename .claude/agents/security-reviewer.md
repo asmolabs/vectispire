@@ -52,6 +52,13 @@ without PAE.
 
 **Deployment.** The compose topology — which service reaches the Docker proxy, with which rights,
 on which network as the database; workflow permissions and third-party code running next to them.
+Three things already found here, each verified on a running stack: a secret in a container's
+`environment:` is returned by `GET /containers/{id}/json` to any client of the proxy (secrets go in
+`secrets:` → `/run/secrets`); a port published on `127.0.0.1` is still reachable from every other
+container on the host by the container's own address, before network isolation applies; and a
+service `internal: true` networks cannot reach is still reachable through the control plane if a
+setting's URL may name it — `OutboundUrlGuard`'s reserved endpoints are what refuse that. Claim a
+topology property only after checking it from a container, not from reading the file.
 
 ## Report format
 
