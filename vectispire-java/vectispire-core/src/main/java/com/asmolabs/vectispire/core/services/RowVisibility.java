@@ -28,6 +28,9 @@ import java.util.NoSuchElementException;
  */
 public final class RowVisibility {
 
+    /** The one sentence a refused target gets, whether it is absent or hidden. */
+    private static final String TARGET_NOT_FOUND = "Target not found.";
+
     private RowVisibility() {}
 
     /** The issue, or "Issue not found." for absent and hidden alike. */
@@ -78,6 +81,21 @@ public final class RowVisibility {
         return repository;
     }
 
+    /**
+     * A target's row, or "Target not found." for absent and hidden alike.
+     *
+     * <p><b>For a write that loads the row itself.</b> The update routes looked the row up first
+     * and refused an absent one in their own words — "No repository with id 7." — then refused a
+     * hidden one with this class's. Two sentences for one refusal is the oracle the class exists to
+     * remove: whoever gets the second has learned the row exists.
+     */
+    public static <T> T requireVisible(java.util.Optional<T> row, ScanTarget target, Visibility visibility) {
+        if (row.isEmpty() || !visibility.permits(target)) {
+            throw new NoSuchElementException(TARGET_NOT_FOUND);
+        }
+        return row.get();
+    }
+
     /** A target named by its identifier, refused before anything is read about it. */
     public static void requireVisible(ScanTarget target, Visibility visibility) {
         // `null` is left to `permits`, deliberately, and that is not the same as waving it
@@ -86,7 +104,7 @@ public final class RowVisibility {
         // instead would have made this stricter than the rule it is meant to reuse — a scan
         // attached to neither target would have 404'd for an administrator too.
         if (!visibility.permits(target)) {
-            throw new NoSuchElementException("Target not found.");
+            throw new NoSuchElementException(TARGET_NOT_FOUND);
         }
     }
 

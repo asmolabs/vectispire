@@ -182,11 +182,10 @@ public class RepositoryAdministrationService {
      * <p>The audit entry names the previous URL as well, redacted, for the reason the route gives.
      */
     public RepositoryEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
-        RepositoryEntity repository = repositories
-                .findById(id)
-                .orElseThrow(() -> new NoSuchElementException("No repository with id " + id + "."));
-        // Refused as every other route refuses a target it will not name, in the same words.
-        RowVisibility.requireVisible(new ScanTarget.Repository(id), allowed);
+        // Absent and hidden refused in one sentence: the absent row used to say "No repository
+        // with id 7." and the hidden one "Target not found.", which told them apart.
+        RepositoryEntity repository =
+                RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
 
         String previousUrl = repository.getUrl();
         // The list sends the URL masked; a form saved without touching it sends the mask back,

@@ -103,6 +103,21 @@ class RepositoryUpdateTest extends ApiTestBase {
                 .andExpect(jsonPath("$.url").value("git@example.invalid:team/billing.git"));
     }
 
+    @Test
+    @DisplayName("an absent id is refused in the words a hidden one is: 404 and \"Target not found.\"")
+    void anAbsentIdReadsAsAHiddenOne() throws Exception {
+        // The absent row said "No ... with id 999999." while a hidden one said "Target not found."
+        // — two sentences for one refusal, and whoever got the second had learned the row exists.
+        // A hidden row cannot be produced through this route (only an administrator reaches it,
+        // and an administrator sees everything), so the sentence is pinned to the one
+        // RowVisibility gives a hidden target; RowVisibilityTest holds the two cases side by side.
+        mvc.perform(authenticated(patch("/api/v1/repositories/999999"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("branch", "develop"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("Target not found."));
+    }
+
     private long seed() {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl("https://example.invalid/billing.git");

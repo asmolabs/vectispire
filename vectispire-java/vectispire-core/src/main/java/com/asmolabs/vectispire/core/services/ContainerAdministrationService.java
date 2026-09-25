@@ -130,11 +130,9 @@ public class ContainerAdministrationService {
      * <p>The audit entry names the previous reference as well, for the reason the route gives.
      */
     public ContainerEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
-        ContainerEntity container = containers
-                .findById(id)
-                .orElseThrow(() -> new NoSuchElementException("No image with id " + id + "."));
-        // Refused as every other route refuses a target it will not name, in the same words.
-        RowVisibility.requireVisible(new ScanTarget.Container(id), allowed);
+        // Absent and hidden refused in one sentence, as for a repository.
+        ContainerEntity container =
+                RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
 
         String previousReference = referenceOf(container).format();
 
