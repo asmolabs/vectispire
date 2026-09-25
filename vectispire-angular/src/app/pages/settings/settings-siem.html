@@ -20,20 +20,20 @@
                 <div class="flex flex-col gap-2">
                     <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
                     <select id="siem-protocol" [(ngModel)]="siemForm.protocol" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
-                        <option value="WEBHOOK">HTTPS Webhook / Splunk HEC / Sentinel Collector</option>
-                        <option value="SYSLOG_UDP">Syslog (UDP)</option>
-                        <option value="SYSLOG_TCP">Syslog (TCP)</option>
-                        <option value="SYSLOG_TLS">Syslog (TLS Encrypted)</option>
+                        <option value="WEBHOOK">{{ 'settings.siem_protocol_webhook' | translate }}</option>
+                        <option value="SYSLOG_UDP">{{ 'settings.siem_protocol_udp' | translate }}</option>
+                        <option value="SYSLOG_TCP">{{ 'settings.siem_protocol_tcp' | translate }}</option>
+                        <option value="SYSLOG_TLS">{{ 'settings.siem_protocol_tls' | translate }}</option>
                     </select>
                 </div>
 
                 <div class="flex flex-col gap-2">
                     <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
                     <select id="siem-min-sev" [(ngModel)]="siemForm.minSeverity" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
-                        <option value="CRITICAL">Critical Only (P1 / KEV & Secret Leaks)</option>
-                        <option value="HIGH">High & Above (Default)</option>
-                        <option value="MEDIUM">Medium & Above</option>
-                        <option value="LOW">All Security Events</option>
+                        <option value="CRITICAL">{{ 'settings.siem_sev_critical' | translate }}</option>
+                        <option value="HIGH">{{ 'settings.siem_sev_high' | translate }}</option>
+                        <option value="MEDIUM">{{ 'settings.siem_sev_medium' | translate }}</option>
+                        <option value="LOW">{{ 'settings.siem_sev_all' | translate }}</option>
                     </select>
                 </div>
             </div>

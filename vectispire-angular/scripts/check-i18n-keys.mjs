@@ -94,7 +94,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1720;
+const EXPECTED_KEYS = 1759;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -298,13 +298,20 @@ if (hardcoded > HARDCODED_LABEL_CEILING) {
 // screens was about to be published, which is the honest reason and worth writing down. This is
 // the guard rail, not the schedule.
 //
+// **It then fell to 10, and those ten are not debt.** The remaining templates were paid screen by
+// screen. What is left is of two kinds, and neither is a sentence somebody forgot: four technical
+// tokens a reader has to copy as they stand — `HMAC-SHA256`, the `X-Vectispire-Signature` header,
+// `Authorization: Bearer`, a PEM placeholder — and six places where `>([^<>]…)<` spans two
+// comparisons in adjacent class bindings (`[class.x]="score >= 70" [class.y]="score < 70"`). The
+// ceiling stays a number rather than an exemption list, so the eleventh string still fails.
+//
 // **What it deliberately does not flag.** A bare word without a space and under four characters,
 // which is where units, symbols and column keys live; an environment variable name, which has no
 // translation; and anything inside `{{ … }}`, which has already been through the pipe or is a
 // value. Control flow is removed before the text nodes are read — `@if (…) {` and `} @else {`
 // are not prose, and a scanner that balances the parentheses is needed rather than a pattern,
 // because `@if (activity()?.stats; as stats) {` closes three of them.
-const UNTRANSLATED_TEXT_CEILING = 46;
+const UNTRANSLATED_TEXT_CEILING = 10;
 
 /** Removes `@if (…) {`, `} @else if (…) {`, and the braces, leaving only what a reader sees. */
 function stripControlFlow(source) {

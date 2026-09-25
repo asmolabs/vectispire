@@ -23,7 +23,7 @@
                 <div class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700">
                     <span class="text-xs text-muted-color uppercase font-semibold">{{ 'settings.active_cisa_kev' | translate }}</span>
                     <div class="text-base font-bold mt-1 text-surface-900 dark:text-surface-0">
-                        {{ threatIntelStatus()?.totalKev ?? 0 }} CVEs
+                        {{ 'settings.kev_cve_count' | translate: { count: threatIntelStatus()?.totalKev ?? 0 } }}
                     </div>
                 </div>
 

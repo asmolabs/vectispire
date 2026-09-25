@@ -5,15 +5,10 @@
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
         <div class="flex flex-col gap-1">
             <span class="font-semibold">
-                Risk of data leak — the source code of every scanned repository leaves your estate.
+                {{ 'settings.risk_banner_title' | translate }}
             </span>
             <span class="text-sm">
-                This configuration sends the analysed code to <strong>{{ state.aiEndpoint() }}</strong>, a host
-                outside your network, in the body of each request. That includes private repositories, and
-                whatever secrets are still committed in them. The third party applies their own retention,
-                their own jurisdiction and their own training policy to what they receive — check your
-                contract with them, and check that the code you scan is yours to send. Point the URL at an
-                endpoint on your own network, or clear the acknowledgement below, and nothing leaves.
+                {{ 'settings.risk_banner_sends' | translate }} <strong>{{ state.aiEndpoint() }}</strong>{{ 'settings.risk_banner_detail' | translate }}
             </span>
         </div>
     </p-message>
@@ -22,11 +17,11 @@
 <!-- The record, read-only: this screen displays it and the server writes it. -->
 @if (riskAcknowledgedBy()) {
     <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">
-        Data-leak risk accepted by <strong>{{ riskAcknowledgedBy() }}</strong>
+        {{ 'settings.risk_accepted_by' | translate }} <strong>{{ riskAcknowledgedBy() }}</strong>
         @if (riskAcknowledgedAt()) {
-            on {{ riskAcknowledgedAt() | date: 'dd/MM/yyyy HH:mm' : 'UTC' }} UTC
+            {{ 'settings.risk_accepted_on' | translate: { date: (riskAcknowledgedAt() | date: 'dd/MM/yyyy HH:mm' : 'UTC') ?? '' } }}
         }
-        — recorded when the public endpoint was turned on. Turning it back off erases this.
+        {{ 'settings.risk_accepted_note' | translate }}
     </p-message>
 }
 
@@ -46,11 +41,11 @@
 <div class="flex flex-col gap-2 mb-5">
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
         <label for="openai-key" class="font-medium min-w-0 flex-1">
-            API key
+            {{ 'settings.ai_key_label' | translate }}
             @if (openAiKeyConfigured()) {
-                <span class="text-green-600 text-sm font-normal">— stored</span>
+                <span class="text-green-600 text-sm font-normal">{{ 'settings.ai_key_stored' | translate }}</span>
             } @else {
-                <span class="text-muted-color text-sm font-normal">— none stored</span>
+                <span class="text-muted-color text-sm font-normal">{{ 'settings.ai_key_none' | translate }}</span>
             }
         </label>
         <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
@@ -61,8 +56,6 @@
         </div>
     </div>
     <small class="text-muted-color max-w-3xl">
-        Sent as <code>Authorization: Bearer</code> to the OpenAI-compatible endpoint. Stored encrypted and
-        never returned by any route — saving an empty field clears it, which is what a local endpoint that
-        authenticates nobody wants.
+        {{ 'settings.ai_key_sent_as' | translate }} <code>Authorization: Bearer</code> {{ 'settings.ai_key_hint' | translate }}
     </small>
 </div>

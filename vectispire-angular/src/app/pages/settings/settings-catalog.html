@@ -80,24 +80,21 @@
 <!-- **Shown when opening the public endpoint, never when closing it.** The switch is not flipped
      until this is accepted, and the name and date against the decision are written by the server
      on the save that follows — not by this screen. -->
-<p-dialog header="Accept the data-leak risk" [(visible)]="riskConfirmVisible" [modal]="true" [style]="{ width: '34rem' }">
+<p-dialog [header]="'settings.risk_confirm_header' | translate" [(visible)]="riskConfirmVisible" [modal]="true" [style]="{ width: '34rem' }">
     <div class="flex flex-col gap-3">
         <p class="m-0">
-            Turning this on allows Vectispire to send <strong>the source code of every scanned repository</strong>
-            to <strong>{{ state.aiEndpoint() }}</strong> — including private repositories, and whatever secrets are still
-            committed in them.
+            {{ 'settings.risk_confirm_send' | translate }} <strong>{{ 'settings.risk_confirm_what' | translate }}</strong>
+            {{ 'settings.risk_confirm_to' | translate }} <strong>{{ state.aiEndpoint() }}</strong> {{ 'settings.risk_confirm_including' | translate }}
         </p>
         <p class="m-0">
-            The receiving party applies their own retention, their own jurisdiction and their own training policy to
-            what they receive. Check your contract with them, and check that the code you scan is yours to send.
+            {{ 'settings.risk_confirm_third_party' | translate }}
         </p>
         <p class="m-0 text-muted-color text-sm">
-            Your account name and the current date are recorded against this decision, and shown on this screen until
-            somebody turns it back off. The action is written to the audit log, which is never purged.
+            {{ 'settings.risk_confirm_recorded' | translate }}
         </p>
     </div>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="riskConfirmVisible.set(false)" />
-        <p-button label="I accept the risk" severity="danger" (onClick)="confirmRiskAndAllowRemote()" />
+        <p-button [label]="'settings.risk_confirm_accept' | translate" severity="danger" (onClick)="confirmRiskAndAllowRemote()" />
     </ng-template>
 </p-dialog>
