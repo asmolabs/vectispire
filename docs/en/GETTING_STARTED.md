@@ -255,6 +255,44 @@ The same command with the SBOM's filenames verifies the SBOM. It is worth doing:
 somebody feeds to their own scanner, and an unsigned one is a list of dependencies anybody can
 rewrite before you read it.
 
+### Verifying the build provenance
+
+A signature says *which workflow* produced a file. Each release after v0.9.0 also carries a
+[SLSA build provenance](https://slsa.dev/spec/v1.0/provenance) attestation, for the jar and for
+both images, that says *how*: the repository, the **commit** the tag pointed at when the release
+ran, the workflow and the runner. A tag can be moved after the fact; the commit recorded in the
+provenance cannot, and it is the one to check out if you want to read or rebuild the source that
+shipped.
+
+GitHub's CLI verifies it, with no file to download beside the artefact:
+
+```bash
+gh attestation verify vectispire-<version>.jar \
+  --repo asmolabs/vectispire \
+  --signer-workflow asmolabs/vectispire/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+
+gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<digest> \
+  --repo asmolabs/vectispire \
+  --signer-workflow asmolabs/vectispire/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+```
+
+The image is named **by digest** — the one printed in the release notes, or the one
+`docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
+returns — for the same reason the signature is. The agent image verifies the same way under
+`ghcr.io/asmolabs/vectispire-agent`.
+
+`--repo` alone is the command GitHub documents, and it is not enough on its own: it accepts an
+attestation made by *any* workflow of the repository, on any branch. `--signer-workflow` narrows
+it to the release workflow and `--source-ref` to the tag you meant to install — the same two
+things `--certificate-identity` pins in the `cosign` commands above. Add `--format json` to read
+the statement itself; the commit is under `buildDefinition.resolvedDependencies`.
+
+The provenance adds to the signature and does not replace it: v0.9.0 and the releases before it
+have a signature and no provenance, and the `cosign` commands above remain the check every release
+supports.
+
 ## 9. Troubleshooting
 
 - **`docker.errors.DockerException` / permission denied on the Docker socket**: with the shipped composition this should not happen — no Vectispire container mounts the socket, a `docker-socket-proxy` does, and `DOCKER_HOST` points at it. Running outside compose, straight against a daemon, the user does need access to `/var/run/docker.sock` (Linux/macOS with Docker Desktop); on Linux, add it to the `docker` group.

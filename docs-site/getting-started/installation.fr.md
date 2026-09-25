@@ -231,6 +231,45 @@ Lancez la même commande sur les noms de fichiers du SBOM. Cela vaut la peine : 
 que quelqu'un donne à manger à son propre scanner, et un SBOM non signé est une liste de
 dépendances que n'importe qui peut réécrire avant que vous ne la lisiez.
 
+### Vérifier la provenance de construction
+
+Une signature dit *quel workflow* a produit un fichier. Chaque release postérieure à v0.9.0 porte
+aussi une attestation de [provenance de construction SLSA](https://slsa.dev/spec/v1.0/provenance),
+pour le jar et pour les deux images, qui dit *comment* : le dépôt, le **commit** vers lequel
+pointait le tag au moment de la release, le workflow et l'exécuteur. Un tag peut être déplacé
+après coup ; le commit consigné dans la provenance ne le peut pas, et c'est lui qu'il faut
+extraire pour lire ou reconstruire le code qui a été livré.
+
+La CLI de GitHub la vérifie, sans fichier à télécharger à côté de l'artefact :
+
+```bash
+gh attestation verify vectispire-<version>.jar \
+  --repo asmolabs/vectispire \
+  --signer-workflow asmolabs/vectispire/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+
+gh attestation verify oci://ghcr.io/asmolabs/vectispire@sha256:<empreinte> \
+  --repo asmolabs/vectispire \
+  --signer-workflow asmolabs/vectispire/.github/workflows/release.yml \
+  --source-ref refs/tags/v<version>
+```
+
+L'image est désignée **par empreinte** — celle qu'indiquent les notes de release, ou celle que
+renvoie `docker buildx imagetools inspect ghcr.io/asmolabs/vectispire:<version> --format '{{.Manifest.Digest}}'`
+— pour la même raison que la signature. L'image de l'agent se vérifie de la même façon sous
+`ghcr.io/asmolabs/vectispire-agent`.
+
+`--repo` seul est la commande que GitHub documente, et elle ne suffit pas : elle accepte une
+attestation produite par *n'importe quel* workflow du dépôt, sur n'importe quelle branche.
+`--signer-workflow` la restreint au workflow de release et `--source-ref` au tag que vous
+vouliez installer — les deux choses que `--certificate-identity` épingle dans les commandes
+`cosign` ci-dessus. Ajoutez `--format json` pour lire la déclaration elle-même ; le commit se
+trouve sous `buildDefinition.resolvedDependencies`.
+
+La provenance s'ajoute à la signature et ne la remplace pas : v0.9.0 et les releases qui l'ont
+précédée ont une signature et pas de provenance, et les commandes `cosign` ci-dessus restent le contrôle
+que toutes les releases permettent.
+
 ## Suite
 
 [Enregistrer un dépôt et lancer votre premier scan →](first-scan.md)
