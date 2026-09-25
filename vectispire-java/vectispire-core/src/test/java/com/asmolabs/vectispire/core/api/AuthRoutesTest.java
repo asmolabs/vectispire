@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 @DisplayName("the authentication routes")
@@ -34,6 +35,30 @@ class AuthRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.password").value(true))
                 .andExpect(jsonPath("$.configured").value(false));
+    }
+
+    @Autowired
+    private com.asmolabs.vectispire.core.api.security.LoginRateLimitFilter addressLimiter;
+
+    @Test
+    @DisplayName("the per-client counter is the caller's address: a fresh client_id each time buys nothing")
+    void aRotatingClientIdDoesNotResetTheClientCounter() throws Exception {
+        // The body's client_id was the key, so a new value per attempt was a new counter and the
+        // twenty-failure ceiling never fired. Distinct usernames keep the account counter out of
+        // it, and the address limiter is reset between attempts so it is this counter that answers.
+        for (int attempt = 0; attempt < com.asmolabs.vectispire.common.domain.auth.LoginThrottle.MAX_ATTEMPTS_PER_CLIENT; attempt++) {
+            addressLimiter.reset();
+            mvc.perform(post("/api/v1/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("username", "spray-" + attempt, "password", "wrong", "client_id", "c-" + attempt))))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        addressLimiter.reset();
+        mvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("username", "spray-last", "password", "wrong", "client_id", "c-last"))))
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test

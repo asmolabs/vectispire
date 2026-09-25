@@ -8,6 +8,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.OptionalLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -75,8 +76,18 @@ public final class Totp {
      * Validates a TOTP code against the secret with a tolerance window of ±1 step (±30s).
      */
     public static boolean verify(String secret, String submittedCode, Instant instant) {
+        return matchingStep(secret, submittedCode, instant).isPresent();
+    }
+
+    /**
+     * The time step a code belongs to, within the same ±1 step window.
+     *
+     * <p>The step rather than a yes: a code is valid for up to ninety seconds, and only a caller
+     * that knows <em>which</em> step it matched can refuse to accept that step twice.
+     */
+    public static OptionalLong matchingStep(String secret, String submittedCode, Instant instant) {
         if (secret == null || submittedCode == null || submittedCode.trim().length() != CODE_DIGITS) {
-            return false;
+            return OptionalLong.empty();
         }
 
         String cleaned = submittedCode.trim();
@@ -85,10 +96,10 @@ public final class Totp {
         // Window: current step, previous step (-30s), next step (+30s)
         for (long step = currentStep - 1; step <= currentStep + 1; step++) {
             if (cleaned.equals(generateCodeForStep(secret, step))) {
-                return true;
+                return OptionalLong.of(step);
             }
         }
-        return false;
+        return OptionalLong.empty();
     }
 
     private static String generateCodeForStep(String secret, long step) {

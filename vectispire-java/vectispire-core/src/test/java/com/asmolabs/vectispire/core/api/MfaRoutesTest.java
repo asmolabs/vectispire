@@ -44,8 +44,8 @@ class MfaRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.backupCodes").isArray());
 
-        // 3. Disable with code
-        String disableCode = Totp.generateCode(secret, clock.instant());
+        // 3. Disable with the next code: the one that enrolled has been used, and a code opens once
+        String disableCode = Totp.generateCode(secret, clock.instant().plusSeconds(30));
         mvc.perform(authenticated(post("/api/v1/auth/mfa/disable"), token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"" + disableCode + "\"}"))

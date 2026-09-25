@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
@@ -49,6 +50,7 @@ public class AuthController {
     private final AuthService auth;
     private final TotpService totp;
     private final com.asmolabs.vectispire.core.services.BrandingProperties branding;
+    private final TrustedProxies proxies;
 
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
     public record MfaEnableRequest(String secret, String code) {}
@@ -58,15 +60,20 @@ public class AuthController {
             AuthenticationFlowService flows,
             AuthService auth,
             TotpService totp,
-            com.asmolabs.vectispire.core.services.BrandingProperties branding) {
+            com.asmolabs.vectispire.core.services.BrandingProperties branding,
+            TrustedProxies proxies) {
         this.flows = flows;
         this.auth = auth;
         this.totp = totp;
         this.branding = branding;
+        this.proxies = proxies;
     }
 
-    /** @param clientId the throttle's second counter. Never the IP alone — see {@link AuthService} */
-    public record LoginRequest(String username, String password, @JsonProperty("client_id") String clientId) {}
+    /**
+     * No {@code client_id}: the throttle's second counter is the caller's address, resolved here,
+     * because a key the caller supplies is one it can change — see {@link AuthService.LoginRequest}.
+     */
+    public record LoginRequest(String username, String password) {}
 
     public record LoginResponse(
             String token,
@@ -87,9 +94,8 @@ public class AuthController {
         SignIn outcome = flows.signIn(new AuthenticationFlowService.Attempt(
                 text(body == null ? null : body.username()),
                 text(body == null ? null : body.password()),
-                clientId(body, request),
                 request.getHeader("User-Agent"),
-                request.getRemoteAddr()));
+                proxies.clientAddress(request)));
 
         return switch (outcome) {
             case SignIn.PasswordDisabled ignored -> throw new ResponseStatusException(
@@ -122,7 +128,7 @@ public class AuthController {
         }
 
         return switch (flows.verify(
-                body.mfaToken(), body.code(), request.getHeader("User-Agent"), request.getRemoteAddr())) {
+                body.mfaToken(), body.code(), request.getHeader("User-Agent"), proxies.clientAddress(request))) {
             case Verification.ChallengeInvalid ignored -> throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "MFA challenge has expired or is invalid. Please sign in again.");
             case Verification.AccountMissing ignored ->
@@ -132,6 +138,7 @@ public class AuthController {
             // they cannot see by trying.
             case Verification.WrongCode ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid verification code.");
+            case Verification.Throttled throttled -> throw throttled(throttled.retryAfter());
             case Verification.Verified verified -> new LoginResponse(
                     verified.issued().token(),
                     verified.issued().session().getExpiresAt(),
@@ -301,11 +308,6 @@ public class AuthController {
     private static UserSummary summaryOf(UserEntity user) {
         return new UserSummary(
                 user.getUsername(), user.getDisplayName(), user.getRole(), user.getMustChangePassword(), user.getMfaEnabled());
-    }
-
-    private static String clientId(LoginRequest body, HttpServletRequest request) {
-        String supplied = text(body == null ? null : body.clientId());
-        return supplied.isEmpty() ? String.valueOf(request.getRemoteAddr()) : supplied;
     }
 
     private static String text(String value) {

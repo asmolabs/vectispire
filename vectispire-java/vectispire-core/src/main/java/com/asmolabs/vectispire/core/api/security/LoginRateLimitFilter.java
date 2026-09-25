@@ -8,6 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.UriUtils;
 
 /**
  * Token-Bucket rate limiter for the anonymous half of {@code /api/v1/auth}.
@@ -162,8 +164,34 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     }
 
     private boolean isLimited(HttpServletRequest request) {
-        return "POST".equalsIgnoreCase(request.getMethod())
-                && LIMITED_PATHS.contains(request.getRequestURI());
+        return "POST".equalsIgnoreCase(request.getMethod()) && LIMITED_PATHS.contains(routedPath(request));
+    }
+
+    /**
+     * The path as the dispatcher will route it, not as the client spelled it.
+     *
+     * <p>The raw URI used to be compared, and the dispatcher decodes before it matches: a POST to
+     * {@code /api/v1/auth/%6Cogin} reached the login endpoint and skipped this limiter entirely,
+     * one percent sign being the whole cost. So the comparison is made on what the routing sees
+     * — decoded, without the context path, without {@code ;} parameters, empty segments or a
+     * trailing slash. Normalizing more than the dispatcher does only limits a request that would
+     * have answered 404; normalizing less is the bypass.
+     */
+    static String routedPath(HttpServletRequest request) {
+        String path = request.getRequestURI() == null ? "" : request.getRequestURI();
+        String context = request.getContextPath();
+        if (context != null && !context.isEmpty() && path.startsWith(context)) {
+            path = path.substring(context.length());
+        }
+        StringBuilder routed = new StringBuilder();
+        for (String segment : path.split("/")) {
+            int parameters = segment.indexOf(';');
+            String name = UriUtils.decode(parameters >= 0 ? segment.substring(0, parameters) : segment, StandardCharsets.UTF_8);
+            if (!name.isEmpty()) {
+                routed.append('/').append(name);
+            }
+        }
+        return routed.toString();
     }
 
     private Bucket createNewBucket() {

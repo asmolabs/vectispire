@@ -140,7 +140,7 @@ class MfaChallengeIsSharedTest extends ApiTestBase {
     private String signInAndGetChallenge(String username) throws Exception {
         MvcResult result = mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(new AuthController.LoginRequest(username, PASSWORD, null))))
+                        .content(write(new AuthController.LoginRequest(username, PASSWORD))))
                 .andReturn();
 
         JsonNode body = json.readTree(result.getResponse().getContentAsString());

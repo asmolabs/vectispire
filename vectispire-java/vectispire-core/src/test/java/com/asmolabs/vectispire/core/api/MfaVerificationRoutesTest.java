@@ -59,7 +59,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
     private String signInAndGetChallenge(String username) throws Exception {
         MvcResult result = mvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(new AuthController.LoginRequest(username, PASSWORD, null))))
+                        .content(write(new AuthController.LoginRequest(username, PASSWORD))))
                 .andReturn();
 
         assertThat(result.getResponse().getStatus())
@@ -149,5 +149,27 @@ class MfaVerificationRoutesTest extends ApiTestBase {
         assertThat(result.getResponse().getErrorMessage())
                 .as("the new challenge must accept attempts, not inherit the old one's count")
                 .contains("Invalid verification code");
+    }
+
+    @Test
+    @DisplayName("the account remembers wrong codes across challenges, and a right password does not clear them")
+    void theAccountRemembersWrongCodesAcrossChallenges() throws Exception {
+        // Three per challenge bounded nothing: signing in again with the password handed out
+        // three fresh guesses, as often as the address limiter allowed.
+        String username = createMfaUser();
+        String first = signInAndGetChallenge(username);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            attempt(first, "00000" + attempt);
+        }
+        String second = signInAndGetChallenge(username);
+        attempt(second, "000004");
+        attempt(second, "000005");
+
+        mvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(new AuthController.LoginRequest(username, PASSWORD))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isTooManyRequests())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Retry-After", org.hamcrest.Matchers.matchesPattern("[1-9]\\d*")));
     }
 }

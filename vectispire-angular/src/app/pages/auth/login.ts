@@ -143,7 +143,7 @@ export class Login {
         this.loading.set(true);
         this.error.set(null);
 
-        this.authApi.login(this.username, this.password, clientId()).subscribe({
+        this.authApi.login(this.username, this.password).subscribe({
             next: (response) => {
                 if (response.mfa_required) {
                     this.loading.set(false);
@@ -178,30 +178,5 @@ export class Login {
                 }
             }
         });
-    }
-}
-
-/**
- * Identifies this browser for the rate limiter's second counter.
- *
- * Persisted, because an identifier drawn afresh on every load would make that counter useless —
- * and it is precisely the one that stops an attacker sweeping the account list from a single
- * machine. It is not a secret: losing it gives nobody anything, it only makes the limiter more
- * forgiving.
- */
-function clientId(): string {
-    const key = 'vectispire.client';
-    // Storage can refuse outright — a private window, blocked site data — and an uncaught throw
-    // here made sign-in itself fail. Without it the identifier is simply not kept: the limiter
-    // becomes more forgiving for this browser, which is the stated cost of losing it anyway.
-    try {
-        let value = localStorage.getItem(key);
-        if (!value) {
-            value = crypto.randomUUID();
-            localStorage.setItem(key, value);
-        }
-        return value;
-    } catch {
-        return crypto.randomUUID();
     }
 }

@@ -36,6 +36,18 @@ public final class LoginThrottle {
     public static final Duration WINDOW = Duration.ofMinutes(15);
 
     /**
+     * Wrong second-factor codes an account may absorb per window, <b>across challenges</b>.
+     *
+     * <p>A challenge dies after three wrong codes, and that alone bounded nothing: whoever holds
+     * the password signs in again, the password success clears the password counters, and the
+     * next challenge brings three fresh guesses — a million-code space explored three at a time
+     * for as long as the address limiter allows. This counter belongs to the account, survives
+     * the password, and is cleared only by a right code. Only someone who already has the
+     * password can spend it, so the lockout it causes is one the owner has reason to hear about.
+     */
+    public static final int MAX_SECOND_FACTOR_FAILURES = 5;
+
+    /**
      * @param retryAfter how long to wait before another attempt; {@link Duration#ZERO} when
      *     allowed
      */
@@ -59,6 +71,12 @@ public final class LoginThrottle {
         Duration client = waitFor(attempts.client(), MAX_ATTEMPTS_PER_CLIENT, now);
 
         Duration retryAfter = user.compareTo(client) >= 0 ? user : client;
+        return new Decision(retryAfter.isZero(), retryAfter);
+    }
+
+    /** The same decision for one counter alone, against its own limit. */
+    public static Decision decide(List<Instant> attempts, int limit, Instant now) {
+        Duration retryAfter = waitFor(attempts, limit, now);
         return new Decision(retryAfter.isZero(), retryAfter);
     }
 
@@ -89,6 +107,22 @@ public final class LoginThrottle {
      */
     public static String userKey(String username) {
         return "login:user:" + username.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * The key for an account that exists, which is the one that counts.
+     *
+     * <p>{@link #userKey} normalizes case, but the database's collation decides which spellings
+     * open the account — on MySQL, accents too — and no normalization here can agree with every
+     * collation. Keying on the id makes every spelling that reaches the account share its budget.
+     */
+    public static String accountKey(long accountId) {
+        return "login:account:" + accountId;
+    }
+
+    /** Wrong second-factor codes, per account — see {@link #MAX_SECOND_FACTOR_FAILURES}. */
+    public static String secondFactorKey(long accountId) {
+        return "login:mfa:" + accountId;
     }
 
     /** Namespaced apart from {@link #userKey}, so a client id cannot borrow a user's budget. */

@@ -16,8 +16,10 @@ import { LoginResponse, SignInMethods, MfaSetupResponse, MfaEnableResponse } fro
 export class AuthApi {
     private readonly http = inject(HttpClient);
 
-    login(username: string, password: string, clientId: string): Observable<LoginResponse> {
-        return this.http.post<LoginResponse>('/api/v1/auth/login', { username, password, client_id: clientId });
+    // No client_id: the server counts failures per resolved address, since a key the browser
+    // chooses is one an attacker changes on every attempt.
+    login(username: string, password: string): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>('/api/v1/auth/login', { username, password });
     }
 
     changePassword(currentPassword: string, newPassword: string): Observable<{ mustChangePassword: boolean }> {

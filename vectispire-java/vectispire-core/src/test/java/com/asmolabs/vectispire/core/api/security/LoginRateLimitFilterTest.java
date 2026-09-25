@@ -205,4 +205,35 @@ class LoginRateLimitFilterTest {
         verify(chain, never()).doFilter(request, response);
         verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
     }
+
+    @Test
+    @DisplayName("a spelling the dispatcher routes to /login is limited like /login")
+    void anEncodedPathIsStillLimited() throws Exception {
+        // The raw URI was compared and the dispatcher decodes before routing: %6C is an "l",
+        // and one percent sign skipped the limiter.
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("10.0.0.7");
+        String[] spellings = {"/api/v1/auth/%6Cogin", "/api/v1/auth/login/", "/api/v1//auth/login", "/api/v1/auth/login;x=1"};
+
+        for (int i = 0; i < 10; i++) {
+            when(request.getRequestURI()).thenReturn(spellings[i % spellings.length]);
+            filter.doFilterInternal(request, response, chain);
+        }
+        verify(response, never()).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+
+        when(request.getRequestURI()).thenReturn("/api/v1/auth/%6Cogin");
+        filter.doFilterInternal(request, response, chain);
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
+    @DisplayName("the routed path drops the context path and leaves other routes alone")
+    void routedPath() {
+        when(request.getContextPath()).thenReturn("/vectispire");
+        when(request.getRequestURI()).thenReturn("/vectispire/api/v1/auth/mfa/%76erify");
+        assertThat(LoginRateLimitFilter.routedPath(request)).isEqualTo("/api/v1/auth/mfa/verify");
+
+        when(request.getRequestURI()).thenReturn("/vectispire/api/v1/auth/logout");
+        assertThat(LoginRateLimitFilter.routedPath(request)).isEqualTo("/api/v1/auth/logout");
+    }
 }

@@ -160,7 +160,7 @@ class AuthDatabaseTest extends VectispireContextTest {
     }
 
     private static AuthService.LoginRequest request(String username, String password) {
-        return new AuthService.LoginRequest(username, password, "browser-1", "curl/8", "10.0.0.1");
+        return new AuthService.LoginRequest(username, password, "curl/8", "10.0.0.1");
     }
 
 }

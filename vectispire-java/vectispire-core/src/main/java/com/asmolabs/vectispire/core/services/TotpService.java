@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.OptionalLong;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +46,15 @@ public class TotpService {
     }
 
     public EnableResponse enable(UserEntity user, String secret, String code) {
-        if (!Totp.verify(secret, code, clock.instant())) {
+        // Enrolling over an active factor replaced it with no proof of the old one: a session
+        // left open on somebody's desk was enough to move their second factor onto one's own
+        // phone. Disabling asks for a code, so replacing goes through disabling.
+        if (user.getMfaEnabled()) {
+            throw new IllegalArgumentException(
+                    "MFA is already enabled. Disable it with a current code before enrolling a new device.");
+        }
+        OptionalLong step = Totp.matchingStep(secret, code, clock.instant());
+        if (step.isEmpty()) {
             throw new IllegalArgumentException("Invalid TOTP verification code.");
         }
 
@@ -58,6 +67,8 @@ public class TotpService {
         user.setMfaEnabled(true);
         user.setTotpSecret(encryptedSecret);
         user.setMfaBackupCodes(encryptedBackups);
+        // The code that proved the enrolment was seen on this request; it opens no sign-in after.
+        user.setTotpLastStep(step.getAsLong());
         user.setUpdatedAt(clock.instant());
         users.save(user);
 
@@ -80,6 +91,7 @@ public class TotpService {
         user.setMfaEnabled(false);
         user.setTotpSecret(null);
         user.setMfaBackupCodes(null);
+        user.setTotpLastStep(null);
         user.setUpdatedAt(clock.instant());
         users.save(user);
 
@@ -103,23 +115,30 @@ public class TotpService {
         if (cleaned.length() == 6 && user.getTotpSecret() != null) {
             SecretCipher.Decrypted decrypted = encryption.inspect(user.getTotpSecret(), TOTP_CONTEXT + ":" + user.getId());
             if (decrypted.state() != SecretCipher.SecretState.UNREADABLE) {
-                if (Totp.verify(decrypted.plainText(), cleaned, clock.instant())) {
+                OptionalLong step = Totp.matchingStep(decrypted.plainText(), cleaned, clock.instant());
+                // A right code already used is refused like a wrong one: it is the replay.
+                if (step.isPresent() && users.advanceTotpStep(user.getId(), step.getAsLong()) == 1) {
+                    user.setTotpLastStep(step.getAsLong());
                     return true;
                 }
             }
         }
 
         // 2. Try Emergency Backup Code
-        if (user.getMfaBackupCodes() != null) {
-            SecretCipher.Decrypted decrypted = encryption.inspect(user.getMfaBackupCodes(), BACKUP_CONTEXT + ":" + user.getId());
+        String stored = user.getMfaBackupCodes();
+        if (stored != null) {
+            SecretCipher.Decrypted decrypted = encryption.inspect(stored, BACKUP_CONTEXT + ":" + user.getId());
             if (decrypted.state() != SecretCipher.SecretState.UNREADABLE) {
                 List<String> codes = new ArrayList<>(Arrays.asList(decrypted.plainText().split(",")));
                 if (codes.remove(cleaned)) {
-                    // Consume used backup code and re-encrypt remaining codes
-                    String updatedSerialized = String.join(",", codes);
-                    user.setMfaBackupCodes(encryption.encrypt(updatedSerialized, BACKUP_CONTEXT + ":" + user.getId()));
-                    user.setUpdatedAt(clock.instant());
-                    users.save(user);
+                    String remaining = encryption.encrypt(String.join(",", codes), BACKUP_CONTEXT + ":" + user.getId());
+                    // Spent only if the codes are still the ones read: otherwise another sign-in
+                    // spent one in between — perhaps this one — and a second success would be
+                    // the same code accepted twice.
+                    if (users.replaceBackupCodes(user.getId(), stored, remaining, clock.instant()) != 1) {
+                        return false;
+                    }
+                    user.setMfaBackupCodes(remaining);
 
                     audit.record(new AuditLogService.Record(
                             AuditOperation.USER_UPDATED,

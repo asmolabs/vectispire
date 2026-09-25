@@ -20,7 +20,7 @@ is ordinary, and reissuing a fresh secret over a typo would mean copying everyth
 
 ## The recovery codes are shown once
 
-The server hashes them and will not return them again. The screen says so **before** showing them,
+The server stores them encrypted and will not return them again. The screen says so **before** showing them,
 because the alternative is somebody closing the tab expecting to find them later.
 
 Store them the way you store any other break-glass credential. They are the only way back in when
@@ -37,6 +37,30 @@ authenticator application accepts — and the `otpauth://` URI stays copyable.
 Current or recovery, and it is the server that requires it. Without that, a workstation left
 unlocked for a minute would be enough to disarm the factor protecting the account, which would
 empty the protection of its meaning.
+
+## Changing phones goes through removing the factor
+
+Enrolling again while a factor is active is refused. Replacing it with no proof of the old one
+would let anybody at an unlocked workstation move the account's second factor onto their own
+phone; removing it asks for a code, so replacing it does too.
+
+## A code opens once
+
+A code accepted at sign-in, or to confirm the enrolment, is refused if presented again, even
+inside its thirty seconds. A recovery code is spent the moment it is accepted, including by two
+sign-ins presenting it at the same instant: only one of them gets in. If a code you have just
+typed is refused, wait for the next one.
+
+## Wrong codes count against the account
+
+A sign-in challenge dies after three wrong codes, and the account absorbs **five wrong codes per
+fifteen minutes across challenges**. Past that, sign-in answers `429` with `Retry-After` even
+with the right password, and the right code clears the count. Only somebody who knows the
+password can spend it — so if this happens to you and it was not you, change your password.
+
+Password failures are counted per account, whatever spelling of the username opened it, and per
+caller address as the server resolves it through the trusted proxies (`VECTISPIRE_TRUSTED_PROXIES`, see [installation](../getting-started/installation.md));
+a `client_id` sent by the client is no longer read.
 
 ## Related
 

@@ -93,10 +93,10 @@ public class AuthenticationFlowService {
     /**
      * A password presented for exchange.
      *
-     * @param clientId the throttle's second counter, already defaulted by the caller. Never the
-     *     IP alone — see {@link AuthService}
+     * @param ipAddress the client's resolved address, which is also the throttle's second counter
+     *     — see {@link AuthService.LoginRequest}
      */
-    public record Attempt(String username, String password, String clientId, String userAgent, String ipAddress) {}
+    public record Attempt(String username, String password, String userAgent, String ipAddress) {}
 
     /** What a password exchange came to. */
     public sealed interface SignIn {
@@ -134,7 +134,6 @@ public class AuthenticationFlowService {
         AuthService.LoginResult result = auth.login(new AuthService.LoginRequest(
                 attempt.username(),
                 attempt.password(),
-                attempt.clientId(),
                 attempt.userAgent(),
                 attempt.ipAddress()));
 
@@ -151,6 +150,12 @@ public class AuthenticationFlowService {
             case AuthService.Outcome.Invalid ignored -> new SignIn.Refused();
             case AuthService.Outcome.Success success -> {
                 if (success.user().getMfaEnabled()) {
+                    // A locked second factor issues no challenge: the session the password
+                    // opened is left unused, the way it is when a challenge is issued.
+                    Duration locked = auth.secondFactorLockout(success.user().getId());
+                    if (!locked.isZero()) {
+                        yield new SignIn.Throttled(locked);
+                    }
                     String mfaToken = UUID.randomUUID().toString();
                     boolean stored = rememberChallenge(
                             mfaToken,
@@ -178,6 +183,9 @@ public class AuthenticationFlowService {
          */
         record WrongCode() implements Verification {}
 
+        /** The account has absorbed its wrong codes for this window, whatever challenge carries it. */
+        record Throttled(Duration retryAfter) implements Verification {}
+
         record Verified(AuthService.IssuedSession issued, UserEntity user) implements Verification {}
     }
 
@@ -197,7 +205,16 @@ public class AuthenticationFlowService {
         }
         UserEntity user = account.get();
 
+        Duration locked = auth.secondFactorLockout(user.getId());
+        if (!locked.isZero()) {
+            // The challenge goes too: it would otherwise outlive the lockout and resume the
+            // search where it stopped.
+            mfaChallenges.deleteById(challengeKey);
+            return new Verification.Throttled(locked);
+        }
+
         if (!totp.verify(user, code)) {
+            auth.recordSecondFactorFailure(user.getId());
             // **The challenge dies on the last try, and that is the control.** Leaving it alive
             // after a wrong code is what turns a six-digit secret into a five-minute exhaustive
             // search: the attacker keeps the same token and keeps going. Counting on the
@@ -230,6 +247,7 @@ public class AuthenticationFlowService {
         }
 
         mfaChallenges.deleteById(challengeKey);
+        auth.clearSecondFactorFailures(user.getId());
         AuthService.IssuedSession session =
                 auth.openSessionForUser(user, challenge.getUserAgent(), challenge.getIpAddress());
 

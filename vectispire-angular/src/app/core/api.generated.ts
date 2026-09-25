@@ -3873,7 +3873,6 @@ export interface components {
             name?: string;
         };
         LoginRequest: {
-            client_id?: string;
             password?: string;
             username?: string;
         };

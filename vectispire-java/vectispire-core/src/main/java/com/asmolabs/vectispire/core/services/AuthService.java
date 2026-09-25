@@ -57,10 +57,14 @@ public class AuthService {
     }
 
     /**
-     * @param clientId identifies the client, for the second counter. Never an IP address alone:
-     *     behind a corporate NAT everybody would share one lock
+     * @param ipAddress the client's address as {@code TrustedProxies} resolves it, and the key of
+     *     the second counter. It used to be a {@code client_id} the browser chose, on the grounds
+     *     that an office behind one NAT would otherwise share a lock — but a key the caller
+     *     chooses is a counter the caller resets: a fresh id on every attempt, and the client
+     *     ceiling never fired. Twenty failures a quarter of an hour from one egress is the cost
+     *     accepted for a ceiling that exists.
      */
-    public record LoginRequest(String username, String password, String clientId, String userAgent, String ipAddress) {}
+    public record LoginRequest(String username, String password, String userAgent, String ipAddress) {}
 
     /** A login's outcome, and what the caller must write to the audit log. */
     public sealed interface Outcome {
@@ -104,8 +108,14 @@ public class AuthService {
     public LoginResult login(LoginRequest request) {
         Instant now = clock.instant();
         Instant since = now.minus(LoginThrottle.WINDOW);
-        String userKey = LoginThrottle.userKey(request.username());
-        String clientKey = LoginThrottle.clientKey(request.clientId());
+        // Looked up before the throttle, which costs a query and no hashing. The account is
+        // what the counter protects, and the username the caller typed is not the account: the
+        // lookup follows the database's collation, which on MySQL ignores case and accents, so
+        // "Alice", "alice" and "Àlice" were three counters opening one account — five tries each.
+        Optional<UserEntity> user = users.findByUsername(request.username());
+        String userKey = user.map(found -> LoginThrottle.accountKey(found.getId()))
+                .orElseGet(() -> LoginThrottle.userKey(request.username()));
+        String clientKey = LoginThrottle.clientKey(String.valueOf(request.ipAddress()));
 
         LoginThrottle.Decision throttle = LoginThrottle.decide(
                 new LoginThrottle.Attempts(occurrences(userKey, since), occurrences(clientKey, since)), now);
@@ -121,13 +131,12 @@ public class AuthService {
                             request.username()));
         }
 
-        Optional<UserEntity> user = users.findByUsername(request.username()).filter(UserEntity::getIsActive);
         // The hash is verified only when an account was found. Verifying it anyway to equalize
         // timings would mean a free key derivation for every unknown username, which is a
         // denial-of-service lever; the timing difference is real, and the throttle above is what
         // makes it unexploitable.
-        boolean authenticated =
-                user.filter(found -> PasswordHasher.verify(request.password(), found.getPassword())).isPresent();
+        boolean authenticated = user.filter(UserEntity::getIsActive)
+                .filter(found -> PasswordHasher.verify(request.password(), found.getPassword())).isPresent();
 
         if (!authenticated) {
             recordFailure(userKey, now);
@@ -247,12 +256,12 @@ public class AuthService {
      */
     @Transactional
     public IssuedSession openSessionForUser(UserEntity user, String userAgent, String ipAddress) {
-        return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
+        return openSession(user, new LoginRequest(user.getUsername(), null, userAgent, ipAddress), clock.instant());
     }
 
     @Transactional
     public IssuedSession openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
-        return openSession(user, new LoginRequest(user.getUsername(), null, null, userAgent, ipAddress), clock.instant());
+        return openSession(user, new LoginRequest(user.getUsername(), null, userAgent, ipAddress), clock.instant());
     }
 
     private IssuedSession openSession(UserEntity user, LoginRequest request, Instant now) {
@@ -266,6 +275,31 @@ public class AuthService {
         session.setUserAgent(clip(request.userAgent()));
         session.setIpAddress(request.ipAddress());
         return new IssuedSession(sessions.save(session), minted.token());
+    }
+
+    /**
+     * How long this account must wait before presenting another second-factor code; zero when
+     * it may. Asked before the code is checked, for the reason the password throttle is.
+     */
+    @Transactional(readOnly = true)
+    public Duration secondFactorLockout(Long accountId) {
+        Instant now = clock.instant();
+        return LoginThrottle.decide(
+                        occurrences(LoginThrottle.secondFactorKey(accountId), now.minus(LoginThrottle.WINDOW)),
+                        LoginThrottle.MAX_SECOND_FACTOR_FAILURES,
+                        now)
+                .retryAfter();
+    }
+
+    @Transactional
+    public void recordSecondFactorFailure(Long accountId) {
+        recordFailure(LoginThrottle.secondFactorKey(accountId), clock.instant());
+    }
+
+    /** Only a right code clears it — never a right password, which is the whole point. */
+    @Transactional
+    public void clearSecondFactorFailures(Long accountId) {
+        attempts.deleteByCounterKey(LoginThrottle.secondFactorKey(accountId));
     }
 
     private List<Instant> occurrences(String counterKey, Instant since) {

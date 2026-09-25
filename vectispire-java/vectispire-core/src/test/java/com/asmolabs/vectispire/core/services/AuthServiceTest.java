@@ -73,8 +73,8 @@ class AuthServiceTest {
         });
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
         // A success clears both counters: five mistypes then the right password is not an attack.
-        verify(attempts).deleteByCounterKey(LoginThrottle.userKey("alice"));
-        verify(attempts).deleteByCounterKey(LoginThrottle.clientKey("browser-1"));
+        verify(attempts).deleteByCounterKey(LoginThrottle.accountKey(1L));
+        verify(attempts).deleteByCounterKey(LoginThrottle.clientKey("10.0.0.1"));
     }
 
     @Test
@@ -88,12 +88,28 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("a failure counts against the user and against the client")
+    @DisplayName("a failure counts against the account and against the caller's address")
     void bothCountersAdvance() {
         service.login(request("alice", "wrong"));
+        service.login(request("nobody", "wrong"));
 
+        // An account that exists is counted by its id; a name that opens nothing, by the name.
         assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
-                .containsExactlyInAnyOrder(LoginThrottle.userKey("alice"), LoginThrottle.clientKey("browser-1"));
+                .containsExactlyInAnyOrder(
+                        LoginThrottle.accountKey(1L), LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.userKey("nobody"), LoginThrottle.clientKey("10.0.0.1"));
+    }
+
+    @Test
+    @DisplayName("every spelling the database resolves to one account shares that account's budget")
+    void theCollationDecidesTheCounter() {
+        // MySQL's collation opens "alice" for "ÀLICE"; lowercasing in Java does not reach the
+        // accent, so the spelling had a budget of its own.
+        when(users.findByUsername("ÀLICE")).thenReturn(Optional.of(user("alice", true)));
+        when(attempts.findByCounterKeyAndOccurredAtAfter(eqUserKey(), any()))
+                .thenReturn(fiveRecentAttempts());
+
+        assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
     }
 
     @Test
@@ -106,9 +122,11 @@ class AuthServiceTest {
 
         assertThat(result.outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_BLOCKED);
-        // The account is never even loaded: otherwise each refused attempt would burn more CPU
-        // than it saves, and the throttle would become the denial-of-service lever.
-        verify(users, never()).findByUsername(anyString());
+        // The account is looked up — a query, to know which counter is its own — but its hash is
+        // never compared: otherwise each refused attempt would burn more CPU than it saves, and
+        // the throttle would become the denial-of-service lever. No session, no rehash.
+        verify(sessions, never()).save(any());
+        verify(users, never()).save(any());
     }
 
     @Test
@@ -144,7 +162,7 @@ class AuthServiceTest {
     }
 
     private static String eqUserKey() {
-        return org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice"));
+        return org.mockito.ArgumentMatchers.eq(LoginThrottle.accountKey(1L));
     }
 
     private static List<LoginAttemptEntity> fiveRecentAttempts() {
@@ -158,7 +176,7 @@ class AuthServiceTest {
     }
 
     private static AuthService.LoginRequest request(String username, String password) {
-        return new AuthService.LoginRequest(username, password, "browser-1", "curl/8", "10.0.0.1");
+        return new AuthService.LoginRequest(username, password, "curl/8", "10.0.0.1");
     }
 
     private static UserEntity user(String username, boolean active) {

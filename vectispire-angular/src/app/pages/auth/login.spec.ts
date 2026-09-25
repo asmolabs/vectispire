@@ -135,19 +135,12 @@ describe('the sign-in screen', () => {
         expect(navigate).toHaveBeenCalledWith(['/change-password']);
     });
 
-    it('identifies the browser with the same client id on every attempt', () => {
+    it('sends no client id: the throttle keys on the address the server resolves', () => {
         attempt();
-        const first = http.expectOne((call) => call.url === '/api/v1/auth/login');
-        const id = (first.request.body as { client_id: string }).client_id;
-        first.flush({}, { status: 401, statusText: 'Unauthorized' });
+        const call = http.expectOne((c) => c.url === '/api/v1/auth/login');
 
-        attempt();
-        const second = http.expectOne((call) => call.url === '/api/v1/auth/login');
-
-        // Drawn afresh each time, this identifier would make the per-account counter useless —
-        // and that counter is the one that stops a sweep of the account list from one machine.
-        expect((second.request.body as { client_id: string }).client_id).toBe(id);
-        expect(id).toBeTruthy();
-        second.flush({}, { status: 401, statusText: 'Unauthorized' });
+        // A client-chosen id was a counter the caller could reset on every attempt.
+        expect(call.request.body).toEqual({ username: expect.any(String), password: expect.any(String) });
+        call.flush({}, { status: 401, statusText: 'Unauthorized' });
     });
 });

@@ -70,6 +70,9 @@ public class UserEntity {
     @Column(name = "mfa_backup_codes")
     private String mfaBackupCodes;
 
+    @Column(name = "totp_last_step")
+    private Long totpLastStep;
+
     public Long getId() {
         return id;
     }
@@ -196,5 +199,13 @@ public class UserEntity {
 
     public void setMfaBackupCodes(String mfaBackupCodes) {
         this.mfaBackupCodes = mfaBackupCodes;
+    }
+
+    public Long getTotpLastStep() {
+        return totpLastStep;
+    }
+
+    public void setTotpLastStep(Long totpLastStep) {
+        this.totpLastStep = totpLastStep;
     }
 }

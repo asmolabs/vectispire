@@ -3285,9 +3285,6 @@
       },
       "LoginRequest" : {
         "properties" : {
-          "client_id" : {
-            "type" : "string"
-          },
           "password" : {
             "type" : "string"
           },

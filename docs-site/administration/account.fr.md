@@ -39,6 +39,31 @@ Courant ou de secours, et c'est le serveur qui l'exige. Sans cela, un poste lais
 minute suffirait à désarmer le facteur qui protège le compte, ce qui viderait la protection de son
 sens.
 
+## Changer de téléphone passe par le retrait du facteur
+
+Un nouvel enrôlement est refusé tant qu'un facteur est actif. Le remplacer sans preuve de
+l'ancien permettrait à quiconque devant un poste déverrouillé de déplacer le second facteur du
+compte sur son propre téléphone ; le retirer exige un code, donc le remplacer aussi.
+
+## Un code n'ouvre qu'une fois
+
+Un code accepté à la connexion, ou pour confirmer l'enrôlement, est refusé s'il est présenté de
+nouveau, même dans ses trente secondes. Un code de secours est consommé dès qu'il est accepté, y
+compris par deux connexions qui le présentent au même instant : une seule entre. Si un code que
+vous venez de saisir est refusé, attendez le suivant.
+
+## Les codes faux comptent contre le compte
+
+Un défi de connexion meurt après trois codes faux, et le compte absorbe **cinq codes faux par
+quart d'heure, tous défis confondus**. Au-delà, la connexion répond `429` avec `Retry-After`
+même avec le bon mot de passe, et le bon code remet le compteur à zéro. Seul quelqu'un qui connaît
+le mot de passe peut l'épuiser — si cela vous arrive sans que ce soit vous, changez de mot de passe.
+
+Les échecs de mot de passe sont comptés par compte, quelle que soit l'orthographe du nom qui l'a
+ouvert, et par adresse de l'appelant telle que le serveur la résout à travers les
+proxys de confiance (`VECTISPIRE_TRUSTED_PROXIES`, voir l'[installation](../getting-started/installation.fr.md)) ; un `client_id` envoyé par le client n'est
+plus lu.
+
 ## À lire aussi
 
 - [Authentification unique](sso.fr.md) — déléguer l'authentification, et le second facteur, à un fournisseur.
