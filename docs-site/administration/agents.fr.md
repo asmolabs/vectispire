@@ -34,7 +34,7 @@ licences, même réconciliation.
 # Sur la machine de l'agent — la clé vient de /agents, affichée une seule fois
 VECTISPIRE_URL=https://vectispire.internal \
 VECTISPIRE_AGENT_TOKEN=zsk_... \
-node dist/agent/main.js
+java -jar vectispire-agent.jar      # produit par ./gradlew :vectispire-agent:bootJar, JDK 25
 ```
 
 Ou en conteneur, ce qui est la façon prévue de le déployer :

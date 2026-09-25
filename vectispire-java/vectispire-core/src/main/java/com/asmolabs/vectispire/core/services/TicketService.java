@@ -340,15 +340,31 @@ public class TicketService {
         return new Ticket(key, key.isEmpty() ? "" : baseUrl + "/browse/" + key);
     }
 
+    /**
+     * Moves the issue to a "done" status, by the transition its own workflow offers.
+     *
+     * <p><b>The transition is asked for, not assumed.</b> It was the id {@code 31} — the "Done"
+     * transition of one default Jira Cloud workflow. Transition ids belong to each project's
+     * workflow, so elsewhere 31 was another transition, or none, and the close failed or moved the
+     * issue somewhere unintended. Jira lists the transitions available to an issue with the status
+     * each leads to; the one whose status is in the {@code done} category is the one to take.
+     */
     private void closeJira(String baseUrl, String key) {
         String url = baseUrl + "/rest/api/3/issue/" + key + "/transitions";
-        // Default Jira Cloud transition or comment
-        post.postForResponse(
-                url,
-                Map.of("transition", Map.of("id", "31")),
-                policy(),
-                "Jira",
-                jiraHeaders());
+        JsonNode offered = lookup.get(url, policy(), "Jira", jiraHeaders())
+                .orElseThrow(() -> new IllegalStateException("Jira lists no transitions for " + key + "."));
+        String transition = null;
+        for (JsonNode candidate : offered.path("transitions")) {
+            if ("done".equals(candidate.path("to").path("statusCategory").path("key").asText())) {
+                transition = candidate.path("id").asText("");
+                break;
+            }
+        }
+        if (transition == null || !transition.matches("[0-9]{1,10}")) {
+            throw new IllegalStateException("No transition to a done status is available for " + key
+                    + " in its workflow; it was left open.");
+        }
+        post.postForResponse(url, Map.of("transition", Map.of("id", transition)), policy(), "Jira", jiraHeaders());
     }
 
     private Ticket createServiceNow(String baseUrl, String title, String body) {

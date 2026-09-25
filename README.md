@@ -114,7 +114,7 @@ ability to decrypt every deploy key Vectispire holds.
 # On the agent's machine — the key comes from /agents, shown once
 VECTISPIRE_URL=https://vectispire.internal \
 VECTISPIRE_AGENT_TOKEN=zsk_... \
-node dist/agent/main.js
+java -jar vectispire-agent.jar      # ./gradlew :vectispire-agent:bootJar, JDK 25
 ```
 
 Or as a container, which is how it is meant to be deployed:

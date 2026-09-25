@@ -1,7 +1,7 @@
 # Tracker tickets
 
-Vectispire opens tickets in **GitLab** or **Jira** — one per problem that would fail a
-build.
+Vectispire opens tickets in **GitLab**, **GitHub**, **Jira** or **ServiceNow** — one per problem that
+would fail a build.
 
 ## One threshold, defined once
 
@@ -42,7 +42,8 @@ next scan resolves it.
 
 The other direction is automatic: when a scan resolves an issue, Vectispire closes the ticket it
 opened for it. Each tracker is called with the verb its API routes for an update — `PUT` on
-GitLab, `PATCH` on GitHub and ServiceNow, a transition on Jira. ServiceNow addresses a record by
+GitLab, `PATCH` on GitHub and ServiceNow, a transition on Jira — the one the issue's own workflow
+offers towards a status in the *done* category, asked of Jira each time rather than assumed. ServiceNow addresses a record by
 its `sys_id`, while the reference Vectispire keeps is the incident number people read
 (`INC0012345`), so the number is first looked up in the incident table: the ServiceNow account
 needs **read** access to `incident` as well as write.

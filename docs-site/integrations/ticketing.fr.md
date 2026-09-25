@@ -1,7 +1,7 @@
 # Tickets
 
-Vectispire ouvre des tickets dans **GitLab** ou **Jira** — un par problème qui ferait échouer
-une construction.
+Vectispire ouvre des tickets dans **GitLab**, **GitHub**, **Jira** ou **ServiceNow** — un par
+problème qui ferait échouer une construction.
 
 ## Un seul seuil, défini une fois
 
@@ -43,7 +43,8 @@ scan suivant la résout.
 
 L'autre sens est automatique : quand un scan résout une issue, Vectispire ferme le ticket qu'il
 avait ouvert pour elle. Chaque traqueur est appelé avec le verbe que son API route pour une mise à
-jour — `PUT` sur GitLab, `PATCH` sur GitHub et ServiceNow, une transition sur Jira. ServiceNow
+jour — `PUT` sur GitLab, `PATCH` sur GitHub et ServiceNow, une transition sur Jira — celle que le workflow du ticket propose
+vers un statut de catégorie *done*, demandée à Jira à chaque fois plutôt que supposée. ServiceNow
 désigne un enregistrement par son `sys_id`, alors que la référence gardée par Vectispire est le
 numéro d'incident que les gens lisent (`INC0012345`) : le numéro est donc d'abord recherché dans la
 table des incidents, et le compte ServiceNow a besoin du droit de **lecture** sur `incident` en plus

@@ -242,6 +242,16 @@ class ScanDispatcherTest {
     }
 
     @Test
+    @DisplayName("a result without a duration is recorded, with the duration unknown")
+    void aMissingDurationIsUnknownNotACrash() {
+        // It threw a NullPointerException in the write and the findings went with it.
+        ScanEntity scan = withRunner(ScanArtifacts.builder().secrets(List.of()).build(null));
+
+        assertThat(scan.getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
+        assertThat(scan.getDurationMs()).isNull();
+    }
+
+    @Test
     @DisplayName("a step that ran and found nothing keeps the scan completed")
     void aCleanScanStaysCompleted() {
         // Absent is not empty. If an empty result counted as "examined nothing", every clean

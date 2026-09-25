@@ -33,7 +33,7 @@ local one: same rows, same enrichment, same license policy, same reconciliation.
 # On the agent's machine — the key comes from /agents, shown once
 VECTISPIRE_URL=https://vectispire.internal \
 VECTISPIRE_AGENT_TOKEN=zsk_... \
-node dist/agent/main.js
+java -jar vectispire-agent.jar      # built by ./gradlew :vectispire-agent:bootJar, JDK 25
 ```
 
 Or as a container, which is how it is meant to be deployed:

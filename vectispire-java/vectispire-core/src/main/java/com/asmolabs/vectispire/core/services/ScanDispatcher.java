@@ -428,7 +428,9 @@ public class ScanDispatcher {
         scan.setFindingsCount(result.created() + result.reopened() + result.stillOpen());
         scan.setNewIssuesCount(result.created());
         scan.setResolvedIssuesCount(result.resolved());
-        scan.setDurationMs(artifacts.duration().toMillis());
+        // Unknown rather than a crash: an agent result that omits the duration is still a result,
+        // and failing the whole write over a timing would throw away its findings.
+        scan.setDurationMs(artifacts.duration() == null ? null : artifacts.duration().toMillis());
         artifacts.sbom().ifPresent(sbom -> scan.setSbom(sbom.toString()));
         // Left untouched when absent rather than blanked: a scan whose clone carried no manifest
         // says nothing about the target's ecosystem, and overwriting what a previous scan read

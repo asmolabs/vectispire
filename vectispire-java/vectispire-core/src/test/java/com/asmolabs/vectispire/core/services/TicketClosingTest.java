@@ -41,6 +41,7 @@ class TicketClosingTest {
 
     /** Method and path-with-query of every request the fake tracker saw, in order. */
     private final List<String> seen = new CopyOnWriteArrayList<>();
+    private static final List<String> POSTED = new CopyOnWriteArrayList<>();
 
     private HttpServer tracker;
     private SettingsService settings;
@@ -53,6 +54,9 @@ class TicketClosingTest {
             String request = exchange.getRequestMethod() + " " + exchange.getRequestURI().getRawPath()
                     + (exchange.getRequestURI().getRawQuery() == null ? "" : "?" + exchange.getRequestURI().getRawQuery());
             seen.add(request);
+            if (exchange.getRequestMethod().equals("POST")) {
+                POSTED.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            }
             answer(exchange, request);
         });
         tracker.start();
@@ -90,6 +94,17 @@ class TicketClosingTest {
             // What the Table API answers a query matching nothing: 200 and an empty list.
             status = 200;
             body = "{\"result\":[]}";
+        } else if (request.equals("GET /rest/api/3/issue/SEC-42/transitions")) {
+            // A workflow whose "Done" is not 31: the id belongs to the project, not to Jira.
+            status = 200;
+            body = "{\"transitions\":[{\"id\":\"21\",\"to\":{\"statusCategory\":{\"key\":\"indeterminate\"}}},"
+                    + "{\"id\":\"41\",\"to\":{\"statusCategory\":{\"key\":\"done\"}}}]}";
+        } else if (request.equals("GET /rest/api/3/issue/SEC-7/transitions")) {
+            status = 200;
+            body = "{\"transitions\":[{\"id\":\"21\",\"to\":{\"statusCategory\":{\"key\":\"indeterminate\"}}}]}";
+        } else if (request.equals("POST /rest/api/3/issue/SEC-42/transitions")) {
+            status = 204;
+            body = "";
         } else if (request.equals("PATCH /api/now/table/incident/" + SYS_ID)
                 || request.equals("PUT /api/v4/projects/team%2Fservice/issues/105")
                 || request.equals("PATCH /repos/team/service/issues/42")) {
@@ -100,7 +115,7 @@ class TicketClosingTest {
             body = "{\"error\":\"not routed\"}";
         }
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
-        exchange.sendResponseHeaders(status, bytes.length);
+        exchange.sendResponseHeaders(status, bytes.length == 0 ? -1 : bytes.length);
         try (OutputStream out = exchange.getResponseBody()) {
             out.write(bytes);
         }
@@ -149,5 +164,29 @@ class TicketClosingTest {
 
         assertThat(service.closeTicket("#42", "clean scan")).isTrue();
         assertThat(seen).containsExactly("PATCH /repos/team/service/issues/42");
+    }
+
+    @Test
+    @DisplayName("a Jira issue takes the transition its workflow offers towards a done status")
+    void jiraTakesTheDoneTransitionItIsOffered() {
+        // It posted transition 31 whatever the workflow: elsewhere another transition, or none.
+        when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.JIRA.wireName());
+        when(settings.get(Setting.TICKET_PROJECT)).thenReturn("SEC");
+        POSTED.clear();
+
+        assertThat(service.closeTicket("SEC-42", "clean scan")).isTrue();
+        assertThat(seen).containsExactly(
+                "GET /rest/api/3/issue/SEC-42/transitions", "POST /rest/api/3/issue/SEC-42/transitions");
+        assertThat(POSTED).singleElement().asString().contains("\"41\"").doesNotContain("\"31\"");
+    }
+
+    @Test
+    @DisplayName("a Jira workflow offering no done transition leaves the issue open, and says so")
+    void jiraWithoutADoneTransitionIsNotClosed() {
+        when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.JIRA.wireName());
+        when(settings.get(Setting.TICKET_PROJECT)).thenReturn("SEC");
+
+        assertThat(service.closeTicket("SEC-7", "clean scan")).isFalse();
+        assertThat(seen).noneMatch(request -> request.startsWith("POST"));
     }
 }
