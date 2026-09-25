@@ -26,6 +26,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0020](0020-screenshots-stay-png.md) | Les captures restent en PNG, et le déclencheur qui changera cela est nommé | acceptée |
 | [0021](0021-the-docs-site-stays-on-mkdocs-1.md) | Le site de documentation reste sur MkDocs 1, jusqu'à ce qu'un autre outil sache le publier en deux langues | acceptée |
 | [0022](0022-https-clone-tokens-are-bound-to-a-host.md) | Le clonage HTTPS utilise un jeton géré, lié à un hôte | acceptée |
+| [0023](0023-solutions-projects-and-repositories.md) | Une solution contient des projets, un projet référence des dépôts, et un droit peut viser un projet | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes
