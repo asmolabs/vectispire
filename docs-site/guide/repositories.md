@@ -14,7 +14,7 @@ recurrence.
 | **Repository URL** | HTTPS for a public repository, SSH where a deploy key is needed. |
 | **Display name** | What every other screen calls it. |
 | **Branch** | The branch scanned on every run. |
-| **Sub-path** | For a monorepo. Register a monorepo **once per project**, not once for the whole tree — otherwise one SBOM conflates several applications' dependencies and no verdict means anything. |
+| **Sub-path** | For a monorepo. Register a monorepo **once per project**, not once for the whole tree — otherwise one SBOM conflates several applications' dependencies and no verdict means anything. Relative to the repository root — `services/billing` — with no `..` segment and no leading `/`; a directory that is a link out of the repository makes the scan fail rather than analyse something else. |
 | **Business criticality tier** | Tier 1 · Mission Critical, Tier 2 · Operational, Tier 3 · Internal. |
 | **Required agent** | Pins the scan to one agent. Leave empty unless the repository is only routable from a particular network segment. |
 
@@ -113,6 +113,14 @@ scorecard, not only the letter.
 
 This grade is **not** the one in the dashboard's maturity ranking, which uses another rule —
 see [Dashboard](dashboard.md#security-posture-grade).
+
+## What is read from the tree, and what is not
+
+The scanners run in containers. Two readings happen in Vectispire's own process — the project
+manifest (`pom.xml`, `package.json`, `pyproject.toml`…) and API discovery — and they **skip any
+symbolic link and any file over 2 MB**. A repository's content is its author's: a committed link to
+`/dev/zero` or to a file of the host, or a gigabyte source file, used to bring the process down or
+read the host. An endpoint declared only in such a file is not discovered.
 
 ## Deleting a repository
 

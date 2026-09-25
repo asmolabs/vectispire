@@ -14,7 +14,7 @@ sous-chemin, et une récurrence.
 | **URL du dépôt** | HTTPS pour un dépôt public, SSH là où une clé de déploiement est nécessaire. |
 | **Nom affiché** | Le nom sous lequel tous les autres écrans le désignent. |
 | **Branche** | La branche analysée à chaque exécution. |
-| **Sous-chemin** | Pour un monodépôt. Enregistrez un monodépôt **une fois par projet**, pas une fois pour l'arbre entier — sinon un seul SBOM confond les dépendances de plusieurs applications et aucun verdict ne veut plus rien dire. |
+| **Sous-chemin** | Pour un monodépôt. Enregistrez un monodépôt **une fois par projet**, pas une fois pour l'arbre entier — sinon un seul SBOM confond les dépendances de plusieurs applications et aucun verdict ne veut plus rien dire. Relatif à la racine du dépôt — `services/billing` — sans segment `..` ni `/` initial ; un répertoire qui est un lien hors du dépôt fait échouer l'analyse plutôt qu'analyser autre chose. |
 | **Niveau de criticité métier** | Niveau 1 · critique pour la mission, niveau 2 · opérationnel, niveau 3 · interne. |
 | **Agent requis** | Épingle le scan à un agent. Laissez vide, sauf si le dépôt n'est routable que depuis un segment réseau particulier. |
 
@@ -114,6 +114,15 @@ compteurs de la fiche, pas seulement la lettre.
 
 Cette note n'est **pas** celle du classement de maturité du tableau de bord, qui suit une autre
 règle — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
+
+## Ce qui est lu de l'arbre, et ce qui ne l'est pas
+
+Les scanners tournent dans des conteneurs. Deux lectures ont lieu dans le processus de Vectispire
+lui-même — le manifeste du projet (`pom.xml`, `package.json`, `pyproject.toml`…) et la découverte
+d'API — et elles **ignorent tout lien symbolique et tout fichier de plus de 2 Mo**. Le contenu d'un
+dépôt appartient à son auteur : un lien commité vers `/dev/zero` ou vers un fichier de l'hôte, ou un
+fichier source d'un gigaoctet, faisait tomber le processus ou lisait l'hôte. Un point d'accès
+déclaré seulement dans un tel fichier n'est pas découvert.
 
 ## Supprimer un dépôt
 

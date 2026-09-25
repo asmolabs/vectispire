@@ -260,4 +260,34 @@ class ApiDiscoveryScannerTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> ApiDiscoveryScanner.scan(missing))
                 .isInstanceOf(java.io.UncheckedIOException.class);
     }
+
+    @Test
+    @DisplayName("a file linked from outside the tree, or too large, is not read")
+    void linksAndOversizedFilesAreSkipped(@TempDir Path tempDir) throws IOException {
+        // A committed `a.js -> /dev/zero` took the process down: readString never reached EOF, and
+        // the OutOfMemoryError escaped every catch. A route in a file reached through a link, or in
+        // a file past the bound, is therefore not discovered — and the walk finishes.
+        Path tree = Files.createDirectory(tempDir.resolve("tree"));
+        Path outside = Files.writeString(tempDir.resolve("outside.js"), "app.get('/from-the-host', h);");
+        Files.createSymbolicLink(tree.resolve("linked.js"), outside);
+        Files.writeString(tree.resolve("big.js"),
+                "app.get('/too-large', h);" + " ".repeat((int) com.asmolabs.vectispire.common.scanning.SourceFiles.MAX_BYTES));
+        Files.writeString(tree.resolve("ok.js"), "app.get('/ordinary', h);");
+
+        List<String> paths = ApiDiscoveryScanner.scan(tree).endpoints().stream().map(ApiEndpoint::path).toList();
+
+        assertThat(paths).contains("/ordinary").doesNotContain("/from-the-host", "/too-large");
+    }
+
+    @Test
+    @DisplayName("a controller with a long run of spaces and no class declaration is read in linear time")
+    void theClassHeaderSearchIsLinear(@TempDir Path tempDir) throws IOException {
+        // Two optional modifiers each followed by an optional run of spaces: 8,000 spaces took
+        // 138 ms, a megabyte about 36 minutes, on a worker thread with no deadline.
+        Files.writeString(tempDir.resolve("Evil.java"), "@RestController\n" + " ".repeat(1_000_000));
+
+        long started = System.nanoTime();
+        ApiDiscoveryScanner.scan(tempDir);
+        assertThat((System.nanoTime() - started) / 1_000_000).as("milliseconds").isLessThan(2_000);
+    }
 }

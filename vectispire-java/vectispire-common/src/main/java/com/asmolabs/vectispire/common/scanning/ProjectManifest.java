@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -77,7 +76,9 @@ public final class ProjectManifest {
     public static Optional<Project> read(Path source) {
         for (Reader reader : READERS) {
             Path manifest = source.resolve(reader.filename());
-            if (!Files.isRegularFile(manifest)) {
+            // Not through a link: a `package.json -> /etc/…` committed to the repository read a
+            // file of the scanning host into the recorded version.
+            if (!SourceFiles.isRegularFile(manifest)) {
                 continue;
             }
             try {
@@ -119,7 +120,7 @@ public final class ProjectManifest {
      * impossible to spot on a screen.
      */
     private static Optional<Project> maven(Path manifest) throws Exception {
-        Document document = documents().newDocumentBuilder().parse(manifest.toFile());
+        Document document = documents().newDocumentBuilder().parse(new java.io.ByteArrayInputStream(bytes(manifest)));
         Element root = document.getDocumentElement();
 
         String version = childText(root, "version");
@@ -140,18 +141,16 @@ public final class ProjectManifest {
      */
     private static Optional<Project> gradle(Path source) throws IOException {
         Path properties = source.resolve("gradle.properties");
-        if (!Files.isRegularFile(properties)) {
+        if (!SourceFiles.isRegularFile(properties)) {
             return Optional.of(new Project("gradle", null));
         }
         Properties values = new Properties();
-        try (var stream = Files.newInputStream(properties)) {
-            values.load(stream);
-        }
+        values.load(new java.io.ByteArrayInputStream(bytes(properties)));
         return Optional.of(new Project("gradle", trimmed(values.getProperty("version"))));
     }
 
     private static Optional<Project> npm(Path manifest) throws IOException {
-        JsonNode document = JSON.readTree(Files.readString(manifest, StandardCharsets.UTF_8));
+        JsonNode document = JSON.readTree(bytes(manifest));
         JsonNode version = document.path("version");
         return Optional.of(new Project("npm", version.isTextual() ? trimmed(version.asText()) : null));
     }
@@ -166,14 +165,41 @@ public final class ProjectManifest {
      * poor trade, and the shape being matched is the one both tools write.
      */
     private static Optional<Project> python(Path manifest) throws IOException {
-        String content = Files.readString(manifest, StandardCharsets.UTF_8);
-        Matcher matcher = PYTHON_VERSION.matcher(content);
-        return Optional.of(new Project("python", matcher.find() ? trimmed(matcher.group(1)) : null));
+        return Optional.of(new Project("python", pythonVersion(new String(bytes(manifest), StandardCharsets.UTF_8))));
     }
 
-    private static final Pattern PYTHON_VERSION = Pattern.compile(
-            "^\\[(?:project|tool\\.poetry)]\\s*$.*?^\\s*version\\s*=\\s*[\"']([^\"']+)[\"']",
-            Pattern.MULTILINE | Pattern.DOTALL);
+    /**
+     * Line by line, tracking which table each line belongs to.
+     *
+     * <p>It was one DOTALL expression — a table header, then {@code .*?} across lines, then
+     * {@code version =} — and a file of repeated headers with no version made the lazy scan restart
+     * from each of them: 0.78 s for 8,000 lines, about two hours for eight megabytes. A table
+     * header either opens one of the two tables or closes it; nothing else needs remembering.
+     */
+    static String pythonVersion(String content) {
+        boolean inProjectTable = false;
+        for (String line : content.split("\\R")) {
+            String trimmed = line.strip();
+            if (trimmed.startsWith("[")) {
+                inProjectTable = trimmed.equals("[project]") || trimmed.equals("[tool.poetry]");
+                continue;
+            }
+            if (inProjectTable) {
+                Matcher version = PYTHON_VERSION_LINE.matcher(trimmed);
+                if (version.matches()) {
+                    return trimmed(version.group(1));
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final Pattern PYTHON_VERSION_LINE = Pattern.compile("version\\s*=\\s*[\"']([^\"']+)[\"'].*");
+
+    /** Bounded and link-refusing — see {@link SourceFiles}. Too large reads as unreadable. */
+    private static byte[] bytes(Path file) throws IOException {
+        return SourceFiles.readBytes(file).orElseThrow(() -> new IOException("not a readable manifest"));
+    }
 
     /**
      * A parser that reads no entity and fetches nothing.

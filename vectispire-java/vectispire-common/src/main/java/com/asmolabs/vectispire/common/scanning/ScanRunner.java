@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning;
 
+import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.IacScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner;
@@ -95,13 +96,23 @@ public final class ScanRunner {
                     repository.url(), repository.branch(), workspace.source(),
                     repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey));
 
-            String subPath = repository.subPath();
+            // **Checked against the clone, not only as text.** The raw value used to go straight into
+            // Path.resolve — "/" or "../.." walked the host or the other scans' clones — and a
+            // directory of the repository may itself be a link out of it. A sub-path refused here
+            // fails the scan: nothing was examined, and saying so beats scanning something else.
+            String subPath = RepositorySubPath.normalize(repository.subPath());
+            java.nio.file.Path scanRoot;
+            try {
+                scanRoot = SourceFiles.within(workspace.source(), subPath);
+            } catch (java.io.IOException unresolvable) {
+                throw new java.io.UncheckedIOException("The clone could not be resolved.", unresolvable);
+            }
 
             // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
             // analysis: it produces no finding, resolves no backlog, and its absence is an
             // ordinary property of a repository rather than a scanner that failed. Wrapping it
             // would put "no pom.xml" in the same list as "Semgrep timed out".
-            ProjectManifest.read(workspace.source().resolve(subPath)).ifPresent(artifacts::project);
+            ProjectManifest.read(scanRoot).ifPresent(artifacts::project);
 
             // Static API & Contract discovery (Shadow APIs, endpoints, OpenAPI/Swagger).
             //
@@ -110,8 +121,7 @@ public final class ScanRunner {
             // walk the tree, which the inventory reads as "this repository has no contracts" and
             // records by replacing the ones it had (decision 0007). Absent now means absent.
             step(artifacts, "api discovery", () -> {
-                var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(
-                        workspace.source().resolve(subPath));
+                var apiDiscovery = com.asmolabs.vectispire.common.scanning.scanners.ApiDiscoveryScanner.scan(scanRoot);
                 artifacts.apiEndpoints(apiDiscovery.endpoints());
                 artifacts.apiContracts(apiDiscovery.contracts());
             });

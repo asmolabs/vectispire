@@ -166,4 +166,50 @@ class ProjectManifestTest {
     private void write(String name, String content) throws IOException {
         Files.writeString(source.resolve(name), content);
     }
+
+    @org.junit.jupiter.api.Nested
+    @org.junit.jupiter.api.DisplayName("content the repository's author controls")
+    class HostileContent {
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("a manifest that is a link to a host file is not read")
+        void aLinkedManifestIsNotRead() throws IOException {
+            Path outside = Files.writeString(source.getParent().resolve("host-" + System.nanoTime() + ".json"),
+                    "{\"version\":\"read-from-the-host\"}");
+            try {
+                Files.createSymbolicLink(source.resolve("package.json"), outside);
+
+                assertThat(ProjectManifest.read(source)).isEmpty();
+            } finally {
+                Files.deleteIfExists(outside);
+            }
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("a pyproject of repeated table headers with no version is read in linear time")
+        void repeatedHeadersAreLinear() throws IOException {
+            // One DOTALL expression restarted its lazy scan from each header: 0.78 s for 8,000
+            // lines, about two hours for eight megabytes.
+            Files.writeString(source.resolve("pyproject.toml"), "[project]\n".repeat(200_000));
+
+            long started = System.nanoTime();
+            assertThat(ProjectManifest.read(source)).contains(new ProjectManifest.Project("python", null));
+            assertThat((System.nanoTime() - started) / 1_000_000).as("milliseconds").isLessThan(2_000);
+        }
+
+        @org.junit.jupiter.api.Test
+        @org.junit.jupiter.api.DisplayName("the version belongs to [project] or [tool.poetry], not to the table before it")
+        void theVersionIsTheProjectTables() {
+            assertThat(ProjectManifest.pythonVersion("""
+                    [tool.black]
+                    version = "not-this"
+                    [project]
+                    name = "svc"
+                    version = "1.4.2"
+                    [tool.other]
+                    version = "nor-this"
+                    """)).isEqualTo("1.4.2");
+            assertThat(ProjectManifest.pythonVersion("[tool.black]\nversion = \"x\"\n")).isNull();
+        }
+    }
 }

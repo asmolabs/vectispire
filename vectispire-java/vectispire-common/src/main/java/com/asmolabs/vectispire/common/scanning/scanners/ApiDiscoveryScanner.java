@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import com.asmolabs.vectispire.common.scanning.SourceFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
@@ -8,7 +9,6 @@ import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,6 +66,11 @@ public final class ApiDiscoveryScanner {
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    // Links and oversized files are not read: see SourceFiles for what a committed
+                    // `a.js -> /dev/zero` did to the process running this walk.
+                    if (!SourceFiles.isReadable(attrs)) {
+                        return FileVisitResult.CONTINUE;
+                    }
                     String name = file.getFileName().toString().toLowerCase();
                     String relativePath = workspaceRoot.relativize(file).toString();
 
@@ -128,6 +133,11 @@ public final class ApiDiscoveryScanner {
         return new Result(List.copyOf(adjusted), List.copyOf(contracts));
     }
 
+    /** Bounded and link-refusing; a file the walk admitted but that changed since is skipped. */
+    private static String readSource(Path file) throws IOException {
+        return SourceFiles.readText(file).orElseThrow(() -> new IOException("not a readable source file"));
+    }
+
     private static boolean isOpenApiOrSwagger(String filename) {
         return filename.contains("openapi") || filename.contains("swagger")
                 || filename.equals("api-docs.json") || filename.equals("api.json");
@@ -135,7 +145,7 @@ public final class ApiDiscoveryScanner {
 
     private static java.util.Optional<ApiContract> parseContract(Path file, String relativePath, List<ApiEndpoint> endpoints) {
         try {
-            String content = Files.readString(file, StandardCharsets.UTF_8);
+            String content = readSource(file);
             if (file.getFileName().toString().endsWith(".json")) {
                 JsonNode root = JSON_MAPPER.readTree(content);
                 if (root == null || !root.isObject()) {
@@ -286,7 +296,7 @@ public final class ApiDiscoveryScanner {
 
     private static void extractIngressPaths(Path file, Set<String> publicPaths) {
         try {
-            String content = Files.readString(file, StandardCharsets.UTF_8);
+            String content = readSource(file);
             if (!content.contains("kind: Ingress") && !content.contains("kind: \"Ingress\"")) {
                 return;
             }
@@ -394,9 +404,22 @@ public final class ApiDiscoveryScanner {
         return sb.toString();
     }
 
+    /**
+     * The first type declaration, whose position splits class-level annotations from methods.
+     *
+     * <p>The modifiers used to be part of the pattern — two optional words, each followed by an
+     * optional run of spaces — and on a file with a long run of spaces and no declaration the
+     * engine retried every split of that run from every position: 138 ms for 8,000 spaces,
+     * about 36 minutes for a megabyte, on a worker thread with no deadline. The modifiers never
+     * changed what was captured, only where the header ended, and the header is only searched
+     * for annotations.
+     */
+    private static final Pattern CLASS_DECLARATION =
+            Pattern.compile("\\b(?:class|interface|record)\\s+([A-Za-z0-9_]+)");
+
     // Java Spring Boot / JAX-RS Controller Parser
     private static void extractJavaSpringEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
-        String rawContent = Files.readString(file, StandardCharsets.UTF_8);
+        String rawContent = readSource(file);
         String content = stripComments(rawContent);
 
         if (!content.contains("@RestController") && !content.contains("@Controller")
@@ -406,7 +429,7 @@ public final class ApiDiscoveryScanner {
 
         String classPrefix = "";
         int classIdx = -1;
-        Matcher cm = Pattern.compile("\\b(?:public|protected|private)?\\s*(?:final|abstract|sealed)?\\s*\\b(?:class|interface|record)\\s+([A-Za-z0-9_]+)").matcher(content);
+        Matcher cm = CLASS_DECLARATION.matcher(content);
         if (cm.find()) {
             classIdx = cm.start();
         }
@@ -533,7 +556,7 @@ public final class ApiDiscoveryScanner {
 
     // Node (Express / NestJS) Parser
     private static void extractNodeEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
-        String content = Files.readString(file, StandardCharsets.UTF_8);
+        String content = readSource(file);
         String[] lines = content.split("\n");
 
         Pattern expressPattern = Pattern.compile("(?:app|router)\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]");
@@ -573,7 +596,7 @@ public final class ApiDiscoveryScanner {
 
     // Python (FastAPI / Flask) Parser
     private static void extractPythonEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
-        String content = Files.readString(file, StandardCharsets.UTF_8);
+        String content = readSource(file);
         String[] lines = content.split("\n");
 
         Pattern fastapiPattern = Pattern.compile("@(?:app|router)\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]");
@@ -604,7 +627,7 @@ public final class ApiDiscoveryScanner {
 
     // Go (Gin) Parser
     private static void extractGoEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
-        String content = Files.readString(file, StandardCharsets.UTF_8);
+        String content = readSource(file);
         String[] lines = content.split("\n");
 
         Pattern ginPattern = Pattern.compile("(?:r|router|engine|group|api)\\.(GET|POST|PUT|DELETE|PATCH)\\s*\\(\\s*[\"']([^\"']+)[\"']");

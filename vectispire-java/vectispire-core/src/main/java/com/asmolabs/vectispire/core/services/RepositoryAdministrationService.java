@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
+import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
@@ -122,7 +123,9 @@ public class RepositoryAdministrationService {
         repository.setUrl(url);
         repository.setBranch(trim(changes.branch()).isEmpty() ? "main" : trim(changes.branch()));
         repository.setName(optional(changes.name()));
-        repository.setSubPath(optional(changes.subPath()));
+        // Checked like the URL, and for the same reason: it is resolved against a clone on the
+        // scanning host — see RepositorySubPath.
+        repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
         repository.setScanIntervalMinutes(changes.scanIntervalMinutes());
         // Validated at the entry point: discovering that an expression was rejected by watching
         // scans *not* happen is the expensive way.
@@ -176,7 +179,7 @@ public class RepositoryAdministrationService {
             repository.setName(optional(changes.name()));
         }
         if (changes.subPath() != null) {
-            repository.setSubPath(optional(changes.subPath()));
+            repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
         }
         if (changes.scanIntervalMinutes() != null) {
             repository.setScanIntervalMinutes(changes.scanIntervalMinutes());

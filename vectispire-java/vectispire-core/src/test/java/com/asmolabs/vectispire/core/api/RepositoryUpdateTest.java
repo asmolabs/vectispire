@@ -56,6 +56,24 @@ class RepositoryUpdateTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("refuses a sub-path that leaves the repository, and keeps the one stored")
+    void theSubPathIsValidated() throws Exception {
+        // Stored as typed and resolved against the clone: "/" walked the scanning host, "../.."
+        // the other scans' clones.
+        long id = seed();
+        for (String subPath : new String[] {"/", "../..", "services/../../etc"}) {
+            mvc.perform(authenticated(patch("/api/v1/repositories/" + id), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("subPath", subPath))))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(authenticated(patch("/api/v1/repositories/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("branch", "main"))))
+                .andExpect(jsonPath("$.subPath").value("services/billing"));
+    }
+
+    @Test
     @DisplayName("validates the URL on update exactly as on create")
     void theUrlIsValidatedAgain() throws Exception {
         long id = seed();
