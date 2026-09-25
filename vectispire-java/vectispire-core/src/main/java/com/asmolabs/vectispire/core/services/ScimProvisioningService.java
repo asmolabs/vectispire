@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.TeamEntity;
@@ -65,6 +66,9 @@ import tools.jackson.databind.JsonNode;
  */
 @Service
 public class ScimProvisioningService {
+
+    /** The width of {@code display_name}, {@code email} and {@code keycloak_id}. */
+    private static final int IDENTITY_COLUMN = 255;
 
     private final Users users;
     private final Teams teams;
@@ -158,9 +162,9 @@ public class ScimProvisioningService {
         Instant now = clock.instant();
         UserEntity user = new UserEntity();
         user.setUsername(username);
-        user.setDisplayName(attributes.displayName());
-        user.setEmail(attributes.email());
-        user.setKeycloakId(attributes.externalId());
+        user.setDisplayName(bounded(attributes.displayName(), "displayName"));
+        user.setEmail(bounded(attributes.email(), "emails"));
+        user.setKeycloakId(bounded(attributes.externalId(), "externalId"));
         user.setIsActive(attributes.active() == null || attributes.active());
         user.setRole(grantable(attributes.role(), Role.USER.name()));
         user.setPassword(PasswordHasher.hash(UUID.randomUUID().toString()));
@@ -194,10 +198,10 @@ public class ScimProvisioningService {
         String previousRole = user.getRole();
         String role = grantable(attributes.role(), previousRole);
 
-        user.setDisplayName(attributes.displayName());
-        user.setEmail(attributes.email());
+        user.setDisplayName(bounded(attributes.displayName(), "displayName"));
+        user.setEmail(bounded(attributes.email(), "emails"));
         if (attributes.externalId() != null) {
-            bindOnce(user, attributes.externalId());
+            bindOnce(user, bounded(attributes.externalId(), "externalId"));
         }
         user.setIsActive(nowActive);
         user.setRole(role);
@@ -298,7 +302,7 @@ public class ScimProvisioningService {
                 user.setIsActive(value.get("active").asBoolean());
             }
             if (value.has("displayName") && value.get("displayName").isString()) {
-                user.setDisplayName(value.get("displayName").asString());
+                user.setDisplayName(bounded(value.get("displayName").asString(), "displayName"));
             }
         }
     }
@@ -344,6 +348,18 @@ public class ScimProvisioningService {
             throw new ProtectedAccountException(user.getUsername());
         }
         return user;
+    }
+
+    /**
+     * An attribute the provider sent, refused when its column cannot hold it.
+     *
+     * <p>Refused rather than cut: a truncated address is somebody else's address, and a truncated
+     * external id binds the account to a subject that does not exist. The refusal is a SCIM 400
+     * the provider logs against the user it was provisioning, where it used to be a 500 from the
+     * insert.
+     */
+    private static String bounded(String value, String attribute) {
+        return BoundedText.within(value, IDENTITY_COLUMN, "The SCIM attribute " + attribute);
     }
 
     /**

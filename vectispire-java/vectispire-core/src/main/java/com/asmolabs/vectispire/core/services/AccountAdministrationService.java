@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -36,6 +38,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AccountAdministrationService {
 
+    /** The width of {@code email} and {@code display_name}. */
+    private static final int BOUNDED_COLUMN = 255;
+
     private final Users users;
     private final UserSessions sessions;
     private final UserTargets assignments;
@@ -61,7 +66,7 @@ public class AccountAdministrationService {
     /** An account and how many live sessions it holds. */
     public record AccountView(UserEntity user, long activeSessions) {}
 
-    /** @param kind {@code repository} or {@code container}, stored as sent */
+    /** @param kind {@code repository} or {@code container} */
     public record TargetAssignment(String kind, Long id) {}
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
@@ -99,8 +104,10 @@ public class AccountAdministrationService {
         Instant createdAt = clock.instant();
         UserEntity user = new UserEntity();
         user.setUsername(username);
-        user.setEmail(optional(request.email()));
-        user.setDisplayName(optional(request.displayName()));
+        // Bounded like every column a form writes: past 255 the database refused the row at the
+        // write, and the administrator got a 500 for a pasted signature block.
+        user.setEmail(BoundedText.optional(request.email(), BOUNDED_COLUMN, "The e-mail address"));
+        user.setDisplayName(BoundedText.optional(request.displayName(), BOUNDED_COLUMN, "The display name"));
         user.setPassword(PasswordHasher.hash(password));
         user.setRole(role);
         user.setIsActive(true);
@@ -210,9 +217,28 @@ public class AccountAdministrationService {
      * <p>Wholesale rather than add-and-remove, because the operation that matters is
      * <em>removing</em> one: a screen that sends what it wants and a server that only adds is a
      * revocation that silently does nothing.
+     *
+     * <p><b>Read as the team path reads it.</b> A null entry, or one with no id, is skipped; the kind
+     * is validated against the two that exist and lowercased. The body used to reach the table as
+     * sent: {@code [null]} or a missing id was a 500 from the insert, and an unknown kind was
+     * stored — an assignment the screen showed and that granted nothing.
+     *
+     * @param requested as sent, possibly null or holding nulls
+     * @return the assignments as stored, which is what the screen must show — not what it sent
      */
-    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> wanted, RequestActor actor) {
+    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> requested, RequestActor actor) {
         UserEntity user = requireAccount(id);
+
+        // A set, because the pair is the table's primary key: the same target sent twice is one
+        // assignment, not a constraint violation.
+        java.util.LinkedHashSet<TargetAssignment> unique = new java.util.LinkedHashSet<>();
+        for (TargetAssignment assignment : requested == null ? List.<TargetAssignment>of() : requested) {
+            if (assignment == null || assignment.id() == null) {
+                continue;
+            }
+            unique.add(new TargetAssignment(TeamRules.validateTargetKind(assignment.kind()), assignment.id()));
+        }
+        List<TargetAssignment> wanted = List.copyOf(unique);
 
         accounts.replaceTargets(id, wanted.stream()
                 .map(assignment -> new UserTargetEntity(id, assignment.kind(), assignment.id()))
@@ -289,10 +315,5 @@ public class AccountAdministrationService {
 
     private static String trim(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private static String optional(String value) {
-        String trimmed = trim(value);
-        return trimmed.isEmpty() ? null : trimmed;
     }
 }

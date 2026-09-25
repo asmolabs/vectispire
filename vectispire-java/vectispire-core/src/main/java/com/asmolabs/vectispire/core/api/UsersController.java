@@ -120,15 +120,19 @@ public class UsersController {
             @RequestBody List<UserTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
-        List<UserTargetAssignment> wanted = body == null ? List.of() : body;
-        accounts.replaceTargets(
-                id,
-                wanted.stream()
-                        .map(assignment -> new AccountAdministrationService.TargetAssignment(
-                                assignment.kind(), assignment.id()))
-                        .toList(),
-                RequestActors.of(principal, request));
-        return wanted;
+        // Null entries are carried through rather than filtered here, as on the team route: what
+        // an entry must hold is the service's rule, and `Stream.toList` keeps nulls.
+        List<AccountAdministrationService.TargetAssignment> requested = (body == null ? List.<UserTargetAssignment>of() : body)
+                .stream()
+                .map(assignment -> assignment == null
+                        ? null
+                        : new AccountAdministrationService.TargetAssignment(assignment.kind(), assignment.id()))
+                .toList();
+        // What was stored, not what was sent: the two differ by every entry the service skipped or
+        // normalized, and a screen showing the request would show assignments that do not exist.
+        return accounts.replaceTargets(id, requested, RequestActors.of(principal, request)).stream()
+                .map(assignment -> new UserTargetAssignment(assignment.kind(), assignment.id()))
+                .toList();
     }
 
     @DeleteMapping("/{id}")
