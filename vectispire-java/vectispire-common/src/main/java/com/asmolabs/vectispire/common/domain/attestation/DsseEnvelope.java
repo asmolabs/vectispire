@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.common.domain.attestation;
 import java.util.List;
 
 /**
- * Standard Dead Simple Signing Envelope (DSSE - RFC 9615 / CNCF in-toto specification).
+ * Dead Simple Signing Envelope (DSSE, the Secure Systems Lab specification used by in-toto).
  * Used for wrapping in-toto provenance statements and supply chain attestations with non-repudiable signatures.
  */
 public record DsseEnvelope(

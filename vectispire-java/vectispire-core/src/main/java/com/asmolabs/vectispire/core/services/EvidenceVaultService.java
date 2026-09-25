@@ -188,7 +188,7 @@ public class EvidenceVaultService {
                     DsseEnvelope dsse = signingKeyService.wrapAndSignDsse(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, attestationBytes);
                     byte[] dsseBytes = json.writeValueAsBytes(dsse);
                     addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_in_toto.dsse.json",
-                            "Signed DSSE envelope (RFC 9615) for scan " + scanId,
+                            "Signed DSSE envelope for scan " + scanId,
                             dsseBytes);
                 } catch (AttestationService.NotAttestableException refused) {
                     addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_not_attested.txt",
