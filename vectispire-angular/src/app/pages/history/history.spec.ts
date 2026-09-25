@@ -29,16 +29,16 @@ describe('the history screen', () => {
     let http: HttpTestingController;
 
     const REPOSITORY = asSchema('Repository', {
-            id: 5,
-            name: 'Arm Libs Spring',
-            url: 'ssh://git@example.com/art/arm.git',
-            branch: 'master',
-            version: '1.17.6',
-            projectType: 'maven',
-            scanCount: 3,
-            lastScanAt: '2026-08-21T05:03:00Z',
-            openIssues: 38,
-            decisions: 0
+        id: 5,
+        name: 'Arm Libs Spring',
+        url: 'ssh://git@example.com/art/arm.git',
+        branch: 'master',
+        version: '1.17.6',
+        projectType: 'maven',
+        scanCount: 3,
+        lastScanAt: '2026-08-21T05:03:00Z',
+        openIssues: 38,
+        decisions: 0
     });
 
     function dossier(decisions: unknown[]): Record<string, unknown> {
@@ -112,7 +112,9 @@ describe('the history screen', () => {
         // A counter at zero cannot distinguish "nothing was triaged" from "the decisions predate
         // the recording of this history", and those say very different things about the process.
         const text = fixture.nativeElement.textContent;
-        expect(text.includes('No triage decision has been recorded') || text.includes('history.no_decisions_recorded')).toBe(true);
+        expect(
+            text.includes('No triage decision has been recorded') || text.includes('history.no_decisions_recorded')
+        ).toBe(true);
     });
 
     it('shows a decision with its author and both ends of the transition', () => {

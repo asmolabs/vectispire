@@ -76,16 +76,26 @@ export class Login {
     /** The refusal codes the server sends, and the only texts this page will show for them. */
     private refusalMessage(code: string | null): string {
         switch (code) {
-            case 'no_subject': return this.i18n.t('auth.sso_refused_no_subject');
-            case 'no_account': return this.i18n.t('auth.sso_refused_no_account');
-            case 'already_linked': return this.i18n.t('auth.sso_refused_already_linked');
-            case 'privileged': return this.i18n.t('auth.sso_refused_privileged');
-            case 'no_username': return this.i18n.t('auth.sso_refused_no_username');
-            case 'unverified_email': return this.i18n.t('auth.sso_refused_unverified_email');
-            case 'deactivated': return this.i18n.t('auth.sso_refused_deactivated');
-            case 'no_identity': return this.i18n.t('auth.sso_refused_no_identity');
-            case 'mfa_required': return this.i18n.t('auth.sso_refused_mfa_required');
-            default: return this.i18n.t('auth.error_sso_refused');
+            case 'no_subject':
+                return this.i18n.t('auth.sso_refused_no_subject');
+            case 'no_account':
+                return this.i18n.t('auth.sso_refused_no_account');
+            case 'already_linked':
+                return this.i18n.t('auth.sso_refused_already_linked');
+            case 'privileged':
+                return this.i18n.t('auth.sso_refused_privileged');
+            case 'no_username':
+                return this.i18n.t('auth.sso_refused_no_username');
+            case 'unverified_email':
+                return this.i18n.t('auth.sso_refused_unverified_email');
+            case 'deactivated':
+                return this.i18n.t('auth.sso_refused_deactivated');
+            case 'no_identity':
+                return this.i18n.t('auth.sso_refused_no_identity');
+            case 'mfa_required':
+                return this.i18n.t('auth.sso_refused_mfa_required');
+            default:
+                return this.i18n.t('auth.error_sso_refused');
         }
     }
 
@@ -103,8 +113,9 @@ export class Login {
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
                     this.loading.set(false);
-                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'],
-                        { replaceUrl: true });
+                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'], {
+                        replaceUrl: true
+                    });
                 }
             },
             error: () => {
@@ -181,7 +192,9 @@ export class Login {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
                 if (retryAfter) {
-                    this.error.set(this.i18n.t('auth.error_too_many_attempts', { minutes: Math.ceil(retryAfter / 60) }));
+                    this.error.set(
+                        this.i18n.t('auth.error_too_many_attempts', { minutes: Math.ceil(retryAfter / 60) })
+                    );
                 } else if (response.status === 401) {
                     this.error.set(this.i18n.t('auth.error_invalid_credentials'));
                 } else {

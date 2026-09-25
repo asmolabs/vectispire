@@ -27,7 +27,9 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        DialogModule, TranslatePipe],
+        DialogModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './epss.html'
 })
@@ -166,19 +168,27 @@ export class Epss implements OnInit {
 
     getTierSeverity(tier: string): 'danger' | 'warn' | 'info' | 'secondary' {
         switch (tier) {
-            case 'CRITICAL_ARMED': return 'danger';
-            case 'HIGH_PROBABLE': return 'warn';
-            case 'MEDIUM_THEORETICAL': return 'info';
-            default: return 'secondary';
+            case 'CRITICAL_ARMED':
+                return 'danger';
+            case 'HIGH_PROBABLE':
+                return 'warn';
+            case 'MEDIUM_THEORETICAL':
+                return 'info';
+            default:
+                return 'secondary';
         }
     }
 
     getTierLabel(tier: string): string {
         switch (tier) {
-            case 'CRITICAL_ARMED': return this.i18n.t('epss.tier_critical_armed');
-            case 'HIGH_PROBABLE': return this.i18n.t('epss.tier_high_probable');
-            case 'MEDIUM_THEORETICAL': return this.i18n.t('epss.tier_medium_theoretical');
-            default: return this.i18n.t('epss.tier_low');
+            case 'CRITICAL_ARMED':
+                return this.i18n.t('epss.tier_critical_armed');
+            case 'HIGH_PROBABLE':
+                return this.i18n.t('epss.tier_high_probable');
+            case 'MEDIUM_THEORETICAL':
+                return this.i18n.t('epss.tier_medium_theoretical');
+            default:
+                return this.i18n.t('epss.tier_low');
         }
     }
 

@@ -69,8 +69,14 @@ export class Attestation {
     reload(): void {
         this.loading.set(true);
         this.auditApi.verifyAuditChain().subscribe({
-            next: (v) => { this.chain.set(v); this.loading.set(false); },
-            error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.loading.set(false); }
+            next: (v) => {
+                this.chain.set(v);
+                this.loading.set(false);
+            },
+            error: () => {
+                this.error.set(this.i18n.t('attestation.error_chain'));
+                this.loading.set(false);
+            }
         });
         this.complianceApi.complianceSummary().subscribe({
             next: (s) => this.compliance.set(s),
@@ -83,16 +89,29 @@ export class Attestation {
     recheck(): void {
         this.rechecking.set(true);
         this.auditApi.verifyAuditChain().subscribe({
-            next: (v) => { this.chain.set(v); this.establishedAt.set(new Date()); this.rechecking.set(false); },
-            error: () => { this.error.set(this.i18n.t('attestation.error_chain')); this.rechecking.set(false); }
+            next: (v) => {
+                this.chain.set(v);
+                this.establishedAt.set(new Date());
+                this.rechecking.set(false);
+            },
+            error: () => {
+                this.error.set(this.i18n.t('attestation.error_chain'));
+                this.rechecking.set(false);
+            }
         });
     }
 
     download(): void {
         this.downloading.set(true);
         this.complianceApi.exportEvidenceBundle().subscribe({
-            next: (response) => { saveDocument(response, 'vectispire-evidence.zip'); this.downloading.set(false); },
-            error: () => { this.error.set(this.i18n.t('attestation.error_bundle')); this.downloading.set(false); }
+            next: (response) => {
+                saveDocument(response, 'vectispire-evidence.zip');
+                this.downloading.set(false);
+            },
+            error: () => {
+                this.error.set(this.i18n.t('attestation.error_bundle'));
+                this.downloading.set(false);
+            }
         });
     }
 

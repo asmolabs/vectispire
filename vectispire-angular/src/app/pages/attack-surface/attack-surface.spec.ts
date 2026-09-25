@@ -44,32 +44,32 @@ describe('the attack surface screen', () => {
     });
 
     const GLOBAL = asSchema('GlobalAttackSurface', {
-            totalEndpoints: 40,
-            publicEndpoints: 12,
-            internalEndpoints: 28,
-            unauthenticatedEndpoints: 5,
-            shadowEndpoints: 2,
-            sensitiveUnprotectedEndpoints: 1,
-            frameworks: ['spring', 'express'],
-            highRiskEndpoints: []
+        totalEndpoints: 40,
+        publicEndpoints: 12,
+        internalEndpoints: 28,
+        unauthenticatedEndpoints: 5,
+        shadowEndpoints: 2,
+        sensitiveUnprotectedEndpoints: 1,
+        frameworks: ['spring', 'express'],
+        highRiskEndpoints: []
     });
 
     const REPO_OVERVIEW = asSchema('RepositoryApisOverview', {
-            repositoryId: 7,
-            endpoints: [
-                endpoint(1, 'GET', '/api/admin/users', false, 'PUBLIC'),
-                endpoint(2, 'POST', '/api/admin/users', true, 'PUBLIC'),
-                endpoint(3, 'GET', '/api/health', false, 'INTERNAL')
-            ],
-            contracts: [],
-            summary: {
-                totalEndpoints: 3,
-                publicEndpoints: 2,
-                internalEndpoints: 1,
-                unauthenticatedEndpoints: 2,
-                shadowEndpoints: 0,
-                sensitiveUnprotectedEndpoints: 1
-            }
+        repositoryId: 7,
+        endpoints: [
+            endpoint(1, 'GET', '/api/admin/users', false, 'PUBLIC'),
+            endpoint(2, 'POST', '/api/admin/users', true, 'PUBLIC'),
+            endpoint(3, 'GET', '/api/health', false, 'INTERNAL')
+        ],
+        contracts: [],
+        summary: {
+            totalEndpoints: 3,
+            publicEndpoints: 2,
+            internalEndpoints: 1,
+            unauthenticatedEndpoints: 2,
+            shadowEndpoints: 0,
+            sensitiveUnprotectedEndpoints: 1
+        }
     });
 
     beforeEach(async () => {
@@ -89,7 +89,7 @@ describe('the attack surface screen', () => {
         ]);
     }, 20_000);
 
-    it('shows the estate figures until a repository is chosen, then that repository\'s', () => {
+    it("shows the estate figures until a repository is chosen, then that repository's", () => {
         const page = fixture.componentInstance;
         expect(page.currentStats().totalEndpoints).toBe(40);
         expect(page.currentStats().frameworks).toEqual(['spring', 'express']);

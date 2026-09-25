@@ -18,18 +18,18 @@ describe('the component search', () => {
     let http: HttpTestingController;
 
     const OCCURRENCE = asSchema('Occurrence', {
-            component: 'log4j-core',
-            componentVersion: '2.14.1',
-            purl: 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1',
-            type: 'java-archive',
-            direct: true,
-            targetKind: 'repository',
-            targetId: 5,
-            targetName: 'Arm Libs Spring',
-            branch: 'master',
-            projectVersion: '1.17.6',
-            scanId: 34,
-            scannedAt: '2026-08-21T05:03:00Z'
+        component: 'log4j-core',
+        componentVersion: '2.14.1',
+        purl: 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1',
+        type: 'java-archive',
+        direct: true,
+        targetKind: 'repository',
+        targetId: 5,
+        targetName: 'Arm Libs Spring',
+        branch: 'master',
+        projectVersion: '1.17.6',
+        scanId: 34,
+        scannedAt: '2026-08-21T05:03:00Z'
     });
 
     beforeEach(async () => {
@@ -120,17 +120,30 @@ describe('the component search', () => {
         search('nothing', '', { occurrences: [], total: 0, truncated: false });
 
         const text = fixture.nativeElement.textContent;
-        expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(true);
+        expect(text.includes('No scan has catalogued this component') || text.includes('inventory.no_results')).toBe(
+            true
+        );
     });
 
     /** A scan as the history returns it: newest first, and what the pickers read. */
     const scan = (id: number, when: string) => ({
-        id, status: 'completed', branch: 'main', targetKind: 'REPOSITORY', targetName: 'helios-portal',
-        createdAt: when, durationMs: 1200, findingsCount: 7, newIssuesCount: 0, resolvedIssuesCount: 0,
-        error: null, claimedBy: null, attempts: 1, targetId: 5
+        id,
+        status: 'completed',
+        branch: 'main',
+        targetKind: 'REPOSITORY',
+        targetName: 'helios-portal',
+        createdAt: when,
+        durationMs: 1200,
+        findingsCount: 7,
+        newIssuesCount: 0,
+        resolvedIssuesCount: 0,
+        error: null,
+        claimedBy: null,
+        attempts: 1,
+        targetId: 5
     });
 
-    it('offers the target\'s own scans, and preselects the last two', () => {
+    it("offers the target's own scans, and preselects the last two", () => {
         // **The question as it is asked.** This screen took two internal identifiers — `ex: 10`,
         // `ex: 12` — that no screen displays prominently, for a question that is almost always
         // "what changed since last time". The server had listed a target's scans all along.
@@ -151,7 +164,7 @@ describe('the component search', () => {
         expect(page.diffError()).toBeNull();
     });
 
-    it('carries the target\'s kind, an image not being listed like a repository', () => {
+    it("carries the target's kind, an image not being listed like a repository", () => {
         const page = fixture.componentInstance;
         page.diffTarget = 'container:3';
         page.onTargetChosen();
@@ -168,16 +181,17 @@ describe('the component search', () => {
         const page = fixture.componentInstance;
         page.diffTarget = 'repo:5';
         page.onTargetChosen();
-        http.expectOne((request) => request.url.includes('/api/v1/scans'))
-            .flush([scan(34, '2026-09-18T09:00:00Z')]);
+        http.expectOne((request) => request.url.includes('/api/v1/scans')).flush([scan(34, '2026-09-18T09:00:00Z')]);
         fixture.detectChanges();
 
         expect(page.diffError()).toContain('nothing to compare yet');
         expect(page.fromScanId).toBeNull();
 
         page.onTargetChosen();
-        http.expectOne((request) => request.url.includes('/api/v1/scans'))
-            .flush(null, { status: 500, statusText: 'Server Error' });
+        http.expectOne((request) => request.url.includes('/api/v1/scans')).flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
         fixture.detectChanges();
 
         expect(page.diffError()).toContain('could not be computed');

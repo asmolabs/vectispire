@@ -38,7 +38,19 @@ import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 @Component({
     selector: 'app-rule-sets',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, InputTextModule, MessageModule, TableModule, TagModule, RuleCoverageBanner, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        CheckboxModule,
+        InputTextModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        RuleCoverageBanner,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './rule-sets.html'
 })
@@ -117,27 +129,25 @@ export class RuleSets {
         if (!preview) return;
 
         this.fetching.set(true);
-        this.ruleSetsApi
-            .fetchRuleCatalogue(preview.commit, [...this.chosen()], preview.licence_sha256)
-            .subscribe({
-                next: (stored) => {
-                    this.fetching.set(false);
-                    this.catalogue.set(null);
-                    this.licenceAccepted = false;
-                    this.notice.set(
-                        this.i18n.t('rule_sets.fetched_notice', {
-                            count: stored.ruleCount,
-                            upstream: preview.upstream,
-                            commit: preview.commit.slice(0, 12)
-                        })
-                    );
-                    this.reload();
-                },
-                error: (response) => {
-                    this.fetching.set(false);
-                    this.catalogueError.set(messageOf(response, this.i18n.t('rule_sets.error_fetch')));
-                }
-            });
+        this.ruleSetsApi.fetchRuleCatalogue(preview.commit, [...this.chosen()], preview.licence_sha256).subscribe({
+            next: (stored) => {
+                this.fetching.set(false);
+                this.catalogue.set(null);
+                this.licenceAccepted = false;
+                this.notice.set(
+                    this.i18n.t('rule_sets.fetched_notice', {
+                        count: stored.ruleCount,
+                        upstream: preview.upstream,
+                        commit: preview.commit.slice(0, 12)
+                    })
+                );
+                this.reload();
+            },
+            error: (response) => {
+                this.fetching.set(false);
+                this.catalogueError.set(messageOf(response, this.i18n.t('rule_sets.error_fetch')));
+            }
+        });
     }
 
     readonly uploading = signal(false);
@@ -177,7 +187,9 @@ export class RuleSets {
         this.ignored.set(files.length - yaml.length);
 
         try {
-            this.picked.set(await Promise.all(yaml.map(async (file) => ({ name: file.name, content: await file.text() }))));
+            this.picked.set(
+                await Promise.all(yaml.map(async (file) => ({ name: file.name, content: await file.text() })))
+            );
         } catch {
             this.picked.set([]);
             this.ignored.set(0);
@@ -198,7 +210,9 @@ export class RuleSets {
                 this.name = '';
                 // Stored, not active. Saying so is the point: an operator who assumed the
                 // upload took effect would wait for coverage that is not there.
-                this.notice.set(this.i18n.t('rule_sets.uploaded_notice', { files: stored.fileCount, rules: stored.ruleCount }));
+                this.notice.set(
+                    this.i18n.t('rule_sets.uploaded_notice', { files: stored.fileCount, rules: stored.ruleCount })
+                );
                 this.reload();
             },
             error: (response) => {

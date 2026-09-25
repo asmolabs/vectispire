@@ -34,7 +34,18 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-scan-detail',
     standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, CardModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe, RuleCoverageBanner],
+    imports: [
+        CommonModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        LastScanTag,
+        TranslatePipe,
+        RuleCoverageBanner
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './scan-detail.html'
 })
@@ -104,7 +115,10 @@ export class ScanDetailPage {
     private load(id: number): void {
         this.scansApi.scan(id).subscribe({
             next: (detail) => this.scan.set(detail),
-            error: (response) => this.error.set(response?.status === 404 ? this.i18n.t('scans.error_not_found') : this.i18n.t('scans.error_load'))
+            error: (response) =>
+                this.error.set(
+                    response?.status === 404 ? this.i18n.t('scans.error_not_found') : this.i18n.t('scans.error_load')
+                )
         });
     }
 }

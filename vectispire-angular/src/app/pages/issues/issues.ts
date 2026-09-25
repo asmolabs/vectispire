@@ -46,7 +46,23 @@ import { LatestRequest } from '@/app/core/latest-request';
 @Component({
     selector: 'zs-issues',
     standalone: true,
-    imports: [DatePipe, FormsModule, RouterLink, TableModule, TagModule, ButtonModule, SelectModule, InputTextModule, IconFieldModule, InputIconModule, DialogModule, TextareaModule, MessageModule, ToggleSwitchModule, TranslatePipe],
+    imports: [
+        DatePipe,
+        FormsModule,
+        RouterLink,
+        TableModule,
+        TagModule,
+        ButtonModule,
+        SelectModule,
+        InputTextModule,
+        IconFieldModule,
+        InputIconModule,
+        DialogModule,
+        TextareaModule,
+        MessageModule,
+        ToggleSwitchModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issues.html'
 })
@@ -156,8 +172,10 @@ export class Issues {
     });
     readonly severities = computed(() => {
         this.i18n.translations();
-        return ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
-            .map((value) => ({ label: this.i18n.t(`severities.${value}`), value }));
+        return ['critical', 'high', 'medium', 'low', 'negligible', 'unknown'].map((value) => ({
+            label: this.i18n.t(`severities.${value}`),
+            value
+        }));
     });
     readonly types = computed(() => {
         this.i18n.translations();
@@ -203,9 +221,18 @@ export class Issues {
         return [
             { value: 'component_not_present', label: this.i18n.t('issues.vex.component_not_present') },
             { value: 'vulnerable_code_not_present', label: this.i18n.t('issues.vex.vulnerable_code_not_present') },
-            { value: 'vulnerable_code_not_in_execute_path', label: this.i18n.t('issues.vex.vulnerable_code_not_in_execute_path') },
-            { value: 'vulnerable_code_cannot_be_controlled_by_adversary', label: this.i18n.t('issues.vex.vulnerable_code_cannot_be_controlled_by_adversary') },
-            { value: 'inline_mitigations_already_exist', label: this.i18n.t('issues.vex.inline_mitigations_already_exist') }
+            {
+                value: 'vulnerable_code_not_in_execute_path',
+                label: this.i18n.t('issues.vex.vulnerable_code_not_in_execute_path')
+            },
+            {
+                value: 'vulnerable_code_cannot_be_controlled_by_adversary',
+                label: this.i18n.t('issues.vex.vulnerable_code_cannot_be_controlled_by_adversary')
+            },
+            {
+                value: 'inline_mitigations_already_exist',
+                label: this.i18n.t('issues.vex.inline_mitigations_already_exist')
+            }
         ];
     });
 
@@ -295,8 +322,8 @@ export class Issues {
         this.offset.set(Math.max(0, offset));
         const [kind, id] = this.target?.split(':') ?? [];
         // Latest wins: an answer to a previous filter is cancelled, never shown under this one.
-        this.page.run(this.issuesApi
-            .issues({
+        this.page.run(
+            this.issuesApi.issues({
                 repository_id: kind === 'repository' ? Number(id) : undefined,
                 container_id: kind === 'container' ? Number(id) : undefined,
                 state: this.state,
@@ -313,14 +340,16 @@ export class Issues {
                 search: this.search || undefined,
                 limit: this.limit,
                 offset: this.offset()
-            }), {
+            }),
+            {
                 next: (page) => {
                     this.issues.set(page.items);
                     this.total.set(page.total);
                     this.loading.set(false);
                 },
                 error: () => this.loading.set(false)
-            });
+            }
+        );
     }
 
     pageLabel(): string {
@@ -364,7 +393,9 @@ export class Issues {
         // "due in 0 days" reads worse than "due today", and the zero is a real case: the last
         // day of a window rounds to it.
         if (issue.slaDays === 0) return this.i18n.t('issues.sla_due_today');
-        return this.i18n.t(issue.slaDays === 1 ? 'issues.sla_due_one' : 'issues.sla_due_many', { count: issue.slaDays });
+        return this.i18n.t(issue.slaDays === 1 ? 'issues.sla_due_one' : 'issues.sla_due_many', {
+            count: issue.slaDays
+        });
     }
 
     slaColour(issue: Issue): 'danger' | 'warn' | 'secondary' {
@@ -443,7 +474,10 @@ export class Issues {
 
     /** Preventing the submission beats explaining a refusal afterwards. */
     canSubmitTriage(): boolean {
-        return (this.triageStatus !== 'not_affected' && this.triageStatus !== 'pending_approval') || !!this.triageJustification;
+        return (
+            (this.triageStatus !== 'not_affected' && this.triageStatus !== 'pending_approval') ||
+            !!this.triageJustification
+        );
     }
 
     submitTriage(): void {
@@ -453,15 +487,13 @@ export class Issues {
             return;
         }
         if (!this.triaged) return;
-        this.issuesApi
-            .triage(this.triaged.id, this.triageBody())
-            .subscribe({
-                next: () => {
-                    this.triageOpen = false;
-                    this.reload(this.offset());
-                },
-                error: (response) => this.triageError.set(messageOf(response, this.i18n.t('issues.triage_refused')))
-            });
+        this.issuesApi.triage(this.triaged.id, this.triageBody()).subscribe({
+            next: () => {
+                this.triageOpen = false;
+                this.reload(this.offset());
+            },
+            error: (response) => this.triageError.set(messageOf(response, this.i18n.t('issues.triage_refused')))
+        });
     }
 
     private triageBody(): TriageRequest {

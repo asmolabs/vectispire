@@ -25,7 +25,20 @@ const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? 
 @Component({
     selector: 'app-users',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, MultiSelectModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        MultiSelectModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './users.html'
 })
@@ -130,8 +143,10 @@ export class Users {
             error: () => this.targets.set(null)
         });
         this.settingsApi.settings().subscribe({
-            next: (result) => this.visibilityMode.set(
-                (result?.settings ?? []).find((setting) => setting.key === 'target_visibility')?.value ?? null),
+            next: (result) =>
+                this.visibilityMode.set(
+                    (result?.settings ?? []).find((setting) => setting.key === 'target_visibility')?.value ?? null
+                ),
             error: () => this.visibilityMode.set(null)
         });
     }
@@ -144,8 +159,7 @@ export class Users {
         this.accessVisible.set(true);
 
         this.accountsApi.userTargets(user.id).subscribe({
-            next: (targets) =>
-                (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            next: (targets) => (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
             error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
         });
     }

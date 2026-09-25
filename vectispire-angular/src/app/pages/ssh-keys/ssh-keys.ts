@@ -28,7 +28,20 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-ssh-keys',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule, TextareaModule, TooltipModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        TextareaModule,
+        TooltipModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './ssh-keys.html'
 })
@@ -68,7 +81,9 @@ export class SshKeys {
 
     badge(state: EncryptionState) {
         const severities: Record<EncryptionState, 'success' | 'warn' | 'danger'> = {
-            current: 'success', previous_key: 'warn', unreadable: 'danger'
+            current: 'success',
+            previous_key: 'warn',
+            unreadable: 'danger'
         };
         const key = state in severities ? state : 'unreadable';
         const suffix = key === 'previous_key' ? 'previous_key' : key;

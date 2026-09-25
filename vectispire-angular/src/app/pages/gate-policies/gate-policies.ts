@@ -86,7 +86,9 @@ export class GatePolicies {
     /** The targets that have no override yet — only offered when adding one. */
     readonly candidates = signal<{ label: string; value: string }[]>([]);
 
-    readonly globalPolicy = computed(() => this.catalogue()?.policies.find((policy) => policy.kind === 'global') ?? null);
+    readonly globalPolicy = computed(
+        () => this.catalogue()?.policies.find((policy) => policy.kind === 'global') ?? null
+    );
     readonly overrides = computed(() => this.catalogue()?.policies.filter((policy) => policy.kind !== 'global') ?? []);
     readonly builtIn = computed(() => this.catalogue()?.built_in ?? null);
 
@@ -225,7 +227,9 @@ export class GatePolicies {
     formatDate(value: string | null): string {
         if (!value) return '—';
         const at = new Date(value);
-        return Number.isNaN(at.getTime()) ? value : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
+        return Number.isNaN(at.getTime())
+            ? value
+            : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
     }
 }
 

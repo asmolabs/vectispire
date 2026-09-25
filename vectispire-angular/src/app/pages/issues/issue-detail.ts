@@ -25,7 +25,15 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 
 /** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
  *  is shown raw rather than hidden. */
-const TRIAGE_STATUSES = new Set(['under_review', 'pending_approval', 'not_affected', 'affected', 'fixed', 'accepted', 'false_positive']);
+const TRIAGE_STATUSES = new Set([
+    'under_review',
+    'pending_approval',
+    'not_affected',
+    'affected',
+    'fixed',
+    'accepted',
+    'false_positive'
+]);
 
 /**
  * One issue, with what a row in the backlog cannot carry.
@@ -42,7 +50,18 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-issue-detail',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, InputTextModule, TableModule, TagModule, MessageModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        TableModule,
+        TagModule,
+        MessageModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './issue-detail.html'
 })

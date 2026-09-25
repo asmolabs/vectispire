@@ -15,14 +15,26 @@ import { messageOf } from '../../core/api-error';
 import { AgentsApi } from '../../core/api/agents.api';
 import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
-
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { pollWhile } from '@/app/core/poll-while';
 
 @Component({
     selector: 'app-agents',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputNumberModule,
+        InputTextModule,
+        MessageModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './agents.html'
 })
@@ -32,8 +44,16 @@ export class Agents implements OnInit {
     readonly credentials = computed(() => {
         this.i18n.translations();
         return [
-            { label: this.i18n.t('agents.credentials_modes.local'), value: 'local', hint: this.i18n.t('agents.credentials_modes.local_hint') },
-            { label: this.i18n.t('agents.credentials_modes.delegated'), value: 'delegated', hint: this.i18n.t('agents.credentials_modes.delegated_hint') }
+            {
+                label: this.i18n.t('agents.credentials_modes.local'),
+                value: 'local',
+                hint: this.i18n.t('agents.credentials_modes.local_hint')
+            },
+            {
+                label: this.i18n.t('agents.credentials_modes.delegated'),
+                value: 'delegated',
+                hint: this.i18n.t('agents.credentials_modes.delegated_hint')
+            }
         ];
     });
 
@@ -163,25 +183,27 @@ export class Agents implements OnInit {
         }
         this.saving.set(true);
         this.formError.set(null);
-        this.agentsApi.createAgent({
-            name: this.form.name.trim(),
-            description: this.form.description.trim() || undefined,
-            credentials_mode: this.form.credentialsMode,
-            labels: this.form.labels.trim() || undefined,
-            max_concurrent: this.form.maxConcurrent
-        }).subscribe({
-            next: ({ secret }) => {
-                this.saving.set(false);
-                this.formVisible.set(false);
-                this.issuedSecret.set(secret);
-                this.secretVisible.set(true);
-                this.reload();
-            },
-            error: (response) => {
-                this.saving.set(false);
-                this.formError.set(messageOf(response, this.i18n.t('agents.error_declare')));
-            }
-        });
+        this.agentsApi
+            .createAgent({
+                name: this.form.name.trim(),
+                description: this.form.description.trim() || undefined,
+                credentials_mode: this.form.credentialsMode,
+                labels: this.form.labels.trim() || undefined,
+                max_concurrent: this.form.maxConcurrent
+            })
+            .subscribe({
+                next: ({ secret }) => {
+                    this.saving.set(false);
+                    this.formVisible.set(false);
+                    this.issuedSecret.set(secret);
+                    this.secretVisible.set(true);
+                    this.reload();
+                },
+                error: (response) => {
+                    this.saving.set(false);
+                    this.formError.set(messageOf(response, this.i18n.t('agents.error_declare')));
+                }
+            });
     }
 
     dismissSecret(): void {

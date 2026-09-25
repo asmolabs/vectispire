@@ -32,7 +32,17 @@ import { LatestRequest } from '@/app/core/latest-request';
 @Component({
     selector: 'app-owasp',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, ButtonModule, MessageModule, SelectModule, TagModule, OwaspGridComponent, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        CardModule,
+        ButtonModule,
+        MessageModule,
+        SelectModule,
+        TagModule,
+        OwaspGridComponent,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './owasp.html'
 })

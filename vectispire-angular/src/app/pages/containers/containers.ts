@@ -24,7 +24,20 @@ import { anyScanRunning, pollWhile } from '@/app/core/poll-while';
 @Component({
     selector: 'app-containers',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, LastScanTag, ScheduleFields, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        DataViewModule,
+        LastScanTag,
+        ScheduleFields,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './containers.html'
 })
@@ -87,8 +100,7 @@ export class Containers {
      * worker. The timer runs only while a scan in this list is unsettled, and stops by itself when
      * the last one has finished — an idle estate costs nothing.
      */
-    private readonly scanInFlight = computed(() =>
-        anyScanRunning(this.containers().map((row) => row.lastScan)));
+    private readonly scanInFlight = computed(() => anyScanRunning(this.containers().map((row) => row.lastScan)));
 
     constructor() {
         pollWhile(this.scanInFlight, () => this.reload());
@@ -146,7 +158,15 @@ export class Containers {
                   scanCron: container.scanCron ?? '',
                   tier: container.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
-            : { registry: '', imageName: '', tag: 'latest', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
+            : {
+                  registry: '',
+                  imageName: '',
+                  tag: 'latest',
+                  requiredAgentLabel: '',
+                  scanIntervalMinutes: null,
+                  scanCron: '',
+                  tier: 'TIER_2_BUSINESS_OPERATIONAL'
+              };
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -177,7 +197,9 @@ export class Containers {
         };
 
         this.saving.set(true);
-        const call = editing ? this.targetsApi.updateContainer(editing.id, body) : this.targetsApi.createContainer(body);
+        const call = editing
+            ? this.targetsApi.updateContainer(editing.id, body)
+            : this.targetsApi.createContainer(body);
         call.subscribe({
             next: () => {
                 this.saving.set(false);
@@ -190,7 +212,9 @@ export class Containers {
                 // The server's message is the one that knows *why* — upper case refused,
                 // malformed digest, a cron field it could not read. Replacing it with a generic
                 // "error" would send somebody back to guessing.
-                this.formError.set(messageOf(response, this.i18n.t(editing ? 'containers.save_failed' : 'containers.add_failed')));
+                this.formError.set(
+                    messageOf(response, this.i18n.t(editing ? 'containers.save_failed' : 'containers.add_failed'))
+                );
             }
         });
     }

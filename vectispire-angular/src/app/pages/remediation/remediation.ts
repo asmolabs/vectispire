@@ -10,7 +10,13 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { FormsModule } from '@angular/forms';
-import type { HighImpactFix, MonitoredContainer, MonitoredRepository, RemediationCoverage, SecurityDebtReport } from '@/app/core/api.models';
+import type {
+    HighImpactFix,
+    MonitoredContainer,
+    MonitoredRepository,
+    RemediationCoverage,
+    SecurityDebtReport
+} from '@/app/core/api.models';
 import { LatestRequest } from '@/app/core/latest-request';
 
 /**
@@ -35,7 +41,16 @@ import { LatestRequest } from '@/app/core/latest-request';
 @Component({
     selector: 'app-remediation',
     standalone: true,
-    imports: [CommonModule, RouterLink, FormsModule, ButtonModule, MessageModule, SelectModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        RouterLink,
+        FormsModule,
+        ButtonModule,
+        MessageModule,
+        SelectModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './remediation.html'
 })
@@ -85,8 +100,7 @@ export class Remediation {
     readonly CEILING = 50;
 
     /** True as long as the server returned as many as were asked for: there may be more. */
-    readonly mayHaveMore = computed(() =>
-        this.wanted() < this.CEILING && this.fixes().length >= this.wanted());
+    readonly mayHaveMore = computed(() => this.wanted() < this.CEILING && this.fixes().length >= this.wanted());
 
     /**
      * What the rows shown close, added up.
@@ -94,11 +108,11 @@ export class Remediation {
      * <p>One CVE can appear under two packages; this total therefore counts findings and not
      * distinct vulnerabilities, and the label says so.
      */
-    readonly closedByTheList = computed(() =>
-        this.fixes().reduce((sum, fix) => sum + fix.cveCountResolved, 0));
+    readonly closedByTheList = computed(() => this.fixes().reduce((sum, fix) => sum + fix.cveCountResolved, 0));
 
-    readonly hoursOfTheList = computed(() =>
-        Math.round(this.fixes().reduce((sum, fix) => sum + fix.estimatedHours, 0) * 10) / 10);
+    readonly hoursOfTheList = computed(
+        () => Math.round(this.fixes().reduce((sum, fix) => sum + fix.estimatedHours, 0) * 10) / 10
+    );
 
     constructor() {
         this.load();
@@ -106,19 +120,23 @@ export class Remediation {
         // The targets are loaded separately: being unable to list them does not prevent reading the
         // whole estate's plan, which is what the page shows by default.
         this.targetsApi.repositories().subscribe({
-            next: (repositories: MonitoredRepository[]) => this.addTargets(
-                repositories.map((repository) => ({
-                    label: repository.name ?? repository.url,
-                    value: `repo:${repository.id}`
-                }))),
+            next: (repositories: MonitoredRepository[]) =>
+                this.addTargets(
+                    repositories.map((repository) => ({
+                        label: repository.name ?? repository.url,
+                        value: `repo:${repository.id}`
+                    }))
+                ),
             error: () => {}
         });
         this.targetsApi.containers().subscribe({
-            next: (containers: MonitoredContainer[]) => this.addTargets(
-                containers.map((container) => ({
-                    label: `${container.imageName}:${container.tag}`,
-                    value: `container:${container.id}`
-                }))),
+            next: (containers: MonitoredContainer[]) =>
+                this.addTargets(
+                    containers.map((container) => ({
+                        label: `${container.imageName}:${container.tag}`,
+                        value: `container:${container.id}`
+                    }))
+                ),
             error: () => {}
         });
     }
@@ -137,7 +155,10 @@ export class Remediation {
         const containerId = kind === 'container' ? Number(id) : undefined;
 
         this.fixesRequest.run(this.remediationApi.getHighImpactFixes(repoId, containerId, this.wanted()), {
-            next: (fixes) => { this.fixes.set(fixes); this.loading.set(false); },
+            next: (fixes) => {
+                this.fixes.set(fixes);
+                this.loading.set(false);
+            },
             error: () => {
                 this.error.set(this.i18n.t('remediation.plan_failed'));
                 this.loading.set(false);
@@ -146,14 +167,18 @@ export class Remediation {
 
         // Separately: an unavailable debt figure must not erase a work order that did arrive. It is
         // the page's context, not its subject.
-        this.debtRequest.run(this.remediationApi.getSecurityDebt(repoId, containerId),
-            { next: (debt) => this.debt.set(debt), error: () => {} });
+        this.debtRequest.run(this.remediationApi.getSecurityDebt(repoId, containerId), {
+            next: (debt) => this.debt.set(debt),
+            error: () => {}
+        });
 
         // And the admission likewise: not knowing what the plan leaves out beats not seeing the
         // plan. Reset first, so that one scope does not keep the other's admission.
         this.coverage.set(null);
-        this.coverageRequest.run(this.remediationApi.getRemediationCoverage(repoId, containerId),
-            { next: (coverage) => this.coverage.set(coverage), error: () => {} });
+        this.coverageRequest.run(this.remediationApi.getRemediationCoverage(repoId, containerId), {
+            next: (coverage) => this.coverage.set(coverage),
+            error: () => {}
+        });
     }
 
     /** Changes target: the size asked for goes back to ten, the plan no longer being the same. */

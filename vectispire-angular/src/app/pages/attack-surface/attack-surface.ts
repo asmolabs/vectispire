@@ -252,9 +252,10 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.error.set(null);
         this.scanSuccess.set(null);
 
-        const request$ = (!repoId || repoId === 'ALL')
-            ? this.exposureApi.clearAttackSurface()
-            : this.exposureApi.clearRepositoryApis(Number(repoId));
+        const request$ =
+            !repoId || repoId === 'ALL'
+                ? this.exposureApi.clearAttackSurface()
+                : this.exposureApi.clearRepositoryApis(Number(repoId));
 
         request$.subscribe({
             next: () => {
@@ -340,7 +341,9 @@ export class AttackSurface implements OnInit, OnDestroy {
             const globalCount = this.globalData()?.totalEndpoints ?? 0;
             if (currentCount > 0 || globalCount > 0 || attempts >= 25) {
                 if (currentCount > 0 || globalCount > 0) {
-                    this.scanSuccess.set(this.i18n.t('attack_surface.discovery_complete', { count: globalCount || currentCount }));
+                    this.scanSuccess.set(
+                        this.i18n.t('attack_surface.discovery_complete', { count: globalCount || currentCount })
+                    );
                     this.stopPolling();
                 } else if (attempts >= 25) {
                     this.stopPolling();

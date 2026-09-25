@@ -22,7 +22,16 @@ import { SettingsState } from './settings-state';
 @Component({
     selector: 'app-settings-siem',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, ToggleSwitchModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        MessageModule,
+        ToggleSwitchModule,
+        TranslatePipe
+    ],
     templateUrl: './settings-siem.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     host: { class: 'contents' }
@@ -56,45 +65,57 @@ export class SettingsSiem {
     saveSiemConfig(): void {
         this.savingSiem.set(true);
         this.state.error.set(null);
-        this.integrationsApi.updateSiemConfig({
-            enabled: this.siemForm.enabled,
-            protocol: this.siemForm.protocol,
-            endpoint: this.siemForm.endpoint.trim(),
-            authHeader: this.siemForm.authHeader.trim() || undefined,
-            minSeverity: this.siemForm.minSeverity
-        }).subscribe({
-            next: (cfg) => {
-                this.savingSiem.set(false);
-                this.siemConfig.set(cfg);
-                this.state.saved.set(true);
-            },
-            error: (response) => {
-                this.savingSiem.set(false);
-                this.state.error.set(messageOf(response, this.i18n.t('settings.error_save_siem')));
-            }
-        });
+        this.integrationsApi
+            .updateSiemConfig({
+                enabled: this.siemForm.enabled,
+                protocol: this.siemForm.protocol,
+                endpoint: this.siemForm.endpoint.trim(),
+                authHeader: this.siemForm.authHeader.trim() || undefined,
+                minSeverity: this.siemForm.minSeverity
+            })
+            .subscribe({
+                next: (cfg) => {
+                    this.savingSiem.set(false);
+                    this.siemConfig.set(cfg);
+                    this.state.saved.set(true);
+                },
+                error: (response) => {
+                    this.savingSiem.set(false);
+                    this.state.error.set(messageOf(response, this.i18n.t('settings.error_save_siem')));
+                }
+            });
     }
 
     testSiem(): void {
         if (!this.siemForm.endpoint.trim()) {
-            this.siemTestResult.set({ success: false, message: this.i18n.t('settings.siem_endpoint_required'), statusCode: 0 });
+            this.siemTestResult.set({
+                success: false,
+                message: this.i18n.t('settings.siem_endpoint_required'),
+                statusCode: 0
+            });
             return;
         }
         this.testingSiem.set(true);
         this.siemTestResult.set(null);
-        this.integrationsApi.testSiemConnection({
-            endpoint: this.siemForm.endpoint.trim(),
-            authHeader: this.siemForm.authHeader.trim() || undefined
-        }).subscribe({
-            next: (res) => {
-                this.testingSiem.set(false);
-                this.siemTestResult.set(res);
-            },
-            error: () => {
-                this.testingSiem.set(false);
-                this.siemTestResult.set({ success: false, message: this.i18n.t('settings.error_connection_test_request'), statusCode: 0 });
-            }
-        });
+        this.integrationsApi
+            .testSiemConnection({
+                endpoint: this.siemForm.endpoint.trim(),
+                authHeader: this.siemForm.authHeader.trim() || undefined
+            })
+            .subscribe({
+                next: (res) => {
+                    this.testingSiem.set(false);
+                    this.siemTestResult.set(res);
+                },
+                error: () => {
+                    this.testingSiem.set(false);
+                    this.siemTestResult.set({
+                        success: false,
+                        message: this.i18n.t('settings.error_connection_test_request'),
+                        statusCode: 0
+                    });
+                }
+            });
     }
 
     private load(): void {

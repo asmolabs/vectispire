@@ -33,10 +33,12 @@ function isLocalEndpoint(url: string): boolean {
         return true;
     }
     // The private IPv4 ranges, and IPv6 unique-local.
-    return /^10\./.test(host)
-        || /^192\.168\./.test(host)
-        || /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-        || /^f[cd][0-9a-f]{2}:/.test(host);
+    return (
+        /^10\./.test(host) ||
+        /^192\.168\./.test(host) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+        /^f[cd][0-9a-f]{2}:/.test(host)
+    );
 }
 
 /**
@@ -80,9 +82,10 @@ export class SettingsModelReview {
         if (values['ai_review_allow_remote_url'] !== 'true') {
             return false;
         }
-        const url = this.state.aiProvider() === 'openai'
-            ? (values['ai_review_openai_url'] ?? '')
-            : (values['ai_review_ollama_url'] ?? '');
+        const url =
+            this.state.aiProvider() === 'openai'
+                ? (values['ai_review_openai_url'] ?? '')
+                : (values['ai_review_ollama_url'] ?? '');
         return !isLocalEndpoint(url);
     });
 

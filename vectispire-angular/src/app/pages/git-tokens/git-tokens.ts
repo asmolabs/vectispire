@@ -26,7 +26,19 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-git-tokens',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, TableModule, TagModule, TooltipModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        TooltipModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './git-tokens.html'
 })
@@ -70,7 +82,9 @@ export class GitTokens {
 
     badge(state: EncryptionState) {
         const severities: Record<EncryptionState, 'success' | 'warn' | 'danger'> = {
-            current: 'success', previous_key: 'warn', unreadable: 'danger'
+            current: 'success',
+            previous_key: 'warn',
+            unreadable: 'danger'
         };
         // Anything unknown reads as unreadable: a healthy badge on a value nobody recognises would
         // be the one wrong answer that hides a failing clone.

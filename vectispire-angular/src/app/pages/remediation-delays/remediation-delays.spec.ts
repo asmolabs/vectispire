@@ -18,23 +18,44 @@ describe('remediation times', () => {
     let http: HttpTestingController;
 
     const DISTRIBUTION = asSchema('RemediationDistributionView', {
-            windowDays: 90,
-            oldestOpenDays: 241,
-            oldestOpenSeverity: 'critical',
-            bySeverity: [
-                {
-                    severity: 'critical', windowDays: 7, withinSla: 17, late: 11,
-                    percentageWithinSla: 61, medianDays: 4.5, ninetiethDays: 38, openOverdue: 5, oldestOpenDays: 241
-                },
-                {
-                    severity: 'high', windowDays: 30, withinSla: 141, late: 19,
-                    percentageWithinSla: 88, medianDays: 6, ninetiethDays: 52, openOverdue: 12, oldestOpenDays: 118
-                },
-                {
-                    severity: 'low', windowDays: 0, withinSla: 0, late: 0,
-                    percentageWithinSla: null, medianDays: 21, ninetiethDays: 147, openOverdue: 0, oldestOpenDays: 312
-                }
-            ]
+        windowDays: 90,
+        oldestOpenDays: 241,
+        oldestOpenSeverity: 'critical',
+        bySeverity: [
+            {
+                severity: 'critical',
+                windowDays: 7,
+                withinSla: 17,
+                late: 11,
+                percentageWithinSla: 61,
+                medianDays: 4.5,
+                ninetiethDays: 38,
+                openOverdue: 5,
+                oldestOpenDays: 241
+            },
+            {
+                severity: 'high',
+                windowDays: 30,
+                withinSla: 141,
+                late: 19,
+                percentageWithinSla: 88,
+                medianDays: 6,
+                ninetiethDays: 52,
+                openOverdue: 12,
+                oldestOpenDays: 118
+            },
+            {
+                severity: 'low',
+                windowDays: 0,
+                withinSla: 0,
+                late: 0,
+                percentageWithinSla: null,
+                medianDays: 21,
+                ninetiethDays: 147,
+                openOverdue: 0,
+                oldestOpenDays: 312
+            }
+        ]
     });
 
     beforeEach(async () => {

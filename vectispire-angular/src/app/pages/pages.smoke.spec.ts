@@ -53,13 +53,22 @@ describe('every screen', () => {
         if (url.endsWith('/audit-log')) return asSchema('AuditLogPage', { items: [], total: 0, limit: 50, offset: 0 });
         if (url.endsWith('/security/overview')) {
             return asSchema('SecurityOverviewView', {
-                targets: [], failingCount: 0, totalCount: 0, kevCount: 0,
-                neverScannedCount: 0, lastScanFailedCount: 0
+                targets: [],
+                failingCount: 0,
+                totalCount: 0,
+                kevCount: 0,
+                neverScannedCount: 0,
+                lastScanFailedCount: 0
             });
         }
         if (url.endsWith('/quality/overview')) {
             return asSchema('QualityOverview', {
-                openCount: 0, ruleCount: 0, fileCount: 0, topRules: [], topFiles: [], topTargets: []
+                openCount: 0,
+                ruleCount: 0,
+                fileCount: 0,
+                topRules: [],
+                topFiles: [],
+                topTargets: []
             });
         }
         // **`/dashboard/analytics` matched no route.** The route is `/dashboard/posture-analytics`;
@@ -84,8 +93,12 @@ describe('every screen', () => {
         if (url.endsWith('/dashboard')) {
             return asSchema('DashboardOverview', {
                 posture: {
-                    failingCount: 0, totalCount: 0, kevCount: 0,
-                    neverScannedCount: 0, lastScanFailedCount: 0, overdueCount: 0
+                    failingCount: 0,
+                    totalCount: 0,
+                    kevCount: 0,
+                    neverScannedCount: 0,
+                    lastScanFailedCount: 0,
+                    overdueCount: 0
                 },
                 backlogBySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
                 qualityTotal: 0,
@@ -97,7 +110,11 @@ describe('every screen', () => {
         // state of an empty server as much as of a well-configured one.
         if (url.endsWith('/rule-sets/coverage')) {
             return asSchema('Assessment', {
-                state: 'COVERED', languagesWithRules: [], ecosystemsInEstate: [], uncovered: [], ruleFiles: 0
+                state: 'COVERED',
+                languagesWithRules: [],
+                ecosystemsInEstate: [],
+                uncovered: [],
+                ruleFiles: 0
             });
         }
         if (url.endsWith('/rule-sets')) return asSchema('RuleSetListing', { ruleSets: [] });
@@ -119,7 +136,10 @@ describe('every screen', () => {
         }
         if (url.includes('/remediation/distribution')) {
             return asSchema('RemediationDistributionView', {
-                windowDays: 90, bySeverity: [], oldestOpenDays: null, oldestOpenSeverity: null
+                windowDays: 90,
+                bySeverity: [],
+                oldestOpenDays: null,
+                oldestOpenSeverity: null
             });
         }
         if (url.includes('/gate/verdicts')) {
@@ -127,7 +147,11 @@ describe('every screen', () => {
         }
         if (url.includes('/exceptions')) {
             return asSchema('Register', {
-                entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0
+                entries: [],
+                granted: 0,
+                awaiting_approval: 0,
+                lapsed: 0,
+                never_reviewed: 0
             });
         }
         // ApiKeysController.Targets: two named lists, not a collection.
@@ -167,18 +191,30 @@ describe('every screen', () => {
         // before showing anything at all.
         if (url.endsWith('/epss/priorities')) {
             return asSchema('EpssFleetSummary', {
-                totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0,
-                reachableEpssCount: 0, averageFleetEpss: 0, topPriorities: [],
+                totalVulnerabilities: 0,
+                activeKevCount: 0,
+                highEpssCount: 0,
+                reachableEpssCount: 0,
+                averageFleetEpss: 0,
+                topPriorities: [],
                 breakdownByTier: {}
             });
         }
         if (url.endsWith('/gate/policies')) {
             const builtIn = asSchema('GatePolicyView', {
-                kind: 'built_in', target_id: null, target_name: null, version: 0,
-                fail_on_severity: null, fail_on_kev: false, fixable_only: false,
-                include_triaged: false, include_ai_review: false,
-                fail_on_uncovered_languages: false, note: null,
-                created_by: null, created_at: null
+                kind: 'built_in',
+                target_id: null,
+                target_name: null,
+                version: 0,
+                fail_on_severity: null,
+                fail_on_kev: false,
+                fixable_only: false,
+                include_triaged: false,
+                include_ai_review: false,
+                fail_on_uncovered_languages: false,
+                note: null,
+                created_by: null,
+                created_at: null
             });
             return asSchema('PoliciesResponse', { policies: [], built_in: builtIn });
         }
@@ -186,19 +222,28 @@ describe('every screen', () => {
             return asSchema('ComplianceSummary', {
                 evaluations: [],
                 mttr: { mttrBySeverityDays: {}, overallMttrDays: null, resolvedCount: 0 },
-                overdueCount: 0, dueSoonCount: 0,
-                totalMonitoredTargets: 0, passingGateTargets: 0,
-                observedTargets: 0, freshTargets: 0, targets: []
+                overdueCount: 0,
+                dueSoonCount: 0,
+                totalMonitoredTargets: 0,
+                passingGateTargets: 0,
+                observedTargets: 0,
+                freshTargets: 0,
+                targets: []
             });
         }
         if (url.endsWith('/licenses/summary')) {
             return asSchema('LicenseSummary', {
-                totalDependencies: 0, uniqueLicenses: 0, nonCompliantCount: 0, breakdownByRisk: {}
+                totalDependencies: 0,
+                uniqueLicenses: 0,
+                nonCompliantCount: 0,
+                breakdownByRisk: {}
             });
         }
         if (url.endsWith('/licenses/policy')) {
             return asSchema('LicensePolicy', {
-                disallowedCategories: [], explicitlyAllowedLicenses: [], explicitlyDisallowedLicenses: []
+                disallowedCategories: [],
+                explicitlyAllowedLicenses: [],
+                explicitlyDisallowedLicenses: []
             });
         }
         // **The matrix is an array, and this factory returned `{ entries: [] }`.** The route
@@ -207,10 +252,20 @@ describe('every screen', () => {
         if (url.endsWith('/licenses/matrix')) return [];
         if (url.endsWith('/remediation/debt')) {
             return asSchema('SecurityDebtReport', {
-                totalOpenIssues: 0, criticalIssues: 0, highIssues: 0, mediumIssues: 0, lowIssues: 0,
-                totalEstimatedHours: 0, totalEstimatedPersonDays: 0, vulnerabilitiesDebtHours: 0,
-                secretsDebtHours: 0, sastDebtHours: 0, iacDebtHours: 0, licenseDebtHours: 0,
-                eolDebtHours: 0, topHighImpactFixes: []
+                totalOpenIssues: 0,
+                criticalIssues: 0,
+                highIssues: 0,
+                mediumIssues: 0,
+                lowIssues: 0,
+                totalEstimatedHours: 0,
+                totalEstimatedPersonDays: 0,
+                vulnerabilitiesDebtHours: 0,
+                secretsDebtHours: 0,
+                sastDebtHours: 0,
+                iacDebtHours: 0,
+                licenseDebtHours: 0,
+                eolDebtHours: 0,
+                topHighImpactFixes: []
             });
         }
 
@@ -228,9 +283,9 @@ describe('every screen', () => {
      */
     const MOUNTED_APART: Record<string, string> = {
         'scans/:id': 'takes its id from the route: a required input left unset throws NG0950 before the template',
-        'login': 'outside the layout, and its own spec file tests it',
+        login: 'outside the layout, and its own spec file tests it',
         'change-password': 'outside the layout, tested by the browser suite',
-        'error': 'a static page with no server call',
+        error: 'a static page with no server call',
         'issues/:id': 'takes its id from the route, like the scan detail'
     };
 
@@ -264,9 +319,9 @@ describe('every screen', () => {
     }
 
     const ALL = routedScreens();
-    const SCREENS: [string, () => Promise<Type<unknown>>][] = ALL
-        .filter((screen) => !(screen.path in MOUNTED_APART))
-        .map((screen) => [screen.path, screen.load]);
+    const SCREENS: [string, () => Promise<Type<unknown>>][] = ALL.filter(
+        (screen) => !(screen.path in MOUNTED_APART)
+    ).map((screen) => [screen.path, screen.load]);
 
     it('exempts screens that exist, and only those', () => {
         // A stale exemption is worse than none: it names a screen that is gone and suggests the
@@ -313,31 +368,33 @@ describe('every screen', () => {
             // The summary is nested under `scan`, as the route sends it. This fixture used to
             // spread it flat — the same belief the client type held — so the screen reading
             // `detail.id` found nothing here and nothing in production, and both agreed.
-            request.flush(asSchema('ScanDetail', {
-                scan: {
-                    id: 34,
-                    status: 'completed',
-                    branch: 'master',
-                    createdAt: '2026-08-21T05:03:00Z',
-                    durationMs: 1000,
-                    findingsCount: 0,
-                    newIssuesCount: 0,
-                    resolvedIssuesCount: 0,
-                    error: null,
-                    claimedBy: null,
-                    attempts: 1,
-                    targetKind: 'repository',
-                    targetId: 5,
-                    targetName: 'Arm Libs Spring'
-                },
-                subPath: null,
-                projectType: 'maven',
-                projectVersion: '1.17.6',
-                hasSbom: false,
-                findings: [],
-                findingsTotal: 0,
-                findingsTruncated: false
-            }));
+            request.flush(
+                asSchema('ScanDetail', {
+                    scan: {
+                        id: 34,
+                        status: 'completed',
+                        branch: 'master',
+                        createdAt: '2026-08-21T05:03:00Z',
+                        durationMs: 1000,
+                        findingsCount: 0,
+                        newIssuesCount: 0,
+                        resolvedIssuesCount: 0,
+                        error: null,
+                        claimedBy: null,
+                        attempts: 1,
+                        targetKind: 'repository',
+                        targetId: 5,
+                        targetName: 'Arm Libs Spring'
+                    },
+                    subPath: null,
+                    projectType: 'maven',
+                    projectVersion: '1.17.6',
+                    hasSbom: false,
+                    findings: [],
+                    findingsTotal: 0,
+                    findingsTruncated: false
+                })
+            );
         }
         fixture.detectChanges();
 

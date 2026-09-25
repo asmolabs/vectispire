@@ -24,7 +24,8 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        TranslatePipe],
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './blast-radius.html'
 })

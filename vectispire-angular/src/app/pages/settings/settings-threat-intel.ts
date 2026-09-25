@@ -45,7 +45,13 @@ export class SettingsThreatIntel {
             next: (status) => {
                 this.syncingThreatIntel.set(false);
                 this.threatIntelStatus.set(status);
-                this.threatIntelFeedback.set(this.i18n.t('settings.threat_intel_synced', { cves: status.totalCves, kev: status.totalKev, issues: status.backlogUpdatedCount }));
+                this.threatIntelFeedback.set(
+                    this.i18n.t('settings.threat_intel_synced', {
+                        cves: status.totalCves,
+                        kev: status.totalKev,
+                        issues: status.backlogUpdatedCount
+                    })
+                );
             },
             error: () => {
                 this.syncingThreatIntel.set(false);

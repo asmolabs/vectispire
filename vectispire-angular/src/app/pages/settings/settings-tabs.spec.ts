@@ -69,9 +69,13 @@ describe('the settings screen, on the AI tab', () => {
      * nothing.
      */
     const answerReads = (): void => {
-        http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((request) => request.flush(structuredClone(CATALOGUE)));
+        http.match({ method: 'GET', url: '/api/v1/settings' }).forEach((request) =>
+            request.flush(structuredClone(CATALOGUE))
+        );
         for (const url of ['ticket-token', 'webhook-secret', 'ticket-webhook-secret', 'ai-openai-key']) {
-            http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((request) => request.flush({ configured: false }));
+            http.match({ method: 'GET', url: `/api/v1/settings/${url}` }).forEach((request) =>
+                request.flush({ configured: false })
+            );
         }
         // The SIEM and threat-feed cards read their own state; their answers do not matter here.
         http.match({ method: 'GET' }).forEach((request) => request.flush({}));

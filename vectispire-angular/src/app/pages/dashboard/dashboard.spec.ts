@@ -21,18 +21,18 @@ describe('the backlog trend', () => {
     let http: HttpTestingController;
 
     const OVERVIEW = asSchema('DashboardOverview', {
-            posture: {
-                failingCount: 0,
-                totalCount: 2,
-                kevCount: 0,
-                neverScannedCount: 0,
-                lastScanFailedCount: 0,
-                overdueCount: 0
-            },
-            backlogBySeverity: {},
-            qualityTotal: 0,
-            failing: [],
-            recentScans: []
+        posture: {
+            failingCount: 0,
+            totalCount: 2,
+            kevCount: 0,
+            neverScannedCount: 0,
+            lastScanFailedCount: 0,
+            overdueCount: 0
+        },
+        backlogBySeverity: {},
+        qualityTotal: 0,
+        failing: [],
+        recentScans: []
     });
 
     beforeEach(async () => {
@@ -47,7 +47,9 @@ describe('the backlog trend', () => {
         // the key resolves — and an unresolved key renders as itself, which is precisely the
         // failure a reader would see on screen.
         TestBed.inject(I18nService).translations.set({
-            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
+            dashboard: {
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            }
         });
 
         useEnglish();
@@ -142,7 +144,11 @@ describe('the backlog trend', () => {
     });
 
     it('re-asks the server for another window instead of slicing the series it holds', () => {
-        flushTrends({ points: [{ day: '2026-08-21', open: 1, opened: 0, resolved: 0 }], mean_days_to_resolve: null, resolved_in_window: 0 });
+        flushTrends({
+            points: [{ day: '2026-08-21', open: 1, opened: 0, resolved: 0 }],
+            mean_days_to_resolve: null,
+            resolved_in_window: 0
+        });
 
         fixture.componentInstance.loadTrends(30);
         const call = http.expectOne((request) => request.url === '/api/v1/dashboard/trends');
@@ -154,7 +160,10 @@ describe('the backlog trend', () => {
     });
 
     it('says the trend failed instead of drawing an empty history', () => {
-        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(null, { status: 500, statusText: 'Server Error' });
+        http.expectOne((call) => call.url === '/api/v1/dashboard/trends').flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
         fixture.detectChanges();
 
         // An empty frame here reads as "no issue was ever opened", which is a statement about the
@@ -219,7 +228,9 @@ describe('the failing targets table', () => {
         }).compileComponents();
 
         TestBed.inject(I18nService).translations.set({
-            dashboard: { chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' } }
+            dashboard: {
+                chart: { open_backlog: 'Open backlog', opened: 'Opened', resolved: 'Resolved', per_day: 'Per day' }
+            }
         });
 
         useEnglish();

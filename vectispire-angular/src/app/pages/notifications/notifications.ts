@@ -24,7 +24,9 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
         TagModule,
         MessageModule,
         ProgressSpinnerModule,
-        RouterLink, TranslatePipe],
+        RouterLink,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './notifications.html'
 })
@@ -90,11 +92,16 @@ export class Notifications implements OnInit {
 
     getChannelIcon(type: string): string {
         switch (type) {
-            case 'scan_delta_slack': return 'pi pi-slack text-purple-500';
-            case 'scan_delta_teams': return 'pi pi-microsoft text-blue-500';
-            case 'scan_delta_discord': return 'pi pi-discord text-indigo-500';
-            case 'scan_delta_mail': return 'pi pi-envelope text-emerald-500';
-            default: return 'pi pi-send text-amber-500';
+            case 'scan_delta_slack':
+                return 'pi pi-slack text-purple-500';
+            case 'scan_delta_teams':
+                return 'pi pi-microsoft text-blue-500';
+            case 'scan_delta_discord':
+                return 'pi pi-discord text-indigo-500';
+            case 'scan_delta_mail':
+                return 'pi pi-envelope text-emerald-500';
+            default:
+                return 'pi pi-send text-amber-500';
         }
     }
 }

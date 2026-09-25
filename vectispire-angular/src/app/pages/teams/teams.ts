@@ -160,7 +160,9 @@ export class Teams {
         this.saving.set(true);
         this.formError.set(null);
 
-        const request = existing ? this.accountsApi.updateTeam(existing.id, payload) : this.accountsApi.createTeam(payload);
+        const request = existing
+            ? this.accountsApi.updateTeam(existing.id, payload)
+            : this.accountsApi.createTeam(payload);
         request.subscribe({
             next: () => {
                 this.saving.set(false);

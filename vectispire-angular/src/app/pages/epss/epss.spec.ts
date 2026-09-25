@@ -19,11 +19,11 @@ describe('EPSS prioritisation', () => {
     let http: HttpTestingController;
 
     const RECORD = asSchema('ThreatIntelRecord', {
-            cveId: 'CVE-2021-44228',
-            epssScore: 0.97,
-            epssPercentile: 0.99,
-            isKev: true,
-            notes: null
+        cveId: 'CVE-2021-44228',
+        epssScore: 0.97,
+        epssPercentile: 0.99,
+        isKev: true,
+        notes: null
     });
 
     /** Mounts the screen and answers the two start-up calls. */
@@ -36,7 +36,10 @@ describe('EPSS prioritisation', () => {
 
         TestBed.inject(I18nService).translations.set({
             common: { close: 'Close' },
-            epss: { explain: 'Explain this CVE (AI)', explain_failed: 'The model did not answer. Nothing was produced.' },
+            epss: {
+                explain: 'Explain this CVE (AI)',
+                explain_failed: 'The model did not answer. Nothing was produced.'
+            },
             // Deliberately not the English the server carries: a case asserting on the same words
             // could not tell a translated sentence from the fallback printed as it stands.
             ai: { summary: 'TRANSLATED: {{id}} touche {{package}} {{version}}' }
@@ -46,13 +49,22 @@ describe('EPSS prioritisation', () => {
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
 
-        http.expectOne((call) => call.url === '/api/v1/epss/priorities')
-            .flush(asSchema('EpssFleetSummary', {
-                totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0, reachableEpssCount: 0,
-                averageFleetEpss: 0, topPriorities: [], breakdownByTier: {}
-            }));
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
-            .flush({ enabled: aiEnabled, selectedModel: aiEnabled ? 'llama3' : null, availableModels: [] });
+        http.expectOne((call) => call.url === '/api/v1/epss/priorities').flush(
+            asSchema('EpssFleetSummary', {
+                totalVulnerabilities: 0,
+                activeKevCount: 0,
+                highEpssCount: 0,
+                reachableEpssCount: 0,
+                averageFleetEpss: 0,
+                topPriorities: [],
+                breakdownByTier: {}
+            })
+        );
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush({
+            enabled: aiEnabled,
+            selectedModel: aiEnabled ? 'llama3' : null,
+            availableModels: []
+        });
         fixture.detectChanges();
     }
 
@@ -79,9 +91,17 @@ describe('EPSS prioritisation', () => {
         const call = http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'));
         expect(call.request.url).toContain('CVE-2021-44228');
         call.flush({
-            identifier: 'CVE-2021-44228', title: 'Log4Shell', summaryExplanation: 'Remote code execution.',
-            exploitMechanics: '', exposureAssessment: '',
-            remediation: { fixAction: 'Upgrade to 2.17.1', suggestedVersion: '2.17.1', codeSnippetOrDiff: '', cliCommand: '' },
+            identifier: 'CVE-2021-44228',
+            title: 'Log4Shell',
+            summaryExplanation: 'Remote code execution.',
+            exploitMechanics: '',
+            exposureAssessment: '',
+            remediation: {
+                fixAction: 'Upgrade to 2.17.1',
+                suggestedVersion: '2.17.1',
+                codeSnippetOrDiff: '',
+                cliCommand: ''
+            },
             vexSuggestion: { status: 'affected', justification: '', impactStatement: '', actionStatement: '' },
             references: []
         });
@@ -96,8 +116,11 @@ describe('EPSS prioritisation', () => {
         lookup();
         fixture.componentInstance.explain();
         http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
-            identifier: 'CVE-2021-44228', title: '', summaryExplanation: 'Remote code execution.',
-            exploitMechanics: '', exposureAssessment: '',
+            identifier: 'CVE-2021-44228',
+            title: '',
+            summaryExplanation: 'Remote code execution.',
+            exploitMechanics: '',
+            exposureAssessment: '',
             remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
             vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
             references: []
@@ -123,14 +146,21 @@ describe('EPSS prioritisation', () => {
         lookup();
         fixture.componentInstance.explain();
         http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
-            identifier: 'CVE-2021-44228', title: '', summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
-            exploitMechanics: '', exposureAssessment: '',
+            identifier: 'CVE-2021-44228',
+            title: '',
+            summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+            exploitMechanics: '',
+            exposureAssessment: '',
             remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
             vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
             references: [],
             deterministic: {
-                packageName: 'log4j-core', currentVersion: '2.14.1', targetVersion: '2.17.1',
-                exposure: 'NOT_MENTIONED', activelyExploited: false, exploitProbability: null
+                packageName: 'log4j-core',
+                currentVersion: '2.14.1',
+                targetVersion: '2.17.1',
+                exposure: 'NOT_MENTIONED',
+                activelyExploited: false,
+                exploitProbability: null
             }
         });
         fixture.detectChanges();
@@ -144,8 +174,11 @@ describe('EPSS prioritisation', () => {
         lookup();
         fixture.componentInstance.explain();
         http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
-            identifier: 'CVE-2021-44228', title: '', summaryExplanation: 'What the model actually wrote.',
-            exploitMechanics: '', exposureAssessment: '',
+            identifier: 'CVE-2021-44228',
+            title: '',
+            summaryExplanation: 'What the model actually wrote.',
+            exploitMechanics: '',
+            exposureAssessment: '',
             remediation: { fixAction: '', suggestedVersion: '', codeSnippetOrDiff: '', cliCommand: '' },
             vexSuggestion: { status: '', justification: '', impactStatement: '', actionStatement: '' },
             references: []
@@ -162,8 +195,9 @@ describe('EPSS prioritisation', () => {
     it('says the model did not answer, rather than showing nothing', () => {
         lookup();
         fixture.componentInstance.explain();
-        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'))
-            .error(new ProgressEvent('failed'));
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).error(
+            new ProgressEvent('failed')
+        );
         fixture.detectChanges();
 
         expect(fixture.componentInstance.adviceError()).toContain('did not answer');

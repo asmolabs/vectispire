@@ -44,7 +44,15 @@ describe('the accounts screen', () => {
 
     /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
-        settings: [{ key: 'target_visibility', value: 'assigned', configured: true, governor_only: false, administrator_only: false }]
+        settings: [
+            {
+                key: 'target_visibility',
+                value: 'assigned',
+                configured: true,
+                governor_only: false,
+                administrator_only: false
+            }
+        ]
     });
 
     beforeEach(async () => {
@@ -70,8 +78,10 @@ describe('the accounts screen', () => {
         const page = fixture.componentInstance;
         page.changeRole(LIST.users[0], 'USER');
 
-        http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/1')
-            .flush({ message: 'The last active administrator cannot be demoted.' }, { status: 409, statusText: 'Conflict' });
+        http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/1').flush(
+            { message: 'The last active administrator cannot be demoted.' },
+            { status: 409, statusText: 'Conflict' }
+        );
 
         // The reload is what brings the selector back in line with the database. It must not take
         // the explanation with it — that is the whole reason `reload` has a `preserveError` flag.
@@ -105,8 +115,10 @@ describe('the accounts screen', () => {
         page.toggleActive(LIST.users[1]);
         expect(page.busy()).toBe(2);
 
-        http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/2')
-            .flush({ message: 'no' }, { status: 500, statusText: 'Server Error' });
+        http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/2').flush(
+            { message: 'no' },
+            { status: 500, statusText: 'Server Error' }
+        );
         http.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
 
         // A stuck spinner on a row is indistinguishable from a request still in flight, so the
@@ -114,12 +126,13 @@ describe('the accounts screen', () => {
         expect(page.busy()).toBeNull();
     });
 
-    it('reads the account\'s targets again on opening, rather than starting from empty boxes', () => {
+    it("reads the account's targets again on opening, rather than starting from empty boxes", () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
 
-        http.expectOne((call) => call.url === '/api/v1/users/2/targets')
-            .flush(asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }]));
+        http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
+            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+        );
 
         // A dialog that opened empty would make every save a total revocation: the administrator
         // ticks what they want to add, sends, and removes everything else without meaning to.
@@ -129,8 +142,9 @@ describe('the accounts screen', () => {
     it('sends the set as it stands, empty included, because empty is the revocation', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
-        http.expectOne((call) => call.url === '/api/v1/users/2/targets')
-            .flush(asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }]));
+        http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
+            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+        );
 
         page.selectedTargets = [];
         page.saveAccess();
@@ -156,7 +170,10 @@ describe('the accounts screen', () => {
         const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
         // The identifier is a number: sent as a string, the server no longer matches the row to any
         // target and the assignment vanishes without an error.
-        expect(put.request.body).toEqual([{ kind: 'container', id: 3 }, { kind: 'repository', id: 7 }]);
+        expect(put.request.body).toEqual([
+            { kind: 'container', id: 3 },
+            { kind: 'repository', id: 7 }
+        ]);
         put.flush([]);
     });
 
@@ -167,8 +184,10 @@ describe('the accounts screen', () => {
 
         page.selectedTargets = ['repository:7'];
         page.saveAccess();
-        http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets')
-            .flush({ message: 'Account not found.' }, { status: 404, statusText: 'Not Found' });
+        http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets').flush(
+            { message: 'Account not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
 
         // Closed, the dialog would carry the selection away with the message: one would have to
         // tick everything again in order to read the reason for a refusal.
@@ -191,8 +210,21 @@ describe('the accounts screen', () => {
         wide.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
         calls.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
-        calls.expectOne((call) => call.url === '/api/v1/settings')
-            .flush(asSchema('Catalog', { settings: [{ key: 'target_visibility', value: 'everyone', configured: true, governor_only: false, administrator_only: false }] }));
+        calls
+            .expectOne((call) => call.url === '/api/v1/settings')
+            .flush(
+                asSchema('Catalog', {
+                    settings: [
+                        {
+                            key: 'target_visibility',
+                            value: 'everyone',
+                            configured: true,
+                            governor_only: false,
+                            administrator_only: false
+                        }
+                    ]
+                })
+            );
 
         expect(wide.componentInstance.restrictionsInactive()).toBe(true);
     });

@@ -11,6 +11,6 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     standalone: true,
     imports: [CommonModule, RouterModule, AppFloatingConfigurator, ButtonModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
-    templateUrl: './notfound.html',
+    templateUrl: './notfound.html'
 })
 export class Notfound {}

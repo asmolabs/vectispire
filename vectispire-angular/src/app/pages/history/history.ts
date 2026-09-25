@@ -47,7 +47,15 @@ type RankedIssue = HistoryIssue & { severityRank: number };
 
 /** Triage statuses the bundle names, under `issues.triage_status.*`. Open set: an unknown value
  *  is shown raw rather than hidden. */
-const TRIAGE_STATUSES = new Set(['under_review', 'pending_approval', 'not_affected', 'affected', 'fixed', 'accepted', 'false_positive']);
+const TRIAGE_STATUSES = new Set([
+    'under_review',
+    'pending_approval',
+    'not_affected',
+    'affected',
+    'fixed',
+    'accepted',
+    'false_positive'
+]);
 
 /**
  * The trail that shows a finding was taken into account.
@@ -64,7 +72,16 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-history',
     standalone: true,
-    imports: [CommonModule, CardModule, TableModule, TagModule, MessageModule, ButtonModule, SelectModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        CardModule,
+        TableModule,
+        TagModule,
+        MessageModule,
+        ButtonModule,
+        SelectModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './history.html'
 })

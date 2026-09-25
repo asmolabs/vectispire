@@ -43,7 +43,17 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 @Component({
     selector: 'app-account',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, InputTextModule, MessageModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        MessageModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './account.html'
 })

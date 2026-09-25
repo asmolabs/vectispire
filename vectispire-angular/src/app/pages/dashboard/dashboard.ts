@@ -48,7 +48,18 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, RouterLink, ButtonModule, CardModule, ChartModule, MessageModule, TableModule, TagModule, LastScanTag, TranslatePipe],
+    imports: [
+        CommonModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        ChartModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        LastScanTag,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './dashboard.html'
 })
@@ -121,10 +132,14 @@ export class Dashboard {
 
     gradeSeverity(grade: string): 'success' | 'info' | 'warn' | 'danger' {
         switch (grade) {
-            case 'A': return 'success';
-            case 'B': return 'info';
-            case 'C': return 'warn';
-            default: return 'danger';
+            case 'A':
+                return 'success';
+            case 'B':
+                return 'info';
+            case 'C':
+                return 'warn';
+            default:
+                return 'danger';
         }
     }
 

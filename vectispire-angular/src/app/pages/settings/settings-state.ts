@@ -48,8 +48,9 @@ export class SettingsState {
     /** The URL in use, named in the warning so it points at something the operator can check. */
     readonly aiEndpoint = computed(() =>
         this.aiProvider() === 'openai'
-            ? (this.values()['ai_review_openai_url'] || 'https://api.openai.com/v1')
-            : (this.values()['ai_review_ollama_url'] || 'http://localhost:11434'));
+            ? this.values()['ai_review_openai_url'] || 'https://api.openai.com/v1'
+            : this.values()['ai_review_ollama_url'] || 'http://localhost:11434'
+    );
 
     private readonly loaders = new Set<() => void>();
 
@@ -76,7 +77,9 @@ export class SettingsState {
         // Only what changed: sending the whole catalogue would write rows for settings nobody
         // ever touched, and the screen could no longer say which ones stayed at their
         // default.
-        const changed = Object.fromEntries(Object.entries(this.values()).filter(([key, value]) => this.original[key] !== value));
+        const changed = Object.fromEntries(
+            Object.entries(this.values()).filter(([key, value]) => this.original[key] !== value)
+        );
         if (Object.keys(changed).length === 0) return;
 
         this.saving.set(true);

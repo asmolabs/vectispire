@@ -35,7 +35,18 @@ import { LatestRequest } from '@/app/core/latest-request';
 @Component({
     selector: 'app-audit-log',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        MessageModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './audit-log.html'
 })
@@ -58,7 +69,11 @@ export class AuditLog {
         return this.operationTypes().map((type) => ({ label: this.operationLabel(type), value: type }));
     });
 
-    filters: { operationType: string | null; userId: string; search: string } = { operationType: null, userId: '', search: '' };
+    filters: { operationType: string | null; userId: string; search: string } = {
+        operationType: null,
+        userId: '',
+        search: ''
+    };
 
     constructor() {
         this.reload();
@@ -112,14 +127,15 @@ export class AuditLog {
     private reload(): void {
         this.loading.set(true);
         // Called on every keystroke of the search box: latest wins, or answers land out of order.
-        this.page.run(this.auditApi
-            .auditLog({
+        this.page.run(
+            this.auditApi.auditLog({
                 operation_type: this.filters.operationType ?? undefined,
                 user_id: this.filters.userId.trim() || undefined,
                 search: this.filters.search.trim() || undefined,
                 limit: PAGE_SIZE,
                 offset: this.offset()
-            }), {
+            }),
+            {
                 next: (page) => {
                     this.entries.set(page.items);
                     this.total.set(page.total);
@@ -129,6 +145,7 @@ export class AuditLog {
                     this.error.set(this.i18n.t('audit_log.error_load'));
                     this.loading.set(false);
                 }
-            });
+            }
+        );
     }
 }

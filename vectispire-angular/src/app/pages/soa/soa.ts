@@ -11,7 +11,15 @@ import { ComplianceApi } from '@/app/core/api/compliance.api';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
-import type { Applicability, ControlDeclaration, Divergence, EvidenceSource, Implementation, SoaLine, SoaStatement } from '@/app/core/api.models';
+import type {
+    Applicability,
+    ControlDeclaration,
+    Divergence,
+    EvidenceSource,
+    Implementation,
+    SoaLine,
+    SoaStatement
+} from '@/app/core/api.models';
 
 /**
  * The statement of applicability: what is claimed, set against what is measured.
@@ -32,7 +40,16 @@ import type { Applicability, ControlDeclaration, Divergence, EvidenceSource, Imp
 @Component({
     selector: 'zs-soa',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './soa.html'
 })
@@ -81,10 +98,12 @@ export class Soa {
     readonly current = computed<SoaStatement | null>(() => {
         const all = this.statements();
         const chosen = this.framework();
-        return all.find((statement) => statement.framework === chosen)
-            ?? all.find((statement) => statement.framework === Soa.OPENS_ON)
-            ?? all[0]
-            ?? null;
+        return (
+            all.find((statement) => statement.framework === chosen) ??
+            all.find((statement) => statement.framework === Soa.OPENS_ON) ??
+            all[0] ??
+            null
+        );
     });
 
     /**
@@ -132,9 +151,11 @@ export class Soa {
     }
 
     isFinding(line: SoaLine): boolean {
-        return line.divergence === 'CONTRADICTED'
-            || line.divergence === 'EXCLUDED_WITHOUT_JUSTIFICATION'
-            || line.divergence === 'UNDECLARED';
+        return (
+            line.divergence === 'CONTRADICTED' ||
+            line.divergence === 'EXCLUDED_WITHOUT_JUSTIFICATION' ||
+            line.divergence === 'UNDECLARED'
+        );
     }
 
     severityOf(line: SoaLine): 'danger' | 'warn' | 'info' | 'secondary' {

@@ -26,10 +26,19 @@ describe('compliance progress', () => {
     function step(period: string, score: number, movement: string, targets = 10) {
         return asSchema('Step', {
             snapshot: {
-                period, framework: 'ISO_27001', score, status: 'PARTIAL',
-                targets, observed: targets, fresh: targets, freshnessDays: 30,
-                endOfLifeEnabled: true, codeAnalysisReaches: true,
-                controlsTotal: 4, controlsDeclared: 4, soaFindings: 0,
+                period,
+                framework: 'ISO_27001',
+                score,
+                status: 'PARTIAL',
+                targets,
+                observed: targets,
+                fresh: targets,
+                freshnessDays: 30,
+                endOfLifeEnabled: true,
+                codeAnalysisReaches: true,
+                controlsTotal: 4,
+                controlsDeclared: 4,
+                soaFindings: 0,
                 capturedAt: '2026-09-01T00:00:00Z'
             },
             delta: 0,
@@ -53,11 +62,13 @@ describe('compliance progress', () => {
     }
 
     beforeEach(async () => {
-        await mount([{
-            framework: 'ISO_27001',
-            comparable: false,
-            steps: [step('2026-07', 90, 'FIRST', 10), step('2026-08', 71, 'ESTATE_GREW', 14)]
-        }]);
+        await mount([
+            {
+                framework: 'ISO_27001',
+                comparable: false,
+                steps: [step('2026-07', 90, 'FIRST', 10), step('2026-08', 71, 'ESTATE_GREW', 14)]
+            }
+        ]);
     }, 20_000);
 
     it('does not paint a drop caused by a wider estate as a regression', () => {
@@ -85,8 +96,7 @@ describe('compliance progress', () => {
         // A scale that adjusts itself would make a two-point gain look like a leap.
         const component = fixture.componentInstance;
         expect(component.height(step('2026-08', 50, 'STEADY') as never)).toBe(50);
-        expect(component.height(step('2026-08', 0, 'STEADY') as never))
-            .toBeGreaterThan(0);
+        expect(component.height(step('2026-08', 0, 'STEADY') as never)).toBeGreaterThan(0);
     });
 
     it('announces the absence of captures rather than an empty chart', async () => {

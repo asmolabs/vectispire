@@ -11,14 +11,31 @@ import { SelectModule } from '@openng/optimus-ui/select';
 import { TargetsApi } from '../../core/api/targets.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
-import type { InventoryOccurrence, MonitoredContainer, MonitoredRepository, SbomDiffReport, ScanSummary } from '../../core/api.models';
+import type {
+    InventoryOccurrence,
+    MonitoredContainer,
+    MonitoredRepository,
+    SbomDiffReport,
+    ScanSummary
+} from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
 
 @Component({
     selector: 'app-inventory',
     standalone: true,
-    imports: [CommonModule, FormsModule, CardModule, SelectModule, TableModule, TagModule, MessageModule, ButtonModule, InputTextModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        CardModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        MessageModule,
+        ButtonModule,
+        InputTextModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './inventory.html'
 })
@@ -77,19 +94,23 @@ export class Inventory {
         // the first move rather than an alternative to typing two scan numbers. A failure here
         // leaves the search tab working, which is the other half of this screen.
         this.targetsApi.repositories().subscribe({
-            next: (repositories: MonitoredRepository[]) => this.addTargets(
-                repositories.map((repository) => ({
-                    label: repository.name ?? repository.url,
-                    value: `repo:${repository.id}`
-                }))),
+            next: (repositories: MonitoredRepository[]) =>
+                this.addTargets(
+                    repositories.map((repository) => ({
+                        label: repository.name ?? repository.url,
+                        value: `repo:${repository.id}`
+                    }))
+                ),
             error: () => {}
         });
         this.targetsApi.containers().subscribe({
-            next: (containers: MonitoredContainer[]) => this.addTargets(
-                containers.map((container) => ({
-                    label: `${container.imageName}:${container.tag}`,
-                    value: `container:${container.id}`
-                }))),
+            next: (containers: MonitoredContainer[]) =>
+                this.addTargets(
+                    containers.map((container) => ({
+                        label: `${container.imageName}:${container.tag}`,
+                        value: `container:${container.id}`
+                    }))
+                ),
             error: () => {}
         });
     }
@@ -141,9 +162,12 @@ export class Inventory {
 
         const [kind, id] = this.diffTarget.split(':');
         this.scansLoading.set(true);
-        this.scansRequest.run(this.scansApi.scansOf(
+        this.scansRequest.run(
+            this.scansApi.scansOf(
                 kind === 'repo' ? Number(id) : undefined,
-                kind === 'container' ? Number(id) : undefined), {
+                kind === 'container' ? Number(id) : undefined
+            ),
+            {
                 next: (history) => {
                     this.scans.set(history);
                     this.scansLoading.set(false);
@@ -158,7 +182,8 @@ export class Inventory {
                     this.scansLoading.set(false);
                     this.diffError.set(this.i18n.t('inventory.diff_failed'));
                 }
-            });
+            }
+        );
     }
 
     /**
@@ -169,7 +194,8 @@ export class Inventory {
      * apart.
      */
     readonly scanOptions = computed(() =>
-        this.scans().map((scan) => ({ label: this.scanLabel(scan), value: scan.id })));
+        this.scans().map((scan) => ({ label: this.scanLabel(scan), value: scan.id }))
+    );
 
     scanLabel(scan: ScanSummary): string {
         const when = scan.createdAt ? new Date(scan.createdAt).toLocaleString() : '—';

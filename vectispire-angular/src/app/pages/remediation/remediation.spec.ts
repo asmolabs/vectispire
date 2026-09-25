@@ -47,15 +47,25 @@ describe('the remediation plan', () => {
             common: { loading: 'Chargement…' },
             severities: { critical: 'critiques' },
             remediation: {
-                title: 'Plan de remédiation', subtitle: '—', open_findings: 'constats ouverts',
-                critical: 'critiques', person_days: 'jours-personne', closed_by_plan: 'fermés',
-                empty_title: 'Rien à monter de version.', empty_help: '—',
-                no_fixed_version: 'Aucune version corrigée publiée', closes: 'ferme',
-                targets: 'cibles', leverage: 'levier', details: 'Détail',
-                cves: 'Vulnérabilités fermées', affected_targets: 'Cibles concernées',
+                title: 'Plan de remédiation',
+                subtitle: '—',
+                open_findings: 'constats ouverts',
+                critical: 'critiques',
+                person_days: 'jours-personne',
+                closed_by_plan: 'fermés',
+                empty_title: 'Rien à monter de version.',
+                empty_help: '—',
+                no_fixed_version: 'Aucune version corrigée publiée',
+                closes: 'ferme',
+                targets: 'cibles',
+                leverage: 'levier',
+                details: 'Détail',
+                cves: 'Vulnérabilités fermées',
+                affected_targets: 'Cibles concernées',
                 plan_total: 'Total du plan :',
                 coverage_title: 'Ce que ce plan ne referme pas',
-                coverage_summary: '{{covered}} des {{open}} constats ouverts se ferment par une montée de version. Les {{beyond}} autres se referment autrement :',
+                coverage_summary:
+                    '{{covered}} des {{open}} constats ouverts se ferment par une montée de version. Les {{beyond}} autres se referment autrement :',
                 coverage_all: 'Les {{open}} constats ouverts se ferment tous par une montée de version.',
                 gap_secret: 'secrets exposés — à révoquer et à faire tourner ; on ne met pas un secret à jour.',
                 gap_unpackaged: "vulnérabilités dont aucun paquet n'est nommé — il n'y a rien à monter.",
@@ -72,8 +82,8 @@ describe('the remediation plan', () => {
     function answer(
         fixes: HighImpactFix[],
         debt: Record<string, unknown> = { totalOpenIssues: 9 },
-        coverage: RemediationCoverage | null = null): void {
-
+        coverage: RemediationCoverage | null = null
+    ): void {
         plan().flush(fixes);
         http.expectOne((request) => request.url.includes('/remediation/debt')).flush(debt);
 
@@ -98,10 +108,13 @@ describe('the remediation plan', () => {
     }
 
     it("garde l'ordre du serveur, qui est le classement par levier", () => {
-        answer([
-            fix({ packageName: 'log4j-core', leverageScore: 10.4 }),
-            fix({ packageName: 'openssl', leverageScore: 3.2 })
-        ], { totalOpenIssues: 9, criticalIssues: 2 });
+        answer(
+            [
+                fix({ packageName: 'log4j-core', leverageScore: 10.4 }),
+                fix({ packageName: 'openssl', leverageScore: 3.2 })
+            ],
+            { totalOpenIssues: 9, criticalIssues: 2 }
+        );
 
         // **The order is the information.** A page that ranks by leverage and then reorders by
         // name, or that a `track` would shuffle, turns a work order into a list.
@@ -124,10 +137,8 @@ describe('the remediation plan', () => {
 
     it('survives an unavailable debt figure, because the plan is the subject', () => {
         plan().flush([fix({})]);
-        http.expectOne((request) => request.url.includes('/remediation/debt'))
-            .error(new ProgressEvent('failed'));
-        http.expectOne((request) => request.url.includes('/remediation/coverage'))
-            .error(new ProgressEvent('failed'));
+        http.expectOne((request) => request.url.includes('/remediation/debt')).error(new ProgressEvent('failed'));
+        http.expectOne((request) => request.url.includes('/remediation/coverage')).error(new ProgressEvent('failed'));
         for (const request of http.match((r) => r.url.includes('/repositories') || r.url.includes('/containers'))) {
             request.flush([]);
         }
@@ -151,8 +162,7 @@ describe('the remediation plan', () => {
         expect(second.request.params.get('limit')).toBe('25');
         second.flush(Array.from({ length: 25 }, (_, index) => fix({ packageName: `pkg-${index}` })));
         http.expectOne((request) => request.url.includes('/remediation/debt')).flush({ totalOpenIssues: 9 });
-        http.expectOne((request) => request.url.includes('/remediation/coverage'))
-            .error(new ProgressEvent('failed'));
+        http.expectOne((request) => request.url.includes('/remediation/coverage')).error(new ProgressEvent('failed'));
         fixture.detectChanges();
 
         expect(fixture.componentInstance.wanted()).toBe(25);
@@ -187,12 +197,19 @@ describe('the remediation plan', () => {
         // **The usage report that prompted this panel.** One action, hundreds of open findings:
         // the calculation is right and the screen looked broken. It must now name what does not
         // close by a version bump, and by which move it does close.
-        answer([fix({})], { totalOpenIssues: 412 }, {
-            openFindings: 412,
-            addressableByUpgrade: 12,
-            beyondUpgrades: 400,
-            gaps: [{ family: 'secret', findings: 399 }, { family: 'unpackaged', findings: 1 }]
-        });
+        answer(
+            [fix({})],
+            { totalOpenIssues: 412 },
+            {
+                openFindings: 412,
+                addressableByUpgrade: 12,
+                beyondUpgrades: 400,
+                gaps: [
+                    { family: 'secret', findings: 399 },
+                    { family: 'unpackaged', findings: 1 }
+                ]
+            }
+        );
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain('Ce que ce plan ne referme pas');
@@ -204,9 +221,16 @@ describe('the remediation plan', () => {
     });
 
     it('stays quiet when the whole backlog closes by a version bump', () => {
-        answer([fix({})], { totalOpenIssues: 12 }, {
-            openFindings: 12, addressableByUpgrade: 12, beyondUpgrades: 0, gaps: []
-        });
+        answer(
+            [fix({})],
+            { totalOpenIssues: 12 },
+            {
+                openFindings: 12,
+                addressableByUpgrade: 12,
+                beyondUpgrades: 0,
+                gaps: []
+            }
+        );
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).not.toContain('Ce que ce plan ne referme pas');
@@ -216,10 +240,16 @@ describe('the remediation plan', () => {
     it('names a family it does not know rather than showing a key', () => {
         // A ninth finding type shipped by a server newer than this screen: it must be counted and
         // named for want of better, never rendered as `remediation.gap_ninth`.
-        answer([fix({})], { totalOpenIssues: 5 }, {
-            openFindings: 5, addressableByUpgrade: 4, beyondUpgrades: 1,
-            gaps: [{ family: 'runtime_drift', findings: 1 }]
-        });
+        answer(
+            [fix({})],
+            { totalOpenIssues: 5 },
+            {
+                openFindings: 5,
+                addressableByUpgrade: 4,
+                beyondUpgrades: 1,
+                gaps: [{ family: 'runtime_drift', findings: 1 }]
+            }
+        );
 
         const text = fixture.nativeElement.textContent as string;
         expect(text).toContain("constats d'un autre type");

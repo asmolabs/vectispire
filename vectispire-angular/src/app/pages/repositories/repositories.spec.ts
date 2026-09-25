@@ -19,21 +19,21 @@ describe('the repository list', () => {
     let http: HttpTestingController;
 
     const REPOSITORY = asSchema('RepositorySummary', {
-            id: 5,
-            url: 'ssh://git@bitbucket.example.com/art/basalt-libs-spring.git',
-            branch: 'master',
-            name: null,
-            displayName: 'Arm Libs Spring',
-            subPath: 'backend',
-            scanIntervalMinutes: null,
-            scanCron: null,
-            openIssues: 38,
-            lastScan: {
-                id: 34,
-                status: 'completed',
-                createdAt: '2026-08-21T05:03:00Z',
-                error: null
-            }
+        id: 5,
+        url: 'ssh://git@bitbucket.example.com/art/basalt-libs-spring.git',
+        branch: 'master',
+        name: null,
+        displayName: 'Arm Libs Spring',
+        subPath: 'backend',
+        scanIntervalMinutes: null,
+        scanCron: null,
+        openIssues: 38,
+        lastScan: {
+            id: 34,
+            status: 'completed',
+            createdAt: '2026-08-21T05:03:00Z',
+            error: null
+        }
     });
 
     beforeEach(async () => {
@@ -132,7 +132,8 @@ describe('the repository list', () => {
         fixture.componentInstance.form.scanCron = '0 2 * * *';
         fixture.componentInstance.submit();
 
-        const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request.body;
+        const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
+            .body;
         expect(body.scanIntervalMinutes).toBe(720);
         expect(body.scanCron).toBe('0 2 * * *');
     });
@@ -162,7 +163,9 @@ describe('the repository list', () => {
 
         http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').flush(
             // `detail`, which is where Spring's Problem Details puts the sentence — see `messageOf`.
-            { detail: 'Unusable cron expression: "every night". Expected five fields, for example "0 2 * * *" (every day at 02:00).' },
+            {
+                detail: 'Unusable cron expression: "every night". Expected five fields, for example "0 2 * * *" (every day at 02:00).'
+            },
             { status: 400, statusText: 'Bad Request' }
         );
         fixture.detectChanges();
@@ -181,20 +184,48 @@ describe('the repository list', () => {
      */
     describe('the clone credential', () => {
         const TOKENS = asSchemaList('GitTokenSummary', [
-            { id: 'tok-gitlab', name: 'gitlab-read', host: 'gitlab.example.com', username: null,
-              createdAt: '2026-09-20T08:00:00Z', encryptionState: 'current', usedByRepositories: 1 },
-            { id: 'tok-github', name: 'github-read', host: 'github.com', username: null,
-              createdAt: '2026-09-20T08:00:00Z', encryptionState: 'current', usedByRepositories: 0 }
+            {
+                id: 'tok-gitlab',
+                name: 'gitlab-read',
+                host: 'gitlab.example.com',
+                username: null,
+                createdAt: '2026-09-20T08:00:00Z',
+                encryptionState: 'current',
+                usedByRepositories: 1
+            },
+            {
+                id: 'tok-github',
+                name: 'github-read',
+                host: 'github.com',
+                username: null,
+                createdAt: '2026-09-20T08:00:00Z',
+                encryptionState: 'current',
+                usedByRepositories: 0
+            }
         ]);
         const KEYS = asSchemaList('SshKeySummary', [
-            { id: 'key-1', name: 'deploy', publicKey: null, createdAt: '2026-09-20T08:00:00Z',
-              encryptionState: 'current', usedByRepositories: 1 }
+            {
+                id: 'key-1',
+                name: 'deploy',
+                publicKey: null,
+                createdAt: '2026-09-20T08:00:00Z',
+                encryptionState: 'current',
+                usedByRepositories: 1
+            }
         ]);
 
         function loadAll(repository: Record<string, unknown> = REPOSITORY): void {
             for (const request of http.match(() => true)) {
                 const url = request.request.url;
-                request.flush(url.endsWith('/repositories') ? [repository] : url.endsWith('/git-tokens') ? TOKENS : url.endsWith('/ssh-keys') ? KEYS : []);
+                request.flush(
+                    url.endsWith('/repositories')
+                        ? [repository]
+                        : url.endsWith('/git-tokens')
+                          ? TOKENS
+                          : url.endsWith('/ssh-keys')
+                            ? KEYS
+                            : []
+                );
             }
             fixture.detectChanges();
         }
@@ -252,7 +283,8 @@ describe('the repository list', () => {
             screen.form.httpsTokenId = 'tok-gitlab';
             screen.submit();
 
-            const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request.body;
+            const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request
+                .body;
             expect(body.https_token_id).toBe('tok-gitlab');
             expect(body.sshKeyId).toBe('');
         });
@@ -272,7 +304,12 @@ describe('the repository list', () => {
         });
 
         it('clears the token with an empty string on update, since absent means "leave alone"', () => {
-            loadAll({ ...REPOSITORY, url: 'https://gitlab.example.com/group/app.git', httpsTokenId: 'tok-gitlab', sshKeyId: null });
+            loadAll({
+                ...REPOSITORY,
+                url: 'https://gitlab.example.com/group/app.git',
+                httpsTokenId: 'tok-gitlab',
+                sshKeyId: null
+            });
             const screen = fixture.componentInstance;
             screen.openForm(screen.repositories()[0]);
             expect(screen.form.credentialKind).toBe('https');

@@ -57,8 +57,7 @@ describe('the certified scope', () => {
 
         expect(fixture.componentInstance.declared()).toBe(false);
         expect(fixture.componentInstance.unaccountedFor()).toBe(0);
-        expect(fixture.componentInstance.freshShare())
-            .toBeNull();
+        expect(fixture.componentInstance.freshShare()).toBeNull();
     });
 
     it('computes the fresh share against the declared scope, not against what it holds', () => {

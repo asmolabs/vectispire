@@ -45,7 +45,9 @@ describe('the catalogue preview', () => {
 
         // What the screen asks for on its own at start-up.
         for (const request of http.match(() => true)) {
-            request.flush(request.request.url.endsWith('/coverage') ? { state: 'COVERED', ruleFiles: 0 } : { ruleSets: [] });
+            request.flush(
+                request.request.url.endsWith('/coverage') ? { state: 'COVERED', ruleFiles: 0 } : { ruleSets: [] }
+            );
         }
         fixture.detectChanges();
     }, 20_000);

@@ -26,10 +26,18 @@ describe('the statement of applicability', () => {
             control: { id, name: id, requirement: '', category: 'GOVERNANCE' },
             declaration: declared
                 ? {
-                      framework: 'ISO_27001', controlId: id, applicability: 'APPLICABLE',
-                      justification: 'In scope.', implementation: 'IMPLEMENTED', evidenceSource: 'VECTISPIRE',
-                      externalEvidence: null, owner: 'n.faure', decidedBy: 'c.moreau',
-                      decidedAt: '2026-01-01T00:00:00Z', reviewedAt: '2026-01-01T00:00:00Z', reviewDueAt: null
+                      framework: 'ISO_27001',
+                      controlId: id,
+                      applicability: 'APPLICABLE',
+                      justification: 'In scope.',
+                      implementation: 'IMPLEMENTED',
+                      evidenceSource: 'VECTISPIRE',
+                      externalEvidence: null,
+                      owner: 'n.faure',
+                      decidedBy: 'c.moreau',
+                      decidedAt: '2026-01-01T00:00:00Z',
+                      reviewedAt: '2026-01-01T00:00:00Z',
+                      reviewDueAt: null
                   }
                 : null,
             measured: 'NON_COMPLIANT',
@@ -39,33 +47,49 @@ describe('the statement of applicability', () => {
     }
 
     const STATEMENT = asSchema('SoaStatement', {
-            framework: 'ISO_27001',
-            total: 4,
-            declared: 3,
-            findings: 2,
-            reviewsOverdue: 0,
-            complete: false,
-            lines: [
-                line('ISO-A.5.15', 'CONSISTENT', true),
-                line('ISO-A.8.9', 'UNDECLARED', false),
-                line('ISO-A.8.28', 'OVERSTATED', true),
-                line('ISO-A.8.8', 'CONTRADICTED', true)
-            ]
+        framework: 'ISO_27001',
+        total: 4,
+        declared: 3,
+        findings: 2,
+        reviewsOverdue: 0,
+        complete: false,
+        lines: [
+            line('ISO-A.5.15', 'CONSISTENT', true),
+            line('ISO-A.8.9', 'UNDECLARED', false),
+            line('ISO-A.8.28', 'OVERSTATED', true),
+            line('ISO-A.8.8', 'CONTRADICTED', true)
+        ]
     });
 
     /** Two frameworks: the question is asked at the scale of the management system. */
     const OVERDUE = [
         {
-            framework: 'ISO_27001', controlId: 'ISO-A.8.8', applicability: 'APPLICABLE',
-            justification: null, implementation: 'IMPLEMENTED', evidenceSource: 'VECTISPIRE',
-            externalEvidence: null, owner: 'c.moreau', decidedBy: 'ciso',
-            decidedAt: '2025-01-10T09:00:00Z', reviewedAt: null, reviewDueAt: '2026-02-01T00:00:00Z'
+            framework: 'ISO_27001',
+            controlId: 'ISO-A.8.8',
+            applicability: 'APPLICABLE',
+            justification: null,
+            implementation: 'IMPLEMENTED',
+            evidenceSource: 'VECTISPIRE',
+            externalEvidence: null,
+            owner: 'c.moreau',
+            decidedBy: 'ciso',
+            decidedAt: '2025-01-10T09:00:00Z',
+            reviewedAt: null,
+            reviewDueAt: '2026-02-01T00:00:00Z'
         },
         {
-            framework: 'NIS_2', controlId: 'NIS2-ART21-2-E', applicability: 'APPLICABLE',
-            justification: null, implementation: 'PLANNED', evidenceSource: 'EXTERNAL',
-            externalEvidence: 'PSSI §4', owner: null, decidedBy: 'ciso',
-            decidedAt: '2025-03-01T09:00:00Z', reviewedAt: null, reviewDueAt: '2026-06-01T00:00:00Z'
+            framework: 'NIS_2',
+            controlId: 'NIS2-ART21-2-E',
+            applicability: 'APPLICABLE',
+            justification: null,
+            implementation: 'PLANNED',
+            evidenceSource: 'EXTERNAL',
+            externalEvidence: 'PSSI §4',
+            owner: null,
+            decidedBy: 'ciso',
+            decidedAt: '2025-03-01T09:00:00Z',
+            reviewedAt: null,
+            reviewDueAt: '2026-06-01T00:00:00Z'
         }
     ];
 
@@ -85,8 +109,12 @@ describe('the statement of applicability', () => {
     }, 20_000);
 
     it('opens on the divergences, most severe to least', () => {
-        expect(fixture.componentInstance.lines().map((l) => l.control.id))
-            .toEqual(['ISO-A.8.8', 'ISO-A.8.9', 'ISO-A.8.28', 'ISO-A.5.15']);
+        expect(fixture.componentInstance.lines().map((l) => l.control.id)).toEqual([
+            'ISO-A.8.8',
+            'ISO-A.8.9',
+            'ISO-A.8.28',
+            'ISO-A.5.15'
+        ]);
     });
 
     it('counts as a finding only what an assessment would write up', () => {
@@ -180,7 +208,8 @@ describe('the statement of applicability', () => {
         const calls = TestBed.inject(HttpTestingController);
         degraded.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/compliance/soa').flush([STATEMENT]);
-        calls.expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue')
+        calls
+            .expectOne((call) => call.url === '/api/v1/compliance/soa/reviews/overdue')
             .error(new ProgressEvent('failed'));
         degraded.detectChanges();
 

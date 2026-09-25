@@ -13,12 +13,7 @@ import { ExposureApi } from '../../core/api/exposure.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '@/app/core/latest-request';
-import type {
-    AttackPath,
-    AttackPathGraph,
-    AttackPathNode,
-    MonitoredRepository
-} from '../../core/api.models';
+import type { AttackPath, AttackPathGraph, AttackPathNode, MonitoredRepository } from '../../core/api.models';
 
 @Component({
     selector: 'app-attack-paths',
@@ -62,27 +57,27 @@ export class AttackPaths implements OnInit {
     readonly ingressNodes = computed(() => {
         const g = this.graph();
         if (!g) return [];
-        return g.nodes.filter(n => n.type === 'INTERNET_INGRESS');
+        return g.nodes.filter((n) => n.type === 'INTERNET_INGRESS');
     });
 
     readonly endpointNodes = computed(() => {
         const g = this.graph();
         if (!g) return [];
-        const nodes = g.nodes.filter(n => n.type === 'API_ENDPOINT');
-        return this.filterCriticalOnly() ? nodes.filter(n => n.isExploitable) : nodes;
+        const nodes = g.nodes.filter((n) => n.type === 'API_ENDPOINT');
+        return this.filterCriticalOnly() ? nodes.filter((n) => n.isExploitable) : nodes;
     });
 
     readonly vulnNodes = computed(() => {
         const g = this.graph();
         if (!g) return [];
-        const nodes = g.nodes.filter(n => n.type === 'VULNERABLE_COMPONENT');
-        return this.filterCriticalOnly() ? nodes.filter(n => n.isExploitable) : nodes;
+        const nodes = g.nodes.filter((n) => n.type === 'VULNERABLE_COMPONENT');
+        return this.filterCriticalOnly() ? nodes.filter((n) => n.isExploitable) : nodes;
     });
 
     readonly sinkNodes = computed(() => {
         const g = this.graph();
         if (!g) return [];
-        return g.nodes.filter(n => n.type === 'SECRET' || n.type === 'DATABASE' || n.type === 'INFRASTRUCTURE');
+        return g.nodes.filter((n) => n.type === 'SECRET' || n.type === 'DATABASE' || n.type === 'INFRASTRUCTURE');
     });
 
     readonly highlightedNodeIds = computed(() => {
@@ -153,22 +148,33 @@ export class AttackPaths implements OnInit {
 
     getNodeIcon(type: string): string {
         switch (type) {
-            case 'INTERNET_INGRESS': return 'pi pi-globe text-blue-500';
-            case 'API_ENDPOINT': return 'pi pi-link text-amber-500';
-            case 'VULNERABLE_COMPONENT': return 'pi pi-shield text-rose-500';
-            case 'SECRET': return 'pi pi-key text-yellow-500';
-            case 'DATABASE': return 'pi pi-database text-purple-500';
-            default: return 'pi pi-box text-surface-400';
+            case 'INTERNET_INGRESS':
+                return 'pi pi-globe text-blue-500';
+            case 'API_ENDPOINT':
+                return 'pi pi-link text-amber-500';
+            case 'VULNERABLE_COMPONENT':
+                return 'pi pi-shield text-rose-500';
+            case 'SECRET':
+                return 'pi pi-key text-yellow-500';
+            case 'DATABASE':
+                return 'pi pi-database text-purple-500';
+            default:
+                return 'pi pi-box text-surface-400';
         }
     }
 
     getSeverityBadge(sev: string): 'danger' | 'warn' | 'info' | 'success' | 'secondary' {
         switch (sev?.toUpperCase()) {
-            case 'CRITICAL': return 'danger';
-            case 'HIGH': return 'warn';
-            case 'MEDIUM': return 'info';
-            case 'LOW': return 'success';
-            default: return 'secondary';
+            case 'CRITICAL':
+                return 'danger';
+            case 'HIGH':
+                return 'warn';
+            case 'MEDIUM':
+                return 'info';
+            case 'LOW':
+                return 'success';
+            default:
+                return 'secondary';
         }
     }
 

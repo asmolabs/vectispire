@@ -58,13 +58,20 @@ describe('the issue backlog', () => {
 
         // And the model's availability, which decides whether the explain button exists. A model is
         // configured by default in these runs: its absence has a case of its own.
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
-            .flush({ enabled: true, selectedModel: 'llama3', availableModels: ['llama3'] });
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/status').flush({
+            enabled: true,
+            selectedModel: 'llama3',
+            availableModels: ['llama3']
+        });
     }, 20_000);
 
     function firstPage(total: number): void {
-        http.expectOne((call) => call.url === '/api/v1/issues')
-            .flush({ items: [issue(1, 'CVE-2026-1234')], total, limit: 50, offset: 0 });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush({
+            items: [issue(1, 'CVE-2026-1234')],
+            total,
+            limit: 50,
+            offset: 0
+        });
         fixture.detectChanges();
     }
 
@@ -97,16 +104,17 @@ describe('the issue backlog', () => {
     });
 
     it('says "no result" rather than showing an empty frame', () => {
-        http.expectOne((call) => call.url === '/api/v1/issues')
-            .flush({ items: [], total: 0, limit: 50, offset: 0 });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
         fixture.detectChanges();
 
         expect(fixture.componentInstance.pageLabel()).toBe('No result');
     });
 
     it('stops loading when the request is refused', () => {
-        http.expectOne((call) => call.url === '/api/v1/issues')
-            .flush(null, { status: 500, statusText: 'Server Error' });
+        http.expectOne((call) => call.url === '/api/v1/issues').flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
         fixture.detectChanges();
 
         // A spinner that never stops is how a failed page passes for a slow one.
@@ -178,9 +186,11 @@ describe('the issue backlog', () => {
         offline.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
-        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
+        calls
+            .expectOne((call) => call.url === '/api/v1/ai-advisor/status')
             .flush({ enabled: false, selectedModel: null, availableModels: [] });
-        calls.expectOne((call) => call.url === '/api/v1/issues')
+        calls
+            .expectOne((call) => call.url === '/api/v1/issues')
             .flush({ items: [issue(1, 'CVE-2026-1234')], total: 1, limit: 50, offset: 0 });
         offline.detectChanges();
 
@@ -202,10 +212,8 @@ describe('the issue backlog', () => {
         broken.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/repositories').flush([]);
         calls.expectOne((call) => call.url === '/api/v1/containers').flush([]);
-        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
-            .error(new ProgressEvent('failed'));
-        calls.expectOne((call) => call.url === '/api/v1/issues')
-            .flush({ items: [], total: 0, limit: 50, offset: 0 });
+        calls.expectOne((call) => call.url === '/api/v1/ai-advisor/status').error(new ProgressEvent('failed'));
+        calls.expectOne((call) => call.url === '/api/v1/issues').flush({ items: [], total: 0, limit: 50, offset: 0 });
         broken.detectChanges();
 
         expect(broken.componentInstance.aiEnabled()).toBe(false);
@@ -216,8 +224,7 @@ describe('the issue backlog', () => {
 
         const page = fixture.componentInstance;
         page.openAiAdvisor({ id: 1 } as never);
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1')
-            .error(new ProgressEvent('failed'));
+        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1').error(new ProgressEvent('failed'));
         fixture.detectChanges();
 
         // **The error was set in a signal the template did not use**: the dialog opened, the
@@ -304,9 +311,19 @@ describe('triaging a selection', () => {
         component.submitTriage();
         // The route answers with the written issues, not with backlog rows: `targetKind` is the
         // backlog's word and an `IssueEntity` does not carry it.
-        http.expectOne('/api/v1/issues/triage').flush(asSchemaList('IssueEntity', [
-            { id: 11, type: 'vulnerability', severity: 'high', state: 'open', triageStatus: 'not_affected', isKev: false, timesSeen: 1 }
-        ]));
+        http.expectOne('/api/v1/issues/triage').flush(
+            asSchemaList('IssueEntity', [
+                {
+                    id: 11,
+                    type: 'vulnerability',
+                    severity: 'high',
+                    state: 'open',
+                    triageStatus: 'not_affected',
+                    isKev: false,
+                    timesSeen: 1
+                }
+            ])
+        );
 
         // A selection outliving its rows is a decision about issues nobody is looking at any more.
         expect(component.selected()).toEqual([]);
@@ -329,7 +346,10 @@ describe('triaging a selection', () => {
         component.openBulkTriage();
         component.submitTriage();
         // The server's own sentence for this case, which says nothing about the other rows.
-        http.expectOne('/api/v1/issues/triage').flush({ detail: 'Issue not found.' }, { status: 404, statusText: 'Not Found' });
+        http.expectOne('/api/v1/issues/triage').flush(
+            { detail: 'Issue not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
         fixture.detectChanges();
 
         const message = component.triageError();
@@ -339,13 +359,15 @@ describe('triaging a selection', () => {
         http.expectNone((call) => call.url === '/api/v1/issues');
     });
 
-    it('still shows the server\'s explanation when the refusal is not a visibility one', () => {
+    it("still shows the server's explanation when the refusal is not a visibility one", () => {
         const component = fixture.componentInstance;
         component.selected.set([component.issues()[0]]);
         component.openBulkTriage();
         component.submitTriage();
-        http.expectOne('/api/v1/issues/triage')
-            .flush({ detail: 'Too many issues at once: 900, the limit is 500.' }, { status: 400, statusText: 'Bad Request' });
+        http.expectOne('/api/v1/issues/triage').flush(
+            { detail: 'Too many issues at once: 900, the limit is 500.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
 
         // The sentence the server took care to write, kept — with the batch's fate stated first.
         expect(component.triageError()).toContain('Too many issues at once');

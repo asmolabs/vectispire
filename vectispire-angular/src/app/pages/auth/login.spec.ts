@@ -58,8 +58,11 @@ describe('the sign-in screen', () => {
         navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
         fixture.detectChanges();
 
-        http.expectOne((call) => call.url === '/api/v1/auth/methods')
-            .flush({ configured: false, label: null, password: true });
+        http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({
+            configured: false,
+            label: null,
+            password: true
+        });
     }, 20_000);
 
     it('shows its own words for a refused sign-on, never the text the link carries', () => {
@@ -72,7 +75,11 @@ describe('the sign-in screen', () => {
             window.history.replaceState({}, '', '/login?sso=refused&reason=' + encodeURIComponent(reason));
             const page = TestBed.createComponent(Login);
             page.detectChanges();
-            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: true, label: null, password: true });
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({
+                configured: true,
+                label: null,
+                password: true
+            });
 
             expect(page.componentInstance.error()).toContain(expected);
             expect(page.componentInstance.error()).not.toContain('+33');
@@ -89,8 +96,10 @@ describe('the sign-in screen', () => {
 
     it('reads a throttle as a throttle, in minutes', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush({ retryAfterSeconds: 90 }, { status: 429, statusText: 'Too Many Requests' });
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            { retryAfterSeconds: 90 },
+            { status: 429, statusText: 'Too Many Requests' }
+        );
 
         // 90 seconds rounds up: "try again in 1 minute" would come back too early and spend
         // another attempt against the same counter.
@@ -99,8 +108,10 @@ describe('the sign-in screen', () => {
 
     it('does not blame the password when the server is unreachable', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .error(new ProgressEvent('error'), { status: 0, statusText: 'Unknown Error' });
+        http.expectOne((call) => call.url === '/api/v1/auth/login').error(new ProgressEvent('error'), {
+            status: 0,
+            statusText: 'Unknown Error'
+        });
 
         // The defect this replaced: a dead server said "Invalid credentials", which sends
         // somebody hunting for a password that was right all along.
@@ -109,8 +120,10 @@ describe('the sign-in screen', () => {
 
     it('names an unexpected status instead of guessing at it', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush({}, { status: 503, statusText: 'Service Unavailable' });
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            {},
+            { status: 503, statusText: 'Service Unavailable' }
+        );
 
         expect(fixture.componentInstance.error()).toContain('503');
         expect(fixture.componentInstance.error()).not.toContain('Invalid credentials');
@@ -118,16 +131,19 @@ describe('the sign-in screen', () => {
 
     it('says invalid credentials only when the server said 401', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush({}, { status: 401, statusText: 'Unauthorized' });
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            {},
+            { status: 401, statusText: 'Unauthorized' }
+        );
 
         expect(fixture.componentInstance.error()).toBe('Invalid credentials.');
     });
 
     it('holds the challenge without opening a session when a second factor is required', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush(asSchema('LoginResponse', { mfa_required: true, mfa_token: 'challenge-1' }));
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            asSchema('LoginResponse', { mfa_required: true, mfa_token: 'challenge-1' })
+        );
 
         const page = fixture.componentInstance;
         expect(page.mfaRequired()).toBe(true);
@@ -146,8 +162,9 @@ describe('the sign-in screen', () => {
 
     it('sends a provisioned account to change its password before anywhere else', () => {
         attempt();
-        http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush(asSchema('LoginResponse', { mfa_required: false, token: 't', user: { ...USER, mustChangePassword: true } }));
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            asSchema('LoginResponse', { mfa_required: false, token: 't', user: { ...USER, mustChangePassword: true } })
+        );
 
         // Letting it reach the dashboard would empty the flag of its meaning.
         expect(navigate).toHaveBeenCalledWith(['/change-password']);

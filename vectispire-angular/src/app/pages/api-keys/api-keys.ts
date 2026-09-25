@@ -31,7 +31,21 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 @Component({
     selector: 'app-api-keys',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, CheckboxModule, DialogModule, InputNumberModule, InputTextModule, MessageModule, SelectModule, TableModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        CheckboxModule,
+        DialogModule,
+        InputNumberModule,
+        InputTextModule,
+        MessageModule,
+        SelectModule,
+        TableModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './api-keys.html'
 })
@@ -41,10 +55,26 @@ export class ApiKeys {
     readonly scopes = computed(() => {
         this.i18n.translations();
         return [
-            { value: 'read', label: this.i18n.t('api_keys.scopes_list.read'), hint: this.i18n.t('api_keys.scopes_list.read_hint') },
-            { value: 'scan', label: this.i18n.t('api_keys.scopes_list.scan'), hint: this.i18n.t('api_keys.scopes_list.scan_hint') },
-            { value: 'export', label: this.i18n.t('api_keys.scopes_list.export'), hint: this.i18n.t('api_keys.scopes_list.export_hint') },
-            { value: 'agent', label: this.i18n.t('api_keys.scopes_list.agent'), hint: this.i18n.t('api_keys.scopes_list.agent_hint') }
+            {
+                value: 'read',
+                label: this.i18n.t('api_keys.scopes_list.read'),
+                hint: this.i18n.t('api_keys.scopes_list.read_hint')
+            },
+            {
+                value: 'scan',
+                label: this.i18n.t('api_keys.scopes_list.scan'),
+                hint: this.i18n.t('api_keys.scopes_list.scan_hint')
+            },
+            {
+                value: 'export',
+                label: this.i18n.t('api_keys.scopes_list.export'),
+                hint: this.i18n.t('api_keys.scopes_list.export_hint')
+            },
+            {
+                value: 'agent',
+                label: this.i18n.t('api_keys.scopes_list.agent'),
+                hint: this.i18n.t('api_keys.scopes_list.agent_hint')
+            }
         ];
     });
 

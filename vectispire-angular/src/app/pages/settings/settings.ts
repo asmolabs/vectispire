@@ -25,7 +25,16 @@ export type { SettingsTab } from './settings-state';
 @Component({
     selector: 'app-settings',
     standalone: true,
-    imports: [CommonModule, ButtonModule, MessageModule, TranslatePipe, SettingsCatalog, SettingsTicketing, SettingsSiem, SettingsThreatIntel],
+    imports: [
+        CommonModule,
+        ButtonModule,
+        MessageModule,
+        TranslatePipe,
+        SettingsCatalog,
+        SettingsTicketing,
+        SettingsSiem,
+        SettingsThreatIntel
+    ],
     providers: [SettingsState],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './settings.html'
@@ -46,15 +55,24 @@ export class Settings {
             { id: 'ai' as const, label: this.i18n.t('settings.tabs.ai'), icon: 'pi pi-sparkles' },
             { id: 'integrations' as const, label: this.i18n.t('settings.tabs.integrations'), icon: 'pi pi-link' },
             { id: 'threat-intel' as const, label: this.i18n.t('settings.tabs.threat_intel'), icon: 'pi pi-globe' },
-            { id: 'governance' as const, label: this.i18n.t('settings.tabs.governance'), icon: 'pi pi-building-columns' }
+            {
+                id: 'governance' as const,
+                label: this.i18n.t('settings.tabs.governance'),
+                icon: 'pi pi-building-columns'
+            }
         ];
     });
 
     constructor() {
         this.route.queryParamMap.subscribe((params) => {
             const tab = params.get('tab') as SettingsTab | null;
-            if (tab === 'scanners' || tab === 'ai' || tab === 'integrations'
-                    || tab === 'threat-intel' || tab === 'governance') {
+            if (
+                tab === 'scanners' ||
+                tab === 'ai' ||
+                tab === 'integrations' ||
+                tab === 'threat-intel' ||
+                tab === 'governance'
+            ) {
                 this.activeTab.set(tab);
             } else {
                 this.activeTab.set('general');

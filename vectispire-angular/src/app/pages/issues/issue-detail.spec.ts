@@ -21,49 +21,49 @@ describe('the issue detail', () => {
     let http: HttpTestingController;
 
     const ISSUE = asSchema('IssueDetail', {
-            id: 7,
-            repoId: 5,
-            containerId: null,
-            targetKind: 'repository',
-            targetName: 'Arm Libs Spring',
-            type: 'vulnerability',
-            identifier: 'CVE-2026-1234',
-            severity: 'high',
-            packageName: 'openssl',
-            packageVersion: '3.0.1',
-            purl: null,
-            filePath: null,
-            line: null,
-            cvssScore: 9.1,
-            epssScore: null,
-            isKev: false,
-            fixState: 'fixed',
-            fixVersions: '3.0.14',
-            link: null,
-            description: 'A flaw in the parser.',
-            state: 'open',
-            firstSeenAt: '2026-03-03T08:00:00Z',
-            lastSeenAt: '2026-08-21T05:03:00Z',
-            timesSeen: 4,
-            triageStatus: 'under_review',
-            triageJustification: null,
-            triageComment: null,
-            triagedBy: null,
-            triagedAt: null,
-            isDirectDependency: true,
-            ticketRef: null,
-            ticketUrl: null,
-            sightings: [
-                {
-                    scanId: 34,
-                    status: 'completed',
-                    branch: 'master',
-                    version: '1.17.6',
-                    scannedAt: '2026-08-21T05:03:00Z',
-                    severity: 'high'
-                }
-            ],
-            decisions: []
+        id: 7,
+        repoId: 5,
+        containerId: null,
+        targetKind: 'repository',
+        targetName: 'Arm Libs Spring',
+        type: 'vulnerability',
+        identifier: 'CVE-2026-1234',
+        severity: 'high',
+        packageName: 'openssl',
+        packageVersion: '3.0.1',
+        purl: null,
+        filePath: null,
+        line: null,
+        cvssScore: 9.1,
+        epssScore: null,
+        isKev: false,
+        fixState: 'fixed',
+        fixVersions: '3.0.14',
+        link: null,
+        description: 'A flaw in the parser.',
+        state: 'open',
+        firstSeenAt: '2026-03-03T08:00:00Z',
+        lastSeenAt: '2026-08-21T05:03:00Z',
+        timesSeen: 4,
+        triageStatus: 'under_review',
+        triageJustification: null,
+        triageComment: null,
+        triagedBy: null,
+        triagedAt: null,
+        isDirectDependency: true,
+        ticketRef: null,
+        ticketUrl: null,
+        sightings: [
+            {
+                scanId: 34,
+                status: 'completed',
+                branch: 'master',
+                version: '1.17.6',
+                scannedAt: '2026-08-21T05:03:00Z',
+                severity: 'high'
+            }
+        ],
+        decisions: []
     });
 
     beforeEach(async () => {
@@ -75,14 +75,23 @@ describe('the issue detail', () => {
         // An account that can act: the attach form is offered only to those, and an auditor who saw
         // it would be refused by the server.
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
+            username: 'c.moreau',
+            displayName: null,
+            role: 'USER',
+            mustChangePassword: false,
+            mfaEnabled: false
         });
         TestBed.inject(I18nService).translations.set({
             common: { save: 'Save', cancel: 'Cancel' },
             issues: {
-                ticket: 'Ticket', ticket_none: 'No ticket attached.', ticket_attach: 'Attach a ticket',
-                ticket_change: 'Change the reference', ticket_reference: 'Reference',
-                ticket_reference_help: '—', ticket_url: 'Link', ticket_synced: 'Closing this ticket can close this finding.',
+                ticket: 'Ticket',
+                ticket_none: 'No ticket attached.',
+                ticket_attach: 'Attach a ticket',
+                ticket_change: 'Change the reference',
+                ticket_reference: 'Reference',
+                ticket_reference_help: '—',
+                ticket_url: 'Link',
+                ticket_synced: 'Closing this ticket can close this finding.',
                 ticket_attach_failed: 'The ticket could not be attached.'
             }
         });
@@ -153,7 +162,6 @@ describe('the issue detail', () => {
         expect(text.includes('none published') || text.includes('issues.fix_none_published')).toBe(true);
     });
 
-
     it('says no ticket tracks this finding, rather than leaving the box empty', async () => {
         await load();
 
@@ -220,8 +228,10 @@ describe('the issue detail', () => {
         page.editTicket();
         page.ticketReference = 'SEC-1234';
         page.saveTicket();
-        http.expectOne('/api/v1/issues/7/ticket')
-            .flush({ message: 'Issue not found.' }, { status: 404, statusText: 'Not Found' });
+        http.expectOne('/api/v1/issues/7/ticket').flush(
+            { message: 'Issue not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
         fixture.detectChanges();
 
         expect(page.editingTicket()).toBe(true);
@@ -230,7 +240,11 @@ describe('the issue detail', () => {
 
     it('does not offer the attachment to an account that can change nothing', async () => {
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'audit', displayName: null, role: 'AUDITOR', mustChangePassword: false, mfaEnabled: false
+            username: 'audit',
+            displayName: null,
+            role: 'AUDITOR',
+            mustChangePassword: false,
+            mfaEnabled: false
         });
         await load();
 

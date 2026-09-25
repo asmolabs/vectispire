@@ -31,7 +31,16 @@ import type { ExceptionEntry, ExceptionsRegister, ReviewOutcome } from '@/app/co
 @Component({
     selector: 'zs-exceptions',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, DialogModule, InputTextModule, MessageModule, TagModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        TagModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './exceptions.html'
 })
@@ -54,13 +63,10 @@ export class Exceptions {
      */
     readonly loaded = signal<ExceptionEntry[]>([]);
 
-    readonly granted = computed(() =>
-        this.loaded().filter((entry) => entry.decision === 'not_affected').length);
-    readonly awaiting = computed(() =>
-        this.loaded().filter((entry) => entry.decision === 'pending_approval').length);
+    readonly granted = computed(() => this.loaded().filter((entry) => entry.decision === 'not_affected').length);
+    readonly awaiting = computed(() => this.loaded().filter((entry) => entry.decision === 'pending_approval').length);
     readonly lapsed = computed(() => this.loaded().filter((entry) => entry.lapsed).length);
-    readonly neverReviewed = computed(() =>
-        this.loaded().filter((entry) => entry.last_reviewed_at === null).length);
+    readonly neverReviewed = computed(() => this.loaded().filter((entry) => entry.last_reviewed_at === null).length);
 
     /**
      * There are rows left to ask for.

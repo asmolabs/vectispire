@@ -41,30 +41,30 @@ describe('the settings screen', () => {
      * ended up in a template.
      */
     const CATALOGUE = asSchema('Catalog', {
-            settings: [
-                {
-                    key: 'ai_review_model',
-                    section: 'OWASP review',
-                    label: 'Local model name',
-                    type: 'text',
-                    value: 'gemma4:12b-it-qat',
-                    default: 'gemma4:12b-it-qat',
-                    configured: false,
-                    governor_only: false,
-                    administrator_only: false
-                },
-                {
-                    key: 'notification_webhook_url',
-                    section: 'Notifications',
-                    label: 'Webhook URL',
-                    type: 'text',
-                    value: '',
-                    default: '',
-                    configured: false,
-                    governor_only: false,
-                    administrator_only: false
-                }
-            ]
+        settings: [
+            {
+                key: 'ai_review_model',
+                section: 'OWASP review',
+                label: 'Local model name',
+                type: 'text',
+                value: 'gemma4:12b-it-qat',
+                default: 'gemma4:12b-it-qat',
+                configured: false,
+                governor_only: false,
+                administrator_only: false
+            },
+            {
+                key: 'notification_webhook_url',
+                section: 'Notifications',
+                label: 'Webhook URL',
+                type: 'text',
+                value: '',
+                default: '',
+                configured: false,
+                governor_only: false,
+                administrator_only: false
+            }
+        ]
     });
 
     beforeEach(async () => {
@@ -113,16 +113,18 @@ describe('the settings screen', () => {
     it('shows what the host answered, reachable or not', () => {
         const review = openModelReview();
         review.testOllama();
-        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush(asSchema('OllamaCheck', {
-            reachable: true,
-            modelInstalled: false,
-            model: 'gemma4:12b-it-qat',
-            url: 'http://localhost:11434',
-            models: ['gemma4:26b'],
-            detail: 'Reachable, but "gemma4:12b-it-qat" is not installed there.',
-            provider: 'ollama',
-            remoteAllowed: false
-        }));
+        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush(
+            asSchema('OllamaCheck', {
+                reachable: true,
+                modelInstalled: false,
+                model: 'gemma4:12b-it-qat',
+                url: 'http://localhost:11434',
+                models: ['gemma4:26b'],
+                detail: 'Reachable, but "gemma4:12b-it-qat" is not installed there.',
+                provider: 'ollama',
+                remoteAllowed: false
+            })
+        );
         fixture.detectChanges();
 
         // Reachable without the model is the commonest misconfiguration, and a single green tick
@@ -170,8 +172,10 @@ describe('the settings screen', () => {
     it('treats a failed check as an answer about the configuration', () => {
         const review = openModelReview();
         review.testOllama();
-        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' })
-            .flush(null, { status: 500, statusText: 'Server Error' });
+        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush(null, {
+            status: 500,
+            statusText: 'Server Error'
+        });
         fixture.detectChanges();
 
         expect(review.ollama()?.reachable).toBe(false);

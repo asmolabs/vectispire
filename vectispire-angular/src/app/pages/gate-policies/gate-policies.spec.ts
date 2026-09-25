@@ -106,10 +106,10 @@ describe('the gate policy screen', () => {
         // select was already using, so the same value can no longer read one way in the dropdown
         // and another in the card. The distinction the test defends is unchanged: `null` must
         // reach the `none` entry and never be shown as a severity the scanners emit.
-        expect(fixture.componentInstance.describeThreshold(OVERRIDE.fail_on_severity))
-            .toBe('gate_policies.severity_rules.none');
-        expect(fixture.componentInstance.describeThreshold('high'))
-            .toBe('gate_policies.severity_rules.high');
+        expect(fixture.componentInstance.describeThreshold(OVERRIDE.fail_on_severity)).toBe(
+            'gate_policies.severity_rules.none'
+        );
+        expect(fixture.componentInstance.describeThreshold('high')).toBe('gate_policies.severity_rules.high');
     });
 
     it('sends "none" for a rule switched off, and every field on every save', () => {

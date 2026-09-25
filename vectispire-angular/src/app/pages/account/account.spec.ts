@@ -35,17 +35,36 @@ describe('the account screen', () => {
         TestBed.inject(I18nService).translations.set({
             common: { cancel: 'Cancel' },
             account: {
-                title: 'My account', subtitle: '—', identity: 'Account', change_password: 'Change password',
-                mfa: 'Authentication', mfa_totp: 'Second factor', mfa_on: 'On', mfa_off: 'Off',
-                mfa_help: '—', mfa_enable: 'Turn on', mfa_scan: '—', mfa_code: 'Code',
-                mfa_confirm: 'Verify and turn on', mfa_disable: 'Turn off', mfa_disable_help: '—',
-                mfa_setup_failed: 'no secret', mfa_enable_failed: 'That code was not accepted.',
-                mfa_disable_failed: 'still on', backup_warning: 'Write these down now'
+                title: 'My account',
+                subtitle: '—',
+                identity: 'Account',
+                change_password: 'Change password',
+                mfa: 'Authentication',
+                mfa_totp: 'Second factor',
+                mfa_on: 'On',
+                mfa_off: 'Off',
+                mfa_help: '—',
+                mfa_enable: 'Turn on',
+                mfa_scan: '—',
+                mfa_code: 'Code',
+                mfa_confirm: 'Verify and turn on',
+                mfa_disable: 'Turn off',
+                mfa_disable_help: '—',
+                mfa_setup_failed: 'no secret',
+                mfa_enable_failed: 'That code was not accepted.',
+                mfa_disable_failed: 'still on',
+                backup_warning: 'Write these down now'
             }
         });
 
         session = TestBed.inject(SessionStore);
-        session.open('a-token', { username: 'c.moreau', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false });
+        session.open('a-token', {
+            username: 'c.moreau',
+            displayName: null,
+            role: 'USER',
+            mustChangePassword: false,
+            mfaEnabled: false
+        });
 
         http = TestBed.inject(HttpTestingController);
         fixture = TestBed.createComponent(Account);
@@ -86,8 +105,9 @@ describe('the account screen', () => {
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/setup').flush(SETUP);
         page.code = '123456';
         page.confirm();
-        http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable')
-            .flush(asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] }));
+        http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable').flush(
+            asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] })
+        );
         fixture.detectChanges();
 
         // Le serveur les chiffre et ne les rendra plus : sans l'avertissement, on ferme l'onglet
@@ -105,8 +125,10 @@ describe('the account screen', () => {
 
         page.code = '000000';
         page.confirm();
-        http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable')
-            .flush({ message: 'Invalid TOTP verification code.' }, { status: 400, statusText: 'Bad Request' });
+        http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable').flush(
+            { message: 'Invalid TOTP verification code.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
         fixture.detectChanges();
 
         // Six digits and thirty seconds of life: getting it wrong is ordinary. Reissuing a fresh
@@ -131,8 +153,10 @@ describe('the account screen', () => {
 
         page.code = '000000';
         page.remove();
-        http.expectOne((call) => call.url === '/api/v1/auth/mfa/disable')
-            .flush({ message: 'Invalid code.' }, { status: 400, statusText: 'Bad Request' });
+        http.expectOne((call) => call.url === '/api/v1/auth/mfa/disable').flush(
+            { message: 'Invalid code.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
 
         expect(page.mfaEnabled()).toBe(true);
         expect(page.removing()).toBe(true);

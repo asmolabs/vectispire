@@ -82,7 +82,9 @@ export class CertifiedScope {
             next: (data) => this.scope.set(data),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('scope.load_failed')))
         });
-        this.targetsApi.repositories().subscribe({ next: (rows) => this.repositories.set(rows), error: () => undefined });
+        this.targetsApi
+            .repositories()
+            .subscribe({ next: (rows) => this.repositories.set(rows), error: () => undefined });
         this.targetsApi.containers().subscribe({ next: (rows) => this.containers.set(rows), error: () => undefined });
     }
 

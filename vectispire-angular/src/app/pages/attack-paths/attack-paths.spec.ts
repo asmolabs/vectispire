@@ -20,34 +20,87 @@ describe('the attack path graph', () => {
     const REPOSITORIES = [{ id: 7, name: 'exposed', url: 'ssh://git@example.invalid/exposed.git', branch: 'main' }];
 
     const GRAPH = asSchema('AttackPathGraph', {
-            targetId: 7,
-            targetName: 'exposed',
-            totalPaths: 1,
-            criticalExploitablePaths: 1,
-            riskScore: 85,
-            nodes: [
-                { id: 'ingress-ext', label: 'Internet Ingress (0.0.0.0/0)', type: 'INTERNET_INGRESS', severity: 'INFO', isExploitable: true, note: 'PUBLIC_INGRESS', metadata: {} },
-                { id: 'ep-1', label: 'GET /api/admin/users', type: 'API_ENDPOINT', severity: 'CRITICAL', isExploitable: true, note: 'UNAUTHENTICATED_ROUTE', metadata: {} },
-                { id: 'ep-2', label: 'GET /api/health', type: 'API_ENDPOINT', severity: 'MEDIUM', isExploitable: false, note: 'AUTHENTICATED_PUBLIC_ROUTE', metadata: {} },
-                { id: 'vuln-1', label: 'CVE-2021-44228', type: 'VULNERABLE_COMPONENT', severity: 'CRITICAL', isExploitable: true, note: 'RCE_ACTIVELY_EXPLOITED', metadata: {} },
-                { id: 'vuln-2', label: 'CVE-2020-0001', type: 'VULNERABLE_COMPONENT', severity: 'MEDIUM', isExploitable: false, note: 'EXECUTABLE', metadata: {} },
-                { id: 'secret-1', label: 'aws-key', type: 'SECRET', severity: 'HIGH', isExploitable: false, note: 'HARDCODED_CREDENTIAL', metadata: {} }
-            ],
-            edges: [],
-            // **A path has neither `severity` nor `isExploitable`: those are the nodes' words.**
-            // The fixture carried them, and the screen reads `riskLevel` and
-            // `isDirectlyExploitable` — so the risk-level tag rendered `undefined` in every test
-            // that displayed it, without anything failing.
-            attackPaths: [
-                {
-                    id: 'path-1',
-                    scenario: 'UNAUTH_RCE_CHAIN',
-                    params: { method: 'GET', path: '/api/admin/users', identifier: 'CVE-2021-44228', package: 'log4j-core' },
-                    nodeIds: ['ingress-ext', 'ep-1', 'vuln-1', 'secret-1'],
-                    riskLevel: 'CRITICAL',
-                    isDirectlyExploitable: true
-                }
-            ]
+        targetId: 7,
+        targetName: 'exposed',
+        totalPaths: 1,
+        criticalExploitablePaths: 1,
+        riskScore: 85,
+        nodes: [
+            {
+                id: 'ingress-ext',
+                label: 'Internet Ingress (0.0.0.0/0)',
+                type: 'INTERNET_INGRESS',
+                severity: 'INFO',
+                isExploitable: true,
+                note: 'PUBLIC_INGRESS',
+                metadata: {}
+            },
+            {
+                id: 'ep-1',
+                label: 'GET /api/admin/users',
+                type: 'API_ENDPOINT',
+                severity: 'CRITICAL',
+                isExploitable: true,
+                note: 'UNAUTHENTICATED_ROUTE',
+                metadata: {}
+            },
+            {
+                id: 'ep-2',
+                label: 'GET /api/health',
+                type: 'API_ENDPOINT',
+                severity: 'MEDIUM',
+                isExploitable: false,
+                note: 'AUTHENTICATED_PUBLIC_ROUTE',
+                metadata: {}
+            },
+            {
+                id: 'vuln-1',
+                label: 'CVE-2021-44228',
+                type: 'VULNERABLE_COMPONENT',
+                severity: 'CRITICAL',
+                isExploitable: true,
+                note: 'RCE_ACTIVELY_EXPLOITED',
+                metadata: {}
+            },
+            {
+                id: 'vuln-2',
+                label: 'CVE-2020-0001',
+                type: 'VULNERABLE_COMPONENT',
+                severity: 'MEDIUM',
+                isExploitable: false,
+                note: 'EXECUTABLE',
+                metadata: {}
+            },
+            {
+                id: 'secret-1',
+                label: 'aws-key',
+                type: 'SECRET',
+                severity: 'HIGH',
+                isExploitable: false,
+                note: 'HARDCODED_CREDENTIAL',
+                metadata: {}
+            }
+        ],
+        edges: [],
+        // **A path has neither `severity` nor `isExploitable`: those are the nodes' words.**
+        // The fixture carried them, and the screen reads `riskLevel` and
+        // `isDirectlyExploitable` — so the risk-level tag rendered `undefined` in every test
+        // that displayed it, without anything failing.
+        attackPaths: [
+            {
+                id: 'path-1',
+                scenario: 'UNAUTH_RCE_CHAIN',
+                params: {
+                    method: 'GET',
+                    path: '/api/admin/users',
+                    identifier: 'CVE-2021-44228',
+                    package: 'log4j-core'
+                },
+                nodeIds: ['ingress-ext', 'ep-1', 'vuln-1', 'secret-1'],
+                riskLevel: 'CRITICAL',
+                isDirectlyExploitable: true
+            }
+        ]
     });
 
     beforeEach(async () => {
@@ -101,16 +154,17 @@ describe('the attack path graph', () => {
         expect(component.highlightedNodeIds().size).toBe(0);
 
         component.selectedPath.set(GRAPH.attackPaths[0] as never);
-        expect([...component.highlightedNodeIds()].sort())
-            .toEqual(['ep-1', 'ingress-ext', 'secret-1', 'vuln-1']);
+        expect([...component.highlightedNodeIds()].sort()).toEqual(['ep-1', 'ingress-ext', 'secret-1', 'vuln-1']);
     });
 
     it('reports a failed graph load instead of leaving the last graph on screen', () => {
         const component = fixture.componentInstance;
 
         component.onRepoChange(9);
-        http.expectOne((call) => call.url === '/api/v1/attack-paths/repositories/9')
-            .flush('boom', { status: 500, statusText: 'Server Error' });
+        http.expectOne((call) => call.url === '/api/v1/attack-paths/repositories/9').flush('boom', {
+            status: 500,
+            statusText: 'Server Error'
+        });
 
         // A screen that keeps repository 7's chain while the selector says 9 is worse than an
         // error: it attributes one target's exposure to another.

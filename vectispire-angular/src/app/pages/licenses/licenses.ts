@@ -72,12 +72,20 @@ export class Licenses {
     readonly selectedCompliance = signal<string>('ALL');
 
     readonly targetOptions = computed(() => {
-        const options: { label: string; value: string }[] = [{ label: this.i18n.t('common.all_targets'), value: 'ALL' }];
+        const options: { label: string; value: string }[] = [
+            { label: this.i18n.t('common.all_targets'), value: 'ALL' }
+        ];
         for (const r of this.repos()) {
-            options.push({ label: this.i18n.t('licenses.scope_repository', { name: r.displayName || r.name || '' }), value: `repo:${r.id}` });
+            options.push({
+                label: this.i18n.t('licenses.scope_repository', { name: r.displayName || r.name || '' }),
+                value: `repo:${r.id}`
+            });
         }
         for (const c of this.containers()) {
-            options.push({ label: this.i18n.t('licenses.scope_container', { name: c.reference }), value: `container:${c.id}` });
+            options.push({
+                label: this.i18n.t('licenses.scope_container', { name: c.reference }),
+                value: `container:${c.id}`
+            });
         }
         return options;
     });
@@ -134,8 +142,13 @@ export class Licenses {
      * <p>Reserved to the security lead, as the server requires, and recorded by it: changing what
      * is forbidden changes the whole estate's compliance at once.
      */
-    readonly CATEGORIES: LicenseRiskCategory[] =
-        ['PERMISSIVE', 'WEAK_COPYLEFT', 'STRONG_COPYLEFT', 'FORBIDDEN', 'UNKNOWN'];
+    readonly CATEGORIES: LicenseRiskCategory[] = [
+        'PERMISSIVE',
+        'WEAK_COPYLEFT',
+        'STRONG_COPYLEFT',
+        'FORBIDDEN',
+        'UNKNOWN'
+    ];
 
     readonly canEditPolicy = computed(() => this.session.isSecurityLead());
     readonly editingPolicy = signal(false);
@@ -169,24 +182,26 @@ export class Licenses {
         this.savingPolicy.set(true);
         this.policyError.set(null);
 
-        this.licensesApi.updateLicensePolicy({
-            disallowedCategories: this.draftDisallowed,
-            explicitlyAllowedLicenses: identifiers(this.draftAllowedLicenses),
-            explicitlyDisallowedLicenses: identifiers(this.draftDisallowedLicenses)
-        }).subscribe({
-            next: (updated) => {
-                this.savingPolicy.set(false);
-                this.editingPolicy.set(false);
-                this.policy.set(updated);
-                // Every row's compliance has just been recomputed by the server: keeping it on
-                // screen as it was would show yesterday's verdict under today's policy.
-                this.loadData();
-            },
-            error: (response) => {
-                this.savingPolicy.set(false);
-                this.policyError.set(messageOf(response, this.i18n.t('licenses.policy_save_failed')));
-            }
-        });
+        this.licensesApi
+            .updateLicensePolicy({
+                disallowedCategories: this.draftDisallowed,
+                explicitlyAllowedLicenses: identifiers(this.draftAllowedLicenses),
+                explicitlyDisallowedLicenses: identifiers(this.draftDisallowedLicenses)
+            })
+            .subscribe({
+                next: (updated) => {
+                    this.savingPolicy.set(false);
+                    this.editingPolicy.set(false);
+                    this.policy.set(updated);
+                    // Every row's compliance has just been recomputed by the server: keeping it on
+                    // screen as it was would show yesterday's verdict under today's policy.
+                    this.loadData();
+                },
+                error: (response) => {
+                    this.savingPolicy.set(false);
+                    this.policyError.set(messageOf(response, this.i18n.t('licenses.policy_save_failed')));
+                }
+            });
     }
 
     setTab(tab: 'inventory' | 'conflicts' | 'matrix'): void {
@@ -263,20 +278,29 @@ export class Licenses {
 
     riskSeverity(category: LicenseRiskCategory): 'success' | 'warn' | 'danger' | 'secondary' {
         switch (category) {
-            case 'PERMISSIVE': return 'success';
-            case 'WEAK_COPYLEFT': return 'warn';
-            case 'STRONG_COPYLEFT': return 'danger';
-            case 'FORBIDDEN': return 'danger';
-            default: return 'secondary';
+            case 'PERMISSIVE':
+                return 'success';
+            case 'WEAK_COPYLEFT':
+                return 'warn';
+            case 'STRONG_COPYLEFT':
+                return 'danger';
+            case 'FORBIDDEN':
+                return 'danger';
+            default:
+                return 'secondary';
         }
     }
 
     compatSeverity(comp: string): 'success' | 'warn' | 'danger' | 'secondary' {
         switch (comp) {
-            case 'COMPATIBLE': return 'success';
-            case 'CONDITIONAL': return 'warn';
-            case 'INCOMPATIBLE_BLOCKING': return 'danger';
-            default: return 'secondary';
+            case 'COMPATIBLE':
+                return 'success';
+            case 'CONDITIONAL':
+                return 'warn';
+            case 'INCOMPATIBLE_BLOCKING':
+                return 'danger';
+            default:
+                return 'secondary';
         }
     }
 }
@@ -288,5 +312,8 @@ export class Licenses {
  * a licence named "".
  */
 function identifiers(raw: string): string[] {
-    return raw.split(/[,\s]+/).map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+    return raw
+        .split(/[,\s]+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
 }

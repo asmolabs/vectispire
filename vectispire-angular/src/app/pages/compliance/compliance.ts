@@ -21,7 +21,18 @@ import { LatestRequest } from '@/app/core/latest-request';
 @Component({
     selector: 'app-compliance',
     standalone: true,
-    imports: [CommonModule, FormsModule, DialogModule, CardModule, ButtonModule, MessageModule, TableModule, TagModule, SelectModule, TranslatePipe],
+    imports: [
+        CommonModule,
+        FormsModule,
+        DialogModule,
+        CardModule,
+        ButtonModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        SelectModule,
+        TranslatePipe
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './compliance.html'
 })
@@ -112,7 +123,13 @@ export class Compliance {
     verifyPayload = '';
     verifySignature = '';
     verifyPublicKey = '';
-    readonly verifyResult = signal<{ valid: boolean; keyId: string; vectispireKey: boolean; algorithm: string; message: string } | null>(null);
+    readonly verifyResult = signal<{
+        valid: boolean;
+        keyId: string;
+        vectispireKey: boolean;
+        algorithm: string;
+        message: string;
+    } | null>(null);
     /** Valid under Vectispire's own key: the only result shown as authentic. */
     readonly verifyAuthentic = computed(() => !!this.verifyResult()?.valid && !!this.verifyResult()?.vectispireKey);
     /** Valid under a key the caller supplied: proves the match, not Vectispire's signature. */
@@ -130,12 +147,36 @@ export class Compliance {
     readonly frameworks = computed(() => {
         this.i18n.translations();
         return [
-            { key: 'NIS_2', label: this.i18n.t('compliance.frameworks.nis2'), desc: this.i18n.t('compliance.frameworks.nis2_desc') },
-            { key: 'ISO_27001', label: this.i18n.t('compliance.frameworks.iso27001'), desc: this.i18n.t('compliance.frameworks.iso27001_desc') },
-            { key: 'EU_CRA', label: this.i18n.t('compliance.frameworks.eu_cra'), desc: this.i18n.t('compliance.frameworks.eu_cra_desc') },
-            { key: 'DORA', label: this.i18n.t('compliance.frameworks.dora'), desc: this.i18n.t('compliance.frameworks.dora_desc') },
-            { key: 'PCI_DSS', label: this.i18n.t('compliance.frameworks.pci_dss'), desc: this.i18n.t('compliance.frameworks.pci_dss_desc') },
-            { key: 'SOC_2', label: this.i18n.t('compliance.frameworks.soc2'), desc: this.i18n.t('compliance.frameworks.soc2_desc') }
+            {
+                key: 'NIS_2',
+                label: this.i18n.t('compliance.frameworks.nis2'),
+                desc: this.i18n.t('compliance.frameworks.nis2_desc')
+            },
+            {
+                key: 'ISO_27001',
+                label: this.i18n.t('compliance.frameworks.iso27001'),
+                desc: this.i18n.t('compliance.frameworks.iso27001_desc')
+            },
+            {
+                key: 'EU_CRA',
+                label: this.i18n.t('compliance.frameworks.eu_cra'),
+                desc: this.i18n.t('compliance.frameworks.eu_cra_desc')
+            },
+            {
+                key: 'DORA',
+                label: this.i18n.t('compliance.frameworks.dora'),
+                desc: this.i18n.t('compliance.frameworks.dora_desc')
+            },
+            {
+                key: 'PCI_DSS',
+                label: this.i18n.t('compliance.frameworks.pci_dss'),
+                desc: this.i18n.t('compliance.frameworks.pci_dss_desc')
+            },
+            {
+                key: 'SOC_2',
+                label: this.i18n.t('compliance.frameworks.soc2'),
+                desc: this.i18n.t('compliance.frameworks.soc2_desc')
+            }
         ];
     });
 
@@ -173,13 +214,15 @@ export class Compliance {
         this.loading.set(true);
         this.error.set(null);
         const sel = this.selectedTarget();
-        const tid = (sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined') ? sel : undefined;
+        const tid = sel && sel !== 'ALL' && sel !== 'null' && sel !== 'undefined' ? sel : undefined;
 
         this.summaryRequest.run(this.complianceApi.complianceSummary(tid), {
             next: (data) => {
                 this.summary.set(data);
                 if (data.targets && data.targets.length > 0) {
-                    this.targetsList.set(data.targets.map((t) => ({ targetId: t.targetId, name: t.name, type: t.type })));
+                    this.targetsList.set(
+                        data.targets.map((t) => ({ targetId: t.targetId, name: t.name, type: t.type }))
+                    );
                 }
                 this.loading.set(false);
             },
@@ -191,7 +234,8 @@ export class Compliance {
     }
 
     onTargetChange(targetId: string | null): void {
-        const tid = (!targetId || targetId === 'ALL' || targetId === 'null' || targetId === 'undefined') ? 'ALL' : targetId;
+        const tid =
+            !targetId || targetId === 'ALL' || targetId === 'null' || targetId === 'undefined' ? 'ALL' : targetId;
         this.selectedTarget.set(tid);
         this.loadSummary();
     }
@@ -205,7 +249,10 @@ export class Compliance {
         const tid = this.selectedTarget() ?? undefined;
         this.complianceApi.exportCompliancePdf(tid).subscribe({
             next: (response) => {
-                saveDocument(response, tid ? `vectispire-compliance-${tid.replace(':', '-')}.pdf` : 'vectispire-compliance-report.pdf');
+                saveDocument(
+                    response,
+                    tid ? `vectispire-compliance-${tid.replace(':', '-')}.pdf` : 'vectispire-compliance-report.pdf'
+                );
                 this.exporting.set(false);
             },
             error: () => {
@@ -320,7 +367,12 @@ export class Compliance {
                     this.importing.set(false);
                     const count = res?.triagedIssues ?? 0;
                     const applied = (res?.appliedCves ?? []).join(', ');
-                    this.importSuccess.set(this.i18n.t('compliance.vex_ingested', { count, applied: applied || this.i18n.t('compliance.vex_no_match') }));
+                    this.importSuccess.set(
+                        this.i18n.t('compliance.vex_ingested', {
+                            count,
+                            applied: applied || this.i18n.t('compliance.vex_no_match')
+                        })
+                    );
                     this.loadSummary();
                 },
                 error: (err) => {
@@ -330,7 +382,9 @@ export class Compliance {
             });
         } catch (e) {
             this.importing.set(false);
-            this.importError.set(this.i18n.t('compliance.error_invalid_json', { detail: e instanceof Error ? e.message : String(e) }));
+            this.importError.set(
+                this.i18n.t('compliance.error_invalid_json', { detail: e instanceof Error ? e.message : String(e) })
+            );
         }
     }
 
@@ -396,16 +450,18 @@ export class Compliance {
         this.verifyResult.set(null);
         this.verifyError.set(null);
 
-        this.documentsApi.verifyCryptoSignature(this.verifyPayload, this.verifySignature, this.verifyPublicKey.trim() || undefined).subscribe({
-            next: (res) => {
-                this.verifying.set(false);
-                this.verifyResult.set(res);
-            },
-            error: (err) => {
-                this.verifying.set(false);
-                this.verifyError.set(err?.error?.message ?? this.i18n.t('compliance.error_verify'));
-            }
-        });
+        this.documentsApi
+            .verifyCryptoSignature(this.verifyPayload, this.verifySignature, this.verifyPublicKey.trim() || undefined)
+            .subscribe({
+                next: (res) => {
+                    this.verifying.set(false);
+                    this.verifyResult.set(res);
+                },
+                error: (err) => {
+                    this.verifying.set(false);
+                    this.verifyError.set(err?.error?.message ?? this.i18n.t('compliance.error_verify'));
+                }
+            });
     }
 
     statusSeverity(status: string): 'success' | 'warn' | 'danger' {

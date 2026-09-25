@@ -23,31 +23,31 @@ describe('le registre des exceptions', () => {
     let http: HttpTestingController;
 
     const REGISTER = asSchema('Register', {
-            entries: [
-                {
-                    issue_id: 41,
-                    identifier: 'CVE-2026-0001',
-                    severity: 'high',
-                    target_kind: 'REPOSITORY',
-                    target_id: 7,
-                    target_name: 'paiement-api',
-                    decision: 'not_affected',
-                    justification: 'vulnerable_code_not_in_execute_path',
-                    comment: null,
-                    actor: 'c.moreau',
-                    origin: 'manual',
-                    decided_at: '2026-01-12T09:00:00Z',
-                    expires_at: '2026-12-31T00:00:00Z',
-                    lapsed: false,
-                    last_reviewed_at: null,
-                    last_reviewed_by: null
-                }
-            ],
-            granted: 1,
-            awaiting_approval: 0,
-            lapsed: 0,
-            never_reviewed: 1,
-            next_cursor: null
+        entries: [
+            {
+                issue_id: 41,
+                identifier: 'CVE-2026-0001',
+                severity: 'high',
+                target_kind: 'REPOSITORY',
+                target_id: 7,
+                target_name: 'paiement-api',
+                decision: 'not_affected',
+                justification: 'vulnerable_code_not_in_execute_path',
+                comment: null,
+                actor: 'c.moreau',
+                origin: 'manual',
+                decided_at: '2026-01-12T09:00:00Z',
+                expires_at: '2026-12-31T00:00:00Z',
+                lapsed: false,
+                last_reviewed_at: null,
+                last_reviewed_by: null
+            }
+        ],
+        granted: 1,
+        awaiting_approval: 0,
+        lapsed: 0,
+        never_reviewed: 1,
+        next_cursor: null
     });
 
     beforeEach(async () => {
@@ -78,7 +78,9 @@ describe('le registre des exceptions', () => {
         // without the row moving describes nothing real any more.
         call.flush({
             ...REGISTER,
-            entries: [{ ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }],
+            entries: [
+                { ...REGISTER.entries[0], last_reviewed_at: '2026-09-14T10:00:00Z', last_reviewed_by: 'n.faure' }
+            ],
             never_reviewed: 0
         });
 
@@ -104,10 +106,16 @@ describe('le registre des exceptions', () => {
         // the one person who cannot notice it.
         const component = fixture.componentInstance;
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(asSchema('Register', {
-            entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0,
-            next_cursor: '1757836800000:41'
-        }));
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(
+            asSchema('Register', {
+                entries: [],
+                granted: 0,
+                awaiting_approval: 0,
+                lapsed: 0,
+                never_reviewed: 0,
+                next_cursor: '1757836800000:41'
+            })
+        );
 
         expect(component.loaded()).toHaveLength(0);
         expect(component.hasMore()).toBe(true);
@@ -126,8 +134,10 @@ describe('le registre des exceptions', () => {
         expect(component.granted()).toBe(1);
 
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions')
-            .flush({ ...REGISTER, next_cursor: '1757836800000:41' });
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+            ...REGISTER,
+            next_cursor: '1757836800000:41'
+        });
         component.more();
         http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
             ...REGISTER,

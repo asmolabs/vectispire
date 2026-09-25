@@ -52,17 +52,26 @@ describe('the OWASP report screen', () => {
         fixture.detectChanges();
 
         // The constructor asks for the repositories it offers in the picker.
-        http.expectOne('/api/v1/repositories').flush(asSchemaList('RepositorySummary', [
-            { id: 5, displayName: 'Arm Libs Spring', url: 'ssh://git@example.com/art/arm.git', branch: 'master', openIssues: 0 }
-        ]));
+        http.expectOne('/api/v1/repositories').flush(
+            asSchemaList('RepositorySummary', [
+                {
+                    id: 5,
+                    displayName: 'Arm Libs Spring',
+                    url: 'ssh://git@example.com/art/arm.git',
+                    branch: 'master',
+                    openIssues: 0
+                }
+            ])
+        );
         fixture.detectChanges();
     });
 
     function runProducing(report: Record<string, unknown>): void {
         fixture.componentInstance.selected = 5;
         fixture.componentInstance.run();
-        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' })
-            .flush(asSchema('Report', report));
+        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' }).flush(
+            asSchema('Report', report)
+        );
         fixture.detectChanges();
     }
 
@@ -107,17 +116,28 @@ describe('the OWASP report screen', () => {
 
     it('offers the PDF only for a report that exists', () => {
         runProducing({
-            id: 3, status: 'failed', model: 'm', content: null, blocks: [],
-            error: 'boom', scanId: 34, createdAt: '2026-08-21T07:40:01Z'
+            id: 3,
+            status: 'failed',
+            model: 'm',
+            content: null,
+            blocks: [],
+            error: 'boom',
+            scanId: 34,
+            createdAt: '2026-08-21T07:40:01Z'
         });
         // A PDF of "the model could not be reached", under an OWASP cover, would look like a
         // report and say nothing — and a file travels away from the screen that explained it.
         expect(fixture.nativeElement.textContent).not.toContain('Export PDF');
 
         runProducing({
-            id: 4, status: 'completed', model: 'm', content: 'x',
+            id: 4,
+            status: 'completed',
+            model: 'm',
+            content: 'x',
             blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'x' }],
-            error: null, scanId: 34, createdAt: '2026-08-21T07:57:53Z'
+            error: null,
+            scanId: 34,
+            createdAt: '2026-08-21T07:57:53Z'
         });
         const text = fixture.nativeElement.textContent;
         expect(text.includes('Export PDF') || text.includes('owasp.export_pdf')).toBe(true);
@@ -125,9 +145,14 @@ describe('the OWASP report screen', () => {
 
     it('downloads through HttpClient, because a navigation carries no token', () => {
         runProducing({
-            id: 5, status: 'completed', model: 'm', content: 'x',
+            id: 5,
+            status: 'completed',
+            model: 'm',
+            content: 'x',
             blocks: [{ kind: 'PARAGRAPH', level: 0, marker: null, text: 'x' }],
-            error: null, scanId: 34, createdAt: '2026-08-21T07:57:53Z'
+            error: null,
+            scanId: 34,
+            createdAt: '2026-08-21T07:57:53Z'
         });
 
         fixture.componentInstance.downloadPdf();
@@ -143,8 +168,10 @@ describe('the OWASP report screen', () => {
     it('reports a refusal rather than staying silent', () => {
         fixture.componentInstance.selected = 5;
         fixture.componentInstance.run();
-        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' })
-            .flush({ detail: 'Model review is switched off.' }, { status: 409, statusText: 'Conflict' });
+        http.expectOne({ method: 'POST', url: '/api/v1/repositories/5/owasp-review' }).flush(
+            { detail: 'Model review is switched off.' },
+            { status: 409, statusText: 'Conflict' }
+        );
         fixture.detectChanges();
 
         expect(fixture.componentInstance.running()).toBe(false);

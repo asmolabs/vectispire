@@ -50,7 +50,19 @@ const SERVER_STAMPED = new Set(['ai_review_risk_acknowledged_by', 'ai_review_ris
 @Component({
     selector: 'app-settings-catalog',
     standalone: true,
-    imports: [CommonModule, FormsModule, ButtonModule, CardModule, DialogModule, InputNumberModule, InputTextModule, SelectModule, ToggleSwitchModule, TranslatePipe, SettingsModelReview],
+    imports: [
+        CommonModule,
+        FormsModule,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputNumberModule,
+        InputTextModule,
+        SelectModule,
+        ToggleSwitchModule,
+        TranslatePipe,
+        SettingsModelReview
+    ],
     templateUrl: './settings-catalog.html',
     // No box of its own: the cards lay out exactly as they did when they were the page's children.
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -106,7 +118,8 @@ export class SettingsCatalog {
     /** The rows this card renders: everything but the write-only secrets. See {@link WRITE_ONLY_SECRETS}. */
     visibleSettings(section: { settings: SettingDefinition[] }): SettingDefinition[] {
         return section.settings.filter(
-            (setting) => !WRITE_ONLY_SECRETS.has(setting.key) && !SERVER_STAMPED.has(setting.key));
+            (setting) => !WRITE_ONLY_SECRETS.has(setting.key) && !SERVER_STAMPED.has(setting.key)
+        );
     }
 
     /**
@@ -148,21 +161,42 @@ export class SettingsCatalog {
         const firstKey = section.settings[0]?.key ?? '';
         const lowerName = section.name.toLowerCase();
 
-        if (firstKey.startsWith('sla_') || firstKey.startsWith('retention_') || firstKey.startsWith('eol_')
-            || lowerName.includes('sla') || lowerName.includes('remediation') || lowerName.includes('retention')
-            || lowerName.includes('end of life')) {
+        if (
+            firstKey.startsWith('sla_') ||
+            firstKey.startsWith('retention_') ||
+            firstKey.startsWith('eol_') ||
+            lowerName.includes('sla') ||
+            lowerName.includes('remediation') ||
+            lowerName.includes('retention') ||
+            lowerName.includes('end of life')
+        ) {
             return 'general';
         }
-        if (firstKey.startsWith('scanner_') || firstKey.startsWith('sast_') || firstKey.startsWith('source_code')
-            || lowerName.includes('scanner') || lowerName.includes('source code')) {
+        if (
+            firstKey.startsWith('scanner_') ||
+            firstKey.startsWith('sast_') ||
+            firstKey.startsWith('source_code') ||
+            lowerName.includes('scanner') ||
+            lowerName.includes('source code')
+        ) {
             return 'scanners';
         }
-        if (firstKey.startsWith('ai_review_') || lowerName.includes('model') || lowerName.includes('ai')
-            || lowerName.includes('ollama') || lowerName.includes('owasp')) {
+        if (
+            firstKey.startsWith('ai_review_') ||
+            lowerName.includes('model') ||
+            lowerName.includes('ai') ||
+            lowerName.includes('ollama') ||
+            lowerName.includes('owasp')
+        ) {
             return 'ai';
         }
-        if (firstKey.startsWith('ticket_') || firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')
-            || lowerName.includes('ticket') || lowerName.includes('notification')) {
+        if (
+            firstKey.startsWith('ticket_') ||
+            firstKey.startsWith('notification_') ||
+            firstKey.startsWith('webhook_') ||
+            lowerName.includes('ticket') ||
+            lowerName.includes('notification')
+        ) {
             return 'integrations';
         }
         if (firstKey.startsWith('enrichment_') || lowerName.includes('enrichment') || lowerName.includes('threat')) {
@@ -180,8 +214,10 @@ export class SettingsCatalog {
      * where a credential is sent and this account may not set that credential.
      */
     isReadOnlyHere(setting: SettingDefinition): boolean {
-        return (setting.governor_only && !this.session.governsPlatform())
-            || (setting.administrator_only && !this.session.isAdmin());
+        return (
+            (setting.governor_only && !this.session.governsPlatform()) ||
+            (setting.administrator_only && !this.session.isAdmin())
+        );
     }
 
     getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {
@@ -190,11 +226,13 @@ export class SettingsCatalog {
         if (firstKey.startsWith('sla_')) return this.i18n.t('settings.sections.remediation_slas');
         if (firstKey.startsWith('scanner_')) return this.i18n.t('settings.sections.scanner_engine');
         if (firstKey.startsWith('eol_')) return this.i18n.t('settings.sections.end_of_life');
-        if (firstKey.startsWith('sast_') || firstKey.startsWith('source_code')) return this.i18n.t('settings.sections.source_code');
+        if (firstKey.startsWith('sast_') || firstKey.startsWith('source_code'))
+            return this.i18n.t('settings.sections.source_code');
         if (firstKey.startsWith('enrichment_')) return this.i18n.t('settings.sections.enrichment');
         if (firstKey.startsWith('ai_review_')) return this.i18n.t('settings.sections.local_ai');
         if (firstKey.startsWith('ticket_')) return this.i18n.t('settings.sections.ticketing');
-        if (firstKey.startsWith('notification_') || firstKey.startsWith('webhook_')) return this.i18n.t('settings.sections.notifications');
+        if (firstKey.startsWith('notification_') || firstKey.startsWith('webhook_'))
+            return this.i18n.t('settings.sections.notifications');
         if (firstKey.startsWith('retention_')) return this.i18n.t('settings.sections.retention');
         return section.name;
     }

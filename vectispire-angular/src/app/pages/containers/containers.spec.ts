@@ -18,12 +18,12 @@ describe('the container list', () => {
     let http: HttpTestingController;
 
     const CONTAINER = asSchema('ContainerSummary', {
-            id: 3,
-            imageName: 'nginx',
-            reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-            tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-            openIssues: 12,
-            lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
+        id: 3,
+        imageName: 'nginx',
+        reference: 'nginx@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        tag: 'sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        openIssues: 12,
+        lastScan: { id: 18, status: 'completed', createdAt: '2026-08-21T05:03:00Z', error: null }
     });
 
     beforeEach(async () => {
@@ -116,7 +116,13 @@ describe('the container list', () => {
     });
 
     it('prefills the dialog from the row being edited, rather than from an empty form', () => {
-        load({ ...CONTAINER, registry: 'ghcr.io', scanIntervalMinutes: 60, scanCron: '0 3 * * *', requiredAgentLabel: 'linux-x64' });
+        load({
+            ...CONTAINER,
+            registry: 'ghcr.io',
+            scanIntervalMinutes: 60,
+            scanCron: '0 3 * * *',
+            requiredAgentLabel: 'linux-x64'
+        });
 
         fixture.componentInstance.openForm(fixture.componentInstance.containers()[0]);
 
@@ -165,7 +171,9 @@ describe('the container list', () => {
 
         http.expectOne((call) => call.method === 'PATCH').flush(
             // `detail`, which is where Spring's Problem Details puts the sentence — see `messageOf`.
-            { detail: 'Unusable cron expression: "nightly". Expected five fields, for example "0 2 * * *" (every day at 02:00).' },
+            {
+                detail: 'Unusable cron expression: "nightly". Expected five fields, for example "0 2 * * *" (every day at 02:00).'
+            },
             { status: 400, statusText: 'Bad Request' }
         );
         fixture.detectChanges();
@@ -182,7 +190,9 @@ describe('the container list', () => {
         fixture.componentInstance.submit();
 
         http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/containers').flush(
-            { detail: 'Unusable cron expression: "nightly". Expected five fields, for example "0 2 * * *" (every day at 02:00).' },
+            {
+                detail: 'Unusable cron expression: "nightly". Expected five fields, for example "0 2 * * *" (every day at 02:00).'
+            },
             { status: 400, statusText: 'Bad Request' }
         );
         fixture.detectChanges();

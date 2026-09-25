@@ -20,13 +20,38 @@ describe('the teams screen', () => {
     let http: HttpTestingController;
 
     const TEAM = asSchema('TeamSummary', {
-        id: 4, name: 'platform', description: null, memberCount: 1, targetCount: 2, notified: false
+        id: 4,
+        name: 'platform',
+        description: null,
+        memberCount: 1,
+        targetCount: 2,
+        notified: false
     });
 
     const ACCOUNTS = asSchema('UserListing', {
         users: [
-            { id: 1, username: 'admin', email: null, displayName: 'The Administrator', role: 'ADMIN', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 1 },
-            { id: 2, username: 'reader', email: null, displayName: null, role: 'USER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }
+            {
+                id: 1,
+                username: 'admin',
+                email: null,
+                displayName: 'The Administrator',
+                role: 'ADMIN',
+                isActive: true,
+                mustChangePassword: false,
+                createdAt: '2026-01-01T00:00:00Z',
+                activeSessions: 1
+            },
+            {
+                id: 2,
+                username: 'reader',
+                email: null,
+                displayName: null,
+                role: 'USER',
+                isActive: true,
+                mustChangePassword: false,
+                createdAt: '2026-01-01T00:00:00Z',
+                activeSessions: 0
+            }
         ]
     });
 
@@ -78,10 +103,12 @@ describe('the teams screen', () => {
         fixture.componentInstance.openAccess(TEAM);
 
         http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([2]);
-        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush(asSchemaList('TeamTargetAssignment', [
-            { kind: 'repository', id: 7 },
-            { kind: 'container', id: 3 }
-        ]));
+        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush(
+            asSchemaList('TeamTargetAssignment', [
+                { kind: 'repository', id: 7 },
+                { kind: 'container', id: 3 }
+            ])
+        );
 
         expect(fixture.componentInstance.selectedMembers).toEqual([2]);
         // Held as `kind:id` strings because that is what the picker's option values are.
@@ -125,8 +152,10 @@ describe('the teams screen', () => {
         page.saveAccess();
 
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/members').flush([2]);
-        http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/targets')
-            .flush({ message: 'nope' }, { status: 500, statusText: 'Server Error' });
+        http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/targets').flush(
+            { message: 'nope' },
+            { status: 500, statusText: 'Server Error' }
+        );
 
         // The dialog stays open and names the half that applied. "Could not save" would leave an
         // administrator to guess whether the membership change took effect — and it did.

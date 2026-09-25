@@ -28,12 +28,22 @@ describe('the attestation', () => {
         // "attestation.chain_broken" does not prove a reader would see anything at all.
         TestBed.inject(I18nService).translations.set({
             attestation: {
-                title: 'Attestation', established: 'État établi le', targets: 'cibles suivies',
-                download: 'Télécharger', recheck: 'Revérifier', open_audit_log: 'Journal',
-                chain_intact: "Chaîne d'audit intacte", chain_broken: "Chaîne d'audit rompue",
-                entries: 'entrées', verified: 'vérifiées', unverifiable: 'antérieures',
-                frameworks: 'Référentiels', frameworks_note: '', no_compliance: '',
-                bundle: 'Paquet', bundle_desc: ''
+                title: 'Attestation',
+                established: 'État établi le',
+                targets: 'cibles suivies',
+                download: 'Télécharger',
+                recheck: 'Revérifier',
+                open_audit_log: 'Journal',
+                chain_intact: "Chaîne d'audit intacte",
+                chain_broken: "Chaîne d'audit rompue",
+                entries: 'entrées',
+                verified: 'vérifiées',
+                unverifiable: 'antérieures',
+                frameworks: 'Référentiels',
+                frameworks_note: '',
+                no_compliance: '',
+                bundle: 'Paquet',
+                bundle_desc: ''
             }
         });
 
@@ -85,7 +95,7 @@ describe('the attestation', () => {
         fixture.detectChanges();
 
         const text = fixture.nativeElement.textContent;
-        expect(text).toContain('Chaîne d\'audit intacte');
+        expect(text).toContain("Chaîne d'audit intacte");
         expect(text).toContain('48219');
         expect(text).toContain('46');
     });
@@ -98,9 +108,9 @@ describe('the attestation', () => {
         fixture.detectChanges();
 
         const text = fixture.nativeElement.textContent;
-        expect(text).toContain('Chaîne d\'audit rompue');
+        expect(text).toContain("Chaîne d'audit rompue");
         expect(text).toContain('entry 41207 does not match its predecessor');
-        expect(text).not.toContain('Chaîne d\'audit intacte');
+        expect(text).not.toContain("Chaîne d'audit intacte");
     });
 
     it('orders the frameworks so two screenshots can be compared', () => {
@@ -110,17 +120,18 @@ describe('the attestation', () => {
 
         // Rendered in the fixed order, not in the server's: a grid whose columns move between two
         // loads does not compare with last month's printout.
-        expect(fixture.componentInstance.frameworks().map((f) => f.framework))
-            .toEqual(['NIS_2', 'PCI_DSS', 'SOC_2']);
+        expect(fixture.componentInstance.frameworks().map((f) => f.framework)).toEqual(['NIS_2', 'PCI_DSS', 'SOC_2']);
     });
 
     it('keeps the chain verdict when compliance cannot be read', () => {
         chain(true);
-        http.expectOne((c) => c.url === '/api/v1/compliance/summary')
-            .flush('nope', { status: 500, statusText: 'Server Error' });
+        http.expectOne((c) => c.url === '/api/v1/compliance/summary').flush('nope', {
+            status: 500,
+            statusText: 'Server Error'
+        });
         fixture.detectChanges();
 
-        expect(fixture.nativeElement.textContent).toContain('Chaîne d\'audit intacte');
+        expect(fixture.nativeElement.textContent).toContain("Chaîne d'audit intacte");
         expect(fixture.componentInstance.compliance()).toBeNull();
     });
 });

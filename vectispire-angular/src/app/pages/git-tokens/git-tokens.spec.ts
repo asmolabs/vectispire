@@ -39,8 +39,9 @@ describe('the HTTPS tokens screen', () => {
     });
 
     function list(tokens: unknown[] = [TOKEN]): void {
-        http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/git-tokens')
-            .flush(asSchemaList('GitTokenSummary', tokens));
+        http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/git-tokens').flush(
+            asSchemaList('GitTokenSummary', tokens)
+        );
         fixture.detectChanges();
     }
 
@@ -73,7 +74,12 @@ describe('the HTTPS tokens screen', () => {
         screen.submit();
 
         const request = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/git-tokens');
-        expect(request.request.body).toEqual({ name: 'gitlab-read', host: 'gitlab.example.com', username: undefined, token: 'glpat-secret' });
+        expect(request.request.body).toEqual({
+            name: 'gitlab-read',
+            host: 'gitlab.example.com',
+            username: undefined,
+            token: 'glpat-secret'
+        });
         request.flush(TOKEN);
         list();
 

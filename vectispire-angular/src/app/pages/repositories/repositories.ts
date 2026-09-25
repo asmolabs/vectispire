@@ -16,7 +16,13 @@ import { messageOf } from '../../core/api-error';
 import { TargetsApi } from '../../core/api/targets.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { ScorecardsApi } from '../../core/api/scorecards.api';
-import type { BadgeState, GitTokenSummary, MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
+import type {
+    BadgeState,
+    GitTokenSummary,
+    MonitoredRepository,
+    SecurityScorecard,
+    SshKeySummary
+} from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
@@ -82,7 +88,23 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
 @Component({
     selector: 'app-repositories',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, ButtonModule, CardModule, DialogModule, InputTextModule, MessageModule, DataViewModule, SelectModule, TagModule, LastScanTag, ScheduleFields, TranslatePipe, RuleCoverageBanner],
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        DialogModule,
+        InputTextModule,
+        MessageModule,
+        DataViewModule,
+        SelectModule,
+        TagModule,
+        LastScanTag,
+        ScheduleFields,
+        TranslatePipe,
+        RuleCoverageBanner
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './repositories.html'
 })
@@ -175,8 +197,12 @@ export class Repositories {
         const transport = urlTransport(this.form.url);
         return [
             { label: this.i18n.t('repositories.credential_none'), value: 'none' as const },
-            ...(transport !== 'https' ? [{ label: this.i18n.t('repositories.credential_ssh'), value: 'ssh' as const }] : []),
-            ...(transport !== 'ssh' ? [{ label: this.i18n.t('repositories.credential_https'), value: 'https' as const }] : [])
+            ...(transport !== 'https'
+                ? [{ label: this.i18n.t('repositories.credential_ssh'), value: 'ssh' as const }]
+                : []),
+            ...(transport !== 'ssh'
+                ? [{ label: this.i18n.t('repositories.credential_https'), value: 'https' as const }]
+                : [])
         ];
     }
 
@@ -212,7 +238,10 @@ export class Repositories {
         if (!this.credentialKinds().some((kind) => kind.value === this.form.credentialKind)) {
             this.form.credentialKind = 'none';
         }
-        if (this.form.httpsTokenId && !this.httpsTokenOptions().some((option) => option.value === this.form.httpsTokenId)) {
+        if (
+            this.form.httpsTokenId &&
+            !this.httpsTokenOptions().some((option) => option.value === this.form.httpsTokenId)
+        ) {
             this.form.httpsTokenId = '';
         }
     }
@@ -235,8 +264,7 @@ export class Repositories {
      * worker. The timer runs only while a scan in this list is unsettled, and stops by itself when
      * the last one has finished — an idle estate costs nothing.
      */
-    private readonly scanInFlight = computed(() =>
-        anyScanRunning(this.repositories().map((row) => row.lastScan)));
+    private readonly scanInFlight = computed(() => anyScanRunning(this.repositories().map((row) => row.lastScan)));
 
     constructor() {
         pollWhile(this.scanInFlight, () => this.reload());
@@ -327,8 +355,17 @@ export class Repositories {
                   tier: repository.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
             : {
-                  url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '',
-                  sshKeyId: '', credentialKind: 'none', httpsTokenId: '', tier: 'TIER_2_BUSINESS_OPERATIONAL'
+                  url: '',
+                  branch: 'main',
+                  name: '',
+                  subPath: '',
+                  requiredAgentLabel: '',
+                  scanIntervalMinutes: null,
+                  scanCron: '',
+                  sshKeyId: '',
+                  credentialKind: 'none',
+                  httpsTokenId: '',
+                  tier: 'TIER_2_BUSINESS_OPERATIONAL'
               };
         // A stored key beside an https:// URL predates the rule and would be refused on save; the
         // form shows "none" instead of a blank choice. The token is not checked here — the list of
@@ -375,7 +412,9 @@ export class Repositories {
         };
 
         this.saving.set(true);
-        const call = editing ? this.targetsApi.updateRepository(editing.id, body) : this.targetsApi.createRepository(body);
+        const call = editing
+            ? this.targetsApi.updateRepository(editing.id, body)
+            : this.targetsApi.createRepository(body);
         call.subscribe({
             next: () => {
                 this.saving.set(false);
@@ -387,7 +426,9 @@ export class Repositories {
                 this.saving.set(false);
                 // The server's message is the one that knows *why* — scheme refused, host
                 // missing. Replacing it with a generic "error" would lose that.
-                this.formError.set(messageOf(response, this.i18n.t(editing ? 'repositories.error_save' : 'repositories.error_add')));
+                this.formError.set(
+                    messageOf(response, this.i18n.t(editing ? 'repositories.error_save' : 'repositories.error_add'))
+                );
             }
         });
     }
@@ -475,7 +516,10 @@ export class Repositories {
         });
     }
 
-    getCicdSnippet(type: 'gitlab' | 'github' | 'bitbucket' | 'jenkins' | 'cli', repo: MonitoredRepository | null): string {
+    getCicdSnippet(
+        type: 'gitlab' | 'github' | 'bitbucket' | 'jenkins' | 'cli',
+        repo: MonitoredRepository | null
+    ): string {
         const repoId = repo?.id ?? 1;
         const origin = window.location.origin;
 
@@ -594,12 +638,16 @@ export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
     gradeSeverity(grade?: string): 'success' | 'warn' | 'danger' | 'secondary' {
         switch (grade) {
             case 'A_PLUS':
-            case 'A': return 'success';
+            case 'A':
+                return 'success';
             case 'B':
-            case 'C': return 'warn';
+            case 'C':
+                return 'warn';
             case 'D':
-            case 'F': return 'danger';
-            default: return 'secondary';
+            case 'F':
+                return 'danger';
+            default:
+                return 'secondary';
         }
     }
 }

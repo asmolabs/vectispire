@@ -55,8 +55,7 @@ describe('le registre des verdicts', () => {
     it('produces no refusal rate when the gate has never answered', async () => {
         await mount({ verdicts: [], passed: 0, refused: 0 });
 
-        expect(fixture.componentInstance.refusalRate())
-            .toBeNull();
+        expect(fixture.componentInstance.refusalRate()).toBeNull();
     });
 
     it('computes the rate over the total of answers', () => {

@@ -28,7 +28,16 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 @Component({
     selector: 'zs-security',
     standalone: true,
-    imports: [CommonModule, TableModule, TagModule, ButtonModule, MessageModule, RouterLink, TranslatePipe, RuleCoverageBanner],
+    imports: [
+        CommonModule,
+        TableModule,
+        TagModule,
+        ButtonModule,
+        MessageModule,
+        RouterLink,
+        TranslatePipe,
+        RuleCoverageBanner
+    ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './security.html'
 })
@@ -63,7 +72,9 @@ export class Security {
         // format, not a language, and `en-US` would swap day and month for the people reading
         // this.
         const at = new Date(`${value.replace(' ', 'T')}Z`);
-        return Number.isNaN(at.getTime()) ? value : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
+        return Number.isNaN(at.getTime())
+            ? value
+            : at.toLocaleString('fr-BE', { dateStyle: 'short', timeStyle: 'short' });
     }
 
     private readonly i18n = inject(I18nService);
@@ -110,4 +121,3 @@ export class Security {
         return target.kind === 'repository' ? { repository_id: target.targetId } : { container_id: target.targetId };
     }
 }
-

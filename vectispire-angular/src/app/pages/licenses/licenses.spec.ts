@@ -69,13 +69,35 @@ describe('the licence inventory screen', () => {
     /** Answers whatever the page asked for on this pass, and hands back the fixtures. */
     function settle(): void {
         http.match((call) => call.url === '/api/v1/repositories').forEach((call) =>
-            call.flush(asSchemaList('RepositorySummary', [{ id: 7, name: 'ours', displayName: 'Ours', url: 'ssh://git@example.invalid/ours.git', branch: 'main', openIssues: 0 }])));
+            call.flush(
+                asSchemaList('RepositorySummary', [
+                    {
+                        id: 7,
+                        name: 'ours',
+                        displayName: 'Ours',
+                        url: 'ssh://git@example.invalid/ours.git',
+                        branch: 'main',
+                        openIssues: 0
+                    }
+                ])
+            )
+        );
         http.match((call) => call.url === '/api/v1/containers').forEach((call) =>
-            call.flush(asSchemaList('ContainerSummary', [{ id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0 }])));
+            call.flush(
+                asSchemaList('ContainerSummary', [{ id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0 }])
+            )
+        );
         http.match((call) => call.url === '/api/v1/licenses/summary').forEach((call) => call.flush(SUMMARY));
         http.match((call) => call.url === '/api/v1/licenses/inventory').forEach((call) => call.flush(INVENTORY));
         http.match((call) => call.url === '/api/v1/licenses/policy').forEach((call) =>
-            call.flush(asSchema('LicensePolicy', { disallowedCategories: ['FORBIDDEN'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0'] })));
+            call.flush(
+                asSchema('LicensePolicy', {
+                    disallowedCategories: ['FORBIDDEN'],
+                    explicitlyAllowedLicenses: ['Apache-2.0'],
+                    explicitlyDisallowedLicenses: ['GPL-2.0']
+                })
+            )
+        );
         http.match((call) => call.url === '/api/v1/licenses/conflicts').forEach((call) => call.flush(CONFLICTS));
     }
 
@@ -89,7 +111,11 @@ describe('the licence inventory screen', () => {
         // A security lead: it is the role the server requires in order to write the policy, and the
         // screen must not offer the button to anybody else.
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'ciso', displayName: null, role: 'CISO', mustChangePassword: false, mfaEnabled: false
+            username: 'ciso',
+            displayName: null,
+            role: 'CISO',
+            mustChangePassword: false,
+            mfaEnabled: false
         });
 
         fixture = TestBed.createComponent(Licenses);
@@ -147,9 +173,9 @@ describe('the licence inventory screen', () => {
         // FORBIDDEN is absent from the fixture on purpose. Without the `?? 0` the sum renders as
         // `NaN` on a compliance figure, and dropping the second term under-reports the licences
         // that block a release.
-        const cards = Array.from(
-            (fixture.nativeElement as HTMLElement).querySelectorAll('.p-card .text-2xl')
-        ).map((node) => node.textContent?.trim());
+        const cards = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('.p-card .text-2xl')).map(
+            (node) => node.textContent?.trim()
+        );
 
         // Four headline cards: total, permissive, weak copyleft, then the sum. Read by position
         // rather than by colour class, so a restyle does not silently stop testing anything.
@@ -183,17 +209,21 @@ describe('the licence inventory screen', () => {
             explicitlyAllowedLicenses: ['Apache-2.0'],
             explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0']
         });
-        call.flush(asSchema('LicensePolicy', { disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0'] }));
+        call.flush(
+            asSchema('LicensePolicy', {
+                disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'],
+                explicitlyAllowedLicenses: ['Apache-2.0'],
+                explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0']
+            })
+        );
 
         expect(page.editingPolicy()).toBe(false);
-        expect(page.policy()?.disallowedCategories)
-            .toContain('STRONG_COPYLEFT');
+        expect(page.policy()?.disallowedCategories).toContain('STRONG_COPYLEFT');
 
         // **And the whole screen is reloaded.** Every row's compliance has just been recomputed by
         // the server; keeping the inventory as it stands would show yesterday's verdict under
         // today's policy.
-        expect(http.match((request) => request.url === '/api/v1/licenses/inventory'))
-            .toHaveLength(1);
+        expect(http.match((request) => request.url === '/api/v1/licenses/inventory')).toHaveLength(1);
         settle();
     });
 
@@ -212,8 +242,10 @@ describe('the licence inventory screen', () => {
         page.editPolicy();
         page.savePolicy();
 
-        http.expectOne((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy')
-            .flush({ message: 'Forbidden.' }, { status: 403, statusText: 'Forbidden' });
+        http.expectOne((request) => request.method === 'PUT' && request.url === '/api/v1/licenses/policy').flush(
+            { message: 'Forbidden.' },
+            { status: 403, statusText: 'Forbidden' }
+        );
 
         expect(page.editingPolicy()).toBe(true);
         expect(page.policyError()).toContain('Forbidden.');
@@ -221,7 +253,11 @@ describe('the licence inventory screen', () => {
 
     it('does not offer the edit to an account that governs nothing', async () => {
         TestBed.inject(SessionStore).open('a-token', {
-            username: 'reader', displayName: null, role: 'USER', mustChangePassword: false, mfaEnabled: false
+            username: 'reader',
+            displayName: null,
+            role: 'USER',
+            mustChangePassword: false,
+            mfaEnabled: false
         });
         fixture.detectChanges();
 

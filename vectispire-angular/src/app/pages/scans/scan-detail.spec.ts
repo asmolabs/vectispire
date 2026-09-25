@@ -154,17 +154,18 @@ describe('the scan detail', () => {
      * named first.
      */
     it('says an empty findings list may be an empty search', async () => {
-        await load({ ...DETAIL, findings: [], findingsTotal: 0 }, {
-            state: 'UNCONFIGURED',
-            languagesWithRules: [],
-            ecosystemsInEstate: ['maven'],
-            uncovered: ['maven'],
-            ruleFiles: 1
-        });
-
-        expect(fixture.nativeElement.textContent as string).toContain(
-            'Code analysis covers one pattern, in Python.'
+        await load(
+            { ...DETAIL, findings: [], findingsTotal: 0 },
+            {
+                state: 'UNCONFIGURED',
+                languagesWithRules: [],
+                ecosystemsInEstate: ['maven'],
+                uncovered: ['maven'],
+                ruleFiles: 1
+            }
         );
+
+        expect(fixture.nativeElement.textContent as string).toContain('Code analysis covers one pattern, in Python.');
     });
 
     it('stays quiet when the estate is covered, so the one that matters stays visible', async () => {

@@ -12,6 +12,6 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     imports: [CommonModule, ButtonModule, RippleModule, RouterModule, AppFloatingConfigurator, TranslatePipe],
     standalone: true,
     changeDetection: ChangeDetectionStrategy.Eager,
-    templateUrl: './error.html',
+    templateUrl: './error.html'
 })
 export class Error {}
