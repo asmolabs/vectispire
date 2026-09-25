@@ -9,6 +9,14 @@ configuration — ce qui est pourquoi une installation mono-machine fonctionne d
 **Les agents distants** sont des processus de travail séparés sur d'autres machines, parlant un
 protocole à quatre routes : `hello`, `jobs`, `heartbeat`, `result`.
 
+Deux durées le traversent, sous deux formes différentes, pour qui écrit un client d'après le
+contrat publié. `GET /api/v1/agent/jobs?wait=30` prend l'attente du long-poll en **secondes
+entières** — 0 par défaut, qui répond aussitôt, et tenue 30 au plus. Le `duration` du résultat
+est un **texte ISO-8601** (`"PT12.345S"`), le `format: duration` que déclare le contrat ; un nombre
+de secondes venant d'un agent plus ancien est encore accepté. Dans le résultat, `[]` signifie
+qu'une étape a tourné sans rien trouver, et `null` ou un champ absent qu'elle n'a pas tourné — d'où
+l'importance de la différence : seul le premier résout le stock de cette étape.
+
 Les deux exécutent le même code et renvoient tous deux la sortie brute des scanners pour que le
 plan de contrôle la normalise. Un résultat produit sur une autre machine est donc
 **indiscernable** d'un résultat local : mêmes lignes, même enrichissement, même politique de

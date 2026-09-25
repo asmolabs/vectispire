@@ -187,6 +187,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityQueryService` |
 | The backlog grouping took a column name as a string parameter | `Issues` |
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
+| No remote agent could hand back a result: `ScanArtifacts` is a record of `Optional`s, neither mapper registered Jackson 2's `jdk8` module, and every test of the protocol mocked the transport or sent `{}` | `AgentWireFormatTest`, `AgentResultWireTest` |
 | Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |
 
 ### Shapes chosen deliberately

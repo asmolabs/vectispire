@@ -37,6 +37,9 @@ public class VectispireAgentApplication {
     com.fasterxml.jackson.databind.ObjectMapper objectMapper() {
         return com.fasterxml.jackson.databind.json.JsonMapper.builder()
                 .addModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                // Without it the result — a record of Optionals — cannot be written at all; see
+                // AgentWireFormatTest.
+                .addModule(new com.fasterxml.jackson.datatype.jdk8.Jdk8Module())
                 .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .build();

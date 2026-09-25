@@ -9,6 +9,14 @@ configuration — which is why a single-machine install works out of the box.
 **Remote agents** are separate worker processes on other machines, speaking a four-route
 protocol: `hello`, `jobs`, `heartbeat`, `result`.
 
+Two durations cross it, in two different forms, for anyone writing a client against the
+published contract. `GET /api/v1/agent/jobs?wait=30` takes the long-poll wait as **whole
+seconds** — 0 by default, which answers at once, and held for at most 30. The result's `duration`
+is **ISO-8601 text** (`"PT12.345S"`), the `format: duration` the contract declares; a number of
+seconds from an older agent is still accepted. In the result, `[]` means a step ran and found
+nothing, and `null` or a missing field means it did not run — which is why the difference matters:
+only the first resolves that step's backlog.
+
 Both run the same code and both send back the scanners' raw output for the control plane to
 normalise. A result produced on another machine is therefore **indistinguishable** from a
 local one: same rows, same enrichment, same license policy, same reconciliation.

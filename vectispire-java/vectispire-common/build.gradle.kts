@@ -31,6 +31,11 @@ dependencies {
     // part of this module's surface. Spring Boot 4 auto-configures Jackson **3**, so nothing
     // registers this for us — see `CoreConfiguration.objectMapper`.
     api("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    // And its `Optional` module, for the same reason: `ScanArtifacts` is a record of `Optional`s
+    // because absent and empty mean different things (decision 0007), and Jackson 2 refuses an
+    // `Optional` without this module. Neither side registered it, so no remote agent could send a
+    // result and no control plane could read one — see `AgentResultWireTest`.
+    api("com.fasterxml.jackson.datatype:jackson-datatype-jdk8")
     implementation(libs.bouncycastle)
 
     // The Docker daemon API, for the scanning half. It reaches the agent too, which is

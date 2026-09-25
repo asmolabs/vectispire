@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
@@ -46,6 +47,11 @@ public class CoreConfiguration {
     ObjectMapper objectMapper() {
         return JsonMapper.builder()
                 .addModule(new JavaTimeModule())
+                // `Optional` read as absent-or-present, never refused. An agent's result is a
+                // record of them, and without this module Jackson 2 rejects the type outright: the
+                // remote protocol could carry no result at all, while every test that mocked the
+                // transport stayed green. `AgentResultWireTest` reads the agent's real output.
+                .addModule(new Jdk8Module())
                 // Instants as ISO-8601 text, never as an epoch number. The frontend parses dates
                 // and an auditor reads them; a number satisfies neither, and the default is a
                 // number.
