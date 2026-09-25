@@ -6150,7 +6150,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Framework identifier (e.g. NIS2, ISO-27001, CRA) */
+                /** @description Framework identifier, separators and case aside (e.g. NIS2, ISO-27001, EU_CRA) */
                 framework: string;
             };
             cookie?: never;
@@ -6345,6 +6345,15 @@ export interface operations {
             };
             /** @description The line is not a declaration: an unjustified exclusion, or external evidence naming nothing */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Declaration"];
+                };
+            };
+            /** @description The framework has no control of that identifier */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

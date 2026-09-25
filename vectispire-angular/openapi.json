@@ -7952,7 +7952,7 @@
         "description" : "Returns detailed conformity evaluation for a specific framework (e.g. NIS2, ISO_27001).",
         "operationId" : "framework",
         "parameters" : [ {
-          "description" : "Framework identifier (e.g. NIS2, ISO-27001, CRA)",
+          "description" : "Framework identifier, separators and case aside (e.g. NIS2, ISO-27001, EU_CRA)",
           "in" : "path",
           "name" : "framework",
           "required" : true,
@@ -8216,6 +8216,16 @@
               }
             },
             "description" : "The line is not a declaration: an unjustified exclusion, or external evidence naming nothing"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Declaration"
+                }
+              }
+            },
+            "description" : "The framework has no control of that identifier"
           }
         },
         "summary" : "Declare a control",
