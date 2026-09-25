@@ -3,16 +3,16 @@
     <p class="text-muted-color mb-4">{{ 'issues.subtitle' | translate }}</p>
 
     <div class="flex flex-wrap gap-3 mb-4">
-        <p-select [(ngModel)]="state" [options]="states()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="State" />
-        <p-select [(ngModel)]="severity" [options]="severities()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Severity" [showClear]="true" />
-        <p-select [(ngModel)]="type" [options]="types()" optionLabel="label" optionValue="value" (onChange)="reload(0)" placeholder="Type" [showClear]="true" />
+        <p-select [(ngModel)]="state" [options]="states()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.filter_state' | translate" />
+        <p-select [(ngModel)]="severity" [options]="severities()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.filter_severity' | translate" [showClear]="true" />
+        <p-select [(ngModel)]="type" [options]="types()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.col_type' | translate" [showClear]="true" />
         <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
-                  placeholder="Target" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
+                  [placeholder]="'issues.col_target' | translate" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
         <p-select [(ngModel)]="triageFilter" [options]="triageOptions()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
-                  placeholder="Triage" [showClear]="true" />
+                  [placeholder]="'issues.col_triage' | translate" [showClear]="true" />
         <p-iconfield>
             <p-inputicon class="pi pi-search" />
-            <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" placeholder="Identifier, package, file" />
+            <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" [placeholder]="'issues.search_placeholder' | translate" />
         </p-iconfield>
     </div>
 
@@ -29,7 +29,7 @@
         <div class="flex items-center gap-2">
             <p-toggleswitch inputId="filter-kev" [ngModel]="onlyKev"
                             (ngModelChange)="onlyKev = $event; reload(0)" />
-            <label for="filter-kev" class="m-0">Actively exploited (KEV)</label>
+            <label for="filter-kev" class="m-0">{{ 'issues.filter_kev_label' | translate }}</label>
         </div>
         <div class="flex items-center gap-2">
             <p-toggleswitch inputId="filter-overdue" [ngModel]="overdue"
@@ -39,7 +39,7 @@
                 this is not simply the age of the row. A label promising the wider set would make
                 the count on the dashboard look wrong.
             -->
-            <label for="filter-overdue" class="m-0">Past its deadline</label>
+            <label for="filter-overdue" class="m-0">{{ 'issues.filter_overdue' | translate }}</label>
         </div>
         <div class="flex items-center gap-2">
             <p-toggleswitch inputId="filter-unsettled" [ngModel]="unsettled"
@@ -53,11 +53,8 @@
             <p-toggleswitch inputId="filter-direct" [ngModel]="onlyDirect"
                             (ngModelChange)="onlyDirect = $event; reload(0)" />
             <label for="filter-direct" class="m-0">
-                Declared dependencies only
-                <span class="block text-muted-color text-sm">
-                    Hides transitive ones — and, on a target with no dependency graph, everything:
-                    an issue whose nature is unknown is not a direct one.
-                </span>
+                {{ 'issues.filter_direct' | translate }}
+                <span class="block text-muted-color text-sm">{{ 'issues.filter_direct_hint' | translate }}</span>
             </label>
         </div>
     </div>
@@ -80,9 +77,9 @@
                       size="small" (onClick)="openBulkTriage()" />
             <span class="text-muted-color text-sm">
                 @if (canApprove()) {
-                    One decision, written to every selected issue — or to none of them.
+                    {{ 'issues.bulk_hint_decide' | translate }}
                 } @else {
-                    Votre décision part en approbation : un référent sécurité ou un CISO la validera.
+                    {{ 'issues.bulk_hint_request' | translate }}
                 }
             </span>
         </div>
@@ -116,16 +113,16 @@
                 <th style="width: 3rem">
                     <!-- Selects the rows on screen, which is the page the server returned:
                          a "select all 228" would tick rows nobody has read. -->
-                    <p-tableHeaderCheckbox ariaLabel="Select every issue on this page" />
+                    <p-tableHeaderCheckbox [ariaLabel]="'issues.aria_select_page' | translate" />
                 </th>
-                <th>Issue</th>
-                <th>Type</th>
-                <th>Target</th>
-                <th>Severity</th>
-                <th>Component</th>
-                <th>History</th>
-                <th>Deadline</th>
-                <th>Triage</th>
+                <th>{{ 'issues.col_issue' | translate }}</th>
+                <th>{{ 'issues.col_type' | translate }}</th>
+                <th>{{ 'issues.col_target' | translate }}</th>
+                <th>{{ 'issues.filter_severity' | translate }}</th>
+                <th>{{ 'issues.component' | translate }}</th>
+                <th>{{ 'issues.col_history' | translate }}</th>
+                <th>{{ 'issues.col_deadline' | translate }}</th>
+                <th>{{ 'issues.col_triage' | translate }}</th>
                 <th></th>
             </tr>
         </ng-template>
@@ -142,23 +139,23 @@
                     </a>
                     @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
                     @if (issue.reachability === 'REACHABLE') {
-                        <p-tag severity="danger" value="⚡ REACHABLE" styleClass="ml-1" />
+                        <p-tag severity="danger" [value]="'issues.tag_reachable' | translate" styleClass="ml-1" />
                     } @else if (issue.reachability === 'UNREACHABLE') {
-                        <p-tag severity="success" value="🛡️ UNREACHABLE" styleClass="ml-1" />
+                        <p-tag severity="success" [value]="'issues.tag_unreachable' | translate" styleClass="ml-1" />
                     }
                     <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">{{ issue.filePath ?? '—' }}</div>
                 </td>
                 <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
                 <td>
                     <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
-                    <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? 'image' : 'repository' }}</div>
+                    <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? ('issues.kind_image' | translate) : ('issues.kind_repository' | translate) }}</div>
                 </td>
                 <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
                 <td>
                     <span>{{ issue.packageName ?? '—' }}</span>
                     @if (issue.packageVersion) { <span class="text-muted-color"> {{ issue.packageVersion }}</span> }
                 </td>
-                <td class="text-muted-color">seen {{ issue.timesSeen }}×</td>
+                <td class="text-muted-color">{{ 'issues.seen_times' | translate: { count: issue.timesSeen } }}</td>
                 <td>
                     <!--
                         Absent rather than "—" when no window applies: a severity with no deadline,
@@ -171,7 +168,7 @@
                 </td>
                 <td>
                     <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
-                    @if (issue.triagedBy) { <div class="text-muted-color text-sm">by {{ issue.triagedBy }}</div> }
+                    @if (issue.triagedBy) { <div class="text-muted-color text-sm">{{ 'issues.triaged_by' | translate: { name: issue.triagedBy } }}</div> }
                     <!--
                         The review date, which could be set and was displayed nowhere. An
                         acceptance nobody can see the end of is an acceptance nobody revisits —
@@ -179,7 +176,7 @@
                     -->
                     @if (issue.triageExpiresAt) {
                         <div class="text-sm mt-1" [class.text-orange-500]="reviewIsImminent(issue)">
-                            review {{ issue.triageExpiresAt | date: 'dd/MM/yyyy' }}
+                            {{ 'issues.review_on' | translate: { date: (issue.triageExpiresAt | date: 'dd/MM/yyyy') ?? '' } }}
                         </div>
                     }
                     <!--
@@ -223,7 +220,7 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="10" class="text-center text-muted-color py-6">No issue matches these filters.</td></tr>
+            <tr><td colspan="10" class="text-center text-muted-color py-6">{{ 'issues.empty_filtered' | translate }}</td></tr>
         </ng-template>
     </p-table>
     </div>
@@ -231,8 +228,8 @@
     <div class="flex items-center justify-between mt-4">
         <span class="text-muted-color">{{ pageLabel() }}</span>
         <div class="flex gap-2">
-            <p-button label="Previous" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
-            <p-button label="Next" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
+            <p-button [label]="'common.previous' | translate" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
+            <p-button [label]="'common.next' | translate" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
         </div>
     </div>
 </div>
@@ -247,13 +244,13 @@
         @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
             <div>
                 <label for="triage-justification" class="block font-medium mb-2">{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label>
-                <p-select inputId="triage-justification" [(ngModel)]="triageJustification" [options]="justifications()" optionLabel="label" optionValue="value" styleClass="w-full" placeholder="Choose" appendTo="body" />
-                <small class="text-muted-color">Required by the VEX standard: without it the exported statement would carry no information.</small>
+                <p-select inputId="triage-justification" [(ngModel)]="triageJustification" [options]="justifications()" optionLabel="label" optionValue="value" styleClass="w-full" [placeholder]="'issues.choose' | translate" appendTo="body" />
+                <small class="text-muted-color">{{ 'issues.justification_hint' | translate }}</small>
             </div>
         }
 
         <div>
-            <label for="triage-comment" class="block font-medium mb-2">Commentaire</label>
+            <label for="triage-comment" class="block font-medium mb-2">{{ 'issues.comment' | translate }}</label>
             <textarea id="triage-comment" pTextarea [(ngModel)]="triageComment" rows="3" class="w-full"></textarea>
         </div>
 
@@ -261,7 +258,7 @@
             <div>
                 <label for="triage-expires" class="block font-medium mb-2">{{ 'issues.triage_expires' | translate }}</label>
                 <input id="triage-expires" pInputText type="number" [(ngModel)]="triageExpiresInDays" class="w-full" />
-                <small class="text-muted-color">A decision is a statement about a context, and contexts change. Leave empty to schedule no review.</small>
+                <small class="text-muted-color">{{ 'issues.expires_hint' | translate }}</small>
             </div>
         }
 
@@ -365,7 +362,7 @@
                 @if (aiAdvice()!.remediation.cliCommand) {
                     <div class="relative bg-surface-900 text-emerald-300 font-mono text-xs p-3 rounded-lg overflow-x-auto mb-2">
                         <button (click)="copyText(aiAdvice()!.remediation.cliCommand)" class="absolute right-2 top-2 text-surface-400 hover:text-white text-xs bg-surface-800 px-2 py-1 rounded">
-                            <i class="pi pi-copy"></i> Copier
+                            <i class="pi pi-copy"></i> {{ 'common.copy' | translate }}
                         </button>
                         <pre class="whitespace-pre-wrap">{{ aiAdvice()!.remediation.cliCommand }}</pre>
                     </div>
