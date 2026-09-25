@@ -27,6 +27,8 @@ class VaultKmsProviderTest {
 
     private static class TestHttpSender extends PinnedHttpSender {
         PinnedHttpSender.Response nextResponse = new PinnedHttpSender.Response(200, "{}");
+        PinnedHttpSender.Response keyResponse = new PinnedHttpSender.Response(200, "{\"data\": {\"derived\": true}}");
+        final java.util.List<String> urls = new java.util.ArrayList<>();
 
         @Override
         public Response send(
@@ -35,7 +37,8 @@ class VaultKmsProviderTest {
                 String body,
                 Duration timeout,
                 String label) {
-            return nextResponse;
+            urls.add(destination.url());
+            return destination.url().contains("/keys/") ? keyResponse : nextResponse;
         }
     }
 
@@ -98,5 +101,27 @@ class VaultKmsProviderTest {
         Optional<String> decrypted = provider.decrypt(localEncrypted, "ctx:legacy");
         assertThat(decrypted).contains("legacy-secret");
     }
-}
 
+    @Test
+    @DisplayName("refuses to encrypt under a Transit key that is not derived, which would drop the row binding")
+    void aKeyThatIgnoresTheContextIsRefused() {
+        // Vault uses `context` only for derived keys and ignores it otherwise, silently: the
+        // promise that a ciphertext moved to another row does not decrypt was simply absent.
+        http.keyResponse = new PinnedHttpSender.Response(200, "{\"data\": {\"derived\": false}}");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> provider.encrypt("my-secret-token", "ctx:1"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("derived=true");
+        assertThat(http.urls).noneMatch(url -> url.contains("/encrypt/"));
+    }
+
+    @Test
+    @DisplayName("still decrypts what an ordinary key already holds, rather than locking the deployment out")
+    void existingCiphertextsStillDecrypt() {
+        http.keyResponse = new PinnedHttpSender.Response(200, "{\"data\": {\"derived\": false}}");
+        String b64Plain = Base64.getEncoder().encodeToString("kept".getBytes(StandardCharsets.UTF_8));
+        http.nextResponse = new PinnedHttpSender.Response(200, "{\"data\": {\"plaintext\": \"" + b64Plain + "\"}}");
+
+        assertThat(provider.decrypt("vault:v1:8d7f6e5a4b3c", "ctx:1")).contains("kept");
+    }
+}

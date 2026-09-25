@@ -26,6 +26,21 @@ Le moteur est lu depuis l'URL. Il n'y a pas de réglage de dialecte séparé.
 
 Voir [Rotation et purge](../administration/maintenance.md).
 
+### Garde des clés dans HashiCorp Vault
+
+`VECTISPIRE_ENCRYPTION_KMS_TYPE=vault` chiffre par le moteur Transit de Vault au lieu d'une clé locale,
+avec `VECTISPIRE_ENCRYPTION_VAULT_ENDPOINT`, `VECTISPIRE_ENCRYPTION_VAULT_TOKEN` (ou `…_TOKEN_FILE`),
+`VECTISPIRE_ENCRYPTION_VAULT_KEY_NAME` (par défaut `vectispire`) et `VECTISPIRE_ENCRYPTION_VAULT_MOUNT_PATH`
+(par défaut `transit`). Demander Vault sans point d'accès ou sans jeton arrête l'application plutôt que
+de se rabattre sur une clé locale.
+
+**La clé Transit doit être dérivée** : `vault write -f transit/keys/vectispire derived=true`. Chaque
+secret est chiffré avec la ligne à laquelle il appartient comme contexte, si bien qu'un chiffré déplacé
+vers une autre ligne ne se déchiffre pas — et Vault n'utilise ce contexte que sur une clé dérivée, il
+l'ignore sur une clé ordinaire. Vectispire lit la clé une fois et **refuse de chiffrer sous une clé non
+dérivée** ; ce qu'une telle clé détient déjà reste lisible, avec une erreur dans le journal, jusqu'à ce
+que les secrets soient enregistrés de nouveau sous une clé dérivée.
+
 ## Premier compte
 
 | Variable | Notes |

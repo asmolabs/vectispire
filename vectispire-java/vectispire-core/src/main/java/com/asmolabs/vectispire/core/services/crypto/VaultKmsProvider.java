@@ -27,7 +27,9 @@ public class VaultKmsProvider implements KmsProvider {
 
     private static final Logger log = LoggerFactory.getLogger(VaultKmsProvider.class);
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private static final String VAULT_PREFIX = "vault:";
+    /** What every Transit ciphertext starts with — and so what marks a stored value as encrypted. */
+    public static final String CIPHERTEXT_PREFIX = "vault:";
+    private static final String VAULT_PREFIX = CIPHERTEXT_PREFIX;
 
     private final String endpoint;
     private final String token;
@@ -37,6 +39,10 @@ public class VaultKmsProvider implements KmsProvider {
     private final OutboundUrlGuard guard;
     private final ObjectMapper json;
     private final KmsProvider fallbackProvider;
+
+    /** Null until Vault has answered; only a definite answer is kept. */
+    private volatile Boolean derivedKey;
+    private final java.util.concurrent.atomic.AtomicBoolean unboundReported = new java.util.concurrent.atomic.AtomicBoolean();
 
     public VaultKmsProvider(
             String endpoint,
@@ -69,6 +75,17 @@ public class VaultKmsProvider implements KmsProvider {
         }
         if (!isConfigured()) {
             throw new IllegalStateException("Vault KMS is not fully configured (missing endpoint or token).");
+        }
+
+        // **The context binds a ciphertext to its row only on a derived key.** Vault uses
+        // `context` for key derivation and ignores it otherwise, silently: on an ordinary Transit
+        // key the anti-relocation property SecretCipher promises — a ciphertext moved to another
+        // row does not decrypt — was simply absent, with nothing to say so. So nothing is written
+        // under a key that would drop it.
+        if (context != null && !context.isEmpty() && !keyIsDerived()) {
+            throw new IllegalStateException("Vault Transit key \"" + keyName + "\" is not a derived key, so Vault "
+                    + "would ignore the context that binds each secret to its row. Create the key with derived=true "
+                    + "(vault write -f " + mountPath + "/keys/" + keyName + " derived=true) and point Vectispire at it.");
         }
 
         String url = endpoint + "/v1/" + mountPath + "/encrypt/" + keyName;
@@ -114,6 +131,15 @@ public class VaultKmsProvider implements KmsProvider {
         }
 
         if (encrypted.startsWith(VAULT_PREFIX) && isConfigured()) {
+            // Reading stays possible under a key that is not derived: refusing would lock every
+            // existing deployment out of its own secrets, and Vault cannot convert a key. It is said
+            // once, loudly, because the binding those ciphertexts claim is not there.
+            if (context != null && !context.isEmpty() && Boolean.FALSE.equals(derivedKeyIfKnown())
+                    && unboundReported.compareAndSet(false, true)) {
+                log.error("Vault Transit key \"{}\" is not derived: the ciphertexts it holds are not bound to their "
+                        + "rows, and one moved to another row would still decrypt. Nothing new is encrypted under it; "
+                        + "re-save the secrets after switching to a key created with derived=true.", keyName);
+            }
             String url = endpoint + "/v1/" + mountPath + "/decrypt/" + keyName;
             try {
                 OutboundUrlGuard.Destination destination =
@@ -151,6 +177,39 @@ public class VaultKmsProvider implements KmsProvider {
             return fallbackProvider.decrypt(encrypted, context);
         }
         return Optional.empty();
+    }
+
+    /** Whether the Transit key derives per context, asked of Vault once. */
+    private boolean keyIsDerived() {
+        Boolean known = derivedKeyIfKnown();
+        if (known == null) {
+            throw new IllegalStateException("Vault KMS: could not read the Transit key \"" + keyName
+                    + "\" to check that it is derived.");
+        }
+        return known;
+    }
+
+    private Boolean derivedKeyIfKnown() {
+        if (derivedKey != null || !isConfigured()) {
+            return derivedKey;
+        }
+        try {
+            OutboundUrlGuard.Destination destination = guard.validateAndResolve(
+                    endpoint + "/v1/" + mountPath + "/keys/" + keyName, OutboundPolicy.INTERNAL_ALLOWED, "Vault KMS");
+            PinnedHttpSender.Response response =
+                    http.send(destination, Map.of("X-Vault-Token", token), null, TIMEOUT, "Vault KMS key");
+            if (response.status() == 200) {
+                JsonNode derived = json.readTree(response.body()).path("data").path("derived");
+                if (derived.isBoolean()) {
+                    derivedKey = derived.asBoolean();
+                }
+            } else {
+                log.warn("Vault KMS: reading key \"{}\" returned HTTP {}.", keyName, response.status());
+            }
+        } catch (Exception unreadable) {
+            log.warn("Vault KMS: could not read key \"{}\": {}", keyName, unreadable.getMessage());
+        }
+        return derivedKey;
     }
 
     @Override

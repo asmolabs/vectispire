@@ -137,6 +137,19 @@ public class EncryptionService {
     }
 
     /**
+     * Whether a stored value is a ciphertext of either kind this service writes.
+     *
+     * <p>Only {@code v2:} was recognised, so with Vault every {@code vault:v1:…} read as a legacy
+     * clear value: the tracker got the ciphertext as its bearer token, and the inbound webhook
+     * compared presented tokens against the ciphertext — which anyone holding a backup could then
+     * present, while the real tracker was refused.
+     */
+    public static boolean isCiphertext(String stored) {
+        return stored != null
+                && (stored.startsWith(SecretCipher.FORMAT_PREFIX) || stored.startsWith(VaultKmsProvider.CIPHERTEXT_PREFIX));
+    }
+
+    /**
      * Reads a stored credential, tolerating one written before it was encrypted.
      *
      * <p><b>Why the tolerance exists, and why it is not silent.</b> The generic settings route used
@@ -158,7 +171,7 @@ public class EncryptionService {
         if (value.isEmpty()) {
             return "";
         }
-        if (!value.startsWith(SecretCipher.FORMAT_PREFIX)) {
+        if (!isCiphertext(value)) {
             log.warn("{} is stored in the clear — it predates encryption, or was written through a route that did "
                     + "not encrypt it. It still works. Save it again from the settings screen to encrypt it.", label);
             return value;

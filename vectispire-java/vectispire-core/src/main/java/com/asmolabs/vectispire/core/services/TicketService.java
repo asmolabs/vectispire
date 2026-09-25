@@ -119,7 +119,7 @@ public class TicketService {
         if (stored.isEmpty()) {
             return new WebhookSecret.Absent();
         }
-        if (!stored.startsWith(SecretCipher.FORMAT_PREFIX)) {
+        if (!EncryptionService.isCiphertext(stored)) {
             // Legacy clear value: still the secret, and readSecret says so at warn.
             return new WebhookSecret.Present(
                     encryption.readSecret(stored, WEBHOOK_SECRET_CONTEXT, "The inbound webhook secret"));

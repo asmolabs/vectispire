@@ -167,4 +167,18 @@ class TicketServiceTest {
                 eq("https://gitlab.example.com/api/v4/projects/team%2Fservice/issues/105"),
                 any(), any(), anyString(), any());
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a Vault ciphertext is never taken for a legacy clear value")
+    void aVaultCiphertextIsNotPlaintext() {
+        // Only "v2:" was recognised: a Vault ciphertext went out as the tracker's bearer token and
+        // was compared as the webhook secret — which anyone with a backup could then present.
+        when(settings.get(Setting.TICKET_WEBHOOK_SECRET)).thenReturn("vault:v1:8d7f6e5a4b3c");
+        when(settings.get(Setting.TICKET_TOKEN)).thenReturn("vault:v1:8d7f6e5a4b3c");
+
+        assertThat(service.webhookSecret()).isInstanceOf(TicketService.WebhookSecret.Unreadable.class);
+        assertThat(EncryptionService.isCiphertext("vault:v1:x")).isTrue();
+        assertThat(EncryptionService.isCiphertext("v2:x")).isTrue();
+        assertThat(EncryptionService.isCiphertext("glpat-plain")).isFalse();
+    }
 }

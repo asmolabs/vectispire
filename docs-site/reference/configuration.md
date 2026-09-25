@@ -26,6 +26,20 @@ The engine is read from the URL. There is no separate dialect setting.
 
 See [Rotation and purge](../administration/maintenance.md).
 
+### Key custody in HashiCorp Vault
+
+`VECTISPIRE_ENCRYPTION_KMS_TYPE=vault` encrypts through Vault's Transit engine instead of a local key,
+with `VECTISPIRE_ENCRYPTION_VAULT_ENDPOINT`, `VECTISPIRE_ENCRYPTION_VAULT_TOKEN` (or `…_TOKEN_FILE`),
+`VECTISPIRE_ENCRYPTION_VAULT_KEY_NAME` (default `vectispire`) and `VECTISPIRE_ENCRYPTION_VAULT_MOUNT_PATH`
+(default `transit`). Asking for Vault without an endpoint or a token stops the application rather than
+falling back to a local key.
+
+**The Transit key must be derived**: `vault write -f transit/keys/vectispire derived=true`. Every secret
+is encrypted with the row it belongs to as its context, so a ciphertext moved to another row does not
+decrypt — and Vault uses that context only on a derived key, ignoring it on an ordinary one. Vectispire
+reads the key once and **refuses to encrypt under a key that is not derived**; what such a key already
+holds can still be read, with an error in the log, until the secrets are saved again under a derived key.
+
 ## First account
 
 | Variable | Notes |
