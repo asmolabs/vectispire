@@ -14,8 +14,9 @@ Or use the shipped integrations rather than writing the request by hand:
 - [`ci/github-action/action.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/github-action/action.yml) — a GitHub composite action;
 - [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — a GitLab template.
 
-All three need `VECTISPIRE_API_KEY` in the job environment, from an
-[API key](../administration/api-keys.md) with the right scope.
+All three need `VECTISPIRE_URL` and `VECTISPIRE_TOKEN` in the job environment. The token is an
+[API key](../administration/api-keys.md) with the `scan` scope — asking for a verdict counts as
+scanning — preferably restricted to the one target the pipeline gates.
 
 ## The verdict names its policy
 

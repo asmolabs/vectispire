@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -34,11 +35,10 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
     /**
      * The narrowing the credential itself carries.
      *
-     * <p><b>Today no credential carries one</b>: a session answers everything and leaves the
-     * narrowing to the account, and an agent key is issued unrestricted — the API keys screen
-     * refuses a target restriction, because no key it issues reaches a route that would read it.
-     * The field stays, and every read route keeps passing it, so that a credential which does
-     * narrow one day is intersected everywhere at once instead of route by route.
+     * <p>A session answers everything and leaves the narrowing to the account; an agent key is
+     * issued unrestricted; an integration key carries the target it was restricted to (decision
+     * 0024). Every read route passes it, so the key's narrowing is intersected everywhere at once
+     * instead of route by route.
      *
      * <p>On the principal rather than fetched by whoever needs it, because "whoever needs it" is
      * every read route and one of them would eventually not. It arrives already resolved from
@@ -46,18 +46,52 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
      */
     private final transient Visibility credentialRestriction;
 
+    /** The integration key the request came with, when it came with one (decision 0024). */
+    private final transient ApiKeyAuthService.Integration integration;
+
     private VectispirePrincipal(
             UserEntity user,
             SessionEntity session,
             AgentEntity agent,
             Visibility credentialRestriction,
             Collection<? extends GrantedAuthority> authorities) {
+        this(user, session, agent, credentialRestriction, authorities, null);
+    }
+
+    private VectispirePrincipal(
+            UserEntity user,
+            SessionEntity session,
+            AgentEntity agent,
+            Visibility credentialRestriction,
+            Collection<? extends GrantedAuthority> authorities,
+            ApiKeyAuthService.Integration integration) {
         super(authorities);
         this.user = user;
         this.session = session;
         this.agent = agent;
         this.credentialRestriction = credentialRestriction;
+        this.integration = integration;
         setAuthenticated(true);
+    }
+
+    /**
+     * An integration key, acting for its account (decision 0024).
+     *
+     * <p>The account's role is the authority, so the role markers keep deciding what the key may do
+     * within the routes that accept a key at all — which {@code CredentialConfinement} decides. No
+     * session: nothing about a key belongs to a browser.
+     */
+    public static VectispirePrincipal ofIntegration(ApiKeyAuthService.Integration integration) {
+        Role role = Role.of(integration.owner().getRole()).orElse(null);
+        List<GrantedAuthority> authorities = role == null
+                ? List.of()
+                : List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
+        return new VectispirePrincipal(
+                integration.owner(), null, null, integration.restriction(), authorities, integration);
+    }
+
+    public Optional<ApiKeyAuthService.Integration> integration() {
+        return Optional.ofNullable(integration);
     }
 
     public static VectispirePrincipal ofUser(UserEntity user, SessionEntity session) {
@@ -131,8 +165,33 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         return this;
     }
 
+    /**
+     * The width of the audit log's and the gate register's actor columns. A username alone may
+     * already fill it, so the key's name is what gives way first — the account is the authority,
+     * and a truncated key name still tells the reader a key was used.
+     */
+    static final int ACTOR_WIDTH = 255;
+
+    static String attribution(String username, String keyName) {
+        String full = username + " (API key " + keyName + ")";
+        if (full.length() <= ACTOR_WIDTH) {
+            return full;
+        }
+        String withoutName = username + " (API key …)";
+        if (withoutName.length() <= ACTOR_WIDTH) {
+            int room = ACTOR_WIDTH - withoutName.length();
+            return username + " (API key " + keyName.substring(0, room) + "…)";
+        }
+        return username.substring(0, ACTOR_WIDTH - " (API key …)".length()) + " (API key …)";
+    }
+
     @Override
     public String getName() {
+        if (integration != null) {
+            // The account, and the key beside it: every write the key makes is the account's, and
+            // the audit entry must still say which credential made it.
+            return attribution(user.getUsername(), integration.keyName());
+        }
         if (user != null) {
             return user.getUsername();
         }

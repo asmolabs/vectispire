@@ -1,27 +1,41 @@
 # Clés d'API
 
-Émises depuis l'interface, pour des machines plutôt que pour des personnes. Une barrière CI
-s'authentifie avec une clé ; un agent distant aussi.
+Émises depuis l'interface, pour des machines plutôt que pour des personnes : une barrière CI, un job
+SonarQube ou Jenkins, un script qui exporte un SBOM. Un agent distant a aussi une clé, mais elle est
+créée avec l'agent, pas ici.
+
+## Une clé agit pour un compte
+
+Une clé appartient au compte qui l'a émise et **agit pour ce compte** : elle voit ce que le compte
+voit, et chaque écriture qu'elle fait est consignée dans le [journal d'audit](audit-log.md) sous la
+forme `alice (API key ci)` — le compte, et la clé à côté. Désactivez le compte et ses clés cessent
+de fonctionner avec lui. Une clé émise avant que les clés aient un propriétaire est listée
+*aucun compte — inactive* et ne s'authentifie nulle part : révoquez-la et émettez-en une autre.
 
 ## Portées
 
-Une clé porte une portée, et la portée est toute l'histoire côté sécurité. La portée `agent`
-est celle à comprendre : elle permet à un processus d'interroger la file de travaux et d'y
-poster des résultats, et **rien d'autre** — en particulier, aucun accès à la base de données.
+Une clé ne passe ensuite que sur les routes qui acceptent une clé, et seulement avec une portée
+qu'elle détient :
 
-Donnez à une barrière CI une clé capable de demander un verdict. Elle n'a pas besoin d'une clé
-capable d'enregistrer des cibles.
+| Portée | Permet |
+|---|---|
+| `read` | lister et lire dépôts, conteneurs, scans, issues, verdicts de barrière et synthèse de conformité |
+| `scan` | déclencher le scan d'un dépôt ou d'un conteneur, et demander un verdict à la [barrière CI](../integrations/ci-gate.md) |
+| `export` | documents SBOM, VEX, CSAF et CycloneDX, PDF et dossier de preuves de conformité, exports |
+
+Tout le reste — administration, triage, réglages, utilisateurs — refuse une clé avec `403`, quel que
+soit le rôle du compte. C'est le but : la clé d'un administrateur utilisée par un pipeline n'est pas
+un administrateur.
+
+Donnez à une barrière CI une clé `scan`, et rien de plus.
 
 ![Quatre clés : une sans restriction, une limitée à un dépôt, une clé d'agent jamais utilisée, et une expirée.](../assets/screens/fr/api-keys.png)
 
-## Pas de restriction à une cible
+## Limiter une clé à une cible
 
-Une clé ne peut pas être limitée à un dépôt ou à un conteneur : en émettre une est refusé avec
-`400`. Ces clés étaient acceptées et listées avec le nom de leur cible, et ne restreignaient rien —
-les seules clés qui s'authentifient sont celles des agents, émises sans restriction à la
-déclaration de l'agent, et le protocole des agents ne lit aucune visibilité. Restreignez ce que les
-personnes voient avec les [équipes](users-and-teams.md). Une clé émise restreinte avant ce
-changement garde son libellé dans la liste et ne s'authentifie toujours nulle part.
+Une clé peut être limitée à un dépôt ou à un conteneur. Elle ne voit alors que cette cible, dans ce
+que son compte voit : une restriction rétrécit, elle n'élargit jamais. Une cible qui n'existe pas, ou
+que le compte ne voit pas, est refusée à l'émission.
 
 ## Affichée une seule fois
 
@@ -32,13 +46,22 @@ Mettez-la directement dans votre coffre à secrets. Si elle est perdue, révoque
 émettez-en une autre — c'est une opération de deux minutes, alors qu'une clé collée dans une
 fenêtre de discussion pour s'en épargner est une opération permanente.
 
-## En-têtes d'authentification
+## Présenter une clé
 
 | En-tête | Pour |
 |---|---|
-| `Authorization: Bearer …` | une session utilisateur (JWT) |
-| `X-API-Key` | une clé d'API |
-| `X-Agent-Key` | un agent distant |
+| `Authorization: Bearer zsk_…` | une clé — la forme à préférer |
+| `X-API-Key: zsk_…` | la même clé, pour un client qui ne peut pas poser `Authorization` ; lu seulement en l'absence d'`Authorization` |
+
+Un jeton de session n'est jamais accepté dans `X-API-Key`. Chaque clé dispose d'un budget de
+requêtes par minute (`VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE`, 600 par défaut) ; au-delà, la réponse
+est `429` avec `Retry-After`, pour qu'un job qui boucle ralentisse au lieu de charger le plan de
+contrôle.
+
+```bash
+curl -fsS -H "Authorization: Bearer $VECTISPIRE_TOKEN" \
+  "$VECTISPIRE_URL/api/v1/issues?repository_id=12"
+```
 
 ## Révoquer
 
@@ -50,7 +73,7 @@ dans le [journal d'audit](audit-log.md).
 
 ```yaml
 env:
-  VECTISPIRE_API_KEY: ${{ secrets.VECTISPIRE_API_KEY }}
+  VECTISPIRE_TOKEN: ${{ secrets.VECTISPIRE_TOKEN }}
 ```
 
 Jamais dans le dépôt, jamais dans la définition du job. Voir

@@ -415,7 +415,7 @@ export interface paths {
         put?: never;
         /**
          * User login
-         * @description Authenticates user by credentials and issues a JWT session bearer token or an MFA challenge.
+         * @description Authenticates user by credentials and issues a session bearer token or an MFA challenge.
          */
         post: operations["login"];
         delete?: never;
@@ -567,7 +567,7 @@ export interface paths {
         put?: never;
         /**
          * Exchange SSO hand-off cookie for session
-         * @description Trades temporary SSO callback cookie for a full JWT session.
+         * @description Trades temporary SSO callback cookie for a full session.
          */
         post: operations["exchange"];
         delete?: never;
@@ -2813,6 +2813,7 @@ export interface components {
             /** Format: date-time */
             lastUsedAt?: string;
             name?: string;
+            owner?: string;
             prefix?: string;
             scopes?: string[];
             /** Format: int64 */
@@ -6008,7 +6009,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description MFA verified, JWT session issued */
+            /** @description MFA verified, session issued */
             200: {
                 headers: {
                     [name: string]: unknown;

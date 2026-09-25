@@ -1,16 +1,24 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
 import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,11 +39,58 @@ public class ApiKeyAuthService {
     private final ApiKeysRepository keys;
     private final Agents agents;
     private final Clock clock;
+    private final Users users;
 
-    public ApiKeyAuthService(ApiKeysRepository keys, Agents agents, Clock clock) {
+    public ApiKeyAuthService(ApiKeysRepository keys, Agents agents, Clock clock, Users users) {
         this.keys = keys;
         this.agents = agents;
         this.clock = clock;
+        this.users = users;
+    }
+
+    /**
+     * What an integration key stands for (decision 0024).
+     *
+     * @param owner the active account it acts for — its role applies, and its visibility
+     * @param restriction the key's own narrowing, intersected with the account's by every route
+     */
+    public record Integration(
+            UserEntity owner, UUID keyId, String keyName, Set<ApiKeyScope> scopes, Visibility restriction) {}
+
+    /**
+     * The account and narrowing an integration key carries, or empty when it carries none.
+     *
+     * <p>Empty for an agent's key (those are resolved to their agent), for a key issued before keys
+     * had an owner, and for a key whose account is gone or deactivated: a key must not outlive the
+     * account whose authority it borrows.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Integration> integrationFor(ApiKeyEntity key) {
+        if (hasScope(key, ApiKeyScope.AGENT) || key.getOwnerUserId() == null) {
+            return Optional.empty();
+        }
+        Set<ApiKeyScope> scopes = EnumSet.noneOf(ApiKeyScope.class);
+        for (ApiKeyScope scope : ApiKeyScope.values()) {
+            if (scope != ApiKeyScope.AGENT && hasScope(key, scope)) {
+                scopes.add(scope);
+            }
+        }
+        return users.findById(key.getOwnerUserId())
+                .filter(UserEntity::getIsActive)
+                .map(owner -> new Integration(owner, key.getId(), key.getName(), Set.copyOf(scopes), restrictionOf(key)));
+    }
+
+    /** Everything when unrestricted; otherwise the one target the key was issued for. */
+    private static Visibility restrictionOf(ApiKeyEntity key) {
+        if (key.getTargetKind() == null || key.getTargetId() == null) {
+            return Visibility.everything();
+        }
+        return switch (key.getTargetKind()) {
+            case "repository" -> Visibility.only(List.of(new ScanTarget.Repository(key.getTargetId())));
+            case "container" -> Visibility.only(List.of(new ScanTarget.Container(key.getTargetId())));
+            // A kind nobody wrote is a key nobody understands: it sees nothing, never everything.
+            default -> Visibility.only(List.of());
+        };
     }
 
     /**

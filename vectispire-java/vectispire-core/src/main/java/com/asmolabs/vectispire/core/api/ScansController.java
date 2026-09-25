@@ -1,10 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.ScanQueryService;
 import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.asmolabs.vectispire.core.services.VisibilityService;
@@ -96,6 +98,7 @@ public class ScansController {
 
     @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
     @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
     public List<ScanSummary> list(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -111,6 +114,7 @@ public class ScansController {
 
     @Operation(summary = "Get scan detail", description = "Returns full details and raw findings observed during a specific scan.")
     @ApiResponse(responseCode = "200", description = "Scan details retrieved successfully")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping("/{id}")
     public ScanDetail detail(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -153,6 +157,7 @@ public class ScansController {
             // discovering the parse fails. The generated CycloneDX-with-VEX document is a
             // different endpoint: /api/v1/cyclonedx.
             description = "Syft native JSON SBOM document, exactly as the cataloguer produced it")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping(value = "/{id}/sbom", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> sbom(
             @AuthenticationPrincipal VectispirePrincipal principal,

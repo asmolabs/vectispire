@@ -35,7 +35,7 @@ class ApiKeyAuthServiceTest {
     @BeforeEach
     void wire() {
         keys = mock(ApiKeysRepository.class);
-        service = new ApiKeyAuthService(keys, mock(Agents.class), Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new ApiKeyAuthService(keys, mock(Agents.class), Clock.fixed(NOW, ZoneOffset.UTC), mock(com.asmolabs.vectispire.core.repositories.Users.class));
         issued = ApiKeys.generate();
         when(keys.findByPrefix(anyString())).thenReturn(List.of());
     }

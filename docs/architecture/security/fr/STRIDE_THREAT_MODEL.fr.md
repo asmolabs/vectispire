@@ -73,7 +73,7 @@ flowchart TB
 
 | Catégorie STRIDE | Scénario de Menace / Vecteur d'Attaque | Impact Potentiel | Mesure de Contrôle & Mitigation Implémentée |
 |---|---|---|---|
-| **Spoofing** | Usurpation de session utilisateur par vol de cookie JWT ou attaque par force brute sur l'endpoint `/api/v1/auth/login`. | Accès non autorisé au dashboard d'administration, falsification des triages VEX. | Mots de passe hachés en **Argon2id** (coût mémoire élevé), suivi des tentatives dans `t_login_attempt` avec blocage automatique, sessions chiffrées en DB (`t_session`). |
+| **Spoofing** | Usurpation de session utilisateur par vol du jeton de session opaque (bearer) ou attaque par force brute sur l'endpoint `/api/v1/auth/login`. | Accès non autorisé au dashboard d'administration, falsification des triages VEX. | Mots de passe hachés en **Argon2id** (coût mémoire élevé), suivi des tentatives dans `t_login_attempt` avec blocage automatique, sessions chiffrées en DB (`t_session`). |
 | **Repudiation** | Un utilisateur modifie la qualification d'une vulnérabilité critique en `NOT_AFFECTED` puis nie en être l'auteur. | Absence de responsabilité et impossibilité d'imputer la validation d'un risque. | Enregistrement obligatoire du `user_id`, horodatage ISO et écriture immuable dans `t_issue_triage_event` et dans le journal scellé `t_audit_log`. |
 | **Elevation of Privilege** | Un utilisateur au rôle restreint tente d'accéder aux fonctionnalités d'administration ou de gestion des clés. | Contournement du contrôle d'accès basé sur les rôles (RBAC). | Contrôle de sécurité strict Spring Security `@PreAuthorize` et validation du champ `role` (`ROLE_ADMIN` vs `ROLE_USER`) sur chaque endpoint sensible. |
 

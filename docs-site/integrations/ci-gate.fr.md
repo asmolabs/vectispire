@@ -15,8 +15,9 @@ Ou utilisez les intégrations livrées plutôt que d'écrire la requête à la m
 - [`ci/github-action/action.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/github-action/action.yml) — une action composite GitHub ;
 - [`ci/gitlab/vectispire-gate.gitlab-ci.yml`](https://github.com/asmolabs/vectispire/blob/main/ci/gitlab/vectispire-gate.gitlab-ci.yml) — un modèle GitLab.
 
-Les trois demandent `VECTISPIRE_API_KEY` dans l'environnement du job, issue d'une
-[clé d'API](../administration/api-keys.md) avec la bonne portée.
+Les trois demandent `VECTISPIRE_URL` et `VECTISPIRE_TOKEN` dans l'environnement du job. Le jeton
+est une [clé d'API](../administration/api-keys.md) de portée `scan` — demander un verdict compte
+comme analyser — de préférence limitée à la seule cible que le pipeline contrôle.
 
 ## Le verdict nomme sa politique
 

@@ -41,6 +41,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     private final LoginRateLimitFilter rateLimit;
     private final BearerRateLimitFilter bearerRateLimit;
     private final PasswordChangeInterceptor passwordChange;
+    private final CredentialConfinement credentialConfinement;
     private final AuditLogService audit;
 
     /** @see #apiSecurity — default closed, and the reason is written there. */
@@ -51,6 +52,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             LoginRateLimitFilter rateLimit,
             BearerRateLimitFilter bearerRateLimit,
             PasswordChangeInterceptor passwordChange,
+            CredentialConfinement credentialConfinement,
             AuditLogService audit,
             @org.springframework.beans.factory.annotation.Value(
                     "${vectispire.security.anonymous-api-docs:false}") boolean anonymousApiDocs) {
@@ -58,6 +60,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
         this.rateLimit = rateLimit;
         this.bearerRateLimit = bearerRateLimit;
         this.passwordChange = passwordChange;
+        this.credentialConfinement = credentialConfinement;
         this.audit = audit;
         this.anonymousApiDocs = anonymousApiDocs;
     }
@@ -80,6 +83,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(passwordChange);
+        registry.addInterceptor(credentialConfinement);
     }
 
     /**

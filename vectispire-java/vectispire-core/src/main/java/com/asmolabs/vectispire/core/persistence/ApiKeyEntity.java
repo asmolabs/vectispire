@@ -55,6 +55,10 @@ public class ApiKeyEntity {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    /** The account an integration key acts for (decision 0024); null for an agent's key and old keys. */
+    @Column(name = "owner_user_id")
+    private Long ownerUserId;
+
     public UUID getId() {
         return id;
     }
@@ -133,5 +137,13 @@ public class ApiKeyEntity {
 
     public void setExpiresAt(Instant expiresAt) {
         this.expiresAt = expiresAt;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 }

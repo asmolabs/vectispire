@@ -72,7 +72,7 @@ flowchart TB
 
 | STRIDE Category | Threat Scenario / Attack Vector | Potential Impact | Implemented Control & Mitigation |
 |---|---|---|---|
-| **Spoofing** | User session impersonation via JWT cookie theft or brute-force on `/api/v1/auth/login`. | Unauthorized admin dashboard access, falsification of VEX triage. | Passwords hashed with **Argon2id** (high memory cost), attempt tracking in `t_login_attempt` with rate limiting, encrypted DB sessions (`t_session`). |
+| **Spoofing** | User session impersonation by theft of the opaque session bearer token, or brute-force on `/api/v1/auth/login`. | Unauthorized admin dashboard access, falsification of VEX triage. | Passwords hashed with **Argon2id** (high memory cost), attempt tracking in `t_login_attempt` with rate limiting, encrypted DB sessions (`t_session`). |
 | **Repudiation** | User changing a critical vulnerability triage to `NOT_AFFECTED` then denying having performed the action. | Lack of accountability in risk sign-off. | Mandatory recording of `user_id`, ISO timestamp, and immutable writing to `t_issue_triage_event` and `t_audit_log`. |
 | **Elevation of Privilege** | Restricted user attempting to access admin endpoints or credential management. | Bypassing Role-Based Access Control (RBAC). | Spring Security `@PreAuthorize` annotations and strict role verification (`ROLE_ADMIN` vs `ROLE_USER`) on sensitive endpoints. |
 

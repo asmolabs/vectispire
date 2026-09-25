@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
@@ -78,6 +80,7 @@ public class IssuesController {
             String comment,
             @JsonProperty("expires_in_days") Integer expiresInDays) {}
 
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
     public IssueQueryService.IssuePage list(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -120,6 +123,7 @@ public class IssuesController {
      * and a second definition of an issue drifts from the first the day a column is added. What
      * is added here is what needs a query of its own — where it was seen, and what was decided.
      */
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping("/{id}")
     public IssueQueryService.IssueDetail detail(
             @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long id) {

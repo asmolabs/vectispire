@@ -141,6 +141,11 @@ vectispire:
     bearer-failures-per-window: ${VECTISPIRE_BEARER_FAILURES_PER_WINDOW:60}
     bearer-failure-window: ${VECTISPIRE_BEARER_FAILURE_WINDOW:PT5M}
 
+    # **A budget per integration API key**, on successful requests this time (decision 0024). A key
+    # acts for an account from a machine that may loop: a pipeline retried in a tight loop, or a
+    # leaked key, should hit a 429 with Retry-After rather than the database.
+    api-key-requests-per-minute: ${VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE:600}
+
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}
     idle-lifetime: ${VECTISPIRE_SESSION_IDLE:60m}

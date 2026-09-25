@@ -121,6 +121,8 @@
     "expires_placeholder": "90 (leave empty for never)",
     "issue_btn": "Issue a key",
     "last_used": "Last used",
+    "owner": "Acts for",
+    "no_owner": "No account — inactive",
     "modal_title": "Issue an API key",
     "name": "Name",
     "name_label": "Name",

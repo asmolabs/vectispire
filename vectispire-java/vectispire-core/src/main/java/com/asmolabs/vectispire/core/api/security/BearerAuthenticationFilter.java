@@ -23,10 +23,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Turns one {@code Authorization: Bearer …} header into whoever is behind it.
  *
- * <p>Supports user session tokens, agent API keys, and SCIM 2.0 provisioning tokens.
+ * <p>Supports user session tokens, agent API keys, integration API keys (decision 0024, also in
+ * {@code X-API-Key}) and SCIM 2.0 provisioning tokens.
  */
 @Component
 public class BearerAuthenticationFilter extends OncePerRequestFilter {
+
+    /** The header an integration may present its key in, instead of {@code Authorization}. */
+    public static final String API_KEY_HEADER = "X-API-Key";
 
     private final AuthService auth;
     private final ApiKeyAuthService apiKeys;
@@ -56,8 +60,15 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-            authenticate(header, pathWithinApplication(request)).ifPresent(principal ->
-                    SecurityContextHolder.getContext().setAuthentication(principal));
+            Optional<VectispirePrincipal> principal = authenticate(header, pathWithinApplication(request));
+            if (principal.isEmpty() && header == null) {
+                // `X-API-Key`, the alias the OpenAPI document has always announced. A key only:
+                // a session token or the SCIM token presented there is not looked at.
+                principal = Optional.ofNullable(request.getHeader(API_KEY_HEADER))
+                        .filter(value -> !value.isBlank())
+                        .flatMap(this::apiKeyPrincipal);
+            }
+            principal.ifPresent(found -> SecurityContextHolder.getContext().setAuthentication(found));
         }
         chain.doFilter(request, response);
     }
@@ -94,13 +105,20 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
-        return token.flatMap(apiKeys::resolve)
-                .filter(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT))
+        return token.flatMap(this::apiKeyPrincipal);
+    }
+
+    /**
+     * An agent's key becomes its agent; an integration key becomes its account, narrowed by the key
+     * (decision 0024). Either way the principal reaches only the routes that declare it — see
+     * {@code CredentialConfinement}.
+     */
+    private Optional<VectispirePrincipal> apiKeyPrincipal(String token) {
+        return apiKeys.resolve(token).flatMap(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT)
                 // No credential restriction: the agent protocol reads no visibility, and an agent's
-                // key is issued unrestricted — see VisibilityService.of(AgentEntity). The key's
-                // target columns used to be resolved here into a narrowing nothing downstream read.
-                .flatMap(key -> apiKeys.agentFor(key)
-                        .map(agent -> VectispirePrincipal.ofAgent(agent, visibility.of(agent))));
+                // key is issued unrestricted — see VisibilityService.of(AgentEntity).
+                ? apiKeys.agentFor(key).map(agent -> VectispirePrincipal.ofAgent(agent, visibility.of(agent)))
+                : apiKeys.integrationFor(key).map(VectispirePrincipal::ofIntegration));
     }
 
     /** The path the application routes on, without the servlet context it may be deployed under. */

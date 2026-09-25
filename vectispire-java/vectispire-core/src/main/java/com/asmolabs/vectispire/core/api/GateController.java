@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.asmolabs.vectispire.common.domain.gate.PolicyFlag;
@@ -8,28 +9,29 @@ import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.gate.SeverityRequest;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.services.GateRegisterService;
 import com.asmolabs.vectispire.core.services.GateService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.List;
-import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.services.GateRegisterService;
-import java.time.Instant;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The gate: should this build fail?
@@ -104,6 +106,7 @@ public class GateController {
      */
     @Operation(summary = "Evaluate security quality gate", description = "Evaluates current target vulnerabilities against active or requested gate policy. Returns exit verdict and violations.")
     @ApiResponse(responseCode = "200", description = "Gate verdict evaluated")
+    @AcceptsApiKey(ApiKeyScope.SCAN)
     @PostMapping("/gate")
     public GateResponse evaluate(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -206,6 +209,7 @@ public class GateController {
      */
     @Operation(summary = "Gate verdict register", description = "The gate's recent answers, newest first, narrowed to what the caller may see.")
     @ApiResponse(responseCode = "200", description = "Register returned")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping("/gate/verdicts")
     public VerdictRegister register(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -251,10 +255,8 @@ public class GateController {
      * register is read by a person months later, and a row naming {@code 41} tells them nothing.
      */
     private static String callerName(VectispirePrincipal principal) {
-        return principal.user()
-                .map(user -> user.getUsername())
-                .or(() -> principal.agent().map(agent -> "agent:" + agent.getName()))
-                .orElse(null);
+        // getName: an integration key reads "account (API key name)", as it does in the audit log.
+        return principal.user().isPresent() || principal.agent().isPresent() ? principal.getName() : null;
     }
 
     /** Every target's posture — what the security screen shows. */

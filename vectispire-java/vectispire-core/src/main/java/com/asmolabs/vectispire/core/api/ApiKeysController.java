@@ -47,6 +47,7 @@ public class ApiKeysController {
             String targetKind,
             Long targetId,
             String targetLabel,
+            String owner,
             Instant createdAt,
             Instant lastUsedAt,
             Instant expiresAt,
@@ -80,7 +81,8 @@ public class ApiKeysController {
 
         ApiKeyAdministrationService.Issued issued = administration.issue(
                 new ApiKeyAdministrationService.Request(
-                        body.name(), body.scopes(), body.targetKind(), body.targetId(), body.expiresInDays()),
+                        body.name(), body.scopes(), body.targetKind(), body.targetId(), body.expiresInDays(),
+                        principal.requireUser().getId()),
                 RequestActors.of(principal, request));
         return new IssuedKey(summaryOf(issued.key()), issued.secret());
     }
@@ -113,6 +115,7 @@ public class ApiKeysController {
                 key.targetKind(),
                 key.targetId(),
                 key.targetLabel(),
+                key.owner(),
                 key.createdAt(),
                 key.lastUsedAt(),
                 key.expiresAt(),

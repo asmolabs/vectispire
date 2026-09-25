@@ -121,6 +121,8 @@
     "expires_placeholder": "90 (laisser vide pour illimité)",
     "issue_btn": "Émettre une clé",
     "last_used": "Dernière utilisation",
+    "owner": "Agit pour",
+    "no_owner": "Aucun compte — inactive",
     "modal_title": "Émettre une clé API",
     "name": "Nom",
     "name_label": "Nom",

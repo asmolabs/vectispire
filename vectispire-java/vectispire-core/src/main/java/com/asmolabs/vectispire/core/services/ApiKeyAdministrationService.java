@@ -5,16 +5,20 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +34,14 @@ public class ApiKeyAdministrationService {
     private final TargetNaming naming;
     private final AuditLogService audit;
     private final Clock clock;
+    private final Users users;
+    private final VisibilityService visibility;
+
+    /**
+     * Narrower than the column: the name is written beside the account's in every audit entry the
+     * key causes, and that column is 255 wide too.
+     */
+    private static final int MAX_NAME_LENGTH = 100;
 
     public ApiKeyAdministrationService(
             ApiKeysRepository keys,
@@ -37,18 +49,24 @@ public class ApiKeyAdministrationService {
             Containers containers,
             TargetNaming naming,
             AuditLogService audit,
-            Clock clock) {
+            Clock clock,
+            Users users,
+            VisibilityService visibility) {
         this.keys = keys;
         this.repositories = repositories;
         this.containers = containers;
         this.naming = naming;
         this.audit = audit;
         this.clock = clock;
+        this.users = users;
+        this.visibility = visibility;
     }
 
     /**
      * A key as it may be shown: never its hash.
      *
+     * @param owner the account the key acts for; null for a key issued before keys had one, which
+     *     authenticates nowhere any more and is shown so it can be revoked
      * @param expired computed here and not on the screen: an expired key is refused by the
      *     server, and two notions of "expired" would eventually disagree by a timezone
      */
@@ -60,12 +78,15 @@ public class ApiKeyAdministrationService {
             String targetKind,
             Long targetId,
             String targetLabel,
+            String owner,
             Instant createdAt,
             Instant lastUsedAt,
             Instant expiresAt,
             boolean expired) {}
 
-    public record Request(String name, List<String> scopes, String targetKind, Long targetId, Integer expiresInDays) {}
+    /** @param ownerUserId the account the key will act for — the one issuing it (decision 0024) */
+    public record Request(
+            String name, List<String> scopes, String targetKind, Long targetId, Integer expiresInDays, Long ownerUserId) {}
 
     /** @param secret the only occurrence of the plaintext */
     public record Issued(KeyView key, String secret) {}
@@ -77,8 +98,10 @@ public class ApiKeyAdministrationService {
     public List<KeyView> list() {
         Instant asOf = clock.instant();
         TargetNaming.Names names = naming.all();
+        Map<Long, String> owners = new HashMap<>();
+        users.findAll().forEach(user -> owners.put(user.getId(), user.getUsername()));
         return keys.findAllByOrderByCreatedAtDesc().stream()
-                .map(key -> viewOf(key, asOf, names))
+                .map(key -> viewOf(key, asOf, names, owners))
                 .toList();
     }
 
@@ -94,18 +117,25 @@ public class ApiKeyAdministrationService {
         if (name.isEmpty()) {
             throw new IllegalArgumentException("A name is required.");
         }
+        if (name.length() > MAX_NAME_LENGTH) {
+            throw new InvalidApiKeyException("A key's name is at most " + MAX_NAME_LENGTH + " characters.");
+        }
 
         List<ApiKeyScope> scopes = ApiKeys.normalizeScopes(request.scopes());
         Optional<Period> lifetime = ApiKeys.normalizeLifetime(request.expiresInDays());
-        if (normalizeTargetKind(request) != null) {
-            // **Refused rather than stored.** A key restricted to one target was accepted, listed
-            // with its target's name, and restricted nothing: the only keys that authenticate
-            // anywhere are an agent's own, issued unrestricted by the agent declaration, and the
-            // agent protocol reads no visibility. A key issued here never reaches a route that
-            // could narrow it, so the restriction was a promise with no reader. Saying so beats
-            // storing it — a restriction somebody believes in is worse than none.
-            throw new InvalidApiKeyException("A key cannot be restricted to a target: no route an API key "
-                    + "reaches would enforce it. Issue it unrestricted, or grant the target to a team instead.");
+        if (scopes.contains(ApiKeyScope.AGENT)) {
+            // An agent's key is created with the agent, which binds it to that agent. Issued here
+            // it would belong to nobody and authenticate nowhere.
+            throw new InvalidApiKeyException("The agent scope is not issued here: declare the agent, which creates its key.");
+        }
+        if (request.ownerUserId() == null) {
+            throw new IllegalStateException("An integration key is issued by an account, which it will act for.");
+        }
+        // The restriction is enforced again (decision 0024): the key acts for its account, narrowed
+        // to this target, on the routes that accept a key.
+        String targetKind = normalizeTargetKind(request);
+        if (targetKind != null) {
+            requireIssuerSees(request.ownerUserId(), targetKind, request.targetId());
         }
 
         ApiKeys.IssuedKey issued = ApiKeys.generate();
@@ -118,12 +148,18 @@ public class ApiKeyAdministrationService {
         key.setScopes(String.join(",", scopes.stream().map(ApiKeyScope::wireName).toList()));
         key.setCreatedAt(issuedAt);
         key.setExpiresAt(lifetime.map(issuedAt::plus).orElse(null));
+        key.setOwnerUserId(request.ownerUserId());
+        key.setTargetKind(targetKind);
+        key.setTargetId(targetKind == null ? null : request.targetId());
 
         ApiKeyEntity saved = keys.save(key);
         record(actor, AuditOperation.API_KEY_CREATED, saved.getId().toString(),
                 "API key issued: " + name + " (" + saved.getScopes() + ")");
 
-        return new Issued(viewOf(saved, issuedAt, naming.all()), issued.fullKey());
+        Map<Long, String> owner = users.findById(saved.getOwnerUserId())
+                .map(user -> Map.of(user.getId(), user.getUsername()))
+                .orElse(Map.of());
+        return new Issued(viewOf(saved, issuedAt, naming.all(), owner), issued.fullKey());
     }
 
     public void revoke(UUID id, RequestActor actor) {
@@ -151,10 +187,33 @@ public class ApiKeyAdministrationService {
     }
 
     /**
+     * A restriction names a target that exists and that its account can see.
+     *
+     * <p>Not a hole otherwise — the account's visibility is intersected with the restriction when
+     * the key is used — but a key restricted to nothing it can reach would pass issuance and then
+     * list nothing, silently. Absent and hidden get the same answer, or issuing a key becomes a way
+     * to probe which identifiers exist.
+     */
+    private void requireIssuerSees(Long ownerUserId, String targetKind, Long targetId) {
+        ScanTarget target = "repository".equals(targetKind)
+                ? new ScanTarget.Repository(targetId)
+                : new ScanTarget.Container(targetId);
+        boolean exists = "repository".equals(targetKind)
+                ? repositories.existsById(targetId)
+                : containers.existsById(targetId);
+        boolean visible = exists && users.findById(ownerUserId)
+                .map(owner -> visibility.of(owner).permits(target))
+                .orElse(false);
+        if (!visible) {
+            throw new InvalidApiKeyException("No " + targetKind + " " + targetId + " to restrict the key to.");
+        }
+    }
+
+    /**
      * Empty for an unrestricted key; refused when the kind and the identifier disagree.
      *
-     * <p>Still parsed although every restriction is now refused, so a malformed request keeps its
-     * own message instead of being told about a feature it did not ask for.
+     * <p>Kind and identifier are both required: a kind alone would be read as "everything of that
+     * kind", which is not a restriction.
      */
     private static String normalizeTargetKind(Request request) {
         String kind = request.targetKind() == null ? "" : request.targetKind().trim().toLowerCase(Locale.ROOT);
@@ -170,7 +229,7 @@ public class ApiKeyAdministrationService {
         return kind;
     }
 
-    private static KeyView viewOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names) {
+    private static KeyView viewOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names, Map<Long, String> owners) {
         return new KeyView(
                 key.getId(),
                 key.getName(),
@@ -181,6 +240,7 @@ public class ApiKeyAdministrationService {
                 key.getTargetKind(),
                 key.getTargetId(),
                 targetLabel(key, names),
+                key.getOwnerUserId() == null ? null : owners.get(key.getOwnerUserId()),
                 key.getCreatedAt(),
                 key.getLastUsedAt(),
                 key.getExpiresAt(),

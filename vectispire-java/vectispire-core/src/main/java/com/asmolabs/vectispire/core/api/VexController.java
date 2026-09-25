@@ -1,21 +1,24 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.ScanDocumentService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.IssueDecisionService;
+import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VexGeneratorService;
 import com.asmolabs.vectispire.core.services.VexIngestorService;
-import com.asmolabs.vectispire.core.services.IssueDecisionService;
+import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
-import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * REST controller exposing standardized OpenVEX v0.2.0 documents and handling multi-format VEX ingestion.
@@ -49,6 +51,7 @@ public class VexController {
         this.visibility = visibility;
     }
 
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/scans/{scanId}/openvex.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OpenVexDocument> getScanVex(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -62,6 +65,7 @@ public class VexController {
                 .body(doc);
     }
 
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<OpenVexDocument> getAggregateVex(
             @AuthenticationPrincipal VectispirePrincipal principal) {

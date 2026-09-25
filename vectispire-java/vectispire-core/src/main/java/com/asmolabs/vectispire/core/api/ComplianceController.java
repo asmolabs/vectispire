@@ -1,20 +1,22 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.ComplianceService;
 import com.asmolabs.vectispire.core.services.ComplianceExportService;
+import com.asmolabs.vectispire.core.services.ComplianceService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
-import jakarta.servlet.http.HttpServletRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -48,6 +50,7 @@ public class ComplianceController {
 
     @Operation(summary = "Get compliance summary", description = "Returns compliance scores across all regulatory frameworks.")
     @ApiResponse(responseCode = "200", description = "Compliance summary evaluated successfully")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping("/summary")
     public ComplianceService.ComplianceSummary summary(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -58,6 +61,7 @@ public class ComplianceController {
 
     @Operation(summary = "Get framework compliance details", description = "Returns detailed conformity evaluation for a specific framework (e.g. NIS2, ISO_27001).")
     @ApiResponse(responseCode = "200", description = "Framework evaluation details")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping("/frameworks/{framework}")
     public ComplianceEvaluation framework(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -69,6 +73,7 @@ public class ComplianceController {
 
     @Operation(summary = "Export compliance PDF report", description = "Generates an executive PDF compliance audit report.")
     @ApiResponse(responseCode = "200", description = "Generated PDF report document")
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -95,6 +100,7 @@ public class ComplianceController {
     // obtain by export what they were refused by route. It is also a compliance officer's
     // artifact by nature: signed, dated, and meant for somebody outside the team.
     @RequiresGovernanceRead
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/evidence-bundle.zip", produces = "application/zip")
     public ResponseEntity<byte[]> exportEvidenceBundle(
             @AuthenticationPrincipal VectispirePrincipal principal,

@@ -16,9 +16,6 @@ import { messageOf } from '../../core/api-error';
 import { AccountsApi } from '../../core/api/accounts.api';
 import type { ApiKeySummary, ApiKeyTargets } from '../../core/api.models';
 
-/** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
- *  grants the right to execute code. */
-
 /** One side of the target list, or nothing at all: a missing or non-array side means that kind of
  *  target simply is not offered, which is the degraded-but-usable state the form expects. */
 function optionsOf(rows: { id: number; label: string }[] | undefined, prefix: string, kind: string) {
@@ -52,6 +49,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 export class ApiKeys {
     private readonly i18n = inject(I18nService);
     private readonly accountsApi = inject(AccountsApi);
+    /** The scopes, with what they allow — because "scan" and "agent" look alike and one of the two
+     *  grants the right to execute code. */
     readonly scopes = computed(() => {
         this.i18n.translations();
         return [
@@ -77,6 +76,10 @@ export class ApiKeys {
             }
         ];
     });
+
+    /** The agent scope is listed so an agent's key reads right, but not offered: an agent's key is
+     *  created with the agent, and the server refuses to issue one here. */
+    readonly issuableScopes = computed(() => this.scopes().filter((scope) => scope.value !== 'agent'));
 
     readonly keys = signal<ApiKeySummary[]>([]);
     /** Kept raw: the prefixes are translated at render time, so a language switch relabels them. */

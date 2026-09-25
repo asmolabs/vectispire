@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.ExportQueryService;
@@ -45,6 +47,7 @@ public class ExportsController {
      * <p>What takes a finding out of the dashboard and puts it on the merge request that
      * introduced it.
      */
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping("/issues.sarif")
     public ResponseEntity<SarifLog> sarif(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -59,6 +62,7 @@ public class ExportsController {
     }
 
     /** The triage decisions as OpenVEX; the caller may name the author. */
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping("/vex")
     public ResponseEntity<OpenVexDocument> vex(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -80,6 +84,7 @@ public class ExportsController {
     /**
      * The triage decisions as OASIS CSAF 2.0 (VEX profile).
      */
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping("/issues.csaf.json")
     public ResponseEntity<CsafDocument> csaf(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -101,6 +106,7 @@ public class ExportsController {
      * <p>The other exports go to machines — a code host, a downstream consumer, a spreadsheet.
      * This one goes to an auditor or a steering committee.
      */
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping("/posture.pdf")
     public ResponseEntity<byte[]> pdf(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -116,6 +122,7 @@ public class ExportsController {
                 .body(document);
     }
 
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping("/issues.csv")
     public ResponseEntity<String> csv(
             @AuthenticationPrincipal VectispirePrincipal principal,

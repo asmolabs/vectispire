@@ -70,6 +70,20 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, error.getMessage());
     }
 
+    /** A key or an agent credential on a route that did not invite it (decision 0024). */
+    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.CredentialNotAcceptedException.class)
+    ProblemDetail credentialNotAccepted(com.asmolabs.vectispire.core.api.security.CredentialNotAcceptedException error) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+    }
+
+    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.ApiKeyRateLimitedException.class)
+    org.springframework.http.ResponseEntity<ProblemDetail> apiKeyRateLimited(
+            com.asmolabs.vectispire.core.api.security.ApiKeyRateLimitedException error) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", String.valueOf(Math.max(1, error.retryAfter().toSeconds())))
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage()));
+    }
+
     /**
      * The caller is authenticated and owes a password change.
      *

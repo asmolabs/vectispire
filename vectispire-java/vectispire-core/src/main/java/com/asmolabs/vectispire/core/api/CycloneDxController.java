@@ -1,17 +1,19 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.CycloneDxGeneratorService;
 import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.asmolabs.vectispire.core.services.CycloneDxGeneratorService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +39,7 @@ public class CycloneDxController {
         this.visibility = visibility;
     }
 
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/scans/{scanId}/cyclonedx-vex.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CycloneDxDocument> getScanCycloneDx(
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -50,6 +53,7 @@ public class CycloneDxController {
                 .body(doc);
     }
 
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
     @GetMapping(value = "/aggregate.json", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CycloneDxDocument> getAggregateCycloneDx(
             @AuthenticationPrincipal VectispirePrincipal principal) {

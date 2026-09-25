@@ -21,7 +21,6 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfiguration {
 
     public static final String BEARER_AUTH = "BearerAuth";
-    public static final String AGENT_KEY_AUTH = "AgentKeyAuth";
     public static final String API_KEY_AUTH = "ApiKeyAuth";
 
     /**
@@ -66,18 +65,15 @@ public class OpenApiConfiguration {
                                 .name(BEARER_AUTH)
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
-                                .bearerFormat("JWT")
-                                .description("JWT Session Bearer token obtained via /api/v1/auth/login"))
-                        .addSecuritySchemes(AGENT_KEY_AUTH, new SecurityScheme()
-                                .name("X-Agent-Key")
-                                .type(SecurityScheme.Type.APIKEY)
-                                .in(SecurityScheme.In.HEADER)
-                                .description("Pre-shared authentication key for remote scanning agents"))
+                                .description("An opaque token: a session from /api/v1/auth/login, an integration API key"
+                                        + " (zsk_…, acting for the account that issued it, on the routes that accept a key),"
+                                        + " or an agent's key on the agent routes."))
                         .addSecuritySchemes(API_KEY_AUTH, new SecurityScheme()
                                 .name("X-API-Key")
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)
-                                .description("Programmatic API Key for CI/CD and automation integrations")))
+                                .description("The same integration API key, for clients that cannot set Authorization."
+                                        + " Read only when Authorization is absent, and never for a session.")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
     }
 }

@@ -27,9 +27,12 @@ public final class RequestActors {
 
     /** Attributed to the signed-in account, or to {@code fallback} when there is none. */
     public static RequestActor of(VectispirePrincipal principal, HttpServletRequest request, String fallback) {
+        // An integration key writes in its account's name with the key named beside it (decision 0024).
         String username = principal == null
                 ? fallback
-                : principal.user().map(UserEntity::getUsername).orElse(fallback);
+                : principal.integration().isPresent()
+                        ? principal.getName()
+                        : principal.user().map(UserEntity::getUsername).orElse(fallback);
         return named(username, request);
     }
 

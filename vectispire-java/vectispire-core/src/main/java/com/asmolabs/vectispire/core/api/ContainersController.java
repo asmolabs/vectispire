@@ -1,22 +1,24 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.core.api.RepositoriesController.LastScan;
 import com.asmolabs.vectispire.core.api.RepositoriesController.QueuedScan;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.services.ContainerAdministrationService;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Listed;
+import com.asmolabs.vectispire.core.services.ContainerAdministrationService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,6 +71,7 @@ public class ContainersController {
             @JsonProperty("required_agent_label") String requiredAgentLabel,
             String tier) {}
 
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
     public List<ContainerSummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         return inventory.list(allowed(principal)).stream()
@@ -127,6 +130,7 @@ public class ContainersController {
     }
 
     @RequiresAdministrator
+    @AcceptsApiKey(ApiKeyScope.SCAN)
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
             @PathVariable long id,

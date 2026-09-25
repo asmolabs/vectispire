@@ -347,6 +347,9 @@
           "name" : {
             "type" : "string"
           },
+          "owner" : {
+            "type" : "string"
+          },
           "prefix" : {
             "type" : "string"
           },
@@ -6835,21 +6838,14 @@
       }
     },
     "securitySchemes" : {
-      "AgentKeyAuth" : {
-        "description" : "Pre-shared authentication key for remote scanning agents",
-        "in" : "header",
-        "name" : "X-Agent-Key",
-        "type" : "apiKey"
-      },
       "ApiKeyAuth" : {
-        "description" : "Programmatic API Key for CI/CD and automation integrations",
+        "description" : "The same integration API key, for clients that cannot set Authorization. Read only when Authorization is absent, and never for a session.",
         "in" : "header",
         "name" : "X-API-Key",
         "type" : "apiKey"
       },
       "BearerAuth" : {
-        "bearerFormat" : "JWT",
-        "description" : "JWT Session Bearer token obtained via /api/v1/auth/login",
+        "description" : "An opaque token: a session from /api/v1/auth/login, an integration API key (zsk_…, acting for the account that issued it, on the routes that accept a key), or an agent's key on the agent routes.",
         "name" : "BearerAuth",
         "scheme" : "bearer",
         "type" : "http"
@@ -7633,7 +7629,7 @@
     },
     "/api/v1/auth/login" : {
       "post" : {
-        "description" : "Authenticates user by credentials and issues a JWT session bearer token or an MFA challenge.",
+        "description" : "Authenticates user by credentials and issues a session bearer token or an MFA challenge.",
         "operationId" : "login",
         "requestBody" : {
           "content" : {
@@ -7805,7 +7801,7 @@
                 }
               }
             },
-            "description" : "MFA verified, JWT session issued"
+            "description" : "MFA verified, session issued"
           }
         },
         "summary" : "Verify MFA challenge",
@@ -7825,7 +7821,7 @@
     },
     "/api/v1/auth/session/exchange" : {
       "post" : {
-        "description" : "Trades temporary SSO callback cookie for a full JWT session.",
+        "description" : "Trades temporary SSO callback cookie for a full session.",
         "operationId" : "exchange",
         "responses" : {
           "200" : {

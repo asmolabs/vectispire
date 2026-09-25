@@ -18,6 +18,7 @@
                 <th>{{ 'api_keys.prefix' | translate }}</th>
                 <th>{{ 'api_keys.scopes' | translate }}</th>
                 <th>{{ 'api_keys.target' | translate }}</th>
+                <th>{{ 'api_keys.owner' | translate }}</th>
                 <th>{{ 'api_keys.last_used' | translate }}</th>
                 <th>{{ 'api_keys.expiration' | translate }}</th>
                 <th class="w-1"></th>
@@ -42,6 +43,13 @@
                         <span class="text-sm">{{ key.targetLabel }}</span>
                     } @else {
                         <span class="text-muted-color">{{ 'common.all' | translate }}</span>
+                    }
+                </td>
+                <td>
+                    @if (key.owner) {
+                        <span class="text-sm">{{ key.owner }}</span>
+                    } @else {
+                        <span class="text-muted-color">{{ 'api_keys.no_owner' | translate }}</span>
                     }
                 </td>
                 <td>
@@ -99,7 +107,7 @@
 
         <div class="flex flex-col gap-2">
             <span class="font-medium">{{ 'api_keys.scopes_label' | translate }}</span>
-            @for (scope of scopes(); track scope.value) {
+            @for (scope of issuableScopes(); track scope.value) {
                 <div class="flex items-start gap-2">
                     <p-checkbox
                         [inputId]="scope.value"

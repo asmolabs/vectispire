@@ -1,30 +1,32 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.services.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Listed;
+import com.asmolabs.vectispire.core.services.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -91,6 +93,7 @@ public class RepositoriesController {
     /** The list, with each target's latest scan and how many issues are waiting on it. */
     @Operation(summary = "List repositories", description = "Returns all git repositories monitored by Vectispire visible to the caller.")
     @ApiResponse(responseCode = "200", description = "Repositories list retrieved successfully")
+    @AcceptsApiKey(ApiKeyScope.READ)
     @GetMapping
     public List<RepositorySummary> list(@AuthenticationPrincipal VectispirePrincipal principal) {
         return inventory.list(allowed(principal)).stream()
@@ -148,6 +151,7 @@ public class RepositoriesController {
     @Operation(summary = "Trigger repository scan", description = "Enqueues an immediate full security scan (SBOM, CVE, Secrets, SAST, IaC, APIs).")
     @ApiResponse(responseCode = "200", description = "Scan queued successfully")
     @RequiresAdministrator
+    @AcceptsApiKey(ApiKeyScope.SCAN)
     @PostMapping("/{id}/scan")
     public QueuedScan triggerScan(
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id,

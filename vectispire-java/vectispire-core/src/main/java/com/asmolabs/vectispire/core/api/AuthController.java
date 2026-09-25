@@ -86,7 +86,7 @@ public class AuthController {
 
     public record ChangePasswordRequest(@JsonProperty("current_password") String currentPassword, @JsonProperty("new_password") String newPassword) {}
 
-    @Operation(summary = "User login", description = "Authenticates user by credentials and issues a JWT session bearer token or an MFA challenge.")
+    @Operation(summary = "User login", description = "Authenticates user by credentials and issues a session bearer token or an MFA challenge.")
     @ApiResponse(responseCode = "200", description = "Authentication successful or MFA challenge initiated")
     @OpenToAnonymous
     @PostMapping("/login")
@@ -119,7 +119,7 @@ public class AuthController {
     }
 
     @Operation(summary = "Verify MFA challenge", description = "Verifies TOTP authentication code and completes sign-in.")
-    @ApiResponse(responseCode = "200", description = "MFA verified, JWT session issued")
+    @ApiResponse(responseCode = "200", description = "MFA verified, session issued")
     @OpenToAnonymous
     @PostMapping("/mfa/verify")
     public LoginResponse verifyMfa(@RequestBody MfaVerifyRequest body, HttpServletRequest request) {
@@ -222,7 +222,7 @@ public class AuthController {
     /**
      * Exchanges the one-time hand-off cookie for the session token.
      */
-    @Operation(summary = "Exchange SSO hand-off cookie for session", description = "Trades temporary SSO callback cookie for a full JWT session.")
+    @Operation(summary = "Exchange SSO hand-off cookie for session", description = "Trades temporary SSO callback cookie for a full session.")
     @ApiResponse(responseCode = "200", description = "Session established successfully")
     @OpenToAnonymous
     @PostMapping("/session/exchange")
