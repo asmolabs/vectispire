@@ -23,6 +23,13 @@ Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le
 l'en-tête : changer le point d'arrivée **efface l'en-tête enregistré**, sauf si un nouveau est saisi
 avec lui. Un en-tête est émis pour un collecteur.
 
+## Longueur d'une valeur
+
+Un réglage texte contient jusqu'à 16 000 caractères, et un identifiant — le jeton du tracker, les
+secrets de webhook, la clé OpenAI — jusqu'à 8 192. Au-delà, le formulaire refuse avec un message.
+Les vrais jetons sont bien plus courts : avant cette limite, un identifiant de plus de 160 caractères
+environ ne pouvait pas être enregistré du tout.
+
 ## Enrichissement
 
 Consultations EPSS et CISA KEV. Ce sont les seuls appels sortants du pipeline en dehors du

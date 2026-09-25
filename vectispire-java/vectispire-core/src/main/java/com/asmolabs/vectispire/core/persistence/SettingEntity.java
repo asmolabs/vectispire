@@ -18,7 +18,10 @@ public class SettingEntity {
     @Column(name = "\"key\"", nullable = false)
     private String key;
 
-    @Column(name = "value", length = 255)
+    // `text` since V38: an encrypted credential is "v2:" and the Base64 of nonce, text and tag, and
+    // at 255 characters every secret longer than about 160 was refused by the database as a 500.
+    // The service bounds the value now, before the database has to.
+    @Column(name = "value", columnDefinition = "text")
     private String value;
 
     public String getKey() {

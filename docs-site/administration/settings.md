@@ -22,6 +22,13 @@ The SIEM form works the other way round, because the same role sets its endpoint
 changing the endpoint **drops the stored header** unless a new one is typed with it. A header is
 issued for one collector.
 
+## How long a value may be
+
+A text setting holds up to 16,000 characters, and a credential — the tracker token, the webhook
+secrets, the OpenAI key — up to 8,192. Longer is refused with a message at the form. Real tokens
+are far shorter: before this limit, any credential over about 160 characters could not be saved at
+all.
+
 ## Enrichment
 
 EPSS and CISA KEV lookups. These are the only outbound calls the pipeline makes besides

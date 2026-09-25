@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.settings;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,7 +62,12 @@ public enum SettingType {
             // Free text. What the value has to *mean* — a URL that resolves somewhere allowed,
             // a provider from a known list — is checked by whoever reads it, because only they
             // know the rule.
-            return Optional.empty();
+            //
+            // How *long* it may be is checked here, because that rule is the column's and not
+            // the reader's: past it, the database refuses the write and the operator gets a 500
+            // for a paste that went too far. The column is `text` (V38), so the ceiling is the
+            // one every stored text shares.
+            return BoundedText.tooLong(value, BoundedText.TEXT_MAX, "The value");
         }
     };
 

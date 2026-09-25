@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
@@ -37,6 +38,17 @@ public class SettingsAdministrationService {
     /** The sections whose contents are a rule, not a setting. */
     private static final Set<Setting.Section> GOVERNANCE_SECTIONS =
             Set.of(Setting.Section.ACCESS, Setting.Section.TRIAGE);
+
+    /**
+     * The longest credential one of the four secret routes accepts.
+     *
+     * <p>Encrypted, a secret grows by a third plus about forty characters, and in UTF-8 a character
+     * may take three bytes: 8,192 characters stays inside MySQL's 65,535-byte {@code text}, which
+     * the column has been since V38. Real ones are two orders of magnitude shorter — an Atlassian
+     * token is 192 characters, an OpenAI project key a little more — so anything near this is a
+     * paste of the wrong thing, and it is better said at the form than as a 500.
+     */
+    static final int MAX_SECRET_LENGTH = 8_192;
 
     private static final List<String> APPROVER_ROLES = Arrays.stream(Role.values())
             .filter(Role::canApproveTriage)
@@ -279,6 +291,7 @@ public class SettingsAdministrationService {
      * every administrator.
      */
     public void setTicketToken(String token, RequestActor actor) {
+        refuseOversized(token, "The tracker token");
         tickets.setToken(token);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
@@ -294,6 +307,7 @@ public class SettingsAdministrationService {
      * never purged, so it would outlive the secret's own rotation.
      */
     public void setWebhookSigningSecret(String secret, RequestActor actor) {
+        refuseOversized(secret, "The webhook signing secret");
         notifications.setSigningSecret(secret);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
@@ -310,6 +324,7 @@ public class SettingsAdministrationService {
      * spend the account, and the audit log is deliberately never purged.
      */
     public void setOpenAiKey(String key, RequestActor actor) {
+        refuseOversized(key, "The API key");
         aiReview.setOpenAiKey(key);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
@@ -324,6 +339,7 @@ public class SettingsAdministrationService {
      * decision, and the audit log is deliberately never purged.
      */
     public void setTicketWebhookSecret(String secret, RequestActor actor) {
+        refuseOversized(secret, "The inbound webhook secret");
         tickets.setWebhookSecret(secret);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
@@ -394,6 +410,11 @@ public class SettingsAdministrationService {
                                 + models.size() + " it offers.",
                 provider.wireName(),
                 remoteAllowed);
+    }
+
+    /** Checked on the trimmed value, which is what each route stores. */
+    private static void refuseOversized(String secret, String what) {
+        BoundedText.within(secret == null ? "" : secret.trim(), MAX_SECRET_LENGTH, what);
     }
 
     /** The role that decides the rules, and the only one that cannot act under them. */
