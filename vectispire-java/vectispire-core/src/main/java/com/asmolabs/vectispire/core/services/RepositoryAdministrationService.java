@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -17,6 +18,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.repositories.SshKeys;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +48,14 @@ public class RepositoryAdministrationService {
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
     private final GitTokens gitTokens;
+    private final SshKeys sshKeys;
     private final GitHostAllowlist allowedHosts;
+
+    /**
+     * The width of {@code url}, {@code branch}, {@code name} and {@code required_agent_label}, and of
+     * the image columns next door. Past it the database refused the row at the write, as a 500.
+     */
+    static final int COLUMN_LENGTH = 255;
 
     public RepositoryAdministrationService(
             GitRepositories repositories,
@@ -56,6 +65,7 @@ public class RepositoryAdministrationService {
             TargetDeletionService targetDeletion,
             AuditLogService audit,
             GitTokens gitTokens,
+            SshKeys sshKeys,
             GitHostAllowlist allowedHosts) {
         this.repositories = repositories;
         this.scans = scans;
@@ -64,6 +74,7 @@ public class RepositoryAdministrationService {
         this.targetDeletion = targetDeletion;
         this.audit = audit;
         this.gitTokens = gitTokens;
+        this.sshKeys = sshKeys;
         this.allowedHosts = allowedHosts;
     }
 
@@ -136,7 +147,7 @@ public class RepositoryAdministrationService {
     }
 
     public RepositoryEntity create(Changes changes, RequestActor actor) {
-        String url = trim(changes.url());
+        String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
         RepositoryUrl.validate(url).ifPresent(message -> {
@@ -147,8 +158,8 @@ public class RepositoryAdministrationService {
 
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);
-        repository.setBranch(trim(changes.branch()).isEmpty() ? "main" : trim(changes.branch()));
-        repository.setName(optional(changes.name()));
+        repository.setBranch(branch(changes.branch()));
+        repository.setName(BoundedText.optional(changes.name(), COLUMN_LENGTH, "The repository name"));
         // Checked like the URL, and for the same reason: it is resolved against a clone on the
         // scanning host — see RepositorySubPath.
         repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
@@ -156,12 +167,10 @@ public class RepositoryAdministrationService {
         // Validated at the entry point: discovering that an expression was rejected by watching
         // scans *not* happen is the expensive way.
         repository.setScanCron(validatedCron(changes.scanCron()));
-        // Normalized on entry: without it, "Production" here and "production" on the agent would
-        // never meet, and the scan would wait for an agent that is present.
-        repository.setRequiredAgentLabel(AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
+        repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
         repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
-        repository.setTier(changes.tier() != null ? AssetTier.fromString(changes.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
+        repository.setTier(AssetTier.fromInput(changes.tier()).name());
         requireMatchingCredential(repository);
 
         RepositoryEntity saved = repositories.save(repository);
@@ -191,7 +200,7 @@ public class RepositoryAdministrationService {
         // The list sends the URL masked; a form saved without touching it sends the mask back,
         // which must leave the stored URL — credential included — as it was.
         if (changes.url() != null && !RepositoryUrl.isMaskedFormOf(trim(changes.url()), previousUrl)) {
-            String url = trim(changes.url());
+            String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
             // Validated on update exactly as on create: an unvalidated URL reaching a git clone
             // is arbitrary code execution, and a row edited later is no safer than a row added.
             RepositoryUrl.validate(url).ifPresent(message -> {
@@ -202,10 +211,10 @@ public class RepositoryAdministrationService {
             repository.setUrl(url);
         }
         if (changes.branch() != null) {
-            repository.setBranch(trim(changes.branch()).isEmpty() ? "main" : trim(changes.branch()));
+            repository.setBranch(branch(changes.branch()));
         }
         if (changes.name() != null) {
-            repository.setName(optional(changes.name()));
+            repository.setName(BoundedText.optional(changes.name(), COLUMN_LENGTH, "The repository name"));
         }
         if (changes.subPath() != null) {
             repository.setSubPath(optional(RepositorySubPath.normalize(changes.subPath())));
@@ -217,8 +226,7 @@ public class RepositoryAdministrationService {
             repository.setScanCron(validatedCron(changes.scanCron()));
         }
         if (changes.requiredAgentLabel() != null) {
-            repository.setRequiredAgentLabel(
-                    AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
+            repository.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         }
         if (changes.sshKeyId() != null) {
             repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
@@ -232,7 +240,7 @@ public class RepositoryAdministrationService {
             requireMatchingCredential(repository);
         }
         if (changes.tier() != null) {
-            repository.setTier(AssetTier.fromString(changes.tier()).name());
+            repository.setTier(AssetTier.fromInput(changes.tier()).name());
         }
 
         RepositoryEntity saved = repositories.save(repository);
@@ -379,16 +387,42 @@ public class RepositoryAdministrationService {
      * pointing at a key that does not exist falls back to the host's own SSH and fails at clone
      * time with "requires authentication" — an error that names neither the wrong identifier nor
      * this form. The 400 arrives while the operator is still looking at the field.
+     *
+     * <p><b>A well-formed identifier of no key is refused too</b>, as the HTTPS token's is. Only the
+     * shape used to be checked, and the foreign key then refused the row at the write: a 500 for a
+     * key deleted in another tab, and the message a constraint name.
      */
-    private static UUID sshKeyId(String value) {
+    private UUID sshKeyId(String value) {
         String trimmed = trim(value);
         if (trimmed.isEmpty()) {
             return null;
         }
+        UUID id;
         try {
-            return UUID.fromString(trimmed);
+            id = UUID.fromString(trimmed);
         } catch (IllegalArgumentException malformed) {
             throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid SSH key identifier.");
         }
+        if (!sshKeys.existsById(id)) {
+            throw new IllegalArgumentException("No SSH key with id " + id + ".");
+        }
+        return id;
+    }
+
+    /** Blank is {@code main}, the default the clone falls back to; anything else must fit its column. */
+    private static String branch(String value) {
+        String branch = BoundedText.optional(value, COLUMN_LENGTH, "The branch");
+        return branch == null ? "main" : branch;
+    }
+
+    /**
+     * Normalized on entry: without it, "Production" here and "production" on the agent would never
+     * meet, and the scan would wait for an agent that is present. Bounded after normalization,
+     * because that is the value stored.
+     */
+    static String requiredLabel(String value) {
+        return AgentLabels.normalizeRequirement(value)
+                .map(label -> BoundedText.within(label, COLUMN_LENGTH, "The required agent label"))
+                .orElse(null);
     }
 }

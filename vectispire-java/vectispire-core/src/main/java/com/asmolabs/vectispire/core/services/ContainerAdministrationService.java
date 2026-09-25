@@ -1,15 +1,17 @@
 package com.asmolabs.vectispire.core.services;
 
+import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.COLUMN_LENGTH;
 import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.optional;
+import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.requiredLabel;
 import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.trim;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
@@ -101,6 +103,7 @@ public class ContainerAdministrationService {
                 trim(changes.tag()).isEmpty() ? "latest" : trim(changes.tag()));
         // Validated at the entry point, like a repository URL: a reference reaching a `docker
         // pull` unchecked is not a typo, it is whatever the operator's daemon will fetch.
+        requireFits(reference);
         reference.validate().ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
@@ -111,8 +114,8 @@ public class ContainerAdministrationService {
         container.setTag(reference.tag());
         container.setScanIntervalMinutes(changes.scanIntervalMinutes());
         container.setScanCron(validatedCron(changes.scanCron()));
-        container.setRequiredAgentLabel(AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
-        container.setTier(changes.tier() != null ? AssetTier.fromString(changes.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
+        container.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
+        container.setTier(AssetTier.fromInput(changes.tier()).name());
 
         ContainerEntity saved = containers.save(container);
         audit.record(actor.entry(
@@ -143,6 +146,7 @@ public class ContainerAdministrationService {
                 changes.registry() != null ? optional(changes.registry()) : container.getRegistry(),
                 changes.imageName() != null ? trim(changes.imageName()) : container.getImageName(),
                 changes.tag() != null ? (trim(changes.tag()).isEmpty() ? "latest" : trim(changes.tag())) : container.getTag());
+        requireFits(reference);
         reference.validate().ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
@@ -159,11 +163,10 @@ public class ContainerAdministrationService {
         if (changes.requiredAgentLabel() != null) {
             // Normalized on update as on create: "Production" here and "production" on the agent
             // would never meet, and the scan would wait for an agent that is present.
-            container.setRequiredAgentLabel(
-                    AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
+            container.setRequiredAgentLabel(requiredLabel(changes.requiredAgentLabel()));
         }
         if (changes.tier() != null) {
-            container.setTier(AssetTier.fromString(changes.tier()).name());
+            container.setTier(AssetTier.fromInput(changes.tier()).name());
         }
 
         ContainerEntity saved = containers.save(container);
@@ -191,6 +194,18 @@ public class ContainerAdministrationService {
         targetDeletion.deleteContainer(id);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(id), "Image deleted: " + referenceOf(container).format()));
+    }
+
+    /**
+     * Each part within its column, checked before the pattern is.
+     *
+     * <p>The pattern bounds the tag and nothing else, so a registry or an image name past 255
+     * characters was valid and then refused by the database at the write — a 500 for a paste.
+     */
+    private static void requireFits(ImageReference reference) {
+        BoundedText.within(reference.registry(), COLUMN_LENGTH, "The registry");
+        BoundedText.within(reference.imageName(), COLUMN_LENGTH, "The image name");
+        BoundedText.within(reference.tag(), COLUMN_LENGTH, "The tag");
     }
 
     public static ImageReference referenceOf(ContainerEntity container) {
