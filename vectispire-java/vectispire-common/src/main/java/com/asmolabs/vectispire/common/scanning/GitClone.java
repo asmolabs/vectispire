@@ -21,6 +21,7 @@ import org.eclipse.jgit.api.errors.TransportException;
 import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.TransportHttp;
 import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.sshd.ServerKeyDatabase;
 import org.eclipse.jgit.transport.sshd.SshdSessionFactory;
@@ -256,7 +257,7 @@ public final class GitClone {
                 .setDepth(DEPTH)
                 .setCloneSubmodules(false)
                 .setTimeout((int) request.timeout().toSeconds())
-                .setTransportConfigCallback(sshCallback(request, keys))
+                .setTransportConfigCallback(transportCallback(request, keys))
                 .setCredentialsProvider(request.hasToken() ? new HostBoundCredentials(request.https()) : null)
                 .call()) {
             // The handle is closed at once: the scanners read the working tree on disk, and
@@ -276,13 +277,24 @@ public final class GitClone {
         }
     }
 
-    private static TransportConfigCallback sshCallback(Request request, Iterable<KeyPair> keys) {
+    /**
+     * What each transport is configured with before its first request.
+     *
+     * <p>Package-private so that the redirect refusal can be exercised against a local plain-HTTP
+     * server: {@link #clone} itself accepts only {@code https://}, and a test that installed the
+     * refusal by hand would pass the day this callback stopped installing it.
+     */
+    static TransportConfigCallback transportCallback(Request request, Iterable<KeyPair> keys) {
         return transport -> {
-            if (!(transport instanceof SshTransport ssh)) {
-                // https, and therefore nothing to configure.
+            if (transport instanceof TransportHttp http) {
+                // No redirect, to any host: the URL checked above is the only one this clone may
+                // reach. See RedirectRefusingConnections for why this, not http.followRedirects.
+                http.setHttpConnectionFactory(new RedirectRefusingConnections(http.getHttpConnectionFactory()));
                 return;
             }
-            ssh.setSshSessionFactory(sessionFactory(request, keys));
+            if (transport instanceof SshTransport ssh) {
+                ssh.setSshSessionFactory(sessionFactory(request, keys));
+            }
         };
     }
 

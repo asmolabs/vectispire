@@ -11,7 +11,7 @@ sous-chemin, et une récurrence.
 
 | Champ | Notes |
 |---|---|
-| **URL du dépôt** | HTTPS pour un dépôt public, SSH là où une clé de déploiement est nécessaire. |
+| **URL du dépôt** | HTTPS pour un dépôt public, SSH là où une clé de déploiement est nécessaire. Donnez l'adresse que la forge sert réellement : un clonage **ne suit aucune redirection HTTP**, vers aucun hôte, parce que l'hôte qu'elle ferait atteindre n'a jamais été vérifié. Un projet déplacé ou renommé échoue avec *« answered with a redirect … to &lt;hôte&gt; »* — enregistrez la nouvelle adresse. |
 | **Nom affiché** | Le nom sous lequel tous les autres écrans le désignent. |
 | **Branche** | La branche analysée à chaque exécution. |
 | **Sous-chemin** | Pour un monodépôt. Enregistrez un monodépôt **une fois par projet**, pas une fois pour l'arbre entier — sinon un seul SBOM confond les dépendances de plusieurs applications et aucun verdict ne veut plus rien dire. Relatif à la racine du dépôt — `services/billing` — sans segment `..` ni `/` initial ; un répertoire qui est un lien hors du dépôt fait échouer l'analyse plutôt qu'analyser autre chose. |

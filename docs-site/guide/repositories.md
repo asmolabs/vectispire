@@ -11,7 +11,7 @@ recurrence.
 
 | Field | Notes |
 |---|---|
-| **Repository URL** | HTTPS for a public repository, SSH where a deploy key is needed. |
+| **Repository URL** | HTTPS for a public repository, SSH where a deploy key is needed. Give the address the forge actually serves: a clone **follows no HTTP redirect**, to any host, because the host it would reach was never checked. A moved or renamed project fails with *"answered with a redirect … to &lt;host&gt;"* — register the new address. |
 | **Display name** | What every other screen calls it. |
 | **Branch** | The branch scanned on every run. |
 | **Sub-path** | For a monorepo. Register a monorepo **once per project**, not once for the whole tree — otherwise one SBOM conflates several applications' dependencies and no verdict means anything. Relative to the repository root — `services/billing` — with no `..` segment and no leading `/`; a directory that is a link out of the repository makes the scan fail rather than analyse something else. |
