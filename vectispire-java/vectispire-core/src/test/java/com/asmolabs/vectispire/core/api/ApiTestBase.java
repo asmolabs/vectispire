@@ -96,11 +96,23 @@ abstract class ApiTestBase extends VectispireContextTest {
     @Autowired
     private com.asmolabs.vectispire.core.api.security.BearerRateLimitFilter bearerRateLimit;
 
+    /**
+     * The webhook's ceiling and its refusal ledger, for the same reason: both count per address,
+     * and every test's deliveries come from the one MockMvc gives them.
+     */
+    @Autowired
+    private com.asmolabs.vectispire.core.api.security.WebhookRateLimitFilter webhookRateLimit;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.services.WebhookRefusals webhookRefusals;
+
     @BeforeEach
     void buildMockMvc() {
         mvc = MockMvcBuilders.webAppContextSetup(context).addFilters(securityFilterChain).build();
         rateLimit.reset();
         bearerRateLimit.reset();
+        webhookRateLimit.reset();
+        webhookRefusals.reset();
         adminToken = null;
         readerToken = null;
     }

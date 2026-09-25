@@ -60,6 +60,23 @@ Once any account exists, both are ignored.
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | The RFC 8176 `amr` values that count as a second factor. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *none* | `acr` levels that count as one, when the provider signals MFA that way. |
 | `VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE` | `600` | Requests per minute per [integration API key](../administration/api-keys.md); beyond it, `429` with `Retry-After`. Sessions and agents are not counted. |
+| `VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW` | `300` | Deliveries per window and per address accepted on the inbound [tracker webhook](../integrations/ticketing.md); beyond it, `429` with `Retry-After`. Raise it if a tracker behind a shared egress makes bulk transitions larger than that. |
+| `VECTISPIRE_WEBHOOK_REQUEST_WINDOW` | `PT1M` | The window of the setting above, as an ISO-8601 duration. |
+
+Refused webhook deliveries are audited sparingly: the first from an address in ten minutes, once
+more if that address reaches twenty, and at most a hundred entries in ten minutes overall. Every
+refusal is still answered `401` or `403`.
+
+## Request bodies
+
+Three routes read their body whole before anything looks at it. Past these limits they answer
+`413`.
+
+| Variable | Default | Route |
+|---|---|---|
+| `VECTISPIRE_MAX_BODY_TICKET_WEBHOOK` | `1MB` | `POST /api/v1/tickets/webhook/{provider}` — a tracker event is tens of kilobytes |
+| `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — a VEX document for a large product |
+| `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — the result carries the SBOM |
 
 ## Cloning
 

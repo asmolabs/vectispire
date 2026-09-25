@@ -108,6 +108,16 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
     }
 
+    /**
+     * A body past its route's ceiling, found while it was being read — see
+     * {@link com.asmolabs.vectispire.core.api.security.RequestBodyLimitFilter}. A declared length
+     * over the ceiling is refused by the filter itself, before this point.
+     */
+    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.RequestBodyLimitFilter.RequestBodyTooLargeException.class)
+    ProblemDetail contentTooLarge(RuntimeException error) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
+    }
+
     /** A row that is not there. Thrown by the {@code orElseThrow} of a lookup. */
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException error) {

@@ -40,6 +40,8 @@ public class SecurityConfiguration implements WebMvcConfigurer {
     private final BearerAuthenticationFilter bearer;
     private final LoginRateLimitFilter rateLimit;
     private final BearerRateLimitFilter bearerRateLimit;
+    private final WebhookRateLimitFilter webhookRateLimit;
+    private final RequestBodyLimitFilter bodyLimit;
     private final PasswordChangeInterceptor passwordChange;
     private final CredentialConfinement credentialConfinement;
     private final AuditLogService audit;
@@ -51,6 +53,8 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             BearerAuthenticationFilter bearer,
             LoginRateLimitFilter rateLimit,
             BearerRateLimitFilter bearerRateLimit,
+            WebhookRateLimitFilter webhookRateLimit,
+            RequestBodyLimitFilter bodyLimit,
             PasswordChangeInterceptor passwordChange,
             CredentialConfinement credentialConfinement,
             AuditLogService audit,
@@ -59,6 +63,8 @@ public class SecurityConfiguration implements WebMvcConfigurer {
         this.bearer = bearer;
         this.rateLimit = rateLimit;
         this.bearerRateLimit = bearerRateLimit;
+        this.webhookRateLimit = webhookRateLimit;
+        this.bodyLimit = bodyLimit;
         this.passwordChange = passwordChange;
         this.credentialConfinement = credentialConfinement;
         this.audit = audit;
@@ -164,6 +170,12 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(rateLimit, UsernamePasswordAuthenticationFilter.class)
+                // The anonymous tracker webhook, limited per address before any secret is decrypted
+                // or any refusal audited; and the three raw bodies, bounded before a converter reads
+                // them whole. In the chain rather than only as servlet filters so that the HTTP
+                // suite, which assembles this chain, exercises them.
+                .addFilterBefore(webhookRateLimit, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(bodyLimit, UsernamePasswordAuthenticationFilter.class)
                 // **Before the resolution it is counting, and that is why it is a separate
                 // filter.** It has to see the request on the way in, to refuse an address that
                 // has already spent its allowance, and on the way out, to know whether the token

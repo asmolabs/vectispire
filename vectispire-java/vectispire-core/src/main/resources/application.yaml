@@ -146,6 +146,22 @@ vectispire:
     # leaked key, should hit a 429 with Retry-After rather than the database.
     api-key-requests-per-minute: ${VECTISPIRE_API_KEY_REQUESTS_PER_MINUTE:600}
 
+    # **A ceiling per address on the inbound tracker webhook**, the one anonymous route that writes.
+    # Generous, because a bulk transition of a few hundred tickets is a few hundred deliveries in a
+    # minute from one of the tracker's addresses; a flood beyond it is answered 429 before any secret
+    # is decrypted. Its refusals are audited sparingly whatever this says — see `WebhookRefusals`.
+    webhook-requests-per-window: ${VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW:300}
+    webhook-request-window: ${VECTISPIRE_WEBHOOK_REQUEST_WINDOW:PT1M}
+
+  # **The three request bodies read whole into memory**, which no container setting bounds: Tomcat's
+  # and Spring's limits apply to forms and multipart only. Past these, 413. The reasoning for each
+  # value is on `RequestBodyLimitFilter`.
+  http:
+    max-body:
+      ticket-webhook: ${VECTISPIRE_MAX_BODY_TICKET_WEBHOOK:1MB}
+      vex-ingest: ${VECTISPIRE_MAX_BODY_VEX_INGEST:16MB}
+      agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}
+
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}
     idle-lifetime: ${VECTISPIRE_SESSION_IDLE:60m}

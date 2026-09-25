@@ -56,6 +56,74 @@ class TicketWebhookInputTest extends ApiTestBase {
         assertThat(after.getTriageComment()).hasSize(BoundedText.TEXT_MAX);
     }
 
+    @Test
+    @DisplayName("thirty refused deliveries from one address write two audit entries, not thirty")
+    void refusalsAreAuditedSparingly() throws Exception {
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, SECRET);
+        long before = webhookEntries();
+
+        for (int i = 0; i < 30; i++) {
+            int status = mvc.perform(post("/api/v1/tickets/webhook/jira")
+                            .header("X-Vectispire-Token", "wrong-" + i)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"attempt\":" + i + "}"))
+                    .andReturn().getResponse().getStatus();
+            assertThat(status).as("each refusal is still answered").isEqualTo(401);
+        }
+
+        assertThat(webhookEntries() - before)
+                .as("the first refusal, and the one reaching the ceiling")
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("past the per-address ceiling a delivery is answered 429 before any work")
+    void aFloodIsRefused() throws Exception {
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "");
+        // Sent until refused rather than exactly 301: the bucket refills greedily, five tokens a
+        // second at the default, so a slow machine earns a few extra deliveries on the way. What
+        // is pinned is that the first 300 pass and that the refusal comes shortly after.
+        int sent = 0;
+        String retryAfter = null;
+        while (sent < 400) {
+            var response = mvc.perform(post("/api/v1/tickets/webhook/github")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andReturn().getResponse();
+            sent++;
+            if (response.getStatus() == 429) {
+                retryAfter = response.getHeader("Retry-After");
+                break;
+            }
+        }
+
+        assertThat(sent).as("deliveries sent until the first 429").isGreaterThan(300).isLessThan(400);
+        assertThat(retryAfter).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("a body past a megabyte is answered 413, without reading it")
+    void anOversizedBodyIsRefused() throws Exception {
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, SECRET);
+        byte[] body = new byte[1024 * 1024 + 1];
+        java.util.Arrays.fill(body, (byte) ' ');
+
+        int status = mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", SECRET)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andReturn().getResponse().getStatus();
+
+        assertThat(status).isEqualTo(413);
+    }
+
+    @Autowired
+    private com.asmolabs.vectispire.core.repositories.AuditLog auditLog;
+
+    private long webhookEntries() {
+        return auditLog.findAll().stream().filter(entry -> "ticket_webhook".equals(entry.getResourceId())).count();
+    }
+
     IssueEntity critical(String fingerprint, String ticketRef) {
         IssueEntity issue = new IssueEntity();
         issue.setFingerprint(fingerprint);

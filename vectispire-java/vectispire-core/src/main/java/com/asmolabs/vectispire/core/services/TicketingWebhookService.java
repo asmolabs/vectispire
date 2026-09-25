@@ -38,6 +38,7 @@ public class TicketingWebhookService {
     private final ObjectMapper json;
     private final TicketService tickets;
     private final WebhookDeliveries deliveries;
+    private final WebhookRefusals refusals;
     private final java.time.Clock clock;
 
     /** How long a delivery's body is remembered for the replay check. */
@@ -50,6 +51,7 @@ public class TicketingWebhookService {
             ObjectMapper json,
             TicketService tickets,
             WebhookDeliveries deliveries,
+            WebhookRefusals refusals,
             java.time.Clock clock) {
         this.issues = issues;
         this.triageService = triageService;
@@ -57,6 +59,7 @@ public class TicketingWebhookService {
         this.json = json;
         this.tickets = tickets;
         this.deliveries = deliveries;
+        this.refusals = refusals;
         this.clock = clock;
     }
 
@@ -79,6 +82,17 @@ public class TicketingWebhookService {
         record Synced(Long issueId, String ticketRef, String actionTaken) implements Outcome {}
     }
 
+    /**
+     * Audits a refusal when {@link WebhookRefusals} says it earns an entry.
+     *
+     * <p>Every refusal used to write one, on the only anonymous route that writes: the audit log —
+     * chained and never purged — could be filled by anybody who could reach the port.
+     */
+    private void recordRefusal(RequestActor origin, String description) {
+        refusals.refused(origin.ipAddress()).ifPresent(note -> audit.record(AuditLogService.Record.of(
+                AuditOperation.LOGIN_BLOCKED, "ticket_webhook", description + note, "anonymous")));
+    }
+
     public Outcome handle(
             TicketProvider provider, String rawPayload, WebhookAuthenticity.Presented presented, RequestActor origin) {
 
@@ -89,12 +103,8 @@ public class TicketingWebhookService {
         // and a secret no key can read refuses like a wrong signature rather than reopening.
         TicketService.WebhookSecret secret = tickets.webhookSecret();
         if (secret instanceof TicketService.WebhookSecret.Absent) {
-            audit.record(AuditLogService.Record.of(
-                    AuditOperation.LOGIN_BLOCKED,
-                    "ticket_webhook",
-                    "Refused " + provider + " webhook from " + origin.ipAddress()
-                            + ": no webhook secret is configured",
-                    "anonymous"));
+            recordRefusal(origin, "Refused " + provider + " webhook from " + origin.ipAddress()
+                    + ": no webhook secret is configured");
             return new Outcome.NotConfigured();
         }
         WebhookAuthenticity.Verdict verdict = secret instanceof TicketService.WebhookSecret.Present(String value)
@@ -102,16 +112,13 @@ public class TicketingWebhookService {
                 : WebhookAuthenticity.Verdict.REJECTED;
         if (verdict != WebhookAuthenticity.Verdict.ACCEPTED) {
             // Audited, because a stream of these is somebody probing and the audit log is where
-            // that becomes visible. No detail in the response: a caller learning *which* header
-            // was wrong learns which tracker we expect.
-            audit.record(AuditLogService.Record.of(
-                    AuditOperation.LOGIN_BLOCKED,
-                    "ticket_webhook",
+            // that becomes visible — sparingly, see `recordRefusal`. No detail in the response: a
+            // caller learning *which* header was wrong learns which tracker we expect.
+            recordRefusal(origin,
                     (secret instanceof TicketService.WebhookSecret.Unreadable
                                     ? "Refused " + provider + " webhook: the stored secret cannot be decrypted, from "
                                     : "Rejected unsigned or wrongly signed " + provider + " webhook from ")
-                            + origin.ipAddress(),
-                    "anonymous"));
+                            + origin.ipAddress());
             return new Outcome.Rejected();
         }
 
