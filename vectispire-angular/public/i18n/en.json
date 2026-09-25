@@ -279,7 +279,10 @@
     "scan_scheduled_all": "Scan scheduled for {{count}} repositories. Analysis and discovery in progress...",
     "error_scan_all": "Could not start the scan of all repositories.",
     "discovery_complete": "API discovery complete ({{count}} routes listed).",
-    "purge_inventory": "Purge the inventory"
+    "purge_inventory": "Purge the inventory",
+    "auth_required": "Required",
+    "auth_none": "Public / None",
+    "untitled": "Untitled"
   },
   "attestation": {
     "title": "Attestation",
@@ -575,7 +578,9 @@
     "paste_payload": "Or paste the file's content...",
     "signature_file": "2. Signature file (e.g. manifest.json.sig)",
     "paste_signature": "Or paste the Base64 signature...",
-    "verify_result_meta": "Algorithm: {{algorithm}} | Key ID: {{keyId}}"
+    "verify_result_meta": "Algorithm: {{algorithm}} | Key ID: {{keyId}}",
+    "framework_active": "✓ Active",
+    "framework_select": "Select"
   },
   "containers": {
     "add_btn": "Add Container Image",
@@ -715,7 +720,8 @@
     "kind_container": "Container",
     "rule_kev": "KEV",
     "rule_severity": "Severity",
-    "more_violations": "+ {{count}} more"
+    "more_violations": "+ {{count}} more",
+    "grade_tag": "Grade {{grade}}"
   },
   "delays": {
     "title": "Time to fix",
@@ -798,7 +804,8 @@
     "q4": "Quadrant 4 — P3, low",
     "queue_title": "Triage queue ordered by the real risk of exploitation ({{count}} open vulnerabilities)",
     "col_reachability": "Reachability",
-    "percentile_short": "pctl {{value}}"
+    "percentile_short": "pctl {{value}}",
+    "cve_reference": "CVE Reference"
   },
   "exceptions": {
     "title": "Exceptions register",
@@ -1616,7 +1623,8 @@
     "https_token_placeholder": "Choose a token",
     "https_token_none_for_host": "No HTTPS token is bound to {{host}}. Declare one on the",
     "https_token_link": "HTTPS tokens page",
-    "https_token_hint": "Only the tokens bound to this URL’s host are offered: a token is never sent to another host."
+    "https_token_hint": "Only the tokens bound to this URL’s host are offered: a token is never sent to another host.",
+    "grade_tag": "Grade {{grade}}"
   },
   "roles": {
     "user": "User",

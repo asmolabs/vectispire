@@ -210,7 +210,7 @@
                             <div class="flex items-center gap-1.5">
                                 <i class="pi text-xs" [ngClass]="ep.authRequired ? 'pi-lock text-emerald-500' : 'pi-lock-open text-amber-500'"></i>
                                 <span class="text-xs" [ngClass]="ep.authRequired ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-amber-600 dark:text-amber-400 font-medium'">
-                                    {{ ep.authRequired ? (ep.authType || 'Requis') : 'Public / Aucun' }}
+                                    {{ ep.authRequired ? (ep.authType || ('attack_surface.auth_required' | translate)) : ('attack_surface.auth_none' | translate) }}
                                 </span>
                             </div>
                         </td>
@@ -288,7 +288,7 @@
                         <td>
                             <p-tag [value]="c.format || 'OPENAPI'" severity="info"></p-tag>
                         </td>
-                        <td class="text-xs font-medium text-surface-900 dark:text-surface-0">{{ c.title || 'Sans titre' }}</td>
+                        <td class="text-xs font-medium text-surface-900 dark:text-surface-0">{{ c.title || ('attack_surface.untitled' | translate) }}</td>
                         <td class="text-xs text-surface-600 dark:text-surface-400">{{ c.version || 'v1.0' }}</td>
                         <td>
                             <span class="text-xs font-bold text-surface-900 dark:text-surface-0">{{ c.endpointsCount }} routes</span>

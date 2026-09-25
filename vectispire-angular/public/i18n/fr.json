@@ -279,7 +279,10 @@
     "scan_scheduled_all": "Analyse planifiée pour {{count}} dépôts. Analyse et découverte en cours...",
     "error_scan_all": "Impossible de lancer l'analyse de l'ensemble des dépôts.",
     "discovery_complete": "Découverte d'API terminée ({{count}} routes répertoriées).",
-    "purge_inventory": "Purger l'inventaire"
+    "purge_inventory": "Purger l'inventaire",
+    "auth_required": "Requis",
+    "auth_none": "Public / Aucun",
+    "untitled": "Sans titre"
   },
   "attestation": {
     "title": "Attestation",
@@ -575,7 +578,9 @@
     "paste_payload": "Ou coller le contenu du fichier...",
     "signature_file": "2. Fichier de signature (ex. : manifest.json.sig)",
     "paste_signature": "Ou coller la signature Base64...",
-    "verify_result_meta": "Algorithme : {{algorithm}} | Identifiant de clé : {{keyId}}"
+    "verify_result_meta": "Algorithme : {{algorithm}} | Identifiant de clé : {{keyId}}",
+    "framework_active": "✓ Actif",
+    "framework_select": "Sélectionner"
   },
   "containers": {
     "add_btn": "Ajouter un conteneur",
@@ -715,7 +720,8 @@
     "kind_container": "Conteneur",
     "rule_kev": "KEV",
     "rule_severity": "Gravité",
-    "more_violations": "+ {{count}} de plus"
+    "more_violations": "+ {{count}} de plus",
+    "grade_tag": "Note {{grade}}"
   },
   "delays": {
     "title": "Délais de correction",
@@ -798,7 +804,8 @@
     "q4": "Quadrant 4 : P3 Faibles",
     "queue_title": "File de triage priorisée par risque réel d'exploitation ({{count}} vulnérabilités ouvertes)",
     "col_reachability": "Atteignabilité",
-    "percentile_short": "{{value}}e pctl"
+    "percentile_short": "{{value}}e pctl",
+    "cve_reference": "Référence CVE"
   },
   "exceptions": {
     "title": "Registre des exceptions",
@@ -1616,7 +1623,8 @@
     "https_token_placeholder": "Choisir un jeton",
     "https_token_none_for_host": "Aucun jeton HTTPS n’est lié à {{host}}. Déclarez-en un sur la",
     "https_token_link": "page Jetons HTTPS",
-    "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte."
+    "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte.",
+    "grade_tag": "Note {{grade}}"
   },
   "roles": {
     "user": "Utilisateur",

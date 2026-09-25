@@ -308,7 +308,7 @@
                             <span class="text-xs text-surface-400">score</span>
                         </div>
                         <span class="text-xs text-primary-600 dark:text-primary-400 font-medium">
-                            {{ selectedFramework() === fw.framework ? '✓ Actif' : 'Sélectionner' }}
+                            {{ selectedFramework() === fw.framework ? ('compliance.framework_active' | translate) : ('compliance.framework_select' | translate) }}
                         </span>
                     </div>
                 </div>

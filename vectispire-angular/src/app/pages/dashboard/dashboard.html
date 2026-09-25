@@ -250,7 +250,7 @@
                             <div class="text-xs text-muted-color">{{ target.targetKind }}</div>
                         </td>
                         <td>
-                            <p-tag [value]="'Grade ' + target.maturityGrade" [severity]="gradeSeverity(target.maturityGrade)" />
+                            <p-tag [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }" [severity]="gradeSeverity(target.maturityGrade)" />
                         </td>
                         <td>
                             <div class="flex items-center gap-2">
