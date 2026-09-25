@@ -31,7 +31,7 @@ Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture
 
 ```bash
 export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use
-npm ci && npm run lint && npm run build && npm test
+npm ci && npm run lint && npm run format:check -w vectispire-angular && npm run build && npm test
 ```
 
 From the repository root. `npm test` includes the asset check, the i18n ratchets, the dead-API-method

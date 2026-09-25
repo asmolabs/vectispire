@@ -19,6 +19,8 @@ export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use
 ```
 
 Run npm from the **repository root** (`npm ci`, `npm run lint`, `npm run build`, `npm test`).
+Run `npm run format -w vectispire-angular` before committing: CI checks formatting (Prettier, 120
+columns) and fails on a file it would change. Never reformat files you do not otherwise touch.
 `ng update` does not work in this workspace layout: bump versions by hand, install, then run
 `npx ng update <pkg> --migrate-only --from=… --to=…` inside `vectispire-angular/`.
 

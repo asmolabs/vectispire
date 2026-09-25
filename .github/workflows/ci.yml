@@ -218,6 +218,12 @@ jobs:
       # load, no plugin installed, a script calling a target that did not exist, and no job running
       # it. A rule nothing executes is not a rule.
       - run: npm run lint -w vectispire-angular
+      # **Formatting is checked, not just configured.** The Prettier config sat unused for the life
+      # of the project, and the one time `format` ran it would have rewritten 158 files. The code
+      # was reformatted at 120 columns in dedicated commits (listed in .git-blame-ignore-revs), and
+      # this keeps it that way: a change that is not formatted fails here, and `npm run format`
+      # fixes it.
+      - run: npm run format:check -w vectispire-angular
       - run: npm run build
       - run: npm test
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

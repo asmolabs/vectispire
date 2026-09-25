@@ -7,6 +7,7 @@ Vectispire's user interface: the screens over the HTTP API that
 npm start                 # from the root, serves on http://localhost:4280
 npm run build
 npm run lint              # ESLint: TypeScript, Angular and template accessibility rules
+npm run format            # Prettier at 120 columns; CI runs `format:check` and fails on unformatted code
 npm test                  # asset, i18n and dead-API checks, then the Vitest suite
 ```
 
