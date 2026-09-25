@@ -27,7 +27,7 @@
                     pButton
                     icon="pi pi-upload"
                     class="p-button-outlined"
-                    label="Importer VEX"
+                    [label]="'compliance.import_vex' | translate"
                     (click)="openImport()"
                 ></button>
             }
@@ -43,7 +43,7 @@
                 pButton
                 icon="pi pi-file"
                 class="p-button-outlined"
-                label="CSAF 2.0"
+                [label]="'compliance.export_csaf' | translate"
                 [loading]="exportingCsaf()"
                 (click)="exportCsaf()"
             ></button>
@@ -51,7 +51,7 @@
                 pButton
                 icon="pi pi-code"
                 class="p-button-outlined"
-                label="CycloneDX VEX"
+                [label]="'compliance.export_cyclonedx' | translate"
                 [loading]="exportingCycloneDx()"
                 (click)="exportCycloneDx()"
             ></button>
@@ -120,9 +120,9 @@
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
                     <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
-                        {{ summary()!.mttr.overallMttrDays !== null ? summary()!.mttr.overallMttrDays + ' d' : 'N/A' }}
+                        {{ summary()!.mttr.overallMttrDays !== null ? ('compliance.mttr_days' | translate: { days: summary()!.mttr.overallMttrDays ?? '' }) : ('compliance.not_available' | translate) }}
                     </span>
-                    <span class="text-xs text-surface-500">({{ summary()!.mttr.resolvedCount }} resolved)</span>
+                    <span class="text-xs text-surface-500">({{ 'compliance.mttr_resolved' | translate: { count: summary()!.mttr.resolvedCount } }})</span>
                 </div>
             </div>
 
@@ -150,7 +150,7 @@
                     <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
                         {{ summary()!.totalMonitoredTargets > 0 ? Math.round((summary()!.passingGateTargets / summary()!.totalMonitoredTargets) * 100) : 100 }}%
                     </span>
-                    <span class="text-xs text-surface-500">({{ summary()!.passingGateTargets }}/{{ summary()!.totalMonitoredTargets }} targets)</span>
+                    <span class="text-xs text-surface-500">({{ 'compliance.gate_pass_targets' | translate: { passing: summary()!.passingGateTargets, total: summary()!.totalMonitoredTargets } }})</span>
                 </div>
             </div>
 
@@ -189,7 +189,7 @@
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
                     <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">{{ summary()!.evaluations.length }}</span>
-                    <span class="text-xs text-surface-500">NIS 2, DORA, ISO, PCI, CRA, SOC 2</span>
+                    <span class="text-xs text-surface-500">{{ 'compliance.frameworks_list' | translate }}</span>
                 </div>
             </div>
         </div>
@@ -216,11 +216,11 @@
                                 <th class="p-3 font-semibold">{{ 'compliance.gate' | translate }}</th>
                                 <th class="p-3 font-semibold">{{ 'compliance.open_issues' | translate }}</th>
                                 <th class="p-3 font-semibold">{{ 'compliance.sla_breaches' | translate }}</th>
-                                <th class="p-3 font-semibold text-center">NIS 2</th>
-                                <th class="p-3 font-semibold text-center">ISO 27001</th>
-                                <th class="p-3 font-semibold text-center">Cyber (CRA)</th>
+                                <th class="p-3 font-semibold text-center">{{ 'compliance.col_nis2' | translate }}</th>
+                                <th class="p-3 font-semibold text-center">{{ 'compliance.col_iso27001' | translate }}</th>
+                                <th class="p-3 font-semibold text-center">{{ 'compliance.col_cra' | translate }}</th>
                                 <th class="p-3 font-semibold text-center">{{ 'compliance.global_score' | translate }}</th>
-                                <th class="p-3 font-semibold text-right">Action</th>
+                                <th class="p-3 font-semibold text-right">{{ 'compliance.col_action' | translate }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-surface-200 dark:divide-surface-800">
@@ -273,7 +273,7 @@
                                             pButton
                                             icon="pi pi-filter"
                                             class="p-button-sm p-button-outlined"
-                                            label="Inspecter"
+                                            [label]="'compliance.inspect' | translate"
                                             (click)="onTargetChange(target.targetId)"
                                         ></button>
                                     </td>
@@ -344,10 +344,10 @@
                                 </div>
                                 <p class="text-xs text-surface-600 dark:text-surface-400">{{ control.control.requirement }}</p>
                                 <div class="text-xs font-medium text-surface-700 dark:text-surface-300 pt-1">
-                                    <span class="text-surface-500">Status:</span> {{ control.details }}
+                                    <span class="text-surface-500">{{ 'compliance.control_status' | translate }}</span> {{ control.details }}
                                 </div>
                                 <div class="text-xs text-primary-600 dark:text-primary-400 italic">
-                                    <span class="font-semibold">Guidance:</span> {{ control.remediationGuidance }}
+                                    <span class="font-semibold">{{ 'compliance.control_guidance' | translate }}</span> {{ control.remediationGuidance }}
                                 </div>
                             </div>
                             <div class="flex items-center gap-4 shrink-0">
@@ -364,10 +364,10 @@
     }
 
     <!-- VEX Import Dialog -->
-    <p-dialog header="Importer un document VEX amont (OpenVEX / CSAF / CycloneDX)" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
+    <p-dialog [header]="'compliance.import_title' | translate" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
         <div class="flex flex-col gap-4">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
-                {{ 'compliance.upload_statement' | translate }} <strong>OpenVEX</strong>, <strong>CSAF 2.0</strong> ou <strong>CycloneDX VEX (1.5/1.6)</strong> {{ 'compliance.vex_upload_help' | translate }} <em>not_affected</em> {{ 'compliance.with_vendor_justification' | translate }}
+                {{ 'compliance.upload_statement' | translate }} <strong>{{ 'compliance.format_openvex' | translate }}</strong>, <strong>{{ 'compliance.format_csaf' | translate }}</strong> {{ 'compliance.or' | translate }} <strong>{{ 'compliance.format_cyclonedx' | translate }}</strong> {{ 'compliance.vex_upload_help' | translate }} <em>not_affected</em> {{ 'compliance.with_vendor_justification' | translate }}
             </p>
 
             <div>
@@ -376,7 +376,7 @@
             </div>
 
             <div>
-                <label for="vex-import-json" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">Ou coller le contenu JSON direct</label>
+                <label for="vex-import-json" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.paste_json' | translate }}</label>
                 <textarea id="vex-import-json" rows="8" [(ngModel)]="importJson" class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0" placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'></textarea>
             </div>
 
@@ -389,7 +389,7 @@
         </div>
 
         <ng-template #footer>
-            <button pButton label="Annuler" class="p-button-text" (click)="importOpen.set(false)"></button>
+            <button pButton [label]="'common.cancel' | translate" class="p-button-text" (click)="importOpen.set(false)"></button>
             <button pButton icon="pi pi-check" [label]="'compliance.ingest_and_apply' | translate" [loading]="importing()" [disabled]="!importJson.trim()" (click)="submitIngestVex()"></button>
         </ng-template>
     </p-dialog>
@@ -403,14 +403,14 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="verify-payload-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">1. Fichier de charge utile (ex: manifest.json)</label>
+                    <label for="verify-payload-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.payload_file' | translate }}</label>
                     <input id="verify-payload-file" type="file" (change)="onVerifyPayloadSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
-                    <textarea rows="4" [(ngModel)]="verifyPayload" placeholder="Ou coller le contenu du fichier..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                    <textarea rows="4" [(ngModel)]="verifyPayload" [placeholder]="'compliance.paste_payload' | translate" class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
                 </div>
                 <div>
-                    <label for="verify-signature-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">2. Fichier de signature (ex: manifest.json.sig)</label>
+                    <label for="verify-signature-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.signature_file' | translate }}</label>
                     <input id="verify-signature-file" type="file" (change)="onVerifySigSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
-                    <textarea rows="4" [(ngModel)]="verifySignature" placeholder="Ou coller la signature Base64..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                    <textarea rows="4" [(ngModel)]="verifySignature" [placeholder]="'compliance.paste_signature' | translate" class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
                 </div>
             </div>
 
@@ -430,7 +430,7 @@
                     <i class="pi text-xl" [class.pi-check-circle]="verifyAuthentic()" [class.pi-exclamation-triangle]="verifyForeign()" [class.pi-times-circle]="!verifyResult()!.valid"></i>
                     <div class="text-xs">
                         <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
-                        <p class="text-[11px] opacity-75 my-0">Algorithme: {{ verifyResult()!.algorithm }} | Key ID: {{ verifyResult()!.keyId }}</p>
+                        <p class="text-[11px] opacity-75 my-0">{{ 'compliance.verify_result_meta' | translate: { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId } }}</p>
                     </div>
                 </div>
             }
@@ -448,7 +448,7 @@
         </div>
 
         <ng-template #footer>
-            <button pButton label="Fermer" class="p-button-text" (click)="verifyOpen.set(false)"></button>
+            <button pButton [label]="'common.close' | translate" class="p-button-text" (click)="verifyOpen.set(false)"></button>
             <button pButton icon="pi pi-verified" [label]="'compliance.verify_integrity' | translate" [loading]="verifying()" [disabled]="!verifyPayload.trim() || !verifySignature.trim()" (click)="submitVerification()"></button>
         </ng-template>
     </p-dialog>

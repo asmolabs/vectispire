@@ -94,7 +94,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1588;
+const EXPECTED_KEYS = 1661;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
@@ -304,7 +304,7 @@ if (hardcoded > HARDCODED_LABEL_CEILING) {
 // value. Control flow is removed before the text nodes are read — `@if (…) {` and `} @else {`
 // are not prose, and a scanner that balances the parentheses is needed rather than a pattern,
 // because `@if (activity()?.stats; as stats) {` closes three of them.
-const UNTRANSLATED_TEXT_CEILING = 164;
+const UNTRANSLATED_TEXT_CEILING = 101;
 
 /** Removes `@if (…) {`, `} @else if (…) {`, and the braces, leaving only what a reader sees. */
 function stripControlFlow(source) {

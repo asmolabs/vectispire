@@ -36,7 +36,7 @@
                 <div class="text-2xl font-bold mt-2 text-green-600 dark:text-green-400">
                     {{ sum.breakdownByRisk['PERMISSIVE'] ?? 0 }}
                 </div>
-                <span class="text-xs text-surface-400 mt-1">MIT, Apache-2.0, BSD</span>
+                <span class="text-xs text-surface-400 mt-1">{{ 'licenses.permissive_examples' | translate }}</span>
             </div>
 
             <div class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
@@ -44,7 +44,7 @@
                 <div class="text-2xl font-bold mt-2 text-amber-600 dark:text-amber-400">
                     {{ sum.breakdownByRisk['WEAK_COPYLEFT'] ?? 0 }}
                 </div>
-                <span class="text-xs text-surface-400 mt-1">LGPL, MPL, EPL</span>
+                <span class="text-xs text-surface-400 mt-1">{{ 'licenses.weak_copyleft_examples' | translate }}</span>
             </div>
 
             <div class="p-card p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
@@ -195,11 +195,11 @@
                             (ngModelChange)="selectedRisk.set($event)"
                             class="p-inputtext p-component text-sm py-1 px-2 rounded"
                         >
-                            <option value="ALL">All Risk Levels</option>
-                            <option value="PERMISSIVE">Permissive Only</option>
-                            <option value="WEAK_COPYLEFT">Weak Copyleft</option>
-                            <option value="STRONG_COPYLEFT">Strong Copyleft / Viral</option>
-                            <option value="FORBIDDEN">Forbidden</option>
+                            <option value="ALL">{{ 'licenses.filter_all_risks' | translate }}</option>
+                            <option value="PERMISSIVE">{{ 'licenses.filter_permissive' | translate }}</option>
+                            <option value="WEAK_COPYLEFT">{{ 'licenses.filter_weak_copyleft' | translate }}</option>
+                            <option value="STRONG_COPYLEFT">{{ 'licenses.strong_copyleft' | translate }}</option>
+                            <option value="FORBIDDEN">{{ 'licenses.filter_forbidden' | translate }}</option>
                         </select>
 
                         <select
@@ -207,9 +207,9 @@
                             (ngModelChange)="selectedCompliance.set($event)"
                             class="p-inputtext p-component text-sm py-1 px-2 rounded"
                         >
-                            <option value="ALL">All Compliance Statuses</option>
-                            <option value="COMPLIANT">Compliant Only</option>
-                            <option value="NON_COMPLIANT">Non-Compliant (Violations)</option>
+                            <option value="ALL">{{ 'licenses.filter_all_statuses' | translate }}</option>
+                            <option value="COMPLIANT">{{ 'licenses.filter_compliant' | translate }}</option>
+                            <option value="NON_COMPLIANT">{{ 'licenses.filter_non_compliant' | translate }}</option>
                         </select>
                     </div>
                 </div>
@@ -218,12 +218,12 @@
             <p-table [value]="filteredInventory()" [loading]="loading()" styleClass="p-datatable-sm" [paginator]="true" [rows]="15">
                 <ng-template #header>
                     <tr>
-                        <th>Component</th>
-                        <th>Version</th>
-                        <th>License (SPDX)</th>
-                        <th>Risk Category</th>
-                        <th>Target</th>
-                        <th>Compliance</th>
+                        <th>{{ 'licenses.col_component' | translate }}</th>
+                        <th>{{ 'common.version' | translate }}</th>
+                        <th>{{ 'licenses.col_license_spdx' | translate }}</th>
+                        <th>{{ 'licenses.col_risk_category' | translate }}</th>
+                        <th>{{ 'licenses.target' | translate }}</th>
+                        <th>{{ 'licenses.col_compliance' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template #body let-item>
@@ -241,9 +241,9 @@
                         </td>
                         <td>
                             @if (item.compliant) {
-                                <p-tag severity="success" value="COMPLIANT" />
+                                <p-tag severity="success" [value]="'licenses.tag_compliant' | translate" />
                             } @else {
-                                <p-tag severity="danger" value="VIOLATION" [title]="item.violationReason ?? ('licenses.disallowed' | translate)" />
+                                <p-tag severity="danger" [value]="'licenses.tag_violation' | translate" [title]="item.violationReason ?? ('licenses.disallowed' | translate)" />
                             }
                         </td>
                     </tr>
@@ -251,7 +251,7 @@
                 <ng-template #emptymessage>
                     <tr>
                         <td colspan="6" class="text-center text-muted-color py-6">
-                            No open source licenses match these filters.
+                            {{ 'licenses.empty_filtered' | translate }}
                         </td>
                     </tr>
                 </ng-template>
@@ -267,7 +267,7 @@
                 <div class="flex items-center gap-3">
                     <i class="pi pi-building-columns text-amber-500 text-2xl"></i>
                     <div>
-                        <h4 class="font-bold text-sm">Mode d'Analyse Juridique & Contamination Virale</h4>
+                        <h4 class="font-bold text-sm">{{ 'licenses.analysis_mode' | translate }}</h4>
                         <p class="text-xs text-muted-color">{{ 'licenses.copyleft_help' | translate }}</p>
                     </div>
                 </div>
@@ -362,7 +362,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div class="p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30">
-                    <h5 class="font-bold text-emerald-800 dark:text-emerald-300 text-sm mb-1">Permissive (MIT, Apache 2.0, BSD)</h5>
+                    <h5 class="font-bold text-emerald-800 dark:text-emerald-300 text-sm mb-1">{{ 'licenses.permissive_group' | translate }}</h5>
                     <p class="text-xs text-emerald-700 dark:text-emerald-400">{{ 'licenses.rule_permissive' | translate }}</p>
                 </div>
                 <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30">
@@ -370,7 +370,7 @@
                     <p class="text-xs text-amber-700 dark:text-amber-400">{{ 'licenses.rule_weak_copyleft' | translate }}</p>
                 </div>
                 <div class="p-4 rounded-xl border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/30">
-                    <h5 class="font-bold text-red-800 dark:text-red-300 text-sm mb-1">Copyleft Fort / Viral (GPL, AGPL, SSPL)</h5>
+                    <h5 class="font-bold text-red-800 dark:text-red-300 text-sm mb-1">{{ 'licenses.strong_copyleft_group' | translate }}</h5>
                     <p class="text-xs text-red-700 dark:text-red-400">{{ 'licenses.rule_strong_copyleft' | translate }}</p>
                 </div>
             </div>
