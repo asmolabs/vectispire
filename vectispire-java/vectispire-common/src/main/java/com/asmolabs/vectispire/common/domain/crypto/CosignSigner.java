@@ -114,6 +114,31 @@ public final class CosignSigner {
         }
     }
 
+    /**
+     * The public half of a P-256 private key, computed as {@code Q = d·G}.
+     *
+     * <p>The signing service used to pair a configured private key with the public half of a
+     * <em>fresh random</em> pair: the key it published matched nothing it signed. Deriving it is the
+     * only way the published key and the signatures can agree.
+     *
+     * @throws IllegalArgumentException for a key that is not an EC key on P-256
+     */
+    public static PublicKey derivePublicKey(PrivateKey privateKey) {
+        if (!(privateKey instanceof java.security.interfaces.ECPrivateKey ec)
+                || ec.getParams().getCurve().getField().getFieldSize() != 256) {
+            throw new IllegalArgumentException("The signing key must be an ECDSA P-256 private key.");
+        }
+        try {
+            org.bouncycastle.asn1.x9.X9ECParameters curve = org.bouncycastle.asn1.x9.ECNamedCurveTable.getByName(CURVE_NAME);
+            org.bouncycastle.math.ec.ECPoint q = curve.getG().multiply(ec.getS()).normalize();
+            java.security.spec.ECPoint w = new java.security.spec.ECPoint(
+                    q.getAffineXCoord().toBigInteger(), q.getAffineYCoord().toBigInteger());
+            return KeyFactory.getInstance(KEY_ALGORITHM).generatePublic(new java.security.spec.ECPublicKeySpec(w, ec.getParams()));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to derive the public key", e);
+        }
+    }
+
     public static String computeKeyId(PublicKey publicKey) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

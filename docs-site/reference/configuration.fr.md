@@ -20,6 +20,7 @@ Le moteur est lu depuis l'URL. Il n'y a pas de réglage de dialecte séparé.
 |---|---|
 | `ENCRYPTION_KEY` | L'enregistrement de tout secret est refusé tant que celle-ci ou la forme fichier n'est pas posée. |
 | `ENCRYPTION_KEY_FILE` | Un chemin vers un fichier contenant la clé. **À préférer en production.** Poser les deux est refusé ; un chemin qui ne résout pas arrête l'application. |
+| `VECTISPIRE_SIGNING_KEY` | La clé privée ECDSA P-256 (PEM, PKCS#8) qui signe les coffres de preuves, VEX, CSAF, CycloneDX et enveloppes in-toto ; sa moitié publique est publiée sur `/api/v1/crypto/public-key.pub`. Non posée, une clé est générée au premier usage et conservée chiffrée sous `ENCRYPTION_KEY` : elle survit aux redémarrages — et rien ne peut être signé sans `ENCRYPTION_KEY`. **À poser dès que plus d'une instance tourne**, pour qu'elles signent toutes avec la même clé. Une clé conservée qu'aucune `ENCRYPTION_KEY` configurée ne sait déchiffrer est refusée, jamais remplacée : la remplacer rendrait invérifiable tout document déjà signé. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` | Anciennes clés séparées par des virgules, essayées **au déchiffrement seulement**. |
 | `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE` | La même liste depuis un fichier, séparée par des virgules ou des sauts de ligne. |
 

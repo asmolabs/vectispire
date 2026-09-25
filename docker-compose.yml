@@ -140,6 +140,9 @@ services:
       # Decrypts every deployment SSH key and integration token this instance holds. A shared
       # default here would mean anyone with a copy of this repository can read them.
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?generate one with `openssl rand -base64 32`}
+      # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first use
+      # and stored encrypted under ENCRYPTION_KEY. Set it when several instances sign.
+      VECTISPIRE_SIGNING_KEY: ${VECTISPIRE_SIGNING_KEY:-}
       VECTISPIRE_BOOTSTRAP_USERNAME: ${VECTISPIRE_BOOTSTRAP_USERNAME:-admin}
       VECTISPIRE_BOOTSTRAP_PASSWORD: ${VECTISPIRE_BOOTSTRAP_PASSWORD:?set the first administrator password}
       VECTISPIRE_EMBEDDED_WORKER: ${VECTISPIRE_EMBEDDED_WORKER:-true}
