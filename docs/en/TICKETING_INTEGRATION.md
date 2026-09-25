@@ -56,5 +56,5 @@ Add the following webhook endpoints in your external issue tracker:
 ## 🔒 Security & Token Encryption
 
 * Tracker credentials (`TICKET_TOKEN`) are encrypted at rest with AES-GCM-256 bound to key context `setting:ticket_token`.
-* Webhook ingestion is stateless and idempotent.
+* A delivery is acted on once: its body is remembered for thirty days, so a captured signed request sent again later is answered *"Delivery already processed"* and changes nothing. The tracker's own redelivery of the same event lands there too.
 * Every synchronization update is recorded in the cryptographically chained audit log.

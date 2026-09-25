@@ -32,6 +32,12 @@ The signature is what makes the package worth more than a screenshot. It attests
 bundle is the one Vectispire produced, unmodified — which is the question anyone reviewing
 evidence after the fact actually has.
 
+**Verify it against a key you obtained separately**, never the `00_vectispire_public_key.pub` the
+bundle carries: whoever alters a bundle replaces that file too. Fetch the key from
+`/api/v1/crypto/public-key.pub` or keep a copy pinned from before. The attestation inside is a DSSE
+envelope signed over the specification's pre-authentication encoding, so `cosign verify-attestation`
+and in-toto verifiers check it as they would any other.
+
 ## What this is and is not
 
 It is a mechanical evaluation of the controls Vectispire can observe: what is scanned, how

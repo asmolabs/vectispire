@@ -176,8 +176,24 @@ public class AgentProtocol {
      * failure would look like a repository or a permission problem. Failing here names the cause.
      */
     private AssignedTask unseal(AssignedTask assigned) {
-        if (!(assigned.task().target() instanceof ScanTask.Target.Repository repository)
-                || !SealedEnvelope.isSealed(repository.privateKey())) {
+        if (!(assigned.task().target() instanceof ScanTask.Target.Repository repository)) {
+            return assigned;
+        }
+        String key = repository.privateKey();
+        if (key == null || key.isBlank()) {
+            return assigned;
+        }
+        if (!SealedEnvelope.isSealed(key)) {
+            // **A clear key after announcing a sealing key is a downgrade, not a choice.** The
+            // control plane seals for any agent that announced a key; a clear one means the
+            // announcement did not arrive — which is what a TLS-terminating proxy stripping
+            // `sealing_public_key` from the hello looks like from here. Accepting it handed the
+            // deployment key to the proxy the sealing exists to exclude.
+            if (keyPair.isPresent()) {
+                throw new IllegalStateException(
+                        "A deployment key arrived unsealed although this agent announced a sealing key: the "
+                                + "announcement was removed on the way. Refusing the key rather than using it.");
+            }
             return assigned;
         }
         if (keyPair.isEmpty()) {

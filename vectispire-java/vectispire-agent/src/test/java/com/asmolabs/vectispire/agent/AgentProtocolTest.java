@@ -112,11 +112,24 @@ class AgentProtocolTest {
     }
 
     @Test
-    @DisplayName("a clear key passes through untouched")
-    void aClearKeyIsNotTouched() throws Exception {
+    @DisplayName("a clear key is refused by an agent that announced a sealing key")
+    void aClearKeyAfterAnnouncingSealingIsRefused() throws Exception {
+        // This case pinned the downgrade as a feature: a TLS-terminating proxy that strips
+        // `sealing_public_key` from the hello gets the key sent in the clear, and the agent took it.
         answers(200, JSON.writeValueAsString(assignedWith(PRIVATE_KEY)));
 
-        ScanTask task = protocol.claim(Duration.ofSeconds(1)).orElseThrow().task();
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("announcement was removed");
+    }
+
+    @Test
+    @DisplayName("a clear key passes through for an agent that announced no sealing key")
+    void aClearKeyIsNotTouchedWithoutSealing() throws Exception {
+        AgentProtocol unsealed = new AgentProtocol(http, JSON, null);
+        answers(200, JSON.writeValueAsString(assignedWith(PRIVATE_KEY)));
+
+        ScanTask task = unsealed.claim(Duration.ofSeconds(1)).orElseThrow().task();
 
         assertThat(((ScanTask.Target.Repository) task.target()).privateKey()).isEqualTo(PRIVATE_KEY);
     }

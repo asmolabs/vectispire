@@ -33,6 +33,12 @@ La signature est ce qui rend le paquet plus utile qu'une capture d'écran. Elle 
 paquet est bien celui que Vectispire a produit, non modifié — ce qui est la question que se
 pose réellement quiconque examine des preuves après coup.
 
+**Vérifiez-le avec une clé obtenue à part**, jamais avec le `00_vectispire_public_key.pub` que le
+paquet transporte : qui modifie un paquet remplace aussi ce fichier. Récupérez la clé sur
+`/api/v1/crypto/public-key.pub` ou gardez-en une copie épinglée d'avant. L'attestation qu'il contient
+est une enveloppe DSSE signée sur l'encodage de pré-authentification de la spécification :
+`cosign verify-attestation` et les vérificateurs in-toto la contrôlent comme n'importe quelle autre.
+
 ## Ce que c'est, et ce que ce n'est pas
 
 C'est une évaluation mécanique des contrôles que Vectispire peut observer : ce qui est analysé,

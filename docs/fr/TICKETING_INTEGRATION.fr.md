@@ -57,5 +57,5 @@ qqu> **Réglez d'abord le secret du webhook** (**Paramètres → Tickets → sec
 ## 🔒 Sécurité et Chiffrement
 
 * Les jetons d'accès aux trackers (`TICKET_TOKEN`) sont **chiffrés au repos** via AES-GCM-256 avec contexte de clé `setting:ticket_token`.
-* L'accès au point d'entrée de webhook est isolé et idempotent.
+* Une livraison n'est traitée qu'une fois : son corps est mémorisé trente jours, si bien qu'une requête signée capturée et renvoyée plus tard reçoit *« Delivery already processed »* et ne change rien. La redélivrance du même événement par le traqueur y aboutit aussi.
 * Chaque décision de synchronisation produit une entrée horodatée et signée dans le registre d'audit.

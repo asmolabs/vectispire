@@ -135,21 +135,23 @@ public class RuleSetsController {
      * because it can change between commits and a stored copy would let somebody accept a text
      * that is not the one they are about to receive.
      *
-     * <p>This clones the repository to answer, which is not cheap. It is an administrator
-     * action taken rarely, and the alternative — trusting a cached description — is exactly the
-     * thing that makes an acceptance meaningless.
+     * <p>Answering takes a clone, so it is reserved to the role that can act on the answer — the
+     * import below is a security lead's — and it is kept ten minutes rather than refetched on each
+     * request. The acceptance stays meaningful because the import clones again and checks the
+     * licence digest; the preview is only what the screen shows before that.
      */
+    @RequiresSecurityLead
     @GetMapping("/catalogue")
     public CataloguePreview catalogue() {
-        RuleCatalogueFetcher.Fetched fetched = fetcher.fetch();
+        RuleCatalogueFetcher.Preview preview = fetcher.preview();
         return new CataloguePreview(
                 RuleCatalogue.UPSTREAM,
-                fetched.commit(),
+                preview.commit(),
                 RuleCatalogue.LICENCE,
-                fetched.contents().licence(),
-                fetched.licenceSha256(),
-                fetched.contents().languages(),
-                fetched.contents().categories());
+                preview.licence(),
+                preview.licenceSha256(),
+                preview.languages(),
+                preview.categories());
     }
 
     /**

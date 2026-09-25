@@ -70,7 +70,7 @@ class MigrationsTest {
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
                         "t_api_endpoint", "t_api_contract", "t_mfa_challenge", "t_gate_verdict",
-                        "t_control_declaration", "t_compliance_snapshot");
+                        "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery");
     }
 
     @Test

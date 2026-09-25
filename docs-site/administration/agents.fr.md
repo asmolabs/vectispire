@@ -55,7 +55,9 @@ sur le plan de contrôle.
 | `delegated` | la clé de déploiement, par travail | une machine de confiance seulement. |
 
 `delegated` **exige HTTPS et est refusé sans lui**. La clé n'est jamais écrite sur disque
-au-delà d'un fichier temporaire en `0600`, et chaque remise est auditée.
+au-delà d'un fichier temporaire en `0600`, et chaque remise est auditée. Un agent qui a annoncé une
+clé de scellement **refuse une clé arrivée non scellée** : c'est ce que produirait un proxy TLS qui
+retire l'annonce, et le scellement existe justement pour tenir la clé hors de portée de ce proxy.
 
 Préférez `local`. Cela borne les dégâts qu'un agent compromis peut faire à l'accès propre de
 cette machine, ce qui est toute la raison d'exécuter des scans sur un hôte séparé.

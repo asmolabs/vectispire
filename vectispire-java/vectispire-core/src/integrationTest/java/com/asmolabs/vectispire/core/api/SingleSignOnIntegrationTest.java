@@ -253,8 +253,9 @@ class SingleSignOnIntegrationTest {
                         "username=" + PERSON + "&password=" + encode(PASSWORD) + "&credentialId=")));
 
         assertThat(afterLogin.uri().toString()).contains("sso=refused");
-        assertThat(java.net.URLDecoder.decode(afterLogin.uri().toString(), StandardCharsets.UTF_8))
-                .contains("An administrator has to create it first");
+        // A code the login screen translates, never the sentence: a reason carried as text was
+        // displayed as it came, and any link could make the page say what it liked.
+        assertThat(afterLogin.uri().toString()).contains("reason=no_account");
         assertThat(jar).doesNotContainKey("zs_handoff");
     }
 

@@ -173,9 +173,28 @@ public final class CosignSigner {
         }
     }
 
+    /**
+     * DSSE's pre-authentication encoding: what is signed, rather than the payload alone.
+     *
+     * <p>{@code "DSSEv1" SP LEN(type) SP type SP LEN(body) SP body}, lengths in ASCII decimal bytes.
+     * The payload alone was signed, so the envelope's {@code payloadType} was not authenticated —
+     * a signed in-toto statement could be relabelled as any other type and still verify — and
+     * {@code cosign verify-attestation} and every in-toto verifier refused the envelopes, since
+     * they check the encoding the specification defines.
+     */
+    public static byte[] preAuthenticationEncoding(String payloadType, byte[] payload) {
+        byte[] type = payloadType.getBytes(StandardCharsets.UTF_8);
+        byte[] header = ("DSSEv1 " + type.length + " " + payloadType + " " + payload.length + " ")
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] encoded = new byte[header.length + payload.length];
+        System.arraycopy(header, 0, encoded, 0, header.length);
+        System.arraycopy(payload, 0, encoded, header.length, payload.length);
+        return encoded;
+    }
+
     public static DsseEnvelope wrapAndSignDsse(String payloadType, byte[] payloadBytes, PrivateKey privateKey, String keyId) {
         String base64Payload = Base64.getEncoder().encodeToString(payloadBytes);
-        String signature = sign(payloadBytes, privateKey);
+        String signature = sign(preAuthenticationEncoding(payloadType, payloadBytes), privateKey);
         DsseEnvelope.SignatureEntry sigEntry = new DsseEnvelope.SignatureEntry(
                 keyId != null ? keyId : "vectispire-default-key",
                 signature);
@@ -183,13 +202,15 @@ public final class CosignSigner {
     }
 
     public static boolean verifyDsse(DsseEnvelope envelope, PublicKey publicKey) {
-        if (envelope == null || envelope.payload() == null || envelope.signatures() == null || envelope.signatures().isEmpty()) {
+        if (envelope == null || envelope.payload() == null || envelope.payloadType() == null
+                || envelope.signatures() == null || envelope.signatures().isEmpty()) {
             return false;
         }
         try {
-            byte[] payloadBytes = Base64.getDecoder().decode(envelope.payload());
+            byte[] signed = preAuthenticationEncoding(
+                    envelope.payloadType(), Base64.getDecoder().decode(envelope.payload()));
             for (DsseEnvelope.SignatureEntry sig : envelope.signatures()) {
-                if (verify(payloadBytes, sig.sig(), publicKey)) {
+                if (verify(signed, sig.sig(), publicKey)) {
                     return true;
                 }
             }

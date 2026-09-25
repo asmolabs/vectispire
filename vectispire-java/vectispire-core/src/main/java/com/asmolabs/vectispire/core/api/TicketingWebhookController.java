@@ -75,6 +75,9 @@ public class TicketingWebhookController {
                             "The ticket webhook is not configured on this instance: an administrator has to set its secret first"));
             case TicketingWebhookService.Outcome.Malformed malformed ->
                     ResponseEntity.badRequest().body(new WebhookSyncResult(false, null, null, "Malformed JSON body"));
+            // 200: the tracker's own redelivery lands here too, and an error would make it retry.
+            case TicketingWebhookService.Outcome.AlreadyProcessed seen ->
+                    ResponseEntity.ok(new WebhookSyncResult(false, null, null, "Delivery already processed"));
             case TicketingWebhookService.Outcome.NoReference none ->
                     ResponseEntity.ok(new WebhookSyncResult(false, null, null, "No ticket reference extracted from payload"));
             case TicketingWebhookService.Outcome.NoMatchingIssue(String ticketRef) ->

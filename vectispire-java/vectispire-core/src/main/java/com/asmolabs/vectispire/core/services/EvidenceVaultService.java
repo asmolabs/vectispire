@@ -119,10 +119,14 @@ public class EvidenceVaultService {
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
             List<EvidenceFileEntry> entries = new ArrayList<>();
 
-            // 0. Public Key (Cosign / Sigstore Verification)
+            // 0. Public Key — a convenience, and said to be one. A key carried inside the bundle it
+            // verifies proves nothing about the bundle: whoever altered the bundle replaces the key
+            // too. The verifier's key has to come from elsewhere — the instance's published key,
+            // or a copy pinned before this bundle existed.
             byte[] pubKeyBytes = signingKeyService.getPublicKeyPem().getBytes(StandardCharsets.UTF_8);
             addZipEntry(zip, entries, "00_vectispire_public_key.pub",
-                    "Vectispire ECDSA P-256 public key for verifying Cosign signatures and DSSE envelopes",
+                    "Vectispire ECDSA P-256 public key, for convenience only: verify against a key obtained out of "
+                            + "band (GET /api/v1/crypto/public-key.pub, or a pinned copy), never the one inside this bundle",
                     pubKeyBytes);
 
             // 1. Compliance Frameworks evaluation

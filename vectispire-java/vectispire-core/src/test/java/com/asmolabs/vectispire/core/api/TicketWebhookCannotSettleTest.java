@@ -109,6 +109,37 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
                 .isEqualTo("pending_approval");
     }
 
+    @Test
+    @DisplayName("a delivery replayed later is not acted on twice")
+    void aReplayedDeliveryIsIgnored() throws Exception {
+        // A signed delivery captured on the wire stayed valid for ever: sent again after an
+        // approver had turned the decision down, it queued the same decision again.
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "s3cr3t-partage");
+        IssueEntity issue = critical("fp-webhook-replay", "SEC-5555");
+        String body = FALSE_POSITIVE.formatted("SEC-5555");
+
+        mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "s3cr3t-partage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        // An approver turns it down.
+        IssueEntity rejected = issues.findById(issue.getId()).orElseThrow();
+        rejected.setTriageStatus("under_review");
+        issues.save(rejected);
+
+        mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "s3cr3t-partage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.actionTaken")
+                        .value("Delivery already processed"));
+
+        assertThat(issues.findById(issue.getId()).orElseThrow().getTriageStatus()).isEqualTo("under_review");
+    }
+
     private IssueEntity critical(String fingerprint, String ticketRef) {
         IssueEntity issue = new IssueEntity();
         issue.setFingerprint(fingerprint);

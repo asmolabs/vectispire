@@ -66,6 +66,44 @@ public class RuleCatalogueFetcher {
      */
     public record Fetched(String commit, RuleCatalogue.Contents contents, String licenceSha256) {}
 
+    /** What the preview screen shows: the terms and the counts, not the rules themselves. */
+    public record Preview(
+            String commit,
+            String licence,
+            String licenceSha256,
+            java.util.Map<String, Integer> languages,
+            java.util.Map<String, Integer> categories) {}
+
+    /** How long a preview answers for itself before the upstream is asked again. */
+    private static final Duration PREVIEW_LIFETIME = Duration.ofMinutes(10);
+
+    private Preview preview;
+    private java.time.Instant previewedAt;
+
+    /**
+     * The catalogue's terms and contents, cloned at most once every ten minutes.
+     *
+     * <p><b>A full clone per request</b> was what a screen refresh cost, and any governance
+     * reader could ask for it in a loop — an outbound GitHub clone and a temporary checkout each
+     * time. The preview is kept briefly and one clone runs at a time. The import does not use it:
+     * it clones again and compares the licence digest, so the terms accepted are always the ones
+     * fetched at that moment, whatever this held.
+     */
+    public synchronized Preview preview() {
+        java.time.Instant now = java.time.Instant.now();
+        if (preview == null || previewedAt.plus(PREVIEW_LIFETIME).isBefore(now)) {
+            Fetched fetched = fetch();
+            preview = new Preview(
+                    fetched.commit(),
+                    fetched.contents().licence(),
+                    fetched.licenceSha256(),
+                    fetched.contents().languages(),
+                    fetched.contents().categories());
+            previewedAt = now;
+        }
+        return preview;
+    }
+
     public Fetched fetch() {
         RuleCatalogue.requireAllowed(RuleCatalogue.UPSTREAM);
 

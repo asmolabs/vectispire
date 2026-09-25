@@ -329,6 +329,17 @@ class RouteAuthorizationTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the catalogue preview, which clones GitHub to answer, is the security lead's")
+    void theCataloguePreviewIsNotAReadersToTrigger() throws Exception {
+        // Any governance reader could make the control plane clone the upstream on every request.
+        // The preview prepares an import, and the import is a security lead's.
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/rule-sets/catalogue"),
+                        asAuditor()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+    }
+
+    @Test
     @DisplayName("an auditor changes nothing, and an ordinary account still reads none of it")
     void anAuditorMayNotWrite() throws Exception {
         // **The half that makes the role worth having.** A reader that could also write would be a

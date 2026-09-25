@@ -62,4 +62,28 @@ class RuleCatalogueFetcherTest {
         Files.createDirectories(file.getParent());
         Files.writeString(file, content);
     }
+
+    @Test
+    @DisplayName("two previews in a row clone the upstream once, not twice")
+    void thePreviewIsNotAClonePerRequest() {
+        // Each GET cloned GitHub into a temporary checkout, and any governance reader could ask
+        // in a loop.
+        java.util.concurrent.atomic.AtomicInteger clones = new java.util.concurrent.atomic.AtomicInteger();
+        RuleCatalogueFetcher counting = new RuleCatalogueFetcher() {
+            @Override
+            public Fetched fetch() {
+                clones.incrementAndGet();
+                return new Fetched("abc123",
+                        new com.asmolabs.vectispire.common.domain.rules.RuleCatalogue.Contents(
+                                java.util.Map.of("java", 3), java.util.Map.of("security", 3), "LICENCE TEXT", java.util.List.of()),
+                        "digest");
+            }
+        };
+
+        counting.preview();
+        RuleCatalogueFetcher.Preview second = counting.preview();
+
+        org.assertj.core.api.Assertions.assertThat(clones.get()).isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(second.licenceSha256()).isEqualTo("digest");
+    }
 }

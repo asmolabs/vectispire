@@ -53,7 +53,9 @@ the agent on another machine and set `VECTISPIRE_EMBEDDED_WORKER=false` on the c
 | `delegated` | the deploy key, per job | a trusted machine only. |
 
 `delegated` **requires HTTPS and is refused without it**. The key is never written to disk
-beyond a `0600` temporary file, and every delivery is audited.
+beyond a `0600` temporary file, and every delivery is audited. An agent that announced a sealing key
+**refuses a key that arrives unsealed**: that is what a TLS-terminating proxy stripping the
+announcement would produce, and the sealing exists precisely to keep the key from that proxy.
 
 Prefer `local`. It bounds the damage a compromised agent can do to that machine's own
 access, which is the entire reason for running scans on a separate host in the first place.

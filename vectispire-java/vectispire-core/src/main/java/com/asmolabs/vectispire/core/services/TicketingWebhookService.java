@@ -1,15 +1,19 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.WebhookDeliveryEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.repositories.WebhookDeliveries;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -32,18 +36,27 @@ public class TicketingWebhookService {
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final TicketService tickets;
+    private final WebhookDeliveries deliveries;
+    private final java.time.Clock clock;
+
+    /** How long a delivery's body is remembered for the replay check. */
+    private static final java.time.Duration REPLAY_WINDOW = java.time.Duration.ofDays(30);
 
     public TicketingWebhookService(
             Issues issues,
             IssueTriageService triageService,
             AuditLogService audit,
             ObjectMapper json,
-            TicketService tickets) {
+            TicketService tickets,
+            WebhookDeliveries deliveries,
+            java.time.Clock clock) {
         this.issues = issues;
         this.triageService = triageService;
         this.audit = audit;
         this.json = json;
         this.tickets = tickets;
+        this.deliveries = deliveries;
+        this.clock = clock;
     }
 
     public sealed interface Outcome {
@@ -56,6 +69,9 @@ public class TicketingWebhookService {
         record Malformed() implements Outcome {}
 
         record NoReference() implements Outcome {}
+
+        /** This exact body was already acted on: a replay, or the tracker's own redelivery. */
+        record AlreadyProcessed() implements Outcome {}
 
         record NoMatchingIssue(String ticketRef) implements Outcome {}
 
@@ -96,6 +112,25 @@ public class TicketingWebhookService {
                             + origin.ipAddress(),
                     "anonymous"));
             return new Outcome.Rejected();
+        }
+
+        // **Once per body.** A signed delivery captured on the wire stayed valid for ever: sent again,
+        // it queued the same decision again. Remembered by the hash of the body, which the
+        // signature covers — not by the delivery id, which travels in a header it does not.
+        Instant now = clock.instant();
+        deliveries.deleteBefore(now.minus(REPLAY_WINDOW));
+        String bodyHash = Sessions.hashOf(provider.wireName() + ":" + rawPayload);
+        try {
+            deliveries.saveAndFlush(new WebhookDeliveryEntity(bodyHash, provider.wireName(), now));
+        } catch (org.springframework.dao.DataAccessException refused) {
+            // The primary key refusing a duplicate is not translated the same way on every engine
+            // — SQLite's dialect reports it as a generic JPA failure — so the row is asked for
+            // rather than the exception's class trusted. A database that is down is not a replay.
+            if (!deliveries.existsById(bodyHash)) {
+                throw refused;
+            }
+            log.info("{} webhook body already processed; ignored.", provider);
+            return new Outcome.AlreadyProcessed();
         }
 
         JsonNode payload;

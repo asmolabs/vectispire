@@ -78,4 +78,38 @@ class CosignSignerTest {
                 envelope.signatures());
         assertThat(CosignSigner.verifyDsse(tamperedEnvelope, keyPair.getPublic())).isFalse();
     }
+
+    @Test
+    @DisplayName("the pre-authentication encoding is the specification's, byte for byte")
+    void preAuthenticationEncodingMatchesTheSpecification() {
+        // The example given by the DSSE specification itself.
+        assertThat(new String(
+                        CosignSigner.preAuthenticationEncoding(
+                                "http://example.com/HelloWorld", "hello world".getBytes(StandardCharsets.UTF_8)),
+                        StandardCharsets.UTF_8))
+                .isEqualTo("DSSEv1 29 http://example.com/HelloWorld 11 hello world");
+    }
+
+    @Test
+    @DisplayName("the signature covers the payload type: a relabelled envelope does not verify")
+    void theTypeIsAuthenticated() {
+        // Only the payload was signed, so a statement could be presented under any type and still
+        // verify — and in-toto and cosign tooling, which check the encoding, refused it.
+        KeyPair keyPair = CosignSigner.generateKeyPair();
+        byte[] payload = "{\"_type\": \"https://in-toto.io/Statement/v1\"}".getBytes(StandardCharsets.UTF_8);
+        DsseEnvelope envelope = CosignSigner.wrapAndSignDsse(
+                DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload, keyPair.getPrivate(), "k");
+
+        DsseEnvelope relabelled = new DsseEnvelope("application/json", envelope.payload(), envelope.signatures());
+        assertThat(CosignSigner.verifyDsse(relabelled, keyPair.getPublic())).isFalse();
+
+        // And what is signed is the encoding, not the raw payload.
+        String signature = envelope.signatures().getFirst().sig();
+        assertThat(CosignSigner.verify(payload, signature, keyPair.getPublic())).isFalse();
+        assertThat(CosignSigner.verify(
+                        CosignSigner.preAuthenticationEncoding(DsseEnvelope.IN_TOTO_PAYLOAD_TYPE, payload),
+                        signature,
+                        keyPair.getPublic()))
+                .isTrue();
+    }
 }

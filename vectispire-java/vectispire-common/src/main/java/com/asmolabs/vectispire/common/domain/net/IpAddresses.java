@@ -23,6 +23,15 @@ final class IpAddresses {
     /** {@code 64:ff9b::/96}, the NAT64 translation prefix: the last four bytes are the IPv4. */
     private static final byte[] NAT64 = hex("0064ff9b0000000000000000");
 
+    /** {@code 64:ff9b:1::/48}, NAT64 for local use (RFC 8215): the last four bytes again. */
+    private static final byte[] NAT64_LOCAL = hex("0064ff9b0001");
+
+    /** {@code 2002::/16}, 6to4: bytes two to five are the IPv4 the tunnel ends at. */
+    private static final byte[] SIX_TO_FOUR = hex("2002");
+
+    /** {@code 2001:0::/32}, Teredo: the client's IPv4 is the last four bytes, each inverted. */
+    private static final byte[] TEREDO = hex("20010000");
+
     /** Parses a literal, or empty when the text is a hostname rather than an address. */
     static Optional<byte[]> parseLiteral(String text) {
         try {
@@ -48,8 +57,22 @@ final class IpAddresses {
      */
     private static Optional<byte[]> embeddedV4(byte[] bytes) {
         byte[] prefix = Arrays.copyOf(bytes, 12);
-        if (Arrays.equals(prefix, V4_MAPPED) || Arrays.equals(prefix, NAT64)) {
+        if (Arrays.equals(prefix, V4_MAPPED) || Arrays.equals(prefix, NAT64) || startsWith(bytes, NAT64_LOCAL)) {
             return Optional.of(Arrays.copyOfRange(bytes, 12, 16));
+        }
+        // **Three more spellings, found by review rather than by an incident.** 6to4 and Teredo
+        // carry an IPv4 that a relay will reach, and local-use NAT64 translates like its public
+        // sibling: `2002:a9fe:a9fe::` is the metadata endpoint as much as `::ffff:169.254.169.254`
+        // is, it only needs a relay on the path to get there.
+        if (startsWith(bytes, SIX_TO_FOUR)) {
+            return Optional.of(Arrays.copyOfRange(bytes, 2, 6));
+        }
+        if (startsWith(bytes, TEREDO)) {
+            byte[] client = Arrays.copyOfRange(bytes, 12, 16);
+            for (int i = 0; i < client.length; i++) {
+                client[i] = (byte) ~client[i];
+            }
+            return Optional.of(client);
         }
         // `::` and `::1` are not wrapped IPv4s: they are the unspecified address and loopback,
         // classified as such below.
@@ -115,7 +138,13 @@ final class IpAddresses {
         if (allZero(Arrays.copyOf(bytes, 15)) && octet(bytes, 15) == 1) return false; // `::1`
         if ((octet(bytes, 0) & 0xfe) == 0xfc) return false; // fc00::/7, unique local
         if (octet(bytes, 0) == 0xfe && (octet(bytes, 1) & 0xc0) == 0x80) return false; // fe80::/10
+        if (octet(bytes, 0) == 0xfe && (octet(bytes, 1) & 0xc0) == 0xc0) return false; // fec0::/10, site-local
+        if (startsWith(bytes, hex("20010db8"))) return false; // 2001:db8::/32, documentation
         return octet(bytes, 0) != 0xff; // multicast
+    }
+
+    private static boolean startsWith(byte[] bytes, byte[] prefix) {
+        return bytes.length >= prefix.length && Arrays.equals(Arrays.copyOf(bytes, prefix.length), prefix);
     }
 
     private static int octet(byte[] bytes, int index) {

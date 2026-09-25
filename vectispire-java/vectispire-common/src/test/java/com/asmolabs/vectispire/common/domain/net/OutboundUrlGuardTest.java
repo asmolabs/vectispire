@@ -224,4 +224,35 @@ class OutboundUrlGuardTest {
                     .isEqualTo(6543);
         }
     }
+
+    @Nested
+    @DisplayName("IPv6 forms that carry an IPv4, or are not public")
+    class TunnelledForms {
+
+        @ParameterizedTest(name = "{0} is the metadata endpoint")
+        @ValueSource(strings = {
+            "2002:a9fe:a9fe::1",      // 6to4 of 169.254.169.254
+            "64:ff9b:1::a9fe:a9fe",   // local-use NAT64
+            "2001:0:1:2::5601:5601"   // Teredo, client 169.254.169.254 inverted
+        })
+        void refusedAsLinkLocal(String address) {
+            assertThatThrownBy(() -> guardResolving(address).validate("http://h/", OutboundPolicy.INTERNAL_ALLOWED, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("link-local");
+        }
+
+        @ParameterizedTest(name = "{0} is not a public destination")
+        @ValueSource(strings = {"2002:7f00:1::", "2002:a00:1::", "fec0::1", "2001:db8::1", "2001:0:1:2::80ff:fffe"})
+        void refusedWherePublicIsRequired(String address) {
+            assertThatThrownBy(() -> guardResolving(address).validate("http://h/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+
+        @Test
+        @DisplayName("a 6to4 address of a public IPv4 stays public")
+        void aPublicTunnelEndIsPublic() {
+            assertThat(guardResolving("2002:0808:0808::1").validate("http://h/", OutboundPolicy.PUBLIC_ONLY, "Webhook"))
+                    .isEqualTo("http://h/");
+        }
+    }
 }
