@@ -14,6 +14,15 @@ capable d'enregistrer des cibles.
 
 ![Quatre clés : une sans restriction, une limitée à un dépôt, une clé d'agent jamais utilisée, et une expirée.](../assets/screens/fr/api-keys.png)
 
+## Pas de restriction à une cible
+
+Une clé ne peut pas être limitée à un dépôt ou à un conteneur : en émettre une est refusé avec
+`400`. Ces clés étaient acceptées et listées avec le nom de leur cible, et ne restreignaient rien —
+les seules clés qui s'authentifient sont celles des agents, émises sans restriction à la
+déclaration de l'agent, et le protocole des agents ne lit aucune visibilité. Restreignez ce que les
+personnes voient avec les [équipes](users-and-teams.md). Une clé émise restreinte avant ce
+changement garde son libellé dans la liste et ne s'authentifie toujours nulle part.
+
 ## Affichée une seule fois
 
 Une clé est affichée une fois, à sa création. Vectispire stocke ce dont il a besoin pour

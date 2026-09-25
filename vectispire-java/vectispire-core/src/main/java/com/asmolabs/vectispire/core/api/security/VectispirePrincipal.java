@@ -32,7 +32,13 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
     private final transient AgentEntity agent;
 
     /**
-     * The narrowing the credential itself carries — an API key issued for one target.
+     * The narrowing the credential itself carries.
+     *
+     * <p><b>Today no credential carries one</b>: a session answers everything and leaves the
+     * narrowing to the account, and an agent key is issued unrestricted — the API keys screen
+     * refuses a target restriction, because no key it issues reaches a route that would read it.
+     * The field stays, and every read route keeps passing it, so that a credential which does
+     * narrow one day is intersected everywhere at once instead of route by route.
      *
      * <p>On the principal rather than fetched by whoever needs it, because "whoever needs it" is
      * every read route and one of them would eventually not. It arrives already resolved from

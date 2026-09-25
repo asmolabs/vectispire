@@ -78,9 +78,9 @@ public class VisibilityService {
     /**
      * The visibility of a signed-in account.
      *
-     * @param restriction a further narrowing carried by the credential — an API key issued for
-     *     one target. Intersected, never unioned: a narrow key held by a broad account stays
-     *     narrow
+     * @param restriction a further narrowing carried by the credential — none carries one today,
+     *     see {@code VectispirePrincipal.credentialRestriction}. Intersected, never unioned: a
+     *     narrow credential held by a broad account stays narrow
      */
     @Transactional(readOnly = true)
     public Visibility of(UserEntity user, Visibility restriction) {
@@ -137,26 +137,6 @@ public class VisibilityService {
         }
 
         return Visibility.only(new ArrayList<>(visible));
-    }
-
-    /**
-     * The restriction an API key carries, if any.
-     *
-     * <p><b>This was declared and never enforced.</b> The key row has carried {@code targetKind}
-     * and {@code targetId} from the start, the administration screen offers to restrict a key to
-     * one target, and issuing one even checks that the target exists — while nothing read the
-     * columns again. A key advertised as "restricted to repository 5" could read everything,
-     * which is worse than no restriction at all: the interface promised one.
-     */
-    public Visibility restrictionOf(String targetKind, Long targetId) {
-        if (targetKind == null || targetId == null) {
-            return Visibility.everything();
-        }
-        return targetOf(targetKind, targetId)
-                .map(target -> Visibility.only(List.of(target)))
-                // A kind this version does not recognize restricts to nothing rather than to
-                // everything: an unreadable restriction is still a restriction.
-                .orElseGet(() -> Visibility.only(List.of()));
     }
 
     private static boolean hasGlobalScope(UserEntity user) {

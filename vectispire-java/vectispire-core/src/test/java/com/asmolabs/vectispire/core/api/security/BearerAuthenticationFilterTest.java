@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
@@ -100,23 +99,21 @@ class BearerAuthenticationFilterTest {
     }
 
     @Test
-    @DisplayName("an agent key becomes its agent, narrowed to the key's target")
-    void anAgentKeyIsNarrowed() throws Exception {
+    @DisplayName("an agent key becomes its agent, with the agent's visibility")
+    void anAgentKeyIsItsAgent() throws Exception {
         ApiKeyEntity key = new ApiKeyEntity();
         key.setId(UUID.randomUUID());
-        key.setTargetKind("repository");
-        key.setTargetId(5L);
         AgentEntity agent = new AgentEntity();
         agent.setId(UUID.randomUUID());
-        Visibility narrowed = Visibility.only(java.util.List.of(new ScanTarget.Repository(5L)));
+        Visibility agents = Visibility.everything();
         when(apiKeys.resolve("zsk")).thenReturn(Optional.of(key));
         when(apiKeys.hasScope(key, ApiKeyScope.AGENT)).thenReturn(true);
         when(apiKeys.agentFor(key)).thenReturn(Optional.of(agent));
-        when(visibility.restrictionOf("repository", 5L)).thenReturn(narrowed);
+        when(visibility.of(agent)).thenReturn(agents);
 
         VectispirePrincipal principal = (VectispirePrincipal) authenticate("Bearer zsk");
         assertThat(principal.agent()).contains(agent);
-        assertThat(principal.credentialRestriction()).isSameAs(narrowed);
+        assertThat(principal.credentialRestriction()).isSameAs(agents);
     }
 
     @Test

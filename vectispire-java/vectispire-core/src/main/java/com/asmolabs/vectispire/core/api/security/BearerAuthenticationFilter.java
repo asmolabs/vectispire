@@ -96,9 +96,11 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
 
         return token.flatMap(apiKeys::resolve)
                 .filter(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT))
+                // No credential restriction: the agent protocol reads no visibility, and an agent's
+                // key is issued unrestricted — see VisibilityService.of(AgentEntity). The key's
+                // target columns used to be resolved here into a narrowing nothing downstream read.
                 .flatMap(key -> apiKeys.agentFor(key)
-                        .map(agent -> VectispirePrincipal.ofAgent(
-                                agent, visibility.restrictionOf(key.getTargetKind(), key.getTargetId()))));
+                        .map(agent -> VectispirePrincipal.ofAgent(agent, visibility.of(agent))));
     }
 
     /** The path the application routes on, without the servlet context it may be deployed under. */

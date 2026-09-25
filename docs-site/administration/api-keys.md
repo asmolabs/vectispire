@@ -14,6 +14,15 @@ targets.
 
 ![Four keys: one unrestricted, one scoped to a repository, an agent key never used, and one expired.](../assets/screens/en/api-keys.png)
 
+## No restriction to a target
+
+A key cannot be restricted to one repository or container: issuing one is refused with `400`.
+Such keys used to be accepted and listed with their target's name, and they restricted nothing —
+the only keys that authenticate are agents' own, which are issued unrestricted when the agent is
+declared, and the agent protocol reads no visibility. Narrow what people see with
+[teams](users-and-teams.md) instead. A key issued restricted before this change keeps its label on
+the list and still authenticates nowhere.
+
 ## Shown once
 
 A key is displayed once, at creation. Vectispire stores what it needs to verify a

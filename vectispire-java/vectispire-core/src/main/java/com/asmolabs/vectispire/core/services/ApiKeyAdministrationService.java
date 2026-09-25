@@ -97,9 +97,15 @@ public class ApiKeyAdministrationService {
 
         List<ApiKeyScope> scopes = ApiKeys.normalizeScopes(request.scopes());
         Optional<Period> lifetime = ApiKeys.normalizeLifetime(request.expiresInDays());
-        String targetKind = normalizeTargetKind(request);
-        if (targetKind != null) {
-            assertTargetExists(targetKind, request.targetId());
+        if (normalizeTargetKind(request) != null) {
+            // **Refused rather than stored.** A key restricted to one target was accepted, listed
+            // with its target's name, and restricted nothing: the only keys that authenticate
+            // anywhere are an agent's own, issued unrestricted by the agent declaration, and the
+            // agent protocol reads no visibility. A key issued here never reaches a route that
+            // could narrow it, so the restriction was a promise with no reader. Saying so beats
+            // storing it — a restriction somebody believes in is worse than none.
+            throw new InvalidApiKeyException("A key cannot be restricted to a target: no route an API key "
+                    + "reaches would enforce it. Issue it unrestricted, or grant the target to a team instead.");
         }
 
         ApiKeys.IssuedKey issued = ApiKeys.generate();
@@ -110,8 +116,6 @@ public class ApiKeyAdministrationService {
         key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
         key.setPrefix(issued.prefix());
         key.setScopes(String.join(",", scopes.stream().map(ApiKeyScope::wireName).toList()));
-        key.setTargetKind(targetKind);
-        key.setTargetId(targetKind == null ? null : request.targetId());
         key.setCreatedAt(issuedAt);
         key.setExpiresAt(lifetime.map(issuedAt::plus).orElse(null));
 
@@ -146,18 +150,12 @@ public class ApiKeyAdministrationService {
         return new TargetOptions(repositoryOptions, containerOptions);
     }
 
-    private void assertTargetExists(String kind, Long id) {
-        boolean exists = "repository".equals(kind)
-                ? repositories.existsById(id)
-                : containers.existsById(id);
-        if (!exists) {
-            // A key restricted to a target that does not exist can do nothing, and finding that
-            // out would happen on the pipeline's first call.
-            throw new InvalidApiKeyException("No \"" + kind + "\" target with id " + id + ".");
-        }
-    }
-
-    /** Empty for an unrestricted key; refused when the kind and the identifier disagree. */
+    /**
+     * Empty for an unrestricted key; refused when the kind and the identifier disagree.
+     *
+     * <p>Still parsed although every restriction is now refused, so a malformed request keeps its
+     * own message instead of being told about a feature it did not ask for.
+     */
     private static String normalizeTargetKind(Request request) {
         String kind = request.targetKind() == null ? "" : request.targetKind().trim().toLowerCase(Locale.ROOT);
         if (kind.isEmpty() && request.targetId() == null) {
