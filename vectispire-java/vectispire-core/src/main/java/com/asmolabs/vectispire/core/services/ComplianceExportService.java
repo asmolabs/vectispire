@@ -44,7 +44,7 @@ public class ComplianceExportService {
         ComplianceService.ComplianceSummary summary = compliance.getSummary(targetId, allowed);
 
         audit.record(actor.entry(
-                AuditOperation.AI_REVIEW_REQUESTED,
+                AuditOperation.REPORT_EXPORTED,
                 "compliance",
                 "Regulatory Compliance PDF report exported" + (targetId != null ? " for " + targetId : "")));
 
@@ -67,7 +67,7 @@ public class ComplianceExportService {
      */
     public byte[] evidenceBundle(Visibility allowed, RequestActor actor) throws IOException {
         audit.record(actor.entry(
-                AuditOperation.AI_REVIEW_REQUESTED, "evidence_vault", "Certified Audit Evidence Bundle exported"));
+                AuditOperation.REPORT_EXPORTED, "evidence_vault", "Certified Audit Evidence Bundle exported"));
 
         return evidenceVault.generateEvidenceBundle(actor.username(), allowed);
     }

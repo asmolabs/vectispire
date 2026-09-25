@@ -65,9 +65,9 @@ public class ComplianceController {
     @GetMapping("/frameworks/{framework}")
     public ComplianceEvaluation framework(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @Parameter(description = "Framework identifier (e.g. NIS2, ISO-27001, CRA)", required = true) @PathVariable String framework) {
+            @Parameter(description = "Framework identifier, separators and case aside (e.g. NIS2, ISO-27001, EU_CRA)", required = true) @PathVariable String framework) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        ComplianceFramework fw = ComplianceFramework.valueOf(framework.toUpperCase().replace('-', '_'));
+        ComplianceFramework fw = ComplianceFramework.fromIdentifier(framework);
         return compliance.getEvaluation(fw, allowed);
     }
 

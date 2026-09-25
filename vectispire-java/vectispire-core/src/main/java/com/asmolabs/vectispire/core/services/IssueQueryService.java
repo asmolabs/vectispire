@@ -1,8 +1,10 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
+import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
@@ -106,11 +108,9 @@ public class IssueQueryService {
         int from = Math.max(query.offset(), 0);
 
         IssueFilters filters = new IssueFilters(
-                // `state` has a default and the others do not: a backlog opens on what is open.
-                // `state=all` asks explicitly for the opposite.
-                "all".equals(query.state()) ? null : (query.state() == null ? IssueState.OPEN.wireName() : query.state()),
-                query.severity(),
-                query.type(),
+                state(query.state()),
+                severity(query.severity()),
+                type(query.type()),
                 query.triageStatus(),
                 query.repositoryId(),
                 query.containerId(),
@@ -128,6 +128,56 @@ public class IssueQueryService {
                 PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
 
         return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);
+    }
+
+    /**
+     * The state filter, read against the two states that exist.
+     *
+     * <p>It has a default and the others do not: a backlog opens on what is open, and {@code all}
+     * asks explicitly for the opposite. <b>An unknown value is refused</b> — like the severity and
+     * the type below. Each used to go into the query as typed, so {@code state=opne} or
+     * {@code severity=HIGH} answered an empty page with a 200: a filter that matched nothing,
+     * indistinguishable from a backlog with nothing in it.
+     */
+    private static String state(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return IssueState.OPEN.wireName();
+        }
+        String value = raw.trim().toLowerCase(Locale.ROOT);
+        if (value.equals("all")) {
+            return null;
+        }
+        return IssueState.byWireName(value)
+                .map(IssueState::wireName)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Unknown state \"" + raw.trim() + "\". Expected open, resolved or all."));
+    }
+
+    /** A severity by its wire name, case aside; blank is no filter. */
+    private static String severity(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String value = raw.trim().toLowerCase(Locale.ROOT);
+        return java.util.Arrays.stream(Severity.values())
+                .map(Severity::wireName)
+                .filter(value::equals)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown severity \"" + raw.trim() + "\". Expected one of: "
+                        + java.util.Arrays.stream(Severity.values()).map(Severity::wireName)
+                                .collect(java.util.stream.Collectors.joining(", ")) + "."));
+    }
+
+    /** A finding type by its wire name, case aside; blank is no filter. */
+    private static String type(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return FindingType.fromWireName(raw.trim().toLowerCase(Locale.ROOT))
+                .map(FindingType::wireName)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown finding type \"" + raw.trim() + "\". Expected one of: "
+                        + java.util.Arrays.stream(FindingType.values()).map(FindingType::wireName)
+                                .collect(java.util.stream.Collectors.joining(", ")) + "."));
     }
 
     /**

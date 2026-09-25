@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -160,9 +161,12 @@ public class RuleSetService {
      */
     @Transactional
     public SemgrepRuleSetEntity activate(long id, String note) {
+        // 404, not 400: the path names a set that is not there, which is the answer the impact
+        // route beside it already gives for the same id. An invalid-rule-set refusal said the
+        // request was malformed, and a client retried it with a different body.
         SemgrepRuleSetEntity target = ruleSets
                 .findById(id)
-                .orElseThrow(() -> new InvalidRuleSetException("No rule set with id " + id + "."));
+                .orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + "."));
 
         // What the operator was shown when they confirmed, kept as the activation's record — and a
         // `text` column, so bounded like every other stored text.
@@ -175,7 +179,7 @@ public class RuleSetService {
 
         // Re-read rather than mutating the object in hand: the two statements above bypass the
         // persistence context, so the entity loaded before them still says what it said.
-        return ruleSets.findById(id).orElseThrow(() -> new InvalidRuleSetException("No rule set with id " + id + "."));
+        return ruleSets.findById(id).orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + "."));
     }
 
     /** Returns to the bundled rules alone. */

@@ -94,9 +94,9 @@ public class TicketLinkService {
         IssueTicketEntity saved = tickets.save(ticket);
 
         audit.record(new AuditLogService.Record(
-                AuditOperation.USER_UPDATED,
+                AuditOperation.TICKET_LINKED,
                 String.valueOf(issue.getId()),
-                "Created " + parsed.getDisplayName() + " ticket: " + saved.getTicketKey(),
+                "Linked " + parsed.getDisplayName() + " ticket: " + saved.getTicketKey(),
                 actor.username(),
                 actor.ipAddress(),
                 actor.userAgent()));

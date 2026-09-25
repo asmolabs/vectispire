@@ -41,7 +41,26 @@ public enum AuditOperation {
      * host is usually localhost is a deployment fact, not a property of the operation.
      */
     AI_REVIEW_REQUESTED,
+
+    /**
+     * A compliance report or an evidence bundle left the deployment.
+     *
+     * <p>Both were recorded as {@link #AI_REVIEW_REQUESTED}: filtering the log for model reviews
+     * listed every PDF anybody downloaded, and filtering for exports found none. An export is its own
+     * gesture — the estate's figures, or its whole audit log, handed to somebody outside.
+     */
+    REPORT_EXPORTED,
+
     TICKET_CREATED,
+
+    /**
+     * An operator attached an existing tracker ticket to an issue by hand.
+     *
+     * <p>It was recorded as {@link #USER_UPDATED}, which says an account changed; an assessor looking
+     * for who linked which ticket found it among password resets.
+     */
+    TICKET_LINKED,
+
     TICKET_CLOSED,
     TICKET_SYNCED,
     GATE_POLICY_UPDATED,

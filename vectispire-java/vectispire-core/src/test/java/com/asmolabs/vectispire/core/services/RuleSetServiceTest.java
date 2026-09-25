@@ -150,7 +150,8 @@ class RuleSetServiceTest {
     void refusesToActivateWhatIsNotThere() {
         when(ruleSets.findById(99L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.activate(99L, null)).isInstanceOf(InvalidRuleSetException.class);
+        // Absent, answered 404 by the handler — not a malformed request.
+        assertThatThrownBy(() -> service.activate(99L, null)).isInstanceOf(java.util.NoSuchElementException.class);
     }
 
     /**

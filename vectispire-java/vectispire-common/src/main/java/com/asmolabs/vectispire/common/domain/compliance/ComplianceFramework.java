@@ -177,4 +177,30 @@ public enum ComplianceFramework {
     public List<ComplianceControl> getControls() {
         return controls;
     }
+
+    /**
+     * The framework a path segment names, spelt the way people spell it: {@code ISO-27001},
+     * {@code iso_27001} and {@code NIS2} all name one.
+     *
+     * <p>Upper-cased with {@link java.util.Locale#ROOT}: under a Turkish default locale {@code
+     * "dora"} becomes {@code "DORA"} but {@code "pci_dss"} keeps a dotted capital I and names
+     * nothing — which is how the route that parsed this with a bare {@code toUpperCase()} would have
+     * refused a framework depending on the server's locale.
+     *
+     * @throws IllegalArgumentException for a value that names no framework, with the list of those
+     *     that exist
+     */
+    public static ComplianceFramework fromIdentifier(String value) {
+        String wanted = value == null ? "" : squeeze(value);
+        return java.util.Arrays.stream(values())
+                .filter(framework -> squeeze(framework.name()).equals(wanted))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Unknown framework \"" + value + "\". Expected one of: "
+                        + String.join(", ", java.util.Arrays.stream(values()).map(Enum::name).toList()) + "."));
+    }
+
+    /** Separators dropped and capitals kept, so the spellings above compare equal. */
+    private static String squeeze(String value) {
+        return value.trim().toUpperCase(java.util.Locale.ROOT).replace("-", "").replace("_", "");
+    }
 }
