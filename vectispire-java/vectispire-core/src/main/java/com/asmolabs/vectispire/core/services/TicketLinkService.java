@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
@@ -23,6 +24,13 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class TicketLinkService {
+
+    /** The widths of {@code t_issue_ticket}'s provider, key and URL columns. */
+    private static final int MAX_PROVIDER_LENGTH = 32;
+
+    private static final int MAX_KEY_LENGTH = 128;
+
+    private static final int MAX_URL_LENGTH = 512;
 
     private final Issues issues;
     private final IssueTickets tickets;
@@ -55,20 +63,30 @@ public class TicketLinkService {
     /**
      * Attaches a ticket to an issue the caller may see.
      *
-     * @throws IllegalArgumentException for a provider that is not a {@link TicketingProvider}
+     * <p>The visibility check comes first, so a hidden issue answers 404 whatever the body holds —
+     * answering 400 to a malformed body on an issue the caller may not see would tell the two apart.
+     *
+     * @throws IllegalArgumentException for a provider that is not a {@link TicketingProvider}, and
+     *     for a key or URL that is blank or longer than its column
      */
     public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
         IssueEntity issue = visibleIssue(issueId, visibility);
-        TicketingProvider parsed = TicketingProvider.valueOf(provider.toUpperCase(Locale.ROOT));
+        TicketingProvider parsed = TicketingProvider.valueOf(
+                BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider").toUpperCase(Locale.ROOT));
+        // Both columns are non-null and bounded, and both were written as sent: a blank key stored a
+        // link to nothing, and a key past 128 or a URL past 512 characters was refused by the
+        // database at the write, as a 500.
+        String key = BoundedText.required(ticketKey, MAX_KEY_LENGTH, "The ticket key");
+        String url = BoundedText.required(ticketUrl, MAX_URL_LENGTH, "The ticket URL");
 
         Instant now = clock.instant();
         IssueTicketEntity ticket = new IssueTicketEntity();
         ticket.setIssueId(issue.getId());
         ticket.setProvider(parsed.name());
-        ticket.setTicketKey(ticketKey.trim());
-        ticket.setTicketUrl(ticketUrl.trim());
+        ticket.setTicketKey(key);
+        ticket.setTicketUrl(url);
         ticket.setStatus("OPEN");
         ticket.setCreatedAt(now);
         ticket.setUpdatedAt(now);

@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
@@ -91,12 +92,28 @@ public class LicenseGovernanceService {
      * parent's lock, the lock being the file.
      */
     public LicensePolicy updatePolicy(LicensePolicy policy, RequestActor actor) {
+        if (policy == null) {
+            throw new IllegalArgumentException("A licence policy is required.");
+        }
+        // The record has already dropped nulls and upper-cased the identifiers. What it cannot
+        // decide is what the storage can hold: the lists are stored comma-joined, so an entry
+        // holding a comma would come back as two, and each list is a `text` column.
+        requireStorable(policy.explicitlyAllowedLicenses(), "allowed");
+        requireStorable(policy.explicitlyDisallowedLicenses(), "disallowed");
         LicensePolicy updated = transactions.execute(status -> updatePolicy(policy));
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
                 "license_policy",
                 "Updated open source license compliance policy (disallowed=" + policy.disallowedCategories() + ")"));
         return updated;
+    }
+
+    private static void requireStorable(Set<String> licences, String which) {
+        licences.stream().filter(licence -> licence.contains(",")).findFirst().ifPresent(licence -> {
+            throw new IllegalArgumentException("\"" + licence + "\" contains a comma: list each "
+                    + which + " licence as an entry of its own.");
+        });
+        BoundedText.within(String.join(",", licences), BoundedText.TEXT_MAX, "The " + which + " licence list");
     }
 
     @Transactional

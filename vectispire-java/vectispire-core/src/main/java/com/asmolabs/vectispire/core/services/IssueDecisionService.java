@@ -135,8 +135,17 @@ public class IssueDecisionService {
      * @param decision may be null only when {@code ids} is empty, which is refused before it is read
      */
     public List<IssueView> triageMany(List<Long> ids, Decision decision, Caller caller) {
-        if (ids.isEmpty()) {
+        if (ids == null || ids.isEmpty()) {
             throw new InvalidTriageException("Select at least one issue to triage.");
+        }
+        // `[null]` reached `findById(null)`, and what answered was Spring Data's own argument check —
+        // a 400 saying "The given id must not be null", a sentence about a repository rather than
+        // about the selection, and one a change of repository could turn into a 500. Refused here,
+        // before anything is read, in the caller's terms.
+        // A stream and not `contains(null)`, which an immutable list answers with the very
+        // NullPointerException this guard is here to prevent.
+        if (ids.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new InvalidTriageException("Every selected issue needs an identifier.");
         }
         // **Refused, not truncated.** Silently triaging the first 500 of 900 would report success
         // for a decision that did not reach 400 issues, and the caller has no way to see which.
