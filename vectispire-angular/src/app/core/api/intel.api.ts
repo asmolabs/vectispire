@@ -37,19 +37,31 @@ export class IntelApi {
     }
 
     getAiAdvisorStatus(): Observable<{ enabled: boolean; selectedModel: string; availableModels: string[] }> {
-        return this.http.get<{ enabled: boolean; selectedModel: string; availableModels: string[] }>('/api/v1/ai-advisor/status');
+        return this.http.get<{ enabled: boolean; selectedModel: string; availableModels: string[] }>(
+            '/api/v1/ai-advisor/status'
+        );
     }
 
     explainIssueWithAi(issueId: number): Observable<AiVulnerabilityAdvice> {
         return this.http.post<AiVulnerabilityAdvice>(`/api/v1/ai-advisor/explain/issue/${issueId}`, {});
     }
 
-    explainCveWithAi(cveId: string, pkg?: string, currentVer?: string, fixVer?: string, reachability?: string): Observable<AiVulnerabilityAdvice> {
+    explainCveWithAi(
+        cveId: string,
+        pkg?: string,
+        currentVer?: string,
+        fixVer?: string,
+        reachability?: string
+    ): Observable<AiVulnerabilityAdvice> {
         let params = new HttpParams();
         if (pkg) params = params.set('packageName', pkg);
         if (currentVer) params = params.set('currentVersion', currentVer);
         if (fixVer) params = params.set('fixVersion', fixVer);
         if (reachability) params = params.set('reachability', reachability);
-        return this.http.post<AiVulnerabilityAdvice>(`/api/v1/ai-advisor/explain/cve/${encodeURIComponent(cveId)}`, {}, { params });
+        return this.http.post<AiVulnerabilityAdvice>(
+            `/api/v1/ai-advisor/explain/cve/${encodeURIComponent(cveId)}`,
+            {},
+            { params }
+        );
     }
 }

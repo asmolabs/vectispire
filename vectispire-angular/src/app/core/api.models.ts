@@ -55,8 +55,11 @@ export type Schema<K extends keyof components['schemas']> = components['schemas'
  */
 export type Claimable<S, K extends keyof S> = NonNullable<S[K]> extends object ? unknown : S[K] | null;
 
-export type Refine<S, Claims extends { [K in keyof Claims]: K extends keyof S ? Claimable<S, K> : never }> =
-    Omit<S, keyof Claims> & Claims;
+export type Refine<S, Claims extends { [K in keyof Claims]: K extends keyof S ? Claimable<S, K> : never }> = Omit<
+    S,
+    keyof Claims
+> &
+    Claims;
 
 /** `GET /api/v1/auth/me`, and the `user` of a successful login. */
 export type AuthenticatedUser = Refine<
@@ -82,10 +85,7 @@ export type AuthenticatedUser = Refine<
 export type LoginResponse = Omit<Schema<'LoginResponse'>, 'user'> & { user?: AuthenticatedUser };
 
 /** `POST /api/v1/auth/mfa/setup` */
-export type MfaSetupResponse = Refine<
-    Schema<'SetupResponse'>,
-    { secret: string; qrCodeUri: string; issuer: string }
->;
+export type MfaSetupResponse = Refine<Schema<'SetupResponse'>, { secret: string; qrCodeUri: string; issuer: string }>;
 
 /** `POST /api/v1/auth/mfa/enable` */
 export type MfaEnableResponse = Refine<Schema<'EnableResponse'>, { backupCodes: string[] }>;
@@ -152,12 +152,7 @@ export type OpenVexDocument = Refine<
  * The document types `riskCategory` as a bare `string` with an enum, which the generator widens to
  * a union anyway — but naming it here keeps the screens reading one name rather than five literals.
  */
-export type LicenseRiskCategory =
-    | 'PERMISSIVE'
-    | 'WEAK_COPYLEFT'
-    | 'STRONG_COPYLEFT'
-    | 'FORBIDDEN'
-    | 'UNKNOWN';
+export type LicenseRiskCategory = 'PERMISSIVE' | 'WEAK_COPYLEFT' | 'STRONG_COPYLEFT' | 'FORBIDDEN' | 'UNKNOWN';
 
 export type LicenseEntry = Refine<
     Schema<'LicenseEntry'>,
@@ -207,23 +202,14 @@ export type SecurityScorecard = Refine<
     }
 >;
 
-export type BadgeState = Refine<
-    Schema<'BadgeState'>,
-    { token: string | null; url: string | null }
->;
+export type BadgeState = Refine<Schema<'BadgeState'>, { token: string | null; url: string | null }>;
 
-export type PinnedSigningKey = Refine<
-    Schema<'PinnedSigningKey'>,
-    { id: string; privateKey: string | null }
->;
+export type PinnedSigningKey = Refine<Schema<'PinnedSigningKey'>, { id: string; privateKey: string | null }>;
 
 /** What produced the result, and what it is about. */
 export type AttestationBuilder = Refine<Schema<'Builder'>, { id: string; version: string }>;
 
-export type AttestationSubject = Refine<
-    Schema<'Subject'>,
-    { name: string; digest: Record<string, string> }
->;
+export type AttestationSubject = Refine<Schema<'Subject'>, { name: string; digest: Record<string, string> }>;
 
 export type AttestationInvocation = Refine<
     Schema<'Invocation'>,
@@ -237,10 +223,7 @@ export type AttestationInvocation = Refine<
     }
 >;
 
-export type AttestationPolicy = Refine<
-    Schema<'PolicyAssessment'>,
-    { violations: string[]; enforcedPolicy: string }
->;
+export type AttestationPolicy = Refine<Schema<'PolicyAssessment'>, { violations: string[]; enforcedPolicy: string }>;
 
 /** The seven counters are primitives: the document marks them all as always sent. */
 export type AttestationFindings = Schema<'FindingsSummary'>;
@@ -437,10 +420,7 @@ export type GateVerdict = Refine<
 >;
 
 /** Which policy decided, and which revision of it. */
-export type OverviewPolicy = Refine<
-    Schema<'OverviewPolicyView'>,
-    { source: string; version: number | null }
->;
+export type OverviewPolicy = Refine<Schema<'OverviewPolicyView'>, { source: string; version: number | null }>;
 
 export type TargetPosture = Refine<
     Schema<'TargetView'>,
@@ -617,10 +597,7 @@ export type UserList = Refine<
     }
 >;
 
-export type NewUser = Refine<
-    Schema<'UserCreateRequest'>,
-    { username: string; password: string; role: string }
->;
+export type NewUser = Refine<Schema<'UserCreateRequest'>, { username: string; password: string; role: string }>;
 
 /** Every field is a field left alone when absent, so the schema already says it exactly. */
 export type UserPatch = Schema<'UserUpdateRequest'>;
@@ -664,10 +641,7 @@ export type IssuedApiKey = Refine<
  *  `notified` says whether the team has its own notification channel — **not the URL**. A webhook
  *  URL is a bearer capability: whoever reads it can post where the team awaits Vectispire's alerts,
  *  so no route returns it and this screen cannot display it back. */
-export type TeamSummary = Refine<
-    Schema<'TeamSummary'>,
-    { id: number; name: string; description: string | null }
->;
+export type TeamSummary = Refine<Schema<'TeamSummary'>, { id: number; name: string; description: string | null }>;
 
 export type TeamTargetAssignment = Refine<Schema<'TeamTargetAssignment'>, { kind: string; id: number }>;
 
@@ -683,10 +657,7 @@ export type UserTargetAssignment = Refine<Schema<'UserTargetAssignment'>, { kind
 /** A target a key may be scoped to, as the picker needs it: identified and named. */
 export type TargetOption = Refine<Schema<'TargetOption'>, { id: number; label: string }>;
 
-export type ApiKeyTargets = Refine<
-    Schema<'Targets'>,
-    { repositories: TargetOption[]; containers: TargetOption[] }
->;
+export type ApiKeyTargets = Refine<Schema<'Targets'>, { repositories: TargetOption[]; containers: TargetOption[] }>;
 
 /** An audit log entry. Everything but its identity can be absent, and is sent as `null`. */
 export type AuditEntry = Refine<
@@ -854,10 +825,7 @@ export type AgentActivitySummary = Refine<
     { runningScans: RunningScanItem[]; pendingScans: PendingScanItem[]; stats: QueueStats }
 >;
 
-export type NewAgent = Refine<
-    Schema<'AgentCreateRequest'>,
-    { name: string; credentials_mode: string }
->;
+export type NewAgent = Refine<Schema<'AgentCreateRequest'>, { name: string; credentials_mode: string }>;
 
 export type UnroutableLabel = Refine<Schema<'UnroutableLabel'>, { label: string }>;
 
@@ -1088,10 +1056,7 @@ export type InventoryOccurrence = Refine<
 >;
 
 /** `truncated` is said explicitly: a capped list read as complete is a wrong answer. */
-export type InventoryResults = Refine<
-    Schema<'Results'>,
-    { occurrences: InventoryOccurrence[] }
->;
+export type InventoryResults = Refine<Schema<'Results'>, { occurrences: InventoryOccurrence[] }>;
 
 /**
  * A model-written OWASP posture report.
@@ -1322,13 +1287,7 @@ export type TargetCompliance = Refine<
         targetId: string;
         name: string;
         type: 'REPOSITORY' | 'CONTAINER';
-        gateStatus:
-            | 'PASSED'
-            | 'FAILED'
-            | 'NEVER_SCANNED'
-            | 'LAST_SCAN_FAILED'
-            | 'SCANNING'
-            | 'IN_PROGRESS';
+        gateStatus: 'PASSED' | 'FAILED' | 'NEVER_SCANNED' | 'LAST_SCAN_FAILED' | 'SCANNING' | 'IN_PROGRESS';
         overallStatus: ComplianceStatus;
         frameworkScores: Record<string, number>;
     }
@@ -1360,15 +1319,9 @@ export type GraphNode = Refine<
     }
 >;
 
-export type GraphEdge = Refine<
-    Schema<'GraphEdge'>,
-    { source: string; target: string; relationship: string }
->;
+export type GraphEdge = Refine<Schema<'GraphEdge'>, { source: string; target: string; relationship: string }>;
 
-export type DependencyGraph = Refine<
-    Schema<'DependencyGraph'>,
-    { nodes: GraphNode[]; edges: GraphEdge[] }
->;
+export type DependencyGraph = Refine<Schema<'DependencyGraph'>, { nodes: GraphNode[]; edges: GraphEdge[] }>;
 
 export type TargetImpact = Refine<
     Schema<'TargetImpact'>,
@@ -1387,10 +1340,7 @@ export type TargetImpact = Refine<
     }
 >;
 
-export type TopImpactPackage = Refine<
-    Schema<'TopImpactPackage'>,
-    { packageName: string; ecosystem: string }
->;
+export type TopImpactPackage = Refine<Schema<'TopImpactPackage'>, { packageName: string; ecosystem: string }>;
 
 export type BlastRadiusReport = Refine<
     Schema<'BlastRadiusReport'>,
@@ -1534,10 +1484,7 @@ export type CompatibilityCell = Refine<
 >;
 
 /** One point of the daily series: the day's open backlog, and its two movements. */
-export type DailyPosturePoint = Refine<
-    Schema<'DailyPosturePoint'>,
-    { date: string; rollingMttrDays: number | null }
->;
+export type DailyPosturePoint = Refine<Schema<'DailyPosturePoint'>, { date: string; rollingMttrDays: number | null }>;
 
 /** One target on the maturity scoreboard, with the score the server computes. */
 export type TargetMaturityScore = Refine<
@@ -1682,16 +1629,10 @@ export type HighImpactFix = Refine<
 
 export type RemediationGap = Refine<Schema<'RemediationGap'>, { family: string }>;
 
-export type RemediationCoverage = Refine<
-    Schema<'RemediationCoverage'>,
-    { gaps: RemediationGap[] }
->;
+export type RemediationCoverage = Refine<Schema<'RemediationCoverage'>, { gaps: RemediationGap[] }>;
 
 /** Tous les compteurs sont primitifs : seule la liste des correctifs demande une revendication. */
-export type SecurityDebtReport = Refine<
-    Schema<'SecurityDebtReport'>,
-    { topHighImpactFixes: HighImpactFix[] }
->;
+export type SecurityDebtReport = Refine<Schema<'SecurityDebtReport'>, { topHighImpactFixes: HighImpactFix[] }>;
 
 /** The six kinds of node on a path, as the document enumerates them. */
 export type AttackPathNodeType = NonNullable<Schema<'AttackPathNode'>['type']>;
@@ -1804,10 +1745,7 @@ export type ExceptionEntry = Refine<
     }
 >;
 
-export type ExceptionsRegister = Refine<
-    Schema<'Register'>,
-    { entries: ExceptionEntry[]; next_cursor: string | null }
->;
+export type ExceptionsRegister = Refine<Schema<'Register'>, { entries: ExceptionEntry[]; next_cursor: string | null }>;
 
 export type ReviewOutcome = 'CONFIRMED' | 'EXTENDED' | 'REVOKED';
 
@@ -1834,9 +1772,7 @@ export type RemediationDistribution = Refine<
     {
         bySeverity: RemediationBySeverity[];
         oldestOpenDays: number | null;
-        oldestOpenSeverity:
-            | NonNullable<Schema<'RemediationDistributionView'>['oldestOpenSeverity']>
-            | null;
+        oldestOpenSeverity: NonNullable<Schema<'RemediationDistributionView'>['oldestOpenSeverity']> | null;
     }
 >;
 
@@ -1987,7 +1923,4 @@ export type ComplianceStep = Refine<
     }
 >;
 
-export type ComplianceSeries = Refine<
-    Schema<'Series'>,
-    { framework: ComplianceFramework; steps: ComplianceStep[] }
->;
+export type ComplianceSeries = Refine<Schema<'Series'>, { framework: ComplianceFramework; steps: ComplianceStep[] }>;

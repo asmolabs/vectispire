@@ -1,15 +1,24 @@
 @if (visible()) {
     @if (coverage()?.state === 'UNCONFIGURED') {
-        <div class="flex items-start gap-3 p-4 mb-4 rounded border border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-900">
+        <div
+            class="flex items-start gap-3 p-4 mb-4 rounded border border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-900"
+        >
             <i class="pi pi-exclamation-triangle text-red-700 mt-1"></i>
             <div class="flex-1">
                 <div class="font-medium text-red-700">{{ 'rule_coverage.unconfigured.title' | translate }}</div>
                 <div class="text-sm">{{ 'rule_coverage.unconfigured.body' | translate }}</div>
             </div>
-            <p-button [label]="'rule_coverage.import' | translate" severity="danger" size="small" [routerLink]="['/rule-sets']" />
+            <p-button
+                [label]="'rule_coverage.import' | translate"
+                severity="danger"
+                size="small"
+                [routerLink]="['/rule-sets']"
+            />
         </div>
     } @else {
-        <div class="flex items-start gap-3 p-4 mb-4 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900">
+        <div
+            class="flex items-start gap-3 p-4 mb-4 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-900"
+        >
             <i class="pi pi-info-circle text-amber-700 mt-1"></i>
             <div class="flex-1">
                 <div class="font-medium text-amber-700">
@@ -17,7 +26,13 @@
                 </div>
                 <div class="text-sm">{{ 'rule_coverage.partial.body' | translate }}</div>
             </div>
-            <p-button [label]="'rule_coverage.add' | translate" severity="warn" [outlined]="true" size="small" [routerLink]="['/rule-sets']" />
+            <p-button
+                [label]="'rule_coverage.add' | translate"
+                severity="warn"
+                [outlined]="true"
+                size="small"
+                [routerLink]="['/rule-sets']"
+            />
         </div>
     }
 }

@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { HistoryDossier, InventoryResults, HistoryRepository, ScanDetail, ScanSummary, SbomDiffReport } from '../api.models';
+import {
+    HistoryDossier,
+    InventoryResults,
+    HistoryRepository,
+    ScanDetail,
+    ScanSummary,
+    SbomDiffReport
+} from '../api.models';
 
 /**
  * Scans — starting them, reading them, comparing their SBOMs — and the history and inventory built
@@ -46,9 +53,7 @@ export class ScansApi {
     }
 
     getSbomDiff(fromScanId: number, toScanId: number): Observable<SbomDiffReport> {
-        const params = new HttpParams()
-            .set('fromScanId', fromScanId)
-            .set('toScanId', toScanId);
+        const params = new HttpParams().set('fromScanId', fromScanId).set('toScanId', toScanId);
         return this.http.get<SbomDiffReport>('/api/v1/sbom/diff', { params });
     }
 

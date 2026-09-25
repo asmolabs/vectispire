@@ -93,7 +93,11 @@ export class AppMenu {
                       // **Next to the matrix, not filed elsewhere.** The matrix says where things
                       // stand, this one says whether they are improving — that is clause 9.3's
                       // question, and the two are read one after the other.
-                      { label: this.i18n.t('menu.compliance_history'), icon: 'pi pi-fw pi-chart-line', routerLink: ['/compliance-history'] },
+                      {
+                          label: this.i18n.t('menu.compliance_history'),
+                          icon: 'pi pi-fw pi-chart-line',
+                          routerLink: ['/compliance-history']
+                      },
 
                       { label: this.i18n.t('menu.soa'), icon: 'pi pi-fw pi-book', routerLink: ['/soa'] },
 
@@ -103,7 +107,11 @@ export class AppMenu {
 
                       // **What the gate answered.** Its policy is a setting and stays on the
                       // administration side; its refusals are evidence and are here.
-                      { label: this.i18n.t('menu.gate_verdicts'), icon: 'pi pi-fw pi-ban', routerLink: ['/gate-verdicts'] },
+                      {
+                          label: this.i18n.t('menu.gate_verdicts'),
+                          icon: 'pi pi-fw pi-ban',
+                          routerLink: ['/gate-verdicts']
+                      },
                       { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
                       { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
                   ]
@@ -118,7 +126,11 @@ export class AppMenu {
             {
                 label: this.i18n.t('menu.configuration'),
                 items: [
-                    { label: this.i18n.t('menu.repositories'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/repositories'] },
+                    {
+                        label: this.i18n.t('menu.repositories'),
+                        icon: 'pi pi-fw pi-sitemap',
+                        routerLink: ['/repositories']
+                    },
                     { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
                 ]
             },
@@ -133,7 +145,11 @@ export class AppMenu {
             {
                 label: this.i18n.t('menu.operations'),
                 items: [
-                    { label: this.i18n.t('menu.notifications'), icon: 'pi pi-fw pi-bell', routerLink: ['/notifications'] },
+                    {
+                        label: this.i18n.t('menu.notifications'),
+                        icon: 'pi pi-fw pi-bell',
+                        routerLink: ['/notifications']
+                    },
 
                     // **Restricted, like the route and like the server.** A deployment key is
                     // administrative: `/ssh-keys` carries `requires('administrator')` and the
@@ -142,9 +158,17 @@ export class AppMenu {
                     // refusal, and therefore the only way of reaching `/forbidden` by clicking.
                     ...(this.session.isAdmin()
                         ? [
-                              { label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] },
+                              {
+                                  label: this.i18n.t('menu.ssh_keys'),
+                                  icon: 'pi pi-fw pi-key',
+                                  routerLink: ['/ssh-keys']
+                              },
                               // The other clone credential, under the same rule for the same reason.
-                              { label: this.i18n.t('menu.git_tokens'), icon: 'pi pi-fw pi-lock', routerLink: ['/git-tokens'] }
+                              {
+                                  label: this.i18n.t('menu.git_tokens'),
+                                  icon: 'pi pi-fw pi-lock',
+                                  routerLink: ['/git-tokens']
+                              }
                           ]
                         : [])
                 ]
@@ -164,7 +188,11 @@ export class AppMenu {
                 // be looked for: two settings. The verdicts, the attestation and the audit log are
                 // what gets shown, and are read following the rest of the evidence.
                 adminItems.push(
-                    { label: this.i18n.t('menu.gate_policies'), icon: 'pi pi-fw pi-flag', routerLink: ['/gate-policies'] },
+                    {
+                        label: this.i18n.t('menu.gate_policies'),
+                        icon: 'pi pi-fw pi-flag',
+                        routerLink: ['/gate-policies']
+                    },
                     { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] }
                 );
             }
@@ -174,7 +202,7 @@ export class AppMenu {
                     { label: this.i18n.t('menu.api_keys'), icon: 'pi pi-fw pi-verified', routerLink: ['/api-keys'] },
                     { label: this.i18n.t('menu.agents'), icon: 'pi pi-fw pi-server', routerLink: ['/agents'] },
                     { label: this.i18n.t('menu.users'), icon: 'pi pi-fw pi-users', routerLink: ['/users'] },
-                    { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] },
+                    { label: this.i18n.t('menu.teams'), icon: 'pi pi-fw pi-sitemap', routerLink: ['/teams'] }
                 );
             }
 
@@ -186,10 +214,30 @@ export class AppMenu {
             if (this.session.isSecurityLead()) {
                 adminItems.push(
                     { label: this.i18n.t('menu.settings_general'), icon: 'pi pi-fw pi-cog', routerLink: ['/settings'] },
-                    { label: this.i18n.t('menu.settings_scanners'), icon: 'pi pi-fw pi-sliders-h', routerLink: ['/settings'], queryParams: { tab: 'scanners' } },
-                    { label: this.i18n.t('menu.settings_ai'), icon: 'pi pi-fw pi-sparkles', routerLink: ['/settings'], queryParams: { tab: 'ai' } },
-                    { label: this.i18n.t('menu.settings_integrations'), icon: 'pi pi-fw pi-link', routerLink: ['/settings'], queryParams: { tab: 'integrations' } },
-                    { label: this.i18n.t('menu.settings_threat_intel'), icon: 'pi pi-fw pi-globe', routerLink: ['/settings'], queryParams: { tab: 'threat-intel' } }
+                    {
+                        label: this.i18n.t('menu.settings_scanners'),
+                        icon: 'pi pi-fw pi-sliders-h',
+                        routerLink: ['/settings'],
+                        queryParams: { tab: 'scanners' }
+                    },
+                    {
+                        label: this.i18n.t('menu.settings_ai'),
+                        icon: 'pi pi-fw pi-sparkles',
+                        routerLink: ['/settings'],
+                        queryParams: { tab: 'ai' }
+                    },
+                    {
+                        label: this.i18n.t('menu.settings_integrations'),
+                        icon: 'pi pi-fw pi-link',
+                        routerLink: ['/settings'],
+                        queryParams: { tab: 'integrations' }
+                    },
+                    {
+                        label: this.i18n.t('menu.settings_threat_intel'),
+                        icon: 'pi pi-fw pi-globe',
+                        routerLink: ['/settings'],
+                        queryParams: { tab: 'threat-intel' }
+                    }
                 );
             }
 

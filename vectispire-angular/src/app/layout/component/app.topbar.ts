@@ -23,8 +23,20 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
             <a class="layout-topbar-logo" routerLink="/dashboard">
                 <!-- "Vectispire": Vectis (security lock/lever) + Spire (ASPM watchtower & posture elevation). -->
                 <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M20 2.5 4.5 8.2v11.3c0 9.1 6.3 15.9 15.5 18 9.2-2.1 15.5-8.9 15.5-18V8.2L20 2.5Z" stroke="var(--primary-color)" stroke-width="2.6" stroke-linejoin="round" fill="none" />
-                    <path d="M11 19.4c2.4-3.6 5.4-5.4 9-5.4s6.6 1.8 9 5.4c-2.4 3.6-5.4 5.4-9 5.4s-6.6-1.8-9-5.4Z" stroke="var(--primary-color)" stroke-width="2.2" stroke-linejoin="round" fill="none" />
+                    <path
+                        d="M20 2.5 4.5 8.2v11.3c0 9.1 6.3 15.9 15.5 18 9.2-2.1 15.5-8.9 15.5-18V8.2L20 2.5Z"
+                        stroke="var(--primary-color)"
+                        stroke-width="2.6"
+                        stroke-linejoin="round"
+                        fill="none"
+                    />
+                    <path
+                        d="M11 19.4c2.4-3.6 5.4-5.4 9-5.4s6.6 1.8 9 5.4c-2.4 3.6-5.4 5.4-9 5.4s-6.6-1.8-9-5.4Z"
+                        stroke="var(--primary-color)"
+                        stroke-width="2.2"
+                        stroke-linejoin="round"
+                        fill="none"
+                    />
                     <circle cx="20" cy="19.4" r="2.6" fill="var(--primary-color)" />
                 </svg>
                 <span>{{ branding.brandName().toUpperCase() }}</span>
@@ -48,9 +60,19 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                     type="button"
                     class="layout-topbar-action"
                     (click)="toggleDarkMode()"
-                    [attr.aria-label]="layoutService.isDarkTheme() ? ('topbar.switch_light' | translate) : ('topbar.switch_dark' | translate)"
+                    [attr.aria-label]="
+                        layoutService.isDarkTheme()
+                            ? ('topbar.switch_light' | translate)
+                            : ('topbar.switch_dark' | translate)
+                    "
                 >
-                    <i [ngClass]="{ 'pi ': true, 'pi-moon': layoutService.isDarkTheme(), 'pi-sun': !layoutService.isDarkTheme() }"></i>
+                    <i
+                        [ngClass]="{
+                            'pi ': true,
+                            'pi-moon': layoutService.isDarkTheme(),
+                            'pi-sun': !layoutService.isDarkTheme()
+                        }"
+                    ></i>
                 </button>
                 <div class="relative">
                     <button
@@ -99,19 +121,31 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                         what the stylesheet will show the day it stops hiding it, and the two say
                         the same thing since they read the same key.
                     -->
-                    <button type="button" class="layout-topbar-action" routerLink="/account"
-                            [attr.aria-label]="'topbar.account' | translate">
+                    <button
+                        type="button"
+                        class="layout-topbar-action"
+                        routerLink="/account"
+                        [attr.aria-label]="'topbar.account' | translate"
+                    >
                         <i class="pi pi-user"></i>
                         <span>{{ 'topbar.account' | translate }}</span>
                     </button>
-                    <button type="button" class="layout-topbar-action" routerLink="/change-password"
-                            [attr.aria-label]="'topbar.password' | translate">
+                    <button
+                        type="button"
+                        class="layout-topbar-action"
+                        routerLink="/change-password"
+                        [attr.aria-label]="'topbar.password' | translate"
+                    >
                         <i class="pi pi-key"></i>
                         <span>{{ 'topbar.password' | translate }}</span>
                     </button>
-                    <button type="button" class="layout-topbar-action"
-                            [attr.aria-label]="'topbar.sign_out' | translate"
-                            [disabled]="signingOut()" (click)="signOut()">
+                    <button
+                        type="button"
+                        class="layout-topbar-action"
+                        [attr.aria-label]="'topbar.sign_out' | translate"
+                        [disabled]="signingOut()"
+                        (click)="signOut()"
+                    >
                         <i class="pi pi-sign-out"></i>
                         <span>{{ 'topbar.sign_out' | translate }}</span>
                     </button>

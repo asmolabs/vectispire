@@ -8,7 +8,9 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     selector: 'app-footer',
     imports: [CommonModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
-    template: `<div class="layout-footer flex flex-wrap items-center justify-between gap-3 text-xs text-muted-color px-4 py-3">
+    template: `<div
+        class="layout-footer flex flex-wrap items-center justify-between gap-3 text-xs text-muted-color px-4 py-3"
+    >
         <div>
             <span class="font-semibold text-surface-900 dark:text-surface-0">{{ branding.brandName() }}</span>
             <span class="mx-1.5 opacity-40">—</span>

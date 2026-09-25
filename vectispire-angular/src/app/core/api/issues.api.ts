@@ -1,7 +1,17 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ExceptionsRegister, ReviewOutcome, BulkTriageRequest, Issue, TriagedIssue, IssueFilters, Page, IssueDetail, TriageRequest } from '../api.models';
+import {
+    ExceptionsRegister,
+    ReviewOutcome,
+    BulkTriageRequest,
+    Issue,
+    TriagedIssue,
+    IssueFilters,
+    Page,
+    IssueDetail,
+    TriageRequest
+} from '../api.models';
 
 /**
  * Findings and their triage, including the register of accepted risks and its reviews.

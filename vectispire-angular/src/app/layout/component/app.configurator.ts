@@ -57,7 +57,8 @@ declare type SurfacesType = {
                             }"
                             class="cursor-pointer w-5 h-5 rounded-full flex shrink-0 items-center justify-center outline-offset-1 shadow"
                             [style]="{
-                                'background-color': primaryColor?.name === 'noir' ? 'var(--text-color)' : primaryColor?.palette?.['500']
+                                'background-color':
+                                    primaryColor?.name === 'noir' ? 'var(--text-color)' : primaryColor?.palette?.['500']
                             }"
                         ></button>
                     }
@@ -73,7 +74,11 @@ declare type SurfacesType = {
                             (click)="updateColors($event, 'surface', surface)"
                             class="cursor-pointer w-5 h-5 rounded-full flex shrink-0 items-center justify-center p-0 outline-offset-1"
                             [ngClass]="{
-                                'outline outline-primary': selectedSurfaceColor() ? selectedSurfaceColor() === surface.name : layoutService.layoutConfig().darkTheme ? surface.name === 'zinc' : surface.name === 'slate'
+                                'outline outline-primary': selectedSurfaceColor()
+                                    ? selectedSurfaceColor() === surface.name
+                                    : layoutService.layoutConfig().darkTheme
+                                      ? surface.name === 'zinc'
+                                      : surface.name === 'slate'
                             }"
                             [style]="{
                                 'background-color': surface?.palette?.['500']
@@ -84,12 +89,26 @@ declare type SurfacesType = {
             </div>
             <div class="flex flex-col gap-2">
                 <span class="text-sm text-muted-color font-semibold">{{ 'layout.presets' | translate }}</span>
-                <p-selectbutton [options]="presets" [ngModel]="selectedPreset()" (ngModelChange)="onPresetChange($event)" [allowEmpty]="false" size="small" />
+                <p-selectbutton
+                    [options]="presets"
+                    [ngModel]="selectedPreset()"
+                    (ngModelChange)="onPresetChange($event)"
+                    [allowEmpty]="false"
+                    size="small"
+                />
             </div>
             @if (showMenuModeButton()) {
                 <div class="flex flex-col gap-2">
-                    <span class="text-sm text-muted-color font-semibold">{{ 'layout.menu_mode_label' | translate }}</span>
-                    <p-selectbutton [ngModel]="menuMode()" (ngModelChange)="onMenuModeChange($event)" [options]="menuModeOptions()" [allowEmpty]="false" size="small" />
+                    <span class="text-sm text-muted-color font-semibold">{{
+                        'layout.menu_mode_label' | translate
+                    }}</span>
+                    <p-selectbutton
+                        [ngModel]="menuMode()"
+                        (ngModelChange)="onMenuModeChange($event)"
+                        [options]="menuModeOptions()"
+                        [allowEmpty]="false"
+                        size="small"
+                    />
                 </div>
             }
         </div>
@@ -282,7 +301,24 @@ export class AppConfigurator implements OnInit {
 
     primaryColors = computed<SurfacesType[]>(() => {
         const presetPalette = presets[this.layoutService.layoutConfig().preset as KeyOfType<typeof presets>].primitive;
-        const colors = ['emerald', 'green', 'lime', 'orange', 'amber', 'yellow', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'];
+        const colors = [
+            'emerald',
+            'green',
+            'lime',
+            'orange',
+            'amber',
+            'yellow',
+            'teal',
+            'cyan',
+            'sky',
+            'blue',
+            'indigo',
+            'violet',
+            'purple',
+            'fuchsia',
+            'pink',
+            'rose'
+        ];
         const palettes: SurfacesType[] = [{ name: 'noir', palette: {} }];
 
         colors.forEach((color) => {

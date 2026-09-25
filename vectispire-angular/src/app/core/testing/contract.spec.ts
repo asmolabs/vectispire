@@ -11,7 +11,15 @@ import { asSchema, asSchemaList } from './contract';
 describe('the fixture checker', () => {
     it('accepts a fixture shaped as the document says', () => {
         const detail = asSchema('ScanDetail', {
-            scan: { id: 34, status: 'completed', branch: 'master', attempts: 1, findingsCount: 0, newIssuesCount: 0, resolvedIssuesCount: 0 },
+            scan: {
+                id: 34,
+                status: 'completed',
+                branch: 'master',
+                attempts: 1,
+                findingsCount: 0,
+                newIssuesCount: 0,
+                resolvedIssuesCount: 0
+            },
             hasSbom: false,
             findings: [],
             findingsTotal: 0,
@@ -69,9 +77,12 @@ describe('the fixture checker', () => {
     });
 
     it('checks each element of a list, and says which one', () => {
-        expect(() => asSchemaList('TeamSummary', [{ id: 1, name: 'ok', memberCount: 0, targetCount: 0, notified: false }, { nom: 'oops' }])).toThrow(
-            /nom: the fixture carries this/
-        );
+        expect(() =>
+            asSchemaList('TeamSummary', [
+                { id: 1, name: 'ok', memberCount: 0, targetCount: 0, notified: false },
+                { nom: 'oops' }
+            ])
+        ).toThrow(/nom: the fixture carries this/);
     });
 
     /**
@@ -80,14 +91,32 @@ describe('the fixture checker', () => {
      */
     it('refuses a role the server never sends, even where the document says only "string"', () => {
         expect(() =>
-            asSchema('UserSummary', { username: 'admin', displayName: null, role: 'ADMINISTRATOR', mustChangePassword: false, mfaEnabled: false })
+            asSchema('UserSummary', {
+                username: 'admin',
+                displayName: null,
+                role: 'ADMINISTRATOR',
+                mustChangePassword: false,
+                mfaEnabled: false
+            })
         ).toThrow(/UserSummary\.role: the server sends one of "SUPERUSER", "ADMIN".*the fixture holds "ADMINISTRATOR"/);
     });
 
     it('follows a closed vocabulary into a nested schema, and into a list', () => {
         expect(() =>
             asSchema('UserListing', {
-                users: [{ id: 1, username: 'r', email: null, displayName: null, role: 'READER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }],
+                users: [
+                    {
+                        id: 1,
+                        username: 'r',
+                        email: null,
+                        displayName: null,
+                        role: 'READER',
+                        isActive: true,
+                        mustChangePassword: false,
+                        createdAt: '2026-01-01T00:00:00Z',
+                        activeSessions: 0
+                    }
+                ],
                 currentUserId: 1
             })
         ).toThrow(/UserListing\.users\[0\]\.role: .*"READER"/);

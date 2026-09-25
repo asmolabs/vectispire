@@ -1,7 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { GitTokenSummary, MonitoredContainer, MonitoredRepository, NewContainer, NewGitToken, NewRepository, NewSshKey, SshKeySummary } from '../api.models';
+import {
+    GitTokenSummary,
+    MonitoredContainer,
+    MonitoredRepository,
+    NewContainer,
+    NewGitToken,
+    NewRepository,
+    NewSshKey,
+    SshKeySummary
+} from '../api.models';
 
 /**
  * The monitored repositories and container images, and the credentials repositories are cloned with:

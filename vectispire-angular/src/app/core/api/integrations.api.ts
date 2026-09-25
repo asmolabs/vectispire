@@ -20,7 +20,13 @@ export class IntegrationsApi {
         return this.http.get<SiemConfig>('/api/v1/siem/config');
     }
 
-    updateSiemConfig(payload: { enabled: boolean; protocol: string; endpoint?: string; authHeader?: string; minSeverity: string }): Observable<SiemConfig> {
+    updateSiemConfig(payload: {
+        enabled: boolean;
+        protocol: string;
+        endpoint?: string;
+        authHeader?: string;
+        minSeverity: string;
+    }): Observable<SiemConfig> {
         return this.http.put<SiemConfig>('/api/v1/siem/config', payload);
     }
 
@@ -33,6 +39,9 @@ export class IntegrationsApi {
     }
 
     testNotificationChannel(channelType: string): Observable<NotificationTestResult> {
-        return this.http.post<NotificationTestResult>(`/api/v1/notifications/test/${encodeURIComponent(channelType)}`, {});
+        return this.http.post<NotificationTestResult>(
+            `/api/v1/notifications/test/${encodeURIComponent(channelType)}`,
+            {}
+        );
     }
 }

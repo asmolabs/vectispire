@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BlastRadiusReport, TopImpactPackage, GlobalAttackSurface, RepositoryApisOverview, AttackPathGraph } from '../api.models';
+import {
+    BlastRadiusReport,
+    TopImpactPackage,
+    GlobalAttackSurface,
+    RepositoryApisOverview,
+    AttackPathGraph
+} from '../api.models';
 
 /**
  * What an attacker could reach: the attack surface, the APIs a repository exposes, attack paths

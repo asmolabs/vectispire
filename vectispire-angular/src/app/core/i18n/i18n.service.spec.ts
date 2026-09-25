@@ -38,11 +38,7 @@ describe('I18nService & TranslatePipe', () => {
         };
 
         TestBed.configureTestingModule({
-            providers: [
-                I18nService,
-                TranslatePipe,
-                { provide: HttpClient, useValue: mockHttpClient }
-            ]
+            providers: [I18nService, TranslatePipe, { provide: HttpClient, useValue: mockHttpClient }]
         });
 
         service = TestBed.inject(I18nService);

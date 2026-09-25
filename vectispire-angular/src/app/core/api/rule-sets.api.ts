@@ -26,10 +26,11 @@ export class RuleSetsApi {
      * the acceptance to a licence rather than to a button.
      */
     fetchRuleCatalogue(commit: string, languages: string[], licenceSha256: string) {
-        return this.http.post<{ id: number; ruleCount: number; fileCount: number }>(
-            '/api/v1/rule-sets/catalogue',
-            { commit, languages, licence_sha256: licenceSha256 }
-        );
+        return this.http.post<{ id: number; ruleCount: number; fileCount: number }>('/api/v1/rule-sets/catalogue', {
+            commit,
+            languages,
+            licence_sha256: licenceSha256
+        });
     }
 
     ruleSets() {
@@ -37,7 +38,10 @@ export class RuleSetsApi {
     }
 
     uploadRuleSet(name: string, files: { name: string; content: string }[]) {
-        return this.http.post<{ id: number; contentHash: string; ruleCount: number; fileCount: number }>('/api/v1/rule-sets', { name, files });
+        return this.http.post<{ id: number; contentHash: string; ruleCount: number; fileCount: number }>(
+            '/api/v1/rule-sets',
+            { name, files }
+        );
     }
 
     ruleSetImpact(id: number) {

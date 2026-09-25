@@ -82,8 +82,7 @@ interface JsonSchema {
     enum?: unknown[];
 }
 
-const SCHEMAS = (document as { components: { schemas: Record<string, JsonSchema> } }).components
-    .schemas;
+const SCHEMAS = (document as { components: { schemas: Record<string, JsonSchema> } }).components.schemas;
 
 /**
  * The vocabularies the server closes and the document leaves open.
@@ -138,9 +137,11 @@ function vocabulary(schemaName: string, value: unknown, path: string): string[] 
     const holder = value as Record<string, unknown>;
     return Object.entries(closed)
         .filter(([key]) => typeof holder[key] === 'string' && !closed[key].includes(holder[key] as string))
-        .map(([key, allowed]) =>
-            `${path}.${key}: the server sends one of ${allowed.map((one) => JSON.stringify(one)).join(', ')},` +
-                ` the fixture holds ${JSON.stringify(holder[key])}`);
+        .map(
+            ([key, allowed]) =>
+                `${path}.${key}: the server sends one of ${allowed.map((one) => JSON.stringify(one)).join(', ')},` +
+                ` the fixture holds ${JSON.stringify(holder[key])}`
+        );
 }
 
 function against(schema: JsonSchema, value: unknown, path: string): string[] {
@@ -182,8 +183,7 @@ function object(schema: JsonSchema, value: unknown, path: string): string[] {
 
     // A free-form map — `backlogBySeverity` and its kind. Its keys are data, not a shape.
     if (!schema.properties && schema.additionalProperties) {
-        const values =
-            typeof schema.additionalProperties === 'object' ? schema.additionalProperties : null;
+        const values = typeof schema.additionalProperties === 'object' ? schema.additionalProperties : null;
         if (values) {
             Object.entries(holder).forEach(([key, entry]) =>
                 problems.push(...against(values, entry, `${path}.${key}`))

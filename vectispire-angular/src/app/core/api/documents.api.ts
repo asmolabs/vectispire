@@ -69,8 +69,18 @@ export class DocumentsApi {
     }
 
     /** `vectispireKey` says whether the key checked is Vectispire's: valid under any other key vouches for nothing. */
-    verifyCryptoSignature(payload: string, signature: string, publicKey?: string): Observable<{ valid: boolean; keyId: string; vectispireKey: boolean; algorithm: string; message: string }> {
-        return this.http.post<{ valid: boolean; keyId: string; vectispireKey: boolean; algorithm: string; message: string }>('/api/v1/crypto/verify', { payload, signature, publicKey });
+    verifyCryptoSignature(
+        payload: string,
+        signature: string,
+        publicKey?: string
+    ): Observable<{ valid: boolean; keyId: string; vectispireKey: boolean; algorithm: string; message: string }> {
+        return this.http.post<{
+            valid: boolean;
+            keyId: string;
+            vectispireKey: boolean;
+            algorithm: string;
+            message: string;
+        }>('/api/v1/crypto/verify', { payload, signature, publicKey });
     }
 
     getCosignCliHelper(): Observable<CosignCliHelper> {

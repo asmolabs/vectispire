@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ComplianceSeries, ControlDeclaration, DeclarationRequest, ScopeView, SoaStatement, ComplianceSummary } from '../api.models';
+import {
+    ComplianceSeries,
+    ControlDeclaration,
+    DeclarationRequest,
+    ScopeView,
+    SoaStatement,
+    ComplianceSummary
+} from '../api.models';
 import { DocumentsApi } from './documents.api';
 
 /**

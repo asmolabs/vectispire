@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type {
-    AuditVerification,
-    AuthenticatedUser,
-    Refine,
-    Schema,
-    TeamSummary,
-    UserList
-} from './api.models';
+import type { AuditVerification, AuthenticatedUser, Refine, Schema, TeamSummary, UserList } from './api.models';
 
 /**
  * What the hand-written claims in `api.models.ts` are still checked against.

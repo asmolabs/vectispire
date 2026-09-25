@@ -24,13 +24,15 @@ describe('AppFooter', () => {
             get: vi.fn().mockReturnValue(of(mockEn))
         };
         const mockApi = {
-            signInMethods: vi.fn().mockReturnValue(of({
-                configured: false,
-                label: null,
-                password: true,
-                brandName: 'Vectispire',
-                gitlabUrl: 'https://github.com/asmolabs/vectispire'
-            }))
+            signInMethods: vi.fn().mockReturnValue(
+                of({
+                    configured: false,
+                    label: null,
+                    password: true,
+                    brandName: 'Vectispire',
+                    gitlabUrl: 'https://github.com/asmolabs/vectispire'
+                })
+            )
         };
 
         await TestBed.configureTestingModule({

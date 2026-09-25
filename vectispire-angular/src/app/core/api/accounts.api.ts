@@ -1,7 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ApiKeySummary, ApiKeyTargets, IssuedApiKey, NewApiKey, NewUser, TeamSummary, TeamTargetAssignment, UserTargetAssignment, UserList, UserPatch, UserSummary } from '../api.models';
+import {
+    ApiKeySummary,
+    ApiKeyTargets,
+    IssuedApiKey,
+    NewApiKey,
+    NewUser,
+    TeamSummary,
+    TeamTargetAssignment,
+    UserTargetAssignment,
+    UserList,
+    UserPatch,
+    UserSummary
+} from '../api.models';
 
 /**
  * Who can call and what they see: users, teams, API keys, and the targets each is granted.

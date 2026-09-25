@@ -28,8 +28,8 @@ describe('the role guards', () => {
             session.open('token', { id: 1, username: 'x', role, mustChangePassword: false } as never);
         }
         const guard = requires(need);
-        return TestBed.runInInjectionContext(
-            () => guard({ routeConfig: { path: 'settings' } } as never, {} as never)
+        return TestBed.runInInjectionContext(() =>
+            guard({ routeConfig: { path: 'settings' } } as never, {} as never)
         ) as true | UrlTree;
     }
 

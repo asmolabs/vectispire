@@ -40,7 +40,13 @@ describe('the rule coverage banner', () => {
     }
 
     beforeEach(async () => {
-        await mount({ state: 'COVERED', languagesWithRules: ['java'], ecosystemsInEstate: ['maven'], uncovered: [], ruleFiles: 40 });
+        await mount({
+            state: 'COVERED',
+            languagesWithRules: ['java'],
+            ecosystemsInEstate: ['maven'],
+            uncovered: [],
+            ruleFiles: 40
+        });
     }, 20_000);
 
     it('says nothing when every ecosystem in the estate has rules', () => {
@@ -49,13 +55,25 @@ describe('the rule coverage banner', () => {
     });
 
     it('warns when only the shipped rule is there', async () => {
-        await mount({ state: 'UNCONFIGURED', languagesWithRules: ['python'], ecosystemsInEstate: ['maven'], uncovered: ['java'], ruleFiles: 1 });
+        await mount({
+            state: 'UNCONFIGURED',
+            languagesWithRules: ['python'],
+            ecosystemsInEstate: ['maven'],
+            uncovered: ['java'],
+            ruleFiles: 1
+        });
 
         expect(fixture.componentInstance.visible()).toBe(true);
     });
 
     it('names the ecosystems with no rule when coverage is partial', async () => {
-        await mount({ state: 'PARTIAL', languagesWithRules: ['java'], ecosystemsInEstate: ['maven', 'go'], uncovered: ['go'], ruleFiles: 40 });
+        await mount({
+            state: 'PARTIAL',
+            languagesWithRules: ['java'],
+            ecosystemsInEstate: ['maven', 'go'],
+            uncovered: ['go'],
+            ruleFiles: 40
+        });
 
         expect(fixture.componentInstance.uncovered()).toEqual(['go']);
         expect(fixture.nativeElement.textContent).toContain('go');

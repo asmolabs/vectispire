@@ -31,7 +31,10 @@ export class GateApi {
         scope: { kind: 'global' | 'repository' | 'container'; id: number | null },
         policy: GatePolicyRequest
     ): Observable<GatePolicy> {
-        const path = scope.kind === 'global' ? '/api/v1/gate/policies/global' : `/api/v1/gate/policies/${scope.kind}/${scope.id}`;
+        const path =
+            scope.kind === 'global'
+                ? '/api/v1/gate/policies/global'
+                : `/api/v1/gate/policies/${scope.kind}/${scope.id}`;
         return this.http.put<GatePolicy>(path, policy);
     }
 

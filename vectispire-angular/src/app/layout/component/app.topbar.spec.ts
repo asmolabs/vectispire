@@ -61,8 +61,9 @@ describe('la barre du haut', () => {
 
     /** The button, found by its label the way a user finds it. */
     function button(): HTMLButtonElement {
-        const match = Array.from(fixture.nativeElement.querySelectorAll('button'))
-            .find((element) => (element as HTMLElement).textContent?.includes('Sign out'));
+        const match = Array.from(fixture.nativeElement.querySelectorAll('button')).find((element) =>
+            (element as HTMLElement).textContent?.includes('Sign out')
+        );
         expect(match, 'no button carries the sign-out label').toBeTruthy();
         return match as HTMLButtonElement;
     }

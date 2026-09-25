@@ -25,15 +25,15 @@ describe('la grille OWASP', () => {
     }
 
     const GRID = asSchema('DeclaredGrid', {
-            lines: [
-                line('A01', 'NOT_COVERED'),
-                line('A05', 'FINDINGS', 3),
-                line('A06', 'NO_FINDING'),
-                line('A07', 'NOT_MEASURED')
-            ],
-            covered: 3,
-            withFindings: 1,
-            unmeasured: 1
+        lines: [
+            line('A01', 'NOT_COVERED'),
+            line('A05', 'FINDINGS', 3),
+            line('A06', 'NO_FINDING'),
+            line('A07', 'NOT_MEASURED')
+        ],
+        covered: 3,
+        withFindings: 1,
+        unmeasured: 1
     });
 
     beforeEach(async () => {
@@ -61,8 +61,7 @@ describe('la grille OWASP', () => {
         // A "0" beside a category nothing looks at is the figure this whole grid exists not to
         // write.
         const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
-        expect([...cells].map((cell: HTMLElement) => cell.textContent!.trim()))
-            .toEqual(['—', '3', '—', '—']);
+        expect([...cells].map((cell: HTMLElement) => cell.textContent!.trim())).toEqual(['—', '3', '—', '—']);
     });
 
     it("garde l'ordre du serveur, qui est celui du standard", () => {
@@ -110,29 +109,29 @@ describe('la grille OWASP', () => {
         // Typed first, checked second: the annotation gives the literals the client's narrow
         // unions, and `asSchema` confronts the same value with the document.
         const declared: OwaspGrid = {
-                lines: [
+            lines: [
                 {
                     id: 'A04',
-                        title: 'Insecure Design',
-                        state: 'NOT_COVERED',
-                        findings: 0,
-                        because: 'No scanner in this deployment produces a finding in this category.',
-                        declaration: {
-                            framework: 'OWASP_2021',
-                            controlId: 'A04',
-                            applicability: 'APPLICABLE',
-                            implementation: 'PARTIALLY_IMPLEMENTED',
-                            justification: 'Revue de conception à chaque évolution majeure.',
-                            evidenceSource: 'EXTERNAL',
-                            externalEvidence: 'Comptes rendus de revue, dossier QUAL-2026',
-                            owner: 'c.moreau',
-                            decidedBy: 'c.moreau',
-                            decidedAt: '2026-09-01T00:00:00Z',
-                            reviewedAt: '2026-09-01T00:00:00Z',
-                            reviewDueAt: '2027-03-01T00:00:00Z'
-                        }
+                    title: 'Insecure Design',
+                    state: 'NOT_COVERED',
+                    findings: 0,
+                    because: 'No scanner in this deployment produces a finding in this category.',
+                    declaration: {
+                        framework: 'OWASP_2021',
+                        controlId: 'A04',
+                        applicability: 'APPLICABLE',
+                        implementation: 'PARTIALLY_IMPLEMENTED',
+                        justification: 'Revue de conception à chaque évolution majeure.',
+                        evidenceSource: 'EXTERNAL',
+                        externalEvidence: 'Comptes rendus de revue, dossier QUAL-2026',
+                        owner: 'c.moreau',
+                        decidedBy: 'c.moreau',
+                        decidedAt: '2026-09-01T00:00:00Z',
+                        reviewedAt: '2026-09-01T00:00:00Z',
+                        reviewDueAt: '2027-03-01T00:00:00Z'
                     }
-                ],
+                }
+            ],
             covered: 0,
             withFindings: 0,
             unmeasured: 0

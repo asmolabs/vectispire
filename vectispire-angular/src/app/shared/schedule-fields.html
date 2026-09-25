@@ -1,9 +1,16 @@
 <div class="flex flex-col gap-2">
     <label [for]="idPrefix() + '-interval'" class="font-medium">
-        {{ 'schedule.interval_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+        {{ 'schedule.interval_label' | translate }}
+        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
     </label>
-    <p-inputnumber [inputId]="idPrefix() + '-interval'" [min]="0" [ngModel]="interval()"
-                   (ngModelChange)="interval.set($event)" suffix=" min" styleClass="w-full" />
+    <p-inputnumber
+        [inputId]="idPrefix() + '-interval'"
+        [min]="0"
+        [ngModel]="interval()"
+        (ngModelChange)="interval.set($event)"
+        suffix=" min"
+        styleClass="w-full"
+    />
     <small class="text-muted-color">
         {{ 'schedule.interval_hint' | translate }}
     </small>
@@ -11,10 +18,16 @@
 
 <div class="flex flex-col gap-2">
     <label [for]="idPrefix() + '-cron'" class="font-medium">
-        {{ 'schedule.cron_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+        {{ 'schedule.cron_label' | translate }}
+        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
     </label>
-    <input pInputText [id]="idPrefix() + '-cron'" [ngModel]="cron()" (ngModelChange)="cron.set($event)"
-           placeholder="0 2 * * *" />
+    <input
+        pInputText
+        [id]="idPrefix() + '-cron'"
+        [ngModel]="cron()"
+        (ngModelChange)="cron.set($event)"
+        placeholder="0 2 * * *"
+    />
     <small class="text-muted-color">
         {{ 'schedule.cron_hint' | translate }}
     </small>

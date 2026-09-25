@@ -1,7 +1,12 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/core/auth.interceptor';
 import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withEnabledBlockingInitialNavigation, withInMemoryScrolling } from '@angular/router';
+import {
+    provideRouter,
+    withComponentInputBinding,
+    withEnabledBlockingInitialNavigation,
+    withInMemoryScrolling
+} from '@angular/router';
 import Aura from '@openng/optimus-ui-themes/aura';
 import { provideOptimus } from '@openng/optimus-ui/config';
 import { appRoutes } from './app.routes';

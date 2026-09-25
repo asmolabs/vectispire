@@ -22,10 +22,7 @@ describe('BrandingService', () => {
         };
 
         TestBed.configureTestingModule({
-            providers: [
-                BrandingService,
-                { provide: AuthApi, useValue: mockApi }
-            ]
+            providers: [BrandingService, { provide: AuthApi, useValue: mockApi }]
         });
 
         service = TestBed.inject(BrandingService);
