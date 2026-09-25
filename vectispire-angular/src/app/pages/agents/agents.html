@@ -4,7 +4,13 @@
         <p class="text-muted-color mt-1 mb-0">{{ 'agents.subtitle' | translate }}</p>
     </div>
     <div class="flex items-center gap-2">
-        <p-button icon="pi pi-refresh" severity="secondary" [outlined]="true" [loading]="loading()" (onClick)="reload()" />
+        <p-button
+            icon="pi pi-refresh"
+            severity="secondary"
+            [outlined]="true"
+            [loading]="loading()"
+            (onClick)="reload()"
+        />
         <p-button [label]="'agents.declare_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />
     </div>
 </div>
@@ -22,25 +28,40 @@
 <!-- KPI Cards -->
 @if (activity()?.stats; as stats) {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
             <div>
-                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_online' | translate }}</div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_online' | translate }}
+                </div>
                 <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
                     {{ stats.onlineAgents }} / {{ stats.totalAgents }}
                 </div>
                 <div class="text-xs text-muted-color mt-1">
-                    <span class="text-green-600 dark:text-green-400 font-medium">{{ stats.idleAgents }} {{ 'agents.status_idle' | translate | lowercase }}</span> · 
-                    <span class="text-blue-600 dark:text-blue-400 font-medium">{{ stats.busyAgents }} {{ 'agents.status_busy' | translate | lowercase }}</span>
+                    <span class="text-green-600 dark:text-green-400 font-medium"
+                        >{{ stats.idleAgents }} {{ 'agents.status_idle' | translate | lowercase }}</span
+                    >
+                    ·
+                    <span class="text-blue-600 dark:text-blue-400 font-medium"
+                        >{{ stats.busyAgents }} {{ 'agents.status_busy' | translate | lowercase }}</span
+                    >
                 </div>
             </div>
-            <div class="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-600 dark:text-green-400 text-xl">
+            <div
+                class="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 flex items-center justify-center text-green-600 dark:text-green-400 text-xl"
+            >
                 <i class="pi pi-server"></i>
             </div>
         </div>
 
-        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
             <div>
-                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_running' | translate }}</div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_running' | translate }}
+                </div>
                 <div class="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
                     {{ stats.runningScansCount }}
                 </div>
@@ -48,14 +69,24 @@
                     {{ 'agents.running_subtitle' | translate }}
                 </div>
             </div>
-            <div class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl">
-                <i class="pi pi-spin pi-spinner" [class.pi-spinner]="stats.runningScansCount > 0" [class.pi-bolt]="stats.runningScansCount === 0"></i>
+            <div
+                class="w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 text-xl"
+            >
+                <i
+                    class="pi pi-spin pi-spinner"
+                    [class.pi-spinner]="stats.runningScansCount > 0"
+                    [class.pi-bolt]="stats.runningScansCount === 0"
+                ></i>
             </div>
         </div>
 
-        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
             <div>
-                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_pending' | translate }}</div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_pending' | translate }}
+                </div>
                 <div class="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
                     {{ stats.pendingScansCount }}
                 </div>
@@ -63,22 +94,33 @@
                     {{ 'agents.pending_subtitle' | translate }}
                 </div>
             </div>
-            <div class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl">
+            <div
+                class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-600 dark:text-amber-400 text-xl"
+            >
                 <i class="pi pi-clock"></i>
             </div>
         </div>
 
-        <div class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between">
+        <div
+            class="p-4 bg-surface-0 dark:bg-surface-900 rounded-xl border border-surface-200 dark:border-surface-800 shadow-sm flex items-center justify-between"
+        >
             <div>
-                <div class="text-xs font-semibold uppercase text-muted-color">{{ 'agents.kpi_completed_24h' | translate }}</div>
+                <div class="text-xs font-semibold uppercase text-muted-color">
+                    {{ 'agents.kpi_completed_24h' | translate }}
+                </div>
                 <div class="text-2xl font-bold text-surface-900 dark:text-surface-0 mt-1">
                     {{ stats.scansCompleted24h }}
                 </div>
                 <div class="text-xs text-muted-color mt-1">
-                    {{ 'agents.kpi_avg_duration' | translate }} : <span class="font-medium text-surface-700 dark:text-surface-300">{{ formatDuration(stats.avgScanDurationSeconds) }}</span>
+                    {{ 'agents.kpi_avg_duration' | translate }} :
+                    <span class="font-medium text-surface-700 dark:text-surface-300">{{
+                        formatDuration(stats.avgScanDurationSeconds)
+                    }}</span>
                 </div>
             </div>
-            <div class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xl">
+            <div
+                class="w-12 h-12 rounded-full bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 text-xl"
+            >
                 <i class="pi pi-check-circle"></i>
             </div>
         </div>
@@ -115,7 +157,13 @@
                 <tr>
                     <td>
                         <div class="flex items-center gap-2">
-                            <i [class]="run.targetType === 'repository' ? 'pi pi-github text-primary' : 'pi pi-box text-purple-500'"></i>
+                            <i
+                                [class]="
+                                    run.targetType === 'repository'
+                                        ? 'pi pi-github text-primary'
+                                        : 'pi pi-box text-purple-500'
+                                "
+                            ></i>
                             <span class="font-medium">{{ run.targetName }}</span>
                         </div>
                     </td>
@@ -133,10 +181,16 @@
                         }
                     </td>
                     <td>
-                        <span class="font-medium text-blue-600 dark:text-blue-400">{{ formatDuration(run.durationSeconds) }}</span>
+                        <span class="font-medium text-blue-600 dark:text-blue-400">{{
+                            formatDuration(run.durationSeconds)
+                        }}</span>
                     </td>
                     <td class="text-right">
-                        <p-tag [value]="'agents.status_busy' | translate" severity="info" icon="pi pi-spin pi-spinner" />
+                        <p-tag
+                            [value]="'agents.status_busy' | translate"
+                            severity="info"
+                            icon="pi pi-spin pi-spinner"
+                        />
                     </td>
                 </tr>
             </ng-template>
@@ -178,11 +232,19 @@
             <ng-template #body let-pend>
                 <tr>
                     <td>
-                        <span class="font-bold text-surface-500 dark:text-surface-400">#{{ pend.positionInQueue }}</span>
+                        <span class="font-bold text-surface-500 dark:text-surface-400"
+                            >#{{ pend.positionInQueue }}</span
+                        >
                     </td>
                     <td>
                         <div class="flex items-center gap-2">
-                            <i [class]="pend.targetType === 'repository' ? 'pi pi-github text-primary' : 'pi pi-box text-purple-500'"></i>
+                            <i
+                                [class]="
+                                    pend.targetType === 'repository'
+                                        ? 'pi pi-github text-primary'
+                                        : 'pi pi-box text-purple-500'
+                                "
+                            ></i>
                             <span class="font-medium">{{ pend.targetName }}</span>
                         </div>
                     </td>
@@ -201,9 +263,17 @@
                     </td>
                     <td class="text-right">
                         @if (pend.isRoutable) {
-                            <p-tag [value]="'agents.status_routable' | translate" severity="success" icon="pi pi-clock" />
+                            <p-tag
+                                [value]="'agents.status_routable' | translate"
+                                severity="success"
+                                icon="pi pi-clock"
+                            />
                         } @else {
-                            <p-tag [value]="'agents.status_blocked' | translate" severity="danger" icon="pi pi-exclamation-circle" />
+                            <p-tag
+                                [value]="'agents.status_blocked' | translate"
+                                severity="danger"
+                                icon="pi pi-exclamation-circle"
+                            />
                         }
                     </td>
                 </tr>
@@ -251,9 +321,15 @@
                         <p-tag [value]="'agents.disabled_badge' | translate" severity="secondary" />
                     } @else if (agent.online) {
                         @if (agent.runningScans > 0) {
-                            <p-tag [value]="'agents.status_busy' | translate" severity="info" icon="pi pi-spin pi-spinner" />
+                            <p-tag
+                                [value]="'agents.status_busy' | translate"
+                                severity="info"
+                                icon="pi pi-spin pi-spinner"
+                            />
                             @if (getRunningScanForAgent(agent.id); as run) {
-                                <div class="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium truncate max-w-xs">
+                                <div
+                                    class="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium truncate max-w-xs"
+                                >
                                     {{ run.targetName }} ({{ formatDuration(run.durationSeconds) }})
                                 </div>
                             }
@@ -264,7 +340,9 @@
                         <p-tag [value]="'agents.silent_badge' | translate" severity="warn" />
                     }
                     @if (agent.lastSeenAt) {
-                        <div class="text-xs text-muted-color mt-1">{{ 'agents.seen_at' | translate: { at: (agent.lastSeenAt | date: 'dd/MM HH:mm') ?? '' } }}</div>
+                        <div class="text-xs text-muted-color mt-1">
+                            {{ 'agents.seen_at' | translate: { at: (agent.lastSeenAt | date: 'dd/MM HH:mm') ?? '' } }}
+                        </div>
                     } @else {
                         <div class="text-xs text-muted-color mt-1">{{ 'agents.never_announced' | translate }}</div>
                     }
@@ -272,7 +350,12 @@
                 <td>
                     @if (agent.hostname) {
                         <div class="text-sm">{{ agent.hostname }}</div>
-                        <div class="text-xs text-muted-color">{{ agent.platform }}@if (agent.version) { · {{ agent.version }}}</div>
+                        <div class="text-xs text-muted-color">
+                            {{ agent.platform }}
+                            @if (agent.version) {
+                                · {{ agent.version }}
+                            }
+                        </div>
                     } @else {
                         <span class="text-muted-color">—</span>
                     }
@@ -287,10 +370,18 @@
                     }
                 </td>
                 <td>
-                    <span class="text-sm">{{ (agent.credentialsMode === 'delegated' ? 'agents.credentials_modes.delegated' : 'agents.credentials_modes.local') | translate }}</span>
+                    <span class="text-sm">{{
+                        (agent.credentialsMode === 'delegated'
+                            ? 'agents.credentials_modes.delegated'
+                            : 'agents.credentials_modes.local'
+                        ) | translate
+                    }}</span>
                     @if (agent.credentialsMode === 'delegated') {
                         <div class="text-xs" [class.text-muted-color]="agent.sealsCredentials">
-                            {{ (agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.in_clear') | translate }}
+                            {{
+                                (agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.in_clear')
+                                    | translate
+                            }}
                         </div>
                     }
                     <!-- Said on the row and not behind a dialog: an operator who believes their
@@ -301,56 +392,105 @@
                 </td>
                 <td class="text-right font-medium">{{ agent.runningScans }}</td>
                 <td class="text-right whitespace-nowrap">
-                    <p-button [icon]="agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'" [text]="true" [rounded]="true"
-                              [ariaLabel]="
-                                agent.signsResults
-                                    ? ('agents.aria_stop_requiring_signatures' | translate: { name: agent.name })
-                                    : ('agents.aria_require_signatures' | translate: { name: agent.name })
-                            "
-                              [disabled]="busy() === agent.id" (onClick)="toggleSigning(agent)" />
-                    <p-button [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'" [text]="true" [rounded]="true"
-                              [ariaLabel]="
-                                agent.enabled
-                                    ? ('agents.aria_disable' | translate: { name: agent.name })
-                                    : ('agents.aria_reenable' | translate: { name: agent.name })
-                            "
-                              [disabled]="busy() === agent.id" (onClick)="toggle(agent)" />
-                    <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'agents.aria_delete' | translate: { name: agent.name }" (onClick)="askDelete(agent)" />
+                    <p-button
+                        [icon]="agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="
+                            agent.signsResults
+                                ? ('agents.aria_stop_requiring_signatures' | translate: { name: agent.name })
+                                : ('agents.aria_require_signatures' | translate: { name: agent.name })
+                        "
+                        [disabled]="busy() === agent.id"
+                        (onClick)="toggleSigning(agent)"
+                    />
+                    <p-button
+                        [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="
+                            agent.enabled
+                                ? ('agents.aria_disable' | translate: { name: agent.name })
+                                : ('agents.aria_reenable' | translate: { name: agent.name })
+                        "
+                        [disabled]="busy() === agent.id"
+                        (onClick)="toggle(agent)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'agents.aria_delete' | translate: { name: agent.name }"
+                        (onClick)="askDelete(agent)"
+                    />
                 </td>
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="7" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td></tr>
+            <tr>
+                <td colspan="7" class="text-center text-muted-color py-6">{{ 'agents.no_agents' | translate }}</td>
+            </tr>
         </ng-template>
     </p-table>
 </p-card>
 
-<p-dialog [header]="'agents.modal_title' | translate" [(visible)]="formVisible" [modal]="true" [style]="{ width: '34rem' }">
+<p-dialog
+    [header]="'agents.modal_title' | translate"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="name" class="font-medium">{{ 'agents.name_label' | translate }}</label>
             <input pInputText id="name" [(ngModel)]="form.name" [placeholder]="'agents.name_placeholder' | translate" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="description" class="font-medium">{{ 'agents.desc_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
-            <input pInputText id="description" [(ngModel)]="form.description" [placeholder]="'agents.desc_placeholder' | translate" />
+            <label for="description" class="font-medium"
+                >{{ 'agents.desc_label' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="description"
+                [(ngModel)]="form.description"
+                [placeholder]="'agents.desc_placeholder' | translate"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="mode" class="font-medium">{{ 'agents.credentials' | translate }}</label>
-            <p-select id="mode" [options]="credentials()" optionLabel="label" optionValue="value" [(ngModel)]="form.credentialsMode" styleClass="w-full" />
+            <p-select
+                id="mode"
+                [options]="credentials()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="form.credentialsMode"
+                styleClass="w-full"
+            />
             <small class="text-muted-color">{{ hintFor(form.credentialsMode) }}</small>
         </div>
         <div class="flex flex-col gap-2">
             <label for="labels" class="font-medium">{{ 'agents.labels_label' | translate }}</label>
-            <input pInputText id="labels" [(ngModel)]="form.labels" [placeholder]="'agents.labels_placeholder' | translate" />
+            <input
+                pInputText
+                id="labels"
+                [(ngModel)]="form.labels"
+                [placeholder]="'agents.labels_placeholder' | translate"
+            />
             <small class="text-muted-color">
                 {{ 'agents.labels_hint' | translate }}
             </small>
         </div>
         <div class="flex flex-col gap-2">
             <label for="concurrent" class="font-medium">{{ 'agents.concurrent_label' | translate }}</label>
-            <p-inputnumber inputId="concurrent" [(ngModel)]="form.maxConcurrent" [min]="1" [max]="16" styleClass="w-full" />
+            <p-inputnumber
+                inputId="concurrent"
+                [(ngModel)]="form.maxConcurrent"
+                [min]="1"
+                [max]="16"
+                styleClass="w-full"
+            />
         </div>
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
@@ -362,27 +502,49 @@
     </ng-template>
 </p-dialog>
 
-<p-dialog [header]="'agents.token_modal_title' | translate" [(visible)]="secretVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+<p-dialog
+    [header]="'agents.token_modal_title' | translate"
+    [(visible)]="secretVisible"
+    [modal]="true"
+    [closable]="false"
+    [style]="{ width: '36rem' }"
+>
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
         {{ 'agents.token_modal_desc' | translate }}
     </p-message>
-    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSecret() }}</div>
+    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">
+        {{ issuedSecret() }}
+    </div>
     <ng-template #footer>
         <p-button [label]="'common.confirm' | translate" (onClick)="dismissSecret()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog [header]="'agents.signing_key_title' | translate" [(visible)]="signingKeyVisible" [modal]="true" [closable]="false" [style]="{ width: '36rem' }">
+<p-dialog
+    [header]="'agents.signing_key_title' | translate"
+    [(visible)]="signingKeyVisible"
+    [modal]="true"
+    [closable]="false"
+    [style]="{ width: '36rem' }"
+>
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
-        {{ 'agents.signing_key_notice_before' | translate }} <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span>{{ 'agents.signing_key_notice_after' | translate }}
+        {{ 'agents.signing_key_notice_before' | translate }} <span class="font-mono">VECTISPIRE_AGENT_SIGNING_KEY</span
+        >{{ 'agents.signing_key_notice_after' | translate }}
     </p-message>
-    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">{{ issuedSigningKey() }}</div>
+    <div class="font-mono text-sm p-3 border rounded break-all select-all" style="border-color: var(--surface-border)">
+        {{ issuedSigningKey() }}
+    </div>
     <ng-template #footer>
         <p-button [label]="'common.confirm' | translate" (onClick)="dismissSigningKey()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog [header]="'common.delete' | translate" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+<p-dialog
+    [header]="'common.delete' | translate"
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
     @if (pendingDelete(); as agent) {
         <p class="m-0">
             <span class="font-medium">{{ agent.name }}</span> — {{ 'agents.delete_confirm' | translate }}
@@ -390,7 +552,11 @@
     }
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+        <p-button
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="saving()"
+            (onClick)="confirmDelete()"
+        />
     </ng-template>
 </p-dialog>
-

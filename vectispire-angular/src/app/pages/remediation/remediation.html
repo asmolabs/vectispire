@@ -9,11 +9,18 @@
     -->
     <div class="flex flex-wrap items-center gap-3 mb-4">
         <label for="scope" class="font-medium">{{ 'remediation.scope' | translate }}</label>
-        <p-select inputId="scope" [options]="targets()" optionLabel="label" optionValue="value"
-                  [(ngModel)]="scope" (ngModelChange)="changeScope()"
-                  [showClear]="true" [filter]="true"
-                  [placeholder]="'remediation.whole_estate' | translate"
-                  styleClass="w-full sm:w-80" />
+        <p-select
+            inputId="scope"
+            [options]="targets()"
+            optionLabel="label"
+            optionValue="value"
+            [(ngModel)]="scope"
+            (ngModelChange)="changeScope()"
+            [showClear]="true"
+            [filter]="true"
+            [placeholder]="'remediation.whole_estate' | translate"
+            styleClass="w-full sm:w-80"
+        />
     </div>
 
     @if (error()) {
@@ -60,21 +67,41 @@
             <div class="border border-surface rounded-lg p-4 mb-6">
                 <div class="font-medium mb-1">{{ 'remediation.coverage_title' | translate }}</div>
                 <p class="text-sm text-muted-color mb-2">
-                    {{ 'remediation.coverage_summary' | translate: { covered: c.addressableByUpgrade, open: c.openFindings, beyond: c.beyondUpgrades } }}
+                    {{
+                        'remediation.coverage_summary'
+                            | translate
+                                : { covered: c.addressableByUpgrade, open: c.openFindings, beyond: c.beyondUpgrades }
+                    }}
                 </p>
                 <ul class="text-sm flex flex-col gap-1 pl-0 m-0 list-none">
                     @for (gap of c.gaps; track gap.family) {
                         <li>
                             <span class="font-semibold tabular-nums mr-1">{{ gap.findings }}</span>
                             @switch (gap.family) {
-                                @case ('secret') { {{ 'remediation.gap_secret' | translate }} }
-                                @case ('iac') { {{ 'remediation.gap_iac' | translate }} }
-                                @case ('license') { {{ 'remediation.gap_license' | translate }} }
-                                @case ('eol') { {{ 'remediation.gap_eol' | translate }} }
-                                @case ('sast') { {{ 'remediation.gap_sast' | translate }} }
-                                @case ('quality') { {{ 'remediation.gap_quality' | translate }} }
-                                @case ('unpackaged') { {{ 'remediation.gap_unpackaged' | translate }} }
-                                @default { {{ 'remediation.gap_other' | translate }} }
+                                @case ('secret') {
+                                    {{ 'remediation.gap_secret' | translate }}
+                                }
+                                @case ('iac') {
+                                    {{ 'remediation.gap_iac' | translate }}
+                                }
+                                @case ('license') {
+                                    {{ 'remediation.gap_license' | translate }}
+                                }
+                                @case ('eol') {
+                                    {{ 'remediation.gap_eol' | translate }}
+                                }
+                                @case ('sast') {
+                                    {{ 'remediation.gap_sast' | translate }}
+                                }
+                                @case ('quality') {
+                                    {{ 'remediation.gap_quality' | translate }}
+                                }
+                                @case ('unpackaged') {
+                                    {{ 'remediation.gap_unpackaged' | translate }}
+                                }
+                                @default {
+                                    {{ 'remediation.gap_other' | translate }}
+                                }
                             }
                         </li>
                     }
@@ -110,8 +137,10 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="text-muted-color tabular-nums">{{ index + 1 }}.</span>
                                 <span class="font-semibold break-all">{{ fix.packageName }}</span>
-                                <p-tag [severity]="severityOf(fix)"
-                                       [value]="fix.criticalCveCount + ' ' + ('severities.critical' | translate)" />
+                                <p-tag
+                                    [severity]="severityOf(fix)"
+                                    [value]="fix.criticalCveCount + ' ' + ('severities.critical' | translate)"
+                                />
                             </div>
 
                             <!--
@@ -135,8 +164,10 @@
 
                             <div class="mt-2 text-sm text-muted-color">
                                 {{ 'remediation.closes' | translate }} {{ fix.cveCountResolved }} ·
-                                {{ fix.affectedTargetNames.length }} {{ 'remediation.targets' | translate }} ·
-                                ~{{ fix.estimatedHours }} h
+                                {{ fix.affectedTargetNames.length }} {{ 'remediation.targets' | translate }} · ~{{
+                                    fix.estimatedHours
+                                }}
+                                h
                             </div>
                         </div>
 
@@ -145,10 +176,13 @@
                                 <div class="text-lg font-semibold tabular-nums">{{ fix.leverageScore }}</div>
                                 <div class="text-xs text-muted-color">{{ 'remediation.leverage' | translate }}</div>
                             </div>
-                            <p-button [text]="true" size="small"
-                                      [icon]="isExpanded(fix) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-                                      [label]="'remediation.details' | translate"
-                                      (onClick)="toggle(fix)" />
+                            <p-button
+                                [text]="true"
+                                size="small"
+                                [icon]="isExpanded(fix) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                                [label]="'remediation.details' | translate"
+                                (onClick)="toggle(fix)"
+                            />
                         </div>
                     </div>
 
@@ -159,16 +193,24 @@
                                 <div class="flex flex-wrap gap-1">
                                     @for (cve of fix.affectedCves; track cve) {
                                         <!-- To the filtered list: this page says what to do, the other says on what. -->
-                                        <a class="text-primary text-sm font-mono"
-                                           [routerLink]="['/issues']" [queryParams]="{ search: cve }">{{ cve }}</a>
+                                        <a
+                                            class="text-primary text-sm font-mono"
+                                            [routerLink]="['/issues']"
+                                            [queryParams]="{ search: cve }"
+                                            >{{ cve }}</a
+                                        >
                                     }
                                 </div>
                             </div>
                             <div>
-                                <div class="font-medium mb-2 text-sm">{{ 'remediation.affected_targets' | translate }}</div>
+                                <div class="font-medium mb-2 text-sm">
+                                    {{ 'remediation.affected_targets' | translate }}
+                                </div>
                                 <div class="flex flex-wrap gap-1 text-sm">
                                     @for (target of fix.affectedTargetNames; track target) {
-                                        <span class="px-2 py-0.5 rounded bg-surface-100 dark:bg-surface-800">{{ target }}</span>
+                                        <span class="px-2 py-0.5 rounded bg-surface-100 dark:bg-surface-800">{{
+                                            target
+                                        }}</span>
                                     }
                                 </div>
                             </div>
@@ -189,9 +231,14 @@
                 rather than staying greyed out without saying why.
             -->
             @if (mayHaveMore()) {
-                <p-button [outlined]="true" size="small" icon="pi pi-plus"
-                          [label]="'remediation.show_more' | translate"
-                          [loading]="loading()" (onClick)="showMore()" />
+                <p-button
+                    [outlined]="true"
+                    size="small"
+                    icon="pi pi-plus"
+                    [label]="'remediation.show_more' | translate"
+                    [loading]="loading()"
+                    (onClick)="showMore()"
+                />
             } @else if (fixes().length >= CEILING) {
                 <span class="text-sm text-muted-color">{{ 'remediation.ceiling_reached' | translate }}</span>
             }

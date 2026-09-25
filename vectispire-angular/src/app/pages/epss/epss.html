@@ -1,13 +1,17 @@
 <div class="p-6 max-w-7xl mx-auto flex flex-col gap-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">
+    <div
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4"
+    >
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0 flex items-center gap-3">
                 <i class="pi pi-bolt text-amber-500 text-2xl"></i>
                 {{ 'epss.title' | translate }}
             </h1>
             <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                {{ 'epss.subtitle_before' | translate }}<strong>{{ 'epss.source_epss' | translate }}</strong>{{ 'epss.subtitle_between' | translate }}<strong>{{ 'epss.source_kev' | translate }}</strong>).
+                {{ 'epss.subtitle_before' | translate }}<strong>{{ 'epss.source_epss' | translate }}</strong
+                >{{ 'epss.subtitle_between' | translate }}<strong>{{ 'epss.source_kev' | translate }}</strong
+                >).
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -22,7 +26,14 @@
                     class="pl-9 text-xs w-48"
                 />
             </div>
-            <button pButton icon="pi pi-search" class="p-button-outlined" [attr.aria-label]="'common.search' | translate" (click)="searchCve()" [disabled]="!cveSearchQuery.trim()"></button>
+            <button
+                pButton
+                icon="pi pi-search"
+                class="p-button-outlined"
+                [attr.aria-label]="'common.search' | translate"
+                (click)="searchCve()"
+                [disabled]="!cveSearchQuery.trim()"
+            ></button>
             @if (isSecurityLead()) {
                 <button
                     pButton
@@ -54,43 +65,63 @@
         <!-- KPI Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Active CISA KEV -->
-            <div class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 shadow-sm flex flex-col justify-between">
+            <div
+                class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 shadow-sm flex flex-col justify-between"
+            >
                 <div class="flex items-center justify-between text-rose-700 dark:text-rose-400">
                     <span class="text-xs font-bold uppercase tracking-wider">{{ 'epss.kev_card' | translate }}</span>
                     <i class="pi pi-exclamation-triangle text-rose-600 text-lg"></i>
                 </div>
                 <div class="mt-3">
-                    <span class="text-3xl font-extrabold text-rose-900 dark:text-rose-100">{{ summary()!.activeKevCount }}</span>
-                    <span class="text-xs text-rose-600 dark:text-rose-300 ml-1">{{ 'epss.weaponised' | translate }}</span>
+                    <span class="text-3xl font-extrabold text-rose-900 dark:text-rose-100">{{
+                        summary()!.activeKevCount
+                    }}</span>
+                    <span class="text-xs text-rose-600 dark:text-rose-300 ml-1">{{
+                        'epss.weaponised' | translate
+                    }}</span>
                 </div>
             </div>
 
             <!-- High EPSS (> 20%) -->
-            <div class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm flex flex-col justify-between">
+            <div
+                class="p-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm flex flex-col justify-between"
+            >
                 <div class="flex items-center justify-between text-amber-700 dark:text-amber-400">
                     <span class="text-xs font-bold uppercase tracking-wider">{{ 'epss.high_epss' | translate }}</span>
                     <i class="pi pi-chart-line text-amber-600 text-lg"></i>
                 </div>
                 <div class="mt-3">
-                    <span class="text-3xl font-extrabold text-amber-900 dark:text-amber-100">{{ summary()!.highEpssCount }}</span>
-                    <span class="text-xs text-amber-600 dark:text-amber-300 ml-1">{{ 'epss.high_probability' | translate }}</span>
+                    <span class="text-3xl font-extrabold text-amber-900 dark:text-amber-100">{{
+                        summary()!.highEpssCount
+                    }}</span>
+                    <span class="text-xs text-amber-600 dark:text-amber-300 ml-1">{{
+                        'epss.high_probability' | translate
+                    }}</span>
                 </div>
             </div>
 
             <!-- Reachable & Armed -->
-            <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <div
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between"
+            >
                 <div class="flex items-center justify-between text-surface-500 dark:text-surface-400">
-                    <span class="text-xs font-bold uppercase tracking-wider">{{ 'epss.reachable_weaponised' | translate }}</span>
+                    <span class="text-xs font-bold uppercase tracking-wider">{{
+                        'epss.reachable_weaponised' | translate
+                    }}</span>
                     <i class="pi pi-shield text-indigo-500 text-lg"></i>
                 </div>
                 <div class="mt-3">
-                    <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{ summary()!.reachableEpssCount }}</span>
+                    <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{
+                        summary()!.reachableEpssCount
+                    }}</span>
                     <span class="text-xs text-surface-500 ml-1">{{ 'epss.in_executed_code' | translate }}</span>
                 </div>
             </div>
 
             <!-- Fleet Average EPSS -->
-            <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
+            <div
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between"
+            >
                 <div class="flex items-center justify-between text-surface-500 dark:text-surface-400">
                     <span class="text-xs font-bold uppercase tracking-wider">{{ 'epss.mean_score' | translate }}</span>
                     <i class="pi pi-percentage text-emerald-500 text-lg"></i>
@@ -105,40 +136,72 @@
         </div>
 
         <!-- 4 Quadrants Matrix Breakdown -->
-        <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm">
+        <div
+            class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm"
+        >
             <h2 class="text-base font-bold text-surface-900 dark:text-surface-0 mb-3 flex items-center gap-2">
                 <i class="pi pi-th-large text-primary-500"></i>
                 {{ 'epss.matrix' | translate }}
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div class="p-3 rounded-lg border border-rose-300 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30">
+                <div
+                    class="p-3 rounded-lg border border-rose-300 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/30"
+                >
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-bold text-rose-800 dark:text-rose-200">{{ 'epss.q1' | translate }}</span>
-                        <span class="text-lg font-extrabold text-rose-700 dark:text-rose-300">{{ summary()!.breakdownByTier['CRITICAL_ARMED'] ?? 0 }}</span>
+                        <span class="text-xs font-bold text-rose-800 dark:text-rose-200">{{
+                            'epss.q1' | translate
+                        }}</span>
+                        <span class="text-lg font-extrabold text-rose-700 dark:text-rose-300">{{
+                            summary()!.breakdownByTier['CRITICAL_ARMED'] ?? 0
+                        }}</span>
                     </div>
-                    <p class="text-[11px] text-rose-700/80 dark:text-rose-400 leading-tight">{{ 'epss.q1_help' | translate }}</p>
+                    <p class="text-[11px] text-rose-700/80 dark:text-rose-400 leading-tight">
+                        {{ 'epss.q1_help' | translate }}
+                    </p>
                 </div>
 
-                <div class="p-3 rounded-lg border border-amber-300 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30">
+                <div
+                    class="p-3 rounded-lg border border-amber-300 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/30"
+                >
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-bold text-amber-800 dark:text-amber-200">{{ 'epss.q2' | translate }}</span>
-                        <span class="text-lg font-extrabold text-amber-700 dark:text-amber-300">{{ summary()!.breakdownByTier['HIGH_PROBABLE'] ?? 0 }}</span>
+                        <span class="text-xs font-bold text-amber-800 dark:text-amber-200">{{
+                            'epss.q2' | translate
+                        }}</span>
+                        <span class="text-lg font-extrabold text-amber-700 dark:text-amber-300">{{
+                            summary()!.breakdownByTier['HIGH_PROBABLE'] ?? 0
+                        }}</span>
                     </div>
-                    <p class="text-[11px] text-amber-700/80 dark:text-amber-400 leading-tight">{{ 'epss.q2_help' | translate }}</p>
+                    <p class="text-[11px] text-amber-700/80 dark:text-amber-400 leading-tight">
+                        {{ 'epss.q2_help' | translate }}
+                    </p>
                 </div>
 
-                <div class="p-3 rounded-lg border border-blue-300 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30">
+                <div
+                    class="p-3 rounded-lg border border-blue-300 dark:border-blue-900 bg-blue-50/60 dark:bg-blue-950/30"
+                >
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-bold text-blue-800 dark:text-blue-200">{{ 'epss.q3' | translate }}</span>
-                        <span class="text-lg font-extrabold text-blue-700 dark:text-blue-300">{{ summary()!.breakdownByTier['MEDIUM_THEORETICAL'] ?? 0 }}</span>
+                        <span class="text-xs font-bold text-blue-800 dark:text-blue-200">{{
+                            'epss.q3' | translate
+                        }}</span>
+                        <span class="text-lg font-extrabold text-blue-700 dark:text-blue-300">{{
+                            summary()!.breakdownByTier['MEDIUM_THEORETICAL'] ?? 0
+                        }}</span>
                     </div>
-                    <p class="text-[11px] text-blue-700/80 dark:text-blue-400 leading-tight">{{ 'epss.q3_help' | translate }}</p>
+                    <p class="text-[11px] text-blue-700/80 dark:text-blue-400 leading-tight">
+                        {{ 'epss.q3_help' | translate }}
+                    </p>
                 </div>
 
-                <div class="p-3 rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/40">
+                <div
+                    class="p-3 rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/40"
+                >
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-bold text-surface-700 dark:text-surface-300">{{ 'epss.q4' | translate }}</span>
-                        <span class="text-lg font-extrabold text-surface-900 dark:text-surface-0">{{ summary()!.breakdownByTier['LOW_PROBABILITY'] ?? 0 }}</span>
+                        <span class="text-xs font-bold text-surface-700 dark:text-surface-300">{{
+                            'epss.q4' | translate
+                        }}</span>
+                        <span class="text-lg font-extrabold text-surface-900 dark:text-surface-0">{{
+                            summary()!.breakdownByTier['LOW_PROBABILITY'] ?? 0
+                        }}</span>
                     </div>
                     <p class="text-[11px] text-surface-500 leading-tight">{{ 'epss.q4_help' | translate }}</p>
                 </div>
@@ -146,13 +209,20 @@
         </div>
 
         <!-- Prioritized Issues Queue Table -->
-        <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm">
+        <div
+            class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm"
+        >
             <h2 class="text-base font-bold text-surface-900 dark:text-surface-0 mb-4 flex items-center gap-2">
                 <i class="pi pi-list text-primary-500"></i>
                 {{ 'epss.queue_title' | translate: { count: summary()!.topPriorities.length } }}
             </h2>
 
-            <p-table [value]="summary()!.topPriorities" [paginator]="true" [rows]="10" styleClass="p-datatable-sm p-datatable-striped">
+            <p-table
+                [value]="summary()!.topPriorities"
+                [paginator]="true"
+                [rows]="10"
+                styleClass="p-datatable-sm p-datatable-striped"
+            >
                 <ng-template pTemplate="header">
                     <tr>
                         <th>{{ 'epss.priority' | translate }}</th>
@@ -169,10 +239,21 @@
                     <tr>
                         <td>
                             <div class="flex items-center gap-1.5">
-                                <span class="font-extrabold text-xs px-2 py-0.5 rounded-full" [class.bg-rose-100]="p.priorityScore >= 80" [class.text-rose-800]="p.priorityScore >= 80" [class.bg-amber-100]="p.priorityScore >= 50 && p.priorityScore < 80" [class.text-amber-800]="p.priorityScore >= 50 && p.priorityScore < 80" [class.bg-blue-100]="p.priorityScore < 50" [class.text-blue-800]="p.priorityScore < 50">
+                                <span
+                                    class="font-extrabold text-xs px-2 py-0.5 rounded-full"
+                                    [class.bg-rose-100]="p.priorityScore >= 80"
+                                    [class.text-rose-800]="p.priorityScore >= 80"
+                                    [class.bg-amber-100]="p.priorityScore >= 50 && p.priorityScore < 80"
+                                    [class.text-amber-800]="p.priorityScore >= 50 && p.priorityScore < 80"
+                                    [class.bg-blue-100]="p.priorityScore < 50"
+                                    [class.text-blue-800]="p.priorityScore < 50"
+                                >
                                     {{ p.priorityScore }}/100
                                 </span>
-                                <p-tag [severity]="getTierSeverity(p.priorityTier)" [value]="getTierLabel(p.priorityTier)"></p-tag>
+                                <p-tag
+                                    [severity]="getTierSeverity(p.priorityTier)"
+                                    [value]="getTierLabel(p.priorityTier)"
+                                ></p-tag>
                             </div>
                         </td>
                         <td>
@@ -183,7 +264,9 @@
                             <div class="flex items-center gap-1">
                                 <span class="text-xs font-semibold">{{ p.severity }}</span>
                                 @if (p.cvssScore) {
-                                    <span class="text-[11px] px-1.5 py-0.2 rounded bg-surface-200 dark:bg-surface-700 font-mono">
+                                    <span
+                                        class="text-[11px] px-1.5 py-0.2 rounded bg-surface-200 dark:bg-surface-700 font-mono"
+                                    >
                                         {{ p.cvssScore }}
                                     </span>
                                 }
@@ -194,12 +277,19 @@
                                 <div class="flex justify-between items-center text-[11px]">
                                     <!-- An unknown score is shown as unknown: printed as 0 %, it read as "not exploitable". -->
                                     @if (p.epssScore != null) {
-                                        <span class="font-bold text-amber-600 dark:text-amber-400">{{ (p.epssScore * 100).toFixed(1) }}%</span>
+                                        <span class="font-bold text-amber-600 dark:text-amber-400"
+                                            >{{ (p.epssScore * 100).toFixed(1) }}%</span
+                                        >
                                     } @else {
                                         <span class="font-bold text-surface-400">—</span>
                                     }
                                     @if (p.epssPercentile != null) {
-                                        <span class="text-surface-400 font-mono">({{ 'epss.percentile_short' | translate: { value: (p.epssPercentile * 100).toFixed(0) } }})</span>
+                                        <span class="text-surface-400 font-mono"
+                                            >({{
+                                                'epss.percentile_short'
+                                                    | translate: { value: (p.epssPercentile * 100).toFixed(0) }
+                                            }})</span
+                                        >
                                     }
                                 </div>
                                 <div class="w-24 h-1.5 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
@@ -209,7 +299,9 @@
                         </td>
                         <td>
                             @if (p.isKev) {
-                                <span class="px-2 py-0.5 text-[10px] font-extrabold rounded bg-rose-600 text-white animate-pulse">
+                                <span
+                                    class="px-2 py-0.5 text-[10px] font-extrabold rounded bg-rose-600 text-white animate-pulse"
+                                >
                                     {{ 'epss.kev_weaponised' | translate }}
                                 </span>
                             } @else {
@@ -217,7 +309,10 @@
                             }
                         </td>
                         <td>
-                            <p-tag [value]="p.reachability" [severity]="getReachabilitySeverity(p.reachability)"></p-tag>
+                            <p-tag
+                                [value]="p.reachability"
+                                [severity]="getReachabilitySeverity(p.reachability)"
+                            ></p-tag>
                         </td>
                         <td>
                             <span class="text-xs font-medium block truncate max-w-[150px]">{{ p.targetName }}</span>
@@ -236,11 +331,21 @@
                             -->
                             <span class="text-xs font-medium text-surface-800 dark:text-surface-200">
                                 @switch (p.recommendedAction) {
-                                    @case ('P0_KEV_24H') { {{ 'epss.action_p0_kev_24h' | translate }} }
-                                    @case ('P0_48H') { {{ 'epss.action_p0_48h' | translate }} }
-                                    @case ('P1_7D') { {{ 'epss.action_p1_7d' | translate }} }
-                                    @case ('P2_30D') { {{ 'epss.action_p2_30d' | translate }} }
-                                    @case ('P3_ROUTINE') { {{ 'epss.action_p3_routine' | translate }} }
+                                    @case ('P0_KEV_24H') {
+                                        {{ 'epss.action_p0_kev_24h' | translate }}
+                                    }
+                                    @case ('P0_48H') {
+                                        {{ 'epss.action_p0_48h' | translate }}
+                                    }
+                                    @case ('P1_7D') {
+                                        {{ 'epss.action_p1_7d' | translate }}
+                                    }
+                                    @case ('P2_30D') {
+                                        {{ 'epss.action_p2_30d' | translate }}
+                                    }
+                                    @case ('P3_ROUTINE') {
+                                        {{ 'epss.action_p3_routine' | translate }}
+                                    }
                                 }
                             </span>
                         </td>
@@ -258,7 +363,13 @@
     }
 
     <!-- CVE Lookup Dialog -->
-    <p-dialog [header]="'epss.lookup_title' | translate" [(visible)]="lookupDialogOpen" [modal]="true" [style]="{ width: '32rem' }" [appendTo]="'body'">
+    <p-dialog
+        [header]="'epss.lookup_title' | translate"
+        [(visible)]="lookupDialogOpen"
+        [modal]="true"
+        [style]="{ width: '32rem' }"
+        [appendTo]="'body'"
+    >
         @if (lookupLoading()) {
             <div class="flex justify-center py-6">
                 <p-progressSpinner strokeWidth="4"></p-progressSpinner>
@@ -272,7 +383,9 @@
                 <div class="flex items-center justify-between border-b border-surface-200 dark:border-surface-700 pb-3">
                     <div>
                         <span class="text-lg font-mono font-bold">{{ lookupResult()!.cveId }}</span>
-                        <span class="text-xs text-surface-500 block">{{ lookupResult()!.notes ?? ('epss.cve_reference' | translate) }}</span>
+                        <span class="text-xs text-surface-500 block">{{
+                            lookupResult()!.notes ?? ('epss.cve_reference' | translate)
+                        }}</span>
                     </div>
                     @if (lookupResult()!.isKev) {
                         <span class="px-2.5 py-1 text-xs font-bold rounded bg-rose-600 text-white">
@@ -282,14 +395,26 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
-                        <span class="text-[11px] uppercase font-bold text-surface-500">{{ 'epss.epss_probability' | translate }}</span>
+                    <div
+                        class="p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800"
+                    >
+                        <span class="text-[11px] uppercase font-bold text-surface-500">{{
+                            'epss.epss_probability' | translate
+                        }}</span>
                         <span class="text-xl font-extrabold text-amber-600 block mt-1">
-                            {{ lookupResult()!.epssScore != null ? ((lookupResult()!.epssScore ?? 0) * 100).toFixed(2) + ' %' : '—' }}
+                            {{
+                                lookupResult()!.epssScore != null
+                                    ? ((lookupResult()!.epssScore ?? 0) * 100).toFixed(2) + ' %'
+                                    : '—'
+                            }}
                         </span>
                     </div>
-                    <div class="p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800">
-                        <span class="text-[11px] uppercase font-bold text-surface-500">{{ 'epss.percentile' | translate }}</span>
+                    <div
+                        class="p-3 rounded border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800"
+                    >
+                        <span class="text-[11px] uppercase font-bold text-surface-500">{{
+                            'epss.percentile' | translate
+                        }}</span>
                         <span class="text-xl font-extrabold text-indigo-600 block mt-1">
                             {{ ((lookupResult()!.epssPercentile ?? 0) * 100).toFixed(1) }}e %
                         </span>
@@ -310,7 +435,15 @@
                                      a model wrote it, ours from the bundles when it did not. -->
                                 <p class="m-0">
                                     @if (explanation.deterministic; as own) {
-                                        {{ 'ai.summary' | translate: { id: explanation.identifier, package: own.packageName, version: own.currentVersion } }}
+                                        {{
+                                            'ai.summary'
+                                                | translate
+                                                    : {
+                                                          id: explanation.identifier,
+                                                          package: own.packageName,
+                                                          version: own.currentVersion
+                                                      }
+                                        }}
                                     } @else {
                                         {{ explanation.summaryExplanation }}
                                     }
@@ -319,7 +452,10 @@
                                     <p class="m-0 text-xs text-muted-color">
                                         @if (explanation.deterministic; as own) {
                                             @if (own.activelyExploited) {
-                                                {{ 'ai.mechanics_kev' | translate: { chance: kevChance(own.exploitProbability) } }}
+                                                {{
+                                                    'ai.mechanics_kev'
+                                                        | translate: { chance: kevChance(own.exploitProbability) }
+                                                }}
                                             } @else {
                                                 {{ 'ai.mechanics_generic' | translate: { package: own.packageName } }}
                                             }
@@ -329,9 +465,18 @@
                                     </p>
                                 }
                                 @if (explanation.remediation.fixAction) {
-                                    <p class="m-0 text-xs"><strong>{{ 'epss.explain_fix' | translate }}</strong>
+                                    <p class="m-0 text-xs">
+                                        <strong>{{ 'epss.explain_fix' | translate }}</strong>
                                         @if (explanation.deterministic; as own) {
-                                            {{ 'ai.fix_action' | translate: { package: own.packageName, version: own.currentVersion, target: own.targetVersion } }}
+                                            {{
+                                                'ai.fix_action'
+                                                    | translate
+                                                        : {
+                                                              package: own.packageName,
+                                                              version: own.currentVersion,
+                                                              target: own.targetVersion
+                                                          }
+                                            }}
                                         } @else {
                                             {{ explanation.remediation.fixAction }}
                                         }
@@ -341,16 +486,26 @@
                         } @else if (adviceError(); as message) {
                             <p-message severity="warn" [closable]="false" styleClass="w-full">{{ message }}</p-message>
                         } @else {
-                            <p-button size="small" [outlined]="true" icon="pi pi-sparkles"
-                                      [label]="'epss.explain' | translate"
-                                      [loading]="adviceLoading()" (onClick)="explain()" />
+                            <p-button
+                                size="small"
+                                [outlined]="true"
+                                icon="pi pi-sparkles"
+                                [label]="'epss.explain' | translate"
+                                [loading]="adviceLoading()"
+                                (onClick)="explain()"
+                            />
                         }
                     </div>
                 }
             </div>
         }
         <ng-template #footer>
-            <button pButton [label]="'common.close' | translate" class="p-button-text" (click)="lookupDialogOpen.set(false)"></button>
+            <button
+                pButton
+                [label]="'common.close' | translate"
+                class="p-button-text"
+                (click)="lookupDialogOpen.set(false)"
+            ></button>
         </ng-template>
     </p-dialog>
 </div>

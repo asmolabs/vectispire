@@ -8,7 +8,8 @@
                 {{ 'settings.risk_banner_title' | translate }}
             </span>
             <span class="text-sm">
-                {{ 'settings.risk_banner_sends' | translate }} <strong>{{ state.aiEndpoint() }}</strong>{{ 'settings.risk_banner_detail' | translate }}
+                {{ 'settings.risk_banner_sends' | translate }} <strong>{{ state.aiEndpoint() }}</strong
+                >{{ 'settings.risk_banner_detail' | translate }}
             </span>
         </div>
     </p-message>
@@ -19,18 +20,30 @@
     <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">
         {{ 'settings.risk_accepted_by' | translate }} <strong>{{ riskAcknowledgedBy() }}</strong>
         @if (riskAcknowledgedAt()) {
-            {{ 'settings.risk_accepted_on' | translate: { date: (riskAcknowledgedAt() | date: 'dd/MM/yyyy HH:mm' : 'UTC') ?? '' } }}
+            {{
+                'settings.risk_accepted_on'
+                    | translate: { date: (riskAcknowledgedAt() | date: 'dd/MM/yyyy HH:mm' : 'UTC') ?? '' }
+            }}
         }
         {{ 'settings.risk_accepted_note' | translate }}
     </p-message>
 }
 
 <div class="flex flex-wrap items-center gap-3 mb-4">
-    <p-button [label]="'settings.test_connection' | translate" icon="pi pi-bolt" severity="secondary" size="small"
-              [loading]="testingOllama()" (onClick)="testOllama()" />
+    <p-button
+        [label]="'settings.test_connection' | translate"
+        icon="pi pi-bolt"
+        severity="secondary"
+        size="small"
+        [loading]="testingOllama()"
+        (onClick)="testOllama()"
+    />
     @if (ollama(); as check) {
-        <p-message [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
-                   [closable]="false" styleClass="m-0">
+        <p-message
+            [severity]="check.reachable && check.modelInstalled ? 'success' : 'warn'"
+            [closable]="false"
+            styleClass="m-0"
+        >
             {{ check.detail }}
         </p-message>
     }
@@ -49,13 +62,20 @@
             }
         </label>
         <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
-            <input pInputText id="openai-key" type="password" class="w-full sm:w-96 max-w-full"
-                   [(ngModel)]="openAiKeyInput" placeholder="sk-…" autocomplete="off" />
-            <p-button [label]="'common.save' | translate" [loading]="savingOpenAiKey()"
-                      (onClick)="saveOpenAiKey()" />
+            <input
+                pInputText
+                id="openai-key"
+                type="password"
+                class="w-full sm:w-96 max-w-full"
+                [(ngModel)]="openAiKeyInput"
+                placeholder="sk-…"
+                autocomplete="off"
+            />
+            <p-button [label]="'common.save' | translate" [loading]="savingOpenAiKey()" (onClick)="saveOpenAiKey()" />
         </div>
     </div>
     <small class="text-muted-color max-w-3xl">
-        {{ 'settings.ai_key_sent_as' | translate }} <code>Authorization: Bearer</code> {{ 'settings.ai_key_hint' | translate }}
+        {{ 'settings.ai_key_sent_as' | translate }} <code>Authorization: Bearer</code>
+        {{ 'settings.ai_key_hint' | translate }}
     </small>
 </div>

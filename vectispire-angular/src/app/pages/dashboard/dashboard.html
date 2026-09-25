@@ -12,15 +12,20 @@
         <p-card>
             <div class="text-muted-color text-sm">{{ 'dashboard.failing_targets' | translate }}</div>
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.failingCount > 0">
-                {{ overview.posture.failingCount }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
+                {{ overview.posture.failingCount
+                }}<span class="text-muted-color text-lg font-normal"> / {{ overview.posture.totalCount }}</span>
             </div>
             <a routerLink="/security" class="text-sm">{{ 'dashboard.see_posture' | translate }}</a>
         </p-card>
 
         <p-card>
             <div class="text-muted-color text-sm">{{ 'dashboard.actively_exploited' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">{{ overview.posture.kevCount }}</div>
-            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">{{ 'dashboard.see_kev' | translate }}</a>
+            <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.kevCount > 0">
+                {{ overview.posture.kevCount }}
+            </div>
+            <a [routerLink]="['/issues']" [queryParams]="{ is_kev: true }" class="text-sm">{{
+                'dashboard.see_kev' | translate
+            }}</a>
         </p-card>
 
         <p-card>
@@ -36,7 +41,9 @@
             <div class="text-3xl font-semibold mt-1" [class.text-red-500]="overview.posture.overdueCount > 0">
                 {{ overview.posture.overdueCount }}
             </div>
-            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">{{ 'dashboard.see_what_is_late' | translate }}</a>
+            <a [routerLink]="['/issues']" [queryParams]="{ overdue: true }" class="text-sm">{{
+                'dashboard.see_what_is_late' | translate
+            }}</a>
         </p-card>
 
         <p-card>
@@ -54,7 +61,12 @@
                 <span>{{ 'dashboard.backlog_over_time' | translate }}</span>
                 <div class="flex gap-2">
                     @for (choice of windows(); track choice.value) {
-                        <p-button [label]="choice.label" size="small" [outlined]="window() !== choice.value" (onClick)="loadTrends(choice.value)" />
+                        <p-button
+                            [label]="choice.label"
+                            size="small"
+                            [outlined]="window() !== choice.value"
+                            (onClick)="loadTrends(choice.value)"
+                        />
                     }
                 </div>
             </div>
@@ -92,30 +104,78 @@
 
                 @if (postureAnalytics(); as pa) {
                     <div class="pt-3 border-t border-surface-200 dark:border-surface-700 flex flex-col gap-2">
-                        <div class="text-xs uppercase font-semibold text-muted-color">{{ 'dashboard.mttr_by_severity' | translate }}</div>
+                        <div class="text-xs uppercase font-semibold text-muted-color">
+                            {{ 'dashboard.mttr_by_severity' | translate }}
+                        </div>
                         <div class="grid grid-cols-2 gap-2 text-xs">
-                            <div class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center">
-                                <span class="font-bold text-red-600 dark:text-red-400">{{ 'dashboard.sev_critical' | translate }}</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['CRITICAL'] != null ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['CRITICAL'] }) : '—' }}</span>
+                            <div
+                                class="p-2 rounded bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex justify-between items-center"
+                            >
+                                <span class="font-bold text-red-600 dark:text-red-400">{{
+                                    'dashboard.sev_critical' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold">{{
+                                    pa.mttrBySeverity?.['CRITICAL'] != null
+                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['CRITICAL'] })
+                                        : '—'
+                                }}</span>
                             </div>
-                            <div class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center">
-                                <span class="font-bold text-amber-600 dark:text-amber-400">{{ 'dashboard.sev_high' | translate }}</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['HIGH'] != null ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['HIGH'] }) : '—' }}</span>
+                            <div
+                                class="p-2 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex justify-between items-center"
+                            >
+                                <span class="font-bold text-amber-600 dark:text-amber-400">{{
+                                    'dashboard.sev_high' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold">{{
+                                    pa.mttrBySeverity?.['HIGH'] != null
+                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['HIGH'] })
+                                        : '—'
+                                }}</span>
                             </div>
-                            <div class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center">
-                                <span class="font-bold text-blue-600 dark:text-blue-400">{{ 'dashboard.sev_medium' | translate }}</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['MEDIUM'] != null ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['MEDIUM'] }) : '—' }}</span>
+                            <div
+                                class="p-2 rounded bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 flex justify-between items-center"
+                            >
+                                <span class="font-bold text-blue-600 dark:text-blue-400">{{
+                                    'dashboard.sev_medium' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold">{{
+                                    pa.mttrBySeverity?.['MEDIUM'] != null
+                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['MEDIUM'] })
+                                        : '—'
+                                }}</span>
                             </div>
-                            <div class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center">
-                                <span class="font-semibold text-muted-color">{{ 'dashboard.sev_low' | translate }}</span>
-                                <span class="font-mono font-semibold">{{ pa.mttrBySeverity?.['LOW'] != null ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['LOW'] }) : '—' }}</span>
+                            <div
+                                class="p-2 rounded bg-surface-100 dark:bg-surface-800 flex justify-between items-center"
+                            >
+                                <span class="font-semibold text-muted-color">{{
+                                    'dashboard.sev_low' | translate
+                                }}</span>
+                                <span class="font-mono font-semibold">{{
+                                    pa.mttrBySeverity?.['LOW'] != null
+                                        ? ('dashboard.days_short' | translate: { count: pa.mttrBySeverity['LOW'] })
+                                        : '—'
+                                }}</span>
                             </div>
                         </div>
 
-                        <div class="mt-2 pt-2 border-t border-surface-200 dark:border-surface-700 flex justify-between items-center text-xs">
+                        <div
+                            class="mt-2 pt-2 border-t border-surface-200 dark:border-surface-700 flex justify-between items-center text-xs"
+                        >
                             <span class="text-muted-color">{{ 'dashboard.remediation_velocity' | translate }}</span>
-                            <span class="font-bold" [class.text-emerald-600]="pa.netResolutionRatePercentage >= 80" [class.text-amber-600]="pa.netResolutionRatePercentage < 80">
-                                {{ 'dashboard.resolution_ratio' | translate: { percent: pa.netResolutionRatePercentage, resolved: pa.totalResolvedInWindow, opened: pa.totalOpenedInWindow } }}
+                            <span
+                                class="font-bold"
+                                [class.text-emerald-600]="pa.netResolutionRatePercentage >= 80"
+                                [class.text-amber-600]="pa.netResolutionRatePercentage < 80"
+                            >
+                                {{
+                                    'dashboard.resolution_ratio'
+                                        | translate
+                                            : {
+                                                  percent: pa.netResolutionRatePercentage,
+                                                  resolved: pa.totalResolvedInWindow,
+                                                  opened: pa.totalOpenedInWindow
+                                              }
+                                }}
                             </span>
                         </div>
                     </div>
@@ -131,40 +191,60 @@
                 <ng-template #title>
                     <div class="flex items-center justify-between">
                         <span>{{ 'dashboard.estimated_debt' | translate }}</span>
-                        <p-tag [value]="debt.totalEstimatedPersonDays + ' ' + ('dashboard.person_days' | translate)" severity="warn" />
+                        <p-tag
+                            [value]="debt.totalEstimatedPersonDays + ' ' + ('dashboard.person_days' | translate)"
+                            severity="warn"
+                        />
                     </div>
                 </ng-template>
                 <div class="text-sm text-muted-color mb-3">
                     {{ 'dashboard.debt_help' | translate: { count: debt.totalOpenIssues } }}
                 </div>
                 <div class="space-y-2 text-sm">
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_sca' | translate }}</span>
                         <span class="font-semibold">{{ debt.vulnerabilitiesDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_secrets' | translate }}</span>
                         <span class="font-semibold">{{ debt.secretsDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_sast' | translate }}</span>
                         <span class="font-semibold">{{ debt.sastDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_iac' | translate }}</span>
                         <span class="font-semibold">{{ debt.iacDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_licenses' | translate }}</span>
                         <span class="font-semibold">{{ debt.licenseDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
+                    <div
+                        class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700"
+                    >
                         <span class="text-muted-color">{{ 'dashboard.debt_eol' | translate }}</span>
                         <span class="font-semibold">{{ debt.eolDebtHours }} h</span>
                     </div>
-                    <div class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400">
+                    <div
+                        class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400"
+                    >
                         <span>{{ 'dashboard.debt_total' | translate }}</span>
-                        <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} {{ 'dashboard.person_days' | translate }})</span>
+                        <span
+                            >{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }}
+                            {{ 'dashboard.person_days' | translate }})</span
+                        >
                     </div>
                 </div>
             </p-card>
@@ -173,7 +253,9 @@
                 <ng-template #title>
                     <div class="flex items-center justify-between">
                         <span>{{ 'dashboard.high_impact' | translate }}</span>
-                        <span class="text-xs text-muted-color font-normal">{{ 'dashboard.high_impact_help' | translate }}</span>
+                        <span class="text-xs text-muted-color font-normal">{{
+                            'dashboard.high_impact_help' | translate
+                        }}</span>
                     </div>
                 </ng-template>
                 @if (!debt.topHighImpactFixes || debt.topHighImpactFixes.length === 0) {
@@ -193,20 +275,34 @@
                             <tr>
                                 <td>
                                     <div class="font-semibold">{{ fix.packageName }}</div>
-                                    <div class="text-xs text-muted-color">v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}</div>
+                                    <div class="text-xs text-muted-color">
+                                        v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}
+                                    </div>
                                 </td>
                                 <td>
-                                    <p-tag [value]="'dashboard.cve_count' | translate: { count: fix.cveCountResolved }" severity="danger" />
+                                    <p-tag
+                                        [value]="'dashboard.cve_count' | translate: { count: fix.cveCountResolved }"
+                                        severity="danger"
+                                    />
                                     @if (fix.criticalCveCount > 0) {
-                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold">({{ 'dashboard.critical_count' | translate: { count: fix.criticalCveCount } }})</span>
+                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold"
+                                            >({{
+                                                'dashboard.critical_count' | translate: { count: fix.criticalCveCount }
+                                            }})</span
+                                        >
                                     }
                                 </td>
-                                <td><span class="font-mono text-sm">{{ fix.estimatedHours }} h</span></td>
+                                <td>
+                                    <span class="font-mono text-sm">{{ fix.estimatedHours }} h</span>
+                                </td>
                                 <td>
                                     <p-tag [value]="fix.leverageScore + 'x'" severity="success" />
                                 </td>
                                 <td>
-                                    <div class="text-xs text-muted-color max-w-[12rem] truncate" [title]="fix.affectedTargetNames.join(', ')">
+                                    <div
+                                        class="text-xs text-muted-color max-w-[12rem] truncate"
+                                        [title]="fix.affectedTargetNames.join(', ')"
+                                    >
                                         {{ fix.affectedTargetNames.join(', ') || '—' }}
                                     </div>
                                 </td>
@@ -227,11 +323,18 @@
                         <i class="pi pi-trophy text-amber-500"></i>
                         {{ 'dashboard.scoreboard' | translate }}
                     </span>
-                    <span class="text-xs text-muted-color font-normal">{{ 'dashboard.scoreboard_help' | translate }}</span>
+                    <span class="text-xs text-muted-color font-normal">{{
+                        'dashboard.scoreboard_help' | translate
+                    }}</span>
                 </div>
             </ng-template>
 
-            <p-table [value]="postureAnalytics()!.targetScoreboard" styleClass="p-datatable-sm" [paginator]="true" [rows]="5">
+            <p-table
+                [value]="postureAnalytics()!.targetScoreboard"
+                styleClass="p-datatable-sm"
+                [paginator]="true"
+                [rows]="5"
+            >
                 <ng-template #header>
                     <tr>
                         <th>{{ 'dashboard.target' | translate }}</th>
@@ -250,19 +353,27 @@
                             <div class="text-xs text-muted-color">{{ target.targetKind }}</div>
                         </td>
                         <td>
-                            <p-tag [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }" [severity]="gradeSeverity(target.maturityGrade)" />
+                            <p-tag
+                                [value]="'dashboard.grade_tag' | translate: { grade: target.maturityGrade }"
+                                [severity]="gradeSeverity(target.maturityGrade)"
+                            />
                         </td>
                         <td>
                             <div class="flex items-center gap-2">
                                 <span class="font-bold font-mono text-sm">{{ target.securityScore }}/100</span>
                                 <div class="w-16 h-2 bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
-                                    <div class="h-full bg-purple-600 rounded-full" [style.width.%]="target.securityScore"></div>
+                                    <div
+                                        class="h-full bg-purple-600 rounded-full"
+                                        [style.width.%]="target.securityScore"
+                                    ></div>
                                 </div>
                             </div>
                         </td>
                         <td class="text-center">
                             @if (target.openCritical > 0) {
-                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300">
+                                <span
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300"
+                                >
                                     {{ target.openCritical }}
                                 </span>
                             } @else {
@@ -271,7 +382,9 @@
                         </td>
                         <td class="text-center">
                             @if (target.openHigh > 0) {
-                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300">
+                                <span
+                                    class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300"
+                                >
                                     {{ target.openHigh }}
                                 </span>
                             } @else {
@@ -282,7 +395,11 @@
                             {{ target.totalResolved }}
                         </td>
                         <td class="text-right font-mono text-xs">
-                            {{ target.targetMttrDays != null ? ('dashboard.days_count' | translate: { count: target.targetMttrDays }) : '—' }}
+                            {{
+                                target.targetMttrDays != null
+                                    ? ('dashboard.days_count' | translate: { count: target.targetMttrDays })
+                                    : '—'
+                            }}
                         </td>
                     </tr>
                 </ng-template>
@@ -297,7 +414,11 @@
                 @for (level of severities(); track level.key) {
                     <div class="flex items-center justify-between">
                         <p-tag [value]="level.label" [severity]="level.severity" />
-                        <a [routerLink]="['/issues']" [queryParams]="{ severity: level.key, state: 'open', unsettled: true }" class="text-xl font-semibold">
+                        <a
+                            [routerLink]="['/issues']"
+                            [queryParams]="{ severity: level.key, state: 'open', unsettled: true }"
+                            class="text-xl font-semibold"
+                        >
                             {{ overview.backlogBySeverity[level.key] ?? 0 }}
                         </a>
                     </div>
@@ -306,7 +427,10 @@
 
             <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
                 <div class="flex items-center justify-between">
-                    <span class="text-muted-color text-sm">{{ 'dashboard.quality' | translate }} <span class="text-xs">({{ 'dashboard.quality_never_blocks' | translate }})</span></span>
+                    <span class="text-muted-color text-sm"
+                        >{{ 'dashboard.quality' | translate }}
+                        <span class="text-xs">({{ 'dashboard.quality_never_blocks' | translate }})</span></span
+                    >
                     <a routerLink="/quality" class="font-semibold">{{ overview.qualityTotal }}</a>
                 </div>
             </div>
@@ -324,23 +448,46 @@
             } @else {
                 <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
                     <ng-template #header>
-                        <tr><th>{{ 'dashboard.target' | translate }}</th><th>{{ 'dashboard.col_rule_at_fault' | translate }}</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
+                        <tr>
+                            <th>{{ 'dashboard.target' | translate }}</th>
+                            <th>{{ 'dashboard.col_rule_at_fault' | translate }}</th>
+                            <th class="text-right">{{ 'dashboard.findings' | translate }}</th>
+                        </tr>
                     </ng-template>
                     <ng-template #body let-target>
                         <tr>
                             <td>
                                 <div class="font-medium">{{ target.name }}</div>
-                                <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? ('dashboard.kind_repository' | translate) : ('dashboard.kind_container' | translate) }}</div>
+                                <div class="text-sm text-muted-color">
+                                    {{
+                                        target.kind === 'repository'
+                                            ? ('dashboard.kind_repository' | translate)
+                                            : ('dashboard.kind_container' | translate)
+                                    }}
+                                </div>
                             </td>
                             <td>
                                 @for (violation of firstViolations(target.violations); track $index) {
                                     <div class="text-sm">
-                                        <p-tag [value]="violation.rule === 'kev' ? ('dashboard.rule_kev' | translate) : ('dashboard.rule_severity' | translate)" severity="danger" styleClass="mr-2" />
+                                        <p-tag
+                                            [value]="
+                                                violation.rule === 'kev'
+                                                    ? ('dashboard.rule_kev' | translate)
+                                                    : ('dashboard.rule_severity' | translate)
+                                            "
+                                            severity="danger"
+                                            styleClass="mr-2"
+                                        />
                                         {{ violation.reason }}
                                     </div>
                                 }
                                 @if (target.violations.length > 3) {
-                                    <div class="text-sm text-muted-color mt-1">{{ 'dashboard.more_violations' | translate: { count: target.violations.length - 3 } }}</div>
+                                    <div class="text-sm text-muted-color mt-1">
+                                        {{
+                                            'dashboard.more_violations'
+                                                | translate: { count: target.violations.length - 3 }
+                                        }}
+                                    </div>
                                 }
                             </td>
                             <td class="text-right font-semibold">{{ target.violations.length }}</td>
@@ -355,20 +502,35 @@
         <ng-template #title>{{ 'dashboard.recent_scans' | translate }}</ng-template>
         <p-table [value]="overview.recentScans" styleClass="p-datatable-sm">
             <ng-template #header>
-                <tr><th>{{ 'dashboard.target' | translate }}</th><th>{{ 'common.status' | translate }}</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
+                <tr>
+                    <th>{{ 'dashboard.target' | translate }}</th>
+                    <th>{{ 'common.status' | translate }}</th>
+                    <th class="text-right">{{ 'dashboard.findings' | translate }}</th>
+                </tr>
             </ng-template>
             <ng-template #body let-scan>
                 <tr>
                     <td>
-                        <a [routerLink]="['/scans', scan.id]">{{ scan.targetName ?? (scan.targetKind === 'container' ? 'Container ' + scan.containerId : 'Repository ' + scan.repoId) }}</a>
-                        <div class="text-xs text-muted-color">{{ scan.targetKind === 'container' ? 'image' : 'repository' }}</div>
+                        <a [routerLink]="['/scans', scan.id]">{{
+                            scan.targetName ??
+                                (scan.targetKind === 'container'
+                                    ? 'Container ' + scan.containerId
+                                    : 'Repository ' + scan.repoId)
+                        }}</a>
+                        <div class="text-xs text-muted-color">
+                            {{ scan.targetKind === 'container' ? 'image' : 'repository' }}
+                        </div>
                     </td>
                     <td><app-last-scan [scan]="scan" /></td>
                     <td class="text-right">{{ scan.findingsCount ?? '—' }}</td>
                 </tr>
             </ng-template>
             <ng-template #emptymessage>
-                <tr><td colspan="3" class="text-center text-muted-color py-6">{{ 'dashboard.no_scans_run' | translate }}</td></tr>
+                <tr>
+                    <td colspan="3" class="text-center text-muted-color py-6">
+                        {{ 'dashboard.no_scans_run' | translate }}
+                    </td>
+                </tr>
             </ng-template>
         </p-table>
     </p-card>

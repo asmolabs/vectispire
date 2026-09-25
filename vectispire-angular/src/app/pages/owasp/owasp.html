@@ -20,14 +20,16 @@
                 [placeholder]="'owasp.pick_repo' | translate"
                 (onChange)="loadLatest()"
                 styleClass="w-full"
-                class="w-full sm:min-w-[24rem]" />
+                class="w-full sm:min-w-[24rem]"
+            />
         </div>
         <p-button
             [label]="'owasp.run_analysis' | translate"
             icon="pi pi-sparkles"
             [disabled]="selected === null"
             [loading]="running()"
-            (onClick)="run()" />
+            (onClick)="run()"
+        />
     </div>
     <p class="text-sm text-muted-color mt-3 mb-0">
         {{ 'owasp.analysis_privacy_note' | translate }}
@@ -59,8 +61,13 @@
                     {{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}
                 </span>
                 @if (current.status === 'completed') {
-                    <p-button [label]="'owasp.export_pdf' | translate" icon="pi pi-file-pdf" severity="secondary" size="small"
-                              (onClick)="downloadPdf()" />
+                    <p-button
+                        [label]="'owasp.export_pdf' | translate"
+                        icon="pi pi-file-pdf"
+                        severity="secondary"
+                        size="small"
+                        (onClick)="downloadPdf()"
+                    />
                 }
             </div>
         </ng-template>
@@ -95,15 +102,19 @@
                 @for (block of current.blocks; track $index) {
                     @switch (block.kind) {
                         @case ('CATEGORY') {
-                            <h2 class="text-lg font-semibold mt-5 mb-2 px-3 py-2 rounded"
-                                style="background: var(--surface-100); color: var(--primary-color)">
+                            <h2
+                                class="text-lg font-semibold mt-5 mb-2 px-3 py-2 rounded"
+                                style="background: var(--surface-100); color: var(--primary-color)"
+                            >
                                 {{ block.text }}
                             </h2>
                         }
                         @case ('HEADING') {
-                            <h3 class="font-semibold mt-5 mb-2 pb-1"
+                            <h3
+                                class="font-semibold mt-5 mb-2 pb-1"
                                 [class.text-lg]="block.level <= 2"
-                                [style.border-bottom]="block.level <= 2 ? '1px solid var(--surface-border)' : null">
+                                [style.border-bottom]="block.level <= 2 ? '1px solid var(--surface-border)' : null"
+                            >
                                 {{ block.text }}
                             </h3>
                         }
@@ -122,27 +133,44 @@
                             </div>
                         }
                         @case ('BLOCKQUOTE') {
-                            <div class="my-4 p-3.5 rounded-lg border-l-4 border-primary bg-surface-50 dark:bg-surface-800 text-sm text-surface-700 dark:text-surface-300 italic shadow-xs">
+                            <div
+                                class="my-4 p-3.5 rounded-lg border-l-4 border-primary bg-surface-50 dark:bg-surface-800 text-sm text-surface-700 dark:text-surface-300 italic shadow-xs"
+                            >
                                 {{ block.text }}
                             </div>
                         }
                         @case ('TABLE') {
-                            <div class="my-4 overflow-x-auto rounded-lg border border-surface-200 dark:border-surface-700 shadow-xs">
+                            <div
+                                class="my-4 overflow-x-auto rounded-lg border border-surface-200 dark:border-surface-700 shadow-xs"
+                            >
                                 <table class="w-full text-sm border-collapse bg-surface-0 dark:bg-surface-900">
                                     @if (block.headers && block.headers.length > 0) {
-                                        <thead class="bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-0">
+                                        <thead
+                                            class="bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                                        >
                                             <tr>
                                                 @for (h of block.headers; track $index) {
-                                                    <th class="p-3 text-left font-semibold border-b border-surface-200 dark:border-surface-700">{{ h }}</th>
+                                                    <th
+                                                        class="p-3 text-left font-semibold border-b border-surface-200 dark:border-surface-700"
+                                                    >
+                                                        {{ h }}
+                                                    </th>
                                                 }
                                             </tr>
                                         </thead>
                                     }
                                     <tbody>
                                         @for (row of block.rows; track $index) {
-                                            <tr class="border-b border-surface-200 dark:border-surface-700 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800/50">
+                                            <tr
+                                                class="border-b border-surface-200 dark:border-surface-700 last:border-0 hover:bg-surface-50 dark:hover:bg-surface-800/50"
+                                            >
                                                 @for (cell of row; track $index) {
-                                                    <td class="p-3 align-top text-surface-700 dark:text-surface-300" [class.font-medium]="$index === 0" [class.text-surface-900]="$index === 0" [class.dark:text-surface-0]="$index === 0">
+                                                    <td
+                                                        class="p-3 align-top text-surface-700 dark:text-surface-300"
+                                                        [class.font-medium]="$index === 0"
+                                                        [class.text-surface-900]="$index === 0"
+                                                        [class.dark:text-surface-0]="$index === 0"
+                                                    >
                                                         {{ cell }}
                                                     </td>
                                                 }

@@ -1,7 +1,9 @@
 @if (scan(); as detail) {
     <div class="mb-4">
         <a routerLink="/repositories" class="text-sm">{{ 'scans.back_to_repos' | translate }}</a>
-        <h1 class="text-2xl font-semibold m-0 mt-1">{{ 'scans.scan_title' | translate }} #{{ detail.scan.id }} — {{ detail.scan.targetName }}</h1>
+        <h1 class="text-2xl font-semibold m-0 mt-1">
+            {{ 'scans.scan_title' | translate }} #{{ detail.scan.id }} — {{ detail.scan.targetName }}
+        </h1>
         <p class="text-muted-color mt-1 mb-0">
             {{ detail.scan.branch }} · {{ detail.scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}
             @if (detail.scan.durationMs) {
@@ -17,7 +19,11 @@
     </div>
 
     @if (detail.scan.error) {
-        <p-message [severity]="detail.scan.status === 'failed' ? 'error' : 'warn'" [closable]="false" styleClass="mb-4 w-full">
+        <p-message
+            [severity]="detail.scan.status === 'failed' ? 'error' : 'warn'"
+            [closable]="false"
+            styleClass="mb-4 w-full"
+        >
             {{ detail.scan.error }}
         </p-message>
     }
@@ -33,7 +39,9 @@
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.new_issues' | translate }}</div>
-            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.scan.newIssuesCount > 0">{{ detail.scan.newIssuesCount }}</div>
+            <div class="text-3xl font-semibold mt-1" [class.text-orange-500]="detail.scan.newIssuesCount > 0">
+                {{ detail.scan.newIssuesCount }}
+            </div>
         </p-card>
         <p-card>
             <div class="text-muted-color text-sm">{{ 'scans.resolved_issues' | translate }}</div>
@@ -56,7 +64,8 @@
                 icon="pi pi-download"
                 severity="secondary"
                 size="small"
-                (onClick)="downloadSbom(detail.scan.id)" />
+                (onClick)="downloadSbom(detail.scan.id)"
+            />
         }
         <p-button
             [label]="'scans.download_attestation' | translate"
@@ -64,21 +73,24 @@
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadAttestation(detail.scan.id)" />
+            (onClick)="downloadAttestation(detail.scan.id)"
+        />
         <p-button
             [label]="'scans.download_csaf' | translate"
             icon="pi pi-file"
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadCsaf(detail.scan.id)" />
+            (onClick)="downloadCsaf(detail.scan.id)"
+        />
         <p-button
             [label]="'scans.download_cyclonedx' | translate"
             icon="pi pi-file"
             severity="secondary"
             [outlined]="true"
             size="small"
-            (onClick)="downloadCycloneDx(detail.scan.id)" />
+            (onClick)="downloadCycloneDx(detail.scan.id)"
+        />
     </div>
 
     <!--
@@ -98,7 +110,10 @@
 
         @if (detail.findingsTruncated) {
             <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
-                {{ 'scans.findings_truncated' | translate: { total: detail.findingsTotal, shown: detail.findings.length } }}
+                {{
+                    'scans.findings_truncated'
+                        | translate: { total: detail.findingsTotal, shown: detail.findings.length }
+                }}
             </p-message>
         }
 
@@ -108,7 +123,8 @@
             styleClass="p-datatable-sm"
             [paginator]="detail.findings.length > 25"
             [rows]="25"
-            [rowsPerPageOptions]="[25, 50, 100]">
+            [rowsPerPageOptions]="[25, 50, 100]"
+        >
             <ng-template #header>
                 <tr>
                     <th style="width: 9rem">{{ 'issues.filter_type' | translate }}</th>
@@ -124,7 +140,9 @@
                     <td>
                         <div class="font-medium">
                             @if (finding.link) {
-                                <a [href]="finding.link" target="_blank" rel="noopener noreferrer">{{ finding.identifier }}</a>
+                                <a [href]="finding.link" target="_blank" rel="noopener noreferrer">{{
+                                    finding.identifier
+                                }}</a>
                             } @else {
                                 {{ finding.identifier }}
                             }
@@ -136,16 +154,23 @@
                             <div class="text-sm text-muted-color">
                                 {{ finding.packageName }} {{ finding.packageVersion }}
                                 @if (finding.fixVersions) {
-                                    · <span class="text-green-600">{{ 'scans.fixed_in' | translate: { versions: finding.fixVersions } }}</span>
+                                    ·
+                                    <span class="text-green-600">{{
+                                        'scans.fixed_in' | translate: { versions: finding.fixVersions }
+                                    }}</span>
                                 } @else {
-                                    · <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
+                                    ·
+                                    <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
                                 }
                             </div>
                         }
                     </td>
                     <td class="font-mono text-sm">
                         @if (finding.filePath) {
-                            {{ finding.filePath }}@if (finding.line) {<span>:{{ finding.line }}</span>}
+                            {{ finding.filePath }}
+                            @if (finding.line) {
+                                <span>:{{ finding.line }}</span>
+                            }
                         } @else {
                             <span class="text-muted-color font-sans">—</span>
                         }
@@ -153,7 +178,11 @@
                 </tr>
             </ng-template>
             <ng-template #emptymessage>
-                <tr><td colspan="4" class="text-center text-muted-color py-6">{{ 'quality.no_finding' | translate }}</td></tr>
+                <tr>
+                    <td colspan="4" class="text-center text-muted-color py-6">
+                        {{ 'quality.no_finding' | translate }}
+                    </td>
+                </tr>
             </ng-template>
         </p-table>
     </p-card>

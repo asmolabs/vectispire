@@ -6,7 +6,12 @@
                 {{ 'gate_policies.subtitle' | translate }}
             </p>
         </div>
-        <p-button [label]="'gate_policies.add_override_btn' | translate" icon="pi pi-plus" severity="secondary" (onClick)="addOverride()" />
+        <p-button
+            [label]="'gate_policies.add_override_btn' | translate"
+            icon="pi pi-plus"
+            severity="secondary"
+            (onClick)="addOverride()"
+        />
     </div>
 
     @if (error()) {
@@ -21,7 +26,10 @@
                 <div class="flex items-center justify-between gap-2">
                     <span>{{ 'gate_policies.global_policy' | translate }}</span>
                     @if (globalPolicy()) {
-                        <p-tag severity="info" [value]="'gate_policies.version_label' | translate: { n: globalPolicy()!.version }" />
+                        <p-tag
+                            severity="info"
+                            [value]="'gate_policies.version_label' | translate: { n: globalPolicy()!.version }"
+                        />
                     } @else {
                         <p-tag severity="warn" [value]="'gate_policies.not_set' | translate" />
                     }
@@ -30,31 +38,68 @@
 
             @if (globalPolicy(); as policy) {
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                    <li><span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span> {{ describeThreshold(policy.fail_on_severity) }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span> {{ (policy.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.fixable_only' | translate }}</span> {{ (policy.fixable_only ? 'common.yes' : 'common.no') | translate }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span> {{ (policy.include_triaged ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span> {{ (policy.include_ai_review ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate }}</li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span>
+                        {{ describeThreshold(policy.fail_on_severity) }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span>
+                        {{ (policy.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.fixable_only' | translate }}</span>
+                        {{ (policy.fixable_only ? 'common.yes' : 'common.no') | translate }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span>
+                        {{
+                            (policy.include_triaged ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate
+                        }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span>
+                        {{
+                            (policy.include_ai_review ? 'gate_policies.counted' : 'gate_policies.not_counted')
+                                | translate
+                        }}
+                    </li>
                     <li>
                         <span class="font-medium">{{ 'gate_policies.unexamined' | translate }}</span>
-                        {{ (policy.fail_on_uncovered_languages ? 'gate_policies.fail_build' : 'gate_policies.pass') | translate }}
+                        {{
+                            (policy.fail_on_uncovered_languages ? 'gate_policies.fail_build' : 'gate_policies.pass')
+                                | translate
+                        }}
                     </li>
                     @if (policy.note) {
                         <li class="text-surface-500 dark:text-surface-400">“{{ policy.note }}”</li>
                     }
                     <li class="text-surface-500 dark:text-surface-400 text-sm">
-                        {{ 'gate_policies.set_by' | translate: { who: policy.created_by ?? ('gate_policies.an_administrator' | translate), when: formatDate(policy.created_at) } }}
+                        {{
+                            'gate_policies.set_by'
+                                | translate
+                                    : {
+                                          who: policy.created_by ?? ('gate_policies.an_administrator' | translate),
+                                          when: formatDate(policy.created_at)
+                                      }
+                        }}
                     </li>
                 </ul>
             } @else {
                 <p class="m-0">
-                    {{ 'gate_policies.nothing_stored_before' | translate }} <strong>{{ 'gate_policies.nothing_stored_strong' | translate }}</strong>{{ 'gate_policies.nothing_stored_mid' | translate }}
-                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong>{{ 'gate_policies.nothing_stored_after' | translate }}
+                    {{ 'gate_policies.nothing_stored_before' | translate }}
+                    <strong>{{ 'gate_policies.nothing_stored_strong' | translate }}</strong
+                    >{{ 'gate_policies.nothing_stored_mid' | translate }}
+                    <strong>{{ describeThreshold(builtIn()?.fail_on_severity ?? null) }}</strong
+                    >{{ 'gate_policies.nothing_stored_after' | translate }}
                 </p>
             }
 
             <ng-template #footer>
-                <p-button [label]="'gate_policies.edit_global_btn' | translate" icon="pi pi-pencil" (onClick)="editGlobal()" />
+                <p-button
+                    [label]="'gate_policies.edit_global_btn' | translate"
+                    icon="pi pi-pencil"
+                    (onClick)="editGlobal()"
+                />
             </ng-template>
         </p-card>
 
@@ -65,10 +110,22 @@
             </p>
             @if (builtIn(); as fallback) {
                 <ul class="list-none p-0 m-0 flex flex-col gap-2">
-                    <li><span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span> {{ describeThreshold(fallback.fail_on_severity) }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span> {{ (fallback.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span> {{ 'gate_policies.builtin_triaged_note' | translate }}</li>
-                    <li><span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span> {{ 'gate_policies.builtin_model_note' | translate }}</li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.threshold' | translate }}</span>
+                        {{ describeThreshold(fallback.fail_on_severity) }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.exploited' | translate }}</span>
+                        {{ (fallback.fail_on_kev ? 'gate_policies.fails_build' : 'gate_policies.ignored') | translate }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.triaged' | translate }}</span>
+                        {{ 'gate_policies.builtin_triaged_note' | translate }}
+                    </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span>
+                        {{ 'gate_policies.builtin_model_note' | translate }}
+                    </li>
                 </ul>
             }
         </p-card>
@@ -122,7 +179,12 @@
     </p-table>
 </div>
 
-<p-dialog [(visible)]="dialogVisible" [modal]="true" [style]="{ width: '34rem' }" [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel }">
+<p-dialog
+    [(visible)]="dialogVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+    [header]="'gate_policies.header_policy_for' | translate: { scope: scopeLabel }"
+>
     <div class="flex flex-col gap-4">
         @if (error()) {
             <p-message severity="error" styleClass="w-full">{{ error() }}</p-message>
@@ -215,7 +277,12 @@
     </div>
 
     <ng-template #footer>
-        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="dialogVisible.set(false)" />
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="dialogVisible.set(false)"
+        />
         <p-button [label]="'common.save' | translate" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
     </ng-template>
 </p-dialog>

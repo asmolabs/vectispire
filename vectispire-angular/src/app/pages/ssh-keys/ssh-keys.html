@@ -31,45 +31,84 @@
                 <td class="font-medium">{{ key.name }}</td>
                 <td>
                     @if (key.publicKey) {
-                        <span class="font-mono text-sm whitespace-nowrap" [title]="key.publicKey">{{ shorten(key.publicKey) }}</span>
+                        <span class="font-mono text-sm whitespace-nowrap" [title]="key.publicKey">{{
+                            shorten(key.publicKey)
+                        }}</span>
                     } @else {
                         <span class="text-muted-color">—</span>
                     }
                 </td>
                 <td>
-                    <p-tag [value]="badge(key.encryptionState).label" [severity]="badge(key.encryptionState).severity"
-                           [pTooltip]="badge(key.encryptionState).hint" tooltipPosition="top" />
+                    <p-tag
+                        [value]="badge(key.encryptionState).label"
+                        [severity]="badge(key.encryptionState).severity"
+                        [pTooltip]="badge(key.encryptionState).hint"
+                        tooltipPosition="top"
+                    />
                 </td>
                 <td>{{ key.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
                 <td class="text-right">{{ key.usedByRepositories }}</td>
                 <td class="text-right">
-                    <p-button icon="pi pi-trash" severity="danger" [text]="true" [rounded]="true"
-                              [ariaLabel]="'ssh_keys.aria_delete' | translate: { name: key.name }" (onClick)="askDelete(key)" />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'ssh_keys.aria_delete' | translate: { name: key.name }"
+                        (onClick)="askDelete(key)"
+                    />
                 </td>
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="6" class="text-center text-muted-color py-6">{{ 'ssh_keys.no_keys' | translate }}</td></tr>
+            <tr>
+                <td colspan="6" class="text-center text-muted-color py-6">{{ 'ssh_keys.no_keys' | translate }}</td>
+            </tr>
         </ng-template>
     </p-table>
 </p-card>
 
-<p-dialog [header]="'ssh_keys.modal_title' | translate" [(visible)]="formVisible" [modal]="true" [style]="{ width: '40rem' }">
+<p-dialog
+    [header]="'ssh_keys.modal_title' | translate"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '40rem' }"
+>
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="name" class="font-medium">{{ 'ssh_keys.name_label' | translate }}</label>
-            <input pInputText id="name" [(ngModel)]="form.name" [placeholder]="'ssh_keys.name_placeholder' | translate" />
+            <input
+                pInputText
+                id="name"
+                [(ngModel)]="form.name"
+                [placeholder]="'ssh_keys.name_placeholder' | translate"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="private" class="font-medium">{{ 'ssh_keys.private_key_label' | translate }}</label>
-            <textarea pTextarea id="private" [(ngModel)]="form.privateKey" rows="7" class="font-mono text-sm"
-                      [placeholder]="'ssh_keys.private_key_placeholder' | translate"></textarea>
+            <textarea
+                pTextarea
+                id="private"
+                [(ngModel)]="form.privateKey"
+                rows="7"
+                class="font-mono text-sm"
+                [placeholder]="'ssh_keys.private_key_placeholder' | translate"
+            ></textarea>
             <small class="text-muted-color">{{ 'ssh_keys.private_key_hint' | translate }}</small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="public" class="font-medium">{{ 'ssh_keys.public_key_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
-            <textarea pTextarea id="public" [(ngModel)]="form.publicKey" rows="2" class="font-mono text-sm"
-                      [placeholder]="'ssh_keys.public_key_placeholder' | translate"></textarea>
+            <label for="public" class="font-medium"
+                >{{ 'ssh_keys.public_key_label' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <textarea
+                pTextarea
+                id="public"
+                [(ngModel)]="form.publicKey"
+                rows="2"
+                class="font-mono text-sm"
+                [placeholder]="'ssh_keys.public_key_placeholder' | translate"
+            ></textarea>
             <small class="text-muted-color">{{ 'ssh_keys.public_key_hint' | translate }}</small>
         </div>
         @if (formError(); as message) {
@@ -82,12 +121,24 @@
     </ng-template>
 </p-dialog>
 
-<p-dialog [header]="'common.delete' | translate" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+<p-dialog
+    [header]="'common.delete' | translate"
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
     @if (pendingDelete(); as key) {
-        <p class="m-0"><span class="font-medium">{{ key.name }}</span> {{ 'ssh_keys.delete_confirm' | translate }}</p>
+        <p class="m-0">
+            <span class="font-medium">{{ key.name }}</span> {{ 'ssh_keys.delete_confirm' | translate }}
+        </p>
     }
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+        <p-button
+            [label]="'common.delete' | translate"
+            severity="danger"
+            [loading]="saving()"
+            (onClick)="confirmDelete()"
+        />
     </ng-template>
 </p-dialog>

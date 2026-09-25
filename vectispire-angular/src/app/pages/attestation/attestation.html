@@ -4,19 +4,34 @@
         <p class="text-muted-color mt-1 mb-0">
             {{ 'attestation.established' | translate }}
             <strong>{{ establishedAt() | date: 'dd/MM/yyyy HH:mm' }}</strong>
-            @if (establishedBy()) { · {{ establishedBy() }} }
+            @if (establishedBy()) {
+                · {{ establishedBy() }}
+            }
             @if (compliance(); as summary) {
                 · {{ summary.totalMonitoredTargets }} {{ 'attestation.targets' | translate }}
             }
         </p>
     </div>
     <div class="flex flex-wrap gap-2">
-        <p-button [label]="'attestation.download' | translate" icon="pi pi-download"
-                  [loading]="downloading()" (onClick)="download()" />
-        <p-button [label]="'attestation.recheck' | translate" icon="pi pi-refresh" [outlined]="true"
-                  [loading]="rechecking()" (onClick)="recheck()" />
-        <p-button [label]="'attestation.open_audit_log' | translate" icon="pi pi-history"
-                  [text]="true" routerLink="/audit-log" />
+        <p-button
+            [label]="'attestation.download' | translate"
+            icon="pi pi-download"
+            [loading]="downloading()"
+            (onClick)="download()"
+        />
+        <p-button
+            [label]="'attestation.recheck' | translate"
+            icon="pi pi-refresh"
+            [outlined]="true"
+            [loading]="rechecking()"
+            (onClick)="recheck()"
+        />
+        <p-button
+            [label]="'attestation.open_audit_log' | translate"
+            icon="pi pi-history"
+            [text]="true"
+            routerLink="/audit-log"
+        />
     </div>
 </div>
 
@@ -31,19 +46,30 @@
     an old history off as tampering.
 -->
 @if (chain(); as c) {
-    <div class="rounded-lg border p-4 mb-4"
-         [class.border-green-600]="c.intact" [class.bg-green-50]="c.intact" [class.dark:bg-green-900/20]="c.intact"
-         [class.border-red-600]="!c.intact" [class.bg-red-50]="!c.intact" [class.dark:bg-red-900/20]="!c.intact">
+    <div
+        class="rounded-lg border p-4 mb-4"
+        [class.border-green-600]="c.intact"
+        [class.bg-green-50]="c.intact"
+        [class.dark:bg-green-900/20]="c.intact"
+        [class.border-red-600]="!c.intact"
+        [class.bg-red-50]="!c.intact"
+        [class.dark:bg-red-900/20]="!c.intact"
+    >
         <div class="flex flex-wrap items-center gap-3">
-            <i class="pi text-xl" [class.pi-verified]="c.intact" [class.pi-exclamation-triangle]="!c.intact"
-               [class.text-green-700]="c.intact" [class.text-red-700]="!c.intact"></i>
+            <i
+                class="pi text-xl"
+                [class.pi-verified]="c.intact"
+                [class.pi-exclamation-triangle]="!c.intact"
+                [class.text-green-700]="c.intact"
+                [class.text-red-700]="!c.intact"
+            ></i>
             <span class="font-semibold" [class.text-green-700]="c.intact" [class.text-red-700]="!c.intact">
                 {{ (c.intact ? 'attestation.chain_intact' : 'attestation.chain_broken') | translate }}
             </span>
             <span class="text-sm text-muted-color">
-                {{ c.total }} {{ 'attestation.entries' | translate }} ·
-                {{ c.verified }} {{ 'attestation.verified' | translate }} ·
-                {{ c.unverifiable }} {{ 'attestation.unverifiable' | translate }}
+                {{ c.total }} {{ 'attestation.entries' | translate }} · {{ c.verified }}
+                {{ 'attestation.verified' | translate }} · {{ c.unverifiable }}
+                {{ 'attestation.unverifiable' | translate }}
             </span>
         </div>
         @if (c.broken) {
@@ -59,14 +85,20 @@
     @for (f of frameworks(); track f.framework) {
         <div class="rounded-lg border p-3 flex flex-col gap-1" style="border-color: var(--surface-border)">
             <span class="text-xs text-muted-color font-mono">{{ frameworkLabel(f.framework) }}</span>
-            <span class="text-2xl font-semibold"
-                  [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
-                  [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
-                  [class.text-red-700]="statusTone(f.overallStatus) === 'no'">{{ f.scorePercentage }}&nbsp;%</span>
-            <span class="text-xs font-semibold"
-                  [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
-                  [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
-                  [class.text-red-700]="statusTone(f.overallStatus) === 'no'">{{ f.overallStatus }}</span>
+            <span
+                class="text-2xl font-semibold"
+                [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
+                [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
+                [class.text-red-700]="statusTone(f.overallStatus) === 'no'"
+                >{{ f.scorePercentage }}&nbsp;%</span
+            >
+            <span
+                class="text-xs font-semibold"
+                [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
+                [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
+                [class.text-red-700]="statusTone(f.overallStatus) === 'no'"
+                >{{ f.overallStatus }}</span
+            >
         </div>
     } @empty {
         <div class="col-span-full text-muted-color">{{ 'attestation.no_compliance' | translate }}</div>

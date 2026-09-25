@@ -6,365 +6,583 @@
                 <i class="pi pi-compass text-primary-500 text-3xl"></i>
                 <span>{{ 'attack_surface.title' | translate }}</span>
             </h1>
-            <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">{{ 'attack_surface.subtitle' | translate }}</p>
+            <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
+                {{ 'attack_surface.subtitle' | translate }}
+            </p>
         </div>
 
         <div class="flex items-center gap-3">
-            <p-button icon="pi pi-refresh" [loading]="loading()" [label]="'attack_surface.refresh' | translate" severity="secondary" [outlined]="true" (onClick)="loadData()" />
-            <p-button icon="pi pi-trash" [label]="'attack_surface.purge_inventory' | translate" severity="danger" [outlined]="true" [loading]="clearing()" (onClick)="clearInventory()" />
+            <p-button
+                icon="pi pi-refresh"
+                [loading]="loading()"
+                [label]="'attack_surface.refresh' | translate"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="loadData()"
+            />
+            <p-button
+                icon="pi pi-trash"
+                [label]="'attack_surface.purge_inventory' | translate"
+                severity="danger"
+                [outlined]="true"
+                [loading]="clearing()"
+                (onClick)="clearInventory()"
+            />
             @if (selectedRepoId() && selectedRepoId() !== 'ALL') {
-            <p-button icon="pi pi-download" [label]="'attack_surface.export_openapi' | translate" [loading]="exporting()" severity="primary" (onClick)="exportOpenApi()" />
+                <p-button
+                    icon="pi pi-download"
+                    [label]="'attack_surface.export_openapi' | translate"
+                    [loading]="exporting()"
+                    severity="primary"
+                    (onClick)="exportOpenApi()"
+                />
             }
         </div>
     </div>
 
     <!-- Feedback messages -->
     @if (scanSuccess()) {
-    <p-message severity="success" [text]="scanSuccess()!" styleClass="w-full mb-2"></p-message>
-    } @if (error()) {
-    <p-message severity="error" [text]="error()!" styleClass="w-full"></p-message>
+        <p-message severity="success" [text]="scanSuccess()!" styleClass="w-full mb-2"></p-message>
+    }
+    @if (error()) {
+        <p-message severity="error" [text]="error()!" styleClass="w-full"></p-message>
     }
 
     <!-- Global/Selected KPIs -->
     @if (currentStats(); as stats) {
-    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
-            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"> {{ 'attack_surface.kpi_total_endpoints' | translate }} </span>
-            <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{ stats.totalEndpoints }}</span>
-                <i class="pi pi-link text-primary-500 text-xl"></i>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between"
+            >
+                <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    {{ 'attack_surface.kpi_total_endpoints' | translate }}
+                </span>
+                <div class="flex items-baseline justify-between mt-2">
+                    <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{
+                        stats.totalEndpoints
+                    }}</span>
+                    <i class="pi pi-link text-primary-500 text-xl"></i>
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{
+                    stats.frameworks.join(', ') || 'Multi-frameworks'
+                }}</span>
             </div>
-            <span class="text-xs text-surface-400 mt-1">{{ stats.frameworks.join(', ') || 'Multi-frameworks' }}</span>
-        </div>
 
-        <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between">
-            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"> {{ 'attack_surface.kpi_public_endpoints' | translate }} </span>
-            <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{{ stats.publicEndpoints }}</span>
-                <i class="pi pi-globe text-blue-500 text-xl"></i>
+            <div
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between"
+            >
+                <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    {{ 'attack_surface.kpi_public_endpoints' | translate }}
+                </span>
+                <div class="flex items-baseline justify-between mt-2">
+                    <span class="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{{
+                        stats.publicEndpoints
+                    }}</span>
+                    <i class="pi pi-globe text-blue-500 text-xl"></i>
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{
+                    'attack_surface.public_exposure_desc' | translate
+                }}</span>
             </div>
-            <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.public_exposure_desc' | translate }}</span>
-        </div>
 
-        <div role="button" tabindex="0" (keydown.enter)="filterAuth.set('UNAUTH'); activeTab.set('endpoints')"
-            (click)="filterAuth.set('UNAUTH'); activeTab.set('endpoints')"
-            class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 transition-colors"
-        >
-            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"> {{ 'attack_surface.kpi_unauthenticated' | translate }} </span>
-            <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold" [ngClass]="stats.unauthenticatedEndpoints > 0 ? 'text-amber-500' : 'text-emerald-500'"> {{ stats.unauthenticatedEndpoints }} </span>
-                <i class="pi pi-lock-open text-amber-500 text-xl"></i>
+            <div
+                role="button"
+                tabindex="0"
+                (keydown.enter)="filterAuth.set('UNAUTH'); activeTab.set('endpoints')"
+                (click)="filterAuth.set('UNAUTH'); activeTab.set('endpoints')"
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 transition-colors"
+            >
+                <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    {{ 'attack_surface.kpi_unauthenticated' | translate }}
+                </span>
+                <div class="flex items-baseline justify-between mt-2">
+                    <span
+                        class="text-3xl font-extrabold"
+                        [ngClass]="stats.unauthenticatedEndpoints > 0 ? 'text-amber-500' : 'text-emerald-500'"
+                    >
+                        {{ stats.unauthenticatedEndpoints }}
+                    </span>
+                    <i class="pi pi-lock-open text-amber-500 text-xl"></i>
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.unauth_desc' | translate }}</span>
             </div>
-            <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.unauth_desc' | translate }}</span>
-        </div>
 
-        <div role="button" tabindex="0" (keydown.enter)="activeTab.set('endpoints')"
-            (click)="activeTab.set('endpoints')"
-            class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-red-400 dark:hover:border-red-600 transition-colors"
-        >
-            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"> {{ 'attack_surface.kpi_shadow_apis' | translate }} </span>
-            <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold" [ngClass]="stats.shadowEndpoints > 0 ? 'text-red-500' : 'text-emerald-500'"> {{ stats.shadowEndpoints }} </span>
-                <i class="pi pi-eye-slash text-red-500 text-xl"></i>
+            <div
+                role="button"
+                tabindex="0"
+                (keydown.enter)="activeTab.set('endpoints')"
+                (click)="activeTab.set('endpoints')"
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-red-400 dark:hover:border-red-600 transition-colors"
+            >
+                <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    {{ 'attack_surface.kpi_shadow_apis' | translate }}
+                </span>
+                <div class="flex items-baseline justify-between mt-2">
+                    <span
+                        class="text-3xl font-extrabold"
+                        [ngClass]="stats.shadowEndpoints > 0 ? 'text-red-500' : 'text-emerald-500'"
+                    >
+                        {{ stats.shadowEndpoints }}
+                    </span>
+                    <i class="pi pi-eye-slash text-red-500 text-xl"></i>
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.shadow_apis_desc' | translate }}</span>
             </div>
-            <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.shadow_apis_desc' | translate }}</span>
-        </div>
 
-        <div role="button" tabindex="0" (keydown.enter)="activeTab.set('highrisk')" (click)="activeTab.set('highrisk')" class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-red-500 transition-colors">
-            <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"> {{ 'attack_surface.kpi_sensitive_unprotected' | translate }} </span>
-            <div class="flex items-baseline justify-between mt-2">
-                <span class="text-3xl font-extrabold" [ngClass]="stats.sensitiveUnprotectedEndpoints > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-500'"> {{ stats.sensitiveUnprotectedEndpoints }} </span>
-                <i class="pi pi-shield text-red-600 text-xl"></i>
+            <div
+                role="button"
+                tabindex="0"
+                (keydown.enter)="activeTab.set('highrisk')"
+                (click)="activeTab.set('highrisk')"
+                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between cursor-pointer hover:border-red-500 transition-colors"
+            >
+                <span class="text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400">
+                    {{ 'attack_surface.kpi_sensitive_unprotected' | translate }}
+                </span>
+                <div class="flex items-baseline justify-between mt-2">
+                    <span
+                        class="text-3xl font-extrabold"
+                        [ngClass]="
+                            stats.sensitiveUnprotectedEndpoints > 0
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-emerald-500'
+                        "
+                    >
+                        {{ stats.sensitiveUnprotectedEndpoints }}
+                    </span>
+                    <i class="pi pi-shield text-red-600 text-xl"></i>
+                </div>
+                <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.sensitive_desc' | translate }}</span>
             </div>
-            <span class="text-xs text-surface-400 mt-1">{{ 'attack_surface.sensitive_desc' | translate }}</span>
         </div>
-    </div>
     }
 
     <!-- Repository selector & Tabs Bar -->
-    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-3">
+    <div
+        class="flex flex-wrap items-center justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-3"
+    >
         <!-- Tabs -->
         <div class="flex items-center gap-2">
             <button
                 type="button"
                 (click)="activeTab.set('endpoints')"
-                [ngClass]="activeTab() === 'endpoints' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                [ngClass]="
+                    activeTab() === 'endpoints'
+                        ? 'bg-primary text-primary-contrast'
+                        : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                "
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-list"></i>
                 <span>{{ 'attack_surface.tab_endpoints' | translate }}</span>
                 @if (repoOverview()) {
-                <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50"> {{ repoOverview()!.endpoints.length }} </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
+                        {{ repoOverview()!.endpoints.length }}
+                    </span>
                 }
             </button>
 
             <button
                 type="button"
                 (click)="activeTab.set('contracts')"
-                [ngClass]="activeTab() === 'contracts' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                [ngClass]="
+                    activeTab() === 'contracts'
+                        ? 'bg-primary text-primary-contrast'
+                        : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                "
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-file"></i>
                 <span>{{ 'attack_surface.tab_contracts' | translate }}</span>
                 @if (repoOverview()) {
-                <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50"> {{ repoOverview()!.contracts.length }} </span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
+                        {{ repoOverview()!.contracts.length }}
+                    </span>
                 }
             </button>
 
             <button
                 type="button"
                 (click)="activeTab.set('highrisk')"
-                [ngClass]="activeTab() === 'highrisk' ? 'bg-primary text-primary-contrast' : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+                [ngClass]="
+                    activeTab() === 'highrisk'
+                        ? 'bg-primary text-primary-contrast'
+                        : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+                "
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-exclamation-triangle"></i>
                 <span>{{ 'attack_surface.tab_high_risk' | translate }}</span>
                 @if (globalData()) {
-                <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"> {{ globalData()!.highRiskEndpoints.length }} </span>
+                    <span
+                        class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
+                    >
+                        {{ globalData()!.highRiskEndpoints.length }}
+                    </span>
                 }
             </button>
         </div>
 
         <!-- Target Repository Selector -->
         @if (activeTab() !== 'highrisk') {
-        <div class="flex items-center gap-3">
-            <label for="attack-surface-repo" class="text-sm font-medium text-surface-600 dark:text-surface-300"> {{ 'attack_surface.target_repository' | translate }}: </label>
-            <p-select inputId="attack-surface-repo"
-                [options]="repoOptions()"
-                optionLabel="label"
-                optionValue="value"
-                [showClear]="true"
-                [placeholder]="'attack_surface.pick_repository' | translate"
-                [ngModel]="selectedRepoId()"
-                (ngModelChange)="onSelectRepo($event)"
-                styleClass="w-72"
-            />
-        </div>
+            <div class="flex items-center gap-3">
+                <label for="attack-surface-repo" class="text-sm font-medium text-surface-600 dark:text-surface-300">
+                    {{ 'attack_surface.target_repository' | translate }}:
+                </label>
+                <p-select
+                    inputId="attack-surface-repo"
+                    [options]="repoOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [showClear]="true"
+                    [placeholder]="'attack_surface.pick_repository' | translate"
+                    [ngModel]="selectedRepoId()"
+                    (ngModelChange)="onSelectRepo($event)"
+                    styleClass="w-72"
+                />
+            </div>
         }
     </div>
 
     <!-- TAB 1: Endpoints Inventory -->
     @if (activeTab() === 'endpoints') {
-    <div class="flex flex-col gap-4">
-        <!-- Prompt when no repo selected -->
-        @if (!selectedRepoId()) {
-        <div class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900">
-            <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
-            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">{{ 'attack_surface.pick_repository' | translate }}</h3>
-            <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">{{ 'attack_surface.pick_repository_routes' | translate }}</p>
+        <div class="flex flex-col gap-4">
+            <!-- Prompt when no repo selected -->
+            @if (!selectedRepoId()) {
+                <div
+                    class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900"
+                >
+                    <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
+                    <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
+                        {{ 'attack_surface.pick_repository' | translate }}
+                    </h3>
+                    <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">
+                        {{ 'attack_surface.pick_repository_routes' | translate }}
+                    </p>
+                </div>
+            }
+
+            <!-- Filter toolbar -->
+            @if (selectedRepoId()) {
+                <div
+                    class="flex flex-wrap items-center gap-3 bg-surface-0 dark:bg-surface-900 p-4 rounded-xl border border-surface-200 dark:border-surface-800"
+                >
+                    <div class="relative flex-1 min-w-[240px]">
+                        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></i>
+                        <input
+                            type="text"
+                            [placeholder]="'attack_surface.search_placeholder' | translate"
+                            [ngModel]="searchQuery()"
+                            (ngModelChange)="searchQuery.set($event)"
+                            class="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 text-surface-900 dark:text-surface-0 focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+
+                    <p-select
+                        [options]="methodOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="filterMethod()"
+                        (ngModelChange)="filterMethod.set($event)"
+                        styleClass="w-48"
+                    />
+
+                    <p-select
+                        [options]="visibilityOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="filterVisibility()"
+                        (ngModelChange)="filterVisibility.set($event)"
+                        styleClass="w-48"
+                    />
+
+                    <p-select
+                        [options]="authOptions()"
+                        optionLabel="label"
+                        optionValue="value"
+                        [ngModel]="filterAuth()"
+                        (ngModelChange)="filterAuth.set($event)"
+                        styleClass="w-56"
+                    />
+                </div>
+            }
+
+            <!-- Endpoints Table -->
+            @if (selectedRepoId()) {
+                <div
+                    class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm"
+                >
+                    <p-table
+                        [value]="filteredEndpoints()"
+                        [loading]="repoLoading()"
+                        [paginator]="true"
+                        [rows]="15"
+                        [rowsPerPageOptions]="[10, 15, 25, 50]"
+                        [tableStyle]="{ width: '100%' }"
+                        styleClass="p-datatable-sm"
+                    >
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th style="width: 100px">{{ 'attack_surface.col_method' | translate }}</th>
+                                <th style="min-width: 200px">{{ 'attack_surface.col_path' | translate }}</th>
+                                <th style="width: 150px">{{ 'attack_surface.col_auth' | translate }}</th>
+                                <th style="width: 120px">{{ 'attack_surface.col_visibility' | translate }}</th>
+                                <th style="width: 130px">{{ 'attack_surface.col_framework' | translate }}</th>
+                                <th style="min-width: 200px">{{ 'attack_surface.col_location' | translate }}</th>
+                                <th style="width: 140px">{{ 'attack_surface.col_shadow_status' | translate }}</th>
+                            </tr>
+                        </ng-template>
+
+                        <ng-template pTemplate="body" let-ep>
+                            <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
+                                <td>
+                                    <p-tag [value]="ep.method" [severity]="getMethodSeverity(ep.method)"></p-tag>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col">
+                                        <span
+                                            class="font-mono text-xs font-semibold text-surface-900 dark:text-surface-0 break-all"
+                                            >{{ ep.path }}</span
+                                        >
+                                        @if (ep.summary) {
+                                            <span class="text-xs text-surface-500 truncate max-w-xs">{{
+                                                ep.summary
+                                            }}</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="flex items-center gap-1.5">
+                                        <i
+                                            class="pi text-xs"
+                                            [ngClass]="
+                                                ep.authRequired
+                                                    ? 'pi-lock text-emerald-500'
+                                                    : 'pi-lock-open text-amber-500'
+                                            "
+                                        ></i>
+                                        <span
+                                            class="text-xs"
+                                            [ngClass]="
+                                                ep.authRequired
+                                                    ? 'text-emerald-600 dark:text-emerald-400 font-medium'
+                                                    : 'text-amber-600 dark:text-amber-400 font-medium'
+                                            "
+                                        >
+                                            {{
+                                                ep.authRequired
+                                                    ? ep.authType || ('attack_surface.auth_required' | translate)
+                                                    : ('attack_surface.auth_none' | translate)
+                                            }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="ep.visibility"
+                                        [severity]="ep.visibility === 'PUBLIC' ? 'warn' : 'secondary'"
+                                    ></p-tag>
+                                </td>
+                                <td>
+                                    <span class="text-xs text-surface-600 dark:text-surface-300 font-medium">
+                                        {{ ep.framework || 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="flex flex-col text-xs text-surface-500 font-mono max-w-[260px]">
+                                        @if (ep.filePath) {
+                                            <span
+                                                class="truncate"
+                                                [title]="ep.filePath + (ep.lineNumber ? ':' + ep.lineNumber : '')"
+                                            >
+                                                {{ ep.filePath }}
+                                                @if (ep.lineNumber) {
+                                                    <span>:{{ ep.lineNumber }}</span>
+                                                }
+                                            </span>
+                                        }
+                                        @if (!ep.filePath) {
+                                            <span>-</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <p-tag
+                                        [value]="ep.shadowStatus"
+                                        [severity]="getShadowSeverity(ep.shadowStatus)"
+                                    ></p-tag>
+                                </td>
+                            </tr>
+                        </ng-template>
+
+                        <ng-template pTemplate="emptymessage">
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-surface-500">
+                                    <div class="flex flex-col items-center justify-center gap-3">
+                                        <i class="pi pi-compass text-4xl text-surface-400"></i>
+                                        <span>{{ 'attack_surface.no_endpoints_found' | translate }}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                </div>
+            }
         </div>
-        }
-
-        <!-- Filter toolbar -->
-        @if (selectedRepoId()) {
-        <div class="flex flex-wrap items-center gap-3 bg-surface-0 dark:bg-surface-900 p-4 rounded-xl border border-surface-200 dark:border-surface-800">
-            <div class="relative flex-1 min-w-[240px]">
-                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-surface-400"></i>
-                <input
-                    type="text"
-                    [placeholder]="'attack_surface.search_placeholder' | translate"
-                    [ngModel]="searchQuery()"
-                    (ngModelChange)="searchQuery.set($event)"
-                    class="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg border border-surface-300 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 text-surface-900 dark:text-surface-0 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-            </div>
-
-            <p-select [options]="methodOptions()" optionLabel="label" optionValue="value" [ngModel]="filterMethod()" (ngModelChange)="filterMethod.set($event)" styleClass="w-48" />
-
-            <p-select [options]="visibilityOptions()" optionLabel="label" optionValue="value" [ngModel]="filterVisibility()" (ngModelChange)="filterVisibility.set($event)" styleClass="w-48" />
-
-            <p-select [options]="authOptions()" optionLabel="label" optionValue="value" [ngModel]="filterAuth()" (ngModelChange)="filterAuth.set($event)" styleClass="w-56" />
-        </div>
-        }
-
-        <!-- Endpoints Table -->
-        @if (selectedRepoId()) {
-        <div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm">
-            <p-table [value]="filteredEndpoints()" [loading]="repoLoading()" [paginator]="true" [rows]="15" [rowsPerPageOptions]="[10, 15, 25, 50]" [tableStyle]="{ 'width': '100%' }" styleClass="p-datatable-sm">
-                <ng-template pTemplate="header">
-                    <tr>
-                        <th style="width: 100px">{{ 'attack_surface.col_method' | translate }}</th>
-                        <th style="min-width: 200px">{{ 'attack_surface.col_path' | translate }}</th>
-                        <th style="width: 150px">{{ 'attack_surface.col_auth' | translate }}</th>
-                        <th style="width: 120px">{{ 'attack_surface.col_visibility' | translate }}</th>
-                        <th style="width: 130px">{{ 'attack_surface.col_framework' | translate }}</th>
-                        <th style="min-width: 200px">{{ 'attack_surface.col_location' | translate }}</th>
-                        <th style="width: 140px">{{ 'attack_surface.col_shadow_status' | translate }}</th>
-                    </tr>
-                </ng-template>
-
-                <ng-template pTemplate="body" let-ep>
-                    <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
-                        <td>
-                            <p-tag [value]="ep.method" [severity]="getMethodSeverity(ep.method)"></p-tag>
-                        </td>
-                        <td>
-                            <div class="flex flex-col">
-                                <span class="font-mono text-xs font-semibold text-surface-900 dark:text-surface-0 break-all">{{ ep.path }}</span>
-                                @if (ep.summary) {
-                                <span class="text-xs text-surface-500 truncate max-w-xs">{{ ep.summary }}</span>
-                                }
-                            </div>
-                        </td>
-                        <td>
-                            <div class="flex items-center gap-1.5">
-                                <i class="pi text-xs" [ngClass]="ep.authRequired ? 'pi-lock text-emerald-500' : 'pi-lock-open text-amber-500'"></i>
-                                <span class="text-xs" [ngClass]="ep.authRequired ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-amber-600 dark:text-amber-400 font-medium'">
-                                    {{ ep.authRequired ? (ep.authType || ('attack_surface.auth_required' | translate)) : ('attack_surface.auth_none' | translate) }}
-                                </span>
-                            </div>
-                        </td>
-                        <td>
-                            <p-tag [value]="ep.visibility" [severity]="ep.visibility === 'PUBLIC' ? 'warn' : 'secondary'"></p-tag>
-                        </td>
-                        <td>
-                            <span class="text-xs text-surface-600 dark:text-surface-300 font-medium"> {{ ep.framework || 'N/A' }} </span>
-                        </td>
-                        <td>
-                            <div class="flex flex-col text-xs text-surface-500 font-mono max-w-[260px]">
-                                @if (ep.filePath) {
-                                <span class="truncate" [title]="ep.filePath + (ep.lineNumber ? ':' + ep.lineNumber : '')">
-                                    {{ ep.filePath }}@if (ep.lineNumber) {
-                                    <span>:{{ ep.lineNumber }}</span>
-                                    }
-                                </span>
-                                } @if (!ep.filePath) {
-                                <span>-</span>
-                                }
-                            </div>
-                        </td>
-                        <td>
-                            <p-tag [value]="ep.shadowStatus" [severity]="getShadowSeverity(ep.shadowStatus)"></p-tag>
-                        </td>
-                    </tr>
-                </ng-template>
-
-                <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="7" class="text-center py-8 text-surface-500">
-                            <div class="flex flex-col items-center justify-center gap-3">
-                                <i class="pi pi-compass text-4xl text-surface-400"></i>
-                                <span>{{ 'attack_surface.no_endpoints_found' | translate }}</span>
-                            </div>
-                        </td>
-                    </tr>
-                </ng-template>
-            </p-table>
-        </div>
-        }
-    </div>
     }
 
     <!-- TAB 2: Contracts (OpenAPI specs) -->
     @if (activeTab() === 'contracts') {
-    <div class="flex flex-col gap-4">
-        <!-- Prompt when no repo selected -->
-        @if (!selectedRepoId()) {
-        <div class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900">
-            <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
-            <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">{{ 'attack_surface.pick_repository' | translate }}</h3>
-            <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">{{ 'attack_surface.pick_repository_contracts' | translate }}</p>
-        </div>
-        } @if (selectedRepoId()) {
-        <div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm">
-            <p-table [value]="repoOverview()?.contracts || []" [loading]="repoLoading()" [tableStyle]="{ 'width': '100%' }" styleClass="p-datatable-sm">
-                <ng-template pTemplate="header">
-                    <tr>
-                        <th style="min-width: 200px">{{ 'attack_surface.contract_file' | translate }}</th>
-                        <th style="width: 140px">{{ 'attack_surface.contract_format' | translate }}</th>
-                        <th style="min-width: 180px">{{ 'attack_surface.contract_title' | translate }}</th>
-                        <th style="width: 120px">{{ 'attack_surface.contract_version' | translate }}</th>
-                        <th style="width: 130px">{{ 'attack_surface.contract_endpoints' | translate }}</th>
-                        <th style="width: 160px">{{ 'attack_surface.contract_discovered' | translate }}</th>
-                    </tr>
-                </ng-template>
+        <div class="flex flex-col gap-4">
+            <!-- Prompt when no repo selected -->
+            @if (!selectedRepoId()) {
+                <div
+                    class="p-12 text-center border border-dashed border-surface-200 dark:border-surface-800 rounded-xl bg-surface-0 dark:bg-surface-900"
+                >
+                    <i class="pi pi-folder-open text-4xl text-primary-400 mb-3"></i>
+                    <h3 class="text-lg font-semibold text-surface-900 dark:text-surface-0">
+                        {{ 'attack_surface.pick_repository' | translate }}
+                    </h3>
+                    <p class="text-sm text-surface-500 max-w-md mx-auto mt-1">
+                        {{ 'attack_surface.pick_repository_contracts' | translate }}
+                    </p>
+                </div>
+            }
+            @if (selectedRepoId()) {
+                <div
+                    class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm"
+                >
+                    <p-table
+                        [value]="repoOverview()?.contracts || []"
+                        [loading]="repoLoading()"
+                        [tableStyle]="{ width: '100%' }"
+                        styleClass="p-datatable-sm"
+                    >
+                        <ng-template pTemplate="header">
+                            <tr>
+                                <th style="min-width: 200px">{{ 'attack_surface.contract_file' | translate }}</th>
+                                <th style="width: 140px">{{ 'attack_surface.contract_format' | translate }}</th>
+                                <th style="min-width: 180px">{{ 'attack_surface.contract_title' | translate }}</th>
+                                <th style="width: 120px">{{ 'attack_surface.contract_version' | translate }}</th>
+                                <th style="width: 130px">{{ 'attack_surface.contract_endpoints' | translate }}</th>
+                                <th style="width: 160px">{{ 'attack_surface.contract_discovered' | translate }}</th>
+                            </tr>
+                        </ng-template>
 
-                <ng-template pTemplate="body" let-c>
-                    <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
-                        <td class="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400 truncate max-w-xs" [title]="c.contractPath">
-                            <i class="pi pi-file mr-1.5"></i>
-                            {{ c.contractPath }}
-                        </td>
-                        <td>
-                            <p-tag [value]="c.format || 'OPENAPI'" severity="info"></p-tag>
-                        </td>
-                        <td class="text-xs font-medium text-surface-900 dark:text-surface-0">{{ c.title || ('attack_surface.untitled' | translate) }}</td>
-                        <td class="text-xs text-surface-600 dark:text-surface-400">{{ c.version || 'v1.0' }}</td>
-                        <td>
-                            <span class="text-xs font-bold text-surface-900 dark:text-surface-0">{{ c.endpointsCount }} routes</span>
-                        </td>
-                        <td class="text-xs text-surface-500">{{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
-                    </tr>
-                </ng-template>
+                        <ng-template pTemplate="body" let-c>
+                            <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/50">
+                                <td
+                                    class="font-mono text-xs font-semibold text-primary-600 dark:text-primary-400 truncate max-w-xs"
+                                    [title]="c.contractPath"
+                                >
+                                    <i class="pi pi-file mr-1.5"></i>
+                                    {{ c.contractPath }}
+                                </td>
+                                <td>
+                                    <p-tag [value]="c.format || 'OPENAPI'" severity="info"></p-tag>
+                                </td>
+                                <td class="text-xs font-medium text-surface-900 dark:text-surface-0">
+                                    {{ c.title || ('attack_surface.untitled' | translate) }}
+                                </td>
+                                <td class="text-xs text-surface-600 dark:text-surface-400">
+                                    {{ c.version || 'v1.0' }}
+                                </td>
+                                <td>
+                                    <span class="text-xs font-bold text-surface-900 dark:text-surface-0"
+                                        >{{ c.endpointsCount }} routes</span
+                                    >
+                                </td>
+                                <td class="text-xs text-surface-500">{{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                            </tr>
+                        </ng-template>
 
-                <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="6" class="text-center py-8 text-surface-500">{{ 'attack_surface.no_contracts_found' | translate }}</td>
-                    </tr>
-                </ng-template>
-            </p-table>
+                        <ng-template pTemplate="emptymessage">
+                            <tr>
+                                <td colspan="6" class="text-center py-8 text-surface-500">
+                                    {{ 'attack_surface.no_contracts_found' | translate }}
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                </div>
+            }
         </div>
-        }
-    </div>
     }
 
     <!-- TAB 3: High Risk Attack Surface -->
     @if (activeTab() === 'highrisk') {
-    <div class="flex flex-col gap-4">
-        <div class="p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20 text-xs text-red-800 dark:text-red-300 flex items-center gap-3">
-            <i class="pi pi-shield text-xl text-red-600"></i>
-            <div>
-                <p class="font-semibold">{{ 'attack_surface.high_risk_banner_title' | translate }}</p>
-                <p class="text-red-700 dark:text-red-400 mt-0.5">{{ 'attack_surface.high_risk_banner_desc' | translate }}</p>
+        <div class="flex flex-col gap-4">
+            <div
+                class="p-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/20 text-xs text-red-800 dark:text-red-300 flex items-center gap-3"
+            >
+                <i class="pi pi-shield text-xl text-red-600"></i>
+                <div>
+                    <p class="font-semibold">{{ 'attack_surface.high_risk_banner_title' | translate }}</p>
+                    <p class="text-red-700 dark:text-red-400 mt-0.5">
+                        {{ 'attack_surface.high_risk_banner_desc' | translate }}
+                    </p>
+                </div>
+            </div>
+
+            <div
+                class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm"
+            >
+                <p-table
+                    [value]="globalData()?.highRiskEndpoints || []"
+                    [loading]="loading()"
+                    [paginator]="true"
+                    [rows]="15"
+                    [tableStyle]="{ width: '100%' }"
+                    styleClass="p-datatable-sm"
+                >
+                    <ng-template pTemplate="header">
+                        <tr>
+                            <th style="width: 100px">{{ 'attack_surface.col_method' | translate }}</th>
+                            <th style="min-width: 200px">{{ 'attack_surface.col_path' | translate }}</th>
+                            <th style="width: 140px">{{ 'attack_surface.col_auth' | translate }}</th>
+                            <th style="width: 120px">{{ 'attack_surface.col_visibility' | translate }}</th>
+                            <th style="width: 130px">{{ 'attack_surface.col_framework' | translate }}</th>
+                            <th style="min-width: 200px">{{ 'attack_surface.col_location' | translate }}</th>
+                            <th style="width: 140px">{{ 'attack_surface.col_risk' | translate }}</th>
+                        </tr>
+                    </ng-template>
+
+                    <ng-template pTemplate="body" let-ep>
+                        <tr class="hover:bg-red-50/20 dark:hover:bg-red-950/10">
+                            <td>
+                                <p-tag [value]="ep.method" [severity]="getMethodSeverity(ep.method)"></p-tag>
+                            </td>
+                            <td>
+                                <span class="font-mono text-xs font-bold text-red-600 dark:text-red-400 break-all">{{
+                                    ep.path
+                                }}</span>
+                            </td>
+                            <td>
+                                <p-tag value="UNPROTECTED" severity="danger"></p-tag>
+                            </td>
+                            <td>
+                                <p-tag [value]="ep.visibility" severity="warn"></p-tag>
+                            </td>
+                            <td class="text-xs">{{ ep.framework }}</td>
+                            <td class="font-mono text-xs text-surface-500 truncate max-w-xs" [title]="ep.filePath">
+                                {{ ep.filePath }}
+                            </td>
+                            <td>
+                                <p-tag value="HIGH RISK" severity="danger"></p-tag>
+                            </td>
+                        </tr>
+                    </ng-template>
+
+                    <ng-template pTemplate="emptymessage">
+                        <tr>
+                            <td colspan="7" class="text-center py-8 text-emerald-600 dark:text-emerald-400 font-medium">
+                                <i class="pi pi-check-circle mr-2 text-lg"></i>
+                                {{ 'attack_surface.no_high_risk_found' | translate }}
+                            </td>
+                        </tr>
+                    </ng-template>
+                </p-table>
             </div>
         </div>
-
-        <div class="rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 overflow-hidden shadow-sm">
-            <p-table [value]="globalData()?.highRiskEndpoints || []" [loading]="loading()" [paginator]="true" [rows]="15" [tableStyle]="{ 'width': '100%' }" styleClass="p-datatable-sm">
-                <ng-template pTemplate="header">
-                    <tr>
-                        <th style="width: 100px">{{ 'attack_surface.col_method' | translate }}</th>
-                        <th style="min-width: 200px">{{ 'attack_surface.col_path' | translate }}</th>
-                        <th style="width: 140px">{{ 'attack_surface.col_auth' | translate }}</th>
-                        <th style="width: 120px">{{ 'attack_surface.col_visibility' | translate }}</th>
-                        <th style="width: 130px">{{ 'attack_surface.col_framework' | translate }}</th>
-                        <th style="min-width: 200px">{{ 'attack_surface.col_location' | translate }}</th>
-                        <th style="width: 140px">{{ 'attack_surface.col_risk' | translate }}</th>
-                    </tr>
-                </ng-template>
-
-                <ng-template pTemplate="body" let-ep>
-                    <tr class="hover:bg-red-50/20 dark:hover:bg-red-950/10">
-                        <td>
-                            <p-tag [value]="ep.method" [severity]="getMethodSeverity(ep.method)"></p-tag>
-                        </td>
-                        <td>
-                            <span class="font-mono text-xs font-bold text-red-600 dark:text-red-400 break-all">{{ ep.path }}</span>
-                        </td>
-                        <td>
-                            <p-tag value="UNPROTECTED" severity="danger"></p-tag>
-                        </td>
-                        <td>
-                            <p-tag [value]="ep.visibility" severity="warn"></p-tag>
-                        </td>
-                        <td class="text-xs">{{ ep.framework }}</td>
-                        <td class="font-mono text-xs text-surface-500 truncate max-w-xs" [title]="ep.filePath">{{ ep.filePath }}</td>
-                        <td>
-                            <p-tag value="HIGH RISK" severity="danger"></p-tag>
-                        </td>
-                    </tr>
-                </ng-template>
-
-                <ng-template pTemplate="emptymessage">
-                    <tr>
-                        <td colspan="7" class="text-center py-8 text-emerald-600 dark:text-emerald-400 font-medium">
-                            <i class="pi pi-check-circle mr-2 text-lg"></i>
-                            {{ 'attack_surface.no_high_risk_found' | translate }}
-                        </td>
-                    </tr>
-                </ng-template>
-            </p-table>
-        </div>
-    </div>
     }
 </div>

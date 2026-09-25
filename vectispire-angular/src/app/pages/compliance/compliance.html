@@ -2,7 +2,9 @@
     <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">{{ 'compliance.title' | translate }}</h1>
+            <h1 class="text-2xl font-bold text-surface-900 dark:text-surface-0">
+                {{ 'compliance.title' | translate }}
+            </h1>
             <p class="text-surface-600 dark:text-surface-400 mt-1">{{ 'compliance.subtitle' | translate }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-3">
@@ -84,11 +86,15 @@
     </div>
 
     <!-- Scope Selector Bar -->
-    <div class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 flex flex-wrap items-center justify-between gap-4">
+    <div
+        class="p-4 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 flex flex-wrap items-center justify-between gap-4"
+    >
         <div class="flex items-center gap-3">
             <i class="pi pi-building text-primary-500 text-xl"></i>
             <div>
-                <span class="font-bold text-surface-900 dark:text-surface-0 text-sm">{{ 'compliance.scope' | translate }}</span>
+                <span class="font-bold text-surface-900 dark:text-surface-0 text-sm">{{
+                    'compliance.scope' | translate
+                }}</span>
                 <p class="text-xs text-surface-500 my-0">{{ 'compliance.scope_help' | translate }}</p>
             </div>
         </div>
@@ -113,27 +119,44 @@
     @if (summary()) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- MTTR Card -->
-            <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
+            <div
+                class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{ 'compliance.mttr_overall' | translate }}</span>
+                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{
+                        'compliance.mttr_overall' | translate
+                    }}</span>
                     <i class="pi pi-stopwatch text-primary-500 text-xl"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
                     <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
-                        {{ summary()!.mttr.overallMttrDays !== null ? ('compliance.mttr_days' | translate: { days: summary()!.mttr.overallMttrDays ?? '' }) : ('compliance.not_available' | translate) }}
+                        {{
+                            summary()!.mttr.overallMttrDays !== null
+                                ? ('compliance.mttr_days' | translate: { days: summary()!.mttr.overallMttrDays ?? '' })
+                                : ('compliance.not_available' | translate)
+                        }}
                     </span>
-                    <span class="text-xs text-surface-500">({{ 'compliance.mttr_resolved' | translate: { count: summary()!.mttr.resolvedCount } }})</span>
+                    <span class="text-xs text-surface-500"
+                        >({{ 'compliance.mttr_resolved' | translate: { count: summary()!.mttr.resolvedCount } }})</span
+                    >
                 </div>
             </div>
 
             <!-- Overdue SLA Breaches -->
-            <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
+            <div
+                class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{ 'compliance.sla_breaches' | translate }}</span>
+                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{
+                        'compliance.sla_breaches' | translate
+                    }}</span>
                     <i class="pi pi-exclamation-circle text-red-500 text-xl"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold" [ngClass]="summary()!.overdueCount > 0 ? 'text-red-500' : 'text-green-500'">
+                    <span
+                        class="text-3xl font-bold"
+                        [ngClass]="summary()!.overdueCount > 0 ? 'text-red-500' : 'text-green-500'"
+                    >
                         {{ summary()!.overdueCount }}
                     </span>
                     <span class="text-xs text-surface-500">{{ 'compliance.overdue_findings' | translate }}</span>
@@ -141,16 +164,33 @@
             </div>
 
             <!-- Gate Success Rate -->
-            <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
+            <div
+                class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{ 'compliance.gate_pass_rate' | translate }}</span>
+                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{
+                        'compliance.gate_pass_rate' | translate
+                    }}</span>
                     <i class="pi pi-shield text-green-500 text-xl"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
                     <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">
-                        {{ summary()!.totalMonitoredTargets > 0 ? Math.round((summary()!.passingGateTargets / summary()!.totalMonitoredTargets) * 100) : 100 }}%
+                        {{
+                            summary()!.totalMonitoredTargets > 0
+                                ? Math.round((summary()!.passingGateTargets / summary()!.totalMonitoredTargets) * 100)
+                                : 100
+                        }}%
                     </span>
-                    <span class="text-xs text-surface-500">({{ 'compliance.gate_pass_targets' | translate: { passing: summary()!.passingGateTargets, total: summary()!.totalMonitoredTargets } }})</span>
+                    <span class="text-xs text-surface-500"
+                        >({{
+                            'compliance.gate_pass_targets'
+                                | translate
+                                    : {
+                                          passing: summary()!.passingGateTargets,
+                                          total: summary()!.totalMonitoredTargets
+                                      }
+                        }})</span
+                    >
                 </div>
             </div>
 
@@ -162,9 +202,13 @@
                 that counts only findings, it is green, and that is the one green that should raise
                 an alarm.
             -->
-            <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
+            <div
+                class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{ 'compliance.coverage_freshness' | translate }}</span>
+                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{
+                        'compliance.coverage_freshness' | translate
+                    }}</span>
                     <i class="pi pi-clock text-xl" [ngClass]="freshnessTone()"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
@@ -182,13 +226,19 @@
             </div>
 
             <!-- Frameworks Monitored -->
-            <div class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900">
+            <div
+                class="p-card p-4 flex flex-col justify-between rounded-xl shadow-xs border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900"
+            >
                 <div class="flex items-center justify-between">
-                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{ 'compliance.frameworks_count' | translate }}</span>
+                    <span class="text-sm font-medium text-surface-600 dark:text-surface-400">{{
+                        'compliance.frameworks_count' | translate
+                    }}</span>
                     <i class="pi pi-check-circle text-blue-500 text-xl"></i>
                 </div>
                 <div class="mt-3 flex items-baseline gap-2">
-                    <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">{{ summary()!.evaluations.length }}</span>
+                    <span class="text-3xl font-bold text-surface-900 dark:text-surface-0">{{
+                        summary()!.evaluations.length
+                    }}</span>
                     <span class="text-xs text-surface-500">{{ 'compliance.frameworks_list' | translate }}</span>
                 </div>
             </div>
@@ -196,7 +246,9 @@
 
         <!-- Per-Target Compliance Matrix Table (Global view) -->
         @if (!selectedTarget() && summary()?.targets && summary()!.targets!.length > 0) {
-            <div class="p-card rounded-xl border border-surface-200 dark:border-surface-700 p-6 bg-surface-0 dark:bg-surface-900 mt-2">
+            <div
+                class="p-card rounded-xl border border-surface-200 dark:border-surface-700 p-6 bg-surface-0 dark:bg-surface-900 mt-2"
+            >
                 <div class="flex items-center justify-between pb-4 border-b border-surface-200 dark:border-surface-800">
                     <div>
                         <h2 class="text-xl font-bold text-surface-900 dark:text-surface-0">
@@ -211,15 +263,21 @@
                 <div class="overflow-x-auto mt-4">
                     <table class="w-full text-sm text-left border-collapse">
                         <thead>
-                            <tr class="border-b border-surface-200 dark:border-surface-700 text-xs text-surface-500 uppercase bg-surface-50 dark:bg-surface-800/50">
+                            <tr
+                                class="border-b border-surface-200 dark:border-surface-700 text-xs text-surface-500 uppercase bg-surface-50 dark:bg-surface-800/50"
+                            >
                                 <th class="p-3 font-semibold">{{ 'compliance.target' | translate }}</th>
                                 <th class="p-3 font-semibold">{{ 'compliance.gate' | translate }}</th>
                                 <th class="p-3 font-semibold">{{ 'compliance.open_issues' | translate }}</th>
                                 <th class="p-3 font-semibold">{{ 'compliance.sla_breaches' | translate }}</th>
                                 <th class="p-3 font-semibold text-center">{{ 'compliance.col_nis2' | translate }}</th>
-                                <th class="p-3 font-semibold text-center">{{ 'compliance.col_iso27001' | translate }}</th>
+                                <th class="p-3 font-semibold text-center">
+                                    {{ 'compliance.col_iso27001' | translate }}
+                                </th>
                                 <th class="p-3 font-semibold text-center">{{ 'compliance.col_cra' | translate }}</th>
-                                <th class="p-3 font-semibold text-center">{{ 'compliance.global_score' | translate }}</th>
+                                <th class="p-3 font-semibold text-center">
+                                    {{ 'compliance.global_score' | translate }}
+                                </th>
                                 <th class="p-3 font-semibold text-right">{{ 'compliance.col_action' | translate }}</th>
                             </tr>
                         </thead>
@@ -228,7 +286,13 @@
                                 <tr class="hover:bg-surface-50 dark:hover:bg-surface-800/40 transition-colors">
                                     <td class="p-3 font-medium text-surface-900 dark:text-surface-0">
                                         <div class="flex items-center gap-2">
-                                            <i [class]="target.type === 'REPOSITORY' ? 'pi pi-folder text-blue-500' : 'pi pi-box text-purple-500'"></i>
+                                            <i
+                                                [class]="
+                                                    target.type === 'REPOSITORY'
+                                                        ? 'pi pi-folder text-blue-500'
+                                                        : 'pi pi-box text-purple-500'
+                                                "
+                                            ></i>
                                             <span>{{ target.name }}</span>
                                         </div>
                                     </td>
@@ -236,36 +300,86 @@
                                         <p-tag
                                             [value]="target.gateStatus"
                                             [severity]="gateStatusSeverity(target.gateStatus)"
-                                            [icon]="target.gateStatus === 'SCANNING' ? 'pi pi-spin pi-spinner' : undefined"
+                                            [icon]="
+                                                target.gateStatus === 'SCANNING' ? 'pi pi-spin pi-spinner' : undefined
+                                            "
                                         ></p-tag>
                                     </td>
                                     <td class="p-3 font-semibold text-surface-900 dark:text-surface-0">
                                         {{ target.openIssuesCount }}
                                     </td>
                                     <td class="p-3">
-                                        <span [ngClass]="target.overdueCount > 0 ? 'text-red-500 font-bold' : 'text-surface-500'">
+                                        <span
+                                            [ngClass]="
+                                                target.overdueCount > 0 ? 'text-red-500 font-bold' : 'text-surface-500'
+                                            "
+                                        >
                                             {{ target.overdueCount }}
                                         </span>
                                     </td>
                                     <td class="p-3 text-center">
-                                        <span class="font-semibold text-sm" [ngClass]="target.frameworkScores['NIS_2'] >= 80 ? 'text-emerald-600 dark:text-emerald-400' : (target.frameworkScores['NIS_2'] >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')">
-                                            {{ target.frameworkScores['NIS_2'] != null ? target.frameworkScores['NIS_2'] + '%' : '-' }}
+                                        <span
+                                            class="font-semibold text-sm"
+                                            [ngClass]="
+                                                target.frameworkScores['NIS_2'] >= 80
+                                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                                    : target.frameworkScores['NIS_2'] >= 60
+                                                      ? 'text-amber-600 dark:text-amber-400'
+                                                      : 'text-red-600 dark:text-red-400'
+                                            "
+                                        >
+                                            {{
+                                                target.frameworkScores['NIS_2'] != null
+                                                    ? target.frameworkScores['NIS_2'] + '%'
+                                                    : '-'
+                                            }}
                                         </span>
                                     </td>
                                     <td class="p-3 text-center">
-                                        <span class="font-semibold text-sm" [ngClass]="target.frameworkScores['ISO_27001'] >= 80 ? 'text-emerald-600 dark:text-emerald-400' : (target.frameworkScores['ISO_27001'] >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')">
-                                            {{ target.frameworkScores['ISO_27001'] != null ? target.frameworkScores['ISO_27001'] + '%' : '-' }}
+                                        <span
+                                            class="font-semibold text-sm"
+                                            [ngClass]="
+                                                target.frameworkScores['ISO_27001'] >= 80
+                                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                                    : target.frameworkScores['ISO_27001'] >= 60
+                                                      ? 'text-amber-600 dark:text-amber-400'
+                                                      : 'text-red-600 dark:text-red-400'
+                                            "
+                                        >
+                                            {{
+                                                target.frameworkScores['ISO_27001'] != null
+                                                    ? target.frameworkScores['ISO_27001'] + '%'
+                                                    : '-'
+                                            }}
                                         </span>
                                     </td>
                                     <td class="p-3 text-center">
-                                        <span class="font-semibold text-sm" [ngClass]="target.frameworkScores['EU_CRA'] >= 80 ? 'text-emerald-600 dark:text-emerald-400' : (target.frameworkScores['EU_CRA'] >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400')">
-                                            {{ target.frameworkScores['EU_CRA'] != null ? target.frameworkScores['EU_CRA'] + '%' : '-' }}
+                                        <span
+                                            class="font-semibold text-sm"
+                                            [ngClass]="
+                                                target.frameworkScores['EU_CRA'] >= 80
+                                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                                    : target.frameworkScores['EU_CRA'] >= 60
+                                                      ? 'text-amber-600 dark:text-amber-400'
+                                                      : 'text-red-600 dark:text-red-400'
+                                            "
+                                        >
+                                            {{
+                                                target.frameworkScores['EU_CRA'] != null
+                                                    ? target.frameworkScores['EU_CRA'] + '%'
+                                                    : '-'
+                                            }}
                                         </span>
                                     </td>
                                     <td class="p-3 text-center">
                                         <div class="flex items-center justify-center gap-2">
-                                            <span class="font-bold text-surface-900 dark:text-surface-0">{{ target.overallScore }}%</span>
-                                            <p-tag [value]="target.overallStatus" [severity]="statusSeverity(target.overallStatus)"></p-tag>
+                                            <span class="font-bold text-surface-900 dark:text-surface-0"
+                                                >{{ target.overallScore }}%</span
+                                            >
+                                            <p-tag
+                                                [value]="target.overallStatus"
+                                                [severity]="statusSeverity(target.overallStatus)"
+                                            ></p-tag>
                                         </div>
                                     </td>
                                     <td class="p-3 text-right">
@@ -288,27 +402,46 @@
         <!-- Framework card selector (row 1: NIS 2, ISO 27001, Cyber | row 2: DORA, PCI-DSS, SOC 2) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-2">
             @for (fw of orderedEvaluations(); track fw.framework) {
-                <div role="button" tabindex="0" (keydown.enter)="selectFramework(fw.framework)"
+                <div
+                    role="button"
+                    tabindex="0"
+                    (keydown.enter)="selectFramework(fw.framework)"
                     (click)="selectFramework(fw.framework)"
                     class="p-5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between h-full hover:shadow-md"
-                    [ngClass]="selectedFramework() === fw.framework 
-                        ? 'border-primary-500 ring-2 ring-primary-500/20 bg-primary-50/10 dark:bg-primary-950/20' 
-                        : 'border-surface-200 dark:border-surface-700 hover:border-surface-400 bg-surface-0 dark:bg-surface-900'"
+                    [ngClass]="
+                        selectedFramework() === fw.framework
+                            ? 'border-primary-500 ring-2 ring-primary-500/20 bg-primary-50/10 dark:bg-primary-950/20'
+                            : 'border-surface-200 dark:border-surface-700 hover:border-surface-400 bg-surface-0 dark:bg-surface-900'
+                    "
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex-1">
-                            <span class="font-bold text-surface-900 dark:text-surface-0 text-base block">{{ frameworkLabel(fw.framework) }}</span>
+                            <span class="font-bold text-surface-900 dark:text-surface-0 text-base block">{{
+                                frameworkLabel(fw.framework)
+                            }}</span>
                             <p class="text-xs text-surface-500 mt-1 line-clamp-2">{{ frameworkDesc(fw.framework) }}</p>
                         </div>
-                        <p-tag [value]="fw.overallStatus" [severity]="statusSeverity(fw.overallStatus)" styleClass="shrink-0"></p-tag>
+                        <p-tag
+                            [value]="fw.overallStatus"
+                            [severity]="statusSeverity(fw.overallStatus)"
+                            styleClass="shrink-0"
+                        ></p-tag>
                     </div>
-                    <div class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between">
+                    <div
+                        class="mt-4 pt-3 border-t border-surface-100 dark:border-surface-800 flex items-center justify-between"
+                    >
                         <div class="flex items-baseline gap-1">
-                            <span class="text-2xl font-black text-surface-900 dark:text-surface-0">{{ fw.scorePercentage }}%</span>
+                            <span class="text-2xl font-black text-surface-900 dark:text-surface-0"
+                                >{{ fw.scorePercentage }}%</span
+                            >
                             <span class="text-xs text-surface-400">score</span>
                         </div>
                         <span class="text-xs text-primary-600 dark:text-primary-400 font-medium">
-                            {{ selectedFramework() === fw.framework ? ('compliance.framework_active' | translate) : ('compliance.framework_select' | translate) }}
+                            {{
+                                selectedFramework() === fw.framework
+                                    ? ('compliance.framework_active' | translate)
+                                    : ('compliance.framework_select' | translate)
+                            }}
                         </span>
                     </div>
                 </div>
@@ -317,17 +450,27 @@
 
         <!-- Detailed Controls Breakdown -->
         @if (activeEvaluation()) {
-            <div class="p-card rounded-xl border border-surface-200 dark:border-surface-700 p-6 bg-surface-0 dark:bg-surface-900 mt-2">
-                <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800">
+            <div
+                class="p-card rounded-xl border border-surface-200 dark:border-surface-700 p-6 bg-surface-0 dark:bg-surface-900 mt-2"
+            >
+                <div
+                    class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-surface-200 dark:border-surface-800"
+                >
                     <div>
                         <h2 class="text-xl font-bold text-surface-900 dark:text-surface-0">
-                            {{ frameworkLabel(activeEvaluation()!.framework) }} — {{ 'compliance.controls_breakdown' | translate }}
+                            {{ frameworkLabel(activeEvaluation()!.framework) }} —
+                            {{ 'compliance.controls_breakdown' | translate }}
                         </h2>
                         <p class="text-sm text-surface-500 mt-1">{{ 'compliance.controls_desc' | translate }}</p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <p-tag [value]="activeEvaluation()!.overallStatus" [severity]="statusSeverity(activeEvaluation()!.overallStatus)"></p-tag>
-                        <span class="text-xl font-bold text-primary-500">{{ activeEvaluation()!.scorePercentage }}%</span>
+                        <p-tag
+                            [value]="activeEvaluation()!.overallStatus"
+                            [severity]="statusSeverity(activeEvaluation()!.overallStatus)"
+                        ></p-tag>
+                        <span class="text-xl font-bold text-primary-500"
+                            >{{ activeEvaluation()!.scorePercentage }}%</span
+                        >
                     </div>
                 </div>
 
@@ -337,22 +480,32 @@
                         <div class="py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <div class="flex-1 space-y-1">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-mono text-xs font-semibold px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-surface-700 dark:text-surface-300">
+                                    <span
+                                        class="font-mono text-xs font-semibold px-2 py-0.5 bg-surface-100 dark:bg-surface-800 rounded text-surface-700 dark:text-surface-300"
+                                    >
                                         {{ control.control.id }}
                                     </span>
-                                    <span class="font-semibold text-surface-900 dark:text-surface-0 text-sm">{{ control.control.name }}</span>
+                                    <span class="font-semibold text-surface-900 dark:text-surface-0 text-sm">{{
+                                        control.control.name
+                                    }}</span>
                                 </div>
-                                <p class="text-xs text-surface-600 dark:text-surface-400">{{ control.control.requirement }}</p>
+                                <p class="text-xs text-surface-600 dark:text-surface-400">
+                                    {{ control.control.requirement }}
+                                </p>
                                 <div class="text-xs font-medium text-surface-700 dark:text-surface-300 pt-1">
-                                    <span class="text-surface-500">{{ 'compliance.control_status' | translate }}</span> {{ control.details }}
+                                    <span class="text-surface-500">{{ 'compliance.control_status' | translate }}</span>
+                                    {{ control.details }}
                                 </div>
                                 <div class="text-xs text-primary-600 dark:text-primary-400 italic">
-                                    <span class="font-semibold">{{ 'compliance.control_guidance' | translate }}</span> {{ control.remediationGuidance }}
+                                    <span class="font-semibold">{{ 'compliance.control_guidance' | translate }}</span>
+                                    {{ control.remediationGuidance }}
                                 </div>
                             </div>
                             <div class="flex items-center gap-4 shrink-0">
                                 <div class="text-right">
-                                    <span class="text-base font-bold text-surface-900 dark:text-surface-0">{{ control.scorePercentage }}%</span>
+                                    <span class="text-base font-bold text-surface-900 dark:text-surface-0"
+                                        >{{ control.scorePercentage }}%</span
+                                    >
                                 </div>
                                 <p-tag [value]="control.status" [severity]="statusSeverity(control.status)"></p-tag>
                             </div>
@@ -364,20 +517,51 @@
     }
 
     <!-- VEX Import Dialog -->
-    <p-dialog [header]="'compliance.import_title' | translate" [(visible)]="importOpen" [modal]="true" [style]="{ width: '38rem' }" [appendTo]="'body'">
+    <p-dialog
+        [header]="'compliance.import_title' | translate"
+        [(visible)]="importOpen"
+        [modal]="true"
+        [style]="{ width: '38rem' }"
+        [appendTo]="'body'"
+    >
         <div class="flex flex-col gap-4">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
-                {{ 'compliance.upload_statement' | translate }} <strong>{{ 'compliance.format_openvex' | translate }}</strong>, <strong>{{ 'compliance.format_csaf' | translate }}</strong> {{ 'compliance.or' | translate }} <strong>{{ 'compliance.format_cyclonedx' | translate }}</strong> {{ 'compliance.vex_upload_help' | translate }} <em>not_affected</em> {{ 'compliance.with_vendor_justification' | translate }}
+                {{ 'compliance.upload_statement' | translate }}
+                <strong>{{ 'compliance.format_openvex' | translate }}</strong
+                >, <strong>{{ 'compliance.format_csaf' | translate }}</strong> {{ 'compliance.or' | translate }}
+                <strong>{{ 'compliance.format_cyclonedx' | translate }}</strong>
+                {{ 'compliance.vex_upload_help' | translate }} <em>not_affected</em>
+                {{ 'compliance.with_vendor_justification' | translate }}
             </p>
 
             <div>
-                <label for="vex-import-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.pick_json' | translate }}</label>
-                <input id="vex-import-file" type="file" accept=".json,application/json" (change)="onFileSelected($event)" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                <label
+                    for="vex-import-file"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.pick_json' | translate }}</label
+                >
+                <input
+                    id="vex-import-file"
+                    type="file"
+                    accept=".json,application/json"
+                    (change)="onFileSelected($event)"
+                    class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
             </div>
 
             <div>
-                <label for="vex-import-json" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.paste_json' | translate }}</label>
-                <textarea id="vex-import-json" rows="8" [(ngModel)]="importJson" class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0" placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'></textarea>
+                <label
+                    for="vex-import-json"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.paste_json' | translate }}</label
+                >
+                <textarea
+                    id="vex-import-json"
+                    rows="8"
+                    [(ngModel)]="importJson"
+                    class="w-full p-3 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    placeholder='{ "@context": "https://openvex.dev/ns/v0.2.0", "statements": [...] }'
+                ></textarea>
             </div>
 
             @if (importSuccess()) {
@@ -389,13 +573,31 @@
         </div>
 
         <ng-template #footer>
-            <button pButton [label]="'common.cancel' | translate" class="p-button-text" (click)="importOpen.set(false)"></button>
-            <button pButton icon="pi pi-check" [label]="'compliance.ingest_and_apply' | translate" [loading]="importing()" [disabled]="!importJson.trim()" (click)="submitIngestVex()"></button>
+            <button
+                pButton
+                [label]="'common.cancel' | translate"
+                class="p-button-text"
+                (click)="importOpen.set(false)"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-check"
+                [label]="'compliance.ingest_and_apply' | translate"
+                [loading]="importing()"
+                [disabled]="!importJson.trim()"
+                (click)="submitIngestVex()"
+            ></button>
         </ng-template>
     </p-dialog>
 
     <!-- Cosign / Sigstore Verification Dialog -->
-    <p-dialog [header]="'compliance.verifier_title' | translate" [(visible)]="verifyOpen" [modal]="true" [style]="{ width: '42rem' }" [appendTo]="'body'">
+    <p-dialog
+        [header]="'compliance.verifier_title' | translate"
+        [(visible)]="verifyOpen"
+        [modal]="true"
+        [style]="{ width: '42rem' }"
+        [appendTo]="'body'"
+    >
         <div class="flex flex-col gap-4">
             <p class="text-sm text-surface-600 dark:text-surface-400 mt-0">
                 {{ 'compliance.verify_help' | translate }}
@@ -403,34 +605,90 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="verify-payload-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.payload_file' | translate }}</label>
-                    <input id="verify-payload-file" type="file" (change)="onVerifyPayloadSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
-                    <textarea rows="4" [(ngModel)]="verifyPayload" [placeholder]="'compliance.paste_payload' | translate" class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                    <label
+                        for="verify-payload-file"
+                        class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                        >{{ 'compliance.payload_file' | translate }}</label
+                    >
+                    <input
+                        id="verify-payload-file"
+                        type="file"
+                        (change)="onVerifyPayloadSelected($event)"
+                        class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
+                    />
+                    <textarea
+                        rows="4"
+                        [(ngModel)]="verifyPayload"
+                        [placeholder]="'compliance.paste_payload' | translate"
+                        class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    ></textarea>
                 </div>
                 <div>
-                    <label for="verify-signature-file" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.signature_file' | translate }}</label>
-                    <input id="verify-signature-file" type="file" (change)="onVerifySigSelected($event)" class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2" />
-                    <textarea rows="4" [(ngModel)]="verifySignature" [placeholder]="'compliance.paste_signature' | translate" class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                    <label
+                        for="verify-signature-file"
+                        class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                        >{{ 'compliance.signature_file' | translate }}</label
+                    >
+                    <input
+                        id="verify-signature-file"
+                        type="file"
+                        (change)="onVerifySigSelected($event)"
+                        class="text-xs w-full file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-surface-100 file:text-surface-700 hover:file:bg-surface-200 mb-2"
+                    />
+                    <textarea
+                        rows="4"
+                        [(ngModel)]="verifySignature"
+                        [placeholder]="'compliance.paste_signature' | translate"
+                        class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                    ></textarea>
                 </div>
             </div>
 
             <div>
-                <label for="verify-public-key" class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1">{{ 'compliance.public_key_field' | translate }}</label>
-                <textarea id="verify-public-key" rows="2" [(ngModel)]="verifyPublicKey" placeholder="-----BEGIN PUBLIC KEY----- ..." class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"></textarea>
+                <label
+                    for="verify-public-key"
+                    class="block text-xs font-semibold text-surface-700 dark:text-surface-300 mb-1"
+                    >{{ 'compliance.public_key_field' | translate }}</label
+                >
+                <textarea
+                    id="verify-public-key"
+                    rows="2"
+                    [(ngModel)]="verifyPublicKey"
+                    placeholder="-----BEGIN PUBLIC KEY----- ..."
+                    class="w-full p-2 font-mono text-xs rounded border border-surface-300 dark:border-surface-700 bg-surface-50 dark:bg-surface-800 text-surface-900 dark:text-surface-0"
+                ></textarea>
             </div>
 
             @if (verifyResult()) {
                 <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
                      caller supplied is shown amber: it proves the document matches that key, not that
                      Vectispire signed it — the confusion this screen used to invite. -->
-                <div class="p-3 rounded-lg border flex items-center gap-3"
-                     [class.bg-emerald-50]="verifyAuthentic()" [class.border-emerald-200]="verifyAuthentic()" [class.text-emerald-800]="verifyAuthentic()"
-                     [class.bg-amber-50]="verifyForeign()" [class.border-amber-200]="verifyForeign()" [class.text-amber-800]="verifyForeign()"
-                     [class.bg-rose-50]="!verifyResult()!.valid" [class.border-rose-200]="!verifyResult()!.valid" [class.text-rose-800]="!verifyResult()!.valid">
-                    <i class="pi text-xl" [class.pi-check-circle]="verifyAuthentic()" [class.pi-exclamation-triangle]="verifyForeign()" [class.pi-times-circle]="!verifyResult()!.valid"></i>
+                <div
+                    class="p-3 rounded-lg border flex items-center gap-3"
+                    [class.bg-emerald-50]="verifyAuthentic()"
+                    [class.border-emerald-200]="verifyAuthentic()"
+                    [class.text-emerald-800]="verifyAuthentic()"
+                    [class.bg-amber-50]="verifyForeign()"
+                    [class.border-amber-200]="verifyForeign()"
+                    [class.text-amber-800]="verifyForeign()"
+                    [class.bg-rose-50]="!verifyResult()!.valid"
+                    [class.border-rose-200]="!verifyResult()!.valid"
+                    [class.text-rose-800]="!verifyResult()!.valid"
+                >
+                    <i
+                        class="pi text-xl"
+                        [class.pi-check-circle]="verifyAuthentic()"
+                        [class.pi-exclamation-triangle]="verifyForeign()"
+                        [class.pi-times-circle]="!verifyResult()!.valid"
+                    ></i>
                     <div class="text-xs">
                         <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
-                        <p class="text-[11px] opacity-75 my-0">{{ 'compliance.verify_result_meta' | translate: { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId } }}</p>
+                        <p class="text-[11px] opacity-75 my-0">
+                            {{
+                                'compliance.verify_result_meta'
+                                    | translate: { algorithm: verifyResult()!.algorithm, keyId: verifyResult()!.keyId }
+                            }}
+                        </p>
                     </div>
                 </div>
             }
@@ -448,8 +706,20 @@
         </div>
 
         <ng-template #footer>
-            <button pButton [label]="'common.close' | translate" class="p-button-text" (click)="verifyOpen.set(false)"></button>
-            <button pButton icon="pi pi-verified" [label]="'compliance.verify_integrity' | translate" [loading]="verifying()" [disabled]="!verifyPayload.trim() || !verifySignature.trim()" (click)="submitVerification()"></button>
+            <button
+                pButton
+                [label]="'common.close' | translate"
+                class="p-button-text"
+                (click)="verifyOpen.set(false)"
+            ></button>
+            <button
+                pButton
+                icon="pi pi-verified"
+                [label]="'compliance.verify_integrity' | translate"
+                [loading]="verifying()"
+                [disabled]="!verifyPayload.trim() || !verifySignature.trim()"
+                (click)="submitVerification()"
+            ></button>
         </ng-template>
     </p-dialog>
 </div>

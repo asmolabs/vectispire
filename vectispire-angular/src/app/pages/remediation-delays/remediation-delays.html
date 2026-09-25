@@ -4,10 +4,12 @@
 
     @if (distribution(); as data) {
         @if (data.oldestOpenDays !== null) {
-            <div class="mb-6 p-4 border-l-4 rounded-r flex flex-wrap items-baseline gap-4"
+            <div
+                class="mb-6 p-4 border-l-4 rounded-r flex flex-wrap items-baseline gap-4"
                 [class.border-red-500]="oldestIsOverdue()"
                 [class.bg-red-50]="oldestIsOverdue()"
-                [class.border-surface-300]="!oldestIsOverdue()">
+                [class.border-surface-300]="!oldestIsOverdue()"
+            >
                 <div class="text-2xl font-medium" [class.text-red-700]="oldestIsOverdue()">
                     {{ data.oldestOpenDays }} {{ 'delays.days' | translate }}
                 </div>
@@ -29,12 +31,24 @@
             <table class="w-full text-sm" style="border-collapse: collapse">
                 <thead>
                     <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'delays.column.severity' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'delays.column.deadline' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium" style="min-width: 14rem">{{ 'delays.column.within' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'delays.column.median' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'delays.column.ninetieth' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'delays.column.open_overdue' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'delays.column.severity' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'delays.column.deadline' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium" style="min-width: 14rem">
+                            {{ 'delays.column.within' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'delays.column.median' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'delays.column.ninetieth' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'delays.column.open_overdue' | translate }}
+                        </th>
                         <th class="py-2 font-medium whitespace-nowrap">{{ 'delays.column.oldest' | translate }}</th>
                     </tr>
                 </thead>
@@ -42,7 +56,10 @@
                     @for (row of rows(); track row.severity) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4 font-medium">{{ row.severity }}</td>
-                            <td class="py-3 pr-4 text-muted-color whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+                            <td
+                                class="py-3 pr-4 text-muted-color whitespace-nowrap"
+                                style="font-variant-numeric: tabular-nums"
+                            >
                                 @if (row.windowDays > 0) {
                                     {{ row.windowDays }} {{ 'delays.days_short' | translate }}
                                 } @else {
@@ -51,30 +68,53 @@
                             </td>
                             <td class="py-3 pr-4">
                                 @if (nothingToMeasure(row)) {
-                                    <div class="text-muted-color text-xs" style="max-width: 26ch">{{ 'delays.nothing_resolved' | translate }}</div>
+                                    <div class="text-muted-color text-xs" style="max-width: 26ch">
+                                        {{ 'delays.nothing_resolved' | translate }}
+                                    </div>
                                 } @else if (hasDeadline(row)) {
                                     <div class="flex items-baseline gap-2 mb-1">
-                                        <span class="font-medium" style="font-variant-numeric: tabular-nums">{{ row.percentageWithinSla }}&nbsp;%</span>
-                                        <span class="text-muted-color text-xs" style="font-variant-numeric: tabular-nums">
-                                            {{ row.withinSla }} {{ 'delays.on_time' | translate }} · {{ row.late }} {{ 'delays.late' | translate }}
+                                        <span class="font-medium" style="font-variant-numeric: tabular-nums"
+                                            >{{ row.percentageWithinSla }}&nbsp;%</span
+                                        >
+                                        <span
+                                            class="text-muted-color text-xs"
+                                            style="font-variant-numeric: tabular-nums"
+                                        >
+                                            {{ row.withinSla }} {{ 'delays.on_time' | translate }} · {{ row.late }}
+                                            {{ 'delays.late' | translate }}
                                         </span>
                                     </div>
                                     <div class="bg-surface-200 dark:bg-surface-700 rounded" style="height: 8px">
-                                        <div class="rounded" style="height: 8px"
+                                        <div
+                                            class="rounded"
+                                            style="height: 8px"
                                             [style.width.%]="row.percentageWithinSla"
-                                            [style.background]="barColour(row)"></div>
+                                            [style.background]="barColour(row)"
+                                        ></div>
                                     </div>
                                 } @else {
-                                    <div class="text-muted-color text-xs" style="max-width: 26ch">{{ 'delays.no_deadline_help' | translate }}</div>
+                                    <div class="text-muted-color text-xs" style="max-width: 26ch">
+                                        {{ 'delays.no_deadline_help' | translate }}
+                                    </div>
                                 }
                             </td>
-                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">{{ row.medianDays ?? '—' }}</td>
-                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">{{ row.ninetiethDays ?? '—' }}</td>
-                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums"
-                                [class.text-red-700]="row.openOverdue > 0" [class.font-medium]="row.openOverdue > 0">
+                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+                                {{ row.medianDays ?? '—' }}
+                            </td>
+                            <td class="py-3 pr-4 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+                                {{ row.ninetiethDays ?? '—' }}
+                            </td>
+                            <td
+                                class="py-3 pr-4 whitespace-nowrap"
+                                style="font-variant-numeric: tabular-nums"
+                                [class.text-red-700]="row.openOverdue > 0"
+                                [class.font-medium]="row.openOverdue > 0"
+                            >
                                 {{ row.openOverdue }}
                             </td>
-                            <td class="py-3 whitespace-nowrap" style="font-variant-numeric: tabular-nums">{{ row.oldestOpenDays ?? '—' }}</td>
+                            <td class="py-3 whitespace-nowrap" style="font-variant-numeric: tabular-nums">
+                                {{ row.oldestOpenDays ?? '—' }}
+                            </td>
                         </tr>
                     } @empty {
                         <tr>

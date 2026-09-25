@@ -5,7 +5,13 @@
             {{ 'settings.subtitle' | translate }}
         </p>
     </div>
-    <p-button [label]="'settings.save_btn' | translate" icon="pi pi-check" [loading]="state.saving()" [disabled]="!state.dirty()" (onClick)="state.save()" />
+    <p-button
+        [label]="'settings.save_btn' | translate"
+        icon="pi pi-check"
+        [loading]="state.saving()"
+        [disabled]="!state.dirty()"
+        (onClick)="state.save()"
+    />
 </div>
 
 <!-- Tabs Navigation -->
@@ -15,9 +21,11 @@
             type="button"
             (click)="selectTab(tab.id)"
             class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
-            [ngClass]="activeTab() === tab.id
-                ? 'bg-primary text-primary-contrast shadow-sm'
-                : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'"
+            [ngClass]="
+                activeTab() === tab.id
+                    ? 'bg-primary text-primary-contrast shadow-sm'
+                    : 'text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800'
+            "
         >
             <i [class]="tab.icon"></i>
             <span>{{ tab.label }}</span>
@@ -29,7 +37,9 @@
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
 @if (state.saved()) {
-    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ 'settings.settings_saved' | translate }}</p-message>
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{
+        'settings.settings_saved' | translate
+    }}</p-message>
 }
 
 <app-settings-catalog [tab]="activeTab()" />

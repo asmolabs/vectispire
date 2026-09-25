@@ -5,13 +5,15 @@
     @if (statements().length) {
         <div class="flex flex-wrap gap-2 mb-6">
             @for (statement of statements(); track statement.framework) {
-                <button type="button"
+                <button
+                    type="button"
                     class="px-3 h-10 rounded border font-medium"
                     [class.border-primary]="current()?.framework === statement.framework"
                     [class.text-primary]="current()?.framework === statement.framework"
                     [class.border-surface-300]="current()?.framework !== statement.framework"
                     [class.text-muted-color]="current()?.framework !== statement.framework"
-                    (click)="framework.set(statement.framework)">
+                    (click)="framework.set(statement.framework)"
+                >
                     {{ statement.title }}
                     @if (statement.findings > 0) {
                         <span class="ml-2 text-red-700">{{ statement.findings }}</span>
@@ -60,9 +62,11 @@
                             @if (declaration.owner) {
                                 <span class="text-muted-color">· {{ declaration.owner }}</span>
                             }
-                            <span class="text-orange-700">·
+                            <span class="text-orange-700"
+                                >·
                                 {{ 'soa.overdue_since' | translate }}
-                                {{ declaration.reviewDueAt | date: 'dd/MM/yyyy' }}</span>
+                                {{ declaration.reviewDueAt | date: 'dd/MM/yyyy' }}</span
+                            >
                         </li>
                     }
                 </ul>
@@ -83,14 +87,18 @@
                         <th class="py-2 pr-4 font-medium">{{ 'soa.column.divergence' | translate }}</th>
                         <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'soa.column.owner' | translate }}</th>
                         @if (canDeclare()) {
-                            <th class="py-2 font-medium"><span class="sr-only">{{ 'soa.column.action' | translate }}</span></th>
+                            <th class="py-2 font-medium">
+                                <span class="sr-only">{{ 'soa.column.action' | translate }}</span>
+                            </th>
                         }
                     </tr>
                 </thead>
                 <tbody>
                     @for (line of lines(); track line.control.id) {
-                        <tr class="border-b border-surface-100 dark:border-surface-800 align-top"
-                            [class.bg-red-50]="isFinding(line)">
+                        <tr
+                            class="border-b border-surface-100 dark:border-surface-800 align-top"
+                            [class.bg-red-50]="isFinding(line)"
+                        >
                             <td class="py-3 pr-4">
                                 <div class="font-mono text-xs font-medium">{{ line.control.id }}</div>
                                 <div class="text-muted-color" style="max-width: 26ch">{{ line.control.name }}</div>
@@ -99,9 +107,13 @@
                                 @if (line.declaration; as declaration) {
                                     <div>{{ 'soa.applicability.' + declaration.applicability | translate }}</div>
                                     @if (declaration.implementation) {
-                                        <div class="text-muted-color text-xs">{{ 'soa.implementation.' + declaration.implementation | translate }}</div>
+                                        <div class="text-muted-color text-xs">
+                                            {{ 'soa.implementation.' + declaration.implementation | translate }}
+                                        </div>
                                     }
-                                    <div class="text-muted-color text-xs">{{ 'soa.evidence.' + declaration.evidenceSource | translate }}</div>
+                                    <div class="text-muted-color text-xs">
+                                        {{ 'soa.evidence.' + declaration.evidenceSource | translate }}
+                                    </div>
                                 } @else {
                                     <span class="text-red-700 font-medium">{{ 'soa.not_declared' | translate }}</span>
                                 }
@@ -110,19 +122,30 @@
                                 {{ line.measured ? ('soa.measured.' + line.measured | translate) : '—' }}
                             </td>
                             <td class="py-3 pr-4">
-                                <p-tag [severity]="severityOf(line)" [value]="'soa.divergence.' + line.divergence | translate" />
+                                <p-tag
+                                    [severity]="severityOf(line)"
+                                    [value]="'soa.divergence.' + line.divergence | translate"
+                                />
                                 <div class="text-muted-color text-xs mt-1" style="max-width: 40ch">
                                     {{ 'soa.divergence_help.' + line.divergence | translate }}
                                 </div>
                                 @if (line.reviewOverdue) {
-                                    <div class="text-orange-700 text-xs font-medium mt-1">{{ 'soa.review_lapsed' | translate }}</div>
+                                    <div class="text-orange-700 text-xs font-medium mt-1">
+                                        {{ 'soa.review_lapsed' | translate }}
+                                    </div>
                                 }
                             </td>
                             <td class="py-3 pr-4 whitespace-nowrap">{{ line.declaration?.owner ?? '—' }}</td>
                             @if (canDeclare()) {
                                 <td class="py-3">
-                                    <p-button [label]="line.declaration ? ('soa.revise' | translate) : ('soa.declare' | translate)"
-                                        [text]="true" size="small" (onClick)="openDeclare(line)" />
+                                    <p-button
+                                        [label]="
+                                            line.declaration ? ('soa.revise' | translate) : ('soa.declare' | translate)
+                                        "
+                                        [text]="true"
+                                        size="small"
+                                        (onClick)="openDeclare(line)"
+                                    />
                                 </td>
                             }
                         </tr>
@@ -135,8 +158,13 @@
     }
 </div>
 
-<p-dialog [visible]="!!editing()" (visibleChange)="editing.set(null)" [modal]="true" [style]="{ width: '38rem' }"
-    [header]="'soa.dialog.title' | translate">
+<p-dialog
+    [visible]="!!editing()"
+    (visibleChange)="editing.set(null)"
+    [modal]="true"
+    [style]="{ width: '38rem' }"
+    [header]="'soa.dialog.title' | translate"
+>
     @if (editing(); as line) {
         <div class="mb-4">
             <div class="font-mono text-sm font-medium">{{ line.control.id }}</div>
@@ -144,9 +172,14 @@
         </div>
 
         <div class="mb-4">
-            <label for="applicability" class="block font-medium mb-1">{{ 'soa.dialog.applicability' | translate }}</label>
-            <select id="applicability" [(ngModel)]="applicability"
-                class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+            <label for="applicability" class="block font-medium mb-1">{{
+                'soa.dialog.applicability' | translate
+            }}</label>
+            <select
+                id="applicability"
+                [(ngModel)]="applicability"
+                class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+            >
                 <option value="APPLICABLE">{{ 'soa.applicability.APPLICABLE' | translate }}</option>
                 <option value="EXCLUDED">{{ 'soa.applicability.EXCLUDED' | translate }}</option>
             </select>
@@ -154,20 +187,32 @@
 
         @if (applicability === 'APPLICABLE') {
             <div class="mb-4">
-                <label for="implementation" class="block font-medium mb-1">{{ 'soa.dialog.implementation' | translate }}</label>
-                <select id="implementation" [(ngModel)]="implementation"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+                <label for="implementation" class="block font-medium mb-1">{{
+                    'soa.dialog.implementation' | translate
+                }}</label>
+                <select
+                    id="implementation"
+                    [(ngModel)]="implementation"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                >
                     <option value="IMPLEMENTED">{{ 'soa.implementation.IMPLEMENTED' | translate }}</option>
-                    <option value="PARTIALLY_IMPLEMENTED">{{ 'soa.implementation.PARTIALLY_IMPLEMENTED' | translate }}</option>
+                    <option value="PARTIALLY_IMPLEMENTED">
+                        {{ 'soa.implementation.PARTIALLY_IMPLEMENTED' | translate }}
+                    </option>
                     <option value="PLANNED">{{ 'soa.implementation.PLANNED' | translate }}</option>
                     <option value="NOT_IMPLEMENTED">{{ 'soa.implementation.NOT_IMPLEMENTED' | translate }}</option>
                 </select>
             </div>
 
             <div class="mb-4">
-                <label for="evidenceSource" class="block font-medium mb-1">{{ 'soa.dialog.evidence_source' | translate }}</label>
-                <select id="evidenceSource" [(ngModel)]="evidenceSource"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent">
+                <label for="evidenceSource" class="block font-medium mb-1">{{
+                    'soa.dialog.evidence_source' | translate
+                }}</label>
+                <select
+                    id="evidenceSource"
+                    [(ngModel)]="evidenceSource"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                >
                     <option value="VECTISPIRE">{{ 'soa.evidence.VECTISPIRE' | translate }}</option>
                     <option value="BOTH">{{ 'soa.evidence.BOTH' | translate }}</option>
                     <option value="EXTERNAL">{{ 'soa.evidence.EXTERNAL' | translate }}</option>
@@ -178,14 +223,20 @@
 
         @if (applicability !== 'APPLICABLE' || evidenceSource !== 'VECTISPIRE') {
             <div class="mb-4">
-                <label for="externalEvidence" class="block font-medium mb-1">{{ 'soa.dialog.external_evidence' | translate }}</label>
+                <label for="externalEvidence" class="block font-medium mb-1">{{
+                    'soa.dialog.external_evidence' | translate
+                }}</label>
                 <input id="externalEvidence" pInputText [(ngModel)]="externalEvidence" class="w-full" />
             </div>
         }
 
         <div class="mb-4">
             <label for="justification" class="block font-medium mb-1">
-                {{ applicability === 'EXCLUDED' ? ('soa.dialog.justification_excluded' | translate) : ('soa.dialog.justification' | translate) }}
+                {{
+                    applicability === 'EXCLUDED'
+                        ? ('soa.dialog.justification_excluded' | translate)
+                        : ('soa.dialog.justification' | translate)
+                }}
             </label>
             <input id="justification" pInputText [(ngModel)]="justification" class="w-full" />
             @if (applicability === 'EXCLUDED') {
@@ -200,8 +251,12 @@
             </div>
             <div>
                 <label for="reviewDue" class="block font-medium mb-1">{{ 'soa.dialog.review_due' | translate }}</label>
-                <input id="reviewDue" type="date" [(ngModel)]="reviewDue"
-                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent" />
+                <input
+                    id="reviewDue"
+                    type="date"
+                    [(ngModel)]="reviewDue"
+                    class="w-full p-2 border border-surface-300 dark:border-surface-600 rounded bg-transparent"
+                />
             </div>
         </div>
 
@@ -211,7 +266,11 @@
 
         <div class="flex justify-end gap-2">
             <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="editing.set(null)" />
-            <p-button [label]="'soa.dialog.record' | translate" [disabled]="incomplete() || busy()" (onClick)="submit()" />
+            <p-button
+                [label]="'soa.dialog.record' | translate"
+                [disabled]="incomplete() || busy()"
+                (onClick)="submit()"
+            />
         </div>
     }
 </p-dialog>

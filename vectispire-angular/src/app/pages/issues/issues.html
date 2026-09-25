@@ -3,16 +3,61 @@
     <p class="text-muted-color mb-4">{{ 'issues.subtitle' | translate }}</p>
 
     <div class="flex flex-wrap gap-3 mb-4">
-        <p-select [(ngModel)]="state" [options]="states()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.filter_state' | translate" />
-        <p-select [(ngModel)]="severity" [options]="severities()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.filter_severity' | translate" [showClear]="true" />
-        <p-select [(ngModel)]="type" [options]="types()" optionLabel="label" optionValue="value" (onChange)="reload(0)" [placeholder]="'issues.col_type' | translate" [showClear]="true" />
-        <p-select [(ngModel)]="target" [options]="targets()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
-                  [placeholder]="'issues.col_target' | translate" [showClear]="true" [filter]="true" filterBy="label" styleClass="min-w-56" />
-        <p-select [(ngModel)]="triageFilter" [options]="triageOptions()" optionLabel="label" optionValue="value" (onChange)="reload(0)"
-                  [placeholder]="'issues.col_triage' | translate" [showClear]="true" />
+        <p-select
+            [(ngModel)]="state"
+            [options]="states()"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="reload(0)"
+            [placeholder]="'issues.filter_state' | translate"
+        />
+        <p-select
+            [(ngModel)]="severity"
+            [options]="severities()"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="reload(0)"
+            [placeholder]="'issues.filter_severity' | translate"
+            [showClear]="true"
+        />
+        <p-select
+            [(ngModel)]="type"
+            [options]="types()"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="reload(0)"
+            [placeholder]="'issues.col_type' | translate"
+            [showClear]="true"
+        />
+        <p-select
+            [(ngModel)]="target"
+            [options]="targets()"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="reload(0)"
+            [placeholder]="'issues.col_target' | translate"
+            [showClear]="true"
+            [filter]="true"
+            filterBy="label"
+            styleClass="min-w-56"
+        />
+        <p-select
+            [(ngModel)]="triageFilter"
+            [options]="triageOptions()"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="reload(0)"
+            [placeholder]="'issues.col_triage' | translate"
+            [showClear]="true"
+        />
         <p-iconfield>
             <p-inputicon class="pi pi-search" />
-            <input pInputText [(ngModel)]="search" (keyup.enter)="reload(0)" [placeholder]="'issues.search_placeholder' | translate" />
+            <input
+                pInputText
+                [(ngModel)]="search"
+                (keyup.enter)="reload(0)"
+                [placeholder]="'issues.search_placeholder' | translate"
+            />
         </p-iconfield>
     </div>
 
@@ -27,13 +72,15 @@
     -->
     <div class="flex flex-wrap gap-x-6 gap-y-3 mb-4">
         <div class="flex items-center gap-2">
-            <p-toggleswitch inputId="filter-kev" [ngModel]="onlyKev"
-                            (ngModelChange)="onlyKev = $event; reload(0)" />
+            <p-toggleswitch inputId="filter-kev" [ngModel]="onlyKev" (ngModelChange)="onlyKev = $event; reload(0)" />
             <label for="filter-kev" class="m-0">{{ 'issues.filter_kev_label' | translate }}</label>
         </div>
         <div class="flex items-center gap-2">
-            <p-toggleswitch inputId="filter-overdue" [ngModel]="overdue"
-                            (ngModelChange)="overdue = $event; reload(0)" />
+            <p-toggleswitch
+                inputId="filter-overdue"
+                [ngModel]="overdue"
+                (ngModelChange)="overdue = $event; reload(0)"
+            />
             <!--
                 "Past its deadline" and not "late": the server also drops what triage settled, so
                 this is not simply the age of the row. A label promising the wider set would make
@@ -42,16 +89,22 @@
             <label for="filter-overdue" class="m-0">{{ 'issues.filter_overdue' | translate }}</label>
         </div>
         <div class="flex items-center gap-2">
-            <p-toggleswitch inputId="filter-unsettled" [ngModel]="unsettled"
-                            (ngModelChange)="unsettled = $event; reload(0)" />
+            <p-toggleswitch
+                inputId="filter-unsettled"
+                [ngModel]="unsettled"
+                (ngModelChange)="unsettled = $event; reload(0)"
+            />
             <label for="filter-unsettled" class="m-0">
                 {{ 'issues.filter_unsettled' | translate }}
                 <span class="block text-muted-color text-sm">{{ 'issues.filter_unsettled_hint' | translate }}</span>
             </label>
         </div>
         <div class="flex items-center gap-2">
-            <p-toggleswitch inputId="filter-direct" [ngModel]="onlyDirect"
-                            (ngModelChange)="onlyDirect = $event; reload(0)" />
+            <p-toggleswitch
+                inputId="filter-direct"
+                [ngModel]="onlyDirect"
+                (ngModelChange)="onlyDirect = $event; reload(0)"
+            />
             <label for="filter-direct" class="m-0">
                 {{ 'issues.filter_direct' | translate }}
                 <span class="block text-muted-color text-sm">{{ 'issues.filter_direct_hint' | translate }}</span>
@@ -73,8 +126,11 @@
     -->
     @if (selected().length > 0 && canTriage()) {
         <div class="flex items-center gap-3 mb-3">
-            <p-button [label]="triageActionLabel() + ' (' + selected().length + ')'"
-                      size="small" (onClick)="openBulkTriage()" />
+            <p-button
+                [label]="triageActionLabel() + ' (' + selected().length + ')'"
+                size="small"
+                (onClick)="openBulkTriage()"
+            />
             <span class="text-muted-color text-sm">
                 @if (canApprove()) {
                     {{ 'issues.bulk_hint_decide' | translate }}
@@ -106,145 +162,239 @@
         indicates that anything is missing on the right.
     -->
     <div class="overflow-x-auto">
-    <p-table [value]="issues()" [tableStyle]="{ 'min-width': '60rem' }" [loading]="loading()"
-             dataKey="id" selectionMode="multiple" [selection]="selected()" (selectionChange)="selected.set($event)">
-        <ng-template #header>
-            <tr>
-                <th style="width: 3rem">
-                    <!-- Selects the rows on screen, which is the page the server returned:
+        <p-table
+            [value]="issues()"
+            [tableStyle]="{ 'min-width': '60rem' }"
+            [loading]="loading()"
+            dataKey="id"
+            selectionMode="multiple"
+            [selection]="selected()"
+            (selectionChange)="selected.set($event)"
+        >
+            <ng-template #header>
+                <tr>
+                    <th style="width: 3rem">
+                        <!-- Selects the rows on screen, which is the page the server returned:
                          a "select all 228" would tick rows nobody has read. -->
-                    <p-tableHeaderCheckbox [ariaLabel]="'issues.aria_select_page' | translate" />
-                </th>
-                <th>{{ 'issues.col_issue' | translate }}</th>
-                <th>{{ 'issues.col_type' | translate }}</th>
-                <th>{{ 'issues.col_target' | translate }}</th>
-                <th>{{ 'issues.filter_severity' | translate }}</th>
-                <th>{{ 'issues.component' | translate }}</th>
-                <th>{{ 'issues.col_history' | translate }}</th>
-                <th>{{ 'issues.col_deadline' | translate }}</th>
-                <th>{{ 'issues.col_triage' | translate }}</th>
-                <th></th>
-            </tr>
-        </ng-template>
-        <ng-template #body let-issue>
-            <tr>
-                <td>
-                    <p-tableCheckbox [value]="issue" [ariaLabel]="'issues.aria_select' | translate: { name: issue.identifier ?? ('issues.this_issue' | translate) }" />
-                </td>
-                <td>
-                    <!-- The identifier is the handle: it is what somebody reads the row
+                        <p-tableHeaderCheckbox [ariaLabel]="'issues.aria_select_page' | translate" />
+                    </th>
+                    <th>{{ 'issues.col_issue' | translate }}</th>
+                    <th>{{ 'issues.col_type' | translate }}</th>
+                    <th>{{ 'issues.col_target' | translate }}</th>
+                    <th>{{ 'issues.filter_severity' | translate }}</th>
+                    <th>{{ 'issues.component' | translate }}</th>
+                    <th>{{ 'issues.col_history' | translate }}</th>
+                    <th>{{ 'issues.col_deadline' | translate }}</th>
+                    <th>{{ 'issues.col_triage' | translate }}</th>
+                    <th></th>
+                </tr>
+            </ng-template>
+            <ng-template #body let-issue>
+                <tr>
+                    <td>
+                        <p-tableCheckbox
+                            [value]="issue"
+                            [ariaLabel]="
+                                'issues.aria_select'
+                                    | translate: { name: issue.identifier ?? ('issues.this_issue' | translate) }
+                            "
+                        />
+                    </td>
+                    <td>
+                        <!-- The identifier is the handle: it is what somebody reads the row
                           for, so it is what opens the detail. -->
-                    <a class="font-medium" [routerLink]="['/issues', issue.id]">
-                        {{ issue.identifier ?? '—' }}
-                    </a>
-                    @if (issue.isKev) { <p-tag severity="danger" value="KEV" styleClass="ml-2" /> }
-                    @if (issue.reachability === 'REACHABLE') {
-                        <p-tag severity="danger" [value]="'issues.tag_reachable' | translate" styleClass="ml-1" />
-                    } @else if (issue.reachability === 'UNREACHABLE') {
-                        <p-tag severity="success" [value]="'issues.tag_unreachable' | translate" styleClass="ml-1" />
-                    }
-                    <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">{{ issue.filePath ?? '—' }}</div>
-                </td>
-                <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
-                <td>
-                    <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
-                    <div class="text-xs text-muted-color">{{ issue.targetKind === 'container' ? ('issues.kind_image' | translate) : ('issues.kind_repository' | translate) }}</div>
-                </td>
-                <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
-                <td>
-                    <span>{{ issue.packageName ?? '—' }}</span>
-                    @if (issue.packageVersion) { <span class="text-muted-color"> {{ issue.packageVersion }}</span> }
-                </td>
-                <td class="text-muted-color">{{ 'issues.seen_times' | translate: { count: issue.timesSeen } }}</td>
-                <td>
-                    <!--
+                        <a class="font-medium" [routerLink]="['/issues', issue.id]">
+                            {{ issue.identifier ?? '—' }}
+                        </a>
+                        @if (issue.isKev) {
+                            <p-tag severity="danger" value="KEV" styleClass="ml-2" />
+                        }
+                        @if (issue.reachability === 'REACHABLE') {
+                            <p-tag severity="danger" [value]="'issues.tag_reachable' | translate" styleClass="ml-1" />
+                        } @else if (issue.reachability === 'UNREACHABLE') {
+                            <p-tag
+                                severity="success"
+                                [value]="'issues.tag_unreachable' | translate"
+                                styleClass="ml-1"
+                            />
+                        }
+                        <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">
+                            {{ issue.filePath ?? '—' }}
+                        </div>
+                    </td>
+                    <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
+                    <td>
+                        <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
+                        <div class="text-xs text-muted-color">
+                            {{
+                                issue.targetKind === 'container'
+                                    ? ('issues.kind_image' | translate)
+                                    : ('issues.kind_repository' | translate)
+                            }}
+                        </div>
+                    </td>
+                    <td><p-tag [severity]="severityColour(issue.severity)" [value]="issue.severity ?? 'unknown'" /></td>
+                    <td>
+                        <span>{{ issue.packageName ?? '—' }}</span>
+                        @if (issue.packageVersion) {
+                            <span class="text-muted-color"> {{ issue.packageVersion }}</span>
+                        }
+                    </td>
+                    <td class="text-muted-color">{{ 'issues.seen_times' | translate: { count: issue.timesSeen } }}</td>
+                    <td>
+                        <!--
                         Absent rather than "—" when no window applies: a severity with no deadline,
                         or an issue triage has settled, has nothing to be late for, and an empty
                         dash invites the reader to wonder which of the two it is.
                     -->
-                    @if (slaLabel(issue); as label) {
-                        <p-tag [severity]="slaColour(issue)" [value]="label" />
-                    }
-                </td>
-                <td>
-                    <p-tag [severity]="triageColour(issue.triageStatus)" [value]="triageLabel(issue.triageStatus)" />
-                    @if (issue.triagedBy) { <div class="text-muted-color text-sm">{{ 'issues.triaged_by' | translate: { name: issue.triagedBy } }}</div> }
-                    <!--
+                        @if (slaLabel(issue); as label) {
+                            <p-tag [severity]="slaColour(issue)" [value]="label" />
+                        }
+                    </td>
+                    <td>
+                        <p-tag
+                            [severity]="triageColour(issue.triageStatus)"
+                            [value]="triageLabel(issue.triageStatus)"
+                        />
+                        @if (issue.triagedBy) {
+                            <div class="text-muted-color text-sm">
+                                {{ 'issues.triaged_by' | translate: { name: issue.triagedBy } }}
+                            </div>
+                        }
+                        <!--
                         The review date, which could be set and was displayed nowhere. An
                         acceptance nobody can see the end of is an acceptance nobody revisits —
                         and the date is what turns "dismissed" into "dismissed until".
                     -->
-                    @if (issue.triageExpiresAt) {
-                        <div class="text-sm mt-1" [class.text-orange-500]="reviewIsImminent(issue)">
-                            {{ 'issues.review_on' | translate: { date: (issue.triageExpiresAt | date: 'dd/MM/yyyy') ?? '' } }}
-                        </div>
-                    }
-                    <!--
+                        @if (issue.triageExpiresAt) {
+                            <div class="text-sm mt-1" [class.text-orange-500]="reviewIsImminent(issue)">
+                                {{
+                                    'issues.review_on'
+                                        | translate: { date: (issue.triageExpiresAt | date: 'dd/MM/yyyy') ?? '' }
+                                }}
+                            </div>
+                        }
+                        <!--
                         The ticket is shown here because without it, an opened ticket
                         would be invisible from Vectispire: somebody would raise the same
                         one by hand, and nobody would know the work is already
                         planned.
                     -->
-                    @if (issue.ticketRef) {
-                        <div class="text-sm mt-1">
-                            @if (issue.ticketUrl) {
-                                <a [href]="issue.ticketUrl" target="_blank" rel="noopener noreferrer">{{ issue.ticketRef }}</a>
-                            } @else {
-                                <span class="text-muted-color">{{ issue.ticketRef }}</span>
-                            }
-                        </div>
-                    }
-                </td>
-                <td class="text-right">
-                    <div class="flex items-center justify-end gap-1">
-                        <!--
+                        @if (issue.ticketRef) {
+                            <div class="text-sm mt-1">
+                                @if (issue.ticketUrl) {
+                                    <a [href]="issue.ticketUrl" target="_blank" rel="noopener noreferrer">{{
+                                        issue.ticketRef
+                                    }}</a>
+                                } @else {
+                                    <span class="text-muted-color">{{ issue.ticketRef }}</span>
+                                }
+                            </div>
+                        }
+                    </td>
+                    <td class="text-right">
+                        <div class="flex items-center justify-end gap-1">
+                            <!--
                             Offered only if a model is configured: an absent option must be absent,
                             not present and refusing.
                         -->
-                        @if (aiEnabled()) {
-                            <p-button icon="pi pi-sparkles" size="small" [text]="true" severity="help"
-                                      [title]="'issues.ai_explain' | translate" (onClick)="openAiAdvisor(issue)" />
-                        }
-                        <!--
+                            @if (aiEnabled()) {
+                                <p-button
+                                    icon="pi pi-sparkles"
+                                    size="small"
+                                    [text]="true"
+                                    severity="help"
+                                    [title]="'issues.ai_explain' | translate"
+                                    (onClick)="openAiAdvisor(issue)"
+                                />
+                            }
+                            <!--
                             **Guarded like the bulk button, and it was not.** The per-row control had
                             been forgotten when triage became role-aware: an auditor saw it, opened
                             the dialog, filled it in, and collected a 403 on save — precisely the
                             broken screen the route guards had just removed elsewhere.
                         -->
-                        @if (canTriage()) {
-                            <p-button [label]="triageActionLabel()"
-                                      size="small" [text]="true" (onClick)="openTriage(issue)" />
-                        }
-                    </div>
-                </td>
-            </tr>
-        </ng-template>
-        <ng-template #emptymessage>
-            <tr><td colspan="10" class="text-center text-muted-color py-6">{{ 'issues.empty_filtered' | translate }}</td></tr>
-        </ng-template>
-    </p-table>
+                            @if (canTriage()) {
+                                <p-button
+                                    [label]="triageActionLabel()"
+                                    size="small"
+                                    [text]="true"
+                                    (onClick)="openTriage(issue)"
+                                />
+                            }
+                        </div>
+                    </td>
+                </tr>
+            </ng-template>
+            <ng-template #emptymessage>
+                <tr>
+                    <td colspan="10" class="text-center text-muted-color py-6">
+                        {{ 'issues.empty_filtered' | translate }}
+                    </td>
+                </tr>
+            </ng-template>
+        </p-table>
     </div>
 
     <div class="flex items-center justify-between mt-4">
         <span class="text-muted-color">{{ pageLabel() }}</span>
         <div class="flex gap-2">
-            <p-button [label]="'common.previous' | translate" size="small" [outlined]="true" [disabled]="offset() === 0" (onClick)="reload(offset() - limit)" />
-            <p-button [label]="'common.next' | translate" size="small" [outlined]="true" [disabled]="offset() + limit >= total()" (onClick)="reload(offset() + limit)" />
+            <p-button
+                [label]="'common.previous' | translate"
+                size="small"
+                [outlined]="true"
+                [disabled]="offset() === 0"
+                (onClick)="reload(offset() - limit)"
+            />
+            <p-button
+                [label]="'common.next' | translate"
+                size="small"
+                [outlined]="true"
+                [disabled]="offset() + limit >= total()"
+                (onClick)="reload(offset() + limit)"
+            />
         </div>
     </div>
 </div>
 
-<p-dialog [header]="triageHeader()" [(visible)]="triageOpen" [modal]="true" [style]="{ width: '32rem' }" [appendTo]="'body'">
+<p-dialog
+    [header]="triageHeader()"
+    [(visible)]="triageOpen"
+    [modal]="true"
+    [style]="{ width: '32rem' }"
+    [appendTo]="'body'"
+>
     <div class="flex flex-col gap-4">
         <div>
-            <label for="triage-status" class="block font-medium mb-2">{{ 'issues.triage_dialog_title' | translate }}</label>
-            <p-select inputId="triage-status" [(ngModel)]="triageStatus" [options]="triageOptions()" optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body" />
+            <label for="triage-status" class="block font-medium mb-2">{{
+                'issues.triage_dialog_title' | translate
+            }}</label>
+            <p-select
+                inputId="triage-status"
+                [(ngModel)]="triageStatus"
+                [options]="triageOptions()"
+                optionLabel="label"
+                optionValue="value"
+                styleClass="w-full"
+                appendTo="body"
+            />
         </div>
 
         @if (triageStatus === 'not_affected' || triageStatus === 'pending_approval') {
             <div>
-                <label for="triage-justification" class="block font-medium mb-2">{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label>
-                <p-select inputId="triage-justification" [(ngModel)]="triageJustification" [options]="justifications()" optionLabel="label" optionValue="value" styleClass="w-full" [placeholder]="'issues.choose' | translate" appendTo="body" />
+                <label for="triage-justification" class="block font-medium mb-2"
+                    >{{ 'issues.triage_reason' | translate }} <span class="text-red-500">*</span></label
+                >
+                <p-select
+                    inputId="triage-justification"
+                    [(ngModel)]="triageJustification"
+                    [options]="justifications()"
+                    optionLabel="label"
+                    optionValue="value"
+                    styleClass="w-full"
+                    [placeholder]="'issues.choose' | translate"
+                    appendTo="body"
+                />
                 <small class="text-muted-color">{{ 'issues.justification_hint' | translate }}</small>
             </div>
         }
@@ -256,24 +406,37 @@
 
         @if (triageStatus !== 'under_review') {
             <div>
-                <label for="triage-expires" class="block font-medium mb-2">{{ 'issues.triage_expires' | translate }}</label>
+                <label for="triage-expires" class="block font-medium mb-2">{{
+                    'issues.triage_expires' | translate
+                }}</label>
                 <input id="triage-expires" pInputText type="number" [(ngModel)]="triageExpiresInDays" class="w-full" />
                 <small class="text-muted-color">{{ 'issues.expires_hint' | translate }}</small>
             </div>
         }
 
-        @if (triageError()) { <p-message severity="error" styleClass="w-full">{{ triageError() }}</p-message> }
+        @if (triageError()) {
+            <p-message severity="error" styleClass="w-full">{{ triageError() }}</p-message>
+        }
     </div>
 
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="triageOpen = false" />
-        <p-button [label]="canApprove() ? ('common.save' | translate) : triageActionLabel()"
-                  [disabled]="!canSubmitTriage() || !canTriage()" (onClick)="submitTriage()" />
+        <p-button
+            [label]="canApprove() ? ('common.save' | translate) : triageActionLabel()"
+            [disabled]="!canSubmitTriage() || !canTriage()"
+            (onClick)="submitTriage()"
+        />
     </ng-template>
 </p-dialog>
 
 <!-- AI Fix & Exploit Advisor Modal -->
-<p-dialog [header]="aiAdvice()?.title || ('issues.ai_dialog_title' | translate)" [(visible)]="aiModalOpen" [modal]="true" [style]="{ width: '48rem', maxWidth: '95vw' }" [appendTo]="'body'">
+<p-dialog
+    [header]="aiAdvice()?.title || ('issues.ai_dialog_title' | translate)"
+    [(visible)]="aiModalOpen"
+    [modal]="true"
+    [style]="{ width: '48rem', maxWidth: '95vw' }"
+    [appendTo]="'body'"
+>
     @if (aiAdviceLoading()) {
         <div class="py-12 text-center">
             <i class="pi pi-spin pi-spinner text-4xl text-purple-600 mb-3"></i>
@@ -290,10 +453,14 @@
     } @else if (aiAdvice()) {
         <div class="flex flex-col gap-5 py-2">
             <!-- Summary Banner -->
-            <div class="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl flex items-start gap-3">
+            <div
+                class="p-4 bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-xl flex items-start gap-3"
+            >
                 <i class="pi pi-sparkles text-purple-600 text-xl mt-0.5"></i>
                 <div class="flex-1">
-                    <h4 class="font-bold text-purple-950 dark:text-purple-200 text-base mb-1">{{ 'issues.ai_summary' | translate }}</h4>
+                    <h4 class="font-bold text-purple-950 dark:text-purple-200 text-base mb-1">
+                        {{ 'issues.ai_summary' | translate }}
+                    </h4>
                     <!--
                         **The model's words when a model wrote them, ours translated otherwise.**
                         These fields stay free text because a model fills them with its own prose,
@@ -303,7 +470,15 @@
                     -->
                     <p class="text-sm text-purple-900 dark:text-purple-300 leading-relaxed">
                         @if (aiAdvice()!.deterministic; as own) {
-                            {{ 'ai.summary' | translate: { id: aiAdvice()!.identifier, package: own.packageName, version: own.currentVersion } }}
+                            {{
+                                'ai.summary'
+                                    | translate
+                                        : {
+                                              id: aiAdvice()!.identifier,
+                                              package: own.packageName,
+                                              version: own.currentVersion
+                                          }
+                            }}
                         } @else {
                             {{ aiAdvice()!.summaryExplanation }}
                         }
@@ -313,7 +488,9 @@
 
             <!-- Exploit mechanics & Exposure -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl">
+                <div
+                    class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl"
+                >
                     <h5 class="font-semibold text-sm mb-2 flex items-center gap-2 text-red-600 dark:text-red-400">
                         <i class="pi pi-shield"></i> {{ 'issues.ai_mechanism' | translate }}
                     </h5>
@@ -329,16 +506,24 @@
                         }
                     </p>
                 </div>
-                <div class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl">
+                <div
+                    class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl"
+                >
                     <h5 class="font-semibold text-sm mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
                         <i class="pi pi-compass"></i> {{ 'issues.ai_reachability' | translate }}
                     </h5>
                     <p class="text-xs text-muted-color leading-relaxed">
                         @if (aiAdvice()!.deterministic; as own) {
                             @switch (own.exposure) {
-                                @case ('MENTIONED_IN_CODE') { {{ 'ai.exposure_mentioned' | translate }} }
-                                @case ('NOT_MENTIONED') { {{ 'ai.exposure_not_mentioned' | translate }} }
-                                @case ('UNKNOWN') { {{ 'ai.exposure_unknown' | translate }} }
+                                @case ('MENTIONED_IN_CODE') {
+                                    {{ 'ai.exposure_mentioned' | translate }}
+                                }
+                                @case ('NOT_MENTIONED') {
+                                    {{ 'ai.exposure_not_mentioned' | translate }}
+                                }
+                                @case ('UNKNOWN') {
+                                    {{ 'ai.exposure_unknown' | translate }}
+                                }
                             }
                         } @else {
                             {{ aiAdvice()!.exposureAssessment }}
@@ -348,20 +533,31 @@
             </div>
 
             <!-- Direct Remediation & Code Diff -->
-            <div class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl">
+            <div
+                class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl"
+            >
                 <div class="flex items-center justify-between mb-2">
                     <h5 class="font-semibold text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                         <i class="pi pi-wrench"></i> {{ 'issues.ai_remediation' | translate }}
                     </h5>
-                    <span class="text-xs font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded font-semibold">
+                    <span
+                        class="text-xs font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded font-semibold"
+                    >
                         {{ 'issues.target_label' | translate }} {{ aiAdvice()!.remediation.suggestedVersion }}
                     </span>
                 </div>
-                <p class="text-xs text-surface-700 dark:text-surface-300 mb-3">{{ aiAdvice()!.remediation.fixAction }}</p>
-                
+                <p class="text-xs text-surface-700 dark:text-surface-300 mb-3">
+                    {{ aiAdvice()!.remediation.fixAction }}
+                </p>
+
                 @if (aiAdvice()!.remediation.cliCommand) {
-                    <div class="relative bg-surface-900 text-emerald-300 font-mono text-xs p-3 rounded-lg overflow-x-auto mb-2">
-                        <button (click)="copyText(aiAdvice()!.remediation.cliCommand)" class="absolute right-2 top-2 text-surface-400 hover:text-white text-xs bg-surface-800 px-2 py-1 rounded">
+                    <div
+                        class="relative bg-surface-900 text-emerald-300 font-mono text-xs p-3 rounded-lg overflow-x-auto mb-2"
+                    >
+                        <button
+                            (click)="copyText(aiAdvice()!.remediation.cliCommand)"
+                            class="absolute right-2 top-2 text-surface-400 hover:text-white text-xs bg-surface-800 px-2 py-1 rounded"
+                        >
                             <i class="pi pi-copy"></i> {{ 'common.copy' | translate }}
                         </button>
                         <pre class="whitespace-pre-wrap">{{ aiAdvice()!.remediation.cliCommand }}</pre>
@@ -371,18 +567,32 @@
 
             <!-- VEX Suggestion Box -->
             @if (aiAdvice()!.vexSuggestion) {
-                <div class="p-4 bg-surface-100 dark:bg-surface-800 border border-dashed border-surface-300 dark:border-surface-600 rounded-xl">
+                <div
+                    class="p-4 bg-surface-100 dark:bg-surface-800 border border-dashed border-surface-300 dark:border-surface-600 rounded-xl"
+                >
                     <div class="flex items-center justify-between mb-2">
                         <h5 class="font-semibold text-sm flex items-center gap-2">
-                            <i class="pi pi-file-check text-purple-600"></i> {{ 'issues.ai_vex_suggestion' | translate }}
+                            <i class="pi pi-file-check text-purple-600"></i>
+                            {{ 'issues.ai_vex_suggestion' | translate }}
                         </h5>
-                        <p-tag [value]="aiAdvice()!.vexSuggestion.status" [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'" />
+                        <p-tag
+                            [value]="aiAdvice()!.vexSuggestion.status"
+                            [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'"
+                        />
                     </div>
                     <p class="text-xs text-muted-color mb-1">
-                        <strong>{{ 'issues.rule' | translate }}</strong> <code class="text-purple-600">{{ aiAdvice()!.vexSuggestion.justification }}</code>
+                        <strong>{{ 'issues.rule' | translate }}</strong>
+                        <code class="text-purple-600">{{ aiAdvice()!.vexSuggestion.justification }}</code>
                     </p>
-                    <p class="text-xs text-surface-600 dark:text-surface-300 italic mb-3">"{{ aiAdvice()!.vexSuggestion.impactStatement }}"</p>
-                    <p-button [label]="'issues.ai_apply_vex' | translate" icon="pi pi-check" size="small" (onClick)="applySuggestedVex()" />
+                    <p class="text-xs text-surface-600 dark:text-surface-300 italic mb-3">
+                        "{{ aiAdvice()!.vexSuggestion.impactStatement }}"
+                    </p>
+                    <p-button
+                        [label]="'issues.ai_apply_vex' | translate"
+                        icon="pi pi-check"
+                        size="small"
+                        (onClick)="applySuggestedVex()"
+                    />
                 </div>
             }
         </div>
@@ -392,4 +602,3 @@
         <p-button [label]="'common.close' | translate" [text]="true" (onClick)="aiModalOpen = false" />
     </ng-template>
 </p-dialog>
-

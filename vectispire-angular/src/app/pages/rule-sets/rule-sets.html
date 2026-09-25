@@ -20,7 +20,12 @@
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="rule-set-name" class="font-medium">{{ 'rule_sets.name_label' | translate }}</label>
-            <input pInputText id="rule-set-name" [(ngModel)]="name" [placeholder]="'rule_sets.name_placeholder' | translate" />
+            <input
+                pInputText
+                id="rule-set-name"
+                [(ngModel)]="name"
+                [placeholder]="'rule_sets.name_placeholder' | translate"
+            />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -51,9 +56,7 @@
             <p class="m-0 text-sm">
                 {{ picked().length }} {{ 'rule_sets.files_selected' | translate }}
                 @if (ignored() > 0) {
-                    <span class="text-muted-color">
-                        {{ ignored() }} {{ 'rule_sets.ignored_files' | translate }}
-                    </span>
+                    <span class="text-muted-color"> {{ ignored() }} {{ 'rule_sets.ignored_files' | translate }} </span>
                 }
             </p>
         }
@@ -80,11 +83,17 @@
     -->
     <div class="flex flex-col gap-4">
         <div>
-            <p-button [label]="'rule_sets.read_catalogue_btn' | translate" icon="pi pi-download" [loading]="loadingCatalogue()"
-                      (onClick)="readCatalogue()" />
+            <p-button
+                [label]="'rule_sets.read_catalogue_btn' | translate"
+                icon="pi pi-download"
+                [loading]="loadingCatalogue()"
+                (onClick)="readCatalogue()"
+            />
         </div>
         <small class="text-muted-color max-w-3xl">
-            {{ 'rule_sets.catalogue_hint_before' | translate }} <strong>{{ 'rule_sets.catalogue_hint_strong' | translate }}</strong>{{ 'rule_sets.catalogue_hint_after' | translate }}
+            {{ 'rule_sets.catalogue_hint_before' | translate }}
+            <strong>{{ 'rule_sets.catalogue_hint_strong' | translate }}</strong
+            >{{ 'rule_sets.catalogue_hint_after' | translate }}
         </small>
 
         @if (catalogueError(); as message) {
@@ -95,16 +104,20 @@
             <div class="border-t pt-4" style="border-color: var(--surface-border)">
                 <p class="m-0 mb-3 text-sm">
                     <span class="font-medium">{{ preview.upstream }}</span> {{ 'rule_sets.at_commit' | translate }}
-                    <span class="font-mono">{{ preview.commit.slice(0, 12) }}</span>.
+                    <span class="font-mono">{{ preview.commit.slice(0, 12) }}</span
+                    >.
                 </p>
 
                 <div class="font-medium mb-2">{{ 'rule_sets.languages_title' | translate }}</div>
                 <div class="flex flex-wrap gap-3 mb-4">
                     @for (language of languagesOf(preview); track language.name) {
                         <div class="flex items-center gap-2">
-                            <p-checkbox [inputId]="'lang-' + language.name" [binary]="true"
-                                        [ngModel]="chosen().has(language.name)"
-                                        (ngModelChange)="choose(language.name, $event)" />
+                            <p-checkbox
+                                [inputId]="'lang-' + language.name"
+                                [binary]="true"
+                                [ngModel]="chosen().has(language.name)"
+                                (ngModelChange)="choose(language.name, $event)"
+                            />
                             <label [for]="'lang-' + language.name" class="cursor-pointer text-sm">
                                 {{ language.name }}
                                 <span class="text-muted-color">({{ language.count }})</span>
@@ -145,8 +158,10 @@
                 </p-message>
 
                 <div class="font-medium mb-2">{{ preview.licenceName }}</div>
-                <pre class="text-xs p-3 border rounded overflow-auto max-h-64 whitespace-pre-wrap"
-                     style="border-color: var(--surface-border)">{{ preview.licence }}</pre>
+                <pre
+                    class="text-xs p-3 border rounded overflow-auto max-h-64 whitespace-pre-wrap"
+                    style="border-color: var(--surface-border)"
+                    >{{ preview.licence }}</pre>
 
                 <div class="flex items-start gap-2 mt-3">
                     <p-checkbox inputId="licence-accepted" [binary]="true" [(ngModel)]="licenceAccepted" />
@@ -154,15 +169,23 @@
                         {{ 'rule_sets.licence_accept' | translate }}
                         <span class="block text-muted-color">
                             {{ 'rule_sets.licence_notice_before' | translate }}
-                            <strong>{{ 'rule_sets.licence_notice_strong' | translate }}</strong>{{ 'rule_sets.licence_notice_after' | translate }}
+                            <strong>{{ 'rule_sets.licence_notice_strong' | translate }}</strong
+                            >{{ 'rule_sets.licence_notice_after' | translate }}
                         </span>
                     </label>
                 </div>
 
                 <div class="mt-4">
-                    <p-button [label]="'rule_sets.fetch_btn' | translate" icon="pi pi-check" [loading]="fetching()"
-                              [disabled]="!licenceAccepted || chosen().size === 0" (onClick)="fetchCatalogue()" />
-                    <span class="text-muted-color text-sm ml-3">{{ 'rule_sets.stored_not_activated' | translate }}</span>
+                    <p-button
+                        [label]="'rule_sets.fetch_btn' | translate"
+                        icon="pi pi-check"
+                        [loading]="fetching()"
+                        [disabled]="!licenceAccepted || chosen().size === 0"
+                        (onClick)="fetchCatalogue()"
+                    />
+                    <span class="text-muted-color text-sm ml-3">{{
+                        'rule_sets.stored_not_activated' | translate
+                    }}</span>
                 </div>
             </div>
         }
@@ -205,7 +228,12 @@
                 </td>
                 <td class="text-right">
                     @if (!set.isActive) {
-                        <p-button [label]="'rule_sets.review_btn' | translate" size="small" [text]="true" (onClick)="review(set)" />
+                        <p-button
+                            [label]="'rule_sets.review_btn' | translate"
+                            size="small"
+                            [text]="true"
+                            (onClick)="review(set)"
+                        />
                     }
                 </td>
             </tr>
@@ -222,7 +250,12 @@
 
     @if (active()) {
         <div class="mt-4">
-            <p-button [label]="'rule_sets.deactivate_btn' | translate" severity="secondary" [text]="true" (onClick)="deactivate()" />
+            <p-button
+                [label]="'rule_sets.deactivate_btn' | translate"
+                severity="secondary"
+                [text]="true"
+                (onClick)="deactivate()"
+            />
         </div>
     }
 </p-card>
@@ -259,9 +292,15 @@
                                 {{ 'rule_sets.impact_explain' | translate }}
                             </p>
                             <p class="m-0 mt-2 text-sm">
-                                {{ 'rule_sets.impact_losing' | translate }} <span class="font-mono">{{ cost.losingIssues.slice(0, 10).join(', ') }}</span>
+                                {{ 'rule_sets.impact_losing' | translate }}
+                                <span class="font-mono">{{ cost.losingIssues.slice(0, 10).join(', ') }}</span>
                                 @if (cost.losingIssues.length > 10) {
-                                    <span> {{ 'rule_sets.impact_more' | translate: { count: cost.losingIssues.length - 10 } }}</span>
+                                    <span>
+                                        {{
+                                            'rule_sets.impact_more'
+                                                | translate: { count: cost.losingIssues.length - 10 }
+                                        }}</span
+                                    >
                                 }
                             </p>
                         </div>
@@ -273,8 +312,18 @@
                 }
 
                 <div class="flex gap-2">
-                    <p-button [label]="'rule_sets.activate_btn' | translate" icon="pi pi-check" [loading]="activating()" (onClick)="activate(set, cost)" />
-                    <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="candidate.set(null)" />
+                    <p-button
+                        [label]="'rule_sets.activate_btn' | translate"
+                        icon="pi pi-check"
+                        [loading]="activating()"
+                        (onClick)="activate(set, cost)"
+                    />
+                    <p-button
+                        [label]="'common.cancel' | translate"
+                        severity="secondary"
+                        [text]="true"
+                        (onClick)="candidate.set(null)"
+                    />
                 </div>
             </div>
         </p-card>

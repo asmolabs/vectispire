@@ -5,7 +5,9 @@
     @if (scope(); as data) {
         @if (data.statement) {
             <div class="mb-6 p-4 rounded border border-surface-200 dark:border-surface-700">
-                <div class="text-muted-color text-xs uppercase tracking-wide font-medium mb-1">{{ 'scope.statement' | translate }}</div>
+                <div class="text-muted-color text-xs uppercase tracking-wide font-medium mb-1">
+                    {{ 'scope.statement' | translate }}
+                </div>
                 <div>{{ data.statement }}</div>
             </div>
         }
@@ -13,7 +15,9 @@
         @if (!declared()) {
             <p-message severity="warn" styleClass="w-full mb-4" [text]="'scope.undeclared_notice' | translate" />
         } @else if (unaccountedFor() > 0) {
-            <div class="mb-6 p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-950 rounded-r flex flex-wrap items-baseline gap-4">
+            <div
+                class="mb-6 p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-950 rounded-r flex flex-wrap items-baseline gap-4"
+            >
                 <div class="text-2xl font-medium text-red-700">{{ unaccountedFor() }}</div>
                 <div class="text-sm">
                     <strong>{{ 'scope.unaccounted' | translate }}</strong>
@@ -64,9 +68,12 @@
                 <div class="font-medium mb-2">{{ 'scope.repositories' | translate }}</div>
                 @for (repository of repositories(); track repository.id) {
                     <label class="flex items-center gap-2 py-1 cursor-pointer">
-                        <input type="checkbox" [checked]="inScope('REPOSITORY', repository.id)"
+                        <input
+                            type="checkbox"
+                            [checked]="inScope('REPOSITORY', repository.id)"
                             [disabled]="!canEdit()"
-                            (change)="toggleRepository(repository.id, $any($event.target).checked)" />
+                            (change)="toggleRepository(repository.id, $any($event.target).checked)"
+                        />
                         <span>{{ repository.name }}</span>
                     </label>
                 } @empty {
@@ -77,9 +84,12 @@
                 <div class="font-medium mb-2">{{ 'scope.containers' | translate }}</div>
                 @for (container of containers(); track container.id) {
                     <label class="flex items-center gap-2 py-1 cursor-pointer">
-                        <input type="checkbox" [checked]="inScope('CONTAINER', container.id)"
+                        <input
+                            type="checkbox"
+                            [checked]="inScope('CONTAINER', container.id)"
                             [disabled]="!canEdit()"
-                            (change)="toggleContainer(container.id, $any($event.target).checked)" />
+                            (change)="toggleContainer(container.id, $any($event.target).checked)"
+                        />
                         <span>{{ container.reference }}</span>
                     </label>
                 } @empty {

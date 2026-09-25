@@ -45,7 +45,12 @@
                 <td>{{ repository.decisions }}</td>
                 <td>{{ repository.lastScanAt ? (repository.lastScanAt | date: 'dd/MM/yyyy HH:mm') : '—' }}</td>
                 <td>
-                    <p-button [label]="'history.open_btn' | translate" severity="secondary" size="small" (onClick)="open(repository)" />
+                    <p-button
+                        [label]="'history.open_btn' | translate"
+                        severity="secondary"
+                        size="small"
+                        (onClick)="open(repository)"
+                    />
                 </td>
             </tr>
         </ng-template>
@@ -62,7 +67,8 @@
         <ng-template #title>
             {{ file.repository.name }}
             <span class="text-muted-color font-normal text-sm">
-                — {{ file.scans.length }} {{ 'history.scans' | translate | lowercase }}, {{ file.repository.decisions }} {{ 'history.decisions_recorded_count' | translate }}
+                — {{ file.scans.length }} {{ 'history.scans' | translate | lowercase }}, {{ file.repository.decisions }}
+                {{ 'history.decisions_recorded_count' | translate }}
             </span>
         </ng-template>
         <ng-template #subtitle>
@@ -72,13 +78,15 @@
                     icon="pi pi-file-pdf"
                     severity="secondary"
                     size="small"
-                    (onClick)="download('pdf')" />
+                    (onClick)="download('pdf')"
+                />
                 <p-button
                     [label]="'history.export_csv' | translate"
                     icon="pi pi-file-excel"
                     severity="secondary"
                     size="small"
-                    (onClick)="download('csv')" />
+                    (onClick)="download('csv')"
+                />
             </div>
         </ng-template>
 
@@ -98,19 +106,27 @@
                         <p-tag [value]="scan.version" severity="secondary" />
                     }
                     @if (scan.status === 'completed') {
-                        <p-button [label]="'history.openvex_btn' | translate" icon="pi pi-file" [text]="true" size="small" (onClick)="downloadVex(scan.id)" />
+                        <p-button
+                            [label]="'history.openvex_btn' | translate"
+                            icon="pi pi-file"
+                            [text]="true"
+                            size="small"
+                            (onClick)="downloadVex(scan.id)"
+                        />
                     }
                 </div>
                 <div class="text-sm text-muted-color mt-1">
                     {{ scan.branch }} · {{ scan.findingsCount }} {{ 'history.findings' | translate }} ·
-                    {{ scan.newIssuesCount }} {{ 'history.new_issues' | translate }} · {{ scan.resolvedIssuesCount }} {{ 'history.resolved_issues' | translate }}
+                    {{ scan.newIssuesCount }} {{ 'history.new_issues' | translate }} · {{ scan.resolvedIssuesCount }}
+                    {{ 'history.resolved_issues' | translate }}
                 </div>
 
                 @if (scan.error) {
                     <p-message
                         [severity]="scan.status === 'failed' ? 'error' : 'warn'"
                         [closable]="false"
-                        styleClass="mt-2 w-full">
+                        styleClass="mt-2 w-full"
+                    >
                         {{ scan.error }}
                     </p-message>
                 }
@@ -125,7 +141,8 @@
                         sortField="severityRank"
                         [sortOrder]="1"
                         [paginator]="scan.issues.length > 15"
-                        [rows]="15">
+                        [rows]="15"
+                    >
                         <ng-template #header>
                             <tr>
                                 <!-- Sorted on the rank and not on the label: alphabetically "low"
@@ -145,7 +162,8 @@
                                 <td>
                                     <p-tag
                                         [value]="issue.severity ?? 'unknown'"
-                                        [severity]="severityOf(issue.severity)" />
+                                        [severity]="severityOf(issue.severity)"
+                                    />
                                 </td>
                                 <td>{{ issue.identifier ?? '—' }}</td>
                                 <td>
@@ -170,12 +188,12 @@
                                             }
                                         </div>
                                         @if (decision.comment) {
-                                            <div class="text-sm text-muted-color italic">
-                                                “{{ decision.comment }}”
-                                            </div>
+                                            <div class="text-sm text-muted-color italic">“{{ decision.comment }}”</div>
                                         }
                                     } @empty {
-                                        <div class="text-sm text-muted-color mt-1">{{ 'history.no_decision_recorded' | translate }}</div>
+                                        <div class="text-sm text-muted-color mt-1">
+                                            {{ 'history.no_decision_recorded' | translate }}
+                                        </div>
                                     }
                                 </td>
                                 <td>{{ issue.state }}</td>

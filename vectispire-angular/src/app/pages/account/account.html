@@ -16,8 +16,13 @@
                 <div class="text-sm text-muted-color">{{ user()?.username }} · {{ user()?.role }}</div>
             </div>
             <div>
-                <p-button [label]="'account.change_password' | translate" icon="pi pi-key"
-                          [outlined]="true" size="small" routerLink="/change-password" />
+                <p-button
+                    [label]="'account.change_password' | translate"
+                    icon="pi pi-key"
+                    [outlined]="true"
+                    size="small"
+                    routerLink="/change-password"
+                />
             </div>
         </div>
     </p-card>
@@ -44,8 +49,12 @@
             @if (!mfaEnabled() && !enrolment()) {
                 <p class="text-sm text-muted-color m-0">{{ 'account.mfa_help' | translate }}</p>
                 <div>
-                    <p-button [label]="'account.mfa_enable' | translate" icon="pi pi-shield"
-                              [loading]="busy()" (onClick)="begin()" />
+                    <p-button
+                        [label]="'account.mfa_enable' | translate"
+                        icon="pi pi-shield"
+                        [loading]="busy()"
+                        (onClick)="begin()"
+                    />
                 </div>
             }
 
@@ -58,19 +67,36 @@
                         does not make in passing. The secret in groups of four is the manual entry
                         every authenticator application accepts.
                     -->
-                    <div class="font-mono text-lg tracking-wide break-all p-3 rounded bg-surface-100 dark:bg-surface-800">
+                    <div
+                        class="font-mono text-lg tracking-wide break-all p-3 rounded bg-surface-100 dark:bg-surface-800"
+                    >
                         {{ readableSecret() }}
                     </div>
                     <div class="text-xs text-muted-color break-all">{{ setup.qrCodeUri }}</div>
 
                     <div class="flex flex-col gap-2">
                         <label for="mfa-code" class="font-medium">{{ 'account.mfa_code' | translate }}</label>
-                        <input pInputText id="mfa-code" inputmode="numeric" autocomplete="one-time-code"
-                               [(ngModel)]="code" name="mfa-code" />
+                        <input
+                            pInputText
+                            id="mfa-code"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
+                            [(ngModel)]="code"
+                            name="mfa-code"
+                        />
                     </div>
                     <div class="flex gap-2">
-                        <p-button [label]="'account.mfa_confirm' | translate" [loading]="busy()" (onClick)="confirm()" />
-                        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="cancel()" />
+                        <p-button
+                            [label]="'account.mfa_confirm' | translate"
+                            [loading]="busy()"
+                            (onClick)="confirm()"
+                        />
+                        <p-button
+                            [label]="'common.cancel' | translate"
+                            severity="secondary"
+                            [text]="true"
+                            (onClick)="cancel()"
+                        />
                     </div>
                 </div>
             }
@@ -93,8 +119,13 @@
 
             @if (mfaEnabled() && !removing()) {
                 <div>
-                    <p-button [label]="'account.mfa_disable' | translate" severity="danger"
-                              [outlined]="true" size="small" (onClick)="askRemoval()" />
+                    <p-button
+                        [label]="'account.mfa_disable' | translate"
+                        severity="danger"
+                        [outlined]="true"
+                        size="small"
+                        (onClick)="askRemoval()"
+                    />
                 </div>
             }
 
@@ -103,10 +134,18 @@
                     <p class="text-sm m-0">{{ 'account.mfa_disable_help' | translate }}</p>
                     <input pInputText inputmode="numeric" [(ngModel)]="code" name="mfa-removal-code" />
                     <div class="flex gap-2">
-                        <p-button [label]="'account.mfa_disable' | translate" severity="danger"
-                                  [loading]="busy()" (onClick)="remove()" />
-                        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true"
-                                  (onClick)="removing.set(false)" />
+                        <p-button
+                            [label]="'account.mfa_disable' | translate"
+                            severity="danger"
+                            [loading]="busy()"
+                            (onClick)="remove()"
+                        />
+                        <p-button
+                            [label]="'common.cancel' | translate"
+                            severity="secondary"
+                            [text]="true"
+                            (onClick)="removing.set(false)"
+                        />
                     </div>
                 </div>
             }

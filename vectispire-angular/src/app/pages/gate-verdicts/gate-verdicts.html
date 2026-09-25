@@ -33,19 +33,36 @@
             <table class="w-full text-sm" style="border-collapse: collapse">
                 <thead>
                     <tr class="text-left text-muted-color border-b border-surface-200 dark:border-surface-700">
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.target' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.verdict' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.examined' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.target' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.verdict' | translate }}
+                        </th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.examined' | translate }}
+                        </th>
                         <th class="py-2 pr-4 font-medium">{{ 'gate_verdicts.column.policy' | translate }}</th>
-                        <th class="py-2 pr-4 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.asked_by' | translate }}</th>
-                        <th class="py-2 font-medium whitespace-nowrap">{{ 'gate_verdicts.column.when' | translate }}</th>
+                        <th class="py-2 pr-4 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.asked_by' | translate }}
+                        </th>
+                        <th class="py-2 font-medium whitespace-nowrap">
+                            {{ 'gate_verdicts.column.when' | translate }}
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     @for (row of shown(); track row.id) {
                         <tr class="border-b border-surface-100 dark:border-surface-800 align-top">
                             <td class="py-3 pr-4">
-                                <div class="font-medium">{{ row.target_kind === 'REPOSITORY' ? ('gate_verdicts.kind.repository' | translate) : ('gate_verdicts.kind.container' | translate) }} {{ row.target_id }}</div>
+                                <div class="font-medium">
+                                    {{
+                                        row.target_kind === 'REPOSITORY'
+                                            ? ('gate_verdicts.kind.repository' | translate)
+                                            : ('gate_verdicts.kind.container' | translate)
+                                    }}
+                                    {{ row.target_id }}
+                                </div>
                             </td>
                             <td class="py-3 pr-4">
                                 @if (row.passed) {
@@ -57,32 +74,56 @@
                             <td class="py-3 pr-4 whitespace-nowrap">
                                 <div>{{ row.evaluated }}</div>
                                 @if (row.evaluated === 0) {
-                                    <div class="text-muted-color text-xs">{{ 'gate_verdicts.nothing_to_judge' | translate }}</div>
+                                    <div class="text-muted-color text-xs">
+                                        {{ 'gate_verdicts.nothing_to_judge' | translate }}
+                                    </div>
                                 } @else if (row.violations > 0) {
-                                    <div class="text-red-700 text-xs font-medium">{{ row.violations }} {{ 'gate_verdicts.in_violation' | translate }}</div>
+                                    <div class="text-red-700 text-xs font-medium">
+                                        {{ row.violations }} {{ 'gate_verdicts.in_violation' | translate }}
+                                    </div>
                                 } @else {
-                                    <div class="text-muted-color text-xs">{{ 'gate_verdicts.no_violation' | translate }}</div>
+                                    <div class="text-muted-color text-xs">
+                                        {{ 'gate_verdicts.no_violation' | translate }}
+                                    </div>
                                 }
                             </td>
                             <td class="py-3 pr-4">
-                                <div>{{ 'gate_verdicts.fails_at' | translate }} <strong>{{ row.fail_on_severity ?? '—' }}</strong></div>
+                                <div>
+                                    {{ 'gate_verdicts.fails_at' | translate }}
+                                    <strong>{{ row.fail_on_severity ?? '—' }}</strong>
+                                </div>
                                 <div class="text-muted-color text-xs">
-                                    {{ row.policy_source ?? '—' }}@if (row.policy_version) {<span> · v{{ row.policy_version }}</span>}
+                                    {{ row.policy_source ?? '—' }}
+                                    @if (row.policy_version) {
+                                        <span> · v{{ row.policy_version }}</span>
+                                    }
                                 </div>
                                 @if (row.relaxations_ignored) {
-                                    <div class="text-orange-700 text-xs font-medium">{{ 'gate_verdicts.relaxation_refused' | translate }}</div>
+                                    <div class="text-orange-700 text-xs font-medium">
+                                        {{ 'gate_verdicts.relaxation_refused' | translate }}
+                                    </div>
                                 }
                                 @for (count of counts(row); track count.severity) {
-                                    <span class="text-muted-color text-xs mr-2">{{ count.severity }} {{ count.count }}</span>
+                                    <span class="text-muted-color text-xs mr-2"
+                                        >{{ count.severity }} {{ count.count }}</span
+                                    >
                                 }
                             </td>
-                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs">{{ row.decided_by ?? ('gate_verdicts.unattributed' | translate) }}</td>
-                            <td class="py-3 whitespace-nowrap text-muted-color">{{ row.decided_at | date: 'dd/MM/yyyy HH:mm' }}</td>
+                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs">
+                                {{ row.decided_by ?? ('gate_verdicts.unattributed' | translate) }}
+                            </td>
+                            <td class="py-3 whitespace-nowrap text-muted-color">
+                                {{ row.decided_at | date: 'dd/MM/yyyy HH:mm' }}
+                            </td>
                         </tr>
                     } @empty {
                         <tr>
                             <td class="py-6 text-muted-color" colspan="6">
-                                {{ refusalsOnly() ? ('gate_verdicts.empty_refusals' | translate) : ('gate_verdicts.empty' | translate) }}
+                                {{
+                                    refusalsOnly()
+                                        ? ('gate_verdicts.empty_refusals' | translate)
+                                        : ('gate_verdicts.empty' | translate)
+                                }}
                             </td>
                         </tr>
                     }
@@ -92,8 +133,12 @@
 
         @if (hasMore()) {
             <div class="mt-4">
-                <p-button [label]="'gate_verdicts.more' | translate" [outlined]="true"
-                    [disabled]="loadingMore()" (onClick)="more()" />
+                <p-button
+                    [label]="'gate_verdicts.more' | translate"
+                    [outlined]="true"
+                    [disabled]="loadingMore()"
+                    (onClick)="more()"
+                />
             </div>
         }
 

@@ -1,18 +1,39 @@
 <div class="p-6 max-w-7xl mx-auto flex flex-col gap-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4">
+    <div
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-surface-200 dark:border-surface-800 pb-4"
+    >
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0 flex items-center gap-3">
                 <i class="pi pi-bell text-primary-500 text-2xl"></i>
                 {{ 'notifications.title' | translate }}
             </h1>
             <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                {{ 'notifications.alert_teams' | translate }} <strong>{{ 'notifications.channel_slack' | translate }}</strong>, <strong>{{ 'notifications.channel_teams' | translate }}</strong>, <strong>{{ 'notifications.channel_discord' | translate }}</strong>, <strong>{{ 'notifications.channel_email' | translate }}</strong> {{ 'notifications.or' | translate }} <strong>{{ 'notifications.channel_siem' | translate }}</strong>.
+                {{ 'notifications.alert_teams' | translate }}
+                <strong>{{ 'notifications.channel_slack' | translate }}</strong
+                >, <strong>{{ 'notifications.channel_teams' | translate }}</strong
+                >, <strong>{{ 'notifications.channel_discord' | translate }}</strong
+                >, <strong>{{ 'notifications.channel_email' | translate }}</strong> {{ 'notifications.or' | translate }}
+                <strong>{{ 'notifications.channel_siem' | translate }}</strong
+                >.
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <a pButton [label]="'notifications.webhook_settings' | translate" icon="pi pi-cog" class="p-button-outlined" routerLink="/settings"></a>
-            <button pButton [label]="'notifications.refresh' | translate" icon="pi pi-refresh" class="p-button-secondary" (click)="loadChannels()" [loading]="loading()"></button>
+            <a
+                pButton
+                [label]="'notifications.webhook_settings' | translate"
+                icon="pi pi-cog"
+                class="p-button-outlined"
+                routerLink="/settings"
+            ></a>
+            <button
+                pButton
+                [label]="'notifications.refresh' | translate"
+                icon="pi pi-refresh"
+                class="p-button-secondary"
+                (click)="loadChannels()"
+                [loading]="loading()"
+            ></button>
         </div>
     </div>
 
@@ -30,13 +51,17 @@
         <!-- Channels Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @for (c of channels(); track c.type) {
-                <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between gap-4">
+                <div
+                    class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between gap-4"
+                >
                     <div>
                         <!-- Card Header -->
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
                                 <i [class]="getChannelIcon(c.type)" class="text-xl"></i>
-                                <span class="font-bold text-base text-surface-900 dark:text-surface-0">{{ c.name }}</span>
+                                <span class="font-bold text-base text-surface-900 dark:text-surface-0">{{
+                                    c.name
+                                }}</span>
                             </div>
                             @if (c.configured) {
                                 <p-tag severity="success" value="Configuré"></p-tag>
@@ -47,9 +72,13 @@
 
                         <!-- Destination URL or Recipient -->
                         <div class="mt-3">
-                            <span class="text-xs text-surface-500 block">{{ 'notifications.destination' | translate }}</span>
+                            <span class="text-xs text-surface-500 block">{{
+                                'notifications.destination' | translate
+                            }}</span>
                             @if (c.configured) {
-                                <span class="font-mono text-xs text-surface-800 dark:text-surface-200 break-all bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded block mt-0.5">
+                                <span
+                                    class="font-mono text-xs text-surface-800 dark:text-surface-200 break-all bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded block mt-0.5"
+                                >
                                     {{ c.destination }}
                                 </span>
                             } @else {
@@ -61,18 +90,28 @@
 
                         <!-- Supported Events -->
                         <div class="mt-4">
-                            <span class="text-xs text-surface-500 block mb-1.5 font-semibold">{{ 'notifications.subscribed_events' | translate }}</span>
+                            <span class="text-xs text-surface-500 block mb-1.5 font-semibold">{{
+                                'notifications.subscribed_events' | translate
+                            }}</span>
                             <div class="flex flex-wrap gap-1.5">
-                                <span class="px-2 py-0.5 text-[10px] rounded bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold">
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 font-semibold"
+                                >
                                     {{ 'notifications.gate_failure' | translate }}
                                 </span>
-                                <span class="px-2 py-0.5 text-[10px] rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold">
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold"
+                                >
                                     {{ 'notifications.kev_epss_critical' | translate }}
                                 </span>
-                                <span class="px-2 py-0.5 text-[10px] rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold">
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold"
+                                >
                                     {{ 'notifications.event_scan_delta' | translate }}
                                 </span>
-                                <span class="px-2 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold">
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold"
+                                >
                                     {{ 'notifications.event_four_eyes' | translate }}
                                 </span>
                             </div>
@@ -96,12 +135,16 @@
                         <!-- Test result notification banner -->
                         @if (testResults()[c.type]; as res) {
                             @if (res.success) {
-                                <div class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5">
+                                <div
+                                    class="p-2 rounded bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-800 dark:text-emerald-200 flex items-center gap-1.5"
+                                >
                                     <i class="pi pi-check-circle text-emerald-600"></i>
                                     <span>{{ res.message }}</span>
                                 </div>
                             } @else {
-                                <div class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5">
+                                <div
+                                    class="p-2 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-800 dark:text-rose-200 flex items-center gap-1.5"
+                                >
                                     <i class="pi pi-times-circle text-rose-600"></i>
                                     <span>{{ res.message }}</span>
                                 </div>
@@ -113,13 +156,21 @@
         </div>
 
         <!-- Architecture & Outbox Resiliency Info Box -->
-        <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50 flex flex-col gap-2">
+        <div
+            class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50 flex flex-col gap-2"
+        >
             <h3 class="text-sm font-bold text-surface-900 dark:text-surface-0 flex items-center gap-2">
                 <i class="pi pi-shield text-indigo-500"></i>
                 {{ 'notifications.delivery_title' | translate }}
             </h3>
             <p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-                {{ 'notifications.outbox_intro' | translate }} <strong>{{ 'notifications.outbox_table' | translate }}</strong> {{ 'notifications.outbox_when' | translate }} <strong>{{ 'notifications.exponential_backoff' | translate }}</strong> {{ 'notifications.outbox_retry' | translate }} <strong>HMAC-SHA256</strong> {{ 'notifications.header_is' | translate }} <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Vectispire-Signature</code>).
+                {{ 'notifications.outbox_intro' | translate }}
+                <strong>{{ 'notifications.outbox_table' | translate }}</strong>
+                {{ 'notifications.outbox_when' | translate }}
+                <strong>{{ 'notifications.exponential_backoff' | translate }}</strong>
+                {{ 'notifications.outbox_retry' | translate }} <strong>HMAC-SHA256</strong>
+                {{ 'notifications.header_is' | translate }}
+                <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Vectispire-Signature</code>).
             </p>
         </div>
     }

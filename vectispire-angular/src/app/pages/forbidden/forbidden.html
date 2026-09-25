@@ -4,9 +4,12 @@
     <h1 class="text-2xl font-semibold m-0">{{ reason() }}</h1>
 
     <p class="text-muted-color max-w-prose m-0">
-        {{ 'forbidden.your_role' | translate }} <strong>{{ role() }}</strong>.
+        {{ 'forbidden.your_role' | translate }} <strong>{{ role() }}</strong
+        >.
         @if (page()) {
-            <span class="block mt-1">{{ 'forbidden.page_asked' | translate }} <code>/{{ page() }}</code></span>
+            <span class="block mt-1"
+                >{{ 'forbidden.page_asked' | translate }} <code>/{{ page() }}</code></span
+            >
         }
     </p>
 

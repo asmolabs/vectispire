@@ -12,7 +12,10 @@
     @if (result.intact) {
         <p-message severity="success" [closable]="false" styleClass="mb-4 w-full">
             @if (result.unverifiable > 0) {
-                {{ 'audit_log.chain_intact_partial' | translate: { verified: result.verified, unverifiable: result.unverifiable } }}
+                {{
+                    'audit_log.chain_intact_partial'
+                        | translate: { verified: result.verified, unverifiable: result.unverifiable }
+                }}
             } @else {
                 {{ 'audit_log.chain_intact' | translate: { verified: result.verified } }}
             }
@@ -51,7 +54,9 @@
         </p-message>
     }
 } @else if (verifying()) {
-    <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">{{ 'audit_log.verifying' | translate }}</p-message>
+    <p-message severity="secondary" [closable]="false" styleClass="mb-4 w-full">{{
+        'audit_log.verifying' | translate
+    }}</p-message>
 }
 
 @if (error(); as message) {
@@ -62,13 +67,27 @@
     <div class="flex flex-wrap gap-3 mb-4 items-end">
         <div class="flex flex-col gap-2">
             <label for="type" class="font-medium text-sm">{{ 'audit_log.operation' | translate }}</label>
-            <p-select id="type" [options]="operationOptions()" optionLabel="label" optionValue="value"
-                      [(ngModel)]="filters.operationType" (ngModelChange)="search()" [showClear]="true"
-                      [placeholder]="'common.all' | translate" [style]="{ minWidth: '14rem' }" />
+            <p-select
+                id="type"
+                [options]="operationOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="filters.operationType"
+                (ngModelChange)="search()"
+                [showClear]="true"
+                [placeholder]="'common.all' | translate"
+                [style]="{ minWidth: '14rem' }"
+            />
         </div>
         <div class="flex flex-col gap-2">
             <label for="user" class="font-medium text-sm">{{ 'audit_log.user' | translate }}</label>
-            <input pInputText id="user" [(ngModel)]="filters.userId" (keyup.enter)="search()" [placeholder]="'audit_log.any_user' | translate" />
+            <input
+                pInputText
+                id="user"
+                [(ngModel)]="filters.userId"
+                (keyup.enter)="search()"
+                [placeholder]="'audit_log.any_user' | translate"
+            />
         </div>
         <div class="flex flex-col gap-2 flex-1" style="min-width: 16rem">
             <label for="q" class="font-medium text-sm">{{ 'audit_log.description_contains' | translate }}</label>
@@ -97,7 +116,9 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="5" class="text-center text-muted-color py-6">{{ 'audit_log.empty' | translate }}</td></tr>
+            <tr>
+                <td colspan="5" class="text-center text-muted-color py-6">{{ 'audit_log.empty' | translate }}</td>
+            </tr>
         </ng-template>
     </p-table>
 
@@ -107,9 +128,21 @@
                 {{ 'common.page_range' | translate: { from: offset() + 1, to: shownTo(), total: total() } }}
             </span>
             <div class="flex gap-2">
-                <p-button [label]="'common.previous' | translate" icon="pi pi-chevron-left" [text]="true" [disabled]="offset() === 0" (onClick)="previous()" />
-                <p-button [label]="'common.next' | translate" icon="pi pi-chevron-right" iconPos="right" [text]="true"
-                          [disabled]="shownTo() >= total()" (onClick)="next()" />
+                <p-button
+                    [label]="'common.previous' | translate"
+                    icon="pi pi-chevron-left"
+                    [text]="true"
+                    [disabled]="offset() === 0"
+                    (onClick)="previous()"
+                />
+                <p-button
+                    [label]="'common.next' | translate"
+                    icon="pi pi-chevron-right"
+                    iconPos="right"
+                    [text]="true"
+                    [disabled]="shownTo() >= total()"
+                    (onClick)="next()"
+                />
             </div>
         </div>
     }

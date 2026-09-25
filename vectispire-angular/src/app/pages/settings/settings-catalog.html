@@ -11,7 +11,9 @@
                 @for (setting of visibleSettings(section); track setting.key) {
                     <div class="flex flex-col gap-2">
                         <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
-                            <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{ getSettingLabel(setting) }}</label>
+                            <label [for]="setting.key" class="font-medium min-w-0 flex-1">{{
+                                getSettingLabel(setting)
+                            }}</label>
 
                             <div class="shrink-0 w-full sm:w-auto">
                                 @switch (setting.type) {
@@ -20,37 +22,70 @@
                                              and a server-side stamp; every other boolean is saved
                                              as typed. -->
                                         @if (setting.key === 'ai_review_allow_remote_url') {
-                                            <p-toggleswitch [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [ngModel]="state.values()[setting.key] === 'true'"
-                                                            (ngModelChange)="setAllowRemote($event)" />
+                                            <p-toggleswitch
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [inputId]="setting.key"
+                                                [ngModel]="state.values()[setting.key] === 'true'"
+                                                (ngModelChange)="setAllowRemote($event)"
+                                            />
                                         } @else {
-                                            <p-toggleswitch [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [ngModel]="state.values()[setting.key] === 'true'"
-                                                            (ngModelChange)="state.set(setting.key, $event ? 'true' : 'false')" />
+                                            <p-toggleswitch
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [inputId]="setting.key"
+                                                [ngModel]="state.values()[setting.key] === 'true'"
+                                                (ngModelChange)="state.set(setting.key, $event ? 'true' : 'false')"
+                                            />
                                         }
                                     }
                                     @case ('integer') {
-                                        <p-inputnumber [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [min]="0" [ngModel]="asNumber(state.values()[setting.key])"
-                                                       (ngModelChange)="state.set(setting.key, numberToText($event))"
-                                                       styleClass="w-32" inputStyleClass="w-full" />
+                                        <p-inputnumber
+                                            [disabled]="isReadOnlyHere(setting)"
+                                            [inputId]="setting.key"
+                                            [min]="0"
+                                            [ngModel]="asNumber(state.values()[setting.key])"
+                                            (ngModelChange)="state.set(setting.key, numberToText($event))"
+                                            styleClass="w-32"
+                                            inputStyleClass="w-full"
+                                        />
                                     }
                                     @case ('severity') {
-                                        <p-select [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [options]="severities()" optionLabel="label" optionValue="value"
-                                                  [ngModel]="state.values()[setting.key]" (ngModelChange)="state.set(setting.key, $event)"
-                                                  [fluid]="true" styleClass="w-full sm:w-48" />
+                                        <p-select
+                                            [disabled]="isReadOnlyHere(setting)"
+                                            [inputId]="setting.key"
+                                            [options]="severities()"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            [ngModel]="state.values()[setting.key]"
+                                            (ngModelChange)="state.set(setting.key, $event)"
+                                            [fluid]="true"
+                                            styleClass="w-full sm:w-48"
+                                        />
                                     }
                                     @default {
                                         <!-- The provider is a choice, not free text: the two values
                                              it accepts differ in whether the code leaves the estate,
                                              and a typo reads as "ollama" by design. -->
                                         @if (setting.key === 'ai_review_provider') {
-                                            <p-select [disabled]="isReadOnlyHere(setting)" [inputId]="setting.key" [options]="aiProviders()"
-                                                      optionLabel="label" optionValue="value"
-                                                      [ngModel]="state.values()[setting.key]"
-                                                      (ngModelChange)="state.set(setting.key, $event)"
-                                                      [fluid]="true" styleClass="w-full sm:w-96" />
+                                            <p-select
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [inputId]="setting.key"
+                                                [options]="aiProviders()"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                [ngModel]="state.values()[setting.key]"
+                                                (ngModelChange)="state.set(setting.key, $event)"
+                                                [fluid]="true"
+                                                styleClass="w-full sm:w-96"
+                                            />
                                         } @else {
-                                            <input pInputText [disabled]="isReadOnlyHere(setting)" [id]="setting.key" class="w-full sm:w-96 max-w-full"
-                                                   [ngModel]="state.values()[setting.key]"
-                                                   (ngModelChange)="state.set(setting.key, $event)" />
+                                            <input
+                                                pInputText
+                                                [disabled]="isReadOnlyHere(setting)"
+                                                [id]="setting.key"
+                                                class="w-full sm:w-96 max-w-full"
+                                                [ngModel]="state.values()[setting.key]"
+                                                (ngModelChange)="state.set(setting.key, $event)"
+                                            />
                                         }
                                     }
                                 }
@@ -68,7 +103,9 @@
                         <small class="text-muted-color max-w-3xl">{{ getSettingHelp(setting) }}</small>
 
                         @if (!setting.configured) {
-                            <small class="text-muted-color italic">{{ 'settings.default_value_never_set' | translate }}</small>
+                            <small class="text-muted-color italic">{{
+                                'settings.default_value_never_set' | translate
+                            }}</small>
                         }
                     </div>
                 }
@@ -80,11 +117,17 @@
 <!-- **Shown when opening the public endpoint, never when closing it.** The switch is not flipped
      until this is accepted, and the name and date against the decision are written by the server
      on the save that follows — not by this screen. -->
-<p-dialog [header]="'settings.risk_confirm_header' | translate" [(visible)]="riskConfirmVisible" [modal]="true" [style]="{ width: '34rem' }">
+<p-dialog
+    [header]="'settings.risk_confirm_header' | translate"
+    [(visible)]="riskConfirmVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
     <div class="flex flex-col gap-3">
         <p class="m-0">
-            {{ 'settings.risk_confirm_send' | translate }} <strong>{{ 'settings.risk_confirm_what' | translate }}</strong>
-            {{ 'settings.risk_confirm_to' | translate }} <strong>{{ state.aiEndpoint() }}</strong> {{ 'settings.risk_confirm_including' | translate }}
+            {{ 'settings.risk_confirm_send' | translate }}
+            <strong>{{ 'settings.risk_confirm_what' | translate }}</strong> {{ 'settings.risk_confirm_to' | translate }}
+            <strong>{{ state.aiEndpoint() }}</strong> {{ 'settings.risk_confirm_including' | translate }}
         </p>
         <p class="m-0">
             {{ 'settings.risk_confirm_third_party' | translate }}
@@ -95,6 +138,10 @@
     </div>
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="riskConfirmVisible.set(false)" />
-        <p-button [label]="'settings.risk_confirm_accept' | translate" severity="danger" (onClick)="confirmRiskAndAllowRemote()" />
+        <p-button
+            [label]="'settings.risk_confirm_accept' | translate"
+            severity="danger"
+            (onClick)="confirmRiskAndAllowRemote()"
+        />
     </ng-template>
 </p-dialog>

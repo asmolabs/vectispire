@@ -6,15 +6,25 @@
                 <label for="ticket-token" class="font-medium min-w-0 flex-1">
                     {{ 'settings.token_label' | translate }}
                     @if (tokenConfigured()) {
-                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.token_saved' | translate }}</span>
+                        <span class="text-green-600 text-sm font-normal"
+                            >— {{ 'settings.token_saved' | translate }}</span
+                        >
                     } @else {
-                        <span class="text-muted-color text-sm font-normal">— {{ 'settings.token_none' | translate }}</span>
+                        <span class="text-muted-color text-sm font-normal"
+                            >— {{ 'settings.token_none' | translate }}</span
+                        >
                     }
                 </label>
                 <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
-                    <input pInputText id="ticket-token" type="password" class="w-full sm:w-96 max-w-full"
-                           [(ngModel)]="tokenInput"
-                           [placeholder]="'settings.token_placeholder' | translate" autocomplete="off" />
+                    <input
+                        pInputText
+                        id="ticket-token"
+                        type="password"
+                        class="w-full sm:w-96 max-w-full"
+                        [(ngModel)]="tokenInput"
+                        [placeholder]="'settings.token_placeholder' | translate"
+                        autocomplete="off"
+                    />
                     <p-button [label]="'common.save' | translate" [loading]="savingToken()" (onClick)="saveToken()" />
                 </div>
             </div>
@@ -28,20 +38,35 @@
                 <label for="ticket-webhook-secret" class="font-medium min-w-0 flex-1">
                     {{ 'settings.ticket_secret_label' | translate }}
                     @if (ticketWebhookSecretConfigured()) {
-                        <span class="text-green-600 text-sm font-normal">{{ 'settings.ticket_secret_stored' | translate }}</span>
+                        <span class="text-green-600 text-sm font-normal">{{
+                            'settings.ticket_secret_stored' | translate
+                        }}</span>
                     } @else {
-                        <span class="text-muted-color text-sm font-normal">{{ 'settings.ticket_secret_none' | translate }}</span>
+                        <span class="text-muted-color text-sm font-normal">{{
+                            'settings.ticket_secret_none' | translate
+                        }}</span>
                     }
                 </label>
                 <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
-                    <input pInputText id="ticket-webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
-                           [(ngModel)]="ticketWebhookSecretInput" autocomplete="off" />
-                    <p-button [label]="'common.save' | translate" [loading]="savingTicketWebhookSecret()"
-                              (onClick)="saveTicketWebhookSecret()" />
+                    <input
+                        pInputText
+                        id="ticket-webhook-secret"
+                        type="password"
+                        class="w-full sm:w-96 max-w-full"
+                        [(ngModel)]="ticketWebhookSecretInput"
+                        autocomplete="off"
+                    />
+                    <p-button
+                        [label]="'common.save' | translate"
+                        [loading]="savingTicketWebhookSecret()"
+                        (onClick)="saveTicketWebhookSecret()"
+                    />
                 </div>
             </div>
             <small class="text-muted-color max-w-3xl">
-                {{ 'settings.ticket_secret_hint_before' | translate }} <strong>{{ 'settings.ticket_secret_hint_us' | translate }}</strong>{{ 'settings.ticket_secret_hint_after' | translate }}
+                {{ 'settings.ticket_secret_hint_before' | translate }}
+                <strong>{{ 'settings.ticket_secret_hint_us' | translate }}</strong
+                >{{ 'settings.ticket_secret_hint_after' | translate }}
             </small>
         </div>
     </p-card>
@@ -57,16 +82,29 @@
                 <label for="webhook-secret" class="font-medium min-w-0 flex-1">
                     {{ 'settings.webhook_signing_label' | translate }}
                     @if (webhookSecretConfigured()) {
-                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.token_saved' | translate }}</span>
+                        <span class="text-green-600 text-sm font-normal"
+                            >— {{ 'settings.token_saved' | translate }}</span
+                        >
                     } @else {
-                        <span class="text-muted-color text-sm font-normal">— {{ 'settings.token_none' | translate }}</span>
+                        <span class="text-muted-color text-sm font-normal"
+                            >— {{ 'settings.token_none' | translate }}</span
+                        >
                     }
                 </label>
                 <div class="flex flex-wrap gap-2 shrink-0 w-full sm:w-auto">
-                    <input pInputText id="webhook-secret" type="password" class="w-full sm:w-96 max-w-full"
-                           [(ngModel)]="webhookSecretInput" autocomplete="off" />
-                    <p-button [label]="'common.save' | translate" [loading]="savingWebhookSecret()"
-                              (onClick)="saveWebhookSecret()" />
+                    <input
+                        pInputText
+                        id="webhook-secret"
+                        type="password"
+                        class="w-full sm:w-96 max-w-full"
+                        [(ngModel)]="webhookSecretInput"
+                        autocomplete="off"
+                    />
+                    <p-button
+                        [label]="'common.save' | translate"
+                        [loading]="savingWebhookSecret()"
+                        (onClick)="saveWebhookSecret()"
+                    />
                 </div>
             </div>
             <small class="text-muted-color max-w-3xl">
@@ -90,9 +128,15 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-tag text-blue-500"></i> {{ 'settings.webhook_jira' | translate }}</span>
+                        <span class="text-sm font-semibold flex items-center gap-1.5"
+                            ><i class="pi pi-tag text-blue-500"></i> {{ 'settings.webhook_jira' | translate }}</span
+                        >
                         <p-button
-                            [label]="webhookCopied() === 'jira' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [label]="
+                                webhookCopied() === 'jira'
+                                    ? ('common.copied' | translate)
+                                    : ('settings.copy_url' | translate)
+                            "
                             [icon]="webhookCopied() === 'jira' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'jira' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -100,14 +144,24 @@
                             (onClick)="copyWebhookUrl('jira')"
                         />
                     </div>
-                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('jira') }}</code>
+                    <code
+                        class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded"
+                        >{{ getWebhookUrl('jira') }}</code
+                    >
                 </div>
 
                 <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-share-alt text-orange-500"></i> {{ 'settings.webhook_gitlab' | translate }}</span>
+                        <span class="text-sm font-semibold flex items-center gap-1.5"
+                            ><i class="pi pi-share-alt text-orange-500"></i>
+                            {{ 'settings.webhook_gitlab' | translate }}</span
+                        >
                         <p-button
-                            [label]="webhookCopied() === 'gitlab' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [label]="
+                                webhookCopied() === 'gitlab'
+                                    ? ('common.copied' | translate)
+                                    : ('settings.copy_url' | translate)
+                            "
                             [icon]="webhookCopied() === 'gitlab' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'gitlab' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -115,14 +169,23 @@
                             (onClick)="copyWebhookUrl('gitlab')"
                         />
                     </div>
-                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('gitlab') }}</code>
+                    <code
+                        class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded"
+                        >{{ getWebhookUrl('gitlab') }}</code
+                    >
                 </div>
 
                 <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-github"></i> {{ 'settings.webhook_github' | translate }}</span>
+                        <span class="text-sm font-semibold flex items-center gap-1.5"
+                            ><i class="pi pi-github"></i> {{ 'settings.webhook_github' | translate }}</span
+                        >
                         <p-button
-                            [label]="webhookCopied() === 'github' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [label]="
+                                webhookCopied() === 'github'
+                                    ? ('common.copied' | translate)
+                                    : ('settings.copy_url' | translate)
+                            "
                             [icon]="webhookCopied() === 'github' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'github' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -130,14 +193,24 @@
                             (onClick)="copyWebhookUrl('github')"
                         />
                     </div>
-                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('github') }}</code>
+                    <code
+                        class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded"
+                        >{{ getWebhookUrl('github') }}</code
+                    >
                 </div>
 
                 <div class="p-3 border rounded-xl bg-surface-0 dark:bg-surface-900 flex flex-col gap-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-semibold flex items-center gap-1.5"><i class="pi pi-server text-emerald-500"></i> {{ 'settings.webhook_servicenow' | translate }}</span>
+                        <span class="text-sm font-semibold flex items-center gap-1.5"
+                            ><i class="pi pi-server text-emerald-500"></i>
+                            {{ 'settings.webhook_servicenow' | translate }}</span
+                        >
                         <p-button
-                            [label]="webhookCopied() === 'servicenow' ? ('common.copied' | translate) : ('settings.copy_url' | translate)"
+                            [label]="
+                                webhookCopied() === 'servicenow'
+                                    ? ('common.copied' | translate)
+                                    : ('settings.copy_url' | translate)
+                            "
                             [icon]="webhookCopied() === 'servicenow' ? 'pi pi-check' : 'pi pi-copy'"
                             [severity]="webhookCopied() === 'servicenow' ? 'success' : 'secondary'"
                             [outlined]="true"
@@ -145,7 +218,10 @@
                             (onClick)="copyWebhookUrl('servicenow')"
                         />
                     </div>
-                    <code class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded">{{ getWebhookUrl('servicenow') }}</code>
+                    <code
+                        class="text-xs font-mono text-muted-color break-all bg-surface-100 dark:bg-surface-800 p-2 rounded"
+                        >{{ getWebhookUrl('servicenow') }}</code
+                    >
                 </div>
             </div>
         </div>

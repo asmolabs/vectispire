@@ -16,10 +16,17 @@
                 <p-toggleswitch [(ngModel)]="siemForm.enabled" />
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4" style="border-color: var(--surface-border)">
+            <div
+                class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4"
+                style="border-color: var(--surface-border)"
+            >
                 <div class="flex flex-col gap-2">
                     <label for="siem-protocol" class="font-medium">{{ 'settings.siem_protocol' | translate }}</label>
-                    <select id="siem-protocol" [(ngModel)]="siemForm.protocol" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
+                    <select
+                        id="siem-protocol"
+                        [(ngModel)]="siemForm.protocol"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
                         <option value="WEBHOOK">{{ 'settings.siem_protocol_webhook' | translate }}</option>
                         <option value="SYSLOG_UDP">{{ 'settings.siem_protocol_udp' | translate }}</option>
                         <option value="SYSLOG_TCP">{{ 'settings.siem_protocol_tcp' | translate }}</option>
@@ -29,7 +36,11 @@
 
                 <div class="flex flex-col gap-2">
                     <label for="siem-min-sev" class="font-medium">{{ 'settings.siem_min_sev' | translate }}</label>
-                    <select id="siem-min-sev" [(ngModel)]="siemForm.minSeverity" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
+                    <select
+                        id="siem-min-sev"
+                        [(ngModel)]="siemForm.minSeverity"
+                        class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                    >
                         <option value="CRITICAL">{{ 'settings.siem_sev_critical' | translate }}</option>
                         <option value="HIGH">{{ 'settings.siem_sev_high' | translate }}</option>
                         <option value="MEDIUM">{{ 'settings.siem_sev_medium' | translate }}</option>
@@ -40,18 +51,33 @@
 
             <div class="flex flex-col gap-2">
                 <label for="siem-endpoint" class="font-medium">{{ 'settings.siem_endpoint' | translate }}</label>
-                <input pInputText id="siem-endpoint" [(ngModel)]="siemForm.endpoint" placeholder="https://siem-collector.internal.corp/api/v1/cef-receiver" />
+                <input
+                    pInputText
+                    id="siem-endpoint"
+                    [(ngModel)]="siemForm.endpoint"
+                    placeholder="https://siem-collector.internal.corp/api/v1/cef-receiver"
+                />
                 <small class="text-muted-color">{{ 'settings.siem_endpoint_hint' | translate }}</small>
             </div>
 
             <div class="flex flex-col gap-2">
                 <label for="siem-auth" class="font-medium">
-                    {{ 'settings.siem_auth' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+                    {{ 'settings.siem_auth' | translate }}
+                    <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
                     @if (siemConfig()?.hasAuthHeader) {
-                        <span class="text-green-600 text-sm font-normal">— {{ 'settings.siem_auth_saved' | translate }}</span>
+                        <span class="text-green-600 text-sm font-normal"
+                            >— {{ 'settings.siem_auth_saved' | translate }}</span
+                        >
                     }
                 </label>
-                <input pInputText id="siem-auth" type="password" [(ngModel)]="siemForm.authHeader" [placeholder]="'settings.siem_auth_placeholder' | translate" autocomplete="off" />
+                <input
+                    pInputText
+                    id="siem-auth"
+                    type="password"
+                    [(ngModel)]="siemForm.authHeader"
+                    [placeholder]="'settings.siem_auth_placeholder' | translate"
+                    autocomplete="off"
+                />
             </div>
 
             @if (siemTestResult(); as res) {
@@ -61,8 +87,20 @@
             }
 
             <div class="flex flex-wrap gap-3 pt-2">
-                <p-button [label]="'settings.siem_save_btn' | translate" icon="pi pi-save" [loading]="savingSiem()" (onClick)="saveSiemConfig()" />
-                <p-button [label]="'settings.siem_test_btn' | translate" icon="pi pi-bolt" severity="secondary" [outlined]="true" [loading]="testingSiem()" (onClick)="testSiem()" />
+                <p-button
+                    [label]="'settings.siem_save_btn' | translate"
+                    icon="pi pi-save"
+                    [loading]="savingSiem()"
+                    (onClick)="saveSiemConfig()"
+                />
+                <p-button
+                    [label]="'settings.siem_test_btn' | translate"
+                    icon="pi pi-bolt"
+                    severity="secondary"
+                    [outlined]="true"
+                    [loading]="testingSiem()"
+                    (onClick)="testSiem()"
+                />
             </div>
         </div>
     </p-card>

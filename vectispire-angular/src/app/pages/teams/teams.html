@@ -61,13 +61,15 @@
                         icon="pi pi-bell"
                         severity="secondary"
                         [text]="true"
-                        (onClick)="openWebhook(team)" />
+                        (onClick)="openWebhook(team)"
+                    />
                     <p-button
                         [label]="'teams.access' | translate"
                         icon="pi pi-users"
                         severity="secondary"
                         [text]="true"
-                        (onClick)="openAccess(team)" />
+                        (onClick)="openAccess(team)"
+                    />
                     <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="openRename(team)" />
                     <p-button icon="pi pi-trash" severity="danger" [text]="true" (onClick)="confirmDelete(team)" />
                 </td>
@@ -87,7 +89,8 @@
     [(visible)]="formVisible"
     [modal]="true"
     [style]="{ width: '30rem' }"
-    [header]="editing() ? ('teams.header_rename' | translate) : ('teams.header_create' | translate)">
+    [header]="editing() ? ('teams.header_rename' | translate) : ('teams.header_create' | translate)"
+>
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
@@ -103,11 +106,17 @@
                 id="team-description"
                 name="team-description"
                 [(ngModel)]="form.description"
-                class="w-full" />
+                class="w-full"
+            />
         </div>
     </div>
     <ng-template #footer>
-        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="formVisible.set(false)"
+        />
         <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="save()" />
     </ng-template>
 </p-dialog>
@@ -116,7 +125,8 @@
     [(visible)]="accessVisible"
     [modal]="true"
     [style]="{ width: '36rem' }"
-    [header]="'teams.header_access' | translate: { name: accessTeam()?.name ?? '' }">
+    [header]="'teams.header_access' | translate: { name: accessTeam()?.name ?? '' }"
+>
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
@@ -137,7 +147,8 @@
                 optionValue="value"
                 [filter]="true"
                 [placeholder]="'teams.nobody_yet' | translate"
-                styleClass="w-full" />
+                styleClass="w-full"
+            />
             <small class="text-muted-color">
                 {{ 'teams.members_hint' | translate }}
             </small>
@@ -153,14 +164,20 @@
                 optionValue="value"
                 [filter]="true"
                 [placeholder]="'teams.nothing_yet' | translate"
-                styleClass="w-full" />
+                styleClass="w-full"
+            />
             <small class="text-muted-color">
                 {{ 'teams.targets_hint' | translate }}
             </small>
         </div>
     </div>
     <ng-template #footer>
-        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="accessVisible.set(false)" />
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="accessVisible.set(false)"
+        />
         <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveAccess()" />
     </ng-template>
 </p-dialog>
@@ -169,7 +186,8 @@
     [(visible)]="webhookVisible"
     [modal]="true"
     [style]="{ width: '32rem' }"
-    [header]="'teams.header_channel' | translate: { name: webhookTeam()?.name ?? '' }">
+    [header]="'teams.header_channel' | translate: { name: webhookTeam()?.name ?? '' }"
+>
     @if (formError(); as message) {
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
@@ -179,16 +197,27 @@
         <small class="text-muted-color">
             {{ 'teams.webhook_scope' | translate }}
             <br />
-            {{ 'teams.webhook_write_only' | translate }} <strong>{{ 'teams.webhook_empty_removes' | translate }}</strong>
+            {{ 'teams.webhook_write_only' | translate }}
+            <strong>{{ 'teams.webhook_empty_removes' | translate }}</strong>
         </small>
     </div>
     <ng-template #footer>
-        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="webhookVisible.set(false)" />
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="webhookVisible.set(false)"
+        />
         <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveWebhook()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }" [header]="'teams.delete_header' | translate">
+<p-dialog
+    [(visible)]="deleteVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+    [header]="'teams.delete_header' | translate"
+>
     @if (pendingDelete(); as team) {
         <p class="m-0">
             <strong>{{ team.name }}</strong>
@@ -196,7 +225,12 @@
         </p>
     }
     <ng-template #footer>
-        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button
+            [label]="'common.cancel' | translate"
+            severity="secondary"
+            [text]="true"
+            (onClick)="deleteVisible.set(false)"
+        />
         <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="remove()" />
     </ng-template>
 </p-dialog>
