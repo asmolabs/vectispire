@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -50,13 +52,19 @@ public class IssueDecisionService {
     private final IssueTriageService triage;
     private final AuditLogService audit;
     private final SettingsService settings;
+    private final TicketService tickets;
 
     public IssueDecisionService(
-            Issues issues, IssueTriageService triage, AuditLogService audit, SettingsService settings) {
+            Issues issues,
+            IssueTriageService triage,
+            AuditLogService audit,
+            SettingsService settings,
+            TicketService tickets) {
         this.issues = issues;
         this.triage = triage;
         this.audit = audit;
         this.settings = settings;
+        this.tickets = tickets;
     }
 
     /**
@@ -186,13 +194,27 @@ public class IssueDecisionService {
             throw new InvalidTicketException(
                     "That reference is longer than " + MAX_TICKET_REFERENCE + " characters.");
         }
+        // **A reference the configured tracker issues, in the project Vectispire files into.** Any
+        // string of 64 characters was accepted, and it ended up in a URL sent with the integration's
+        // token. With no tracker configured a reference is only a label, and nothing is ever sent.
+        TicketProvider provider = tickets.provider();
+        if (provider != TicketProvider.NONE
+                && Tickets.referencePath(provider, reference, tickets.project()).isEmpty()) {
+            throw new InvalidTicketException("\"" + reference + "\" is not a " + provider.wireName()
+                    + " reference" + (provider == TicketProvider.JIRA && !tickets.project().isBlank()
+                            ? " in project " + tickets.project()
+                            : "")
+                    + ".");
+        }
         String url = rawUrl == null || rawUrl.isBlank() ? null : rawUrl.trim();
         if (url != null && url.length() > MAX_TICKET_URL) {
             throw new InvalidTicketException("That URL is longer than " + MAX_TICKET_URL + " characters.");
         }
 
         String previous = issue.getTicketRef();
-        issues.attachTicket(id, reference, url);
+        // Recorded with its author: a ticket a person attached is theirs to close, and the sweep
+        // leaves it alone — see Issues.findResolvedWithOpenTicket.
+        issues.attachTicketBy(id, reference, url, caller.actor());
 
         // Recorded as a decision, because it is one: the tracker's webhook can now close this
         // finding, and replacing the reference changes who holds that power.

@@ -147,7 +147,17 @@ public interface Issues
     @Query("select i from IssueEntity i where i.ticketRef = :ref or i.ticketRef = concat('#', :ref)")
     Optional<IssueEntity> findByTicketRefOrIid(@Param("ref") String ref);
 
-    @Query("select i from IssueEntity i where i.state = 'resolved' and i.ticketRef is not null and not i.ticketRef like 'CLOSED:%'")
+    /**
+     * Resolved findings whose ticket Vectispire opened and has not yet closed.
+     *
+     * <p>Only those it opened: a reference a person attached names a ticket somebody else may own,
+     * and closing it with the integration's token was a way to have Vectispire close any ticket in
+     * the project by attaching it to a finding one could resolve.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.state = 'resolved' and i.ticketRef is not null and not i.ticketRef like 'CLOSED:%'
+               and i.ticketAttachedBy is null""")
     List<IssueEntity> findResolvedWithOpenTicket(Limit limit);
 
     /**
@@ -160,6 +170,18 @@ public interface Issues
     @Modifying(clearAutomatically = true)
     @Query("update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url where i.id = :id")
     int attachTicket(@Param("id") Long id, @Param("reference") String reference, @Param("url") String url);
+
+    /** Records a reference a person attached, and who: Vectispire will not close that ticket. */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update IssueEntity i set i.ticketRef = :reference, i.ticketUrl = :url, i.ticketAttachedBy = :by
+             where i.id = :id""")
+    int attachTicketBy(
+            @Param("id") Long id,
+            @Param("reference") String reference,
+            @Param("url") String url,
+            @Param("by") String by);
 
     /**
      * The issues whose review date has passed.

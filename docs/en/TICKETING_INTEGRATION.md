@@ -12,6 +12,7 @@ Vectispire provides an automated bidirectional synchronization engine between it
 
 2. **Automatic Ticket Closure on Resolution**:
    * As soon as a subsequent security scan verifies that the vulnerability has been fixed (issue state transitions to `RESOLVED`), Vectispire calls the tracker API to automatically close the ticket with a resolution note: *"✅ Issue resolved by Vectispire security scan"*.
+   * **Only a ticket Vectispire opened is closed this way.** A reference a person attached by hand names a ticket somebody else may own, so it is theirs to close. And a reference is accepted only in the configured tracker's own shape — `#123` for GitLab and GitHub, `KEY-123` in the configured project for Jira, a sys_id or an incident number for ServiceNow — because it becomes part of a URL sent with the integration's token.
 
 3. **Status Sync & Triage Decisions (Inbound Webhooks)**:
    * When an engineering lead or developer updates the ticket in Jira, GitLab, GitHub, or ServiceNow with a disposition such as *False Positive*, *Won't Fix*, *Declined*, or *Risk Accepted*, Vectispire receives the inbound webhook event.

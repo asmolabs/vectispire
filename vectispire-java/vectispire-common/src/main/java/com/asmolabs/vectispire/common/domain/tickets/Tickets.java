@@ -144,4 +144,47 @@ public final class Tickets {
     private static boolean blank(String value) {
         return value == null || value.isBlank();
     }
+
+    private static final java.util.regex.Pattern NUMBERED = java.util.regex.Pattern.compile("#?([0-9]{1,10})");
+    private static final java.util.regex.Pattern JIRA_KEY =
+            java.util.regex.Pattern.compile("([A-Za-z][A-Za-z0-9_]{0,31})-([0-9]{1,10})");
+    private static final java.util.regex.Pattern SERVICENOW_ID =
+            java.util.regex.Pattern.compile("[0-9a-f]{32}|[A-Z]{2,8}[0-9]{4,12}");
+
+    /**
+     * The path segment a reference becomes in a call to the tracker, or empty when it is not a
+     * reference that tracker issues.
+     *
+     * <p><b>A reference is typed by a person and then pasted into a URL sent with Vectispire's
+     * token.</b> It was concatenated as it came, so {@code ../../../../api/now/table/sys_user?}
+     * turned "close this incident" into a request of the attacker's choosing, authenticated as the
+     * integration. Each tracker's own grammar is the whole allowance — digits for GitLab and GitHub,
+     * {@code KEY-123} for Jira, a sys_id or an incident number for ServiceNow — and what passes is
+     * still encoded, so that no future loosening of a pattern reopens the path.
+     *
+     * <p>For Jira the key must also belong to the configured project: {@code SEC-42} in a project
+     * Vectispire does not file into is somebody else's work item, whatever the syntax says. GitLab
+     * and GitHub numbers are scoped by the project already in the URL.
+     *
+     * @param project the configured project, compared case-insensitively to a Jira key's prefix;
+     *     blank checks the syntax alone
+     */
+    public static java.util.Optional<String> referencePath(TicketProvider provider, String reference, String project) {
+        String ref = reference == null ? "" : reference.trim();
+        java.util.Optional<String> segment = switch (provider) {
+            case GITLAB, GITHUB -> {
+                java.util.regex.Matcher numbered = NUMBERED.matcher(ref);
+                yield numbered.matches() ? java.util.Optional.of(numbered.group(1)) : java.util.Optional.empty();
+            }
+            case JIRA -> {
+                java.util.regex.Matcher key = JIRA_KEY.matcher(ref);
+                boolean inProject = key.matches()
+                        && (project == null || project.isBlank() || key.group(1).equalsIgnoreCase(project.trim()));
+                yield inProject ? java.util.Optional.of(ref.toUpperCase(java.util.Locale.ROOT)) : java.util.Optional.empty();
+            }
+            case SERVICENOW -> SERVICENOW_ID.matcher(ref).matches() ? java.util.Optional.of(ref) : java.util.Optional.empty();
+            case NONE -> java.util.Optional.empty();
+        };
+        return segment.map(value -> java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8));
+    }
 }

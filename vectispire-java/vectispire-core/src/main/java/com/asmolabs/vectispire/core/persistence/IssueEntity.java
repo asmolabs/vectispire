@@ -175,6 +175,10 @@ public class IssueEntity {
     @Column(name = "ticket_url", length = 500)
     private String ticketUrl;
 
+    /** Who attached the reference by hand; null when Vectispire opened the ticket itself. */
+    @Column(name = "ticket_attached_by", length = 255)
+    private String ticketAttachedBy;
+
     public Long getId() {
         return id;
     }
@@ -517,6 +521,14 @@ public class IssueEntity {
 
     public void setTicketRef(String ticketRef) {
         this.ticketRef = ticketRef;
+    }
+
+    public String getTicketAttachedBy() {
+        return ticketAttachedBy;
+    }
+
+    public void setTicketAttachedBy(String ticketAttachedBy) {
+        this.ticketAttachedBy = ticketAttachedBy;
     }
 
     public String getTicketUrl() {

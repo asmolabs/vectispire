@@ -2949,6 +2949,7 @@ export interface components {
             state?: string;
             targetKind?: string;
             targetName?: string;
+            ticketAttachedBy?: string;
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */
@@ -3704,6 +3705,7 @@ export interface components {
             state?: string;
             targetKind?: string;
             targetName?: string;
+            ticketAttachedBy?: string;
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */
@@ -3762,6 +3764,7 @@ export interface components {
             severity?: string;
             source?: string;
             state?: string;
+            ticketAttachedBy?: string;
             ticketRef?: string;
             ticketUrl?: string;
             /** Format: int32 */

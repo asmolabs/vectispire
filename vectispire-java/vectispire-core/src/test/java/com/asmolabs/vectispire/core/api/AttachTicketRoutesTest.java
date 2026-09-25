@@ -141,6 +141,56 @@ class AttachTicketRoutesTest extends ApiTestBase {
                 .andExpect(status().isNotFound());
     }
 
+    @Autowired
+    private com.asmolabs.vectispire.core.services.SettingsService settings;
+
+    @Test
+    @DisplayName("with a tracker configured, only a reference it issues, in its project, is accepted")
+    void theReferenceMustBeTheTrackers() throws Exception {
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "jira");
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "SEC");
+        try {
+            long id = seedIssue();
+            for (String hostile : new String[] {"../../../../api/now/table/sys_user?", "HR-7"}) {
+                mvc.perform(authenticated(put("/api/v1/issues/" + id + "/ticket"), asAdmin())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of("reference", hostile))))
+                        .andExpect(status().isBadRequest());
+            }
+            assertThat(issues.findById(id).orElseThrow().getTicketRef()).isNull();
+
+            mvc.perform(authenticated(put("/api/v1/issues/" + id + "/ticket"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(Map.of("reference", "SEC-42"))))
+                    .andExpect(status().isOk());
+            assertThat(issues.findById(id).orElseThrow().getTicketAttachedBy()).isNotBlank();
+        } finally {
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROVIDER, "none");
+            settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_PROJECT, "");
+        }
+    }
+
+    @Test
+    @DisplayName("a ticket a person attached is not closed by the sweep; one Vectispire opened is")
+    void onlyTicketsVectispireOpenedAreClosed() {
+        // Attaching somebody else's ticket to a finding one can resolve made the integration close
+        // it with its own token.
+        long attached = seedIssue();
+        issues.attachTicketBy(attached, "SEC-500", null, "developer");
+        long opened = seedIssue();
+        issues.attachTicket(opened, "SEC-501", null);
+        for (long id : new long[] {attached, opened}) {
+            IssueEntity issue = issues.findById(id).orElseThrow();
+            issue.setState(IssueState.RESOLVED.wireName());
+            issues.save(issue);
+        }
+
+        assertThat(issues.findResolvedWithOpenTicket(org.springframework.data.domain.Limit.of(100)))
+                .extracting(IssueEntity::getId)
+                .contains(opened)
+                .doesNotContain(attached);
+    }
+
     private long seedIssue() {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl("https://example.invalid/tickets.git");

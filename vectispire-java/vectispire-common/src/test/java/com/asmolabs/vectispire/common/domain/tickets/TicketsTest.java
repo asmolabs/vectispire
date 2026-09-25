@@ -115,4 +115,40 @@ class TicketsTest {
         assertThat(TicketProvider.NONE.isEnabled()).isFalse();
         assertThat(TicketProvider.JIRA.isEnabled()).isTrue();
     }
+
+    @org.junit.jupiter.api.Nested
+    @DisplayName("a reference as it goes into the tracker's URL")
+    class ReferencePath {
+
+        @Test
+        @DisplayName("a path, a query or another resource is not a reference, whatever the tracker")
+        void refusesAnythingButTheTrackersGrammar() {
+            // Pasted as typed, this turned "close incident X" into a request of the caller's choice
+            // sent with the integration's token.
+            for (TicketProvider provider : TicketProvider.values()) {
+                assertThat(Tickets.referencePath(provider, "../../../../api/now/table/sys_user?", "SEC")).isEmpty();
+                assertThat(Tickets.referencePath(provider, "12/../../users", "SEC")).isEmpty();
+                assertThat(Tickets.referencePath(provider, "SEC-1?x=1", "SEC")).isEmpty();
+            }
+        }
+
+        @Test
+        @DisplayName("each tracker's own shape passes, and nothing else")
+        void acceptsEachTrackersShape() {
+            assertThat(Tickets.referencePath(TicketProvider.GITLAB, "#105", "team/svc")).contains("105");
+            assertThat(Tickets.referencePath(TicketProvider.GITHUB, "42", "org/repo")).contains("42");
+            assertThat(Tickets.referencePath(TicketProvider.JIRA, "sec-42", "SEC")).contains("SEC-42");
+            assertThat(Tickets.referencePath(TicketProvider.SERVICENOW, "INC0012345", "")).contains("INC0012345");
+            assertThat(Tickets.referencePath(TicketProvider.GITLAB, "SEC-42", "team/svc")).isEmpty();
+            assertThat(Tickets.referencePath(TicketProvider.NONE, "SEC-42", "")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a Jira key from another project is somebody else's work item")
+        void aJiraKeyMustBelongToTheProject() {
+            assertThat(Tickets.referencePath(TicketProvider.JIRA, "HR-7", "SEC")).isEmpty();
+            // Blank project: the syntax alone is checked.
+            assertThat(Tickets.referencePath(TicketProvider.JIRA, "HR-7", "")).contains("HR-7");
+        }
+    }
 }

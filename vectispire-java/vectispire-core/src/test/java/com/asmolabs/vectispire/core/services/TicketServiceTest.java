@@ -155,4 +155,16 @@ class TicketServiceTest {
                 1L, FindingType.VULNERABILITY, "CVE-2026-1", Severity.CRITICAL, "openssl", "3.5.1", "3.5.2",
                 FixState.FIXED, Directness.DIRECT, null, null, true, 0.42, null, "A buffer overflow.", "abc");
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("closing sends the reference's own segment, and refuses one that is not a reference")
+    void closingNeverPastesTheReferenceAsTyped() {
+        assertThat(service.closeTicket("../../../../users/1?", "resolved")).isFalse();
+        verify(post, org.mockito.Mockito.never()).postForResponse(anyString(), any(), any(), anyString(), any());
+
+        assertThat(service.closeTicket("#105", "resolved")).isTrue();
+        verify(post).postForResponse(
+                eq("https://gitlab.example.com/api/v4/projects/team%2Fservice/issues/105"),
+                any(), any(), anyString(), any());
+    }
 }

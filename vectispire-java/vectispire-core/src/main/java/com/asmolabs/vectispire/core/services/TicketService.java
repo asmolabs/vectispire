@@ -208,12 +208,20 @@ public class TicketService {
             return false;
         }
 
+        // Never the reference as typed: see Tickets.referencePath for what that let a person do with
+        // the integration's token.
+        Optional<String> segment = Tickets.referencePath(provider(), ticketRef, project());
+        if (segment.isEmpty()) {
+            log.warn("Ticket {} not closed: it is not a {} reference in project \"{}\".", ticketRef, provider(), project());
+            return false;
+        }
+
         try {
             switch (provider()) {
-                case GITLAB -> closeGitlab(baseUrl, ticketRef, resolutionReason);
-                case GITHUB -> closeGithub(baseUrl, ticketRef, resolutionReason);
-                case JIRA -> closeJira(baseUrl, ticketRef, resolutionReason);
-                case SERVICENOW -> closeServiceNow(baseUrl, ticketRef, resolutionReason);
+                case GITLAB -> closeGitlab(baseUrl, segment.get());
+                case GITHUB -> closeGithub(baseUrl, segment.get());
+                case JIRA -> closeJira(baseUrl, segment.get());
+                case SERVICENOW -> closeServiceNow(baseUrl, segment.get(), resolutionReason);
                 case NONE -> {}
             }
             log.info("Successfully closed ticket {} on {}", ticketRef, provider());
@@ -266,8 +274,7 @@ public class TicketService {
         return new Ticket("#" + payload.path("iid").asText(""), payload.path("web_url").asText(""));
     }
 
-    private void closeGitlab(String baseUrl, String ticketRef, String resolutionReason) {
-        String iid = ticketRef.startsWith("#") ? ticketRef.substring(1) : ticketRef;
+    private void closeGitlab(String baseUrl, String iid) {
         String url = baseUrl + "/api/v4/projects/" + URLEncoder.encode(project(), StandardCharsets.UTF_8) + "/issues/" + iid;
         post.postForResponse(url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()));
     }
@@ -291,8 +298,7 @@ public class TicketService {
         return new Ticket("#" + response.path("number").asText(""), response.path("html_url").asText(""));
     }
 
-    private void closeGithub(String baseUrl, String ticketRef, String resolutionReason) {
-        String number = ticketRef.startsWith("#") ? ticketRef.substring(1) : ticketRef;
+    private void closeGithub(String baseUrl, String number) {
         String url = baseUrl + "/repos/" + project() + "/issues/" + number;
         post.postForResponse(
                 url,
@@ -324,8 +330,8 @@ public class TicketService {
         return new Ticket(key, key.isEmpty() ? "" : baseUrl + "/browse/" + key);
     }
 
-    private void closeJira(String baseUrl, String ticketRef, String resolutionReason) {
-        String url = baseUrl + "/rest/api/3/issue/" + ticketRef + "/transitions";
+    private void closeJira(String baseUrl, String key) {
+        String url = baseUrl + "/rest/api/3/issue/" + key + "/transitions";
         // Default Jira Cloud transition or comment
         post.postForResponse(
                 url,
@@ -352,8 +358,8 @@ public class TicketService {
         return new Ticket(number.isEmpty() ? sysId : number, webUrl);
     }
 
-    private void closeServiceNow(String baseUrl, String ticketRef, String resolutionReason) {
-        String url = baseUrl + "/api/now/table/incident/" + ticketRef;
+    private void closeServiceNow(String baseUrl, String incident, String resolutionReason) {
+        String url = baseUrl + "/api/now/table/incident/" + incident;
         post.postForResponse(
                 url,
                 Map.of("state", "6", "close_code", "Solved (Permanently)", "close_notes", "Resolved by Vectispire: " + resolutionReason),

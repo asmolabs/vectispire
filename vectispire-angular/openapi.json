@@ -800,6 +800,9 @@
           "targetName" : {
             "type" : "string"
           },
+          "ticketAttachedBy" : {
+            "type" : "string"
+          },
           "ticketRef" : {
             "type" : "string"
           },
@@ -2844,6 +2847,9 @@
           "targetName" : {
             "type" : "string"
           },
+          "ticketAttachedBy" : {
+            "type" : "string"
+          },
           "ticketRef" : {
             "type" : "string"
           },
@@ -2986,6 +2992,9 @@
             "type" : "string"
           },
           "state" : {
+            "type" : "string"
+          },
+          "ticketAttachedBy" : {
             "type" : "string"
           },
           "ticketRef" : {
