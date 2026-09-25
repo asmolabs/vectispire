@@ -12,3 +12,6 @@ node_modules
 *.yml
 /tsconfig.json
 *.json
+# Written by `npm run generate:api`; CI diffs it against a fresh generation, so a formatted copy
+# reads as stale.
+src/app/core/api.generated.ts
