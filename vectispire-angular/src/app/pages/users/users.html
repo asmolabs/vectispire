@@ -14,11 +14,11 @@
     <p-table [value]="users()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
-                <th>Username</th>
-                <th>Role</th>
-                <th>State</th>
-                <th class="text-right">Sessions</th>
-                <th>Created</th>
+                <th>{{ 'users.username' | translate }}</th>
+                <th>{{ 'users.role' | translate }}</th>
+                <th>{{ 'users.col_state' | translate }}</th>
+                <th class="text-right">{{ 'users.col_sessions' | translate }}</th>
+                <th>{{ 'users.col_created' | translate }}</th>
                 <th class="w-1"></th>
             </tr>
         </ng-template>
@@ -28,7 +28,7 @@
                     <div class="font-medium">
                         {{ user.username }}
                         @if (user.id === currentUserId()) {
-                            <span class="text-muted-color font-normal text-sm">(vous)</span>
+                            <span class="text-muted-color font-normal text-sm">({{ 'users.you' | translate }})</span>
                         }
                     </div>
                     @if (user.displayName || user.email) {
@@ -45,12 +45,12 @@
                 </td>
                 <td>
                     @if (user.isActive) {
-                        <p-tag value="Active" severity="success" />
+                        <p-tag [value]="'common.active' | translate" severity="success" />
                     } @else {
-                        <p-tag value="Disabled" severity="danger" />
+                        <p-tag [value]="'common.disabled' | translate" severity="danger" />
                     }
                     @if (user.mustChangePassword) {
-                        <div class="text-sm text-muted-color mt-1">Must change its password</div>
+                        <div class="text-sm text-muted-color mt-1">{{ 'users.must_change_its_password' | translate }}</div>
                     }
                 </td>
                 <td class="text-right">{{ user.activeSessions }}</td>
@@ -76,31 +76,30 @@
             </tr>
         </ng-template>
         <ng-template #emptymessage>
-            <tr><td colspan="6" class="text-center text-muted-color py-6">No account.</td></tr>
+            <tr><td colspan="6" class="text-center text-muted-color py-6">{{ 'users.empty' | translate }}</td></tr>
         </ng-template>
     </p-table>
 </p-card>
 
-<p-dialog header="Create an account" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="'users.create_header' | translate" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="username" class="font-medium">Username</label>
+            <label for="username" class="font-medium">{{ 'users.username' | translate }}</label>
             <input pInputText id="username" [(ngModel)]="form.username" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="displayName" class="font-medium">Display name <span class="text-muted-color font-normal">(optional)</span></label>
+            <label for="displayName" class="font-medium">{{ 'users.display_name' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
             <input pInputText id="displayName" [(ngModel)]="form.displayName" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="role" class="font-medium">Role</label>
+            <label for="role" class="font-medium">{{ 'users.role' | translate }}</label>
             <p-select id="role" [options]="roles()" optionLabel="label" optionValue="value" [(ngModel)]="form.role" styleClass="w-full" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="password" class="font-medium">Initial password</label>
+            <label for="password" class="font-medium">{{ 'users.initial_password' | translate }}</label>
             <input pInputText id="password" [(ngModel)]="form.password" />
             <small class="text-muted-color">
-                At least 12 characters. Shown because you have to pass it on: it stands in for a
-                one-time pass, and the account will have to change it at first sign-in.
+                {{ 'users.initial_password_hint' | translate }}
             </small>
         </div>
         @if (formError(); as message) {
@@ -108,46 +107,44 @@
         }
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button label="Create" [loading]="saving()" (onClick)="submit()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog header="Reset the password" [(visible)]="resetVisible" [modal]="true" [style]="{ width: '32rem' }">
+<p-dialog [header]="'users.reset_header' | translate" [(visible)]="resetVisible" [modal]="true" [style]="{ width: '32rem' }">
     @if (pendingReset(); as user) {
         <div class="flex flex-col gap-4">
-            <p class="m-0">New password for <span class="font-medium">{{ user.username }}</span>.</p>
+            <p class="m-0">{{ 'users.reset_new_password_for' | translate }} <span class="font-medium">{{ user.username }}</span>.</p>
             <input pInputText [(ngModel)]="resetPassword" />
-            <small class="text-muted-color">The account will have to change it at its next sign-in.</small>
+            <small class="text-muted-color">{{ 'users.reset_hint' | translate }}</small>
             @if (formError(); as message) {
                 <p-message severity="error" [closable]="false">{{ message }}</p-message>
             }
         </div>
     }
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="resetVisible.set(false)" />
-        <p-button label="Reset" [loading]="saving()" (onClick)="confirmReset()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="resetVisible.set(false)" />
+        <p-button [label]="'users.reset' | translate" [loading]="saving()" (onClick)="confirmReset()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog header="Delete this account?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+<p-dialog [header]="'users.delete_header' | translate" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
     @if (pendingDelete(); as user) {
         <p class="m-0">
-            <span class="font-medium">{{ user.username }}</span> and its sessions will be deleted. This is permanent.
+            <span class="font-medium">{{ user.username }}</span> {{ 'users.delete_consequence' | translate }}
         </p>
     }
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
     </ng-template>
 </p-dialog>
 
 <!--
     **An account's visibility, administrable at last.** `VisibilityService` reads these assignments
     to decide what the account sees; the API existed, the screen did not, and restricting somebody
-    took a `curl`. The labels go through the translations, unlike the rest of this screen — the
-    hard-coded English it carries is an older debt, and widening it in the name of consistency would
-    make it worse without saying so.
+    took a `curl`.
 -->
 <p-dialog [(visible)]="accessVisible" [modal]="true" [style]="{ width: '34rem' }"
           [header]="('users.access_header' | translate) + ' — ' + (accessUser()?.username ?? '')">

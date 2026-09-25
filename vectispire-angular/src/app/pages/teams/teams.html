@@ -16,10 +16,10 @@
     <p-table [value]="teams()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
         <ng-template #header>
             <tr>
-                <th>Team</th>
-                <th class="text-right">Members</th>
-                <th class="text-right">Targets</th>
-                <th>Notifications</th>
+                <th>{{ 'teams.col_team' | translate }}</th>
+                <th class="text-right">{{ 'teams.col_members' | translate }}</th>
+                <th class="text-right">{{ 'teams.col_targets' | translate }}</th>
+                <th>{{ 'teams.col_notifications' | translate }}</th>
                 <th class="w-1"></th>
             </tr>
         </ng-template>
@@ -38,7 +38,7 @@
                         on the row rather than left to be inferred from a zero.
                     -->
                     @if (team.targetCount === 0) {
-                        <p-tag severity="warn" value="grants nothing" />
+                        <p-tag severity="warn" [value]="'teams.grants_nothing' | translate" />
                     } @else {
                         {{ team.targetCount }}
                     }
@@ -50,20 +50,20 @@
                         returns it and this cell cannot show it.
                     -->
                     @if (team.notified) {
-                        <p-tag severity="success" value="own channel" />
+                        <p-tag severity="success" [value]="'teams.own_channel' | translate" />
                     } @else {
-                        <span class="text-muted-color text-sm">global webhook</span>
+                        <span class="text-muted-color text-sm">{{ 'teams.global_webhook' | translate }}</span>
                     }
                 </td>
                 <td class="text-right whitespace-nowrap">
                     <p-button
-                        label="Channel"
+                        [label]="'teams.channel' | translate"
                         icon="pi pi-bell"
                         severity="secondary"
                         [text]="true"
                         (onClick)="openWebhook(team)" />
                     <p-button
-                        label="Access"
+                        [label]="'teams.access' | translate"
                         icon="pi pi-users"
                         severity="secondary"
                         [text]="true"
@@ -76,7 +76,7 @@
         <ng-template #emptymessage>
             <tr>
                 <td colspan="5" class="text-center text-muted-color py-6">
-                    No team yet. Until a target belongs to one, visibility is decided account by account.
+                    {{ 'teams.empty' | translate }}
                 </td>
             </tr>
         </ng-template>
@@ -93,11 +93,11 @@
     }
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="team-name" class="font-medium">Name</label>
+            <label for="team-name" class="font-medium">{{ 'common.name' | translate }}</label>
             <input pInputText id="team-name" name="team-name" [(ngModel)]="form.name" class="w-full" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="team-description" class="font-medium">Description</label>
+            <label for="team-description" class="font-medium">{{ 'common.description' | translate }}</label>
             <input
                 pInputText
                 id="team-description"
@@ -107,8 +107,8 @@
         </div>
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="formVisible.set(false)" />
-        <p-button label="Save" [loading]="saving()" (onClick)="save()" />
+        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="save()" />
     </ng-template>
 </p-dialog>
 
@@ -127,7 +127,7 @@
     -->
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="team-members" class="font-medium">Members</label>
+            <label for="team-members" class="font-medium">{{ 'teams.col_members' | translate }}</label>
             <p-multiselect
                 inputId="team-members"
                 name="team-members"
@@ -136,14 +136,14 @@
                 optionLabel="label"
                 optionValue="value"
                 [filter]="true"
-                placeholder="Nobody yet"
+                [placeholder]="'teams.nobody_yet' | translate"
                 styleClass="w-full" />
             <small class="text-muted-color">
-                An administrator is never restricted, so adding one changes nothing for them.
+                {{ 'teams.members_hint' | translate }}
             </small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="team-targets" class="font-medium">Targets</label>
+            <label for="team-targets" class="font-medium">{{ 'teams.col_targets' | translate }}</label>
             <p-multiselect
                 inputId="team-targets"
                 name="team-targets"
@@ -152,16 +152,16 @@
                 optionLabel="label"
                 optionValue="value"
                 [filter]="true"
-                placeholder="Nothing yet"
+                [placeholder]="'teams.nothing_yet' | translate"
                 styleClass="w-full" />
             <small class="text-muted-color">
-                Every member sees each of these, and only administrators can change the list.
+                {{ 'teams.targets_hint' | translate }}
             </small>
         </div>
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="accessVisible.set(false)" />
-        <p-button label="Save" [loading]="saving()" (onClick)="saveAccess()" />
+        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="accessVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveAccess()" />
     </ng-template>
 </p-dialog>
 
@@ -174,31 +174,29 @@
         <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
     }
     <div class="flex flex-col gap-2">
-        <label for="team-webhook" class="font-medium">Webhook URL</label>
+        <label for="team-webhook" class="font-medium">{{ 'teams.webhook_url' | translate }}</label>
         <input pInputText id="team-webhook" name="team-webhook" [(ngModel)]="webhookUrl" class="w-full" />
         <small class="text-muted-color">
-            Only what concerns this team's targets is posted here. The global webhook keeps receiving everything.
+            {{ 'teams.webhook_scope' | translate }}
             <br />
-            The field starts empty even when a channel is set: the URL is never sent back, because reading it is
-            enough to post in that channel. <strong>Saving it empty removes the channel.</strong>
+            {{ 'teams.webhook_write_only' | translate }} <strong>{{ 'teams.webhook_empty_removes' | translate }}</strong>
         </small>
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="webhookVisible.set(false)" />
-        <p-button label="Save" [loading]="saving()" (onClick)="saveWebhook()" />
+        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="webhookVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveWebhook()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }" header="Delete this team?">
+<p-dialog [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }" [header]="'teams.delete_header' | translate">
     @if (pendingDelete(); as team) {
         <p class="m-0">
-            <strong>{{ team.name }}</strong> and its access go together: its
-            {{ team.memberCount }} member(s) immediately lose the {{ team.targetCount }} target(s) it owned, unless
-            something else grants them.
+            <strong>{{ team.name }}</strong>
+            {{ 'teams.delete_consequence' | translate: { members: team.memberCount, targets: team.targetCount } }}
         </p>
     }
     <ng-template #footer>
-        <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="remove()" />
+        <p-button [label]="'common.cancel' | translate" severity="secondary" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="remove()" />
     </ng-template>
 </p-dialog>
