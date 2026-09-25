@@ -115,7 +115,7 @@
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-sitemap"></i>
-                <span>Graphe Topologique Interactif</span>
+                <span>{{ 'attack_paths.tab_graph' | translate }}</span>
             </button>
 
             <button
@@ -138,7 +138,7 @@
                 class="px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
             >
                 <i class="pi pi-chart-pie"></i>
-                <span>Vue d'Ensemble Flotte</span>
+                <span>{{ 'attack_paths.tab_overview' | translate }}</span>
                 <span class="text-xs px-2 py-0.5 rounded-full bg-surface-200/50 dark:bg-surface-700/50">
                     {{ overviewList().length }}
                 </span>
@@ -149,7 +149,7 @@
         @if (activeTab() === 'graph') {
             <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-surface-600 dark:text-surface-400 select-none">
                 <input type="checkbox" [ngModel]="filterCriticalOnly()" (ngModelChange)="filterCriticalOnly.set($event)" class="rounded text-primary focus:ring-primary" />
-                <span>Afficher uniquement les chemins critiques exploitables</span>
+                <span>{{ 'attack_paths.critical_only' | translate }}</span>
             </label>
         }
     </div>
@@ -162,7 +162,7 @@
                 <!-- Column 1: Ingress / Internet -->
                 <div class="flex flex-col gap-3">
                     <div class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5 pb-2 border-b border-blue-200 dark:border-blue-900/40">
-                        <i class="pi pi-globe text-base"></i> 1. Exposition Ingress
+                        <i class="pi pi-globe text-base"></i> {{ 'attack_paths.step_ingress' | translate }}
                     </div>
                     @for (node of ingressNodes(); track node.id) {
                         <div role="button" tabindex="0" (keydown.enter)="inspectNode(node)"
@@ -182,7 +182,7 @@
                 <!-- Column 2: Exposed API Endpoints -->
                 <div class="flex flex-col gap-3">
                     <div class="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pb-2 border-b border-amber-200 dark:border-amber-900/40">
-                        <i class="pi pi-link text-base"></i> 2. Endpoints API
+                        <i class="pi pi-link text-base"></i> {{ 'attack_paths.step_endpoints' | translate }}
                     </div>
                     @if (endpointNodes().length === 0) {
                         <div class="p-4 rounded-xl border border-dashed border-surface-300 dark:border-surface-700 text-xs text-muted-color text-center">
@@ -202,7 +202,7 @@
                             <div class="flex items-center justify-between text-[11px] text-surface-500">
                                 <span><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                                 @if (node.isExploitable) {
-                                    <span class="text-rose-500 font-bold flex items-center gap-1"><i class="pi pi-lock-open text-[10px]"></i> Unauth</span>
+                                    <span class="text-rose-500 font-bold flex items-center gap-1"><i class="pi pi-lock-open text-[10px]"></i> {{ 'attack_paths.unauthenticated_short' | translate }}</span>
                                 }
                             </div>
                         </div>
@@ -232,9 +232,9 @@
                             <span class="text-[11px] text-surface-500"><ng-container *ngTemplateOutlet="nodeNote; context: { $implicit: node.note }" /></span>
                             @if (node.metadata?.['cvss']) {
                                 <div class="flex items-center gap-2 text-[10px] text-surface-400 font-mono">
-                                    <span>CVSS {{ node.metadata?.['cvss'] }}</span>
+                                    <span>{{ 'attack_paths.cvss_value' | translate: { value: node.metadata?.['cvss'] ?? '' } }}</span>
                                     <span>·</span>
-                                    <span>EPSS {{ node.metadata?.['epss'] }}</span>
+                                    <span>{{ 'attack_paths.epss_value' | translate: { value: node.metadata?.['epss'] ?? '' } }}</span>
                                 </div>
                             }
                         </div>
@@ -349,7 +349,7 @@
                         <th>{{ 'attack_paths.exploitable_paths' | translate }}</th>
                         <th>{{ 'attack_paths.total_paths' | translate }}</th>
                         <th>{{ 'attack_paths.topological_score' | translate }}</th>
-                        <th class="text-right">Action</th>
+                        <th class="text-right">{{ 'attack_paths.col_action' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template #body let-row>
@@ -368,7 +368,7 @@
                         </td>
                         <td class="text-right">
                             <p-button
-                                label="Inspecter"
+                                [label]="'attack_paths.inspect' | translate"
                                 icon="pi pi-sitemap"
                                 size="small"
                                 [outlined]="true"
@@ -423,6 +423,6 @@
         </div>
     }
     <ng-template #footer>
-        <p-button label="Fermer" [text]="true" (onClick)="nodeDetailsVisible.set(false)" />
+        <p-button [label]="'common.close' | translate" [text]="true" (onClick)="nodeDetailsVisible.set(false)" />
     </ng-template>
 </p-dialog>

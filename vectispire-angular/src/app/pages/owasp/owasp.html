@@ -55,7 +55,7 @@
         <ng-template #subtitle>
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <span class="text-muted-color text-sm">
-                    {{ current.model }} · scan #{{ current.scanId }} ·
+                    {{ current.model }} · {{ 'owasp.scan_number' | translate: { id: current.scanId } }} ·
                     {{ current.createdAt | date: 'dd/MM/yyyy HH:mm' }}
                 </span>
                 @if (current.status === 'completed') {

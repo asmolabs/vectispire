@@ -4,10 +4,10 @@
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-surface-900 dark:text-surface-0 flex items-center gap-3">
                 <i class="pi pi-bell text-primary-500 text-2xl"></i>
-                Centre de Notifications &amp; Webhooks
+                {{ 'notifications.title' | translate }}
             </h1>
             <p class="text-sm text-surface-500 dark:text-surface-400 mt-1">
-                {{ 'notifications.alert_teams' | translate }} <strong>Slack</strong>, <strong>Microsoft Teams</strong>, <strong>Discord</strong>, <strong>Email</strong> ou <strong>Webhooks SIEM</strong>.
+                {{ 'notifications.alert_teams' | translate }} <strong>{{ 'notifications.channel_slack' | translate }}</strong>, <strong>{{ 'notifications.channel_teams' | translate }}</strong>, <strong>{{ 'notifications.channel_discord' | translate }}</strong>, <strong>{{ 'notifications.channel_email' | translate }}</strong> {{ 'notifications.or' | translate }} <strong>{{ 'notifications.channel_siem' | translate }}</strong>.
             </p>
         </div>
         <div class="flex items-center gap-2">
@@ -47,7 +47,7 @@
 
                         <!-- Destination URL or Recipient -->
                         <div class="mt-3">
-                            <span class="text-xs text-surface-500 block">Destination :</span>
+                            <span class="text-xs text-surface-500 block">{{ 'notifications.destination' | translate }}</span>
                             @if (c.configured) {
                                 <span class="font-mono text-xs text-surface-800 dark:text-surface-200 break-all bg-surface-100 dark:bg-surface-800 px-2 py-1 rounded block mt-0.5">
                                     {{ c.destination }}
@@ -70,10 +70,10 @@
                                     {{ 'notifications.kev_epss_critical' | translate }}
                                 </span>
                                 <span class="px-2 py-0.5 text-[10px] rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold">
-                                    Scan Delta (Nouvelles failles)
+                                    {{ 'notifications.event_scan_delta' | translate }}
                                 </span>
                                 <span class="px-2 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 font-semibold">
-                                    Demande 4-Yeux
+                                    {{ 'notifications.event_four_eyes' | translate }}
                                 </span>
                             </div>
                         </div>
@@ -116,10 +116,10 @@
         <div class="p-5 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-50 dark:bg-surface-900/50 flex flex-col gap-2">
             <h3 class="text-sm font-bold text-surface-900 dark:text-surface-0 flex items-center gap-2">
                 <i class="pi pi-shield text-indigo-500"></i>
-                Garanties de Livraison &amp; Architecture Transactionnelle
+                {{ 'notifications.delivery_title' | translate }}
             </h3>
             <p class="text-xs text-surface-600 dark:text-surface-300 leading-relaxed">
-                {{ 'notifications.outbox_intro' | translate }} <strong>table d'Outbox transactionnelle</strong> {{ 'notifications.outbox_when' | translate }} <strong>backoff exponentiel</strong> {{ 'notifications.outbox_retry' | translate }} <strong>HMAC-SHA256</strong> {{ 'notifications.header_is' | translate }} <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Vectispire-Signature</code>).
+                {{ 'notifications.outbox_intro' | translate }} <strong>{{ 'notifications.outbox_table' | translate }}</strong> {{ 'notifications.outbox_when' | translate }} <strong>{{ 'notifications.exponential_backoff' | translate }}</strong> {{ 'notifications.outbox_retry' | translate }} <strong>HMAC-SHA256</strong> {{ 'notifications.header_is' | translate }} <code class="bg-surface-200 dark:bg-surface-800 px-1 py-0.5 rounded">X-Vectispire-Signature</code>).
             </p>
         </div>
     }

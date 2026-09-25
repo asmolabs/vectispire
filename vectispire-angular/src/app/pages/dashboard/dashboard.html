@@ -159,11 +159,11 @@
                         <span class="font-semibold">{{ debt.licenseDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center py-1 border-b border-surface-200 dark:border-surface-700">
-                        <span class="text-muted-color">Fin de Support (EOL) :</span>
+                        <span class="text-muted-color">{{ 'dashboard.debt_eol' | translate }}</span>
                         <span class="font-semibold">{{ debt.eolDebtHours }} h</span>
                     </div>
                     <div class="flex justify-between items-center pt-2 font-bold text-primary-600 dark:text-primary-400">
-                        <span>Charge Totale :</span>
+                        <span>{{ 'dashboard.debt_total' | translate }}</span>
                         <span>{{ debt.totalEstimatedHours }} h (~{{ debt.totalEstimatedPersonDays }} {{ 'dashboard.person_days' | translate }})</span>
                     </div>
                 </div>
@@ -196,9 +196,9 @@
                                     <div class="text-xs text-muted-color">v: {{ fix.currentVersion }} ➔ {{ fix.recommendedVersion }}</div>
                                 </td>
                                 <td>
-                                    <p-tag [value]="fix.cveCountResolved + ' CVEs'" severity="danger" />
+                                    <p-tag [value]="'dashboard.cve_count' | translate: { count: fix.cveCountResolved }" severity="danger" />
                                     @if (fix.criticalCveCount > 0) {
-                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold">({{ fix.criticalCveCount }} critiques)</span>
+                                        <span class="text-xs text-red-600 dark:text-red-400 ml-1 font-bold">({{ 'dashboard.critical_count' | translate: { count: fix.criticalCveCount } }})</span>
                                     }
                                 </td>
                                 <td><span class="font-mono text-sm">{{ fix.estimatedHours }} h</span></td>
@@ -235,12 +235,12 @@
                 <ng-template #header>
                     <tr>
                         <th>{{ 'dashboard.target' | translate }}</th>
-                        <th>Rang / Grade</th>
+                        <th>{{ 'dashboard.col_grade' | translate }}</th>
                         <th>{{ 'dashboard.security_score' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.critical_open' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.high_open' | translate }}</th>
                         <th class="text-center">{{ 'dashboard.resolved' | translate }}</th>
-                        <th class="text-right">MTTR Moyen</th>
+                        <th class="text-right">{{ 'dashboard.col_mean_mttr' | translate }}</th>
                     </tr>
                 </ng-template>
                 <ng-template #body let-target>
@@ -306,7 +306,7 @@
 
             <div class="border-t mt-4 pt-3" style="border-color: var(--surface-border)">
                 <div class="flex items-center justify-between">
-                    <span class="text-muted-color text-sm">Quality <span class="text-xs">(never blocks)</span></span>
+                    <span class="text-muted-color text-sm">{{ 'dashboard.quality' | translate }} <span class="text-xs">({{ 'dashboard.quality_never_blocks' | translate }})</span></span>
                     <a routerLink="/quality" class="font-semibold">{{ overview.qualityTotal }}</a>
                 </div>
             </div>
@@ -318,29 +318,29 @@
                 <p class="text-muted-color m-0">{{ 'dashboard.no_target_failing' | translate }}</p>
                 @if (overview.posture.neverScannedCount > 0) {
                     <p class="text-muted-color text-sm mt-2 mb-0">
-                        {{ overview.posture.neverScannedCount }} target(s) have never been scanned.
+                        {{ 'dashboard.never_scanned_count' | translate: { count: overview.posture.neverScannedCount } }}
                     </p>
                 }
             } @else {
                 <p-table [value]="overview.failing" styleClass="p-datatable-sm zs-table-narrow">
                     <ng-template #header>
-                        <tr><th>{{ 'dashboard.target' | translate }}</th><th>Rule at fault</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
+                        <tr><th>{{ 'dashboard.target' | translate }}</th><th>{{ 'dashboard.col_rule_at_fault' | translate }}</th><th class="text-right">{{ 'dashboard.findings' | translate }}</th></tr>
                     </ng-template>
                     <ng-template #body let-target>
                         <tr>
                             <td>
                                 <div class="font-medium">{{ target.name }}</div>
-                                <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? 'Repository' : 'Container' }}</div>
+                                <div class="text-sm text-muted-color">{{ target.kind === 'repository' ? ('dashboard.kind_repository' | translate) : ('dashboard.kind_container' | translate) }}</div>
                             </td>
                             <td>
                                 @for (violation of firstViolations(target.violations); track $index) {
                                     <div class="text-sm">
-                                        <p-tag [value]="violation.rule === 'kev' ? 'KEV' : 'Severity'" severity="danger" styleClass="mr-2" />
+                                        <p-tag [value]="violation.rule === 'kev' ? ('dashboard.rule_kev' | translate) : ('dashboard.rule_severity' | translate)" severity="danger" styleClass="mr-2" />
                                         {{ violation.reason }}
                                     </div>
                                 }
                                 @if (target.violations.length > 3) {
-                                    <div class="text-sm text-muted-color mt-1">+ {{ target.violations.length - 3 }} more</div>
+                                    <div class="text-sm text-muted-color mt-1">{{ 'dashboard.more_violations' | translate: { count: target.violations.length - 3 } }}</div>
                                 }
                             </td>
                             <td class="text-right font-semibold">{{ target.violations.length }}</td>

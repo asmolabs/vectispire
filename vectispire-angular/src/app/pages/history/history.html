@@ -91,14 +91,14 @@
         @for (scan of file.scans; track scan.id) {
             <div class="mb-4">
                 <div class="flex items-center gap-2">
-                    <span class="font-semibold">Scan #{{ scan.id }}</span>
+                    <span class="font-semibold">{{ 'history.scan_number' | translate: { id: scan.id } }}</span>
                     <span class="text-muted-color">{{ scan.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
                     <p-tag [value]="scan.status" [severity]="scan.status === 'completed' ? 'success' : 'danger'" />
                     @if (scan.version) {
                         <p-tag [value]="scan.version" severity="secondary" />
                     }
                     @if (scan.status === 'completed') {
-                        <p-button label="OpenVEX" icon="pi pi-file" [text]="true" size="small" (onClick)="downloadVex(scan.id)" />
+                        <p-button [label]="'history.openvex_btn' | translate" icon="pi pi-file" [text]="true" size="small" (onClick)="downloadVex(scan.id)" />
                     }
                 </div>
                 <div class="text-sm text-muted-color mt-1">

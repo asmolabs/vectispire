@@ -90,15 +90,15 @@
 
     <p-card>
         <ng-template #title>
-            Findings from this scan
+            {{ 'scans.findings_title' | translate }}
             <span class="text-muted-color font-normal text-sm">
-                — what this scan observed, not the target's backlog
+                {{ 'scans.findings_subtitle' | translate }}
             </span>
         </ng-template>
 
         @if (detail.findingsTruncated) {
             <p-message severity="info" [closable]="false" styleClass="mb-3 w-full">
-                {{ detail.findingsTotal }} findings in total; the first {{ detail.findings.length }} are shown.
+                {{ 'scans.findings_truncated' | translate: { total: detail.findingsTotal, shown: detail.findings.length } }}
             </p-message>
         }
 
@@ -136,7 +136,7 @@
                             <div class="text-sm text-muted-color">
                                 {{ finding.packageName }} {{ finding.packageVersion }}
                                 @if (finding.fixVersions) {
-                                    · <span class="text-green-600">fixed in {{ finding.fixVersions }}</span>
+                                    · <span class="text-green-600">{{ 'scans.fixed_in' | translate: { versions: finding.fixVersions } }}</span>
                                 } @else {
                                     · <span class="text-muted-color">{{ 'issues.fix_none_published' | translate }}</span>
                                 }

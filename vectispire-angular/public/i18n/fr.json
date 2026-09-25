@@ -197,7 +197,17 @@
     "topological_score": "Score de Risque Topologique",
     "total_paths": "Total Chemins",
     "unfocus": "Désactiver le focus",
-    "error_graph": "Erreur lors de la génération du graphe des chemins d'attaque."
+    "error_graph": "Erreur lors de la génération du graphe des chemins d'attaque.",
+    "tab_graph": "Graphe topologique interactif",
+    "tab_overview": "Vue d'ensemble de la flotte",
+    "critical_only": "Afficher uniquement les chemins critiques exploitables",
+    "step_ingress": "1. Exposition ingress",
+    "step_endpoints": "2. Endpoints API",
+    "unauthenticated_short": "Non auth.",
+    "cvss_value": "CVSS {{value}}",
+    "epss_value": "EPSS {{value}}",
+    "col_action": "Action",
+    "inspect": "Inspecter"
   },
   "attack_surface": {
     "auth": {
@@ -268,7 +278,8 @@
     "error_scan": "Impossible de lancer l'analyse.",
     "scan_scheduled_all": "Analyse planifiée pour {{count}} dépôts. Analyse et découverte en cours...",
     "error_scan_all": "Impossible de lancer l'analyse de l'ensemble des dépôts.",
-    "discovery_complete": "Découverte d'API terminée ({{count}} routes répertoriées)."
+    "discovery_complete": "Découverte d'API terminée ({{count}} routes répertoriées).",
+    "purge_inventory": "Purger l'inventaire"
   },
   "attestation": {
     "title": "Attestation",
@@ -689,7 +700,22 @@
     "days_count": "{{count}} jours",
     "days_short": "{{count}} j",
     "nothing_resolved_in_window": "Rien n’a été résolu sur cette période : il n’y a rien à moyenner.",
-    "mean_population": "sur {{count}} constat(s) résolu(s) sur cette période"
+    "mean_population": "sur {{count}} constat(s) résolu(s) sur cette période",
+    "debt_eol": "Fin de support (EOL) :",
+    "debt_total": "Charge totale :",
+    "cve_count": "{{count}} CVE",
+    "critical_count": "{{count}} critiques",
+    "col_grade": "Rang / Note",
+    "col_mean_mttr": "MTTR moyen",
+    "quality": "Qualité",
+    "quality_never_blocks": "ne bloque jamais",
+    "never_scanned_count": "{{count}} cible(s) n'ont jamais été analysée(s).",
+    "col_rule_at_fault": "Règle en cause",
+    "kind_repository": "Dépôt",
+    "kind_container": "Conteneur",
+    "rule_kev": "KEV",
+    "rule_severity": "Gravité",
+    "more_violations": "+ {{count}} de plus"
   },
   "delays": {
     "title": "Délais de correction",
@@ -761,7 +787,18 @@
     "tier_critical_armed": "Critique / Armée (P0)",
     "tier_high_probable": "Élevée / Probable (P1)",
     "tier_medium_theoretical": "Théorique (P2)",
-    "tier_low": "Faible probabilité (P3)"
+    "tier_low": "Faible probabilité (P3)",
+    "title": "Priorisation EPSS & Threat Intelligence",
+    "source_epss": "FIRST.org EPSS",
+    "source_kev": "CISA KEV",
+    "lookup_placeholder": "Interroger une CVE...",
+    "sync": "Synchroniser la Threat Intel",
+    "kev_card": "CISA KEV (exploitation active)",
+    "q2": "Quadrant 2 : P1 Probables",
+    "q4": "Quadrant 4 : P3 Faibles",
+    "queue_title": "File de triage priorisée par risque réel d'exploitation ({{count}} vulnérabilités ouvertes)",
+    "col_reachability": "Atteignabilité",
+    "percentile_short": "{{value}}e pctl"
   },
   "exceptions": {
     "title": "Registre des exceptions",
@@ -959,7 +996,9 @@
     "load_failed": "L’historique n’a pas pu être chargé.",
     "dossier_load_failed": "Le dossier de cette cible n’a pas pu être chargé.",
     "export_failed": "L’export n’a pas pu être produit.",
-    "vex_download_failed": "Impossible de télécharger le document OpenVEX de cette analyse."
+    "vex_download_failed": "Impossible de télécharger le document OpenVEX de cette analyse.",
+    "scan_number": "Scan #{{id}}",
+    "openvex_btn": "OpenVEX"
   },
   "history_compliance": {
     "title": "Progression de la conformité",
@@ -1026,7 +1065,9 @@
     "version": "Version",
     "version_label": "Version (exacte, optionnelle)",
     "version_placeholder": "2.14.1",
-    "search_failed": "La recherche n’a pas pu être exécutée."
+    "search_failed": "La recherche n’a pas pu être exécutée.",
+    "tab_diff": "Dérive et différentiel SBOM",
+    "diff_components_title": "Détail des composants détectés ({{count}})"
   },
   "issues": {
     "action_accept": "Accepter le risque",
@@ -1342,7 +1383,20 @@
     "test_send": "Tester l'envoi",
     "webhook_settings": "Paramètres des webhooks",
     "load_failed": "Impossible de charger la liste des canaux de notification.",
-    "test_failed": "Échec lors du test d’envoi."
+    "test_failed": "Échec lors du test d’envoi.",
+    "title": "Centre de notifications & webhooks",
+    "channel_slack": "Slack",
+    "channel_teams": "Microsoft Teams",
+    "channel_discord": "Discord",
+    "channel_email": "Email",
+    "channel_siem": "Webhooks SIEM",
+    "or": "ou",
+    "destination": "Destination :",
+    "event_scan_delta": "Delta de scan (nouvelles failles)",
+    "event_four_eyes": "Demande quatre yeux",
+    "delivery_title": "Garanties de livraison & architecture transactionnelle",
+    "outbox_table": "table d'outbox transactionnelle",
+    "exponential_backoff": "backoff exponentiel"
   },
   "owasp": {
     "inputs_title": "Ce que le modèle a reçu",
@@ -1361,7 +1415,8 @@
     "export_pdf": "Exporter en PDF",
     "repositories_load_failed": "Les dépôts n’ont pas pu être chargés.",
     "pdf_failed": "Le PDF n’a pas pu être produit.",
-    "report_failed": "Le rapport n’a pas pu être produit."
+    "report_failed": "Le rapport n’a pas pu être produit.",
+    "scan_number": "scan #{{id}}"
   },
   "owasp_grid": {
     "declare": "Déclarer",
@@ -1665,7 +1720,11 @@
     "status_running": "En cours d'analyse",
     "title": "Analyses",
     "error_not_found": "Cette analyse n'existe pas.",
-    "error_load": "Impossible de charger cette analyse."
+    "error_load": "Impossible de charger cette analyse.",
+    "findings_title": "Constats de ce scan",
+    "findings_subtitle": "— ce que ce scan a observé, et non le backlog de la cible",
+    "findings_truncated": "{{total}} constats au total ; les {{shown}} premiers sont affichés.",
+    "fixed_in": "corrigé en {{versions}}"
   },
   "schedule": {
     "cron_hint": "Cinq champs — minute, heure, jour du mois, mois, jour de la semaine. 0 2 * * * correspond à chaque jour à 02h00, 0 */6 * * * toutes les 6 heures. Les erreurs sont signalées immédiatement.",

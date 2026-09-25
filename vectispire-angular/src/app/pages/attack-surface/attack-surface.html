@@ -11,7 +11,7 @@
 
         <div class="flex items-center gap-3">
             <p-button icon="pi pi-refresh" [loading]="loading()" [label]="'attack_surface.refresh' | translate" severity="secondary" [outlined]="true" (onClick)="loadData()" />
-            <p-button icon="pi pi-trash" label="Purger l'inventaire" severity="danger" [outlined]="true" [loading]="clearing()" (onClick)="clearInventory()" />
+            <p-button icon="pi pi-trash" [label]="'attack_surface.purge_inventory' | translate" severity="danger" [outlined]="true" [loading]="clearing()" (onClick)="clearInventory()" />
             @if (selectedRepoId() && selectedRepoId() !== 'ALL') {
             <p-button icon="pi pi-download" [label]="'attack_surface.export_openapi' | translate" [loading]="exporting()" severity="primary" (onClick)="exportOpenApi()" />
             }

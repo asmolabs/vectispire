@@ -12,7 +12,7 @@
             [outlined]="activeTab() !== 'search'"
             (onClick)="activeTab.set('search')" />
         <p-button
-            label="SBOM Drift & Diff Viewer"
+            [label]="'inventory.tab_diff' | translate"
             icon="pi pi-code"
             [outlined]="activeTab() !== 'diff'"
             (onClick)="activeTab.set('diff')" />
@@ -128,7 +128,7 @@
             </div>
 
             <div class="mt-4">
-                <h3 class="text-base font-semibold mb-2">Détail des Composants Détectés ({{ report.componentDeltas.length }})</h3>
+                <h3 class="text-base font-semibold mb-2">{{ 'inventory.diff_components_title' | translate: { count: report.componentDeltas.length } }}</h3>
                 <p-table [value]="report.componentDeltas" styleClass="p-datatable-sm" [paginator]="report.componentDeltas.length > 10" [rows]="10">
                     <ng-template #header>
                         <tr>

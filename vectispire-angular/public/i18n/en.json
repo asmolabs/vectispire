@@ -197,7 +197,17 @@
     "topological_score": "Topological risk score",
     "total_paths": "Paths in total",
     "unfocus": "Clear the focus",
-    "error_graph": "Could not build the attack path graph."
+    "error_graph": "Could not build the attack path graph.",
+    "tab_graph": "Interactive topology graph",
+    "tab_overview": "Fleet overview",
+    "critical_only": "Show only exploitable critical paths",
+    "step_ingress": "1. Ingress exposure",
+    "step_endpoints": "2. API endpoints",
+    "unauthenticated_short": "Unauth",
+    "cvss_value": "CVSS {{value}}",
+    "epss_value": "EPSS {{value}}",
+    "col_action": "Action",
+    "inspect": "Inspect"
   },
   "attack_surface": {
     "auth": {
@@ -268,7 +278,8 @@
     "error_scan": "Could not start the analysis.",
     "scan_scheduled_all": "Scan scheduled for {{count}} repositories. Analysis and discovery in progress...",
     "error_scan_all": "Could not start the scan of all repositories.",
-    "discovery_complete": "API discovery complete ({{count}} routes listed)."
+    "discovery_complete": "API discovery complete ({{count}} routes listed).",
+    "purge_inventory": "Purge the inventory"
   },
   "attestation": {
     "title": "Attestation",
@@ -689,7 +700,22 @@
     "days_count": "{{count}} days",
     "days_short": "{{count}} d",
     "nothing_resolved_in_window": "Nothing was resolved in this window: there is nothing to average.",
-    "mean_population": "over {{count}} issue(s) resolved in this window"
+    "mean_population": "over {{count}} issue(s) resolved in this window",
+    "debt_eol": "End of life (EOL):",
+    "debt_total": "Total effort:",
+    "cve_count": "{{count}} CVEs",
+    "critical_count": "{{count}} critical",
+    "col_grade": "Rank / Grade",
+    "col_mean_mttr": "Mean MTTR",
+    "quality": "Quality",
+    "quality_never_blocks": "never blocks",
+    "never_scanned_count": "{{count}} target(s) have never been scanned.",
+    "col_rule_at_fault": "Rule at fault",
+    "kind_repository": "Repository",
+    "kind_container": "Container",
+    "rule_kev": "KEV",
+    "rule_severity": "Severity",
+    "more_violations": "+ {{count}} more"
   },
   "delays": {
     "title": "Time to fix",
@@ -761,7 +787,18 @@
     "tier_critical_armed": "Critical / Weaponised (P0)",
     "tier_high_probable": "High / Probable (P1)",
     "tier_medium_theoretical": "Theoretical (P2)",
-    "tier_low": "Low probability (P3)"
+    "tier_low": "Low probability (P3)",
+    "title": "EPSS prioritisation & threat intelligence",
+    "source_epss": "FIRST.org EPSS",
+    "source_kev": "CISA KEV",
+    "lookup_placeholder": "Look up a CVE...",
+    "sync": "Sync Threat Intel",
+    "kev_card": "CISA KEV (active exploitation)",
+    "q2": "Quadrant 2 — P1, probable",
+    "q4": "Quadrant 4 — P3, low",
+    "queue_title": "Triage queue ordered by the real risk of exploitation ({{count}} open vulnerabilities)",
+    "col_reachability": "Reachability",
+    "percentile_short": "pctl {{value}}"
   },
   "exceptions": {
     "title": "Exceptions register",
@@ -959,7 +996,9 @@
     "load_failed": "The history could not be loaded.",
     "dossier_load_failed": "This target’s dossier could not be loaded.",
     "export_failed": "The export could not be produced.",
-    "vex_download_failed": "Could not download the OpenVEX document for this scan."
+    "vex_download_failed": "Could not download the OpenVEX document for this scan.",
+    "scan_number": "Scan #{{id}}",
+    "openvex_btn": "OpenVEX"
   },
   "history_compliance": {
     "title": "Compliance progression",
@@ -1026,7 +1065,9 @@
     "version": "Version",
     "version_label": "Version (exact, optional)",
     "version_placeholder": "2.14.1",
-    "search_failed": "The search could not be run."
+    "search_failed": "The search could not be run.",
+    "tab_diff": "SBOM Drift & Diff Viewer",
+    "diff_components_title": "Components found ({{count}})"
   },
   "issues": {
     "action_accept": "Accept Risk",
@@ -1334,7 +1375,7 @@
     "header_is": "(header",
     "kev_epss_critical": "CISA KEV / critical EPSS",
     "not_set": "Not set — configure it in Settings",
-    "outbox_intro": "Vectispire's alerts are written to an",
+    "outbox_intro": "Vectispire's alerts are written to a",
     "outbox_retry": "should the receiver be briefly unavailable. Messages can be signed with",
     "outbox_when": "at the instant a scan result or a gate verdict is committed. Each channel is delivered on its own, with",
     "refresh": "Refresh",
@@ -1342,7 +1383,20 @@
     "test_send": "Send a test",
     "webhook_settings": "Webhook settings",
     "load_failed": "Could not load the list of notification channels.",
-    "test_failed": "The test send failed."
+    "test_failed": "The test send failed.",
+    "title": "Notifications & webhooks",
+    "channel_slack": "Slack",
+    "channel_teams": "Microsoft Teams",
+    "channel_discord": "Discord",
+    "channel_email": "Email",
+    "channel_siem": "SIEM webhooks",
+    "or": "or",
+    "destination": "Destination:",
+    "event_scan_delta": "Scan delta (new flaws)",
+    "event_four_eyes": "Four-eyes request",
+    "delivery_title": "Delivery guarantees & transactional architecture",
+    "outbox_table": "transactional outbox table",
+    "exponential_backoff": "exponential backoff"
   },
   "owasp": {
     "inputs_title": "What the model was given",
@@ -1361,7 +1415,8 @@
     "export_pdf": "Export PDF",
     "repositories_load_failed": "The repositories could not be loaded.",
     "pdf_failed": "The PDF could not be produced.",
-    "report_failed": "The report could not be produced."
+    "report_failed": "The report could not be produced.",
+    "scan_number": "scan #{{id}}"
   },
   "owasp_grid": {
     "declare": "Declare",
@@ -1665,7 +1720,11 @@
     "status_running": "Scanning",
     "title": "Scans",
     "error_not_found": "This scan does not exist.",
-    "error_load": "Could not load this scan."
+    "error_load": "Could not load this scan.",
+    "findings_title": "Findings from this scan",
+    "findings_subtitle": "— what this scan observed, not the target's backlog",
+    "findings_truncated": "{{total}} findings in total; the first {{shown}} are shown.",
+    "fixed_in": "fixed in {{versions}}"
   },
   "schedule": {
     "cron_hint": "Five fields — minute, hour, day of month, month, day of week. 0 2 * * * is every day at 02:00, 0 */6 * * * every six hours. The server refuses an expression it cannot read, so a mistake here is reported rather than saved.",
