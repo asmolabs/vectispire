@@ -104,7 +104,7 @@ public class ThreatIntelFeedService {
             ThreatIntelEntity entity = intelRepo.findByCveIdIgnoreCase(record.cveId())
                     .orElseGet(() -> {
                         ThreatIntelEntity fresh = new ThreatIntelEntity();
-                        fresh.setCveId(record.cveId().toUpperCase());
+                        fresh.setCveId(record.cveId().toUpperCase(Locale.ROOT));
                         return fresh;
                     });
             entity.setKev(record.isKev());

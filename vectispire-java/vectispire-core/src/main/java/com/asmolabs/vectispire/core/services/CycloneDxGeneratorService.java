@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -54,7 +55,7 @@ public class CycloneDxGeneratorService {
 
         for (IssueEntity issue : allIssues) {
             String cve = issue.getIdentifier();
-            if (cve == null || !cve.toUpperCase().startsWith("CVE-")) {
+            if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
@@ -109,7 +110,7 @@ public class CycloneDxGeneratorService {
 
         for (FindingEntity finding : scanFindings) {
             String cve = finding.getIdentifier();
-            if (cve == null || !cve.toUpperCase().startsWith("CVE-")) {
+            if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
@@ -165,7 +166,7 @@ public class CycloneDxGeneratorService {
     private Vulnerability buildVulnerability(IssueEntity issue, String purl) {
         String cve = issue.getIdentifier();
         Double score = issue.getCvssScore();
-        String severity = issue.getSeverity() != null ? issue.getSeverity().toLowerCase() : "medium";
+        String severity = issue.getSeverity() != null ? issue.getSeverity().toLowerCase(Locale.ROOT) : "medium";
 
         List<Rating> ratings = List.of(new Rating(
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
@@ -191,7 +192,7 @@ public class CycloneDxGeneratorService {
     private Vulnerability buildVulnerabilityFromFinding(FindingEntity finding, IssueEntity issue, String purl) {
         String cve = finding.getIdentifier();
         Double score = finding.getCvssScore();
-        String severity = finding.getSeverity() != null ? finding.getSeverity().toLowerCase() : "medium";
+        String severity = finding.getSeverity() != null ? finding.getSeverity().toLowerCase(Locale.ROOT) : "medium";
 
         List<Rating> ratings = List.of(new Rating(
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
@@ -231,7 +232,7 @@ public class CycloneDxGeneratorService {
         if (notAffected) {
             cdxState = "not_affected";
             justification = triageJustification != null && !triageJustification.isBlank()
-                    ? triageJustification.toLowerCase().replace(" ", "_")
+                    ? triageJustification.toLowerCase(Locale.ROOT).replace(" ", "_")
                     : "vulnerable_code_not_in_execute_path";
             responses.add("will_not_fix");
         } else if (fixed) {

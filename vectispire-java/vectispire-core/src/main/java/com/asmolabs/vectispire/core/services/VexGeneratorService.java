@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -46,7 +47,7 @@ public class VexGeneratorService {
         List<OpenVexStatement> statements = new ArrayList<>();
 
         for (IssueEntity issue : issues) {
-            if (issue.getIdentifier() == null || !issue.getIdentifier().toUpperCase().startsWith("CVE-")) {
+            if (issue.getIdentifier() == null || !issue.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
             statements.add(createStatementFromIssue(issue));
@@ -64,7 +65,7 @@ public class VexGeneratorService {
 
         for (FindingEntity finding : scanFindings) {
             String identifier = finding.getIdentifier();
-            if (identifier == null || !identifier.toUpperCase().startsWith("CVE-")) {
+            if (identifier == null || !identifier.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
             statements.add(createStatementFromFinding(finding));

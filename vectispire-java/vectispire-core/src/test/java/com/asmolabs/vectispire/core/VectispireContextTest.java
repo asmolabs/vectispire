@@ -83,6 +83,9 @@ public abstract class VectispireContextTest {
             "t_repository",
             "t_container",
             "t_ssh_key",
+            // After t_repository, which may name one for its HTTPS clone. Left out, a token outlived its
+            // test and the next one counted rows instead of asserting none.
+            "t_git_token",
             "t_semgrep_rule_set",
             "t_leader_lease",
             "t_setting",

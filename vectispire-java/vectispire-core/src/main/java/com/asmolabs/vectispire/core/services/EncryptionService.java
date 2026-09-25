@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.services.crypto.VaultKmsProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +56,7 @@ public class EncryptionService {
 
         LocalKmsProvider local = new LocalKmsProvider(primaryKey, decryptionKeys);
 
-        String kmsType = properties.kmsType().orElse("local").toLowerCase();
+        String kmsType = properties.kmsType().orElse("local").toLowerCase(Locale.ROOT);
         if ("vault".equals(kmsType) && properties.vaultEndpoint().isPresent() && properties.vaultToken().isPresent()) {
             log.info("Configuring HashiCorp Vault Transit KMS at {}", properties.vaultEndpoint().get());
             PinnedHttpSender sender = http.orElseGet(PinnedHttpSender::new);

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.apis;
 
+import java.util.Locale;
 /**
  * An API endpoint discovered in source code, contract, or infrastructure definition.
  */
@@ -18,7 +19,7 @@ public record ApiEndpoint(
 
     public ApiEndpoint {
         if (method != null) {
-            method = method.toUpperCase();
+            method = method.toUpperCase(Locale.ROOT);
         }
         if (path == null || path.isBlank()) {
             path = "/";
@@ -35,7 +36,7 @@ public record ApiEndpoint(
      * Whether this endpoint exposes sensitive management or administrative capabilities.
      */
     public boolean isSensitivePath() {
-        String lower = path.toLowerCase();
+        String lower = path.toLowerCase(Locale.ROOT);
         return lower.contains("/admin")
                 || lower.contains("/actuator")
                 || lower.contains("/debug")

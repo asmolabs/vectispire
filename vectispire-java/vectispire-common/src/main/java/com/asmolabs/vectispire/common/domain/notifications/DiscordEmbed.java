@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -48,7 +49,7 @@ public final class DiscordEmbed {
                 String pkg = issue.packageName() != null ? " (" + issue.packageName() + ")" : "";
                 String fix = issue.fixVersions() != null ? " → fix: " + issue.fixVersions() : "";
                 issuesSb.append(String.format("• **[%s]** %s%s%s\n",
-                        issue.severity() != null ? issue.severity().toUpperCase() : "FINDING",
+                        issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "FINDING",
                         cve, pkg, fix));
             }
             if (payload.truncated() > 0) {

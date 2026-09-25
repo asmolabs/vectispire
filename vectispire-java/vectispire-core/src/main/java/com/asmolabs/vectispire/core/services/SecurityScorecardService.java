@@ -14,6 +14,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.ArrayList;
@@ -150,7 +151,7 @@ public class SecurityScorecardService {
         long kevCount = 0;
 
         for (IssueRows.Posture issue : issues) {
-            String sev = issue.severity() != null ? issue.severity().toUpperCase() : "UNKNOWN";
+            String sev = issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "UNKNOWN";
             boolean isKev = Boolean.TRUE.equals(issue.isKev());
             boolean isReachable = ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.reachability());
 

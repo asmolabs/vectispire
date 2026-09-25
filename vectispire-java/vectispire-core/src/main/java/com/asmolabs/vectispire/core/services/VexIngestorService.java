@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -327,7 +328,7 @@ public class VexIngestorService {
         if (justification == null) {
             return com.asmolabs.vectispire.common.domain.issues.VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST;
         }
-        String normalized = justification.toLowerCase().replace("-", "_").replace(" ", "_");
+        String normalized = justification.toLowerCase(Locale.ROOT).replace("-", "_").replace(" ", "_");
         if (normalized.contains("component_not_present")) {
             return com.asmolabs.vectispire.common.domain.issues.VexJustification.COMPONENT_NOT_PRESENT;
         }

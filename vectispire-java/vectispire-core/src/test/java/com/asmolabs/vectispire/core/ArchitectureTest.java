@@ -198,4 +198,16 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    @Test
+    @DisplayName("case is folded without the host's locale")
+    void caseIsFoldedWithoutTheHostLocale() {
+        // `toUpperCase()` folds with the JVM's default locale. On a host set to Turkish, "i" becomes
+        // "İ": a severity, a scope, an HTTP method or a framework name stops matching the constant
+        // it was compared with, and a path lower-cased into a fingerprint changes with the machine
+        // that scanned it. Forty-seven calls did it; `Locale.ROOT` is the only spelling allowed.
+        ArchRuleDefinition.noClasses()
+                .should().callMethod(String.class, "toUpperCase")
+                .orShould().callMethod(String.class, "toLowerCase")
+                .check(classes);
+    }
 }

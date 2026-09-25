@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
@@ -191,11 +192,11 @@ public class SbomDiffService {
 
     private List<CveDelta> computeCveDeltas(long fromScanId, long toScanId) {
         Map<String, FindingEntity> fromFindings = findings.findByScanId(fromScanId).stream()
-                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase().startsWith("CVE-") || f.getIdentifier().toUpperCase().startsWith("GHSA-"))))
+                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
                 .collect(Collectors.toMap(f -> normalizeCveKey(f), Function.identity(), (a, b) -> a));
 
         Map<String, FindingEntity> toFindings = findings.findByScanId(toScanId).stream()
-                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase().startsWith("CVE-") || f.getIdentifier().toUpperCase().startsWith("GHSA-"))))
+                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
                 .collect(Collectors.toMap(f -> normalizeCveKey(f), Function.identity(), (a, b) -> a));
 
         List<CveDelta> results = new ArrayList<>();
@@ -294,7 +295,7 @@ public class SbomDiffService {
     }
 
     private String inferLicense(String name) {
-        String lower = name.toLowerCase();
+        String lower = name.toLowerCase(Locale.ROOT);
         if (lower.contains("apache") || lower.contains("commons-") || lower.contains("spring-")) return "Apache-2.0";
         if (lower.contains("mit") || lower.contains("slf4j") || lower.contains("express")) return "MIT";
         if (lower.contains("gpl")) return "GPL-3.0";

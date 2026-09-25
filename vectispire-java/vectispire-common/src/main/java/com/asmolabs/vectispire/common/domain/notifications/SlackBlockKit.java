@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.common.domain.notifications;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -43,7 +44,7 @@ public final class SlackBlockKit {
         // 5. Issues details
         StringBuilder issuesMd = new StringBuilder("*Vulnerabilities & Findings:*\n");
         for (NotificationPayload.Detail issue : payload.issues()) {
-            String emoji = switch (issue.severity() != null ? issue.severity().toLowerCase() : "") {
+            String emoji = switch (issue.severity() != null ? issue.severity().toLowerCase(Locale.ROOT) : "") {
                 case "critical" -> "🔴";
                 case "high" -> "🟠";
                 case "medium" -> "🟡";

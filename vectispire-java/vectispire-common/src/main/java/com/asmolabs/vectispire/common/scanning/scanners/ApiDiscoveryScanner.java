@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
 import com.asmolabs.vectispire.common.scanning.SourceFiles;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
@@ -54,10 +55,10 @@ public final class ApiDiscoveryScanner {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     String name = dir.getFileName() != null ? dir.getFileName().toString() : "";
-                    if (IGNORED_DIRS.contains(name.toLowerCase())) {
+                    if (IGNORED_DIRS.contains(name.toLowerCase(Locale.ROOT))) {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
-                    String rel = workspaceRoot.relativize(dir).toString().replace('\\', '/').toLowerCase();
+                    String rel = workspaceRoot.relativize(dir).toString().replace('\\', '/').toLowerCase(Locale.ROOT);
                     if (rel.startsWith("src/test") || rel.contains("/src/test/") || rel.startsWith("test") || rel.contains("/test/")) {
                         return FileVisitResult.SKIP_SUBTREE;
                     }
@@ -71,7 +72,7 @@ public final class ApiDiscoveryScanner {
                     if (!SourceFiles.isReadable(attrs)) {
                         return FileVisitResult.CONTINUE;
                     }
-                    String name = file.getFileName().toString().toLowerCase();
+                    String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
                     String relativePath = workspaceRoot.relativize(file).toString();
 
                     if (isTestPath(relativePath)) {
@@ -184,9 +185,9 @@ public final class ApiDiscoveryScanner {
                         if (pathObj != null && pathObj.isObject()) {
                             Iterator<String> methodNames = pathObj.fieldNames();
                             while (methodNames.hasNext()) {
-                                String methodKey = methodNames.next().toUpperCase();
+                                String methodKey = methodNames.next().toUpperCase(Locale.ROOT);
                                 if (Set.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD").contains(methodKey)) {
-                                    JsonNode opNode = pathObj.get(methodKey.toLowerCase());
+                                    JsonNode opNode = pathObj.get(methodKey.toLowerCase(Locale.ROOT));
                                     if (opNode == null) opNode = pathObj.get(methodKey);
                                     String summary = (opNode != null && opNode.has("summary")) ? opNode.get("summary").asText() : null;
                                     String opId = (opNode != null && opNode.has("operationId")) ? opNode.get("operationId").asText() : null;
@@ -265,7 +266,7 @@ public final class ApiDiscoveryScanner {
                         if (currentPath != null) {
                             Matcher methodMatcher = Pattern.compile("^\\s{4}(get|post|put|delete|patch|options|head):\\s*").matcher(line);
                             if (methodMatcher.find()) {
-                                String method = methodMatcher.group(1).toUpperCase();
+                                String method = methodMatcher.group(1).toUpperCase(Locale.ROOT);
                                 boolean auth = hasGlobalSecurity && !line.contains("security: []");
                                 endpoints.add(new ApiEndpoint(
                                         method,
@@ -323,7 +324,7 @@ public final class ApiDiscoveryScanner {
 
     private static boolean isTestPath(String relativePath) {
         if (relativePath == null) return false;
-        String lower = relativePath.toLowerCase().replace('\\', '/');
+        String lower = relativePath.toLowerCase(Locale.ROOT).replace('\\', '/');
         return lower.contains("/src/test/")
                 || lower.startsWith("src/test/")
                 || lower.contains("/test/")
@@ -573,7 +574,7 @@ public final class ApiDiscoveryScanner {
             String line = lines[i];
             Matcher em = expressPattern.matcher(line);
             if (em.find()) {
-                String method = em.group(1).toUpperCase();
+                String method = em.group(1).toUpperCase(Locale.ROOT);
                 String path = em.group(2);
                 boolean auth = line.contains("auth") || line.contains("jwt") || line.contains("passport") || line.contains("guard");
                 endpoints.add(new ApiEndpoint(
@@ -583,7 +584,7 @@ public final class ApiDiscoveryScanner {
 
             Matcher nm = nestPattern.matcher(line);
             if (nm.find()) {
-                String method = nm.group(1).toUpperCase();
+                String method = nm.group(1).toUpperCase(Locale.ROOT);
                 String path = nm.group(2);
                 String fullPath = combinePaths(nestPrefix, path);
                 boolean auth = content.contains("@UseGuards") || line.contains("Guard");
@@ -606,7 +607,7 @@ public final class ApiDiscoveryScanner {
             String line = lines[i];
             Matcher fm = fastapiPattern.matcher(line);
             if (fm.find()) {
-                String method = fm.group(1).toUpperCase();
+                String method = fm.group(1).toUpperCase(Locale.ROOT);
                 String path = fm.group(2);
                 boolean auth = line.contains("Depends") || line.contains("Security") || line.contains("auth");
                 endpoints.add(new ApiEndpoint(
@@ -636,7 +637,7 @@ public final class ApiDiscoveryScanner {
             String line = lines[i];
             Matcher gm = ginPattern.matcher(line);
             if (gm.find()) {
-                String method = gm.group(1).toUpperCase();
+                String method = gm.group(1).toUpperCase(Locale.ROOT);
                 String path = gm.group(2);
                 boolean auth = line.contains("Auth") || line.contains("JWT") || line.contains("Middleware");
                 endpoints.add(new ApiEndpoint(

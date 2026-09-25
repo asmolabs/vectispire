@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 /**
@@ -67,7 +68,7 @@ public class AiAdvisorService {
                 currentVersion,
                 fixVersion,
                 reachability != null ? reachability : "UNKNOWN",
-                cveId.toUpperCase().contains("2021-44228") || cveId.toUpperCase().contains("2024-3094"),
+                cveId.toUpperCase(Locale.ROOT).contains("2021-44228") || cveId.toUpperCase(Locale.ROOT).contains("2024-3094"),
                 0.75);
     }
 }

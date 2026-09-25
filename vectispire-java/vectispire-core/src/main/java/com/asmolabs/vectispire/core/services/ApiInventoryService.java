@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Map;
 import java.util.Set;
@@ -129,7 +130,7 @@ public class ApiInventoryService {
             // Deduplicate incoming scan endpoints by method + path
             Map<String, ApiEndpoint> uniqueEndpoints = new LinkedHashMap<>();
             for (ApiEndpoint ep : endpoints) {
-                uniqueEndpoints.put(ep.method().toUpperCase() + ":" + ep.path(), ep);
+                uniqueEndpoints.put(ep.method().toUpperCase(Locale.ROOT) + ":" + ep.path(), ep);
             }
 
             for (ApiEndpoint ep : uniqueEndpoints.values()) {
@@ -236,7 +237,7 @@ public class ApiInventoryService {
         // Deduplicate in memory by method + path (keep latest by ID)
         Map<String, ApiEndpointEntity> byMethodPath = new LinkedHashMap<>();
         for (ApiEndpointEntity e : rawEndpointEntities) {
-            byMethodPath.put(e.getHttpMethod().toUpperCase() + ":" + e.getPath(), e);
+            byMethodPath.put(e.getHttpMethod().toUpperCase(Locale.ROOT) + ":" + e.getPath(), e);
         }
         List<ApiEndpointEntity> endpointEntities = new ArrayList<>(byMethodPath.values());
 
@@ -337,7 +338,7 @@ public class ApiInventoryService {
         // Deduplicate in memory by repositoryId + method + path (keep latest by ID)
         Map<String, ApiEndpointEntity> byRepoMethodPath = new LinkedHashMap<>();
         for (ApiEndpointEntity e : rawAll) {
-            String key = (e.getRepositoryId() != null ? e.getRepositoryId() : 0L) + ":" + e.getHttpMethod().toUpperCase() + ":" + e.getPath();
+            String key = (e.getRepositoryId() != null ? e.getRepositoryId() : 0L) + ":" + e.getHttpMethod().toUpperCase(Locale.ROOT) + ":" + e.getPath();
             byRepoMethodPath.put(key, e);
         }
         List<ApiEndpointEntity> all = new ArrayList<>(byRepoMethodPath.values());
@@ -459,7 +460,7 @@ public class ApiInventoryService {
 
             for (int mIdx = 0; mIdx < methodsForPath.size(); mIdx++) {
                 ApiEndpointEntity ep = methodsForPath.get(mIdx);
-                String verb = ep.getHttpMethod().toLowerCase();
+                String verb = ep.getHttpMethod().toLowerCase(Locale.ROOT);
                 if (verb.equals("all")) verb = "get";
 
                 json.append("      \"").append(verb).append("\": {\n");
@@ -481,7 +482,7 @@ public class ApiInventoryService {
 
     private static boolean isSensitive(String path) {
         if (path == null) return false;
-        String lower = path.toLowerCase();
+        String lower = path.toLowerCase(Locale.ROOT);
         return lower.contains("/admin") || lower.contains("/actuator") || lower.contains("/debug")
                 || lower.contains("/metrics") || lower.contains("/env") || lower.contains("/internal");
     }
@@ -507,7 +508,7 @@ public class ApiInventoryService {
 
         Map<String, ApiEndpointEntity> byMethodPath = new LinkedHashMap<>();
         for (ApiEndpointEntity e : rawEndpointEntities) {
-            byMethodPath.put(e.getHttpMethod().toUpperCase() + ":" + e.getPath(), e);
+            byMethodPath.put(e.getHttpMethod().toUpperCase(Locale.ROOT) + ":" + e.getPath(), e);
         }
         List<ApiEndpointEntity> endpointEntities = new ArrayList<>(byMethodPath.values());
 

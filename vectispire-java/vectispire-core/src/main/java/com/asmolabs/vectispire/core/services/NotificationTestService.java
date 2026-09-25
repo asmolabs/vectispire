@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,7 +82,7 @@ public class NotificationTestService {
 
     public NotificationTestResult testChannel(String type) {
         Optional<NotificationChannel> match = channels.stream()
-                .filter(c -> c.type().equalsIgnoreCase(type) || c.type().endsWith("_" + type.toLowerCase()))
+                .filter(c -> c.type().equalsIgnoreCase(type) || c.type().endsWith("_" + type.toLowerCase(Locale.ROOT)))
                 .findFirst();
 
         if (match.isEmpty()) {

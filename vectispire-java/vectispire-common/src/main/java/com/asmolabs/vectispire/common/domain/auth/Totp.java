@@ -8,6 +8,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.OptionalLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -148,7 +149,7 @@ public final class Totp {
     }
 
     public static byte[] decodeBase32(String base32) {
-        String clean = base32.toUpperCase().replaceAll("[^A-Z2-7]", "");
+        String clean = base32.toUpperCase(Locale.ROOT).replaceAll("[^A-Z2-7]", "");
         ByteBuffer buffer = ByteBuffer.allocate((clean.length() * 5) / 8);
 
         int cur = 0;

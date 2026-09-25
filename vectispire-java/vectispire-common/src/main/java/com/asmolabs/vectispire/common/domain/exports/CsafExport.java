@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -151,7 +152,7 @@ public final class CsafExport {
         if (justification == null) {
             return "vulnerable_code_cannot_be_controlled_by_adversary";
         }
-        String clean = justification.toLowerCase();
+        String clean = justification.toLowerCase(Locale.ROOT);
         if (clean.contains("not_present") || clean.contains("not present") || clean.contains("absent")) {
             return "component_not_present";
         }

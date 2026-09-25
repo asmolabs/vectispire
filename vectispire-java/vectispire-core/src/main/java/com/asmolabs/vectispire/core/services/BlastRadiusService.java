@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -71,7 +72,7 @@ public class BlastRadiusService {
     @Transactional(readOnly = true)
     public BlastRadiusReport explore(String rawQuery, Visibility allowed) {
         String query = rawQuery != null ? rawQuery.trim() : "";
-        boolean isCveQuery = query.toUpperCase().startsWith("CVE-");
+        boolean isCveQuery = query.toUpperCase(Locale.ROOT).startsWith("CVE-");
 
         List<FindingGraphQueries.GraphRow> rows = findingsRepo.forGraph(query, isCveQuery, true, allowed);
 
@@ -114,7 +115,7 @@ public class BlastRadiusService {
                             ? containersMap.get(targetId).getTag()
                             : "latest");
 
-            String targetNodeId = "target-" + targetKind.toLowerCase() + "-" + targetId;
+            String targetNodeId = "target-" + targetKind.toLowerCase(Locale.ROOT) + "-" + targetId;
 
             List<FindingEntity> scanFindings = entry.getValue();
             for (FindingEntity finding : scanFindings) {
@@ -127,7 +128,7 @@ public class BlastRadiusService {
                 boolean isDirect = Boolean.TRUE.equals(finding.getIsDirectDependency());
                 if (isDirect) directCount++; else transitiveCount++;
 
-                if (cveId != null && cveId.toUpperCase().startsWith("CVE-")) {
+                if (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                     uniqueCves.add(cveId);
                 }
                 if (finding.getCvssScore() != null && finding.getCvssScore() > maxCvss) {
@@ -149,7 +150,7 @@ public class BlastRadiusService {
                         pkgName,
                         finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest",
                         isDirect,
-                        (cveId != null && cveId.toUpperCase().startsWith("CVE-")) ? List.of(cveId) : List.of(),
+                        (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) ? List.of(cveId) : List.of(),
                         reachability,
                         scan.getId()));
 
@@ -169,7 +170,7 @@ public class BlastRadiusService {
                 edges.add(new GraphEdge(targetNodeId, pkgNodeId, isDirect ? "DIRECT_DEPENDENCY" : "TRANSITIVE_DEPENDENCY"));
 
                 // Add CVE Node if present
-                if (cveId != null && cveId.toUpperCase().startsWith("CVE-")) {
+                if (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                     String cveNodeId = "cve-" + cveId;
                     nodesMap.putIfAbsent(cveNodeId, new GraphNode(
                             cveNodeId, cveId, "CVE", null, null,
