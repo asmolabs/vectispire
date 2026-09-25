@@ -52,4 +52,32 @@ class MfaRoutesTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mfaEnabled").value(false));
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("disabling counts wrong codes against the account, and stops at its budget")
+    void disablingIsThrottledLikeSignIn() throws Exception {
+        // It had no ceiling: a session left open could try codes against /mfa/disable for as long
+        // as it lived, and a six-digit space does not survive that.
+        String token = asAdmin();
+        String setupJson = mvc.perform(authenticated(post("/api/v1/auth/mfa/setup"), token))
+                .andReturn().getResponse().getContentAsString();
+        String secret = com.jayway.jsonpath.JsonPath.read(setupJson, "$.secret");
+        mvc.perform(authenticated(post("/api/v1/auth/mfa/enable"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"secret\":\"" + secret + "\",\"code\":\"" + Totp.generateCode(secret, clock.instant()) + "\"}"))
+                .andExpect(status().isOk());
+
+        for (int attempt = 0; attempt < com.asmolabs.vectispire.common.domain.auth.LoginThrottle.MAX_SECOND_FACTOR_FAILURES; attempt++) {
+            mvc.perform(authenticated(post("/api/v1/auth/mfa/disable"), token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"code\":\"00000" + attempt + "\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        // Locked now, even for the right code.
+        mvc.perform(authenticated(post("/api/v1/auth/mfa/disable"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"" + Totp.generateCode(secret, clock.instant().plusSeconds(30)) + "\"}"))
+                .andExpect(status().isTooManyRequests());
+    }
 }

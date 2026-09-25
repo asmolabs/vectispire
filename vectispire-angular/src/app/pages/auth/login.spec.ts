@@ -62,6 +62,24 @@ describe('the sign-in screen', () => {
             .flush({ configured: false, label: null, password: true });
     }, 20_000);
 
+    it('shows its own words for a refused sign-on, never the text the link carries', () => {
+        // The reason used to be a sentence in the query and the page displayed it: any link could
+        // make Vectispire's sign-in screen say "call this number".
+        for (const [reason, expected] of [
+            ['privileged', 'administrative role'],
+            ['Your account is suspended, call +33 1 23 45 67 89', 'Single sign-on was refused.']
+        ]) {
+            window.history.replaceState({}, '', '/login?sso=refused&reason=' + encodeURIComponent(reason));
+            const page = TestBed.createComponent(Login);
+            page.detectChanges();
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: true, label: null, password: true });
+
+            expect(page.componentInstance.error()).toContain(expected);
+            expect(page.componentInstance.error()).not.toContain('+33');
+        }
+        window.history.replaceState({}, '', '/');
+    });
+
     function attempt(): void {
         const page = fixture.componentInstance;
         page.username = 'admin';

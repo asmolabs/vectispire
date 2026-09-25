@@ -148,25 +148,22 @@ public class AuthenticationFlowService {
         return switch (result.outcome()) {
             case AuthService.Outcome.Blocked blocked -> new SignIn.Throttled(blocked.retryAfter());
             case AuthService.Outcome.Invalid ignored -> new SignIn.Refused();
-            case AuthService.Outcome.Success success -> {
-                if (success.user().getMfaEnabled()) {
-                    // A locked second factor issues no challenge: the session the password
-                    // opened is left unused, the way it is when a challenge is issued.
-                    Duration locked = auth.secondFactorLockout(success.user().getId());
-                    if (!locked.isZero()) {
-                        yield new SignIn.Throttled(locked);
-                    }
-                    String mfaToken = UUID.randomUUID().toString();
-                    boolean stored = rememberChallenge(
-                            mfaToken,
-                            success.user().getId(),
-                            clock.instant().plus(CHALLENGE_LIFETIME),
-                            attempt.userAgent(),
-                            attempt.ipAddress());
-                    yield stored ? new SignIn.ChallengeIssued(mfaToken) : new SignIn.ChallengesSaturated();
+            case AuthService.Outcome.SecondFactorRequired owed -> {
+                // A locked second factor issues no challenge.
+                Duration locked = auth.secondFactorLockout(owed.user().getId());
+                if (!locked.isZero()) {
+                    yield new SignIn.Throttled(locked);
                 }
-                yield new SignIn.SignedIn(success.issued(), success.user());
+                String mfaToken = UUID.randomUUID().toString();
+                boolean stored = rememberChallenge(
+                        mfaToken,
+                        owed.user().getId(),
+                        clock.instant().plus(CHALLENGE_LIFETIME),
+                        attempt.userAgent(),
+                        attempt.ipAddress());
+                yield stored ? new SignIn.ChallengeIssued(mfaToken) : new SignIn.ChallengesSaturated();
             }
+            case AuthService.Outcome.Success success -> new SignIn.SignedIn(success.issued(), success.user());
         };
     }
 

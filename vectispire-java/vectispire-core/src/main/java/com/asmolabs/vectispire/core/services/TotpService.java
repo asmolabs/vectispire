@@ -26,12 +26,28 @@ public class TotpService {
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
+    private final AuthService auth;
 
-    public TotpService(Users users, EncryptionService encryption, AuditLogService audit, Clock clock) {
+    public TotpService(Users users, EncryptionService encryption, AuditLogService audit, Clock clock, AuthService auth) {
         this.users = users;
         this.encryption = encryption;
         this.audit = audit;
         this.clock = clock;
+        this.auth = auth;
+    }
+
+    /** The account has used up its wrong codes for this window; the caller answers 429. */
+    public static class SecondFactorLockedException extends RuntimeException {
+        private final java.time.Duration retryAfter;
+
+        public SecondFactorLockedException(java.time.Duration retryAfter) {
+            super("Too many wrong verification codes. Try again later.");
+            this.retryAfter = retryAfter;
+        }
+
+        public java.time.Duration retryAfter() {
+            return retryAfter;
+        }
     }
 
     public record SetupResponse(String secret, String qrCodeUri, String issuer) {}
@@ -84,9 +100,19 @@ public class TotpService {
     }
 
     public void disable(UserEntity user, String code) {
+        // **The same budget as the sign-in challenge.** Disabling asks for a code, and it had no
+        // ceiling: a session left open on somebody's desk could try codes here without limit and,
+        // at a million possibilities, eventually disarm the factor. Wrong codes count against the
+        // account exactly as they do at sign-in, and a lockout there is a lockout here.
+        java.time.Duration locked = auth.secondFactorLockout(user.getId());
+        if (!locked.isZero()) {
+            throw new SecondFactorLockedException(locked);
+        }
         if (!verify(user, code)) {
+            auth.recordSecondFactorFailure(user.getId());
             throw new IllegalArgumentException("Invalid code or backup code. MFA could not be disabled.");
         }
+        auth.clearSecondFactorFailures(user.getId());
 
         user.setMfaEnabled(false);
         user.setTotpSecret(null);

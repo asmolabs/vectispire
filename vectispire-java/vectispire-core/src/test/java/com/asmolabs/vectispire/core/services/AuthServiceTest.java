@@ -130,6 +130,38 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("an unknown name costs the same key derivation as a known one")
+    void anUnknownNameIsNotFaster() {
+        // It answered in microseconds, a known name after Argon2: which names exist could be read
+        // off the clock, whatever the uniform message said.
+        service.login(request("alice", "warm-up"));
+        long known = Long.MAX_VALUE;
+        long unknown = Long.MAX_VALUE;
+        for (int run = 0; run < 3; run++) {
+            long started = System.nanoTime();
+            service.login(request("alice", "wrong"));
+            known = Math.min(known, System.nanoTime() - started);
+            started = System.nanoTime();
+            service.login(request("nobody-" + run, "wrong"));
+            unknown = Math.min(unknown, System.nanoTime() - started);
+        }
+        assertThat(unknown).as("nanoseconds for an unknown name, against %d for a known one", known)
+                .isGreaterThan(known / 3);
+    }
+
+    @Test
+    @DisplayName("an account that owes a code gets no session from its password")
+    void noSessionBeforeTheSecondFactor() {
+        UserEntity carol = user("carol", true);
+        carol.setMfaEnabled(true);
+        when(users.findByUsername("carol")).thenReturn(Optional.of(carol));
+
+        assertThat(service.login(request("carol", PASSWORD)).outcome())
+                .isInstanceOf(AuthService.Outcome.SecondFactorRequired.class);
+        verify(sessions, never()).save(any());
+    }
+
+    @Test
     @DisplayName("an idle session is deleted, not merely refused")
     void anExpiredSessionIsRemoved() {
         SessionEntity session = new SessionEntity();

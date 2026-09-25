@@ -179,7 +179,11 @@ public class AuthController {
         if (body == null || body.code() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verification code is required to disable MFA.");
         }
-        totp.disable(principal.requireUser(), body.code());
+        try {
+            totp.disable(principal.requireUser(), body.code());
+        } catch (TotpService.SecondFactorLockedException locked) {
+            throw throttled(locked.retryAfter());
+        }
         return Map.of("mfaEnabled", false);
     }
 

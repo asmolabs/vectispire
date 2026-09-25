@@ -172,4 +172,20 @@ class MfaVerificationRoutesTest extends ApiTestBase {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
                         .string("Retry-After", org.hamcrest.Matchers.matchesPattern("[1-9]\\d*")));
     }
+
+    @Autowired
+    private com.asmolabs.vectispire.core.repositories.UserSessions sessionStore;
+
+    @Test
+    @DisplayName("the password step opens no session for an account that owes a code")
+    void noSessionBeforeTheCode() throws Exception {
+        // One was opened and thrown away at every password exchange: a row nobody could present,
+        // living its full lifetime in the sessions table.
+        String username = createMfaUser();
+        long accountId = userStore.findByUsername(username).orElseThrow().getId();
+
+        signInAndGetChallenge(username);
+
+        assertThat(sessionStore.findAll()).noneMatch(session -> session.getUserId().equals(accountId));
+    }
 }

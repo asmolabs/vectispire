@@ -63,10 +63,40 @@ public class ExternalIdentityService {
      */
     public record Claimed(String username, String email, boolean emailVerified) {}
 
-    /** Refused with a sentence meant to be shown: the person at the screen has to know why. */
+    /** Why a sign-on was refused, as a code the login screen translates. */
+    public enum Refusal {
+        NO_SUBJECT,
+        NO_ACCOUNT,
+        ALREADY_LINKED,
+        PRIVILEGED,
+        NO_USERNAME,
+        UNVERIFIED_EMAIL,
+        DEACTIVATED,
+        NO_IDENTITY;
+
+        public String wireName() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+    }
+
+    /**
+     * Refused, with a code for the screen and a sentence for the audit log.
+     *
+     * <p>The sentence used to travel in the redirect itself — {@code /login?sso=refused&reason=…} —
+     * and the screen displayed whatever that parameter said. A link carrying "Your account is
+     * suspended, call +33 …" rendered as Vectispire's own message on Vectispire's own page. Only
+     * the code leaves now, and the screen shows its own text for the codes it knows.
+     */
     public static class SignInRefusedException extends RuntimeException {
-        public SignInRefusedException(String message) {
+        private final Refusal refusal;
+
+        public SignInRefusedException(Refusal refusal, String message) {
             super(message);
+            this.refusal = refusal;
+        }
+
+        public Refusal refusal() {
+            return refusal;
         }
     }
 
@@ -101,7 +131,7 @@ public class ExternalIdentityService {
     @Transactional
     public UserEntity resolve(String subject, String issuer, Claimed claimed) {
         if (subject == null || subject.isBlank() || issuer == null || issuer.isBlank()) {
-            throw new SignInRefusedException("The identity provider returned no usable subject.");
+            throw new SignInRefusedException(Refusal.NO_SUBJECT, "The identity provider returned no usable subject.");
         }
 
         Optional<UserEntity> bound = users.findByKeycloakId(subject);
@@ -116,13 +146,13 @@ public class ExternalIdentityService {
                 .filter(found -> found.getUsername().toLowerCase(Locale.ROOT).equals(name))
                 .orElseThrow(() -> {
                     log.warn("Single sign-on refused: no account named \"{}\" ({}).", name, issuer);
-                    return new SignInRefusedException(
+                    return new SignInRefusedException(Refusal.NO_ACCOUNT,
                             "No Vectispire account matches this identity. An administrator has to create it first.");
                 });
 
         if (account.getKeycloakId() != null) {
             log.warn("Single sign-on refused: \"{}\" is already bound to another subject.", name);
-            throw new SignInRefusedException(
+            throw new SignInRefusedException(Refusal.ALREADY_LINKED,
                     "This account is already linked to a different identity. An administrator has to unlink it.");
         }
 
@@ -132,7 +162,7 @@ public class ExternalIdentityService {
         if (privileged && !linkPrivileged) {
             log.warn("Single sign-on refused: \"{}\" holds a privileged role and is not bound on a claim ({}).",
                     name, issuer);
-            throw new SignInRefusedException("This account holds an administrative role, so it is not linked by name. "
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account holds an administrative role, so it is not linked by name. "
                     + "Sign in with its password, or ask for it to be linked through provisioning.");
         }
 
@@ -150,9 +180,11 @@ public class ExternalIdentityService {
         if (!email.isEmpty() && claimed.emailVerified()) {
             return email.toLowerCase(Locale.ROOT);
         }
-        throw new SignInRefusedException(email.isEmpty()
-                ? "The identity provider returned no username to match an account on."
-                : "The identity provider returned no username, and an email address it has not verified.");
+        throw email.isEmpty()
+                ? new SignInRefusedException(Refusal.NO_USERNAME,
+                        "The identity provider returned no username to match an account on.")
+                : new SignInRefusedException(Refusal.UNVERIFIED_EMAIL,
+                        "The identity provider returned no username, and an email address it has not verified.");
     }
 
     /**
@@ -216,7 +248,7 @@ public class ExternalIdentityService {
 
     private static UserEntity active(UserEntity account) {
         if (!account.getIsActive()) {
-            throw new SignInRefusedException("This account is deactivated.");
+            throw new SignInRefusedException(Refusal.DEACTIVATED, "This account is deactivated.");
         }
         return account;
     }

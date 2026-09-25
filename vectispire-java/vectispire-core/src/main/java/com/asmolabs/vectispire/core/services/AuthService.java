@@ -84,6 +84,9 @@ public class AuthService {
          */
         record Invalid() implements Outcome {}
 
+        /** The password was right and the account owes a code. No session exists yet. */
+        record SecondFactorRequired(UserEntity user) implements Outcome {}
+
         record Blocked(Duration retryAfter) implements Outcome {}
     }
 
@@ -131,12 +134,17 @@ public class AuthService {
                             request.username()));
         }
 
-        // The hash is verified only when an account was found. Verifying it anyway to equalize
-        // timings would mean a free key derivation for every unknown username, which is a
-        // denial-of-service lever; the timing difference is real, and the throttle above is what
-        // makes it unexploitable.
-        boolean authenticated = user.filter(UserEntity::getIsActive)
-                .filter(found -> PasswordHasher.verify(request.password(), found.getPassword())).isPresent();
+        // **One key derivation whatever the name, so the answer's timing says nothing.** The hash
+        // used to be verified only when an account was found, on the grounds that a derivation for
+        // every unknown name was a denial-of-service lever: an unknown name answered in
+        // microseconds, a known one after Argon2 — an account-existence oracle the uniform 401
+        // message was built to prevent. The lever argument did not hold: the throttle above has
+        // already admitted this attempt, and a known name buys the same derivation at the same
+        // rate. A deactivated account is verified against the same stand-in, for the same reason.
+        Optional<UserEntity> active = user.filter(UserEntity::getIsActive);
+        boolean matches = PasswordHasher.verify(
+                request.password(), active.map(UserEntity::getPassword).orElseGet(AuthService::standInHash));
+        boolean authenticated = active.isPresent() && matches;
 
         if (!authenticated) {
             recordFailure(userKey, now);
@@ -158,6 +166,17 @@ public class AuthService {
 
         UserEntity found = user.orElseThrow();
         rehashIfStale(found, request.password());
+        if (found.getMfaEnabled()) {
+            // **No session yet.** One was opened here for every account and discarded by the
+            // caller when a code was owed: a row per password exchange that nobody could present,
+            // living its full lifetime in the sessions table. The session is opened when the code
+            // is verified, and not before.
+            return new LoginResult(
+                    new Outcome.SecondFactorRequired(found),
+                    AuditLogService.Record.of(
+                            AuditOperation.LOGIN_SUCCESS, found.getUsername(),
+                            "Password accepted, second factor required", found.getUsername()));
+        }
         IssuedSession session = openSession(found, request, now);
         return new LoginResult(
                 new Outcome.Success(session, found),
@@ -300,6 +319,18 @@ public class AuthService {
     @Transactional
     public void clearSecondFactorFailures(Long accountId) {
         attempts.deleteByCounterKey(LoginThrottle.secondFactorKey(accountId));
+    }
+
+    /** A real Argon2 hash of nothing anybody knows, computed once, for the unknown-name path. */
+    private static volatile String standIn;
+
+    private static String standInHash() {
+        String hash = standIn;
+        if (hash == null) {
+            hash = PasswordHasher.hash(java.util.UUID.randomUUID().toString());
+            standIn = hash;
+        }
+        return hash;
     }
 
     private List<Instant> occurrences(String counterKey, Instant since) {

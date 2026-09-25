@@ -138,7 +138,11 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
 
         assertThatThrownBy(() -> identities.resolve("sub-evil", ISSUER, "admin"))
                 .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
-                .hasMessageContaining("administrative role");
+                .hasMessageContaining("administrative role")
+                // A code for the login screen, which shows its own words: the sentence used to
+                // travel in the redirect and be displayed verbatim.
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.PRIVILEGED);
         assertThat(users.findById(admin.getId()).orElseThrow().getKeycloakId()).isNull();
 
         ExternalIdentityService trusting =

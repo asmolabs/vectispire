@@ -65,9 +65,26 @@ export class Login {
         if (parameters.get('sso') === 'complete') {
             this.completeSignIn();
         } else if (parameters.get('sso') === 'refused') {
-            this.error.set(parameters.get('reason') ?? this.i18n.t('auth.error_sso_refused'));
+            // A code, looked up here, never displayed as sent: the reason used to be a sentence in
+            // the URL, and any link could make this page speak in Vectispire's name.
+            this.error.set(this.refusalMessage(parameters.get('reason')));
         } else if (parameters.get('sso') === 'failed') {
             this.error.set(this.i18n.t('auth.error_sso_failed'));
+        }
+    }
+
+    /** The refusal codes the server sends, and the only texts this page will show for them. */
+    private refusalMessage(code: string | null): string {
+        switch (code) {
+            case 'no_subject': return this.i18n.t('auth.sso_refused_no_subject');
+            case 'no_account': return this.i18n.t('auth.sso_refused_no_account');
+            case 'already_linked': return this.i18n.t('auth.sso_refused_already_linked');
+            case 'privileged': return this.i18n.t('auth.sso_refused_privileged');
+            case 'no_username': return this.i18n.t('auth.sso_refused_no_username');
+            case 'unverified_email': return this.i18n.t('auth.sso_refused_unverified_email');
+            case 'deactivated': return this.i18n.t('auth.sso_refused_deactivated');
+            case 'no_identity': return this.i18n.t('auth.sso_refused_no_identity');
+            default: return this.i18n.t('auth.error_sso_refused');
         }
     }
 

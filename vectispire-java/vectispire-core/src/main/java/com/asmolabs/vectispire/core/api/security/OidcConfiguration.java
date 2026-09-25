@@ -7,8 +7,6 @@ import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.ExternalIdentityService;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,11 +106,14 @@ public class OidcConfiguration {
     private final ExternalIdentityService identities;
     private final AuthService auth;
     private final AuditLogService audit;
+    private final TrustedProxies proxies;
 
-    public OidcConfiguration(ExternalIdentityService identities, AuthService auth, AuditLogService audit) {
+    public OidcConfiguration(
+            ExternalIdentityService identities, AuthService auth, AuditLogService audit, TrustedProxies proxies) {
         this.identities = identities;
         this.auth = auth;
         this.audit = audit;
+        this.proxies = proxies;
     }
 
     /**
@@ -151,7 +152,7 @@ public class OidcConfiguration {
     private AuthenticationSuccessHandler onSuccess() {
         return (request, response, authentication) -> {
             if (!(authentication.getPrincipal() instanceof OidcUser oidc)) {
-                redirectRefused(response, "The identity provider returned no OpenID identity.");
+                redirectRefused(response, ExternalIdentityService.Refusal.NO_IDENTITY);
                 return;
             }
 
@@ -183,7 +184,10 @@ public class OidcConfiguration {
 
                 // The clear token, straight from the mint into the one-time cookie: the row it
                 // belongs to holds only its hash, so this is the sole copy in existence.
-                response.addCookie(handoff(session.token(), request.isSecure()));
+                // The client's leg, not ours: behind a TLS-terminating proxy `isSecure()` is false —
+                // no forward-headers strategy is set — and the session token went out in a cookie
+                // without `Secure`. The trusted proxy's `X-Forwarded-Proto` is what says HTTPS.
+                response.addCookie(handoff(session.token(), proxies.isSecureTransport(request)));
                 // Back to the sign-in screen rather than to the application, and the marker says
                 // why: that screen is where the browser would land anyway — the token is not in
                 // memory yet, so the first API call answers 401 and the interceptor sends it
@@ -200,7 +204,7 @@ public class OidcConfiguration {
                         null,
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent")));
-                redirectRefused(response, refused.getMessage());
+                redirectRefused(response, refused.refusal());
             }
         };
     }
@@ -220,8 +224,10 @@ public class OidcConfiguration {
         return cookie;
     }
 
-    private static void redirectRefused(jakarta.servlet.http.HttpServletResponse response, String reason)
+    /** A code, never a sentence: the screen shows its own words — see SignInRefusedException. */
+    private static void redirectRefused(
+            jakarta.servlet.http.HttpServletResponse response, ExternalIdentityService.Refusal refusal)
             throws IOException {
-        response.sendRedirect("/login?sso=refused&reason=" + URLEncoder.encode(reason, StandardCharsets.UTF_8));
+        response.sendRedirect("/login?sso=refused&reason=" + refusal.wireName());
     }
 }
