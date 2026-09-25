@@ -30,6 +30,10 @@ the traps that have already produced defects here.
 - Who may grant which role: only a governor administers the governor role, nobody changes their own
   role, the SCIM token grants no administrative role and cannot touch administrative accounts.
 - Ids in request bodies, bulk operations, aggregates and exports that iterate "everything".
+- Credentials that are not sessions: an agent key must stay on `@RequiresAgentKey` routes, an
+  integration key on `@AcceptsApiKey` routes with its scope (`CredentialConfinement`). A key acts
+  for an account narrowed to its target, so an administrator-only route that names a target still
+  needs the visibility check — a restricted key once triggered scans of every repository.
 
 **Authentication.** Throttles keyed on something the client chooses (a body field, a raw
 percent-encoded path, a case/accent variant of a username); second factors limited per challenge
@@ -44,6 +48,10 @@ or reveal when no secret is configured.
 SIEM, AI endpoints) reaching internal services — the Docker socket proxy and the database above all;
 the guard is `OutboundUrlGuard` → `PinnedHttpSender`. Paths built from user data (`subPath`, ticket
 references pasted into URLs). Repository content parsed in the JVM: symlinks, size, regex cost.
+Where a credential goes: a clone token bound to its host (`HostBoundCredentials`), no HTTP redirect
+followed by JGit or `PinnedHttpSender`, a sealed secret never accepted in clear once sealing was
+announced (downgrade). Unbounded request bodies, and anonymous routes whose every refusal writes a
+permanent audit row.
 
 **Secrets and integrity.** A secret returned, logged, audited, exported or sent to the browser; a
 decryption failure that silently disables a check; a signing key that does not survive a restart or

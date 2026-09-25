@@ -52,6 +52,20 @@ committed `openapi.json` — never edit `api.generated.ts` by hand.
 **Every component pins `ChangeDetectionStrategy.Eager`** since Angular 22 made OnPush the default.
 Moving a component to OnPush is a deliberate change: every state it renders must be a signal.
 
+**The application is zoneless.** Eager change detection renders after a template event, a signal
+write or `markForCheck` — not after a `FileReader.onload`, a timer or a promise that only assigns a
+plain field. State written from a callback is a signal.
+
+**Errors are read with `messageOf`.** The server answers RFC 7807: the explanation is in `detail`,
+and `err.error.message` is always empty, so fourteen screens showed the generic fallback.
+
+**An icon-only button has an accessible name** (`[ariaLabel]="'…' | translate"`): the template lint
+checks native elements, not `<p-button>`.
+
+**Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
+to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
+(`Record<Union, 'a.b'>`) instead (decision 0019).
+
 **No `innerHTML`, no `bypassSecurityTrust*`, no markdown renderer.** Scanner output, AI advice and
 repository names are rendered as text. The session token lives in memory only.
 

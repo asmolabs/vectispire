@@ -76,6 +76,9 @@ Break the code the test pins (remove the guard, flip the condition), run the tes
 **fails**, restore the file, confirm it passes. Back the file up first and compare after restoring.
 Report which mutations were caught. A test that stays green without its guard pins nothing.
 
+Script it with a `try/finally` that writes the original back and a timeout on each run: a regex
+mutant once ran for fifteen minutes, the run was killed, and the source stayed mutated.
+
 ## 8. Commit and push
 
 - One commit per logical change, message in the repository's style (`fix(area): …`, body saying what
@@ -87,5 +90,8 @@ Report which mutations were caught. A test that stays green without its guard pi
   (`gh run list --commit <sha> --workflow ci.yml`), and it requires linear history. Merging a pull
   request that changes `.github/workflows/` needs the `workflow` scope the `gh` token lacks:
   cherry-pick and push over SSH instead.
+- **Stop a pending main watcher when a hole is found in the commit it waits on.** A watcher that
+  fast-forwards `main` on green does not know the commit is wrong; stop it, push the fix, and watch
+  the fixed commit instead.
 - The nightly (`nightly.yml`, from `main`) is the only place every suite runs unconditionally. Do not
   cut a release on a nightly that has not been green.

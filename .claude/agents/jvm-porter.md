@@ -86,6 +86,33 @@ the controller keeps parameters, status codes and DTOs. `ArchitectureTest` enfor
 can be enforced: repositories are reached by services only, the `api` layer opens no transaction,
 and only `api.security` writes the audit log.
 
+**No JPA entity crosses a route, in either direction.** Services hand back records whose
+components are the entity's property names (`IssueView`, `AuditEntryView`…), so the wire does not
+move. Returning the entity made the table the contract — a bookkeeping column was published the day
+it was mapped. `SchemaNameCollisionTest` walks every type reachable from a route (generics, record
+components, getters) and fails on a `persistence` class; `EntityViewsTest` fails when an entity
+gains a property its view does not carry.
+
+**A credential that is not a session is confined, and the confinement is not the visibility.**
+An agent key passes only on `@RequiresAgentKey` routes, an integration key only on
+`@AcceptsApiKey(scope)` routes (`CredentialConfinement`). An integration key acts for its account,
+narrowed to its target — so a route that accepts a key and names a target resolves a `Visibility`
+**even when only administrators reach it**: an administrator sees everything, a key restricted to
+repository 1 does not, and the scan triggers once queued scans of any repository for such a key.
+
+**Validate in the service, against the column.** A string reaching a bounded column is bounded
+before the write, a date is bounded before year 9999, an element of a request list may be null, and
+a foreign id is checked for existence *and* visibility (absent and hidden in the same words). SQLite
+enforces no length, so the HTTP suite passes where MySQL and PostgreSQL answer 500. An encrypted
+column holds `v2:` + base64 of nonce, text and tag — size it for the ciphertext, not the secret.
+
+**No outbound HTTP inside a transaction.** An enrichment or an AI call holding a row lock for
+minutes is a production incident no test sees. `@Async` is inert here — there is no
+`@EnableAsync` — so work meant to leave after commit goes through the outbox.
+
+**The client's address comes from `TrustedProxies`**, never `getRemoteAddr()`: behind a load
+balancer every audit entry and every throttle would name the balancer.
+
 **Roles are a separation of duties, not a ladder.** The platform governor (SUPERUSER) decides the
 rules — four-eyes, visibility — and takes no triage decision; only a governor administers the
 governor role, and nobody changes their own role (`AccountRules`). The SCIM token grants no
@@ -132,6 +159,15 @@ that motivated a guard, the alternative that was tried and failed, the cost bein
 comment restating the line below it is noise. A comment naming the consequence of getting it
 wrong is why the next person does not break it. **Write them in English**, like the rest.
 
+**`-Werror` includes dangling doc comments.** Never insert a method between an existing javadoc
+and the method it documents — add the new one above the javadoc.
+
+**MySQL ignores a column-level `REFERENCES`.** Declare a foreign key as a named
+`alter table … add constraint fk_… foreign key …` on MySQL and PostgreSQL (see V19, V37).
+
+**What crosses a wire is tested with the real `ObjectMapper`.** Remote agents' results never
+serialized — an `Optional` with no jdk8 module — while every unit test passed on objects.
+
 **Delete a comment that has stopped being true.** Several already have: one justified a file
 layout the file no longer had. A stale comment is worse than none, because it is believed.
 
@@ -152,7 +188,9 @@ already produced a defect invisible to a careful reading.
 
 **Mutation-check every test you add.** Break the code it pins — remove the guard, flip the
 condition — run the test, confirm it fails, restore. A test that stays green with the guard gone
-pins nothing; several written here did until this was the rule.
+pins nothing; several written here did until this was the rule. Script it with a `try/finally` that
+restores the file and a timeout: a regex mutant once ran for fifteen minutes and left the source
+mutated.
 
 **Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations,
 `core/repositories/`, `core/persistence/`, `core/config/`, the integration sources, and the Gradle
