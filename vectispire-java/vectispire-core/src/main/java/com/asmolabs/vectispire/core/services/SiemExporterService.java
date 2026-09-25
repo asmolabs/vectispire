@@ -63,6 +63,17 @@ public class SiemExporterService {
                     fresh.setId(SiemConfigEntity.SINGLETON_ID);
                     return fresh;
                 });
+        // **A new destination does not inherit the old credential.** "Blank keeps the header" was
+        // right for a save that changed the severity, and it also held when the endpoint changed:
+        // the header an administrator had stored left for whatever collector the new URL named —
+        // the security lead's own host included — without anyone having re-entered it. A header is
+        // issued for one collector; pointing elsewhere now requires typing it again.
+        String previousEndpoint = entity.getEndpoint() == null ? "" : entity.getEndpoint().trim();
+        String nextEndpoint = endpoint == null ? "" : endpoint.trim();
+        boolean destinationMoved = !previousEndpoint.equals(nextEndpoint);
+        if (destinationMoved && (authHeader == null || authHeader.isBlank())) {
+            entity.setAuthHeader(null);
+        }
         entity.setEnabled(enabled);
         entity.setProtocol(protocol != null ? protocol : "WEBHOOK");
         entity.setEndpoint(endpoint);

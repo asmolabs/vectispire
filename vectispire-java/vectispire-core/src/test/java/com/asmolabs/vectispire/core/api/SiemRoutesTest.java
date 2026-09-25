@@ -120,13 +120,35 @@ class SiemRoutesTest extends ApiTestBase {
         assertThat(attempted).isNotEqualTo(refused);
     }
 
+    @Test
+    @DisplayName("a new endpoint does not inherit the stored header: it has to be typed again")
+    void aMovedEndpointDropsTheHeader() throws Exception {
+        // "Blank keeps the header" also held when the endpoint changed, so a security lead could
+        // point the collector at their own host and receive the header an administrator stored.
+        save("Bearer secret-siem-token-123");
+
+        save(null, "https://collector.attacker.example/e", asCiso());
+
+        assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID).orElseThrow().getAuthHeader()).isNull();
+        mvc.perform(authenticated(get("/api/v1/siem/config"), asAdmin()))
+                .andExpect(jsonPath("$.hasAuthHeader").value(false));
+
+        // Moving it with a header typed for the new collector keeps that one.
+        save("Bearer for-the-new-collector", "https://siem2.example.com/e", asAdmin());
+        assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID).orElseThrow().getAuthHeader()).startsWith("v2:");
+    }
+
     private void save(String authHeader) throws Exception {
+        save(authHeader, "https://siem.example.com/e", asAdmin());
+    }
+
+    private void save(String authHeader, String endpoint, String token) throws Exception {
         String header = authHeader == null ? "" : ", \"authHeader\": \"" + authHeader + "\"";
-        mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
+        mvc.perform(authenticated(put("/api/v1/siem/config"), token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"enabled": true, "protocol": "WEBHOOK", "endpoint": "https://siem.example.com/e",
-                                 "minSeverity": "HIGH"%s}""".formatted(header)))
+                                {"enabled": true, "protocol": "WEBHOOK", "endpoint": "%s",
+                                 "minSeverity": "HIGH"%s}""".formatted(endpoint, header)))
                 .andExpect(status().isOk());
     }
 }

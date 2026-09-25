@@ -82,7 +82,8 @@ public class SettingsController {
             // sections, and copying it into the front end would have made a second source, compared
             // with the first only by the surprise of a 403. The screen shows these settings to
             // whoever may read them and offers the edit only to whoever may make it.
-            @JsonProperty("governor_only") boolean governorOnly) {}
+            @JsonProperty("governor_only") boolean governorOnly,
+            @JsonProperty("administrator_only") boolean administratorOnly) {}
 
     public record Catalog(List<SettingView> settings) {}
 
@@ -113,7 +114,8 @@ public class SettingsController {
                             setting.defaultValue(),
                             entry.value(),
                             entry.configured(),
-                            entry.governorOnly());
+                            entry.governorOnly(),
+                            entry.administratorOnly());
                 })
                 .toList());
     }

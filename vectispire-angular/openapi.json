@@ -5531,6 +5531,9 @@
       },
       "SettingView" : {
         "properties" : {
+          "administrator_only" : {
+            "type" : "boolean"
+          },
           "configured" : {
             "type" : "boolean"
           },
@@ -5559,7 +5562,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "configured", "governor_only" ],
+        "required" : [ "administrator_only", "configured", "governor_only" ],
         "type" : "object"
       },
       "SetupResponse" : {

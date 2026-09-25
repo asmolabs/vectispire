@@ -175,9 +175,13 @@ export class SettingsCatalog {
         return this.tabOf(section) === this.tab();
     }
 
-    /** This setting decides a rule, and this account does not govern the platform. */
+    /**
+     * This setting decides a rule and this account does not govern the platform, or it decides
+     * where a credential is sent and this account may not set that credential.
+     */
     isReadOnlyHere(setting: SettingDefinition): boolean {
-        return setting.governor_only && !this.session.governsPlatform();
+        return (setting.governor_only && !this.session.governsPlatform())
+            || (setting.administrator_only && !this.session.isAdmin());
     }
 
     getSectionTitle(section: { name: string; settings: SettingDefinition[] }): string {

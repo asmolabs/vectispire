@@ -1607,7 +1607,7 @@
     },
     "settings_saved": "Settings saved.",
     "siem_auth": "Authorization Header",
-    "siem_auth_placeholder": "Bearer <token> or Splunk <hec_token> (leave empty to keep current)",
+    "siem_auth_placeholder": "Bearer <token> or Splunk <hec_token> (leave empty to keep current — a new endpoint needs it typed again)",
     "siem_auth_saved": "saved token present",
     "siem_enable": "Enable Event Streaming",
     "siem_enable_desc": "Forward high-priority security incidents (secret leaks, KEV, SLA breaches, gate failures) in ArcSight CEF v0.1 format.",

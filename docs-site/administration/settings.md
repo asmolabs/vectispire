@@ -10,6 +10,18 @@ screen from becoming a museum of options that do nothing.
 Only what is needed to reach this screen at all is an environment variable. See
 [Configuration](../reference/configuration.md).
 
+## Who may change what
+
+A CISO writes most of this page, but **not where a credential is sent**. The tracker token and
+the OpenAI key are set by an administrator only, so the settings that decide their destination —
+the tracker base URL, *Allow a private tracker URL*, the OpenAI URL and the acknowledgement that
+lets code go to a remote endpoint — are an administrator's too, and show read-only to anyone else.
+Otherwise a role that cannot read a credential could collect it by pointing it at its own host.
+
+The SIEM form works the other way round, because the same role sets its endpoint and its header:
+changing the endpoint **drops the stored header** unless a new one is typed with it. A header is
+issued for one collector.
+
 ## Enrichment
 
 EPSS and CISA KEV lookups. These are the only outbound calls the pipeline makes besides

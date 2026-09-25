@@ -72,8 +72,11 @@ public class SettingsAdministrationService {
      * @param value the effective value, default included, or {@code null} when it may not leave
      * @param governorOnly true when this setting decides a rule rather than a parameter, and only
      *     the platform governor may write it
+     * @param administratorOnly true when it decides where a credential is sent, and only the role
+     *     that may set that credential may change it — see {@link Setting#directsCredential()}
      */
-    public record Entry(Setting setting, String value, boolean configured, boolean governorOnly) {}
+    public record Entry(
+            Setting setting, String value, boolean configured, boolean governorOnly, boolean administratorOnly) {}
 
     /**
      * What a save changed, in the words its audit entry uses.
@@ -118,7 +121,8 @@ public class SettingsAdministrationService {
                             ? null
                             : stored.getOrDefault(setting.key(), setting.defaultValue()),
                     stored.containsKey(setting.key()),
-                    GOVERNANCE_SECTIONS.contains(setting.section())));
+                    GOVERNANCE_SECTIONS.contains(setting.section()),
+                    setting.directsCredential().isPresent()));
         }
         return entries;
     }
@@ -163,6 +167,18 @@ public class SettingsAdministrationService {
                         setting.label() + " decides a rule rather than a setting: only a platform "
                                 + "governor may change it, because it is the one role that cannot "
                                 + "act under it.");
+            }
+            // **A credential's destination moves only in the hands of whoever may set the credential.**
+            // Only on a change: a screen that saves every field it shows sends these back unchanged,
+            // and refusing that would lock a CISO out of the rest of the section.
+            if (setting.directsCredential().isPresent()
+                    && !value.equals(settings.get(setting))
+                    && !administrative(writer)) {
+                Setting credential = setting.directsCredential().get();
+                throw new AccessDeniedException(
+                        setting.label() + " decides where " + credential.label().toLowerCase(java.util.Locale.ROOT)
+                                + " is sent, and only an administrator — who alone may set that credential — "
+                                + "may change it.");
             }
             // **Switching on a two-person control requires that there be two.** Without this
             // guard, switching it on where no approver is active puts every decision in a queue
@@ -381,6 +397,10 @@ public class SettingsAdministrationService {
     }
 
     /** The role that decides the rules, and the only one that cannot act under them. */
+    private static boolean administrative(Optional<UserEntity> writer) {
+        return writer.flatMap(u -> Role.of(u.getRole())).map(Role::isAdministrative).orElse(false);
+    }
+
     private static boolean governsPlatform(Optional<UserEntity> writer) {
         return writer.flatMap(u -> Role.of(u.getRole())).map(Role::governsPlatform).orElse(false);
     }

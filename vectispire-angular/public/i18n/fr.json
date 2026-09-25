@@ -1717,7 +1717,7 @@
     },
     "settings_saved": "Paramètres enregistrés.",
     "siem_auth": "En-tête d'autorisation (Header)",
-    "siem_auth_placeholder": "Bearer <token> ou Splunk <hec_token> (laisser vide pour conserver)",
+    "siem_auth_placeholder": "Bearer <token> ou Splunk <hec_token> (laisser vide pour conserver — un nouveau point d'arrivée demande de le ressaisir)",
     "siem_auth_saved": "jeton enregistré présent",
     "siem_enable": "Activer la diffusion d'événements",
     "siem_enable_desc": "Transmettre les incidents de sécurité critiques (fuites de secrets, KEV, SLA dépassés, échecs de gate) au format ArcSight CEF v0.1.",

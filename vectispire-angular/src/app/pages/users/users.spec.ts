@@ -44,7 +44,7 @@ describe('the accounts screen', () => {
 
     /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
-        settings: [{ key: 'target_visibility', value: 'assigned', configured: true, governor_only: false }]
+        settings: [{ key: 'target_visibility', value: 'assigned', configured: true, governor_only: false, administrator_only: false }]
     });
 
     beforeEach(async () => {

@@ -50,7 +50,8 @@ describe('the settings screen', () => {
                     value: 'gemma4:12b-it-qat',
                     default: 'gemma4:12b-it-qat',
                     configured: false,
-                    governor_only: false
+                    governor_only: false,
+                    administrator_only: false
                 },
                 {
                     key: 'notification_webhook_url',
@@ -60,7 +61,8 @@ describe('the settings screen', () => {
                     value: '',
                     default: '',
                     configured: false,
-                    governor_only: false
+                    governor_only: false,
+                    administrator_only: false
                 }
             ]
     });
@@ -86,6 +88,16 @@ describe('the settings screen', () => {
         fixture.detectChanges();
         const text = fixture.nativeElement.textContent;
         expect(text.includes('Test the connection') || text.includes('settings.test_connection')).toBe(true);
+    });
+
+    it('greys out where a credential is sent for an account that may not set the credential', () => {
+        // The server refuses the change for anyone but an administrator; an editable field would
+        // only turn a deliberate rule into a 403 after the fact. No session here: not an admin.
+        const destination = { administrator_only: true, governor_only: false } as never;
+        const ordinary = { administrator_only: false, governor_only: false } as never;
+
+        expect(section(SettingsCatalog).isReadOnlyHere(destination)).toBe(true);
+        expect(section(SettingsCatalog).isReadOnlyHere(ordinary)).toBe(false);
     });
 
     it('keys the button to the settings, not to the section title', () => {

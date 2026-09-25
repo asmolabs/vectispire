@@ -4699,6 +4699,7 @@ export interface components {
             steps?: components["schemas"]["Step"][];
         };
         SettingView: {
+            administrator_only: boolean;
             configured: boolean;
             default?: string;
             governor_only: boolean;

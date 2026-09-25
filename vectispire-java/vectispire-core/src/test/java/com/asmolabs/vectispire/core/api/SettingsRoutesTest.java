@@ -28,6 +28,9 @@ import org.springframework.http.MediaType;
 @DisplayName("the settings routes")
 class SettingsRoutesTest extends ApiTestBase {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.asmolabs.vectispire.core.services.SettingsService settingsStore;
+
     /** Every writing route, with a body each will accept if it gets that far. */
     private static Map<String, String> writingRoutes() {
         return Map.of(
@@ -93,5 +96,42 @@ class SettingsRoutesTest extends ApiTestBase {
                 .as("the connection test answered %d to an ordinary account; it reports the "
                         + "configured URL and makes the server dial it", status)
                 .isEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("a CISO cannot move where the tracker token or the OpenAI key is sent")
+    void aCisoCannotRedirectACredential() throws Exception {
+        // The credentials are administrator-only, their destinations were not: pointing
+        // ticket_base_url at one's own host made the next ticket carry the administrator's token
+        // there.
+        // A known starting point: the database is shared across the suite, and a switch another test
+        // left on would make "true" an unchanged value here rather than a change.
+        settingsStore.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_ALLOW_PRIVATE_URL, "false");
+        settingsStore.set(com.asmolabs.vectispire.common.domain.settings.Setting.AI_REVIEW_ALLOW_REMOTE, "false");
+        String ciso = asCiso();
+        for (String body : new String[] {
+            "{\"ticket_base_url\":\"https://tracker.attacker.example\"}",
+            "{\"ticket_allow_private_url\":\"true\"}",
+            "{\"ai_review_openai_url\":\"https://llm.attacker.example/v1\"}",
+            "{\"ai_review_allow_remote_url\":\"true\"}"
+        }) {
+            mvc.perform(authenticated(put("/api/v1/settings"), ciso)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
+        }
+
+        // The rest of the section stays theirs, and so does saving a destination back unchanged —
+        // a screen that submits every field it shows would otherwise lock them out of it.
+        mvc.perform(authenticated(put("/api/v1/settings"), ciso)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"eol_warn_days\":\"45\",\"ticket_allow_private_url\":\"false\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        // An administrator, who may set the credential, may move it.
+        mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ticket_base_url\":\"https://tracker.example.com\"}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
     }
 }

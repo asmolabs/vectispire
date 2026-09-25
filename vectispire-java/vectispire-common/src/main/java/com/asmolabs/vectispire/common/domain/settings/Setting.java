@@ -511,6 +511,24 @@ public enum Setting {
         return sensitivity == Sensitivity.SECRET || sensitivity == Sensitivity.ENCRYPTED;
     }
 
+    /**
+     * The credential this setting decides the destination of, if it decides one.
+     *
+     * <p><b>Whoever may point a credential somewhere must be allowed to hold it.</b> The tracker
+     * token and the OpenAI key are set only by an administrator; the URLs they are sent to, and the
+     * switches that let them leave for a private or a remote host, were ordinary settings a CISO
+     * could write. Changing {@code ticket_base_url} to one's own host made the next ticket carry
+     * {@code Authorization: Bearer <the administrator's token>} there — a credential its role could
+     * neither set nor read, collected by redirecting it.
+     */
+    public Optional<Setting> directsCredential() {
+        return switch (this) {
+            case TICKET_BASE_URL, TICKET_ALLOW_PRIVATE_URL -> Optional.of(TICKET_TOKEN);
+            case AI_REVIEW_OPENAI_URL, AI_REVIEW_ALLOW_REMOTE -> Optional.of(AI_REVIEW_OPENAI_KEY);
+            default -> Optional.empty();
+        };
+    }
+
     /** Whether this is a credential: encrypted at rest, written by its own route, never returned. */
     public boolean isEncrypted() {
         return sensitivity == Sensitivity.ENCRYPTED;

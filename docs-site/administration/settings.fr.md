@@ -10,6 +10,19 @@ Cette règle empêche l'écran de devenir un musée d'options qui ne font rien.
 Seul ce qui est nécessaire pour atteindre cet écran est une variable d'environnement. Voir
 [Configuration](../reference/configuration.md).
 
+## Qui peut changer quoi
+
+Un CISO écrit l'essentiel de cette page, mais **pas la destination d'un identifiant**. Le jeton du
+tracker et la clé OpenAI ne sont réglés que par un administrateur ; les réglages qui décident où
+ils partent — l'URL du tracker, *Autoriser une URL de tracker privée*, l'URL OpenAI et
+l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc aussi ceux d'un
+administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle qui ne peut pas
+lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte.
+
+Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le point d'arrivée et
+l'en-tête : changer le point d'arrivée **efface l'en-tête enregistré**, sauf si un nouveau est saisi
+avec lui. Un en-tête est émis pour un collecteur.
+
 ## Enrichissement
 
 Consultations EPSS et CISA KEV. Ce sont les seuls appels sortants du pipeline en dehors du
