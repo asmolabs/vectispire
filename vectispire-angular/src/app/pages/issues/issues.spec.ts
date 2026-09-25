@@ -310,9 +310,9 @@ describe('triaging a selection', () => {
         component.openBulkTriage();
         component.submitTriage();
         // The route answers with the written issues, not with backlog rows: `targetKind` is the
-        // backlog's word and an `IssueEntity` does not carry it.
+        // backlog's word and an `IssueView` does not carry it.
         http.expectOne('/api/v1/issues/triage').flush(
-            asSchemaList('IssueEntity', [
+            asSchemaList('IssueView', [
                 {
                     id: 11,
                     type: 'vulnerability',

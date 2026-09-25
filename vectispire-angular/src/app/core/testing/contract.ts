@@ -114,7 +114,7 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     Scan: { status: SCAN_STATUSES },
     ScanSummary: { status: SCAN_STATUSES },
     IssueDetail: ISSUE,
-    IssueEntity: ISSUE,
+    IssueView: ISSUE,
     ObservedIssue: ISSUE,
     BacklogEntry: ISSUE,
     TriageRequest: { status: TRIAGE_STATUSES },

@@ -58,7 +58,7 @@ public class ApiInventoryService {
     public record RepositoryApisOverview(
             Long repositoryId,
             List<EndpointView> endpoints,
-            List<ApiContractEntity> contracts,
+            List<ApiContractView> contracts,
             AttackSurfaceSummary summary) {}
 
     public record GlobalAttackSurface(
@@ -301,7 +301,8 @@ public class ApiInventoryService {
         }
 
         AttackSurfaceSummary summary = AttackSurfaceSummary.from(domainEndpoints, diff);
-        return new RepositoryApisOverview(repositoryId, views, contractEntities, summary);
+        return new RepositoryApisOverview(
+                repositoryId, views, contractEntities.stream().map(ApiContractView::of).toList(), summary);
     }
 
     /**

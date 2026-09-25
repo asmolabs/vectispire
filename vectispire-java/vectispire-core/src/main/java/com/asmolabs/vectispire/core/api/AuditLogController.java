@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.services.AuditEntryView;
 import com.asmolabs.vectispire.core.services.AuditLogQueryService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,7 +21,7 @@ public class AuditLogController {
         this.trail = trail;
     }
 
-    public record AuditLogPage(List<AuditLogEntity> items, long total, int limit, int offset) {}
+    public record AuditLogPage(List<AuditEntryView> items, long total, int limit, int offset) {}
 
     /**
      * @param unverifiable entries predating the chaining: neither a proof nor an alarm, a fact

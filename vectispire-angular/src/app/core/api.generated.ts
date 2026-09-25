@@ -2761,7 +2761,7 @@ export interface components {
             title?: string;
             version?: string;
         };
-        ApiContractEntity: {
+        ApiContractView: {
             contractPath?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -2908,7 +2908,7 @@ export interface components {
             /** Format: int32 */
             unauthenticatedEndpoints: number;
         };
-        AuditLogEntity: {
+        AuditEntryView: {
             description?: string;
             entryHash?: string;
             /** Format: uuid */
@@ -2923,7 +2923,7 @@ export interface components {
             userId?: string;
         };
         AuditLogPage: {
-            items?: components["schemas"]["AuditLogEntity"][];
+            items?: components["schemas"]["AuditEntryView"][];
             /** Format: int32 */
             limit: number;
             /** Format: int32 */
@@ -3771,7 +3771,30 @@ export interface components {
             triagedBy?: string;
             type?: string;
         };
-        IssueEntity: {
+        IssuePage: {
+            items?: components["schemas"]["BacklogEntry"][];
+            /** Format: int32 */
+            limit: number;
+            /** Format: int32 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
+        };
+        IssueTicketView: {
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            issueId?: number;
+            provider?: string;
+            status?: string;
+            ticketKey?: string;
+            ticketUrl?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        IssueView: {
             /** Format: int64 */
             containerId?: number;
             /** Format: double */
@@ -3829,29 +3852,6 @@ export interface components {
             triagedAt?: string;
             triagedBy?: string;
             type?: string;
-        };
-        IssuePage: {
-            items?: components["schemas"]["BacklogEntry"][];
-            /** Format: int32 */
-            limit: number;
-            /** Format: int32 */
-            offset: number;
-            /** Format: int64 */
-            total: number;
-        };
-        IssueTicketEntity: {
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: int64 */
-            id?: number;
-            /** Format: int64 */
-            issueId?: number;
-            provider?: string;
-            status?: string;
-            ticketKey?: string;
-            ticketUrl?: string;
-            /** Format: date-time */
-            updatedAt?: string;
         };
         IssuedKey: {
             key?: components["schemas"]["ApiKeySummary"];
@@ -4351,7 +4351,7 @@ export interface components {
             version?: string;
         };
         RepositoryApisOverview: {
-            contracts?: components["schemas"]["ApiContractEntity"][];
+            contracts?: components["schemas"]["ApiContractView"][];
             endpoints?: components["schemas"]["EndpointView"][];
             /** Format: int64 */
             repositoryId?: number;
@@ -7212,7 +7212,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IssueEntity"][];
+                    "*/*": components["schemas"]["IssueView"][];
                 };
             };
         };
@@ -7260,7 +7260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IssueEntity"];
+                    "*/*": components["schemas"]["IssueView"];
                 };
             };
         };
@@ -7286,7 +7286,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IssueEntity"];
+                    "*/*": components["schemas"]["IssueView"];
                 };
             };
         };
@@ -7308,7 +7308,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IssueTicketEntity"][];
+                    "*/*": components["schemas"]["IssueTicketView"][];
                 };
             };
         };
@@ -7334,7 +7334,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["IssueTicketEntity"];
+                    "*/*": components["schemas"]["IssueTicketView"];
                 };
             };
         };

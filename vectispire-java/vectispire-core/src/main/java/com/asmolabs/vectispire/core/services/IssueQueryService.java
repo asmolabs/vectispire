@@ -85,7 +85,7 @@ public class IssueQueryService {
      *     beside the dismissal rather than three screens away
      */
     public record IssueDetail(
-            @JsonUnwrapped IssueEntity issue,
+            @JsonUnwrapped IssueView issue,
             String targetKind,
             String targetName,
             List<Sighting> sightings,
@@ -148,7 +148,7 @@ public class IssueQueryService {
                 .map(issue -> {
                     var assessment = sla.assess(policy, issue);
                     return new BacklogEntry(
-                            issue,
+                            IssueView.of(issue),
                             names.kindOf(issue.getContainerId()),
                             names.of(issue.getRepoId(), issue.getContainerId()),
                             assessment.map(RemediationSla.Assessment::dueAt).orElse(null),
@@ -201,7 +201,7 @@ public class IssueQueryService {
                 .toList();
 
         return new IssueDetail(
-                issue,
+                IssueView.of(issue),
                 issue.getRepoId() != null ? "repository" : "container",
                 names.of(issue.getRepoId(), issue.getContainerId()),
                 sightings,

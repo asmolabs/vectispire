@@ -47,9 +47,9 @@ public class TicketLinkService {
         return RowVisibility.requireVisible(issues.findById(issueId).orElse(null), visibility);
     }
 
-    public List<IssueTicketEntity> list(long issueId, Visibility visibility) {
+    public List<IssueTicketView> list(long issueId, Visibility visibility) {
         visibleIssue(issueId, visibility);
-        return tickets.findByIssueIdOrderByCreatedAtDesc(issueId);
+        return tickets.findByIssueIdOrderByCreatedAtDesc(issueId).stream().map(IssueTicketView::of).toList();
     }
 
     /**
@@ -57,7 +57,7 @@ public class TicketLinkService {
      *
      * @throws IllegalArgumentException for a provider that is not a {@link TicketingProvider}
      */
-    public IssueTicketEntity attach(
+    public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
         IssueEntity issue = visibleIssue(issueId, visibility);
@@ -83,6 +83,6 @@ public class TicketLinkService {
                 actor.ipAddress(),
                 actor.userAgent()));
 
-        return saved;
+        return IssueTicketView.of(saved);
     }
 }

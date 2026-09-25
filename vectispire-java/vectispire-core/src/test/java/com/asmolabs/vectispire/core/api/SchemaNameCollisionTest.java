@@ -73,6 +73,8 @@ class SchemaNameCollisionTest {
 
     private static final String API_PACKAGE = "com.asmolabs.vectispire.core.api";
 
+    private static final String PERSISTENCE_PACKAGE = "com.asmolabs.vectispire.core.persistence";
+
     /**
      * The collisions that still exist. <b>Empty, and it is meant to stay that way.</b>
      *
@@ -94,21 +96,7 @@ class SchemaNameCollisionTest {
     @DisplayName("are unique across every type a route can return")
     void schemaNamesAreUnique() {
         Map<String, Set<Class<?>>> byName = new TreeMap<>();
-        Set<Class<?>> visited = new LinkedHashSet<>();
-
-        for (Class<?> controller : controllers()) {
-            for (Method method : controller.getDeclaredMethods()) {
-                if (!isMapped(method)) {
-                    continue;
-                }
-                walk(method.getGenericReturnType(), visited, byName);
-                for (int index = 0; index < method.getParameterCount(); index++) {
-                    if (method.getParameters()[index].isAnnotationPresent(RequestBody.class)) {
-                        walk(method.getGenericParameterTypes()[index], visited, byName);
-                    }
-                }
-            }
-        }
+        reachable(byName);
 
         Map<String, Set<Class<?>>> colliding = byName.entrySet().stream()
                 .filter(entry -> entry.getValue().size() > 1)
@@ -134,6 +122,48 @@ class SchemaNameCollisionTest {
                 .as("these no longer collide — strike them off KNOWN in the same commit. A list nobody "
                         + "prunes stops being a debt and becomes an exemption")
                 .isEmpty();
+    }
+
+    /**
+     * No JPA entity crosses a route, in either direction, however deeply nested.
+     *
+     * <p>A rule of this codebase since 2026-09-25. Routes returned {@code IssueEntity} directly, and
+     * {@code BacklogEntry} and {@code IssueDetail} unwrapped it — which made the table the contract:
+     * a column mapped for the pipeline's bookkeeping was published the day it was added, and a lazy
+     * association would have been serialized, or thrown, outside any transaction. Services hand back
+     * records; this walks the same graph springdoc walks, so an entity reached through a generic, a
+     * record component or a getter is caught as surely as one returned outright.
+     */
+    @Test
+    @DisplayName("reach no JPA entity")
+    void noEntityCrossesARoute() {
+        List<String> entities = reachable(new TreeMap<>()).stream()
+                .filter(type -> type.getPackageName().equals(PERSISTENCE_PACKAGE))
+                .map(Class::getName)
+                .sorted()
+                .toList();
+
+        assertThat(entities)
+                .as("a route returns or accepts these entities; hand the client a record built by the service")
+                .isEmpty();
+    }
+
+    private static Set<Class<?>> reachable(Map<String, Set<Class<?>>> byName) {
+        Set<Class<?>> visited = new LinkedHashSet<>();
+        for (Class<?> controller : controllers()) {
+            for (Method method : controller.getDeclaredMethods()) {
+                if (!isMapped(method)) {
+                    continue;
+                }
+                walk(method.getGenericReturnType(), visited, byName);
+                for (int index = 0; index < method.getParameterCount(); index++) {
+                    if (method.getParameters()[index].isAnnotationPresent(RequestBody.class)) {
+                        walk(method.getGenericParameterTypes()[index], visited, byName);
+                    }
+                }
+            }
+        }
+        return visited;
     }
 
     private static List<Class<?>> controllers() {
@@ -204,7 +234,8 @@ class SchemaNameCollisionTest {
             for (var component : raw.getRecordComponents()) {
                 walk(component.getGenericType(), visited, byName);
             }
-            return;
+            // Not a return: Jackson serializes a record's own getX() beside its components, so a
+            // getter added to a view publishes whatever it returns.
         }
         for (Method getter : raw.getMethods()) {
             if (isGetter(getter)) {

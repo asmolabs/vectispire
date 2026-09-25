@@ -104,7 +104,7 @@ public class IssueDecisionService {
      *
      * @throws java.util.NoSuchElementException absent and hidden alike — see {@link RowVisibility}
      */
-    public IssueEntity triage(long id, Decision decision, Caller caller) {
+    public IssueView triage(long id, Decision decision, Caller caller) {
         String actor = caller.actor();
         boolean canApprove = canApprove(caller);
         // Checked before the write, and 404 rather than 403.
@@ -122,7 +122,7 @@ public class IssueDecisionService {
                 caller.ipAddress(),
                 caller.userAgent()));
 
-        return issue;
+        return IssueView.of(issue);
     }
 
     /**
@@ -134,7 +134,7 @@ public class IssueDecisionService {
      *
      * @param decision may be null only when {@code ids} is empty, which is refused before it is read
      */
-    public List<IssueEntity> triageMany(List<Long> ids, Decision decision, Caller caller) {
+    public List<IssueView> triageMany(List<Long> ids, Decision decision, Caller caller) {
         if (ids.isEmpty()) {
             throw new InvalidTriageException("Select at least one issue to triage.");
         }
@@ -169,7 +169,7 @@ public class IssueDecisionService {
                 caller.ipAddress(),
                 caller.userAgent()));
 
-        return triaged;
+        return triaged.stream().map(IssueView::of).toList();
     }
 
     /**
@@ -183,7 +183,7 @@ public class IssueDecisionService {
      * @throws java.util.NoSuchElementException absent and hidden alike
      * @throws InvalidTicketException a reference missing or too long, a URL too long
      */
-    public IssueEntity attachTicket(long id, String rawReference, String rawUrl, Caller caller) {
+    public IssueView attachTicket(long id, String rawReference, String rawUrl, Caller caller) {
         IssueEntity issue = RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility());
 
         String reference = rawReference == null ? "" : rawReference.trim();
@@ -228,7 +228,7 @@ public class IssueDecisionService {
                 caller.ipAddress(),
                 caller.userAgent()));
 
-        return issues.findById(id).orElseThrow();
+        return IssueView.of(issues.findById(id).orElseThrow());
     }
 
     /**

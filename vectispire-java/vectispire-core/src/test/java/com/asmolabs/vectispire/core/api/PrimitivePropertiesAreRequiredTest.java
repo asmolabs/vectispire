@@ -51,13 +51,14 @@ class PrimitivePropertiesAreRequiredTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("apply to the entities this API serialises directly, not only to records")
-    void mark_primitive_getters_on_classes() throws Exception {
+    @DisplayName("apply to the issue a route returns")
+    void mark_primitive_fields_of_the_issue() throws Exception {
         JsonNode schemas = document().get("components").get("schemas");
 
-        // `IssueEntity` is a JPA entity returned straight from the triage and ticket routes. It is
-        // not a record, so the record rule alone left its schema with no `required` at all.
-        assertThat(required(schemas.get("IssueEntity"))).contains("isKev", "timesSeen");
+        // Routes returned `IssueEntity`, a class, and the record rule alone left its schema with no
+        // `required` at all. No entity crosses a route any more (SchemaNameCollisionTest); its
+        // record keeps the two primitives required, which is what clients were promised.
+        assertThat(required(schemas.get("IssueView"))).contains("isKev", "timesSeen");
     }
 
     @Test
@@ -66,9 +67,9 @@ class PrimitivePropertiesAreRequiredTest extends ApiTestBase {
         JsonNode schemas = document().get("components").get("schemas");
 
         // `getIsKev()` and `isKev()` are the same field. Jackson read the second as a getter for a
-        // property called `kev`, so three schemas published both and a client had no way to know
+        // property called `kev`, so three schemas published both — the entity's then, the record's now — and a client had no way to know
         // which to read. `@JsonIgnore` on the accessor is what leaves one.
-        for (String schema : new String[] {"IssueEntity", "BacklogEntry", "IssueDetail"}) {
+        for (String schema : new String[] {"IssueView", "BacklogEntry", "IssueDetail"}) {
             assertThat(schemas.get(schema).get("properties").has("isKev"))
                     .as("%s publishes isKev", schema)
                     .isTrue();

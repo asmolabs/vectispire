@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
+import com.asmolabs.vectispire.core.services.IssueTicketView;
 import com.asmolabs.vectispire.core.services.TicketLinkService;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -39,7 +39,7 @@ public class TicketingController {
     public record CreateTicketRequest(String provider, String ticketKey, String ticketUrl) {}
 
     @GetMapping
-    public List<IssueTicketEntity> list(
+    public List<IssueTicketView> list(
             @AuthenticationPrincipal VectispirePrincipal principal, @PathVariable long issueId) {
         // A ticket carries a Jira/GitLab key and URL for a finding. Listing them for any issue id
         // handed the backlog of a target the caller was never given; the issue's own visibility
@@ -50,7 +50,7 @@ public class TicketingController {
     @RequiresWriteAccount
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public IssueTicketEntity create(
+    public IssueTicketView create(
             @PathVariable long issueId,
             @RequestBody CreateTicketRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,

@@ -254,7 +254,7 @@ export type InTotoAttestation = Refine<
  *
  * <b>Three server shapes used to live under this one name.</b> The list sends `BacklogEntry`, which
  * carries the remediation window and the resolved target; a triage or a ticket attachment answers
- * with `IssueEntity`, which carries neither; the detail route sends `IssueDetail`. Declaring one
+ * with `IssueView`, which carries neither; the detail route sends `IssueDetail`. Declaring one
  * interface for all three made the compiler promise `slaState` on a triage response that has never
  * contained it — no screen happened to read it there, so nothing broke and nothing said anything.
  * They are three types below, named after what the server actually sends.
@@ -319,7 +319,7 @@ export type Issue = Refine<
  * reload.
  */
 export type TriagedIssue = Refine<
-    Schema<'IssueEntity'>,
+    Schema<'IssueView'>,
     {
         id: number;
         type: string;
@@ -661,7 +661,7 @@ export type ApiKeyTargets = Refine<Schema<'Targets'>, { repositories: TargetOpti
 
 /** An audit log entry. Everything but its identity can be absent, and is sent as `null`. */
 export type AuditEntry = Refine<
-    Schema<'AuditLogEntity'>,
+    Schema<'AuditEntryView'>,
     {
         id: string;
         timestamp: string | null;
@@ -1541,7 +1541,7 @@ export type ApiEndpointView = Refine<
 >;
 
 export type ApiContractView = Refine<
-    Schema<'ApiContractEntity'>,
+    Schema<'ApiContractView'>,
     {
         id: number;
         repositoryId: number;

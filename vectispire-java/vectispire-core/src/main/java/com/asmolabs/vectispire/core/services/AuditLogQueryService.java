@@ -30,7 +30,7 @@ public class AuditLogQueryService {
     }
 
     /** @param limit and {@code offset} as actually applied, after clamping */
-    public record Entries(List<AuditLogEntity> items, long total, int limit, int offset) {}
+    public record Entries(List<AuditEntryView> items, long total, int limit, int offset) {}
 
     /** See the controller's {@code Verification} for what each figure means to a reader. */
     public record Integrity(
@@ -60,7 +60,8 @@ public class AuditLogQueryService {
                 PageRequest.of(from / Math.max(size, 1), size,
                         Sort.by(Sort.Order.desc("timestamp"), Sort.Order.desc("id"))));
 
-        return new Entries(page.getContent(), page.getTotalElements(), size, from);
+        return new Entries(
+                page.getContent().stream().map(AuditEntryView::of).toList(), page.getTotalElements(), size, from);
     }
 
     /** The values actually present, so the filter offers nothing empty. */

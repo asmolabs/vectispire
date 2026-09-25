@@ -6,9 +6,9 @@ import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.services.IssueDecisionService;
 import com.asmolabs.vectispire.core.services.IssueQueryService;
+import com.asmolabs.vectispire.core.services.IssueView;
 import com.asmolabs.vectispire.core.services.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
@@ -142,7 +142,7 @@ public class IssuesController {
      */
     @RequiresWriteAccount
     @PostMapping("/{id}/triage")
-    public IssueEntity triage(
+    public IssueView triage(
             @PathVariable long id,
             @RequestBody TriageRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -188,7 +188,7 @@ public class IssuesController {
      */
     @RequiresWriteAccount
     @PutMapping("/{id}/ticket")
-    public IssueEntity attachTicket(
+    public IssueView attachTicket(
             @PathVariable long id,
             @RequestBody AttachTicketRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -222,7 +222,7 @@ public class IssuesController {
      */
     @RequiresWriteAccount
     @PostMapping("/triage")
-    public List<IssueEntity> triageMany(
+    public List<IssueView> triageMany(
             @RequestBody BulkTriageRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {

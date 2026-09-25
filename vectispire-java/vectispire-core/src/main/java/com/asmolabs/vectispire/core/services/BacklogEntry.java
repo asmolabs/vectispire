@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.time.Instant;
 
@@ -17,10 +16,10 @@ import java.time.Instant;
  * two naming rules for one target is how the same thing comes to be called two things. The
  * server already owns that rule.
  *
- * <p>{@code @JsonUnwrapped} keeps the wire shape flat: the entity's fields stay where every
- * existing client already reads them, and the two new ones sit alongside. The alternative —
- * a record restating all thirty fields — would be a second definition of an issue, drifting
- * from the first the day a column is added.
+ * <p>{@code @JsonUnwrapped} keeps the wire shape flat: the issue's fields stay where every
+ * existing client already reads them, and the target's sit alongside. They are an
+ * {@link IssueView}'s and not the entity's — no JPA entity crosses a route — and the drift a
+ * second list of fields invites is caught by {@code EntityViewsTest}.
  *
  * @param targetName never null in practice, but not guaranteed: an issue whose target was
  *     deleted in the same request keeps its id and loses its name, and a blank cell is a better
@@ -35,7 +34,7 @@ import java.time.Instant;
  * @param slaDays days until due, negative when late, {@code null} with no deadline
  */
 public record BacklogEntry(
-        @JsonUnwrapped IssueEntity issue,
+        @JsonUnwrapped IssueView issue,
         String targetKind,
         String targetName,
         Instant slaDueAt,
