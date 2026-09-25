@@ -312,7 +312,22 @@
       "team_access_changed": "Accès de l'équipe modifiés"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
-    "error_load": "Impossible de charger le journal."
+    "error_load": "Impossible de charger le journal.",
+    "chain_intact": "Chaîne intègre — {{verified}} entrée(s) vérifiée(s).",
+    "chain_intact_partial": "Chaîne intègre — {{verified}} entrée(s) vérifiée(s), {{unverifiable}} antérieure(s) au chaînage.",
+    "chain_broken": "Chaîne rompue.",
+    "missing_from_table": "{{count}} entrée(s) manquent dans cette base",
+    "missing_from_table_detail": "et sont présentes dans le miroir. La chaîne seule ne peut pas le voir.",
+    "missing_from_mirror": "{{count}} entrée(s) figurent dans cette base et pas dans le miroir — écrites avant que le miroir soit configuré, écrites pendant qu'il était injoignable, ou insérées par quelqu'un qui disposait de la base et non du fichier.",
+    "no_mirror": "Aucune copie hors de cette base. La chaîne rend détectable une modification sélective ; elle ne peut détecter ni la réécriture du journal entier, ni la suppression de la dernière entrée.",
+    "no_mirror_set_before": "Faites pointer",
+    "no_mirror_set_after": "vers un chemin qu'un collecteur de journaux expédie.",
+    "verifying": "Vérification de la chaîne…",
+    "any_user": "Tous",
+    "description_contains": "La description contient",
+    "col_timestamp": "Horodatage",
+    "col_ip": "Adresse IP",
+    "empty": "Aucune entrée."
   },
   "auth": {
     "login_title": "Connexion à Vectispire",
@@ -430,7 +445,8 @@
     "warning": "Avertissement",
     "yes": "Oui",
     "previous": "Précédent",
-    "next": "Suivant"
+    "next": "Suivant",
+    "page_range": "{{from}}–{{to}} sur {{total}}"
   },
   "compliance": {
     "compliance_score": "Score de conformité",
@@ -517,7 +533,25 @@
     "load_failed": "Impossible de charger la liste des conteneurs.",
     "save_failed": "Impossible d’enregistrer cette image.",
     "add_failed": "Impossible d’ajouter cette image.",
-    "delete_failed": "La suppression a échoué."
+    "delete_failed": "La suppression a échoué.",
+    "tier_1_badge": "Palier 1 · Vital",
+    "tier_2_badge": "Palier 2 · Opérationnel",
+    "tier_3_badge": "Palier 3 · Interne",
+    "outstanding": "{{count}} en cours",
+    "nothing_outstanding": "rien en cours",
+    "empty": "Aucune image surveillée.",
+    "registry": "Registre",
+    "registry_hint": "Vide pour le registre par défaut.",
+    "target_tier": "Palier de criticité métier",
+    "tier_option_1": "🔴 Palier 1 — Vital (SLA : critique 3 j | élevée 14 j)",
+    "tier_option_2": "🟡 Palier 2 — Opérationnel (SLA : critique 14 j | élevée 30 j)",
+    "tier_option_3": "🟢 Palier 3 — Interne / labo (SLA : critique 30 j | élevée 60 j)",
+    "image_name_label": "Nom de l'image",
+    "tag_hint": "Un tag, ou un condensé « sha256:… » pour figer la version analysée.",
+    "agent_label": "Agent requis",
+    "agent_hint": "L'étiquette qu'un agent doit porter pour analyser cette cible — et donc pour recevoir sa clé de déploiement. Laissée vide, n'importe quel agent peut la prendre.",
+    "delete_header": "Supprimer cette image ?",
+    "delete_body": "et tout son historique — analyses, constats et {{count}} constat(s) en cours — seront supprimés. C'est définitif."
   },
   "dashboard": {
     "title": "Tableau de bord",

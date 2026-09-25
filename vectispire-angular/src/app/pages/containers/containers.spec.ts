@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Containers } from './containers';
 import { asSchema } from '@/app/core/testing/contract';
+import { useEnglish } from '@/app/core/testing/english';
 
 /**
  * The container list, as cards rather than rows.
@@ -31,6 +32,7 @@ describe('the container list', () => {
             providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
         }).compileComponents();
 
+        useEnglish();
         fixture = TestBed.createComponent(Containers);
         http = TestBed.inject(HttpTestingController);
         fixture.detectChanges();
@@ -82,15 +84,14 @@ describe('the container list', () => {
 
     it('says an image with no schedule is scanned only when somebody asks', () => {
         load();
-        expect(fixture.nativeElement.textContent).toContain('schedule.label_manual');
+        expect(fixture.nativeElement.textContent).toContain('manual only');
     });
 
     it('shows the expression rather than the interval when both are set, as the scheduler does', () => {
         load({ ...CONTAINER, scanIntervalMinutes: 60, scanCron: '0 3 * * *' });
-        // The key, since the label is translated now and this harness leaves keys
-        // unresolved. `label_cron` is still the whole assertion: it can only be reached
-        // by the branch that prefers the expression over the interval.
-        expect(fixture.nativeElement.textContent).toContain('schedule.label_cron');
+        // Read through the English bundle, so the expression itself is asserted: it can only be
+        // reached by the branch that prefers the expression over the interval.
+        expect(fixture.nativeElement.textContent).toContain('cron 0 3 * * *');
     });
 
     /**

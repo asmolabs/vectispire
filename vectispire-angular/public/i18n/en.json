@@ -312,7 +312,22 @@
       "team_access_changed": "Team access changed"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
-    "error_load": "Could not load the log."
+    "error_load": "Could not load the log.",
+    "chain_intact": "Chain intact — {{verified}} entry(ies) verified.",
+    "chain_intact_partial": "Chain intact — {{verified}} entry(ies) verified, {{unverifiable}} predating the chaining.",
+    "chain_broken": "Chain broken.",
+    "missing_from_table": "{{count}} entry(ies) are missing from this database",
+    "missing_from_table_detail": "and are present in the mirror. The chain alone cannot see this.",
+    "missing_from_mirror": "{{count}} entry(ies) are in this database and not in the mirror — written before the mirror was configured, written while it could not be reached, or inserted by somebody who had the database and not the file.",
+    "no_mirror": "No copy outside this database. The chain makes a selective edit detectable; it cannot detect the whole log being rewritten, nor the deletion of the last entry.",
+    "no_mirror_set_before": "Set",
+    "no_mirror_set_after": "to a path a log collector ships.",
+    "verifying": "Verifying the chain…",
+    "any_user": "Any",
+    "description_contains": "Description contains",
+    "col_timestamp": "Timestamp",
+    "col_ip": "IP address",
+    "empty": "No entry."
   },
   "auth": {
     "login_title": "Sign in to Vectispire",
@@ -430,7 +445,8 @@
     "warning": "Warning",
     "yes": "Yes",
     "previous": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "page_range": "{{from}}–{{to}} of {{total}}"
   },
   "compliance": {
     "compliance_score": "Compliance Score",
@@ -517,7 +533,25 @@
     "load_failed": "Could not load the container list.",
     "save_failed": "Could not save this image.",
     "add_failed": "Could not add this image.",
-    "delete_failed": "The deletion failed."
+    "delete_failed": "The deletion failed.",
+    "tier_1_badge": "Tier 1 · Mission Critical",
+    "tier_2_badge": "Tier 2 · Operational",
+    "tier_3_badge": "Tier 3 · Internal",
+    "outstanding": "{{count}} outstanding",
+    "nothing_outstanding": "nothing outstanding",
+    "empty": "No monitored image.",
+    "registry": "Registry",
+    "registry_hint": "Empty for the default registry.",
+    "target_tier": "Business Criticality Tier",
+    "tier_option_1": "🔴 Tier 1 — Mission Critical (SLA: Critical 3d | High 14d)",
+    "tier_option_2": "🟡 Tier 2 — Business Operational (SLA: Critical 14d | High 30d)",
+    "tier_option_3": "🟢 Tier 3 — Internal / Lab (SLA: Critical 30d | High 60d)",
+    "image_name_label": "Image name",
+    "tag_hint": "A tag, or a \"sha256:…\" digest to pin the version that gets scanned.",
+    "agent_label": "Required agent",
+    "agent_hint": "The label an agent must carry to scan this target — and therefore to receive its deployment key. Left empty, any agent may take it.",
+    "delete_header": "Delete this image?",
+    "delete_body": "and its whole history — scans, findings and {{count}} outstanding issue(s) — will be deleted. This is permanent."
   },
   "dashboard": {
     "title": "Dashboard",

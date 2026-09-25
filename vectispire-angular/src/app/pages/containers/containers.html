@@ -31,11 +31,11 @@
                         <div class="flex items-center gap-2">
                             <div class="font-medium">{{ container.imageName }}</div>
                             @if (container.tier === 'TIER_1_MISSION_CRITICAL') {
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">Tier 1 · Mission Critical</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800">{{ 'containers.tier_1_badge' | translate }}</span>
                             } @else if (container.tier === 'TIER_3_INTERNAL') {
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Tier 3 · Internal</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">{{ 'containers.tier_3_badge' | translate }}</span>
                             } @else {
-                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">Tier 2 · Operational</span>
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">{{ 'containers.tier_2_badge' | translate }}</span>
                             }
                         </div>
                         <!--
@@ -50,9 +50,9 @@
                             <span class="font-mono" [title]="container.tag">{{ shorten(container.tag) }}</span> ·
                             @if (container.openIssues > 0) {
                                 <a [routerLink]="['/issues']" [queryParams]="{ container_id: container.id }"
-                                   class="font-medium">{{ container.openIssues }} outstanding</a>
+                                   class="font-medium">{{ 'containers.outstanding' | translate: { count: container.openIssues } }}</a>
                             } @else {
-                                <span>nothing outstanding</span>
+                                <span>{{ 'containers.nothing_outstanding' | translate }}</span>
                             }
                             · <span>{{ scheduleLabel(container) }}</span>
                         </div>
@@ -90,40 +90,39 @@
         </div>
     </ng-template>
     <ng-template #empty>
-        <div class="text-center text-muted-color py-6">No monitored image.</div>
+        <div class="text-center text-muted-color py-6">{{ 'containers.empty' | translate }}</div>
     </ng-template>
 </p-dataview>
 
 <p-dialog [header]="editing() ? ('containers.header_edit' | translate) : ('containers.header_add' | translate)" [(visible)]="formVisible" [modal]="true" [style]="{ width: '32rem' }">
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
-            <label for="registry" class="font-medium">Registry <span class="text-muted-color font-normal">(optional)</span></label>
+            <label for="registry" class="font-medium">{{ 'containers.registry' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
             <input pInputText id="registry" [(ngModel)]="form.registry" placeholder="ghcr.io" />
-            <small class="text-muted-color">Empty for the default registry.</small>
+            <small class="text-muted-color">{{ 'containers.registry_hint' | translate }}</small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="tier" class="font-medium">Business Criticality Tier</label>
+            <label for="tier" class="font-medium">{{ 'containers.target_tier' | translate }}</label>
             <select id="tier" [(ngModel)]="form.tier" class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0">
-                <option value="TIER_1_MISSION_CRITICAL">🔴 Tier 1 — Mission Critical (SLA: Critical 3d | High 14d)</option>
-                <option value="TIER_2_BUSINESS_OPERATIONAL">🟡 Tier 2 — Business Operational (SLA: Critical 14d | High 30d)</option>
-                <option value="TIER_3_INTERNAL">🟢 Tier 3 — Internal / Lab (SLA: Critical 30d | High 60d)</option>
+                <option value="TIER_1_MISSION_CRITICAL">{{ 'containers.tier_option_1' | translate }}</option>
+                <option value="TIER_2_BUSINESS_OPERATIONAL">{{ 'containers.tier_option_2' | translate }}</option>
+                <option value="TIER_3_INTERNAL">{{ 'containers.tier_option_3' | translate }}</option>
             </select>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="image" class="font-medium">Image name</label>
+            <label for="image" class="font-medium">{{ 'containers.image_name_label' | translate }}</label>
             <input pInputText id="image" [(ngModel)]="form.imageName" placeholder="team/service" />
         </div>
         <div class="flex flex-col gap-2">
-            <label for="tag" class="font-medium">Tag</label>
+            <label for="tag" class="font-medium">{{ 'containers.tag' | translate }}</label>
             <input pInputText id="tag" [(ngModel)]="form.tag" placeholder="latest" />
-            <small class="text-muted-color">A tag, or a "sha256:…" digest to pin the version that gets scanned.</small>
+            <small class="text-muted-color">{{ 'containers.tag_hint' | translate }}</small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="agent-label" class="font-medium">Required agent <span class="text-muted-color font-normal">(optional)</span></label>
+            <label for="agent-label" class="font-medium">{{ 'containers.agent_label' | translate }} <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label>
             <input pInputText id="agent-label" [(ngModel)]="form.requiredAgentLabel" placeholder="customer-network" />
             <small class="text-muted-color">
-                The label an agent must carry to scan this target — and therefore to receive
-                its deployment key. Left empty, any agent may take it.
+                {{ 'containers.agent_hint' | translate }}
             </small>
         </div>
         <app-schedule-fields idPrefix="container" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
@@ -134,20 +133,20 @@
         }
     </div>
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button [label]="editing() ? ('common.save' | translate) : ('common.add' | translate)" [loading]="saving()" (onClick)="submit()" />
     </ng-template>
 </p-dialog>
 
-<p-dialog header="Delete this image?" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
+<p-dialog [header]="'containers.delete_header' | translate" [(visible)]="deleteVisible" [modal]="true" [style]="{ width: '30rem' }">
     @if (pendingDelete(); as container) {
         <p class="m-0">
-            <span class="font-medium">{{ container.reference }}</span> and its whole history — scans, findings and
-            {{ container.openIssues }} outstanding issue(s) — will be deleted. This is permanent.
+            <span class="font-medium">{{ container.reference }}</span>
+            {{ 'containers.delete_body' | translate: { count: container.openIssues } }}
         </p>
     }
     <ng-template #footer>
-        <p-button label="Cancel" [text]="true" (onClick)="deleteVisible.set(false)" />
-        <p-button label="Delete" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="deleteVisible.set(false)" />
+        <p-button [label]="'common.delete' | translate" severity="danger" [loading]="saving()" (onClick)="confirmDelete()" />
     </ng-template>
 </p-dialog>
