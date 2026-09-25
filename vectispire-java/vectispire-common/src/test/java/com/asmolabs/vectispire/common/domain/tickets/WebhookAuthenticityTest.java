@@ -21,16 +21,16 @@ class WebhookAuthenticityTest {
     private static final String BODY = "{\"issue\":{\"key\":\"SEC-42\"},\"action\":\"resolved\"}";
 
     @Test
-    @DisplayName("no secret configured leaves the route open, as every existing deployment has it")
-    void unsetSecretIsNotEnforced() {
-        // Deliberate: refusing unsigned calls on upgrade would stop triage synchronising silently
-        // everywhere, which is a worse failure than the one this closes because nobody sees it.
+    @DisplayName("no secret configured accepts nothing, whatever is presented")
+    void unsetSecretAcceptsNothing() {
+        // It used to leave the route open: an anonymous door queuing "not affected" for any ticket
+        // reference, on every deployment that had not found the setting.
         assertThat(WebhookAuthenticity.verify(
                         TicketProvider.GITLAB, null, new Presented(null, null, null), BODY))
-                .isEqualTo(Verdict.NOT_ENFORCED);
+                .isEqualTo(Verdict.NOT_CONFIGURED);
         assertThat(WebhookAuthenticity.verify(
                         TicketProvider.GITLAB, "   ", new Presented(null, null, null), BODY))
-                .isEqualTo(Verdict.NOT_ENFORCED);
+                .isEqualTo(Verdict.NOT_CONFIGURED);
     }
 
     @Test

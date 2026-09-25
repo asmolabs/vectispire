@@ -32,11 +32,12 @@ import javax.crypto.spec.SecretKeySpec;
  * time by anybody who can measure a response, and this endpoint answers unauthenticated callers
  * by design.
  *
- * <p><b>An unset secret leaves the route open, and that is a deliberate default rather than an
- * oversight.</b> Every deployment that exists today has no secret configured; refusing unsigned
- * calls on upgrade would silently stop their triage synchronising, which is a worse failure than
- * the one this closes because nobody would see it. Configuring the secret is what turns the check
- * on — the setting says so, and so does the audit entry written on every refusal.
+ * <p><b>An unset secret closes the route.</b> It used to leave it open, on the grounds that
+ * refusing unsigned calls on upgrade would stop existing deployments synchronising without anyone
+ * seeing it. The cost of that default was an anonymous door that queued a "not affected" for any
+ * ticket reference somebody guessed, on every deployment whose administrator had not found the
+ * setting — which was nearly all of them. The tracker now receives a 403 saying the webhook is not
+ * configured, in its own delivery log, which is where a broken integration is looked for.
  */
 public final class WebhookAuthenticity {
 
@@ -46,8 +47,8 @@ public final class WebhookAuthenticity {
     public record Presented(String gitlabToken, String githubSignature, String sharedToken) {}
 
     public enum Verdict {
-        /** No secret configured: the route is open, as it has always been. */
-        NOT_ENFORCED,
+        /** No secret configured: nothing is accepted until one is. */
+        NOT_CONFIGURED,
         ACCEPTED,
         REJECTED
     }
@@ -56,7 +57,7 @@ public final class WebhookAuthenticity {
             TicketProvider provider, String configuredSecret, Presented presented, String rawBody) {
 
         if (configuredSecret == null || configuredSecret.isBlank()) {
-            return Verdict.NOT_ENFORCED;
+            return Verdict.NOT_CONFIGURED;
         }
 
         boolean ok = switch (provider) {

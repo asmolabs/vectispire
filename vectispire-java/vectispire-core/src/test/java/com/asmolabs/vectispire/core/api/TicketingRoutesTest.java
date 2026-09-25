@@ -16,6 +16,9 @@ import org.springframework.http.MediaType;
 @DisplayName("the ticketing routes")
 class TicketingRoutesTest extends ApiTestBase {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.asmolabs.vectispire.core.services.SettingsService settings;
+
     @Autowired
     private Issues issues;
 
@@ -90,16 +93,18 @@ class TicketingRoutesTest extends ApiTestBase {
                 }
                 """;
 
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "jira-shared");
         mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "jira-shared")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jiraPayload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matched").value(true))
                 .andExpect(jsonPath("$.ticketRef").value("SEC-99"));
 
-        // **These two cases asserted `not_affected`, and that was the defect they described.** The
-        // webhook is anonymous as long as no secret is configured; "the tracker said false
-        // positive" could therefore not remain a conclusion. The justification is still recorded:
+        // **These two cases asserted `not_affected`, and that was the defect they described.** A
+        // tracker is not an approver, signed or not; "the tracker said false positive" could
+        // therefore not remain a conclusion. The justification is still recorded:
         // what changes is not what the tracker says but who publishes it. See
         // `TicketWebhookCannotSettleTest` for the property itself.
         IssueEntity updated = issues.findByTicketRefOrIid("SEC-99").orElseThrow();
@@ -139,7 +144,9 @@ class TicketingRoutesTest extends ApiTestBase {
                 }
                 """;
 
+        settings.set(com.asmolabs.vectispire.common.domain.settings.Setting.TICKET_WEBHOOK_SECRET, "gitlab-shared");
         mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                        .header("X-Gitlab-Token", "gitlab-shared")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(gitlabPayload))
                 .andExpect(status().isOk())

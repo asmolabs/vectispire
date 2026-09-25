@@ -26,6 +26,20 @@ Every later one matches on the provider's **subject**, not the username. A usern
 stable for the life of a person: people marry, change teams, get renamed by an HR import.
 The subject is.
 
+That first binding trusts a claim, and a claim is whatever the realm lets people write. So it is
+held to three rules:
+
+- **The name must be the account's, accent for accent.** Only case is forgiven. MySQL's default
+  collation finds `admin` for `ádmin`; that is a different identity, and it is refused.
+- **An email is used only if the provider verified it** (`email_verified`), and only when no
+  `preferred_username` came.
+- **An administrative account (SUPERUSER, ADMIN) is not bound by name.** In a realm with
+  self-registration, anyone can register `admin`. Link those accounts through
+  [SCIM](#provisioning-from-the-directory-scim), which takes the subject from the provider, or —
+  for a realm where nobody chooses their own username — allow it with
+  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. The Keycloak of the `sso` compose profile signs
+  in as `admin`, so its `.env.oidc.example` sets it.
+
 ## Groups become teams, and leaving one takes it away
 
 When the token carries a `groups` claim, each value is matched against a **team name** and the

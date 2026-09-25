@@ -147,6 +147,11 @@ vectispire:
 
   oidc:
     password-login: ${VECTISPIRE_PASSWORD_LOGIN:true}
+    # **Whether an administrative account may be linked on its first sign-on by its username.**
+    # Off: a username is a claim, and in a realm with self-registration anyone can claim `admin`.
+    # Turn it on only for a realm where nobody chooses their own username; otherwise link those
+    # accounts through SCIM, which takes the subject from the provider.
+    link-privileged-accounts: ${VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS:false}
 
   audit:
     mirror-path: ${VECTISPIRE_AUDIT_MIRROR:}

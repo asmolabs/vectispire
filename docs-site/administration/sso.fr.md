@@ -27,6 +27,20 @@ Toutes les suivantes s'appuient sur le **sujet** du fournisseur, pas sur le nom 
 Un nom d'utilisateur n'est pas stable sur la vie d'une personne : on se marie, on change
 d'équipe, un import RH vous renomme. Le sujet, lui, l'est.
 
+Cette première liaison fait confiance à une revendication, et une revendication est ce que le realm
+laisse chacun écrire. Elle obéit donc à trois règles :
+
+- **Le nom doit être celui du compte, accent compris.** Seule la casse est pardonnée. La collation
+  par défaut de MySQL trouve `admin` pour `ádmin` ; c'est une autre identité, et elle est refusée.
+- **Une adresse e-mail ne sert que si le fournisseur l'a vérifiée** (`email_verified`), et seulement
+  quand aucun `preferred_username` n'est venu.
+- **Un compte administratif (SUPERUSER, ADMIN) n'est pas lié par son nom.** Dans un realm ouvert à
+  l'inscription, n'importe qui peut s'enregistrer comme `admin`. Liez ces comptes par
+  [SCIM](#provisioning-from-the-directory-scim), qui prend le sujet chez le fournisseur, ou — pour un
+  realm où personne ne choisit son nom — autorisez-le avec
+  `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. Le Keycloak du profil compose `sso` se connecte en
+  `admin` : son `.env.oidc.example` le règle.
+
 ## Les groupes deviennent des équipes, et en sortir les retire
 
 Quand le jeton porte une revendication `groups`, chaque valeur est appariée à un **nom d'équipe**
@@ -42,7 +56,7 @@ Une revendication **vide ou absente ne retire rien**. Un mapper oublié est une 
 configuration, pas une déclaration que cette personne n'appartient à aucune équipe — révoquer sur
 cette base couperait tout le monde au premier réglage manqué.
 
-## Provisionnement depuis l'annuaire (SCIM)
+## Provisionnement depuis l'annuaire (SCIM) {#provisioning-from-the-directory-scim}
 
 Un fournisseur d'identité peut créer, modifier, désactiver et supprimer des comptes par SCIM 2.0
 (`/scim/v2/Users`, `/scim/v2/Groups`), authentifié par le jeton SCIM. Ce jeton vit dans la

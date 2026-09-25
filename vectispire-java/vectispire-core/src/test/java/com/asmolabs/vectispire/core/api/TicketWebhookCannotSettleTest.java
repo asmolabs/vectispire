@@ -31,10 +31,9 @@ import org.springframework.http.MediaType;
  * reachability does not". This door was the hole in it.
  *
  * <p><b>Why this case is not the same as {@code TicketWebhookAuthRoutesTest}.</b> That one tests
- * who can get in, and asserts — rightly — that without a secret the door stays open, because
- * closing it would stop synchronisation on every existing deployment. It was right and silent
- * about what mattered. This one tests what can be done once inside, and it is what makes the
- * other's 200 acceptable.
+ * who can get in — and since 25 September, without a secret, nobody does. This one tests what can
+ * be done once inside, which still matters: a secret establishes that the tracker sent the call,
+ * not that anybody looked at the vulnerability.
  */
 @DisplayName("un webhook anonyme ne peut pas clore un triage")
 class TicketWebhookCannotSettleTest extends ApiTestBase {
@@ -53,34 +52,39 @@ class TicketWebhookCannotSettleTest extends ApiTestBase {
              "webhookEvent":"jira:issue_updated"}""";
 
     @Test
-    @DisplayName("with no secret, the decision goes to approval and never to \"not affected\"")
+    @DisplayName("with no secret, nothing is recorded at all")
     void anonymousCannotSettle() throws Exception {
         settings.set(Setting.TICKET_WEBHOOK_SECRET, "");
         IssueEntity issue = critical("fp-webhook-settle", "SEC-1234");
 
+        // It used to be accepted, and the decision went to approval: better than "not affected",
+        // still a stranger writing into the triage queue. The route is shut until a secret is set.
         mvc.perform(post("/api/v1/tickets/webhook/jira")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(FALSE_POSITIVE.formatted("SEC-1234")))
+                .andExpect(status().isForbidden());
+
+        assertThat(issues.findById(issue.getId()).orElseThrow().getTriageStatus()).isEqualTo("under_review");
+    }
+
+    @Test
+    @DisplayName("an authenticated tracker's claimed author stays reported data, not an identity")
+    void theAuthorIsTheIntegration() throws Exception {
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "s3cr3t-partage");
+        IssueEntity issue = critical("fp-webhook-author", "SEC-1235");
+
+        mvc.perform(post("/api/v1/tickets/webhook/jira")
+                        .header("X-Vectispire-Token", "s3cr3t-partage")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(FALSE_POSITIVE.formatted("SEC-1235")))
                 .andExpect(status().isOk());
 
         IssueEntity after = issues.findById(issue.getId()).orElseThrow();
-
-        // **`pending_approval`, and not `not_affected`.** The two resemble each other only in a
-        // table: the second renders as `analysis.state = not_affected` in the signed documents, the
-        // first renders there as "under review". That is the whole difference between recording
-        // what a tracker says and publishing it in a human's place.
-        assertThat(after.getTriageStatus())
-                .as("an anonymous call cannot produce a \"not affected\" declaration")
-                .isEqualTo("pending_approval");
-
         // **The author is the integration, not what the caller wrote.** The name came from the
         // payload and ended up in the audit log — tamper-evident, never purged — as the identity of
         // whoever decided. The hash chain protects that entry against a later modification; it does
         // not protect it against a lie dictated to it.
-        assertThat(after.getTriagedBy())
-                .as("the name the caller announces must not become an identity")
-                .isEqualTo("JIRA_webhook");
-
+        assertThat(after.getTriagedBy()).isEqualTo("JIRA_webhook");
         // It stays written, because it helps whoever investigates — but as reported data.
         assertThat(after.getTriageComment()).contains("Responsable Securite");
     }

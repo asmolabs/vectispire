@@ -23,6 +23,15 @@ Vectispire provides an automated bidirectional synchronization engine between it
 
 Add the following webhook endpoints in your external issue tracker:
 
+> **Set the webhook secret first** (**Settings → Tickets → Inbound webhook secret**), and the same
+> value in the tracker. The route cannot hold a session, so the secret is its whole authentication:
+> **without one it refuses every call** with `403` and *"The ticket webhook is not configured on
+> this instance"*, which is what the tracker's delivery log shows. A stored secret that no
+> configured key can decrypt — `ENCRYPTION_KEY` lost, or an old key dropped from
+> `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` — refuses with `401`, and the settings screen shows it as not
+> configured: set it again. How each tracker presents it: GitLab in `X-Gitlab-Token`, GitHub as the
+> `X-Hub-Signature-256` HMAC of the body, Jira and ServiceNow in `X-Vectispire-Token`.
+
 ### 1. 🏷️ Jira Software (Atlassian)
 * **Webhook URL**: `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/jira`
 * **Events**: `Issue -> updated`

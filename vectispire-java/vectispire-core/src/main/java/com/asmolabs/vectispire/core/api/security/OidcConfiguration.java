@@ -159,7 +159,10 @@ public class OidcConfiguration {
                 UserEntity user = identities.resolve(
                         oidc.getSubject(),
                         oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
-                        oidc.getPreferredUsername() == null ? oidc.getEmail() : oidc.getPreferredUsername());
+                        new ExternalIdentityService.Claimed(
+                                oidc.getPreferredUsername(),
+                                oidc.getEmail(),
+                                Boolean.TRUE.equals(oidc.getEmailVerified())));
 
                 // Synchronize team memberships from IdP groups claim if present
                 List<String> groups = oidc.getClaimAsStringList("groups");

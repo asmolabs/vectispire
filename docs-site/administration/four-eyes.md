@@ -37,9 +37,10 @@ Switching it **off** stays possible either way: it is enabling that needs a seco
 ## Decisions that arrive from a tracker
 
 A ticket webhook can report a triage decision, and that decision never settles on its own —
-whatever the tracker says, and whether or not a webhook secret is configured. The route is the
-system's one anonymous door; what arrives through it goes to approval, and the audit entry records
-the integration as the author with any claimed name kept beside it as reported data.
+whatever the tracker says. The route cannot hold a session, so it accepts nothing until a webhook
+secret is configured; once it is, what arrives through it still goes to approval — the secret proves
+the tracker sent the call, not that anybody looked at the vulnerability — and the audit entry
+records the integration as the author with any claimed name kept beside it as reported data.
 
 ## Related
 

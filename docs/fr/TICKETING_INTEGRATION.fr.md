@@ -23,6 +23,16 @@ Vectispire propose un moteur de synchronisation bidirectionnelle transparent ent
 
 Dans les paramètres de votre gestionnaire de tickets, ajoutez un Webhook pointant vers votre instance Vectispire :
 
+> **Réglez d'abord le secret du webhook** (**Paramètres → Tickets → secret du webhook entrant**), et
+> la même valeur dans le traqueur. La route ne peut pas porter de session : le secret est toute son
+> authentification, et **sans lui elle refuse chaque appel** avec `403` et *« The ticket webhook is
+> not configured on this instance »*, ce que montre le journal de livraison du traqueur. Un secret
+> enregistré qu'aucune clé configurée ne déchiffre — `ENCRYPTION_KEY` perdue, ou ancienne clé retirée
+> de `VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS` — refuse avec `401`, et l'écran des paramètres le montre
+> comme non configuré : réglez-le de nouveau. Comment chaque traqueur le présente : GitLab dans
+> `X-Gitlab-Token`, GitHub comme HMAC du corps dans `X-Hub-Signature-256`, Jira et ServiceNow dans
+> `X-Vectispire-Token`.
+
 ### 1. 🏷️ Jira Software (Atlassian)
 * **URL du Webhook** : `https://<VECTISPIRE_HOST>/api/v1/tickets/webhook/jira`
 * **Événements** : `Issue -> updated`

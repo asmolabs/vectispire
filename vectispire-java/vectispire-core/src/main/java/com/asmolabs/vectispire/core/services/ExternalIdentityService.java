@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashSet;
@@ -30,17 +32,36 @@ public class ExternalIdentityService {
     private final Users users;
     private final Optional<Teams> teams;
     private final Optional<TeamMembers> teamMembers;
+    private final boolean linkPrivileged;
 
     public ExternalIdentityService(Users users) {
-        this(users, Optional.empty(), Optional.empty());
+        this(users, Optional.empty(), Optional.empty(), false);
     }
 
+    /**
+     * @param linkPrivileged whether an administrative or governing account may be bound on its
+     *     first sign-on like any other. Off by default: see {@link #resolve(String, String, Claimed)}
+     */
     @Autowired
-    public ExternalIdentityService(Users users, Optional<Teams> teams, Optional<TeamMembers> teamMembers) {
+    public ExternalIdentityService(
+            Users users,
+            Optional<Teams> teams,
+            Optional<TeamMembers> teamMembers,
+            @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
         this.users = users;
         this.teams = teams;
         this.teamMembers = teamMembers;
+        this.linkPrivileged = linkPrivileged;
     }
+
+    /**
+     * What the provider said about the person, as far as binding an account goes.
+     *
+     * @param username {@code preferred_username}
+     * @param email {@code email}, used only when {@code emailVerified} and no username came
+     * @param emailVerified {@code email_verified}; absent reads as false
+     */
+    public record Claimed(String username, String email, boolean emailVerified) {}
 
     /** Refused with a sentence meant to be shown: the person at the screen has to know why. */
     public static class SignInRefusedException extends RuntimeException {
@@ -49,13 +70,36 @@ public class ExternalIdentityService {
         }
     }
 
+    /** A username claim alone — what a provider sending no email amounts to. */
+    public UserEntity resolve(String subject, String issuer, String claimedName) {
+        return resolve(subject, issuer, new Claimed(claimedName, null, false));
+    }
+
     /**
+     * The account this identity signs in as.
+     *
+     * <p>Once bound, the subject is the only thing that matters. The first time, a claim has to be
+     * matched to an account, and <b>a claim is whatever the realm lets people write</b>: in a realm
+     * with self-registration or editable profiles, anybody can call themselves {@code admin}. So the
+     * first binding is held to three rules, each closing a way it was taken:
+     *
+     * <ul>
+     *   <li><b>No unverified email.</b> With no username claim the email was used as the name,
+     *       verified or not — an address typed at registration opened the account of that name.
+     *   <li><b>The name must be the account's, accent for accent.</b> The lookup follows the
+     *       database's collation, and MySQL's default opens {@code admin} for {@code ádmin}: a
+     *       different identity, registered to look the same. Only case is forgiven.
+     *   <li><b>No privileged account on a claim.</b> An administrative or governing account is not
+     *       bound by name unless the operator allows it — {@code vectispire.oidc.link-privileged-accounts},
+     *       for a realm where nobody chooses their own username. Otherwise it is linked through
+     *       SCIM, which sets the subject from the provider itself.
+     * </ul>
+     *
      * @param subject the provider's {@code sub}, stable for the life of the account
      * @param issuer which provider vouched for it. Required, and <b>not</b> part of the lookup
-     * @param claimedName the username claim, used <b>only</b> to bind an account the first time
      */
     @Transactional
-    public UserEntity resolve(String subject, String issuer, String claimedName) {
+    public UserEntity resolve(String subject, String issuer, Claimed claimed) {
         if (subject == null || subject.isBlank() || issuer == null || issuer.isBlank()) {
             throw new SignInRefusedException("The identity provider returned no usable subject.");
         }
@@ -65,12 +109,11 @@ public class ExternalIdentityService {
             return active(bound.get());
         }
 
-        String name = claimedName == null ? "" : claimedName.trim().toLowerCase(Locale.ROOT);
-        if (name.isEmpty()) {
-            throw new SignInRefusedException("The identity provider returned no username to match an account on.");
-        }
+        String name = nameToMatch(claimed);
 
         UserEntity account = users.findByUsername(name)
+                // The collation found it; the name has to agree too.
+                .filter(found -> found.getUsername().toLowerCase(Locale.ROOT).equals(name))
                 .orElseThrow(() -> {
                     log.warn("Single sign-on refused: no account named \"{}\" ({}).", name, issuer);
                     return new SignInRefusedException(
@@ -83,9 +126,33 @@ public class ExternalIdentityService {
                     "This account is already linked to a different identity. An administrator has to unlink it.");
         }
 
+        boolean privileged = Role.of(account.getRole())
+                .map(role -> role.isAdministrative() || role.governsPlatform())
+                .orElse(true);
+        if (privileged && !linkPrivileged) {
+            log.warn("Single sign-on refused: \"{}\" holds a privileged role and is not bound on a claim ({}).",
+                    name, issuer);
+            throw new SignInRefusedException("This account holds an administrative role, so it is not linked by name. "
+                    + "Sign in with its password, or ask for it to be linked through provisioning.");
+        }
+
         UserEntity allowed = active(account);
         allowed.setKeycloakId(subject);
         return users.save(allowed);
+    }
+
+    private static String nameToMatch(Claimed claimed) {
+        String username = claimed.username() == null ? "" : claimed.username().trim();
+        if (!username.isEmpty()) {
+            return username.toLowerCase(Locale.ROOT);
+        }
+        String email = claimed.email() == null ? "" : claimed.email().trim();
+        if (!email.isEmpty() && claimed.emailVerified()) {
+            return email.toLowerCase(Locale.ROOT);
+        }
+        throw new SignInRefusedException(email.isEmpty()
+                ? "The identity provider returned no username to match an account on."
+                : "The identity provider returned no username, and an email address it has not verified.");
     }
 
     /**

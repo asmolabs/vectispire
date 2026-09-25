@@ -68,6 +68,11 @@ public class TicketingWebhookController {
             // No detail: a caller learning *which* header was wrong learns which tracker we expect.
             case TicketingWebhookService.Outcome.Rejected rejected -> ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new WebhookSyncResult(false, null, null, "Webhook authentication failed"));
+            // Said plainly: it lands in the tracker's delivery log, which is where whoever set up
+            // the integration looks when triage stops arriving.
+            case TicketingWebhookService.Outcome.NotConfigured notConfigured -> ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new WebhookSyncResult(false, null, null,
+                            "The ticket webhook is not configured on this instance: an administrator has to set its secret first"));
             case TicketingWebhookService.Outcome.Malformed malformed ->
                     ResponseEntity.badRequest().body(new WebhookSyncResult(false, null, null, "Malformed JSON body"));
             case TicketingWebhookService.Outcome.NoReference none ->

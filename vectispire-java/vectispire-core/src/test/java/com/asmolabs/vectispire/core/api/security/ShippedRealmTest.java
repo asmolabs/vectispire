@@ -73,4 +73,16 @@ class ShippedRealmTest {
                 .as("must equal the VECTISPIRE_BOOTSTRAP_USERNAME default in docker-compose.yml")
                 .isEqualTo("admin");
     }
+
+    @Test
+    @DisplayName("the example configuration lets that account be linked, since it is a SUPERUSER")
+    void theExampleAllowsLinkingThePrivilegedAccount() throws Exception {
+        // An administrative account is not bound on a username claim unless the operator allows
+        // it, and the realm's only user is the bootstrap SUPERUSER. Without the line, the `sso`
+        // profile refused its own demonstration account.
+        Path example = Path.of("../../.env.oidc.example");
+        assertThat(Files.readAllLines(example))
+                .as("%s must allow linking the evaluation realm's admin", example.toAbsolutePath().normalize())
+                .contains("VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true");
+    }
 }

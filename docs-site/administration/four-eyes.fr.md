@@ -39,9 +39,11 @@ L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demand
 ## Les décisions venues d'un traqueur
 
 Un webhook de ticket peut rapporter une décision de triage, et cette décision ne se règle jamais
-d'elle-même — quoi que dise le traqueur, et qu'un secret soit configuré ou non. Cette route est la
-seule porte anonyme du système ; ce qui y entre part en approbation, et l'entrée d'audit inscrit
-l'intégration comme auteur, le nom revendiqué restant à côté comme une donnée rapportée.
+d'elle-même — quoi que dise le traqueur. La route ne peut pas porter de session : elle n'accepte
+rien tant qu'aucun secret de webhook n'est configuré ; une fois qu'il l'est, ce qui y entre part
+encore en approbation — le secret prouve que le traqueur a envoyé l'appel, pas que quelqu'un a
+regardé la vulnérabilité — et l'entrée d'audit inscrit l'intégration comme auteur, le nom revendiqué
+restant à côté comme une donnée rapportée.
 
 ## À lire aussi
 

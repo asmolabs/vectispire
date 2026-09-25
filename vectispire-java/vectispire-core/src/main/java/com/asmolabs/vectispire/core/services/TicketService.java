@@ -94,27 +94,54 @@ public class TicketService {
     /** Binds the inbound webhook secret to its own row, like the token above. */
     public static final String WEBHOOK_SECRET_CONTEXT = "setting:ticket_webhook_secret";
 
+    /** What the stored webhook secret amounts to — three cases, because two of them refuse differently. */
+    public sealed interface WebhookSecret {
+        /** None set: the route accepts nothing, and says it is not configured. */
+        record Absent() implements WebhookSecret {}
+
+        /** Set, but no configured key decrypts it: the route refuses, as for a wrong signature. */
+        record Unreadable() implements WebhookSecret {}
+
+        record Present(String value) implements WebhookSecret {}
+    }
+
     /**
-     * The secret the tracker presents when it calls us, decrypted.
+     * The secret the tracker presents when it calls us.
      *
-     * <p>Read through the same tolerant path as the token: this one authenticates <b>the only
-     * anonymous mutating route in the system</b>, so a value that stops being readable does not
-     * fail closed in a way anybody notices — it makes the route refuse the real tracker, and a
-     * triage decision simply stops arriving.
+     * <p><b>Unreadable is not absent.</b> This went through the tolerant read the outbound token
+     * uses, which answers an empty string for a value no key can decrypt — and an empty secret
+     * meant "not enforced". A lost {@code ENCRYPTION_KEY}, a rotation that dropped the old one, or a
+     * corrupted row therefore reopened the only anonymous mutating route to unsigned calls, while
+     * the screen went on saying a secret was configured. The javadoc here claimed the opposite.
      */
-    public String webhookSecret() {
-        return encryption.readSecret(
-                settings.get(Setting.TICKET_WEBHOOK_SECRET).trim(),
-                WEBHOOK_SECRET_CONTEXT,
-                "The inbound webhook secret");
+    public WebhookSecret webhookSecret() {
+        String stored = settings.get(Setting.TICKET_WEBHOOK_SECRET).trim();
+        if (stored.isEmpty()) {
+            return new WebhookSecret.Absent();
+        }
+        if (!stored.startsWith(SecretCipher.FORMAT_PREFIX)) {
+            // Legacy clear value: still the secret, and readSecret says so at warn.
+            return new WebhookSecret.Present(
+                    encryption.readSecret(stored, WEBHOOK_SECRET_CONTEXT, "The inbound webhook secret"));
+        }
+        SecretCipher.Decrypted secret = encryption.inspect(stored, WEBHOOK_SECRET_CONTEXT);
+        if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
+            log.error("The inbound webhook secret cannot be decrypted by any configured key — the ticket webhook "
+                    + "refuses every call until it is set again.");
+            return new WebhookSecret.Unreadable();
+        }
+        return new WebhookSecret.Present(secret.plainText());
     }
 
-    /** Whether one is configured, for a screen that must not show it. */
+    /**
+     * Whether the webhook will accept a correctly signed call, for a screen that must not show it.
+     * An unreadable secret is not configured as far as that question goes: the screen said it was.
+     */
     public boolean hasWebhookSecret() {
-        return !settings.get(Setting.TICKET_WEBHOOK_SECRET).trim().isEmpty();
+        return webhookSecret() instanceof WebhookSecret.Present;
     }
 
-    /** Stores it encrypted. Blank clears it, which leaves the webhook route anonymous. */
+    /** Stores it encrypted. Blank clears it, which closes the webhook route. */
     public void setWebhookSecret(String rawSecret) {
         String value = rawSecret == null ? "" : rawSecret.trim();
         settings.set(

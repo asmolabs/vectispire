@@ -28,22 +28,42 @@ class TicketWebhookAuthRoutesTest extends ApiTestBase {
     private SettingsService settings;
 
     @Test
-    @DisplayName("with no secret configured the route stays open — and that is now safe to say")
-    void openWhenUnset() throws Exception {
+    @DisplayName("with no secret configured the route accepts nothing, and says why")
+    void closedWhenUnset() throws Exception {
         settings.set(Setting.TICKET_WEBHOOK_SECRET, "");
 
-        // 200 rather than 401: this is the behaviour every existing deployment relies on, and
-        // changing it on upgrade would stop their triage synchronising without anybody noticing.
-        //
-        // **This case pinned an open door without saying what it opened onto.** It was right about
-        // what it asserted and silent about what mattered: behind that 200, an anonymous call
-        // settled a `not_affected` that travelled into the signed documents. What makes the 200
-        // acceptable is not written here but in `TicketWebhookCannotSettleTest`, and the two are
-        // read together.
+        // It answered 200 here, on the grounds that closing the door would stop existing
+        // deployments synchronising unnoticed. Behind that 200, a stranger queued a "not affected"
+        // for any ticket reference they guessed. The refusal names its cause, because it lands in
+        // the tracker's delivery log and that is where a broken integration is looked for.
         mvc.perform(post("/api/v1/tickets/webhook/gitlab")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(BODY))
-                .andExpect(status().isOk());
+                .andExpect(status().isForbidden())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.actionTaken")
+                        .value(org.hamcrest.Matchers.containsString("not configured")));
+    }
+
+    @Test
+    @DisplayName("a secret no key can decrypt refuses the tracker, and the screen stops claiming one")
+    void anUnreadableSecretDoesNotReopenTheRoute() throws Exception {
+        // A lost ENCRYPTION_KEY or a dropped previous key made the stored secret unreadable, and the
+        // tolerant read turned that into "no secret" — the route reopened to unsigned calls while
+        // the settings screen still said a secret was configured.
+        settings.set(Setting.TICKET_WEBHOOK_SECRET, "v2:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+
+        mvc.perform(post("/api/v1/tickets/webhook/gitlab")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(BODY))
+                .andExpect(status().isUnauthorized());
+
+        mvc.perform(authenticated(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+                                "/api/v1/settings/ticket-webhook-secret"),
+                        asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.configured")
+                        .value(false));
     }
 
     @Test

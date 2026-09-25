@@ -47,8 +47,11 @@ public class TicketingWebhookService {
     }
 
     public sealed interface Outcome {
-        /** The secret is configured and the call does not carry it. */
+        /** The secret is configured and the call does not carry it, or the secret cannot be read. */
         record Rejected() implements Outcome {}
+
+        /** No secret is configured, so nothing is accepted. */
+        record NotConfigured() implements Outcome {}
 
         record Malformed() implements Outcome {}
 
@@ -62,32 +65,34 @@ public class TicketingWebhookService {
     public Outcome handle(
             TicketProvider provider, String rawPayload, WebhookAuthenticity.Presented presented, RequestActor origin) {
 
-        // **The system's only anonymous door, and it no longer settles anything.** It cannot
-        // require a session — the caller is the tracker — and with no secret configured it stays
-        // open, because closing it outright would stop synchronisation on every existing
-        // deployment without anyone noticing.
-        //
-        // What changed is what it can do once inside. It used to offer a triage that settled on
-        // the spot; it offers one that goes to approval. The secret is still what separates the
-        // tracker from anyone who has guessed a ticket reference, and it is still strongly
-        // recommended — but it is no longer the only thing between a stranger and a
-        // "not affected" in a signed document.
-        WebhookAuthenticity.Verdict verdict = WebhookAuthenticity.verify(
-                provider,
-                // Decrypted, not read raw: the row now holds a ciphertext. Comparing the presented
-                // token against the stored blob would refuse every legitimate call, and the
-                // rejection reads exactly like an attacker probing.
-                tickets.webhookSecret(),
-                presented,
-                rawPayload);
-        if (verdict == WebhookAuthenticity.Verdict.REJECTED) {
+        // **The system's only anonymous door: shut until a secret is set.** It cannot require a
+        // session — the caller is the tracker — so the secret is the whole of its authentication.
+        // With none configured it used to stay open, and once inside a stranger queued a "not
+        // affected" for any ticket reference they guessed. Nothing is accepted without one now,
+        // and a secret no key can read refuses like a wrong signature rather than reopening.
+        TicketService.WebhookSecret secret = tickets.webhookSecret();
+        if (secret instanceof TicketService.WebhookSecret.Absent) {
+            audit.record(AuditLogService.Record.of(
+                    AuditOperation.LOGIN_BLOCKED,
+                    "ticket_webhook",
+                    "Refused " + provider + " webhook from " + origin.ipAddress()
+                            + ": no webhook secret is configured",
+                    "anonymous"));
+            return new Outcome.NotConfigured();
+        }
+        WebhookAuthenticity.Verdict verdict = secret instanceof TicketService.WebhookSecret.Present(String value)
+                ? WebhookAuthenticity.verify(provider, value, presented, rawPayload)
+                : WebhookAuthenticity.Verdict.REJECTED;
+        if (verdict != WebhookAuthenticity.Verdict.ACCEPTED) {
             // Audited, because a stream of these is somebody probing and the audit log is where
             // that becomes visible. No detail in the response: a caller learning *which* header
             // was wrong learns which tracker we expect.
             audit.record(AuditLogService.Record.of(
                     AuditOperation.LOGIN_BLOCKED,
                     "ticket_webhook",
-                    "Rejected unsigned or wrongly signed " + provider + " webhook from "
+                    (secret instanceof TicketService.WebhookSecret.Unreadable
+                                    ? "Refused " + provider + " webhook: the stored secret cannot be decrypted, from "
+                                    : "Rejected unsigned or wrongly signed " + provider + " webhook from ")
                             + origin.ipAddress(),
                     "anonymous"));
             return new Outcome.Rejected();
