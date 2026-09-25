@@ -29,6 +29,9 @@ type Schemas = components['schemas'];
  *       springdoc marks nothing else, and the client's own claims live in `api.models.ts`.
  *   <li><b>Scalars hold the declared type.</b> A number where a string is documented is a
  *       fixture that would have to be wrong on the wire too.
+ *   <li><b>A closed vocabulary holds one of its words</b> — a declared enum, or one of the
+ *       {@link VOCABULARIES} the server closes and the document leaves open (roles, scan
+ *       statuses, an issue's state, severity, type and triage status).
  * </ul>
  *
  * <p><b>`null` is accepted everywhere, and that is not laxity.</b> The document marks nothing
@@ -82,12 +85,62 @@ interface JsonSchema {
 const SCHEMAS = (document as { components: { schemas: Record<string, JsonSchema> } }).components
     .schemas;
 
+/**
+ * The vocabularies the server closes and the document leaves open.
+ *
+ * <p>These fields are Java `String`s on the wire, filled from an enum's wire name, so springdoc
+ * types them `string` and nothing else — and the enum check below never sees them. That is how a
+ * login fixture came to sign in as `ADMINISTRATOR` and the account screen to demote to `READER`:
+ * neither role exists, both passed, and a screen keyed to `ADMIN` would have been tested against a
+ * role it can never receive. Each list is copied from the enum named beside it; a value added to
+ * the enum without being added here fails a fixture loudly, which is the direction to err in.
+ */
+const ROLES = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION', 'AUDITOR', 'USER']; // Role
+const SCAN_STATUSES = ['pending', 'scanning', 'completed', 'failed']; // ScanStatus
+const ISSUE_STATES = ['open', 'resolved']; // IssueState
+const ISSUE_SEVERITIES = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']; // Severity
+const FINDING_TYPES = ['vulnerability', 'secret', 'iac', 'license', 'eol', 'sast', 'ai_review', 'quality']; // FindingType
+const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
+
+const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
+
+const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
+    UserSummary: { role: ROLES },
+    UserAdminSummary: { role: ROLES },
+    UserCreateRequest: { role: ROLES },
+    UserUpdateRequest: { role: ROLES },
+    LastScan: { status: SCAN_STATUSES },
+    QueuedScan: { status: SCAN_STATUSES },
+    RecentScan: { status: SCAN_STATUSES },
+    Scan: { status: SCAN_STATUSES },
+    ScanSummary: { status: SCAN_STATUSES },
+    IssueDetail: ISSUE,
+    IssueEntity: ISSUE,
+    ObservedIssue: ISSUE,
+    BacklogEntry: ISSUE,
+    TriageRequest: { status: TRIAGE_STATUSES },
+    BulkTriageRequest: { status: TRIAGE_STATUSES }
+};
+
 function check(schemaName: string, value: unknown, path: string): string[] {
     const schema = SCHEMAS[schemaName];
     if (!schema) {
         return [`${path}: the document has no schema called "${schemaName}"`];
     }
-    return against(schema, value, path);
+    return [...against(schema, value, path), ...vocabulary(schemaName, value, path)];
+}
+
+function vocabulary(schemaName: string, value: unknown, path: string): string[] {
+    const closed = VOCABULARIES[schemaName];
+    if (!closed || typeof value !== 'object' || value === null || Array.isArray(value)) {
+        return [];
+    }
+    const holder = value as Record<string, unknown>;
+    return Object.entries(closed)
+        .filter(([key]) => typeof holder[key] === 'string' && !closed[key].includes(holder[key] as string))
+        .map(([key, allowed]) =>
+            `${path}.${key}: the server sends one of ${allowed.map((one) => JSON.stringify(one)).join(', ')},` +
+                ` the fixture holds ${JSON.stringify(holder[key])}`);
 }
 
 function against(schema: JsonSchema, value: unknown, path: string): string[] {

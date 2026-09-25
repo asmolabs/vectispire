@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Licenses } from './licenses';
 import { SessionStore } from '@/app/core/session.store';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
 /**
  * The licence screen, and the three places it decides rather than displays.
@@ -69,13 +69,13 @@ describe('the licence inventory screen', () => {
     /** Answers whatever the page asked for on this pass, and hands back the fixtures. */
     function settle(): void {
         http.match((call) => call.url === '/api/v1/repositories').forEach((call) =>
-            call.flush([{ id: 7, name: 'ours', displayName: 'Ours', url: 'ssh://git@example.invalid/ours.git', branch: 'main' }]));
+            call.flush(asSchemaList('RepositorySummary', [{ id: 7, name: 'ours', displayName: 'Ours', url: 'ssh://git@example.invalid/ours.git', branch: 'main', openIssues: 0 }])));
         http.match((call) => call.url === '/api/v1/containers').forEach((call) =>
-            call.flush([{ id: 3, reference: 'registry.invalid/app:1.0' }]));
+            call.flush(asSchemaList('ContainerSummary', [{ id: 3, reference: 'registry.invalid/app:1.0', openIssues: 0 }])));
         http.match((call) => call.url === '/api/v1/licenses/summary').forEach((call) => call.flush(SUMMARY));
         http.match((call) => call.url === '/api/v1/licenses/inventory').forEach((call) => call.flush(INVENTORY));
         http.match((call) => call.url === '/api/v1/licenses/policy').forEach((call) =>
-            call.flush({ disallowedCategories: ['FORBIDDEN'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0'] }));
+            call.flush(asSchema('LicensePolicy', { disallowedCategories: ['FORBIDDEN'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0'] })));
         http.match((call) => call.url === '/api/v1/licenses/conflicts').forEach((call) => call.flush(CONFLICTS));
     }
 
@@ -183,7 +183,7 @@ describe('the licence inventory screen', () => {
             explicitlyAllowedLicenses: ['Apache-2.0'],
             explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0']
         });
-        call.flush({ disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0'] });
+        call.flush(asSchema('LicensePolicy', { disallowedCategories: ['FORBIDDEN', 'STRONG_COPYLEFT'], explicitlyAllowedLicenses: ['Apache-2.0'], explicitlyDisallowedLicenses: ['GPL-2.0', 'AGPL-3.0'] }));
 
         expect(page.editingPolicy()).toBe(false);
         expect(page.policy()?.disallowedCategories)

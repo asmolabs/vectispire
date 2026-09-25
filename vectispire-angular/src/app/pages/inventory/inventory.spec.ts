@@ -85,7 +85,7 @@ describe('the component search', () => {
         // A prefix match would report a release as affected when it is not — the kind of wrong
         // answer that gets acted on, because it is plausible.
         expect(request.request.urlWithParams).toContain('version=2.14.1');
-        request.flush({ occurrences: [], total: 0, truncated: false });
+        request.flush(asSchema('Results', { occurrences: [], total: 0, truncated: false }));
     });
 
     it('says a capped list is capped', () => {

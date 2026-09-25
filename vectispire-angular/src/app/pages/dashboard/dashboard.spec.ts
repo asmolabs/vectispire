@@ -150,7 +150,7 @@ describe('the backlog trend', () => {
         // Cleared while the answer is in flight: a curve left under a new window's label is a
         // chart that says thirty days and shows a year.
         expect(fixture.componentInstance.trends()).toBeNull();
-        call.flush({ points: [], mean_days_to_resolve: null, resolved_in_window: 0 });
+        call.flush(asSchema('Trends', { points: [], mean_days_to_resolve: null, resolved_in_window: 0 }));
     });
 
     it('says the trend failed instead of drawing an empty history', () => {

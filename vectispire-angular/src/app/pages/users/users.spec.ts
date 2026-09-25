@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Users } from './users';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
 /**
  * The account screen, and the refusal it must not swallow.
@@ -33,7 +33,7 @@ describe('the accounts screen', () => {
         });
 
     const LIST = asSchema('UserListing', {
-        users: [account(1, 'admin', 'ADMINISTRATOR'), account(2, 'reader', 'READER')],
+        users: [account(1, 'admin', 'ADMIN'), account(2, 'reader', 'USER')],
         currentUserId: 1
     });
 
@@ -68,7 +68,7 @@ describe('the accounts screen', () => {
 
     it('keeps the refusal on screen through the reload that follows it', () => {
         const page = fixture.componentInstance;
-        page.changeRole(LIST.users[0], 'READER');
+        page.changeRole(LIST.users[0], 'USER');
 
         http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/users/1')
             .flush({ message: 'The last active administrator cannot be demoted.' }, { status: 409, statusText: 'Conflict' });
@@ -84,7 +84,7 @@ describe('the accounts screen', () => {
     it('does not send a request when the role has not changed', () => {
         // The selector emits on every open, not only on a change. Patching anyway would write an
         // audit entry for a change nobody made.
-        fixture.componentInstance.changeRole(LIST.users[1], 'READER');
+        fixture.componentInstance.changeRole(LIST.users[1], 'USER');
 
         http.expectNone(() => true);
     });
@@ -119,7 +119,7 @@ describe('the accounts screen', () => {
         page.openAccess(LIST.users[1]);
 
         http.expectOne((call) => call.url === '/api/v1/users/2/targets')
-            .flush([{ kind: 'repository', id: 7 }]);
+            .flush(asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }]));
 
         // A dialog that opened empty would make every save a total revocation: the administrator
         // ticks what they want to add, sends, and removes everything else without meaning to.
@@ -130,7 +130,7 @@ describe('the accounts screen', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets')
-            .flush([{ kind: 'repository', id: 7 }]);
+            .flush(asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }]));
 
         page.selectedTargets = [];
         page.saveAccess();
@@ -192,7 +192,7 @@ describe('the accounts screen', () => {
         calls.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
         calls.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
         calls.expectOne((call) => call.url === '/api/v1/settings')
-            .flush({ settings: [{ key: 'target_visibility', value: 'everyone' }] });
+            .flush(asSchema('Catalog', { settings: [{ key: 'target_visibility', value: 'everyone', configured: true, governor_only: false, administrator_only: false }] }));
 
         expect(wide.componentInstance.restrictionsInactive()).toBe(true);
     });

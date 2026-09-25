@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Owasp } from './owasp';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
@@ -52,9 +52,9 @@ describe('the OWASP report screen', () => {
         fixture.detectChanges();
 
         // The constructor asks for the repositories it offers in the picker.
-        http.expectOne('/api/v1/repositories').flush([
-            { id: 5, displayName: 'Arm Libs Spring', url: 'ssh://git@example.com/art/arm.git', branch: 'master' }
-        ]);
+        http.expectOne('/api/v1/repositories').flush(asSchemaList('RepositorySummary', [
+            { id: 5, displayName: 'Arm Libs Spring', url: 'ssh://git@example.com/art/arm.git', branch: 'master', openIssues: 0 }
+        ]));
         fixture.detectChanges();
     });
 

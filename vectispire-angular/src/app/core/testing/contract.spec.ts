@@ -74,6 +74,30 @@ describe('the fixture checker', () => {
         );
     });
 
+    /**
+     * The roles are a Java `String` on the wire, so the document declares no enum for them — and
+     * three specs signed in as `ADMINISTRATOR` or demoted to `READER`, two roles no server sends.
+     */
+    it('refuses a role the server never sends, even where the document says only "string"', () => {
+        expect(() =>
+            asSchema('UserSummary', { username: 'admin', displayName: null, role: 'ADMINISTRATOR', mustChangePassword: false, mfaEnabled: false })
+        ).toThrow(/UserSummary\.role: the server sends one of "SUPERUSER", "ADMIN".*the fixture holds "ADMINISTRATOR"/);
+    });
+
+    it('follows a closed vocabulary into a nested schema, and into a list', () => {
+        expect(() =>
+            asSchema('UserListing', {
+                users: [{ id: 1, username: 'r', email: null, displayName: null, role: 'READER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }],
+                currentUserId: 1
+            })
+        ).toThrow(/UserListing\.users\[0\]\.role: .*"READER"/);
+    });
+
+    it('refuses a scan status in the wrong case: the server writes the lower-case wire name', () => {
+        expect(() => asSchema('QueuedScan', { id: 1, status: 'SCANNING' })).toThrow(/QueuedScan\.status/);
+        expect(asSchema('QueuedScan', { id: 1, status: 'scanning' }).status).toBe('scanning');
+    });
+
     /** A fixture pointing at a schema nobody publishes is a fixture nobody can check. */
     it('refuses a schema name the document does not have', () => {
         // @ts-expect-error the name is not one of the document's schemas, and the type says so too

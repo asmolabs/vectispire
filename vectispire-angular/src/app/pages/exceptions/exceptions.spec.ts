@@ -104,10 +104,10 @@ describe('le registre des exceptions', () => {
         // the one person who cannot notice it.
         const component = fixture.componentInstance;
         component.load();
-        http.expectOne((call) => call.url === '/api/v1/exceptions').flush({
+        http.expectOne((call) => call.url === '/api/v1/exceptions').flush(asSchema('Register', {
             entries: [], granted: 0, awaiting_approval: 0, lapsed: 0, never_reviewed: 0,
             next_cursor: '1757836800000:41'
-        });
+        }));
 
         expect(component.loaded()).toHaveLength(0);
         expect(component.hasMore()).toBe(true);

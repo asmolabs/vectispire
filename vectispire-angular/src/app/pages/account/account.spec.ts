@@ -73,7 +73,7 @@ describe('the account screen', () => {
         page.confirm();
         const enable = http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable');
         expect(enable.request.body).toEqual({ secret: SETUP.secret, code: '123456' });
-        enable.flush({ success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] });
+        enable.flush(asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] }));
         fixture.detectChanges();
 
         expect(page.mfaEnabled()).toBe(true);
@@ -87,7 +87,7 @@ describe('the account screen', () => {
         page.code = '123456';
         page.confirm();
         http.expectOne((call) => call.url === '/api/v1/auth/mfa/enable')
-            .flush({ success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] });
+            .flush(asSchema('EnableResponse', { success: true, backupCodes: ['aaaa-1111', 'bbbb-2222'] }));
         fixture.detectChanges();
 
         // Le serveur les chiffre et ne les rendra plus : sans l'avertissement, on ferme l'onglet

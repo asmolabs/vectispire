@@ -47,10 +47,10 @@ describe('EPSS prioritisation', () => {
         fixture.detectChanges();
 
         http.expectOne((call) => call.url === '/api/v1/epss/priorities')
-            .flush({
+            .flush(asSchema('EpssFleetSummary', {
                 totalVulnerabilities: 0, activeKevCount: 0, highEpssCount: 0, reachableEpssCount: 0,
                 averageFleetEpss: 0, topPriorities: [], breakdownByTier: {}
-            });
+            }));
         http.expectOne((call) => call.url === '/api/v1/ai-advisor/status')
             .flush({ enabled: aiEnabled, selectedModel: aiEnabled ? 'llama3' : null, availableModels: [] });
         fixture.detectChanges();

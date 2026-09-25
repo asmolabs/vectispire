@@ -113,14 +113,16 @@ describe('the settings screen', () => {
     it('shows what the host answered, reachable or not', () => {
         const review = openModelReview();
         review.testOllama();
-        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush({
+        http.expectOne({ method: 'POST', url: '/api/v1/settings/ollama-test' }).flush(asSchema('OllamaCheck', {
             reachable: true,
             modelInstalled: false,
             model: 'gemma4:12b-it-qat',
             url: 'http://localhost:11434',
             models: ['gemma4:26b'],
-            detail: 'Reachable, but "gemma4:12b-it-qat" is not installed there.'
-        });
+            detail: 'Reachable, but "gemma4:12b-it-qat" is not installed there.',
+            provider: 'ollama',
+            remoteAllowed: false
+        }));
         fixture.detectChanges();
 
         // Reachable without the model is the commonest misconfiguration, and a single green tick

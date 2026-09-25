@@ -5,7 +5,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Teams } from './teams';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
 /**
  * The team screen, which is the authorization model with a form on it.
@@ -25,8 +25,8 @@ describe('the teams screen', () => {
 
     const ACCOUNTS = asSchema('UserListing', {
         users: [
-            { id: 1, username: 'admin', email: null, displayName: 'The Administrator', role: 'ADMINISTRATOR', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 1 },
-            { id: 2, username: 'reader', email: null, displayName: null, role: 'READER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }
+            { id: 1, username: 'admin', email: null, displayName: 'The Administrator', role: 'ADMIN', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 1 },
+            { id: 2, username: 'reader', email: null, displayName: null, role: 'USER', isActive: true, mustChangePassword: false, createdAt: '2026-01-01T00:00:00Z', activeSessions: 0 }
         ]
     });
 
@@ -78,10 +78,10 @@ describe('the teams screen', () => {
         fixture.componentInstance.openAccess(TEAM);
 
         http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([2]);
-        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([
+        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush(asSchemaList('TeamTargetAssignment', [
             { kind: 'repository', id: 7 },
             { kind: 'container', id: 3 }
-        ]);
+        ]));
 
         expect(fixture.componentInstance.selectedMembers).toEqual([2]);
         // Held as `kind:id` strings because that is what the picker's option values are.

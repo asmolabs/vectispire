@@ -82,7 +82,7 @@ describe('anyScanRunning', () => {
     it('ne compte que les statuts qui bougent encore', () => {
         expect(anyScanRunning([{ status: 'completed' }, { status: 'failed' }])).toBe(false);
         expect(anyScanRunning([{ status: 'completed' }, { status: 'pending' }])).toBe(true);
-        expect(anyScanRunning([{ status: 'SCANNING' }])).toBe(true);
+        expect(anyScanRunning([{ status: 'scanning' }])).toBe(true);
         // A target never scanned is waiting for nothing: without this case, a fresh list would
         // query the server forever.
         expect(anyScanRunning([null, undefined, {}])).toBe(false);

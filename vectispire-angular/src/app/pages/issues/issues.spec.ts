@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { SessionStore } from '@/app/core/session.store';
 import { Issues } from './issues';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
 /**
  * The backlog.
@@ -302,7 +302,11 @@ describe('triaging a selection', () => {
         component.selected.set([component.issues()[0]]);
         component.openBulkTriage();
         component.submitTriage();
-        http.expectOne('/api/v1/issues/triage').flush([row(11)]);
+        // The route answers with the written issues, not with backlog rows: `targetKind` is the
+        // backlog's word and an `IssueEntity` does not carry it.
+        http.expectOne('/api/v1/issues/triage').flush(asSchemaList('IssueEntity', [
+            { id: 11, type: 'vulnerability', severity: 'high', state: 'open', triageStatus: 'not_affected', isKev: false, timesSeen: 1 }
+        ]));
 
         // A selection outliving its rows is a decision about issues nobody is looking at any more.
         expect(component.selected()).toEqual([]);

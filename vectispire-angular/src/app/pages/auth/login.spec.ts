@@ -26,7 +26,7 @@ describe('the sign-in screen', () => {
     const USER = asSchema('UserSummary', {
         username: 'admin',
         displayName: null,
-        role: 'ADMINISTRATOR',
+        role: 'ADMIN',
         mustChangePassword: false,
         mfaEnabled: false
     });
@@ -127,7 +127,7 @@ describe('the sign-in screen', () => {
     it('holds the challenge without opening a session when a second factor is required', () => {
         attempt();
         http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush({ mfa_required: true, mfa_token: 'challenge-1' });
+            .flush(asSchema('LoginResponse', { mfa_required: true, mfa_token: 'challenge-1' }));
 
         const page = fixture.componentInstance;
         expect(page.mfaRequired()).toBe(true);
@@ -139,7 +139,7 @@ describe('the sign-in screen', () => {
         page.submit();
         const verify = http.expectOne((call) => call.url === '/api/v1/auth/mfa/verify');
         expect(verify.request.body).toEqual({ mfa_token: 'challenge-1', code: '123456' });
-        verify.flush({ token: 't', user: USER });
+        verify.flush(asSchema('LoginResponse', { mfa_required: false, token: 't', user: USER }));
 
         expect(navigate).toHaveBeenCalledWith(['/dashboard']);
     });
@@ -147,7 +147,7 @@ describe('the sign-in screen', () => {
     it('sends a provisioned account to change its password before anywhere else', () => {
         attempt();
         http.expectOne((call) => call.url === '/api/v1/auth/login')
-            .flush({ token: 't', user: { ...USER, mustChangePassword: true } });
+            .flush(asSchema('LoginResponse', { mfa_required: false, token: 't', user: { ...USER, mustChangePassword: true } }));
 
         // Letting it reach the dashboard would empty the flag of its meaning.
         expect(navigate).toHaveBeenCalledWith(['/change-password']);
