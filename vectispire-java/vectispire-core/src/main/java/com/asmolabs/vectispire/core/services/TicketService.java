@@ -43,13 +43,19 @@ public class TicketService {
     private final SettingsService settings;
     private final EncryptionService encryption;
     private final OutboundPost post;
+    private final OutboundJson lookup;
     private final ObjectMapper json;
 
     public TicketService(
-            SettingsService settings, EncryptionService encryption, OutboundPost post, ObjectMapper json) {
+            SettingsService settings,
+            EncryptionService encryption,
+            OutboundPost post,
+            OutboundJson lookup,
+            ObjectMapper json) {
         this.settings = settings;
         this.encryption = encryption;
         this.post = post;
+        this.lookup = lookup;
         this.json = json;
     }
 
@@ -276,7 +282,9 @@ public class TicketService {
 
     private void closeGitlab(String baseUrl, String iid) {
         String url = baseUrl + "/api/v4/projects/" + URLEncoder.encode(project(), StandardCharsets.UTF_8) + "/issues/" + iid;
-        post.postForResponse(url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()));
+        // PUT: GitLab's "edit an issue". A POST on this path is not routed, so closing went out as one
+        // and failed on every issue — see PinnedHttpSender.Method.
+        post.putForResponse(url, Map.of("state_event", "close"), policy(), "GitLab", Map.of("PRIVATE-TOKEN", token()));
     }
 
     private Ticket createGithub(String baseUrl, String title, String body) {
@@ -300,7 +308,9 @@ public class TicketService {
 
     private void closeGithub(String baseUrl, String number) {
         String url = baseUrl + "/repos/" + project() + "/issues/" + number;
-        post.postForResponse(
+        // PATCH, the verb GitHub documents for "update an issue"; its tolerance of POST as an alias
+        // is a legacy courtesy nothing here should lean on.
+        post.patchForResponse(
                 url,
                 Map.of("state", "closed", "state_reason", "completed"),
                 policy(),
@@ -358,14 +368,51 @@ public class TicketService {
         return new Ticket(number.isEmpty() ? sysId : number, webUrl);
     }
 
+    /**
+     * Closes an incident, addressed by its {@code sys_id}.
+     *
+     * <p><b>The stored reference is usually not a {@code sys_id}.</b> Creation keeps the incident
+     * number ({@code INC0012345}) because that is what people read, search and paste back — and what
+     * {@code attachTicket} accepts from a person. The Table API addresses a record by {@code sys_id}
+     * only, so a close sent to {@code /incident/INC0012345} found nothing, and no incident Vectispire
+     * opened was ever closed by it. A number is therefore resolved first, by a query through the same
+     * guard and pin, under the same policy.
+     */
     private void closeServiceNow(String baseUrl, String incident, String resolutionReason) {
-        String url = baseUrl + "/api/now/table/incident/" + incident;
-        post.postForResponse(
+        String sysId = SERVICENOW_SYS_ID.matcher(incident).matches() ? incident : serviceNowSysId(baseUrl, incident);
+        String url = baseUrl + "/api/now/table/incident/" + sysId;
+        post.patchForResponse(
                 url,
                 Map.of("state", "6", "close_code", "Solved (Permanently)", "close_notes", "Resolved by Vectispire: " + resolutionReason),
                 policy(),
                 "ServiceNow",
                 serviceNowHeaders());
+    }
+
+    /** A {@code sys_id} as ServiceNow issues one: 32 lower-case hex digits, nothing a path could carry. */
+    private static final java.util.regex.Pattern SERVICENOW_SYS_ID = java.util.regex.Pattern.compile("[0-9a-f]{32}");
+
+    /**
+     * The {@code sys_id} of the incident with this number.
+     *
+     * <p><b>What comes back is checked before it becomes a path segment.</b> The reference was held
+     * to its grammar so that nothing typed could steer a request made with the integration's token;
+     * an answer pasted into the next URL unchecked would reopen that for whoever controls the
+     * tracker's response.
+     *
+     * @param number already held to {@code Tickets.referencePath}'s grammar and encoded
+     */
+    private String serviceNowSysId(String baseUrl, String number) {
+        String url = baseUrl + "/api/now/table/incident?sysparm_query="
+                + URLEncoder.encode("number=" + number, StandardCharsets.UTF_8)
+                + "&sysparm_fields=sys_id&sysparm_limit=1";
+        JsonNode found = lookup.get(url, policy(), "ServiceNow", serviceNowHeaders())
+                .orElseThrow(() -> new IllegalStateException("ServiceNow does not know incident " + number + "."));
+        String sysId = found.path("result").path(0).path("sys_id").asText("");
+        if (!SERVICENOW_SYS_ID.matcher(sysId).matches()) {
+            throw new IllegalStateException("ServiceNow returned no usable sys_id for incident " + number + ".");
+        }
+        return sysId;
     }
 
     private Map<String, String> jiraHeaders() {

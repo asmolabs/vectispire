@@ -41,7 +41,7 @@ class TicketServiceTest {
         settings = mock(SettingsService.class);
         encryption = new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of()));
         post = mock(OutboundPost.class);
-        service = new TicketService(settings, encryption, post, new ObjectMapper());
+        service = new TicketService(settings, encryption, post, mock(OutboundJson.class), new ObjectMapper());
 
         when(settings.get(any())).thenReturn("");
         when(settings.get(Setting.TICKET_PROVIDER)).thenReturn(TicketProvider.GITLAB.wireName());
@@ -160,10 +160,10 @@ class TicketServiceTest {
     @org.junit.jupiter.api.DisplayName("closing sends the reference's own segment, and refuses one that is not a reference")
     void closingNeverPastesTheReferenceAsTyped() {
         assertThat(service.closeTicket("../../../../users/1?", "resolved")).isFalse();
-        verify(post, org.mockito.Mockito.never()).postForResponse(anyString(), any(), any(), anyString(), any());
+        verify(post, org.mockito.Mockito.never()).putForResponse(anyString(), any(), any(), anyString(), any());
 
         assertThat(service.closeTicket("#105", "resolved")).isTrue();
-        verify(post).postForResponse(
+        verify(post).putForResponse(
                 eq("https://gitlab.example.com/api/v4/projects/team%2Fservice/issues/105"),
                 any(), any(), anyString(), any());
     }

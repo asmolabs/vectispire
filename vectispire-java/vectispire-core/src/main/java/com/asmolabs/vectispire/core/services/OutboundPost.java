@@ -111,6 +111,21 @@ public class OutboundPost {
     }
 
     /**
+     * Updates a record with PATCH — the verb ServiceNow's Table API and GitHub's issue API
+     * document for a partial update. Same guard, same pin, same refusal of redirects as a POST.
+     */
+    public String patchForResponse(
+            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers) {
+        return sendEncoded(PinnedHttpSender.Method.PATCH, url, encode(body), policy, label, headers, TIMEOUT);
+    }
+
+    /** Updates a record with PUT — GitLab's issue API routes nothing else to an existing issue. */
+    public String putForResponse(
+            String url, Object body, OutboundPolicy policy, String label, Map<String, String> headers) {
+        return sendEncoded(PinnedHttpSender.Method.PUT, url, encode(body), policy, label, headers, TIMEOUT);
+    }
+
+    /**
      * The one place a body becomes a string.
      *
      * <p>Shared with {@link #postSignedJson} so that what is signed and what is sent cannot be two
@@ -130,6 +145,19 @@ public class OutboundPost {
 
         PinnedHttpSender.Response response = sender.send(
                 guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);
+
+        if (response.status() / 100 != 2) {
+            throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");
+        }
+        return response.body();
+    }
+
+    private String sendEncoded(
+            PinnedHttpSender.Method method, String url, String encoded, OutboundPolicy policy, String label,
+            Map<String, String> headers, Duration timeout) {
+
+        PinnedHttpSender.Response response = sender.send(
+                method, guard.validateAndResolve(url, policy, label), headers, encoded, timeout, label);
 
         if (response.status() / 100 != 2) {
             throw new OutboundJson.OutboundFailureException(label + ": HTTP " + response.status() + ".");

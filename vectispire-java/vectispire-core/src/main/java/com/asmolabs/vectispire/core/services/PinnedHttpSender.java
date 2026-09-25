@@ -11,7 +11,9 @@ import java.util.Locale;
 import java.util.Map;
 import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPatch;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpPut;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -64,6 +66,19 @@ public class PinnedHttpSender {
     public record Response(int status, String body) {}
 
     /**
+     * The verbs a caller here has a use for.
+     *
+     * <p><b>Why more than GET and POST.</b> The sender used to infer the verb from the body — none
+     * meant GET, any meant POST — and every ticket closure went out as a POST. ServiceNow's Table
+     * API updates a record by PATCH and GitLab's issue API by PUT; neither routes a POST on a
+     * record, so "close the ticket" failed on both trackers, every time, logged at warn by a sweep
+     * that retries it forever.
+     */
+    public enum Method {
+        GET, POST, PUT, PATCH
+    }
+
+    /**
      * Sends, and returns the status with the body.
      *
      * @param destination what the guard checked, addresses included
@@ -71,6 +86,21 @@ public class PinnedHttpSender {
      * @throws OutboundJson.OutboundFailureException on anything that is not an answer
      */
     public Response send(
+            OutboundUrlGuard.Destination destination,
+            Map<String, String> headers,
+            String body,
+            Duration timeout,
+            String label) {
+        return send(body == null ? Method.GET : Method.POST, destination, headers, body, timeout, label);
+    }
+
+    /**
+     * Sends with an explicit verb.
+     *
+     * @param body {@code null} for none; ignored for a GET, which carries none
+     */
+    public Response send(
+            Method method,
             OutboundUrlGuard.Destination destination,
             Map<String, String> headers,
             String body,
@@ -89,9 +119,14 @@ public class PinnedHttpSender {
                             + "to send to.");
         }
 
-        ClassicHttpRequest request = body == null ? new HttpGet(destination.url()) : new HttpPost(destination.url());
+        ClassicHttpRequest request = switch (method) {
+            case GET -> new HttpGet(destination.url());
+            case POST -> new HttpPost(destination.url());
+            case PUT -> new HttpPut(destination.url());
+            case PATCH -> new HttpPatch(destination.url());
+        };
         headers.forEach(request::addHeader);
-        if (body != null) {
+        if (body != null && method != Method.GET) {
             request.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
         }
 

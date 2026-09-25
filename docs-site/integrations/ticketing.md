@@ -40,5 +40,12 @@ Closing the ticket in the tracker does not resolve the issue in Vectispire — `
 written only by the pipeline, from what the scanners observe. Fix the dependency, and the
 next scan resolves it.
 
+The other direction is automatic: when a scan resolves an issue, Vectispire closes the ticket it
+opened for it. Each tracker is called with the verb its API routes for an update — `PUT` on
+GitLab, `PATCH` on GitHub and ServiceNow, a transition on Jira. ServiceNow addresses a record by
+its `sys_id`, while the reference Vectispire keeps is the incident number people read
+(`INC0012345`), so the number is first looked up in the incident table: the ServiceNow account
+needs **read** access to `incident` as well as write.
+
 If it is not going to be fixed, that is a [triage decision](../guide/issues.md), with a
 justification and preferably a review date.

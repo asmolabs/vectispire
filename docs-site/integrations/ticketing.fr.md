@@ -41,5 +41,13 @@ Fermer le ticket dans le tracker ne résout pas l'issue dans Vectispire — `sta
 que par le pipeline, à partir de ce que les scanners observent. Corrigez la dépendance, et le
 scan suivant la résout.
 
+L'autre sens est automatique : quand un scan résout une issue, Vectispire ferme le ticket qu'il
+avait ouvert pour elle. Chaque traqueur est appelé avec le verbe que son API route pour une mise à
+jour — `PUT` sur GitLab, `PATCH` sur GitHub et ServiceNow, une transition sur Jira. ServiceNow
+désigne un enregistrement par son `sys_id`, alors que la référence gardée par Vectispire est le
+numéro d'incident que les gens lisent (`INC0012345`) : le numéro est donc d'abord recherché dans la
+table des incidents, et le compte ServiceNow a besoin du droit de **lecture** sur `incident` en plus
+de l'écriture.
+
 Si elle ne va pas être corrigée, c'est une [décision de triage](../guide/issues.md), avec une
 justification et de préférence une date de réexamen.
