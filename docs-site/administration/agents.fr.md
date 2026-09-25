@@ -51,11 +51,11 @@ sur le plan de contrôle.
 
 | Mode | Ce que le contrôleur envoie | Quand |
 |---|---|---|
-| `local` (défaut) | rien | la machine de l'agent a son propre accès git. Un agent compromis ne livre que ce qui avait été accordé à cette machine. |
-| `delegated` | la clé de déploiement, par travail | une machine de confiance seulement. |
+| `local` (défaut) | rien | la machine de l'agent a son propre accès git — en SSH : un dépôt privé en HTTPS ne peut pas être cloné dans ce mode. Un agent compromis ne livre que ce qui avait été accordé à cette machine. |
+| `delegated` | la clé de déploiement ou le jeton HTTPS, par travail | une machine de confiance seulement. |
 
-`delegated` **exige HTTPS et est refusé sans lui**. La clé n'est jamais écrite sur disque
-au-delà d'un fichier temporaire en `0600`, et chaque remise est auditée. Un agent qui a annoncé une
+`delegated` **exige HTTPS et est refusé sans lui**. La clé ou le jeton n'est jamais écrit sur
+disque — il est lu en mémoire et remis au transport — et chaque remise est auditée. Un agent qui a annoncé une
 clé de scellement **refuse une clé arrivée non scellée** : c'est ce que produirait un proxy TLS qui
 retire l'annonce, et le scellement existe justement pour tenir la clé hors de portée de ce proxy.
 

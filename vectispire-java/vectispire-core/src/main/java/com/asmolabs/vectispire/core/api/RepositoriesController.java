@@ -61,6 +61,7 @@ public class RepositoriesController {
             String scanCron,
             String requiredAgentLabel,
             UUID sshKeyId,
+            UUID httpsTokenId,
             Instant lastScheduledScanAt,
             LastScan lastScan,
             long openIssues,
@@ -81,7 +82,9 @@ public class RepositoriesController {
             // the form would show the key detached while the next clone still used it. The empty
             // string is the explicit clear; a malformed one is a 400 rather than a silent no-op.
             String sshKeyId,
-            String tier) {}
+            String tier,
+            // Same convention as the key: absent leaves it, empty clears it.
+            @JsonProperty("https_token_id") String httpsTokenId) {}
 
     public record QueuedScan(Long id, String status) {}
 
@@ -185,6 +188,7 @@ public class RepositoriesController {
                 repository.getScanCron(),
                 repository.getRequiredAgentLabel(),
                 repository.getSshKeyId(),
+                repository.getHttpsTokenId(),
                 repository.getLastScheduledScanAt(),
                 listed.latestScan()
                         .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
@@ -203,7 +207,8 @@ public class RepositoriesController {
                 body.scanCron(),
                 body.requiredAgentLabel(),
                 body.sshKeyId(),
-                body.tier());
+                body.tier(),
+                body.httpsTokenId());
     }
 
     /**

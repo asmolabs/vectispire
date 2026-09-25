@@ -141,7 +141,11 @@ export class AppMenu {
                     // everybody — the one place in the sidebar offering a link that leads to a
                     // refusal, and therefore the only way of reaching `/forbidden` by clicking.
                     ...(this.session.isAdmin()
-                        ? [{ label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] }]
+                        ? [
+                              { label: this.i18n.t('menu.ssh_keys'), icon: 'pi pi-fw pi-key', routerLink: ['/ssh-keys'] },
+                              // The other clone credential, under the same rule for the same reason.
+                              { label: this.i18n.t('menu.git_tokens'), icon: 'pi pi-fw pi-lock', routerLink: ['/git-tokens'] }
+                          ]
                         : [])
                 ]
             }

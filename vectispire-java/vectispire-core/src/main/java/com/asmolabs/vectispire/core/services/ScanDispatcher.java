@@ -13,11 +13,13 @@ import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.persistence.GitTokenEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import jakarta.annotation.PreDestroy;
@@ -66,6 +68,7 @@ public class ScanDispatcher {
     private final GitRepositories repositories;
     private final Containers containers;
     private final SshKeys sshKeys;
+    private final GitTokens gitTokens;
     private final ScanIngestor ingestor;
     private final EncryptionService encryption;
     private final SettingsService settings;
@@ -109,6 +112,7 @@ public class ScanDispatcher {
             GitRepositories repositories,
             Containers containers,
             SshKeys sshKeys,
+            GitTokens gitTokens,
             ScanIngestor ingestor,
             EncryptionService encryption,
             SettingsService settings,
@@ -123,6 +127,7 @@ public class ScanDispatcher {
         this.repositories = repositories;
         this.containers = containers;
         this.sshKeys = sshKeys;
+        this.gitTokens = gitTokens;
         this.ingestor = ingestor;
         this.encryption = encryption;
         this.settings = settings;
@@ -208,10 +213,17 @@ public class ScanDispatcher {
             ScanTask task = buildTask(scan, credentialsMode(agent).deliversCredentials());
 
             String privateKey = privateKeyOf(task);
-            if (privateKey != null) {
+            ScanTask.Target.HttpsCredential https = httpsOf(task);
+            if (privateKey != null || https != null) {
                 boolean sealed = SealedEnvelope.isUsablePublicKey(agent.getSealingPublicKey());
                 if (sealed) {
-                    task = withPrivateKey(task, envelopes.seal(agent.getSealingPublicKey(), privateKey));
+                    // The token is sealed exactly as the key is (decision 0022); its host and user
+                    // name are not secrets and travel in the clear, so the agent can enforce the
+                    // binding before opening anything.
+                    task = privateKey != null
+                            ? withPrivateKey(task, envelopes.seal(agent.getSealingPublicKey(), privateKey))
+                            : withHttps(task, new ScanTask.Target.HttpsCredential(
+                                    https.host(), https.username(), envelopes.seal(agent.getSealingPublicKey(), https.token())));
                     recordCredentialSent(agent, scan, "sealed for the agent's announced key");
                 } else if (!secureTransport) {
                     // Put back in the queue *before* refusing: otherwise the scan stays claimed by
@@ -462,6 +474,21 @@ public class ScanDispatcher {
                 .findById(scan.getRepoId())
                 .orElseThrow(() -> new IllegalStateException("Repository " + scan.getRepoId() + " no longer exists."));
 
+        ScanTask.Target.HttpsCredential https = null;
+        if (repository.getHttpsTokenId() != null && deliverCredentials) {
+            GitTokenEntity token = gitTokens
+                    .findById(repository.getHttpsTokenId())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "The HTTPS token of repository " + RepositoryUrl.redact(repository.getUrl()) + " has been deleted."));
+            SecretCipher.Decrypted secret =
+                    encryption.inspect(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()));
+            if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
+                throw new IllegalStateException(
+                        "The HTTPS token \"" + token.getName() + "\" cannot be decrypted by any configured encryption key.");
+            }
+            https = new ScanTask.Target.HttpsCredential(token.getHost(), token.getUsername(), secret.plainText());
+        }
+
         String privateKey = null;
         if (repository.getSshKeyId() != null && deliverCredentials) {
             SshKeyEntity key = sshKeys
@@ -494,7 +521,7 @@ public class ScanDispatcher {
         }
 
         return new ScanTask(
-                new ScanTask.Target.Repository(repository.getUrl(), branch, subPath, privateKey),
+                new ScanTask.Target.Repository(repository.getUrl(), branch, subPath, privateKey, https),
                 // **Set by the control plane, never read by the executor.** That is what makes
                 // every executor identical: an agent asking for "the active set" itself would
                 // scan with whatever it found at the moment it asked, and two agents could
@@ -538,7 +565,20 @@ public class ScanDispatcher {
         ScanTask.Target.Repository repository = (ScanTask.Target.Repository) task.target();
         return new ScanTask(
                 new ScanTask.Target.Repository(
-                        repository.url(), repository.branch(), repository.subPath(), privateKey),
+                        repository.url(), repository.branch(), repository.subPath(), privateKey, repository.https()),
+                task.rulesHash(),
+                task.steps());
+    }
+
+    private static ScanTask.Target.HttpsCredential httpsOf(ScanTask task) {
+        return task.target() instanceof ScanTask.Target.Repository repository ? repository.https() : null;
+    }
+
+    private static ScanTask withHttps(ScanTask task, ScanTask.Target.HttpsCredential https) {
+        ScanTask.Target.Repository repository = (ScanTask.Target.Repository) task.target();
+        return new ScanTask(
+                new ScanTask.Target.Repository(
+                        repository.url(), repository.branch(), repository.subPath(), repository.privateKey(), https),
                 task.rulesHash(),
                 task.steps());
     }

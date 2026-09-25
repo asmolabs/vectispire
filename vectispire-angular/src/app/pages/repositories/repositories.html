@@ -130,8 +130,11 @@
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
             <label for="url" class="font-medium">{{ 'repositories.url_label' | translate }}</label>
-            <input pInputText id="url" [(ngModel)]="form.url" placeholder="https://github.com/org/projet.git" />
+            <input pInputText id="url" [(ngModel)]="form.url" (ngModelChange)="onUrlChange()" placeholder="https://github.com/org/projet.git" />
             <small class="text-muted-color">{{ 'repositories.url_hint' | translate }}</small>
+            @if (urlCarriesSecret()) {
+                <p-message id="url-carries-secret" severity="warn" [closable]="false">{{ 'repositories.url_carries_secret' | translate }}</p-message>
+            }
         </div>
         <div class="flex flex-col gap-2">
             <label for="tier" class="font-medium">{{ 'repositories.target_tier' | translate }}</label>
@@ -164,19 +167,52 @@
             </small>
         </div>
         <div class="flex flex-col gap-2">
-            <label for="ssh-key" class="font-medium">{{ 'repositories.ssh_key_label' | translate }} <span class="text-muted-color font-normal">{{ 'common.optional' | translate }}</span></label>
+            <label for="credential-kind" class="font-medium">{{ 'repositories.credential_label' | translate }}</label>
             <p-select
-                inputId="ssh-key"
-                [options]="sshKeyOptions()"
+                inputId="credential-kind"
+                [options]="credentialKinds()"
                 optionLabel="label"
                 optionValue="value"
-                [(ngModel)]="form.sshKeyId"
+                [(ngModel)]="form.credentialKind"
                 styleClass="w-full" />
-            <small class="text-muted-color">
-                {{ 'repositories.key_hint_before' | translate }} <a routerLink="/ssh-keys" class="underline">{{ 'repositories.key_hint_link' | translate }}</a>
-                {{ 'repositories.key_hint_mid' | translate }} <strong>{{ 'repositories.key_hint_strong' | translate }}</strong>{{ 'repositories.key_hint_after' | translate }}
-            </small>
         </div>
+        @if (form.credentialKind === 'ssh') {
+            <div class="flex flex-col gap-2">
+                <label for="ssh-key" class="font-medium">{{ 'repositories.ssh_key_label' | translate }}</label>
+                <p-select
+                    inputId="ssh-key"
+                    [options]="sshKeyOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [(ngModel)]="form.sshKeyId"
+                    styleClass="w-full" />
+                <small class="text-muted-color">
+                    {{ 'repositories.key_hint_before' | translate }} <a routerLink="/ssh-keys" class="underline">{{ 'repositories.key_hint_link' | translate }}</a>
+                    {{ 'repositories.key_hint_mid' | translate }} <strong>{{ 'repositories.key_hint_strong' | translate }}</strong>{{ 'repositories.key_hint_after' | translate }}
+                </small>
+            </div>
+        }
+        @if (form.credentialKind === 'https') {
+            <div class="flex flex-col gap-2">
+                <label for="https-token" class="font-medium">{{ 'repositories.https_token_label' | translate }}</label>
+                <p-select
+                    inputId="https-token"
+                    [options]="httpsTokenOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [placeholder]="'repositories.https_token_placeholder' | translate"
+                    [(ngModel)]="form.httpsTokenId"
+                    styleClass="w-full" />
+                @if (httpsTokenOptions().length === 0) {
+                    <small id="no-token-for-host" class="text-muted-color">
+                        {{ 'repositories.https_token_none_for_host' | translate: { host: urlHost() ?? '' } }}
+                        <a routerLink="/git-tokens" class="underline">{{ 'repositories.https_token_link' | translate }}</a>
+                    </small>
+                } @else {
+                    <small class="text-muted-color">{{ 'repositories.https_token_hint' | translate }}</small>
+                }
+            </div>
+        }
         <app-schedule-fields idPrefix="repository" [(interval)]="form.scanIntervalMinutes" [(cron)]="form.scanCron" />
         @if (formError(); as message) {
             <!-- The server's wording is what names the rejected cron field by field; a generic

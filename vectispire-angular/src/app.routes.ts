@@ -25,6 +25,7 @@ export const appRoutes: Routes = [
             { path: 'repositories', loadComponent: () => import('./app/pages/repositories/repositories').then((m) => m.Repositories) },
             { path: 'containers', loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers) },
             { path: 'ssh-keys', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/ssh-keys/ssh-keys').then((m) => m.SshKeys) },
+            { path: 'git-tokens', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/git-tokens/git-tokens').then((m) => m.GitTokens) },
             { path: 'users', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/users/users').then((m) => m.Users) },
             { path: 'teams', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/teams/teams').then((m) => m.Teams) },
             { path: 'api-keys', canActivate: [requires('administrator')], loadComponent: () => import('./app/pages/api-keys/api-keys').then((m) => m.ApiKeys) },

@@ -27,6 +27,26 @@ Vectispire only ever clones.
 The private half is encrypted at rest with your `ENCRYPTION_KEY`. Storing a key is refused
 outright until that variable is set.
 
+### Over HTTPS, with a token
+
+A repository reachable only over HTTPS clones with an **HTTPS token** — a personal, project or
+deploy token issued by the forge, with read access to the repository. Register it under
+**HTTPS tokens**, next to [SSH keys](../administration/ssh-keys.md) in the menu, with:
+
+- **the host** it is issued for (`gitlab.example.com`, no scheme or port). The token is presented to
+  that host and to **no other**: a repository whose URL names another server cannot use it, and a
+  redirect to another host receives nothing — that was measured, not assumed;
+- a **user name** if your forge wants one beside the token; left empty, a placeholder is sent, which
+  GitLab, GitHub and Gitea accept.
+
+A repository uses an SSH key **or** an HTTPS token, of the kind its URL calls for. The token is
+encrypted like a key, never shown again, and reaches an agent only in `delegated` mode, sealed; a
+`local` agent receives none.
+
+**A token written into the URL is no longer accepted** (`https://user:token@host/…`): it was stored
+in the clear in the repository row and sent to every agent. Repositories already registered that
+way keep working; to move one, remove the credential from its URL and attach a token.
+
 ## Recurrence
 
 Set either a **scan interval** or a **cron expression**. The expression wins when both are

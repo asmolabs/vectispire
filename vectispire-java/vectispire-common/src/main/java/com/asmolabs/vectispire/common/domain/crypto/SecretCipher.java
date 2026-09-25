@@ -152,6 +152,11 @@ public final class SecretCipher {
         return "ssh_key:" + keyId + ":private_key";
     }
 
+    /** Where an HTTPS clone token lives — the same rule as {@link #privateKeyContext}. */
+    public static String gitTokenContext(String tokenId) {
+        return "git_token:" + tokenId + ":token";
+    }
+
     /** Constant-time comparison, for cases where the compared value is itself a secret. */
     public static boolean secretEquals(String left, String right) {
         return Arrays.constantTimeAreEqual(

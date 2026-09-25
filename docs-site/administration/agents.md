@@ -49,11 +49,11 @@ the agent on another machine and set `VECTISPIRE_EMBEDDED_WORKER=false` on the c
 
 | Mode | What the controller sends | When |
 |---|---|---|
-| `local` (default) | nothing | the agent's machine has its own git access. A compromised agent yields only what that machine was granted. |
-| `delegated` | the deploy key, per job | a trusted machine only. |
+| `local` (default) | nothing | the agent's machine has its own git access — over SSH: a private repository over HTTPS cannot be cloned in this mode. A compromised agent yields only what that machine was granted. |
+| `delegated` | the deploy key or HTTPS token, per job | a trusted machine only. |
 
-`delegated` **requires HTTPS and is refused without it**. The key is never written to disk
-beyond a `0600` temporary file, and every delivery is audited. An agent that announced a sealing key
+`delegated` **requires HTTPS and is refused without it**. The key or token is never written to
+disk — it is parsed in memory and handed to the transport — and every delivery is audited. An agent that announced a sealing key
 **refuses a key that arrives unsealed**: that is what a TLS-terminating proxy stripping the
 announcement would produce, and the sealing exists precisely to keep the key from that proxy.
 

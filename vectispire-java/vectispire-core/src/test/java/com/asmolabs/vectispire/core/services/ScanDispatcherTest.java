@@ -63,6 +63,7 @@ class ScanDispatcherTest {
     private GitRepositories repositories;
     private Containers containers;
     private SshKeys sshKeys;
+    private com.asmolabs.vectispire.core.repositories.GitTokens gitTokens;
     private SettingsService settings;
     private RuleSetService ruleSets;
     private ScanDispatcher dispatcher;
@@ -73,6 +74,7 @@ class ScanDispatcherTest {
         repositories = mock(GitRepositories.class);
         containers = mock(Containers.class);
         sshKeys = mock(SshKeys.class);
+        gitTokens = mock(com.asmolabs.vectispire.core.repositories.GitTokens.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(RuleSetService.class);
 
@@ -89,6 +91,7 @@ class ScanDispatcherTest {
                 repositories,
                 containers,
                 sshKeys,
+                gitTokens,
                 mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                 settings,
@@ -262,7 +265,7 @@ class ScanDispatcherTest {
         ScanRunner runner = mock(ScanRunner.class);
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, mock(ScanIngestor.class),
+                        queue, repositories, containers, sshKeys, gitTokens, mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -298,7 +301,7 @@ class ScanDispatcherTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, ingestor,
+                        queue, repositories, containers, sshKeys, gitTokens, ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -336,7 +339,7 @@ class ScanDispatcherTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, ingestor,
+                        queue, repositories, containers, sshKeys, gitTokens, ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -369,6 +372,64 @@ class ScanDispatcherTest {
         scan.setId(8L);
         scan.setContainerId(4L);
         return scan;
+    }
+
+    private static final UUID TOKEN_ID = UUID.fromString("00000000-0000-0000-0000-0000000000cc");
+
+    private void repositoryUsesAnHttpsToken() {
+        RepositoryEntity https = new RepositoryEntity();
+        https.setId(1L);
+        https.setUrl("https://gitlab.example.com/team/service.git");
+        https.setBranch("main");
+        https.setHttpsTokenId(TOKEN_ID);
+        when(repositories.findById(1L)).thenReturn(Optional.of(https));
+        com.asmolabs.vectispire.core.persistence.GitTokenEntity token = new com.asmolabs.vectispire.core.persistence.GitTokenEntity();
+        token.setId(TOKEN_ID);
+        token.setName("gitlab");
+        token.setHost("gitlab.example.com");
+        token.setToken(new SecretCipher().encrypt(
+                com.asmolabs.vectispire.common.domain.crypto.EncryptionKey.derive(ENCRYPTION_KEY),
+                "glpat-secret",
+                SecretCipher.gitTokenContext(TOKEN_ID.toString())));
+        when(gitTokens.findById(TOKEN_ID)).thenReturn(Optional.of(token));
+    }
+
+    @Test
+    @DisplayName("an HTTPS token is sealed for a delegated agent, with its host in the clear")
+    void anHttpsTokenIsSealedLikeAKey() {
+        repositoryUsesAnHttpsToken();
+        queueHolds(repositoryScan());
+        SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
+
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()), false)
+                .orElseThrow().task();
+
+        ScanTask.Target.HttpsCredential https = repositoryTarget(task).https();
+        assertThat(https.host()).isEqualTo("gitlab.example.com");
+        assertThat(SealedEnvelope.isSealed(https.token())).isTrue();
+        assertThat(envelopes.open(recipient, https.token())).contains("glpat-secret");
+    }
+
+    @Test
+    @DisplayName("an agent in local mode never receives the token, which is never even decrypted")
+    void localModeGetsNoToken() {
+        repositoryUsesAnHttpsToken();
+        queueHolds(repositoryScan());
+
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true).orElseThrow().task();
+
+        assertThat(repositoryTarget(task).https()).isNull();
+        verify(gitTokens, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("an unsealed token over an open link is refused, like a key")
+    void anUnsealedTokenOverAnOpenLinkIsRefused() {
+        repositoryUsesAnHttpsToken();
+        queueHolds(repositoryScan());
+
+        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), false))
+                .isInstanceOf(InsecureCredentialTransportException.class);
     }
 
     private static RepositoryEntity repository() {

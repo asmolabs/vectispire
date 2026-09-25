@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -33,22 +34,44 @@ class RepositoryCredentialsTest extends ApiTestBase {
     @Autowired
     private AuditLog auditLogs;
 
+    /**
+     * A row from before decision 0022, when a token in the URL was the only way to clone a private
+     * repository over HTTPS. New ones are refused on entry; these keep working and stay masked.
+     */
+    private long legacyRow() {
+        RepositoryEntity legacy = new RepositoryEntity();
+        legacy.setUrl(WITH_TOKEN);
+        legacy.setBranch("main");
+        return repositories.save(legacy).getId();
+    }
+
     @Test
-    @DisplayName("is stored whole, and neither the list nor the audit log shows the credential")
-    void theCredentialIsNeverShown() throws Exception {
-        String created = mvc.perform(authenticated(post("/api/v1/repositories"), asAdmin())
+    @DisplayName("a new URL carrying a credential is refused on entry")
+    void aNewCredentialInTheUrlIsRefused() throws Exception {
+        mvc.perform(authenticated(post("/api/v1/repositories"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("url", WITH_TOKEN, "branch", "main"))))
+                .andExpect(status().isBadRequest());
+        assertThat(repositories.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an existing one is kept whole, and neither the list nor the audit log shows it")
+    void theCredentialIsNeverShown() throws Exception {
+        long id = legacyRow();
+        String updated = mvc.perform(authenticated(patch("/api/v1/repositories/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("branch", "develop"))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         String listed = mvc.perform(authenticated(get("/api/v1/repositories"), asAdmin()))
                 .andReturn().getResponse().getContentAsString();
 
-        assertThat(created).doesNotContain("ghp_secret").contains(MASKED);
+        assertThat(updated).doesNotContain("ghp_secret").contains(MASKED);
         assertThat(listed).doesNotContain("ghp_secret").contains(MASKED);
         assertThat(auditLogs.findAll()).allSatisfy(entry -> assertThat(entry.getDescription()).doesNotContain("ghp_secret"));
         // The clone still needs it.
-        assertThat(repositories.findAll()).singleElement().satisfies(r -> assertThat(r.getUrl()).isEqualTo(WITH_TOKEN));
+        assertThat(repositories.findById(id).orElseThrow().getUrl()).isEqualTo(WITH_TOKEN);
     }
 
     @Test
@@ -56,14 +79,9 @@ class RepositoryCredentialsTest extends ApiTestBase {
     void theMaskSentBackChangesNothing() throws Exception {
         // The edit form shows what the list sent — the mask. Saving it without touching the URL
         // must not replace a working credential with three asterisks.
-        String admin = asAdmin();
-        mvc.perform(authenticated(post("/api/v1/repositories"), admin)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(write(Map.of("url", WITH_TOKEN, "branch", "main"))))
-                .andExpect(status().isOk());
-        long id = repositories.findAll().getFirst().getId();
+        long id = legacyRow();
 
-        mvc.perform(authenticated(patch("/api/v1/repositories/" + id), admin)
+        mvc.perform(authenticated(patch("/api/v1/repositories/" + id), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("url", MASKED, "branch", "develop"))))
                 .andExpect(status().isOk());

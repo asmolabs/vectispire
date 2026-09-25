@@ -80,7 +80,7 @@ async function stubEverything(page: Page): Promise<void> {
         // missing from this list, so the repositories screen — which loads them for its form —
         // received `{}`, and the table never appeared while the heading did. The fixture was not
         // at fault; this line was.
-        const list = /\/(repositories|containers|issues|agents|teams|users|scans|rule-sets|ssh-keys|api-keys|gate-policies|notifications|exceptions|verdicts|keys)(\?|\/|$)/.test(url);
+        const list = /\/(repositories|containers|issues|agents|teams|users|scans|rule-sets|ssh-keys|git-tokens|api-keys|gate-policies|notifications|exceptions|verdicts|keys)(\?|\/|$)/.test(url);
         return route.fulfill({
             status: 200,
             contentType: 'application/json',

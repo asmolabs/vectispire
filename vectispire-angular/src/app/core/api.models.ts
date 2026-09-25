@@ -494,6 +494,8 @@ export type MonitoredRepository = Refine<
         /** The label an agent must carry to scan this target. Sent by the server all along. */
         requiredAgentLabel: string | null;
         sshKeyId: string | null;
+        /** The managed HTTPS token this repository clones with; never set together with `sshKeyId`. */
+        httpsTokenId: string | null;
         lastScan: LastScan | null;
         tier?: AssetTier;
     }
@@ -508,6 +510,10 @@ export interface NewRepository {
     scanCron?: string;
     required_agent_label?: string;
     tier?: AssetTier;
+    /** Absent leaves the key alone on update; the empty string detaches it. */
+    sshKeyId?: string;
+    /** Same rule as `sshKeyId`, and the server's own spelling — snake case, unlike its neighbour. */
+    https_token_id?: string;
 }
 
 /** The state of a last scan, shared by repositories and containers. */
@@ -566,6 +572,27 @@ export type SshKeySummary = Refine<
 >;
 
 export type NewSshKey = Refine<Schema<'SshKeyCreateRequest'>, { name: string; private_key: string }>;
+
+/**
+ * A managed HTTPS clone token. The secret never appears here, for the same reason the private half
+ * of an SSH key does not: the server does not return it once stored.
+ *
+ * `host` is the one host the token may be sent to (decision 0022). A repository whose URL names
+ * another host is refused, so the token cannot be walked to a server that would collect it.
+ */
+export type GitTokenSummary = Refine<
+    Schema<'GitTokenSummary'>,
+    {
+        id: string;
+        name: string;
+        host: string;
+        username: string | null;
+        createdAt: string;
+        encryptionState: EncryptionState;
+    }
+>;
+
+export type NewGitToken = Refine<Schema<'GitTokenCreateRequest'>, { name: string; host: string; token: string }>;
 
 /** An account. The password hash never appears here: the server does not return it, and a
  *  bcrypt hash that leaves the server is a hash to be cracked. */

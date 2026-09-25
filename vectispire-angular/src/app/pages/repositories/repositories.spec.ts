@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Repositories } from './repositories';
-import { asSchema } from '@/app/core/testing/contract';
+import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
 /**
  * The repository list, as cards rather than rows.
@@ -169,5 +169,163 @@ describe('the repository list', () => {
 
         // The server's wording is the only one that names what was wrong with the expression.
         expect(fixture.componentInstance.formError()).toContain('Expected five fields');
+    });
+
+    /**
+     * The clone credential: none, an SSH key, or an HTTPS token — never two.
+     *
+     * <p>The URL decides which are offered, and only the chosen kind is sent, the other cleared:
+     * the server refuses a repository with both, an SSH key on an https:// URL, and a token bound
+     * to another host (decision 0022). These go through the request body because that is where a
+     * choice the form shows and drops would be visible.
+     */
+    describe('the clone credential', () => {
+        const TOKENS = asSchemaList('GitTokenSummary', [
+            { id: 'tok-gitlab', name: 'gitlab-read', host: 'gitlab.example.com', username: null,
+              createdAt: '2026-09-20T08:00:00Z', encryptionState: 'current', usedByRepositories: 1 },
+            { id: 'tok-github', name: 'github-read', host: 'github.com', username: null,
+              createdAt: '2026-09-20T08:00:00Z', encryptionState: 'current', usedByRepositories: 0 }
+        ]);
+        const KEYS = asSchemaList('SshKeySummary', [
+            { id: 'key-1', name: 'deploy', publicKey: null, createdAt: '2026-09-20T08:00:00Z',
+              encryptionState: 'current', usedByRepositories: 1 }
+        ]);
+
+        function loadAll(repository: Record<string, unknown> = REPOSITORY): void {
+            for (const request of http.match(() => true)) {
+                const url = request.request.url;
+                request.flush(url.endsWith('/repositories') ? [repository] : url.endsWith('/git-tokens') ? TOKENS : url.endsWith('/ssh-keys') ? KEYS : []);
+            }
+            fixture.detectChanges();
+        }
+
+        function kinds(): string[] {
+            return fixture.componentInstance.credentialKinds().map((kind) => kind.value);
+        }
+
+        function typeUrl(url: string): void {
+            fixture.componentInstance.form.url = url;
+            fixture.componentInstance.onUrlChange();
+        }
+
+        it('offers HTTPS tokens and no SSH key for an https:// URL', () => {
+            loadAll();
+            fixture.componentInstance.openForm();
+            typeUrl('https://gitlab.example.com/group/app.git');
+            expect(kinds()).toEqual(['none', 'https']);
+        });
+
+        it('offers SSH keys and no token for ssh:// and scp-style URLs', () => {
+            loadAll();
+            fixture.componentInstance.openForm();
+            typeUrl('ssh://git@gitlab.example.com/group/app.git');
+            expect(kinds()).toEqual(['none', 'ssh']);
+            typeUrl('git@gitlab.example.com:group/app.git');
+            expect(kinds()).toEqual(['none', 'ssh']);
+        });
+
+        it("offers only the tokens bound to the URL's host", () => {
+            loadAll();
+            fixture.componentInstance.openForm();
+            typeUrl('https://GitLab.example.com/group/app.git');
+            expect(fixture.componentInstance.httpsTokenOptions().map((option) => option.value)).toEqual(['tok-gitlab']);
+        });
+
+        it('renders the token picker, and no key picker, once HTTPS is chosen', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('https://gitlab.example.com/group/app.git');
+            screen.form.credentialKind = 'https';
+            fixture.detectChanges();
+
+            expect(document.querySelector('#https-token')).not.toBeNull();
+            expect(document.querySelector('#ssh-key')).toBeNull();
+        });
+
+        it('sends the chosen token and no SSH key on create', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('https://gitlab.example.com/group/app.git');
+            screen.form.credentialKind = 'https';
+            screen.form.httpsTokenId = 'tok-gitlab';
+            screen.submit();
+
+            const body = http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/repositories').request.body;
+            expect(body.https_token_id).toBe('tok-gitlab');
+            expect(body.sshKeyId).toBe('');
+        });
+
+        it('leaves the token out of a create that has none', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('ssh://git@gitlab.example.com/group/app.git');
+            screen.form.credentialKind = 'ssh';
+            screen.form.sshKeyId = 'key-1';
+            screen.submit();
+
+            const body = http.expectOne((call) => call.method === 'POST').request.body;
+            expect(body.sshKeyId).toBe('key-1');
+            expect('https_token_id' in body && body.https_token_id !== undefined).toBe(false);
+        });
+
+        it('clears the token with an empty string on update, since absent means "leave alone"', () => {
+            loadAll({ ...REPOSITORY, url: 'https://gitlab.example.com/group/app.git', httpsTokenId: 'tok-gitlab', sshKeyId: null });
+            const screen = fixture.componentInstance;
+            screen.openForm(screen.repositories()[0]);
+            expect(screen.form.credentialKind).toBe('https');
+            screen.form.credentialKind = 'none';
+            screen.submit();
+
+            const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+            expect(body.https_token_id).toBe('');
+            expect(body.sshKeyId).toBe('');
+        });
+
+        it('drops the SSH key when the URL turns to https://, so what is sent is what is shown', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm(screen.repositories()[0]);
+            screen.form.credentialKind = 'ssh';
+            screen.form.sshKeyId = 'key-1';
+            typeUrl('https://gitlab.example.com/group/app.git');
+            expect(screen.form.credentialKind).toBe('none');
+            screen.submit();
+
+            const body = http.expectOne((call) => call.method === 'PATCH').request.body;
+            expect(body.sshKeyId).toBe('');
+        });
+
+        it('drops a token bound to another host when the URL changes host', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('https://gitlab.example.com/group/app.git');
+            screen.form.credentialKind = 'https';
+            screen.form.httpsTokenId = 'tok-gitlab';
+            typeUrl('https://github.com/org/app.git');
+            expect(screen.form.httpsTokenId).toBe('');
+        });
+
+        it('warns that credentials in the URL belong in an HTTPS token', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('https://ci:glpat-secret@gitlab.example.com/group/app.git');
+            fixture.detectChanges();
+            expect(document.querySelector('#url-carries-secret')).not.toBeNull();
+        });
+
+        it('does not warn about a user name alone, which is no secret', () => {
+            loadAll();
+            const screen = fixture.componentInstance;
+            screen.openForm();
+            typeUrl('https://ci@gitlab.example.com/group/app.git');
+            expect(screen.urlCarriesSecret()).toBe(false);
+            typeUrl('https://gitlab.example.com/group/app.git');
+            expect(screen.urlCarriesSecret()).toBe(false);
+        });
     });
 });

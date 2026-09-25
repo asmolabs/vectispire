@@ -11,13 +11,17 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
+import org.eclipse.jgit.transport.CredentialItem;
+import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshTransport;
+import org.eclipse.jgit.transport.URIish;
 import org.eclipse.jgit.transport.sshd.ServerKeyDatabase;
 import org.eclipse.jgit.transport.sshd.SshdSessionFactory;
 import org.eclipse.jgit.transport.sshd.SshdSessionFactoryBuilder;
@@ -133,14 +137,86 @@ public final class GitClone {
             String privateKey,
             Duration timeout,
             HostKeyPolicy hostKeys,
-            WithoutKey withoutKey) {
+            WithoutKey withoutKey,
+            ScanTask.Target.HttpsCredential https) {
+
+        public Request(
+                String url,
+                String branch,
+                Path into,
+                String privateKey,
+                Duration timeout,
+                HostKeyPolicy hostKeys,
+                WithoutKey withoutKey) {
+            this(url, branch, into, privateKey, timeout, hostKeys, withoutKey, null);
+        }
 
         public Request(String url, String branch, Path into, HostKeyPolicy hostKeys) {
-            this(url, branch, into, null, Duration.ofMinutes(5), hostKeys, WithoutKey.NONE);
+            this(url, branch, into, null, Duration.ofMinutes(5), hostKeys, WithoutKey.NONE, null);
         }
 
         boolean hasKey() {
             return privateKey != null && !privateKey.isBlank();
+        }
+
+        boolean hasToken() {
+            return https != null && https.token() != null && !https.token().isBlank();
+        }
+    }
+
+    /** What a token is sent as when the forge wants no particular user name. */
+    static final String TOKEN_USER = "x-access-token";
+
+    /**
+     * Answers with the token for its own host, and with nothing for any other (decision 0022).
+     *
+     * <p>JGit asks this provider for every URI it is about to authenticate against — the clone's,
+     * and a redirect's. Answering only for the bound host is what keeps a redirect, or a URL
+     * pointed elsewhere, from receiving the forge's token.
+     */
+    static final class HostBoundCredentials extends CredentialsProvider {
+        private final String host;
+        private final String username;
+        private final char[] token;
+
+        HostBoundCredentials(ScanTask.Target.HttpsCredential credential) {
+            this.host = credential.host().toLowerCase(Locale.ROOT);
+            this.username = credential.username() == null || credential.username().isBlank()
+                    ? TOKEN_USER
+                    : credential.username();
+            this.token = credential.token().toCharArray();
+        }
+
+        @Override
+        public boolean isInteractive() {
+            return false;
+        }
+
+        @Override
+        public boolean supports(CredentialItem... items) {
+            for (CredentialItem item : items) {
+                if (!(item instanceof CredentialItem.Username) && !(item instanceof CredentialItem.Password)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        @Override
+        public boolean get(URIish uri, CredentialItem... items) {
+            if (uri == null || uri.getHost() == null || !host.equals(uri.getHost().toLowerCase(Locale.ROOT))) {
+                return false;
+            }
+            for (CredentialItem item : items) {
+                if (item instanceof CredentialItem.Username user) {
+                    user.setValue(username);
+                } else if (item instanceof CredentialItem.Password password) {
+                    password.setValue(token.clone());
+                } else {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 
@@ -157,6 +233,16 @@ public final class GitClone {
                     "");
         }
 
+        if (request.hasToken()) {
+            // Refused before the network, with the reason: the credential provider would
+            // otherwise just stay silent and the forge answer "authentication required".
+            if (!request.url().trim().toLowerCase(Locale.ROOT).startsWith("https://")
+                    || !RepositoryUrl.hasHost(request.url(), request.https().host())) {
+                throw new CloneFailureException("The HTTPS token is issued for " + request.https().host()
+                        + " and is sent to no other host; " + RepositoryUrl.redact(request.url()) + " names another.", "");
+            }
+        }
+
         // Parsed before anything reaches the network. The SSH factory would parse it lazily, at
         // connection time, and an unreadable key would then be indistinguishable from a refused
         // one — sending the operator to the provider's settings for a key that never parsed.
@@ -171,6 +257,7 @@ public final class GitClone {
                 .setCloneSubmodules(false)
                 .setTimeout((int) request.timeout().toSeconds())
                 .setTransportConfigCallback(sshCallback(request, keys))
+                .setCredentialsProvider(request.hasToken() ? new HostBoundCredentials(request.https()) : null)
                 .call()) {
             // The handle is closed at once: the scanners read the working tree on disk, and
             // holding the repository open would keep its packfiles mapped for nothing.
@@ -294,6 +381,11 @@ public final class GitClone {
                 return "Branch \"" + request.branch() + "\" does not exist on " + url + ".";
             }
             return url + " could not be found.";
+        }
+        if (request.hasToken() && (message.contains("not authorized") || message.contains("401")
+                || message.contains("Authentication is required") || message.contains("403"))) {
+            return "Authentication refused by " + url + ". Is the HTTPS token still valid, and allowed to read "
+                    + "this repository?";
         }
         if (message.contains("Auth fail") || message.contains("publickey") || message.contains("not authorized")) {
             return request.hasKey()

@@ -55,6 +55,11 @@ public class RepositoryEntity {
     @Column(name = "ssh_key_id")
     private UUID sshKeyId;
 
+    /** The HTTPS token this repository clones with — never set together with {@link #sshKeyId}. */
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "https_token_id")
+    private UUID httpsTokenId;
+
     /**
      * The opaque name a published badge is served under, or null when none is published.
      *
@@ -157,6 +162,14 @@ public class RepositoryEntity {
 
     public void setSshKeyId(UUID sshKeyId) {
         this.sshKeyId = sshKeyId;
+    }
+
+    public UUID getHttpsTokenId() {
+        return httpsTokenId;
+    }
+
+    public void setHttpsTokenId(UUID httpsTokenId) {
+        this.httpsTokenId = httpsTokenId;
     }
 
     public String getTier() {

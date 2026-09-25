@@ -179,41 +179,56 @@ public class AgentProtocol {
         if (!(assigned.task().target() instanceof ScanTask.Target.Repository repository)) {
             return assigned;
         }
-        String key = repository.privateKey();
-        if (key == null || key.isBlank()) {
+        String key = open(repository.privateKey(), "deployment key");
+        ScanTask.Target.HttpsCredential https = repository.https() == null
+                ? null
+                : new ScanTask.Target.HttpsCredential(
+                        repository.https().host(), repository.https().username(), open(repository.https().token(), "HTTPS token"));
+        if (java.util.Objects.equals(key, repository.privateKey()) && https == repository.https()) {
             return assigned;
         }
-        if (!SealedEnvelope.isSealed(key)) {
-            // **A clear key after announcing a sealing key is a downgrade, not a choice.** The
-            // control plane seals for any agent that announced a key; a clear one means the
-            // announcement did not arrive — which is what a TLS-terminating proxy stripping
-            // `sealing_public_key` from the hello looks like from here. Accepting it handed the
-            // deployment key to the proxy the sealing exists to exclude.
-            if (keyPair.isPresent()) {
-                throw new IllegalStateException(
-                        "A deployment key arrived unsealed although this agent announced a sealing key: the "
-                                + "announcement was removed on the way. Refusing the key rather than using it.");
-            }
-            return assigned;
-        }
-        if (keyPair.isEmpty()) {
-            throw new IllegalStateException(
-                    "A sealed key arrived although this agent announced none: the control plane sealed for "
-                            + "somebody else.");
-        }
-
-        String plainText = envelopes.open(keyPair.get(), repository.privateKey())
-                .orElseThrow(() -> new IllegalStateException(
-                        "The sealed deployment key could not be opened: it is not addressed to this process, or it "
-                                + "was altered on the way."));
-
         return new AssignedTask(
                 assigned.scanId(),
                 new ScanTask(
                         new ScanTask.Target.Repository(
-                                repository.url(), repository.branch(), repository.subPath(), plainText),
+                                repository.url(), repository.branch(), repository.subPath(), key, https),
                         assigned.task().rulesHash(),
                         assigned.task().steps()));
+    }
+
+    /**
+     * Opens one credential of a task — a deployment key or an HTTPS token — if it arrived sealed.
+     *
+     * <p><b>A clear credential after announcing a sealing key is a downgrade, not a choice.</b> The
+     * control plane seals for any agent that announced a key; a clear one means the announcement did
+     * not arrive — which is what a TLS-terminating proxy stripping {@code sealing_public_key} from
+     * the hello looks like from here. Accepting it handed the credential to the proxy the sealing
+     * exists to exclude.
+     *
+     * <p><b>An envelope nobody opens is refused too</b>: it is a string that looks like a secret, and
+     * the failure would surface as a repository or permission problem.
+     */
+    private String open(String value, String what) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        if (!SealedEnvelope.isSealed(value)) {
+            if (keyPair.isPresent()) {
+                throw new IllegalStateException(
+                        "A " + what + " arrived unsealed although this agent announced a sealing key: the "
+                                + "announcement was removed on the way. Refusing it rather than using it.");
+            }
+            return value;
+        }
+        if (keyPair.isEmpty()) {
+            throw new IllegalStateException(
+                    "A sealed " + what + " arrived although this agent announced none: the control plane sealed for "
+                            + "somebody else.");
+        }
+        return envelopes.open(keyPair.get(), value)
+                .orElseThrow(() -> new IllegalStateException(
+                        "The sealed " + what + " could not be opened: it is not addressed to this process, or it "
+                                + "was altered on the way."));
     }
 
     /**

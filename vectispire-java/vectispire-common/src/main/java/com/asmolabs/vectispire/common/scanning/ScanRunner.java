@@ -94,7 +94,7 @@ public final class ScanRunner {
             // and carrying on would produce empty lists that resolve the whole backlog.
             GitClone.clone(new GitClone.Request(
                     repository.url(), repository.branch(), workspace.source(),
-                    repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey));
+                    repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey, repository.https()));
 
             // **Checked against the clone, not only as text.** The raw value used to go straight into
             // Path.resolve — "/" or "../.." walked the host or the other scans' clones — and a

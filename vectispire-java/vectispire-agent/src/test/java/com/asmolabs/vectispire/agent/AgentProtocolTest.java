@@ -184,6 +184,36 @@ class AgentProtocolTest {
         }
     }
 
+    private static AgentProtocol.AssignedTask assignedWithToken(String token) {
+        return new AgentProtocol.AssignedTask(
+                7L,
+                new ScanTask(
+                        new ScanTask.Target.Repository("https://gitlab.example.com/t/s.git", "main", "", null,
+                                new ScanTask.Target.HttpsCredential("gitlab.example.com", null, token)),
+                        null,
+                        java.util.Set.of()));
+    }
+
+    @Test
+    @DisplayName("a sealed HTTPS token is opened before the task is handed on")
+    void aSealedTokenIsOpened() throws Exception {
+        answers(200, JSON.writeValueAsString(assignedWithToken(envelopes.seal(keyPair.publicKey(), "glpat-secret"))));
+
+        ScanTask task = protocol.claim(Duration.ofSeconds(1)).orElseThrow().task();
+
+        assertThat(((ScanTask.Target.Repository) task.target()).https().token()).isEqualTo("glpat-secret");
+    }
+
+    @Test
+    @DisplayName("a token that arrives in the clear after sealing was announced is refused")
+    void aClearTokenAfterAnnouncingSealingIsRefused() throws Exception {
+        answers(200, JSON.writeValueAsString(assignedWithToken("glpat-secret")));
+
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("HTTPS token arrived unsealed");
+    }
+
     private static AgentProtocol.AssignedTask assignedWith(String privateKey) {
         return new AgentProtocol.AssignedTask(
                 7L,

@@ -11,9 +11,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
-        post: operations["create_7"];
+        post: operations["create_8"];
         delete?: never;
         options?: never;
         head?: never;
@@ -219,9 +219,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -254,7 +254,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_6"];
+        delete: operations["remove_7"];
         options?: never;
         head?: never;
         patch?: never;
@@ -347,7 +347,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -855,9 +855,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1171,7 +1171,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1227,6 +1227,38 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/git-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_7"];
+        put?: never;
+        post: operations["create_5"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/git-tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["remove_6"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1335,7 +1367,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1951,7 +1983,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3555,6 +3587,24 @@ export interface components {
             date?: string;
             engine?: components["schemas"]["Engine"];
         };
+        GitTokenCreateRequest: {
+            host?: string;
+            name?: string;
+            token?: string;
+            username?: string;
+        };
+        GitTokenSummary: {
+            /** Format: date-time */
+            createdAt?: string;
+            encryptionState?: string;
+            host?: string;
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            /** Format: int64 */
+            usedByRepositories: number;
+            username?: string;
+        };
         GlobalAttackSurface: {
             allEndpoints?: components["schemas"]["EndpointView"][];
             frameworks?: string[];
@@ -4308,6 +4358,7 @@ export interface components {
         };
         RepositoryCreateRequest: {
             branch?: string;
+            https_token_id?: string;
             name?: string;
             required_agent_label?: string;
             scanCron?: string;
@@ -4321,6 +4372,8 @@ export interface components {
         RepositorySummary: {
             branch?: string;
             displayName?: string;
+            /** Format: uuid */
+            httpsTokenId?: string;
             /** Format: int64 */
             id?: number;
             lastScan?: components["schemas"]["LastScan"];
@@ -5173,7 +5226,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -5193,7 +5246,7 @@ export interface operations {
             };
         };
     };
-    create_7: {
+    create_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -5520,7 +5573,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -5540,7 +5593,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5584,7 +5637,7 @@ export interface operations {
             };
         };
     };
-    remove_6: {
+    remove_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5716,7 +5769,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_14: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -6323,7 +6376,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -6343,7 +6396,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -6793,7 +6846,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -6905,6 +6958,70 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["VerdictRegister"];
                 };
+            };
+        };
+    };
+    list_7: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GitTokenSummary"][];
+                };
+            };
+        };
+    };
+    create_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GitTokenCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GitTokenSummary"];
+                };
+            };
+        };
+    };
+    remove_6: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -7041,7 +7158,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: {
                 state?: string;
@@ -8029,7 +8146,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */

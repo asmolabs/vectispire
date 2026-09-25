@@ -1172,7 +1172,8 @@
     "scope": "Certified scope",
     "evidence": "Compliance & evidence",
     "posture": "Security posture",
-    "compliance_history": "Compliance progression"
+    "compliance_history": "Compliance progression",
+    "git_tokens": "HTTPS tokens"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -1410,7 +1411,17 @@
     "url_hint": "https://…, ssh://… or git@host:path",
     "url_label": "Repository URL",
     "scan_queued": "Scan queued for {{name}}. It will start as soon as a worker is available.",
-    "scan_all_queued": "Scan queued for {{count}} repositories. The workers will start the scans."
+    "scan_all_queued": "Scan queued for {{count}} repositories. The workers will start the scans.",
+    "url_carries_secret": "This URL carries a password or token. A new repository with credentials in its URL is refused: create an HTTPS token for this host and use the URL without them.",
+    "credential_label": "Clone credential",
+    "credential_none": "None — public repository, or this machine’s own configuration",
+    "credential_ssh": "SSH key",
+    "credential_https": "HTTPS token",
+    "https_token_label": "HTTPS token",
+    "https_token_placeholder": "Choose a token",
+    "https_token_none_for_host": "No HTTPS token is bound to {{host}}. Declare one on the",
+    "https_token_link": "HTTPS tokens page",
+    "https_token_hint": "Only the tokens bound to this URL’s host are offered: a token is never sent to another host."
   },
   "roles": {
     "user": "User",
@@ -1857,5 +1868,29 @@
     "error_create": "Could not create this account.",
     "error_reset": "The reset failed.",
     "error_delete": "The deletion failed."
+  },
+  "git_tokens": {
+    "title": "HTTPS tokens",
+    "subtitle": "Access tokens repositories clone with over HTTPS. Each is bound to one host and is sent to no other.",
+    "add_btn": "Add a token",
+    "name": "Name",
+    "host": "Host",
+    "username": "Username",
+    "none": "No HTTPS token yet.",
+    "modal_title": "Add an HTTPS token",
+    "name_placeholder": "gitlab-ci-read",
+    "host_hint": "The bare host name, as in the repository URL: gitlab.example.com — no scheme, port or path. The token is only ever sent to this host.",
+    "username_hint": "Some providers expect a particular username with a token (Bitbucket, some GitLab setups). Left empty, the provider default is used.",
+    "token": "Token",
+    "token_hint": "A read-only token is enough to clone. It is stored encrypted and never shown again.",
+    "delete_confirm": "will be deleted. A token still used by a repository cannot be deleted: detach it from those repositories first.",
+    "error_load": "Could not load the HTTPS tokens.",
+    "error_add": "Could not add the token.",
+    "error_delete": "Could not delete the token.",
+    "encryption_status": {
+      "current_hint": "Encrypted with the current encryption key.",
+      "previous_key_hint": "Encrypted with a previous encryption key. Add it again to move it under ENCRYPTION_KEY, then delete this one.",
+      "unreadable_hint": "No configured key decrypts this token: the next clone that needs it will fail. Add the previous key to VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS, or replace this token."
+    }
   }
 }

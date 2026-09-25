@@ -86,6 +86,62 @@ public final class RepositoryUrl {
 
     private static final Pattern USER_INFO = Pattern.compile("^([A-Za-z][A-Za-z0-9+.-]*://)([^/@?#]*)@");
 
+    private static final Pattern HOST_NAME = Pattern.compile("^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$");
+
+    /** Whether the URL clones over HTTPS — the only transport an HTTPS token is for. */
+    public static boolean isHttps(String url) {
+        return url != null && url.trim().toLowerCase(Locale.ROOT).startsWith("https://");
+    }
+
+    /**
+     * Whether the URL carries a secret of its own: any user part over HTTPS, a password over SSH.
+     *
+     * <p>Refused for new URLs (decision 0022): a token there is stored in the clear and travels to
+     * every agent. {@code ssh://git@host} and {@code git@host:path} carry a login, not a secret.
+     */
+    public static boolean carriesCredential(String url) {
+        if (url == null) {
+            return false;
+        }
+        Matcher userInfo = USER_INFO.matcher(url.trim());
+        if (!userInfo.find()) {
+            return false;
+        }
+        boolean ssh = userInfo.group(1).equalsIgnoreCase("ssh://");
+        return !ssh || userInfo.group(2).contains(":");
+    }
+
+    /**
+     * A host as a token is bound to it: lower case, no trailing dot, no port, no scheme.
+     *
+     * @throws IllegalArgumentException when it is not a host name or an IPv4 literal
+     */
+    public static String normalizeHost(String host) {
+        String value = host == null ? "" : host.trim().toLowerCase(Locale.ROOT);
+        while (value.endsWith(".")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        if (value.isEmpty() || value.length() > 253 || !HOST_NAME.matcher(value).matches()) {
+            throw new IllegalArgumentException(
+                    "Expected a host name such as gitlab.example.com — no scheme, port or path.");
+        }
+        if (LinkLocalHosts.isLinkLocalLiteral(value)) {
+            throw new IllegalArgumentException(LINK_LOCAL_REFUSED);
+        }
+        return value;
+    }
+
+    /** Whether the URL's host is {@code host}, compared as {@link #normalizeHost} writes it. */
+    public static boolean hasHost(String url, String host) {
+        return host(url).map(found -> {
+            try {
+                return normalizeHost(found).equals(normalizeHost(host));
+            } catch (IllegalArgumentException unusable) {
+                return false;
+            }
+        }).orElse(false);
+    }
+
     /**
      * The URL with any credential it carries replaced by {@code ***}, for everything but the clone.
      *

@@ -36,6 +36,14 @@ public interface GitRepositories extends JpaRepository<RepositoryEntity, Long> {
 
     long countBySshKeyId(UUID sshKeyId);
 
+    long countByHttpsTokenId(UUID httpsTokenId);
+
+    @Query("""
+            select r.httpsTokenId, count(r.id) from RepositoryEntity r
+             where r.httpsTokenId is not null
+             group by r.httpsTokenId""")
+    List<Object[]> countByHttpsToken();
+
     /** How many repositories use each key, so the list can refuse a deletion that would break one. */
     @Query("""
             select r.sshKeyId, count(r.id) from RepositoryEntity r

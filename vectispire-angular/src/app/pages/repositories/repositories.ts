@@ -16,7 +16,7 @@ import { messageOf } from '../../core/api-error';
 import { TargetsApi } from '../../core/api/targets.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { ScorecardsApi } from '../../core/api/scorecards.api';
-import type { BadgeState, MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
+import type { BadgeState, GitTokenSummary, MonitoredRepository, SecurityScorecard, SshKeySummary } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
@@ -36,6 +36,47 @@ import { version as RELEASE } from '../../../../package.json';
  * {@code set -x} log would show it; the images and the actions are pinned as this repository's own
  * workflows are.
  */
+/** How a repository authenticates its clone. At most one credential: the server refuses both. */
+export type CredentialKind = 'none' | 'ssh' | 'https';
+
+/**
+ * The transport a URL names, as far as the credential choice cares.
+ *
+ * `unknown` is an empty or unfinished URL: every choice stays offered rather than hiding one the
+ * operator is about to need. The scp form `git@host:path` is SSH although it carries no scheme.
+ */
+export function urlTransport(url: string): 'https' | 'ssh' | 'unknown' {
+    const value = url.trim().toLowerCase();
+    if (value.startsWith('https://')) return 'https';
+    if (value.startsWith('ssh://') || value.startsWith('git://') || /^[^\s/:@]+@[^\s/:]+:/.test(value)) return 'ssh';
+    return 'unknown';
+}
+
+/** The host of an https:// URL, lowercased, or null while it does not parse. */
+export function httpsHost(url: string): string | null {
+    if (urlTransport(url) !== 'https') return null;
+    try {
+        return new URL(url.trim()).hostname.toLowerCase() || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Whether an https:// URL carries a secret in its user-info (`https://user:token@host/…`).
+ *
+ * Only a hint: the server is what refuses a new one. It exists so that the operator learns the
+ * alternative — a managed token — before the refusal, not only from it.
+ */
+export function urlCarriesSecret(url: string): boolean {
+    if (urlTransport(url) !== 'https') return false;
+    try {
+        return new URL(url.trim()).password !== '';
+    } catch {
+        return false;
+    }
+}
+
 const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v${RELEASE}/scripts/vectispire-cli.sh`;
 
 @Component({
@@ -95,6 +136,8 @@ export class Repositories {
         // The empty string is "no key", and it is a value the server acts on rather than one it
         // ignores — see the comment on the payload in `submit`.
         sshKeyId: '',
+        credentialKind: 'none' as CredentialKind,
+        httpsTokenId: '',
         tier: 'TIER_2_BUSINESS_OPERATIONAL' as string
     };
 
@@ -113,6 +156,66 @@ export class Repositories {
         { label: this.i18n.t('repositories.no_key_host_ssh'), value: '' },
         ...this.sshKeys().map((key) => ({ label: key.name, value: key.id }))
     ]);
+
+    /**
+     * The HTTPS tokens this form can attach. Loaded like the keys, and ignored on failure for the
+     * same reason: an account that may not list them can still edit everything else.
+     */
+    readonly gitTokens = signal<GitTokenSummary[]>([]);
+
+    /**
+     * The credential kinds the URL allows.
+     *
+     * **Read from the URL rather than offered in full and refused on save**: an SSH key is useless
+     * to an https:// clone and a token to an SSH one, and the server refuses both combinations.
+     * Methods, not `computed`: `form` is a plain object bound with `ngModel`, and a computed over
+     * it would never recompute.
+     */
+    credentialKinds(): { label: string; value: CredentialKind }[] {
+        const transport = urlTransport(this.form.url);
+        return [
+            { label: this.i18n.t('repositories.credential_none'), value: 'none' as const },
+            ...(transport !== 'https' ? [{ label: this.i18n.t('repositories.credential_ssh'), value: 'ssh' as const }] : []),
+            ...(transport !== 'ssh' ? [{ label: this.i18n.t('repositories.credential_https'), value: 'https' as const }] : [])
+        ];
+    }
+
+    /**
+     * The tokens bound to the URL's host — the only ones the server would accept here (decision
+     * 0022). While the host does not parse yet, all of them, so the choice is not empty mid-typing.
+     */
+    httpsTokenOptions(): { label: string; value: string }[] {
+        const host = httpsHost(this.form.url);
+        return this.gitTokens()
+            .filter((token) => host === null || token.host.toLowerCase() === host)
+            .map((token) => ({ label: `${token.name} (${token.host})`, value: token.id }));
+    }
+
+    /** The host the URL names, for the "no token for this host" hint. */
+    urlHost(): string | null {
+        return httpsHost(this.form.url);
+    }
+
+    urlCarriesSecret(): boolean {
+        return urlCarriesSecret(this.form.url);
+    }
+
+    /**
+     * Keeps the credential shown consistent with the URL being typed.
+     *
+     * A kind the new URL does not allow falls back to "none", and a token bound to another host is
+     * dropped: **what the form shows is what it sends.** Leaving a hidden choice in place would
+     * send a credential the screen no longer displays, and the server's refusal would then name
+     * something the operator cannot see.
+     */
+    onUrlChange(): void {
+        if (!this.credentialKinds().some((kind) => kind.value === this.form.credentialKind)) {
+            this.form.credentialKind = 'none';
+        }
+        if (this.form.httpsTokenId && !this.httpsTokenOptions().some((option) => option.value === this.form.httpsTokenId)) {
+            this.form.httpsTokenId = '';
+        }
+    }
 
     /** Exposed to the template: the list says what each target's schedule is, because a
      *  target nobody rescans looks monitored until somebody reads the date of its last scan. */
@@ -141,6 +244,7 @@ export class Repositories {
         // A failure here leaves the list empty rather than blocking the form: the operator can
         // still edit everything else, and "no key" stays selectable.
         this.targetsApi.sshKeys().subscribe({ next: (keys) => this.sshKeys.set(keys) });
+        this.targetsApi.gitTokens().subscribe({ next: (tokens) => this.gitTokens.set(tokens) });
     }
 
     reload(): void {
@@ -218,9 +322,20 @@ export class Repositories {
                   scanIntervalMinutes: repository.scanIntervalMinutes,
                   scanCron: repository.scanCron ?? '',
                   sshKeyId: repository.sshKeyId ?? '',
+                  credentialKind: repository.httpsTokenId ? 'https' : repository.sshKeyId ? 'ssh' : 'none',
+                  httpsTokenId: repository.httpsTokenId ?? '',
                   tier: repository.tier ?? 'TIER_2_BUSINESS_OPERATIONAL'
               }
-            : { url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '', sshKeyId: '', tier: 'TIER_2_BUSINESS_OPERATIONAL' };
+            : {
+                  url: '', branch: 'main', name: '', subPath: '', requiredAgentLabel: '', scanIntervalMinutes: null, scanCron: '',
+                  sshKeyId: '', credentialKind: 'none', httpsTokenId: '', tier: 'TIER_2_BUSINESS_OPERATIONAL'
+              };
+        // A stored key beside an https:// URL predates the rule and would be refused on save; the
+        // form shows "none" instead of a blank choice. The token is not checked here — the list of
+        // tokens may not have arrived yet, and a hint names a mismatch anyway.
+        if (!this.credentialKinds().some((kind) => kind.value === this.form.credentialKind)) {
+            this.form.credentialKind = 'none';
+        }
         this.formError.set(null);
         this.formVisible.set(true);
     }
@@ -232,6 +347,9 @@ export class Repositories {
         // field the operator cleared has to be sent as empty or the clearing is silently
         // dropped — the form would show it gone and the next scan would disagree.
         const blank = editing ? '' : undefined;
+        // Only the credential of the chosen kind is sent; the other is cleared, since the server
+        // refuses a repository holding both and a switch from key to token is one save.
+        const kind = this.form.credentialKind;
         const body = {
             url: this.form.url.trim(),
             branch: this.form.branch.trim() || 'main',
@@ -250,7 +368,10 @@ export class Repositories {
             // Same rule, same reason. Sending `undefined` when the operator picked "no key" would
             // leave the old key attached while this form showed none — and the next clone would
             // use a credential the screen says is gone.
-            sshKeyId: this.form.sshKeyId
+            sshKeyId: kind === 'ssh' ? this.form.sshKeyId : '',
+            // Absent on create when there is none, empty on update to detach one: the server reads
+            // absent as "leave alone" there, which would keep a token this form shows as removed.
+            https_token_id: (kind === 'https' ? this.form.httpsTokenId : '') || blank
         };
 
         this.saving.set(true);

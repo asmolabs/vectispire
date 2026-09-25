@@ -27,6 +27,27 @@ hébergeur — Vectispire ne fait jamais que cloner.
 La moitié privée est chiffrée au repos avec votre `ENCRYPTION_KEY`. Le stockage d'une clé est
 refusé net tant que cette variable n'est pas posée.
 
+### En HTTPS, avec un jeton
+
+Un dépôt joignable seulement en HTTPS se clone avec un **jeton HTTPS** — un jeton personnel, de
+projet ou de déploiement délivré par la forge, avec un accès en lecture au dépôt. Enregistrez-le
+sous **Jetons HTTPS**, à côté de [Clés SSH](../administration/ssh-keys.fr.md) dans le menu, avec :
+
+- **l'hôte** pour lequel il est émis (`gitlab.example.com`, sans schéma ni port). Le jeton est
+  présenté à cet hôte et à **aucun autre** : un dépôt dont l'URL nomme un autre serveur ne peut pas
+  l'utiliser, et une redirection vers un autre hôte ne reçoit rien — c'est mesuré, pas supposé ;
+- un **nom d'utilisateur** si votre forge en veut un à côté du jeton ; laissé vide, une valeur fixe
+  est envoyée, que GitLab, GitHub et Gitea acceptent.
+
+Un dépôt utilise une clé SSH **ou** un jeton HTTPS, du type que son URL appelle. Le jeton est chiffré
+comme une clé, jamais réaffiché, et ne rejoint un agent qu'en mode `delegated`, scellé ; un agent
+`local` n'en reçoit aucun.
+
+**Un jeton écrit dans l'URL n'est plus accepté** (`https://utilisateur:jeton@hôte/…`) : il était
+conservé en clair dans la ligne du dépôt et envoyé à chaque agent. Les dépôts déjà enregistrés ainsi
+continuent de fonctionner ; pour en migrer un, retirez l'identifiant de son URL et rattachez un
+jeton.
+
 ## Récurrence {#recurrence}
 
 Posez soit un **intervalle de scan**, soit une **expression cron**. L'expression l'emporte

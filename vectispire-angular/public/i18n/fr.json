@@ -1172,7 +1172,8 @@
     "scope": "Périmètre certifié",
     "evidence": "Conformité & preuves",
     "posture": "Posture de sécurité",
-    "compliance_history": "Progression de la conformité"
+    "compliance_history": "Progression de la conformité",
+    "git_tokens": "Jetons HTTPS"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1410,7 +1411,17 @@
     "url_hint": "https://…, ssh://… ou git@hôte:chemin",
     "url_label": "URL du dépôt",
     "scan_queued": "Analyse mise en file pour {{name}}. Elle démarrera dès qu'un worker sera disponible.",
-    "scan_all_queued": "Analyse planifiée pour {{count}} dépôts. Les workers vont démarrer les analyses."
+    "scan_all_queued": "Analyse planifiée pour {{count}} dépôts. Les workers vont démarrer les analyses.",
+    "url_carries_secret": "Cette URL contient un mot de passe ou un jeton. Un nouveau dépôt dont l’URL porte des identifiants est refusé : créez un jeton HTTPS pour cet hôte et utilisez l’URL sans eux.",
+    "credential_label": "Identifiant de clonage",
+    "credential_none": "Aucun — dépôt public, ou configuration propre à cette machine",
+    "credential_ssh": "Clé SSH",
+    "credential_https": "Jeton HTTPS",
+    "https_token_label": "Jeton HTTPS",
+    "https_token_placeholder": "Choisir un jeton",
+    "https_token_none_for_host": "Aucun jeton HTTPS n’est lié à {{host}}. Déclarez-en un sur la",
+    "https_token_link": "page Jetons HTTPS",
+    "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte."
   },
   "roles": {
     "user": "Utilisateur",
@@ -1967,5 +1978,29 @@
     "error_create": "Impossible de créer ce compte.",
     "error_reset": "La réinitialisation a échoué.",
     "error_delete": "La suppression a échoué."
+  },
+  "git_tokens": {
+    "title": "Jetons HTTPS",
+    "subtitle": "Les jetons d’accès avec lesquels les dépôts sont clonés en HTTPS. Chacun est lié à un hôte et n’est envoyé à aucun autre.",
+    "add_btn": "Ajouter un jeton",
+    "name": "Nom",
+    "host": "Hôte",
+    "username": "Nom d’utilisateur",
+    "none": "Aucun jeton HTTPS pour l’instant.",
+    "modal_title": "Ajouter un jeton HTTPS",
+    "name_placeholder": "gitlab-ci-lecture",
+    "host_hint": "Le nom d’hôte seul, tel qu’il figure dans l’URL du dépôt : gitlab.example.com — sans schéma, port ni chemin. Le jeton n’est jamais envoyé qu’à cet hôte.",
+    "username_hint": "Certains hébergeurs attendent un nom d’utilisateur précis avec un jeton (Bitbucket, certaines installations GitLab). Laissé vide, celui par défaut de l’hébergeur est utilisé.",
+    "token": "Jeton",
+    "token_hint": "Un jeton en lecture seule suffit pour cloner. Il est stocké chiffré et n’est plus jamais affiché.",
+    "delete_confirm": "sera supprimé. Un jeton encore utilisé par un dépôt ne peut pas être supprimé : détachez-le d’abord de ces dépôts.",
+    "error_load": "Impossible de charger les jetons HTTPS.",
+    "error_add": "Impossible d’ajouter le jeton.",
+    "error_delete": "Impossible de supprimer le jeton.",
+    "encryption_status": {
+      "current_hint": "Chiffré avec la clé de chiffrement actuelle.",
+      "previous_key_hint": "Chiffré avec une clé de chiffrement précédente. Ajoutez-le à nouveau pour le placer sous ENCRYPTION_KEY, puis supprimez celui-ci.",
+      "unreadable_hint": "Aucune clé configurée ne déchiffre ce jeton : le prochain clonage qui en a besoin échouera. Ajoutez l’ancienne clé à VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS, ou remplacez ce jeton."
+    }
   }
 }

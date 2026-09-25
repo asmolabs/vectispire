@@ -1,10 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { MonitoredContainer, MonitoredRepository, NewContainer, NewRepository, NewSshKey, SshKeySummary } from '../api.models';
+import { GitTokenSummary, MonitoredContainer, MonitoredRepository, NewContainer, NewGitToken, NewRepository, NewSshKey, SshKeySummary } from '../api.models';
 
 /**
- * The monitored repositories and container images, and the SSH keys repositories are cloned with.
+ * The monitored repositories and container images, and the credentials repositories are cloned with:
+ * SSH keys and HTTPS tokens.
  *
  * One stateless client per domain, named `*.api.ts` / `*Api` so that it is never mistaken for a
  * `*.service.ts` or a store holding state, and so that `scripts/check-dead-api-methods.mjs` knows
@@ -72,5 +73,18 @@ export class TargetsApi {
 
     deleteSshKey(id: string): Observable<void> {
         return this.http.delete<void>(`/api/v1/ssh-keys/${id}`);
+    }
+
+    gitTokens(): Observable<GitTokenSummary[]> {
+        return this.http.get<GitTokenSummary[]>('/api/v1/git-tokens');
+    }
+
+    /** The token travels once, in this body, and never comes back: the answer is its summary. */
+    createGitToken(token: NewGitToken): Observable<GitTokenSummary> {
+        return this.http.post<GitTokenSummary>('/api/v1/git-tokens', token);
+    }
+
+    deleteGitToken(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/git-tokens/${id}`);
     }
 }

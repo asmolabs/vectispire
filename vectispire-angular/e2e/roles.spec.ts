@@ -90,7 +90,7 @@ test.describe('what each role sees', () => {
         // None of the guarded paths is offered to them. The selector aims at the `href` attribute
         // rather than at a label, so the check survives a translation.
         for (const path of ['/settings', '/users', '/teams', '/api-keys', '/agents',
-                            '/ssh-keys', '/audit-log', '/gate-policies', '/rule-sets',
+                            '/ssh-keys', '/git-tokens', '/audit-log', '/gate-policies', '/rule-sets',
                             '/attestation']) {
             await expect(page.locator(`a[href="${path}"]`), `${path} must not be offered`)
                 .toHaveCount(0);

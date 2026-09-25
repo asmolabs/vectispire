@@ -40,8 +40,29 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps) {
 
         /**
          * @param privateKey the decrypted key, or {@code null} for a public repository
+         * @param https the HTTPS token, or {@code null}; never set together with {@code privateKey}.
+         *     Optional on the wire: an agent that predates it ignores it and clones without
+         *     credentials, which fails visibly rather than doing something else (decision 0022)
          */
-        record Repository(String url, String branch, String subPath, String privateKey) implements Target {}
+        record Repository(String url, String branch, String subPath, String privateKey, HttpsCredential https)
+                implements Target {
+
+            public Repository(String url, String branch, String subPath, String privateKey) {
+                this(url, branch, subPath, privateKey, null);
+            }
+        }
+
+        /**
+         * A token for one host (decision 0022).
+         *
+         * <p>The host travels with the token so that the executor enforces the binding itself: the
+         * clone presents the token to that host and to no other, whatever the URL or a redirect
+         * names.
+         *
+         * @param username what the forge expects beside the token; blank sends a fixed placeholder
+         * @param token the token in the clear, or its sealed envelope on the way to an agent
+         */
+        record HttpsCredential(String host, String username, String token) {}
 
         /**
          * @param platform the variant to pull. The image scanned must be the one that runs: the

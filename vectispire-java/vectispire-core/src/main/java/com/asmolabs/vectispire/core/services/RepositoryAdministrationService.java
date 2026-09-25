@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
@@ -43,6 +44,7 @@ public class RepositoryAdministrationService {
     private final ScanTriggerService trigger;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
+    private final GitTokens gitTokens;
 
     public RepositoryAdministrationService(
             GitRepositories repositories,
@@ -50,13 +52,15 @@ public class RepositoryAdministrationService {
             Issues issues,
             ScanTriggerService trigger,
             TargetDeletionService targetDeletion,
-            AuditLogService audit) {
+            AuditLogService audit,
+            GitTokens gitTokens) {
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
         this.trigger = trigger;
         this.targetDeletion = targetDeletion;
         this.audit = audit;
+        this.gitTokens = gitTokens;
     }
 
     /** A target's most recent scan, whatever its outcome. Shared with the container inventory. */
@@ -80,7 +84,23 @@ public class RepositoryAdministrationService {
             String scanCron,
             String requiredAgentLabel,
             String sshKeyId,
-            String tier) {}
+            String tier,
+            String httpsTokenId) {
+
+        /** The shape callers had before HTTPS tokens: no token change. */
+        public Changes(
+                String url,
+                String branch,
+                String name,
+                String subPath,
+                Integer scanIntervalMinutes,
+                String scanCron,
+                String requiredAgentLabel,
+                String sshKeyId,
+                String tier) {
+            this(url, branch, name, subPath, scanIntervalMinutes, scanCron, requiredAgentLabel, sshKeyId, tier, null);
+        }
+    }
 
     public record Triggered(RepositoryEntity repository, ScanEntity scan) {}
 
@@ -118,6 +138,7 @@ public class RepositoryAdministrationService {
         RepositoryUrl.validate(url).ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
+        refuseCredentialInUrl(url);
 
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);
@@ -134,7 +155,9 @@ public class RepositoryAdministrationService {
         // never meet, and the scan would wait for an agent that is present.
         repository.setRequiredAgentLabel(AgentLabels.normalizeRequirement(changes.requiredAgentLabel()).orElse(null));
         repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
+        repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
         repository.setTier(changes.tier() != null ? AssetTier.fromString(changes.tier()).name() : "TIER_2_BUSINESS_OPERATIONAL");
+        requireMatchingCredential(repository);
 
         RepositoryEntity saved = repositories.save(repository);
         audit.record(actor.entry(
@@ -170,6 +193,7 @@ public class RepositoryAdministrationService {
             RepositoryUrl.validate(url).ifPresent(message -> {
                 throw new IllegalArgumentException(message);
             });
+            refuseCredentialInUrl(url);
             repository.setUrl(url);
         }
         if (changes.branch() != null) {
@@ -193,6 +217,14 @@ public class RepositoryAdministrationService {
         }
         if (changes.sshKeyId() != null) {
             repository.setSshKeyId(sshKeyId(changes.sshKeyId()));
+        }
+        if (changes.httpsTokenId() != null) {
+            repository.setHttpsTokenId(credentialId(changes.httpsTokenId(), "HTTPS token"));
+        }
+        // Checked whenever what the credential is paired with changes. Not on an unrelated edit of
+        // a row that predates the rule — renaming it must not fail over a pairing nobody touched.
+        if (!repository.getUrl().equals(previousUrl) || changes.sshKeyId() != null || changes.httpsTokenId() != null) {
+            requireMatchingCredential(repository);
         }
         if (changes.tier() != null) {
             repository.setTier(AssetTier.fromString(changes.tier()).name());
@@ -267,6 +299,61 @@ public class RepositoryAdministrationService {
     static String optional(String value) {
         String trimmed = trim(value);
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * A credential in the URL is refused for new URLs (decision 0022).
+     *
+     * <p>It was the only way to clone a private repository over HTTPS, and it stored the token in
+     * the clear in this row and handed it to every agent. A URL already stored that way keeps
+     * working — refusing it on upgrade would stop its scans silently — but none is added.
+     */
+    private static void refuseCredentialInUrl(String url) {
+        if (RepositoryUrl.carriesCredential(url)) {
+            throw new IllegalArgumentException("The URL carries a credential. Remove it from the URL and attach an "
+                    + "HTTPS token instead: it is stored encrypted and sent only to its own host.");
+        }
+    }
+
+    /**
+     * One credential, of the kind the URL uses, and for a token the token's own host.
+     *
+     * <p>The host rule is what makes the token safe to attach at all: without it, pointing a
+     * repository's URL at another server would send that server the forge's token (decision 0022).
+     */
+    private void requireMatchingCredential(RepositoryEntity repository) {
+        UUID tokenId = repository.getHttpsTokenId();
+        if (tokenId != null && repository.getSshKeyId() != null) {
+            throw new IllegalArgumentException("A repository uses an SSH key or an HTTPS token, not both.");
+        }
+        if (tokenId != null) {
+            if (!RepositoryUrl.isHttps(repository.getUrl())) {
+                throw new IllegalArgumentException("An HTTPS token only works with an https:// URL.");
+            }
+            String host = gitTokens.findById(tokenId)
+                    .orElseThrow(() -> new IllegalArgumentException("No HTTPS token with id " + tokenId + "."))
+                    .getHost();
+            if (!RepositoryUrl.hasHost(repository.getUrl(), host)) {
+                throw new IllegalArgumentException("This token is issued for " + host
+                        + " and would be sent to no other host; the URL names another one.");
+            }
+        }
+        if (repository.getSshKeyId() != null && RepositoryUrl.isHttps(repository.getUrl())) {
+            throw new IllegalArgumentException(
+                    "An SSH key is not used over HTTPS. Use an ssh:// or git@ URL, or attach an HTTPS token.");
+        }
+    }
+
+    private static UUID credentialId(String value, String what) {
+        String trimmed = trim(value);
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException malformed) {
+            throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid " + what + " identifier.");
+        }
     }
 
     /**

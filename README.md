@@ -108,7 +108,7 @@ ability to decrypt every deploy key Vectispire holds.
 | Credentials mode | What the controller sends | When to use it |
 |---|---|---|
 | `local` (default) | nothing | the agent's own machine has git access. A compromised agent yields only what that machine was granted |
-| `delegated` | the deploy key, per job | a trusted machine. Requires HTTPS (refused otherwise), the key is never written to disk beyond a `0600` temp file, and every delivery is audited |
+| `delegated` | the deploy key or HTTPS token, per job | a trusted machine. Requires HTTPS (refused otherwise), the credential is never written to disk — parsed in memory and handed to the transport — and every delivery is audited |
 
 ```bash
 # On the agent's machine — the key comes from /agents, shown once

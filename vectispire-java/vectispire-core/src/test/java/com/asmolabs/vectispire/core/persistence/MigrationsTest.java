@@ -70,7 +70,7 @@ class MigrationsTest {
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
                         "t_api_endpoint", "t_api_contract", "t_mfa_challenge", "t_gate_verdict",
-                        "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery");
+                        "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery", "t_git_token");
     }
 
     @Test
@@ -112,6 +112,7 @@ class MigrationsTest {
                         "t_session.user_id -> t_user",
                         "t_agent.api_key_id -> t_api_key",
                         "t_repository.ssh_key_id -> t_ssh_key",
+                        "t_repository.https_token_id -> t_git_token",
                         "t_user_target.user_id -> t_user",
                         "t_issue_triage_event.issue_id -> t_issue",
                         "t_issue_triage_event.scan_id -> t_scan",
@@ -124,7 +125,7 @@ class MigrationsTest {
                         "t_mfa_challenge.user_id -> t_user",
                         "t_gate_verdict.repo_id -> t_repository",
                         "t_gate_verdict.container_id -> t_container")
-                .hasSize(24);
+                .hasSize(25);
     }
 
     @Test
