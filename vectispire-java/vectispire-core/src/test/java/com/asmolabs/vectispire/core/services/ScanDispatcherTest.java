@@ -101,7 +101,8 @@ class ScanDispatcherTest {
                 Optional.empty(),
                 mock(AuditLogService.class),
                 mock(PlatformMetrics.class),
-                new TransactionTemplate(transactions));
+                new TransactionTemplate(transactions),
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""));
     }
 
     @Test
@@ -272,7 +273,8 @@ class ScanDispatcherTest {
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
-                        new TransactionTemplate(mock(PlatformTransactionManager.class)))
+                        new TransactionTemplate(mock(PlatformTransactionManager.class)),
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
                 .dispatch("worker-1", 2, List.of());
 
         verify(runner, never()).run(any());
@@ -308,7 +310,8 @@ class ScanDispatcherTest {
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
-                        new TransactionTemplate(manager))
+                        new TransactionTemplate(manager),
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
                 .dispatch("worker-1", 1, List.of());
 
         InOrder order = inOrder(ingestor, manager);
@@ -346,7 +349,8 @@ class ScanDispatcherTest {
                         Optional.of(runner),
                         mock(AuditLogService.class),
                         mock(PlatformMetrics.class),
-                        new TransactionTemplate(manager))
+                        new TransactionTemplate(manager),
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
                 .dispatch("worker-1", 2, List.of());
 
         return scan;
@@ -430,6 +434,26 @@ class ScanDispatcherTest {
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), false))
                 .isInstanceOf(InsecureCredentialTransportException.class);
+    }
+
+    @Test
+    @DisplayName("a repository on a host the allowlist does not name is not handed to any executor")
+    void anUnlistedHostIsNotScanned() {
+        // Checked at dispatch as well as at entry: a list tightened after the repository was
+        // registered must stop its scans too.
+        queueHolds(repositoryScan());
+        PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
+        when(transactions.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        ScanDispatcher restricted = new ScanDispatcher(
+                queue, repositories, containers, sshKeys, gitTokens, mock(ScanIngestor.class),
+                new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                settings, ruleSets, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
+                Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
+                new TransactionTemplate(transactions),
+                com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));
+
+        assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null), true)).isEmpty();
+        verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("is not allowed"));
     }
 
     private static RepositoryEntity repository() {

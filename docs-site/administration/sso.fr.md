@@ -71,6 +71,20 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
   un nouveau sujet, c'est un nouveau compte.
 - **Un changement de rôle ferme les sessions du compte**, comme une désactivation.
 
+## Le second facteur relève du fournisseur
+
+Une connexion SSO **saute le TOTP de Vectispire**, délibérément : l'authentification est déléguée, et
+le second facteur avec elle — un code local en plus ferait concourir deux facteurs. Ce que le
+fournisseur a fait n'est plus une supposition pour autant. Chaque connexion fédérée inscrit dans le
+journal d'audit ce que le jeton atteste — des valeurs `amr` de la RFC 8176 comme `otp` ou `hwk`, ou un
+niveau `acr` — ou qu'il n'atteste rien.
+
+Une fois que votre fournisseur envoie cette information (Keycloak : ajoutez au client un mapper
+*Authentication Method Reference*, ou configurez un niveau `acr`), posez
+`VECTISPIRE_OIDC_REQUIRE_MFA=true` : une connexion qui n'atteste aucun second facteur est alors
+refusée, avec un message qui dit pourquoi. Les valeurs qui comptent sont `VECTISPIRE_OIDC_MFA_AMR` et
+`VECTISPIRE_OIDC_MFA_ACR` — voir [Configuration](../reference/configuration.fr.md).
+
 ## Configuration
 
 ```bash

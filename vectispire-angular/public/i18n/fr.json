@@ -354,6 +354,7 @@
     "sso_refused_unverified_email": "Le fournisseur d'identité n'a renvoyé aucun nom d'utilisateur, et une adresse e-mail qu'il n'a pas vérifiée.",
     "sso_refused_deactivated": "Ce compte est désactivé.",
     "sso_refused_no_identity": "Le fournisseur d'identité n'a renvoyé aucune identité OpenID.",
+    "sso_refused_mfa_required": "Votre fournisseur d'identité n'a pas confirmé de second facteur pour cette connexion, et cette instance en exige un. Reconnectez-vous avec votre second facteur, ou adressez-vous à votre administrateur.",
     "error_sso_failed": "L'authentification unique n'a pas abouti. Le fournisseur a refusé l'échange.",
     "error_sso_incomplete": "Cette connexion n'a pas pu être finalisée. Réessayer.",
     "error_mfa_invalid": "Code de vérification MFA invalide.",

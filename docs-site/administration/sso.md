@@ -69,6 +69,18 @@ the provider's configuration, so what it may do is deliberately bounded:
   new subject means a new account.
 - **A role change closes the account's sessions**, as a deactivation does.
 
+## The second factor belongs to the provider
+
+A single sign-on **skips Vectispire's own TOTP**, deliberately: authentication is delegated, and the
+second factor with it — a local code on top would make two factors compete. What the provider did is
+no longer an assumption, though. Every federated sign-in records in the audit log what the token
+states — RFC 8176 `amr` values such as `otp` or `hwk`, or an `acr` level — or that it states none.
+
+Once your provider sends that information (Keycloak: add an *Authentication Method Reference* mapper
+to the client, or configure an `acr` level), set `VECTISPIRE_OIDC_REQUIRE_MFA=true`: a sign-on that
+states no second factor is then refused, with a message that says why. The values that count are
+`VECTISPIRE_OIDC_MFA_AMR` and `VECTISPIRE_OIDC_MFA_ACR` — see [Configuration](../reference/configuration.md).
+
 ## Configuration
 
 ```bash

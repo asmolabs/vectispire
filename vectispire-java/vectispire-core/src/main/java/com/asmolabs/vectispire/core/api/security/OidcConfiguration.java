@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.ExternalIdentityService;
+import com.asmolabs.vectispire.core.services.FederatedSecondFactorPolicy;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.util.List;
@@ -107,13 +108,19 @@ public class OidcConfiguration {
     private final AuthService auth;
     private final AuditLogService audit;
     private final TrustedProxies proxies;
+    private final FederatedSecondFactorPolicy secondFactors;
 
     public OidcConfiguration(
-            ExternalIdentityService identities, AuthService auth, AuditLogService audit, TrustedProxies proxies) {
+            ExternalIdentityService identities,
+            AuthService auth,
+            AuditLogService audit,
+            TrustedProxies proxies,
+            FederatedSecondFactorPolicy secondFactors) {
         this.identities = identities;
         this.auth = auth;
         this.audit = audit;
         this.proxies = proxies;
+        this.secondFactors = secondFactors;
     }
 
     /**
@@ -157,6 +164,10 @@ public class OidcConfiguration {
             }
 
             try {
+                // Checked before the account is resolved: a refused sign-on must not bind a
+                // subject to an account on its way out.
+                String secondFactor = secondFactors.require(
+                        oidc.getClaimAsStringList("amr"), oidc.getClaimAsString("acr"));
                 UserEntity user = identities.resolve(
                         oidc.getSubject(),
                         oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
@@ -177,7 +188,7 @@ public class OidcConfiguration {
                 audit.record(new AuditLogService.Record(
                         AuditOperation.LOGIN_SUCCESS,
                         user.getUsername(),
-                        "Signed in through " + oidc.getIssuer(),
+                        "Signed in through " + oidc.getIssuer() + ", " + secondFactor,
                         user.getUsername(),
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent")));

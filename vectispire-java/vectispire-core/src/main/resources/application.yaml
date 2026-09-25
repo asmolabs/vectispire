@@ -152,6 +152,20 @@ vectispire:
     # Turn it on only for a realm where nobody chooses their own username; otherwise link those
     # accounts through SCIM, which takes the subject from the provider.
     link-privileged-accounts: ${VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS:false}
+    # **A single sign-on skips the local TOTP: the provider owns the second factor.** Every
+    # federated sign-in records what the provider stated (RFC 8176 `amr`, or an `acr` level named
+    # below). With require-mfa, a sign-on stating none is refused — turn it on once the provider is
+    # configured to send `amr` (Keycloak: an "Authentication Method Reference" mapper) or an `acr`.
+    require-mfa: ${VECTISPIRE_OIDC_REQUIRE_MFA:false}
+    mfa-amr: ${VECTISPIRE_OIDC_MFA_AMR:mfa,otp,hwk,fido}
+    mfa-acr: ${VECTISPIRE_OIDC_MFA_ACR:}
+
+  git:
+    # **The hosts repositories may be cloned from.** Empty (the default) means every host but the
+    # link-local ones, which are always refused: a forge on the internal network is the ordinary
+    # case. Listed — `gitlab.corp.example, *.corp.example` — only those are cloned from, checked
+    # when a URL is entered and again before each scan.
+    allowed-hosts: ${VECTISPIRE_GIT_ALLOWED_HOSTS:}
 
   audit:
     mirror-path: ${VECTISPIRE_AUDIT_MIRROR:}

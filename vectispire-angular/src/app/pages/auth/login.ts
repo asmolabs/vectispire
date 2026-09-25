@@ -84,6 +84,7 @@ export class Login {
             case 'unverified_email': return this.i18n.t('auth.sso_refused_unverified_email');
             case 'deactivated': return this.i18n.t('auth.sso_refused_deactivated');
             case 'no_identity': return this.i18n.t('auth.sso_refused_no_identity');
+            case 'mfa_required': return this.i18n.t('auth.sso_refused_mfa_required');
             default: return this.i18n.t('auth.error_sso_refused');
         }
     }

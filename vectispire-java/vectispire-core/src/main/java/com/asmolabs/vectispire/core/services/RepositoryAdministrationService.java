@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
+import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -45,6 +46,7 @@ public class RepositoryAdministrationService {
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
     private final GitTokens gitTokens;
+    private final GitHostAllowlist allowedHosts;
 
     public RepositoryAdministrationService(
             GitRepositories repositories,
@@ -53,7 +55,8 @@ public class RepositoryAdministrationService {
             ScanTriggerService trigger,
             TargetDeletionService targetDeletion,
             AuditLogService audit,
-            GitTokens gitTokens) {
+            GitTokens gitTokens,
+            GitHostAllowlist allowedHosts) {
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
@@ -61,6 +64,7 @@ public class RepositoryAdministrationService {
         this.targetDeletion = targetDeletion;
         this.audit = audit;
         this.gitTokens = gitTokens;
+        this.allowedHosts = allowedHosts;
     }
 
     /** A target's most recent scan, whatever its outcome. Shared with the container inventory. */
@@ -139,6 +143,7 @@ public class RepositoryAdministrationService {
             throw new IllegalArgumentException(message);
         });
         refuseCredentialInUrl(url);
+        refuseUnlistedHost(url);
 
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl(url);
@@ -194,6 +199,7 @@ public class RepositoryAdministrationService {
                 throw new IllegalArgumentException(message);
             });
             refuseCredentialInUrl(url);
+            refuseUnlistedHost(url);
             repository.setUrl(url);
         }
         if (changes.branch() != null) {
@@ -308,6 +314,12 @@ public class RepositoryAdministrationService {
      * the clear in this row and handed it to every agent. A URL already stored that way keeps
      * working — refusing it on upgrade would stop its scans silently — but none is added.
      */
+    private void refuseUnlistedHost(String url) {
+        if (!allowedHosts.permits(url)) {
+            throw new IllegalArgumentException(allowedHosts.refusal(url));
+        }
+    }
+
     private static void refuseCredentialInUrl(String url) {
         if (RepositoryUrl.carriesCredential(url)) {
             throw new IllegalArgumentException("The URL carries a credential. Remove it from the URL and attach an "

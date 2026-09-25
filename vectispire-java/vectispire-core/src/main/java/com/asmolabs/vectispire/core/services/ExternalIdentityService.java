@@ -72,7 +72,8 @@ public class ExternalIdentityService {
         NO_USERNAME,
         UNVERIFIED_EMAIL,
         DEACTIVATED,
-        NO_IDENTITY;
+        NO_IDENTITY,
+        MFA_REQUIRED;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);

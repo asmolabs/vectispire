@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,5 +38,14 @@ public class OutboundGuardConfiguration {
                         datasourceUrl, datasourceUrl.contains(":postgresql:") ? 5432 : 3306, "the database")
                 .ifPresent(reserved::add);
         return new OutboundUrlGuard(reserved);
+    }
+
+    /**
+     * The hosts repositories may be cloned from — every host when empty, the default. See
+     * {@link GitHostAllowlist} for why it is opt-in, and why it is checked twice.
+     */
+    @Bean
+    public GitHostAllowlist gitHostAllowlist(@Value("${vectispire.git.allowed-hosts:}") String allowedHosts) {
+        return GitHostAllowlist.parse(allowedHosts);
     }
 }

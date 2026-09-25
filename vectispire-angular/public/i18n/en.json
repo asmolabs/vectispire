@@ -354,6 +354,7 @@
     "sso_refused_unverified_email": "The identity provider returned no username, and an email address it has not verified.",
     "sso_refused_deactivated": "This account is deactivated.",
     "sso_refused_no_identity": "The identity provider returned no OpenID identity.",
+    "sso_refused_mfa_required": "Your identity provider did not confirm a second factor for this sign-in, and this instance requires one. Sign in again with your second factor, or ask your administrator.",
     "error_sso_failed": "Single sign-on did not complete. The provider refused the exchange.",
     "error_sso_incomplete": "This sign-on could not be completed. Try again.",
     "error_mfa_invalid": "Invalid MFA verification code.",

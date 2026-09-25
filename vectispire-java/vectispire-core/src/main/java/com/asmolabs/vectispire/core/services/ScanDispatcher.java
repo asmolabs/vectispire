@@ -1,13 +1,14 @@
 package com.asmolabs.vectispire.core.services;
 
-import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
@@ -69,6 +70,7 @@ public class ScanDispatcher {
     private final Containers containers;
     private final SshKeys sshKeys;
     private final GitTokens gitTokens;
+    private final GitHostAllowlist allowedHosts;
     private final ScanIngestor ingestor;
     private final EncryptionService encryption;
     private final SettingsService settings;
@@ -122,7 +124,8 @@ public class ScanDispatcher {
             Optional<ScanRunner> runner,
             AuditLogService audit,
             PlatformMetrics metrics,
-            TransactionTemplate transactions) {
+            TransactionTemplate transactions,
+            GitHostAllowlist allowedHosts) {
         this.queue = queue;
         this.repositories = repositories;
         this.containers = containers;
@@ -138,6 +141,7 @@ public class ScanDispatcher {
         this.audit = audit;
         this.metrics = metrics;
         this.transactions = transactions;
+        this.allowedHosts = allowedHosts;
     }
 
     /** @param claimed how many scans this round took, of which {@code completed + failed} ran */
@@ -473,6 +477,12 @@ public class ScanDispatcher {
         RepositoryEntity repository = repositories
                 .findById(scan.getRepoId())
                 .orElseThrow(() -> new IllegalStateException("Repository " + scan.getRepoId() + " no longer exists."));
+        // Again here, not only when the URL was entered: a list tightened after a repository was
+        // registered has to stop its scans too, and this is the one place every executor's task
+        // is built — the worker's and every agent's.
+        if (!allowedHosts.permits(repository.getUrl())) {
+            throw new IllegalStateException(allowedHosts.refusal(RepositoryUrl.redact(repository.getUrl())));
+        }
 
         ScanTask.Target.HttpsCredential https = null;
         if (repository.getHttpsTokenId() != null && deliverCredentials) {
