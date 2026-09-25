@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.services.SigningKeyService;
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +69,42 @@ class CryptoRoutesTest extends ApiTestBase {
                         .content(tamperedRequest), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(false));
+    }
+
+    @Test
+    @DisplayName("the published public key verifies what the instance signs, as a consumer would check it")
+    void thePublishedKeyVerifiesTheSignatures() throws Exception {
+        String pem = mvc.perform(get("/api/v1/crypto/public-key.pub"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        byte[] payload = "{\"status\": \"passed\"}".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(CosignSigner.verify(payload, signingKeyService.sign(payload), CosignSigner.parsePublicKey(pem)))
+                .isTrue();
+    }
+
+    @Test
+    @DisplayName("a signature made with the caller's own key is never reported as Vectispire's")
+    void aForgeryUnderAnotherKeyIsNamedAsSuch() throws Exception {
+        // It answered "Signature valid and authentic." with Vectispire's key id: sign a forged
+        // document with your own key, supply that key, and the response vouched for it.
+        KeyPair forger = CosignSigner.generateKeyPair();
+        String payload = "{\"status\": \"passed\"}";
+        String signature = CosignSigner.sign(payload.getBytes(StandardCharsets.UTF_8), forger.getPrivate());
+
+        mvc.perform(authenticated(post("/api/v1/crypto/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(java.util.Map.of(
+                                "payload", payload,
+                                "signature", signature,
+                                "publicKey", CosignSigner.toPem(forger.getPublic())))), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.vectispireKey").value(false))
+                .andExpect(jsonPath("$.keyId").value(CosignSigner.computeKeyId(forger.getPublic())))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("not Vectispire's")));
     }
 
     @Test

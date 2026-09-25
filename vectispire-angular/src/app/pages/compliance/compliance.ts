@@ -112,7 +112,11 @@ export class Compliance {
     verifyPayload = '';
     verifySignature = '';
     verifyPublicKey = '';
-    readonly verifyResult = signal<{ valid: boolean; keyId: string; algorithm: string; message: string } | null>(null);
+    readonly verifyResult = signal<{ valid: boolean; keyId: string; vectispireKey: boolean; algorithm: string; message: string } | null>(null);
+    /** Valid under Vectispire's own key: the only result shown as authentic. */
+    readonly verifyAuthentic = computed(() => !!this.verifyResult()?.valid && !!this.verifyResult()?.vectispireKey);
+    /** Valid under a key the caller supplied: proves the match, not Vectispire's signature. */
+    readonly verifyForeign = computed(() => !!this.verifyResult()?.valid && !this.verifyResult()?.vectispireKey);
     readonly verifyError = signal<string | null>(null);
     readonly cosignCliInfo = signal<CosignCliHelper | null>(null);
 

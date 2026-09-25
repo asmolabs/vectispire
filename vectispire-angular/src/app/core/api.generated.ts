@@ -5122,6 +5122,7 @@ export interface components {
             keyId?: string;
             message?: string;
             valid: boolean;
+            vectispireKey: boolean;
         };
         VexSuggestion: {
             actionStatement?: string;

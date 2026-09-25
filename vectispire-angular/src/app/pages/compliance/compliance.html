@@ -420,8 +420,14 @@
             </div>
 
             @if (verifyResult()) {
-                <div class="p-3 rounded-lg border flex items-center gap-3" [class.bg-emerald-50]="verifyResult()!.valid" [class.border-emerald-200]="verifyResult()!.valid" [class.text-emerald-800]="verifyResult()!.valid" [class.bg-rose-50]="!verifyResult()!.valid" [class.border-rose-200]="!verifyResult()!.valid" [class.text-rose-800]="!verifyResult()!.valid">
-                    <i class="pi text-xl" [class.pi-check-circle]="verifyResult()!.valid" [class.pi-times-circle]="!verifyResult()!.valid"></i>
+                <!-- Green only for a signature under Vectispire's own key. A valid signature under a key the
+                     caller supplied is shown amber: it proves the document matches that key, not that
+                     Vectispire signed it — the confusion this screen used to invite. -->
+                <div class="p-3 rounded-lg border flex items-center gap-3"
+                     [class.bg-emerald-50]="verifyAuthentic()" [class.border-emerald-200]="verifyAuthentic()" [class.text-emerald-800]="verifyAuthentic()"
+                     [class.bg-amber-50]="verifyForeign()" [class.border-amber-200]="verifyForeign()" [class.text-amber-800]="verifyForeign()"
+                     [class.bg-rose-50]="!verifyResult()!.valid" [class.border-rose-200]="!verifyResult()!.valid" [class.text-rose-800]="!verifyResult()!.valid">
+                    <i class="pi text-xl" [class.pi-check-circle]="verifyAuthentic()" [class.pi-exclamation-triangle]="verifyForeign()" [class.pi-times-circle]="!verifyResult()!.valid"></i>
                     <div class="text-xs">
                         <p class="font-bold my-0">{{ verifyResult()!.message }}</p>
                         <p class="text-[11px] opacity-75 my-0">Algorithme: {{ verifyResult()!.algorithm }} | Key ID: {{ verifyResult()!.keyId }}</p>

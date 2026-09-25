@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.core.services.SigningKeyService;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -40,9 +41,15 @@ public class CryptoController {
             String signature,
             String publicKey) {}
 
+    /**
+     * @param keyId the key the signature was checked against — the caller's own when they supplied one
+     * @param vectispireKey whether that key is Vectispire's signing key; a valid signature under any
+     *     other key says nothing about Vectispire
+     */
     public record VerifyResponse(
             boolean valid,
             String keyId,
+            boolean vectispireKey,
             String algorithm,
             String message) {}
 
@@ -50,17 +57,12 @@ public class CryptoController {
     @RequiresAccount
     public VerifyResponse verifySignature(@RequestBody VerifyRequest request) {
         if (request == null || request.payload() == null || request.signature() == null) {
-            return new VerifyResponse(false, null, "SHA256withECDSA", "Payload and signature are required.");
+            return new VerifyResponse(false, null, false, CosignSigner.ALGORITHM, "Payload and signature are required.");
         }
-
-        byte[] payloadBytes = request.payload().getBytes(StandardCharsets.UTF_8);
-        boolean valid = signingKeyService.verify(payloadBytes, request.signature(), request.publicKey());
-
+        SigningKeyService.Verification result = signingKeyService.verify(
+                request.payload().getBytes(StandardCharsets.UTF_8), request.signature(), request.publicKey());
         return new VerifyResponse(
-                valid,
-                signingKeyService.getKeyId(),
-                "SHA256withECDSA",
-                valid ? "Signature valid and authentic." : "Signature verification failed or signature does not match payload.");
+                result.valid(), result.keyId(), result.vectispireKey(), CosignSigner.ALGORITHM, result.message());
     }
 
     @GetMapping("/cosign-cli-helper")

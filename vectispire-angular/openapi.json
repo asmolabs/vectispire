@@ -6653,9 +6653,12 @@
           },
           "valid" : {
             "type" : "boolean"
+          },
+          "vectispireKey" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "valid" ],
+        "required" : [ "valid", "vectispireKey" ],
         "type" : "object"
       },
       "VexSuggestion" : {
