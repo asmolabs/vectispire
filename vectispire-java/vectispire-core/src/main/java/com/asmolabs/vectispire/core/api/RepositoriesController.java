@@ -158,7 +158,7 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id, RequestActors.of(principal, request));
+        RepositoryAdministrationService.Triggered triggered = inventory.trigger(id, allowed(principal), RequestActors.of(principal, request));
         return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
     }
 

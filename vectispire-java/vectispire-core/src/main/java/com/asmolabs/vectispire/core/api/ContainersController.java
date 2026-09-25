@@ -137,7 +137,7 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerAdministrationService.Triggered triggered = inventory.trigger(id, RequestActors.of(principal, request));
+        ContainerAdministrationService.Triggered triggered = inventory.trigger(id, allowed(principal), RequestActors.of(principal, request));
         return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
     }
 

@@ -7,8 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Users;
 import java.util.List;
@@ -31,6 +33,9 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
 
     @Autowired
     private Users users;
+
+    @Autowired
+    private Containers containers;
 
     private long repository(String name) {
         RepositoryEntity repository = new RepositoryEntity();
@@ -83,6 +88,23 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
         String scanner = issue(asAdmin(), Map.of("name", "scanner", "scopes", List.of("scan")));
         mvc.perform(authenticated(post("/api/v1/repositories/" + target + "/scan"), scanner))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a restricted scan key triggers its own target only, and another answers as absent")
+    void aRestrictedScanKeyTriggersItsTargetOnly() throws Exception {
+        long mine = repository("scan-mine");
+        long other = repository("scan-other");
+        String key = issue(asAdmin(), Map.of("name", "gate", "scopes", List.of("scan"),
+                "target_kind", "repository", "target_id", mine));
+
+        mvc.perform(authenticated(post("/api/v1/repositories/" + mine + "/scan"), key)).andExpect(status().isOk());
+        mvc.perform(authenticated(post("/api/v1/repositories/" + other + "/scan"), key)).andExpect(status().isNotFound());
+        ContainerEntity image = new ContainerEntity();
+        image.setImageName("team/scan-other");
+        image.setTag("latest");
+        long otherImage = containers.save(image).getId();
+        mvc.perform(authenticated(post("/api/v1/containers/" + otherImage + "/scan"), key)).andExpect(status().isNotFound());
     }
 
     @Test

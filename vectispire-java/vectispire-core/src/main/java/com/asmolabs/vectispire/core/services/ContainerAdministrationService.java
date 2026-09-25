@@ -174,9 +174,10 @@ public class ContainerAdministrationService {
         return saved;
     }
 
-    public Triggered trigger(long id, RequestActor actor) {
-        ContainerEntity container = containers.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Image not found."));
+    /** @param allowed what the caller may see, as for a repository: a restricted key is narrowed. */
+    public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
+        ContainerEntity container =
+                RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
         ScanEntity scan = trigger.trigger(container);
         audit.record(actor.entry(
                 AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + referenceOf(container).format()));

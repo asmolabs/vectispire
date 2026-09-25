@@ -244,9 +244,14 @@ public class RepositoryAdministrationService {
         return saved;
     }
 
-    public Triggered trigger(long id, RequestActor actor) {
-        RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
+    /**
+     * @param allowed what the caller may see. Only administrators reach this route, whose
+     *     visibility is everything — but an integration key acting for one is narrowed to its
+     *     target, and without this check a key restricted to one repository scanned any other.
+     */
+    public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
+        RepositoryEntity repository =
+                RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
         ScanEntity scan = trigger.trigger(repository);
         audit.record(actor.entry(
                 AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
