@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
@@ -110,10 +111,13 @@ public class IssueSyncService {
         for (Map.Entry<String, List<FindingEntity>> entry : byFingerprint.entrySet()) {
             FindingEntity finding = entry.getValue().getFirst();
             IssueEntity issue = existing.get(entry.getKey());
+            // Looked up while the identifier is still whole: the advisory text is keyed by it.
+            String description = BoundedText.clip(describe(finding, descriptions), BoundedText.TEXT_MAX);
+            entry.getValue().forEach(IssueSyncService::fitToColumns);
 
             if (issue == null) {
                 issue = create(scan, entry.getKey(), finding, moment);
-                issue.setDescription(describe(finding, descriptions));
+                issue.setDescription(description);
                 created.add(issue);
             } else {
                 if (IssueState.RESOLVED.wireName().equals(issue.getState())) {
@@ -122,7 +126,7 @@ public class IssueSyncService {
                 }
                 refresh(issue, finding, scan, moment);
                 if (issue.getDescription() == null) {
-                    issue.setDescription(describe(finding, descriptions));
+                    issue.setDescription(description);
                 }
             }
             touched.add(issue);
@@ -313,6 +317,36 @@ public class IssueSyncService {
             issue.setTriagedAt(null);
             issue.setTriagedBy(null);
         }
+    }
+
+    /**
+     * Clips what a scanner reported to the columns the finding and its issue store it in.
+     *
+     * <p><b>Why here, and only here.</b> Every value below came from a scanner — a purl, a file
+     * path, a fix-version list, an advisory link — and one of them past its column failed the flush
+     * of the whole scan: every finding of every type lost, the scan marked failed, for one long
+     * purl. {@code ComponentInventory} clips its own columns for the same reason. Refusing is not
+     * an option for a value nobody here typed.
+     *
+     * <p><b>After the fingerprint, never before it.</b> The identifier, the purl, the package name
+     * and the path are the fingerprint's inputs (AGENTS.md: a data contract), and {@link #sync}
+     * computes every fingerprint from the whole values before this runs. Clipping first would give
+     * two findings sharing their first 255 characters one identity, and would change the identity
+     * of any finding whose value is long — so the stored column is a display copy, and the key is
+     * the scanner's own value.
+     */
+    private static void fitToColumns(FindingEntity finding) {
+        finding.setIdentifier(BoundedText.clip(finding.getIdentifier(), 255));
+        finding.setPackageName(BoundedText.clip(finding.getPackageName(), 255));
+        finding.setPackageVersion(BoundedText.clip(finding.getPackageVersion(), 255));
+        finding.setPurl(BoundedText.clip(finding.getPurl(), 255));
+        finding.setFilePath(BoundedText.clip(finding.getFilePath(), 500));
+        finding.setFixVersions(BoundedText.clip(finding.getFixVersions(), 255));
+        finding.setLink(BoundedText.clip(finding.getLink(), 500));
+        finding.setCvssVector(BoundedText.clip(finding.getCvssVector(), 255));
+        finding.setFixState(BoundedText.clip(finding.getFixState(), 50));
+        finding.setSeverity(BoundedText.clip(finding.getSeverity(), 50));
+        finding.setDescription(BoundedText.clip(finding.getDescription(), BoundedText.TEXT_MAX));
     }
 
     private static String fingerprintOf(ScanTarget target, FindingEntity finding) {

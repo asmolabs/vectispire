@@ -3,10 +3,12 @@ package com.asmolabs.vectispire.core.services;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.IssueFingerprint;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
@@ -156,6 +158,63 @@ class IssueSyncDatabaseTest extends VectispireContextTest {
         // scanner saw the component again. Only "fixed" is contradicted by its return.
         assertThat(issues.findAll().getFirst().getTriageStatus())
                 .isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
+    }
+
+    @Test
+    @DisplayName("an oversized scanner value is stored clipped, and the issue keeps the identity of the whole value")
+    void longValuesAreClippedAfterTheFingerprint() {
+        String identifier = "RULE-" + "i".repeat(300);
+        String purl = "pkg:npm/" + "p".repeat(600);
+        String path = "src/" + "d/".repeat(400) + "Main.java";
+
+        ScanEntity first = scan(repositoryId);
+        FindingEntity long1 = vulnerability(first, identifier);
+        long1.setPurl(purl);
+        long1.setFilePath(path);
+        long1.setFixVersions("1." + "0".repeat(400));
+        long1.setLink("https://advisories.example/" + "l".repeat(600));
+        reconcile(first, List.of(long1), Set.of(FindingType.VULNERABILITY));
+
+        IssueEntity issue = issues.findAll().getFirst();
+        assertThat(issue.getFingerprint())
+                .as("the fingerprint is the whole values' — the data contract of AGENTS.md")
+                .isEqualTo(IssueFingerprint.of(new IssueFingerprint.Input(
+                        new ScanTarget.Repository(repositoryId),
+                        FindingType.VULNERABILITY,
+                        identifier,
+                        purl,
+                        "openssl",
+                        path)));
+        assertThat(issue.getIdentifier()).hasSize(255);
+        assertThat(issue.getPurl()).hasSize(255);
+        assertThat(issue.getFilePath()).hasSize(500);
+        assertThat(issue.getFixVersions()).hasSize(255);
+        assertThat(issue.getLink()).hasSize(500);
+
+        // The next scan reports the same whole values: the same issue, not a new one beside it.
+        ScanEntity second = scan(repositoryId);
+        FindingEntity long2 = vulnerability(second, identifier);
+        long2.setPurl(purl);
+        long2.setFilePath(path);
+        IssueSyncService.SyncResult again = reconcile(second, List.of(long2), Set.of(FindingType.VULNERABILITY));
+
+        assertThat(again.created()).isZero();
+        assertThat(issues.findAll()).singleElement()
+                .satisfies(only -> assertThat(only.getTimesSeen()).isEqualTo(2));
+    }
+
+    @Test
+    @DisplayName("two findings that differ only past the column stay two issues")
+    void clippingDoesNotMergeIdentities() {
+        String shared = "RULE-" + "s".repeat(300);
+        ScanEntity scan = scan(repositoryId);
+
+        IssueSyncService.SyncResult result = reconcile(
+                scan, List.of(vulnerability(scan, shared + "-a"), vulnerability(scan, shared + "-b")),
+                Set.of(FindingType.VULNERABILITY));
+
+        assertThat(result.created()).isEqualTo(2);
+        assertThat(issues.findAll()).extracting(IssueEntity::getFingerprint).doesNotHaveDuplicates();
     }
 
     private IssueSyncService.SyncResult reconcile(
