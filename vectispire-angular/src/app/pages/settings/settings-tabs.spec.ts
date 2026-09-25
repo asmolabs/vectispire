@@ -151,7 +151,7 @@ describe('the settings screen, on the AI tab', () => {
 
         expect(onAiTab()).toBe(true);
         expect(checkShown()).toBe(true);
-        expect(root.textContent).toContain('— stored');
+        expect(root.textContent).toContain('settings.ai_key_stored');
     });
 
     it('opens on the AI tab when the URL names it', async () => {
