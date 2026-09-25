@@ -9,11 +9,14 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
+import com.asmolabs.vectispire.common.domain.issues.Triage;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.ControlDeclarationEntity;
 import com.asmolabs.vectispire.core.repositories.ControlDeclarations;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +31,12 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class StatementOfApplicabilityService {
+
+    /** The width of {@code control_id}. */
+    private static final int CONTROL_ID_LENGTH = 64;
+
+    /** The width of {@code control_owner}. */
+    private static final int OWNER_LENGTH = 255;
 
     private final ControlDeclarations declarations;
     private final ComplianceService compliance;
@@ -110,6 +119,15 @@ public class StatementOfApplicabilityService {
      */
     public Declaration declare(
             ComplianceFramework framework, String controlId, Submission submission, String actor) {
+        // **Checked against the framework's catalogue, as the OWASP route checks its grid.** Any
+        // string was accepted and stored, and the reconciliation reads only the controls the
+        // catalogue names — so a mistyped control was a declaration nobody would ever see again,
+        // recorded under somebody's name in the audit log. A 404, since the path names a control
+        // that does not exist.
+        boolean known = framework.getControls().stream().anyMatch(control -> control.id().equals(controlId));
+        if (!known) {
+            throw new NoSuchElementException(controlId + " is not a control of " + framework.getTitle() + ".");
+        }
         return declare(framework.name(), controlId, submission, actor);
     }
 
@@ -150,8 +168,25 @@ public class StatementOfApplicabilityService {
             throw new IllegalArgumentException(
                     "Evidence held outside Vectispire must say where: name the document, register or review.");
         }
+        // Each against its column, before the row is read: past them the database refused the
+        // write, as a 500, after the audit entry's author had been decided.
+        BoundedText.within(controlId, CONTROL_ID_LENGTH, "The control identifier");
+        BoundedText.within(submission.owner(), OWNER_LENGTH, "The control owner");
+        BoundedText.within(submission.justification(), BoundedText.TEXT_MAX, "The justification");
+        BoundedText.within(submission.externalEvidence(), BoundedText.TEXT_MAX, "The external evidence");
 
         Instant now = clock.instant();
+        // **A review date within ten years either side of today.** A date past MySQL's year 9999, or
+        // before its year 1000, failed at the write as a 500, and a date centuries away is a typo
+        // nobody reads as one. A date already past stays accepted: it files the line as overdue,
+        // which is how a register imported from elsewhere says a review was missed. Ten years is
+        // the ceiling a triage's own review delay has.
+        Instant due = submission.reviewDueAt();
+        if (due != null && (due.isAfter(Triage.latestReview(now))
+                || due.isBefore(now.atZone(java.time.ZoneOffset.UTC).minusDays(Triage.MAX_REVIEW_DAYS).toInstant()))) {
+            throw new IllegalArgumentException(
+                    "The review date is at most " + Triage.MAX_REVIEW_DAYS + " days from today, either way.");
+        }
         ControlDeclarationEntity row = declarations
                 .findByFrameworkAndControlId(framework, controlId)
                 .orElseGet(() -> {

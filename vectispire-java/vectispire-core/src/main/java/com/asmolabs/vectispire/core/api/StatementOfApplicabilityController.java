@@ -119,6 +119,7 @@ public class StatementOfApplicabilityController {
     @Operation(summary = "Declare a control", description = "Writes or revises one line. An exclusion needs a justification; evidence held elsewhere must say where.")
     @ApiResponse(responseCode = "200", description = "Declaration recorded")
     @ApiResponse(responseCode = "400", description = "The line is not a declaration: an unjustified exclusion, or external evidence naming nothing")
+    @ApiResponse(responseCode = "404", description = "The framework has no control of that identifier")
     @PutMapping("/{framework}/{controlId}")
     @RequiresSecurityLead
     public Declaration declare(

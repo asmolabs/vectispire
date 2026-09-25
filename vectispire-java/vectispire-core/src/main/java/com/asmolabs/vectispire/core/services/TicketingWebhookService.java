@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.WebhookDeliveryEntity;
@@ -171,10 +172,12 @@ public class TicketingWebhookService {
             String claimed = event.author() != null && !event.author().isBlank()
                     ? " (reported by the tracker as: " + event.author() + ")"
                     : "";
-            String comment = (event.comment() != null && !event.comment().isBlank()
+            // Clipped, not refused: the tracker wrote it, nobody here can shorten it, and a refusal
+            // would drop the decision it carries over the length of its prose.
+            String comment = BoundedText.clip((event.comment() != null && !event.comment().isBlank()
                     ? event.comment()
                     : "Status updated from " + provider.name() + " ticket " + event.ticketRef())
-                    + claimed;
+                    + claimed, Triage.MAX_COMMENT_LENGTH);
 
             // **`false`, and that is the whole fix.** This boolean was `true`: a tracker's
             // decision settled on the spot, bypassing four-eyes. On a route that requires no

@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.issues;
 
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import java.time.Instant;
 import java.time.Period;
 import java.time.ZoneOffset;
@@ -18,6 +19,12 @@ import java.util.Optional;
 public final class Triage {
 
     private Triage() {}
+
+    /** The longest review delay, in days: ten years, as for an API key's lifetime. */
+    public static final int MAX_REVIEW_DAYS = 3650;
+
+    /** A comment is stored in {@code text} columns; see {@link BoundedText#TEXT_MAX}. */
+    public static final int MAX_COMMENT_LENGTH = BoundedText.TEXT_MAX;
 
     /**
      * @param expiresIn a review date, <b>offered and not imposed</b>. Deciding that a component
@@ -57,6 +64,12 @@ public final class Triage {
             throw new InvalidTriageException(
                     "A justification is required for this triage status (VEX requirement).");
         }
+        // The comment lands in two `text` columns, the issue's and the history's. Past the ceiling
+        // the database refused the write, as a 500, and the decision was lost with it.
+        if (request.comment() != null && request.comment().length() > MAX_COMMENT_LENGTH) {
+            throw new InvalidTriageException(
+                    "The comment is longer than " + MAX_COMMENT_LENGTH + " characters.");
+        }
 
         return new Decision(
                 request.status(),
@@ -86,7 +99,26 @@ public final class Triage {
 
         // Calendar arithmetic, not a fixed number of hours: "in three months" has to land on the
         // same day of the month, and adding 90 × 24 h drifts across a daylight-saving boundary.
-        return Optional.of(asOf.atZone(ZoneOffset.UTC).plus(expiresIn).toInstant());
+        Instant expiry = asOf.atZone(ZoneOffset.UTC).plus(expiresIn).toInstant();
+        // **And an upper bound, which there was not.** A delay of two billion days is a review date
+        // no engine can store — MySQL's DATETIME ends in 9999 — so it failed at the write, as a 500;
+        // and a review ten thousand years out is "never" spelt in a way nobody reads as never.
+        // Absent already means no review date. Ten years is the ceiling an API key's lifetime has.
+        if (expiry.isAfter(latestReview(asOf))) {
+            throw new InvalidTriageException(
+                    "The review delay is at most " + MAX_REVIEW_DAYS + " days. Leave it empty for no review date.");
+        }
+        return Optional.of(expiry);
+    }
+
+    /**
+     * The furthest review date a decision may carry, counted from {@code asOf}.
+     *
+     * <p>Shared by the delay a triage offers and by the date an exception review extends to, so the
+     * two cannot disagree about how far "later" may be.
+     */
+    public static Instant latestReview(Instant asOf) {
+        return asOf.atZone(ZoneOffset.UTC).plusDays(MAX_REVIEW_DAYS).toInstant();
     }
 
     /**

@@ -249,6 +249,18 @@ public class IssueTriageService {
     public IssueEntity review(
             long issueId, ReviewOutcome outcome, String comment, String actor, Instant newExpiry) {
 
+        // Before anything is read: a body without an outcome reached the switch below and answered
+        // 500 with a NullPointerException, which told the reviewer nothing about what was missing.
+        if (outcome == null) {
+            throw new IllegalArgumentException(
+                    "A review needs an outcome: " + java.util.Arrays.stream(ReviewOutcome.values())
+                            .map(Enum::name).collect(java.util.stream.Collectors.joining(", ")) + ".");
+        }
+        if (comment != null && comment.length() > Triage.MAX_COMMENT_LENGTH) {
+            throw new IllegalArgumentException(
+                    "The comment is longer than " + Triage.MAX_COMMENT_LENGTH + " characters.");
+        }
+
         IssueEntity issue = issues.findById(issueId)
                 .orElseThrow(() -> new IllegalArgumentException("No such issue: " + issueId));
 
@@ -264,6 +276,19 @@ public class IssueTriageService {
         }
 
         Instant now = clock.instant();
+        // **An extension runs forward, and not for ever.** A date in the past was accepted, and the
+        // next maintenance tick expired the exception the reviewer had just extended — the review
+        // recorded as "extended" while doing the opposite. A date past MySQL's year 9999 failed at
+        // the write, as a 500. The ceiling is the one a triage's own review delay has.
+        if (outcome == ReviewOutcome.EXTENDED) {
+            if (!newExpiry.isAfter(now)) {
+                throw new IllegalArgumentException("An extension runs to a date in the future.");
+            }
+            if (newExpiry.isAfter(Triage.latestReview(now))) {
+                throw new IllegalArgumentException(
+                        "An extension runs at most " + Triage.MAX_REVIEW_DAYS + " days from today.");
+            }
+        }
         String from = issue.getTriageStatus();
         String to = from;
 

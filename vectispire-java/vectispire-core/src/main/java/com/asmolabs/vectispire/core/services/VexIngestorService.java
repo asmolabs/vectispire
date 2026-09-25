@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
@@ -200,8 +201,11 @@ public class VexIngestorService {
                 matched += matchingIssues.size();
 
                 com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapCycloneDxJustification(vuln.analysis().justification());
-                String comment = "Upstream CycloneDX VEX by " + author + ": "
-                        + (vuln.analysis().detail() != null ? vuln.analysis().detail() : "Declared not affected in CycloneDX BOM.");
+                // Clipped, not refused: the vendor wrote it, and one long statement must not stop
+                // the import half-way through the document with the earlier issues already settled.
+                String comment = BoundedText.clip("Upstream CycloneDX VEX by " + author + ": "
+                        + (vuln.analysis().detail() != null ? vuln.analysis().detail() : "Declared not affected in CycloneDX BOM."),
+                        Triage.MAX_COMMENT_LENGTH);
 
                 for (IssueEntity issue : matchingIssues) {
                     if ("not_affected".equalsIgnoreCase(issue.getTriageStatus())
@@ -256,8 +260,10 @@ public class VexIngestorService {
 
                 com.asmolabs.vectispire.common.domain.issues.VexJustification justification = mapJustification(statement.justification());
 
-                String comment = "Upstream VEX statement by " + author + ": "
-                        + (statement.impactStatement() != null ? statement.impactStatement() : "Declared not affected by upstream maintainer.");
+                // Clipped for the reason given on the CycloneDX statement above.
+                String comment = BoundedText.clip("Upstream VEX statement by " + author + ": "
+                        + (statement.impactStatement() != null ? statement.impactStatement() : "Declared not affected by upstream maintainer."),
+                        Triage.MAX_COMMENT_LENGTH);
 
                 for (IssueEntity issue : matchingIssues) {
                     if ("not_affected".equalsIgnoreCase(issue.getTriageStatus())

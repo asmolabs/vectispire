@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
 import java.util.ArrayList;
@@ -34,6 +35,9 @@ public class GatePolicyAdministrationService {
 
     /** Stores a new version for the scope, attributed to the actor, and records what it now says. */
     public GatePolicyEntity store(PolicyScope scope, GatePolicy policy, String note, RequestActor actor) {
+        // The note is a `text` column: bounded like every stored text, so a paste past MySQL's
+        // 64 KB is a 400 here rather than a 500 from the insert.
+        BoundedText.within(note, BoundedText.TEXT_MAX, "The note");
         GatePolicyEntity stored = gate.store(scope, policy, note, actor.username());
 
         String what = scope.isGlobal() ? "the global policy" : scope.kind() + " " + scope.id();
