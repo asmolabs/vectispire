@@ -177,7 +177,7 @@ Vectispire exports cryptographically sealed evidence packages ready for external
   - `01_compliance_frameworks.json`: Continuous compliance assessments across all 6 frameworks: NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2.
   - `02_immutable_audit_log.jsonl`: Sealed HMAC-SHA256 audit trail.
   - `03_triage_and_exemptions.json`: Four-eyes triage registry and risk acceptances.
-  - `04_attestations/`: in-toto attestations and signed DSSE envelopes (RFC 9615), for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
+  - `04_attestations/`: in-toto attestations and signed DSSE envelopes, for the twenty most recent completed scans the caller may see. The **subject is the scan's SBOM**, named by its SHA-256 — the only artefact a scan records by digest (it stores neither the commit nor the image digest, so `commitSha` is null). The **gate verdict** is the one the gate recorded for the target between that scan and the next, with its policy source, version and date; absent when no pipeline asked. KEV and secret counts are the scan's own. A scan that cannot be attested — not completed, or no SBOM — ships a `scan_<id>_not_attested.txt` saying why instead of a statement with the gap filled in.
   - `05_openvex_advisory.json` & `.sig`: OpenVEX v0.2.0 document and detached signature.
   - `06_csaf_2_0_vex.json` & `.sig`: Standardized OASIS CSAF 2.0 security advisory and signature.
   - `07_license_compliance.json`: License inventory & copyleft governance.
@@ -255,13 +255,13 @@ exemptions and risk acceptances:
 
 ---
 
-## 8. Cryptographic Artifact Signing (Cosign & DSSE RFC 9615)
+## 8. Cryptographic Artifact Signing (Cosign & DSSE)
 
-Vectispire integrates **SLSA Level 3 / Sigstore** non-repudiable cryptographic signing for all software supply chain artifacts:
+Vectispire signs the documents it produces — SBOMs, VEX, CSAF, evidence bundles — with a Cosign-compatible key, so a reader can check they come from this instance unaltered. This is document signing, not a SLSA build level: the provenance of Vectispire's own releases is a separate matter, described in the installation guide under *Verifying a release*.
 
 - **Key Pair**: ECDSA P-256 (`secp256r1`) with SHA-256 digest.
 - **Public Key Endpoint**: `GET /api/v1/crypto/public-key.pub` (publicly accessible for automated auditor verification).
-- **DSSE Envelopes**: in-toto attestations packaged into RFC 9615 Dead Simple Signing Envelopes (`application/vnd.in-toto+json`).
+- **DSSE Envelopes**: in-toto attestations packaged into Dead Simple Signing Envelopes (DSSE, signed over the specification's pre-authentication encoding) (`application/vnd.in-toto+json`).
 - **Detached Cosign Signatures**: All SBOM and VEX deliverables in Evidence Vault carry companion `.sig` files.
 - **CLI Verification**:
   ```bash

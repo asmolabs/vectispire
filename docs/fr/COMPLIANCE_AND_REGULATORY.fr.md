@@ -171,7 +171,7 @@ Vectispire produit des paquets de preuves directement opposables aux auditeurs e
    - `01_compliance_frameworks.json` : Évaluations continues des 6 référentiels (NIS 2, DORA, ISO 27001, PCI-DSS, EU CRA, SOC 2).
    - `02_immutable_audit_log.jsonl` : Journal d'audit scellé HMAC-SHA256.
    - `03_triage_and_exemptions.json` : Registre des décisions de triage et approbations 4-yeux.
-   - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE (RFC 9615), pour les vingt scans terminés les plus récents que l'appelant peut voir. Le **sujet est le SBOM du scan**, désigné par son SHA-256 — le seul artefact qu'un scan enregistre avec une empreinte (il ne conserve ni le commit ni l'empreinte de l'image, d'où `commitSha` nul). Le **verdict de la barrière** est celui qu'elle a enregistré pour la cible entre ce scan et le suivant, avec la source, la version et la date de la politique ; absent quand aucun pipeline ne l'a demandé. Les compteurs KEV et secrets sont ceux du scan. Un scan qui ne peut pas être attesté — non terminé, ou sans SBOM — produit un `scan_<id>_not_attested.txt` qui dit pourquoi, au lieu d'une attestation dont le manque serait comblé.
+   - `04_attestations/` : Attestations in-toto et enveloppes signées DSSE, pour les vingt scans terminés les plus récents que l'appelant peut voir. Le **sujet est le SBOM du scan**, désigné par son SHA-256 — le seul artefact qu'un scan enregistre avec une empreinte (il ne conserve ni le commit ni l'empreinte de l'image, d'où `commitSha` nul). Le **verdict de la barrière** est celui qu'elle a enregistré pour la cible entre ce scan et le suivant, avec la source, la version et la date de la politique ; absent quand aucun pipeline ne l'a demandé. Les compteurs KEV et secrets sont ceux du scan. Un scan qui ne peut pas être attesté — non terminé, ou sans SBOM — produit un `scan_<id>_not_attested.txt` qui dit pourquoi, au lieu d'une attestation dont le manque serait comblé.
    - `05_openvex_advisory.json` & `.sig` : Avis VEX OpenVEX v0.2.0 et signature Cosign.
    - `06_csaf_2_0_vex.json` & `.sig` : Avis standardisé OASIS CSAF 2.0 et signature Cosign.
    - `07_license_compliance.json` : Inventaire des licences et analyse de risque copyleft.
@@ -261,13 +261,13 @@ Pour satisfaire aux exigences strictes de DORA (Art. 9/13), NIS 2 et ISO 27001 (
 
 ---
 
-## 8. Signature Cryptographique des Preuves (Cosign & DSSE RFC 9615)
+## 8. Signature Cryptographique des Preuves (Cosign & DSSE)
 
-Vectispire intègre une signature numérique de niveau **SLSA 3 / Sigstore** garantissant la non-répudiation des livrables :
+Vectispire signe les documents qu'il produit — SBOM, VEX, CSAF, paquets de preuves — avec une clé compatible Cosign, pour qu'un lecteur vérifie qu'ils viennent de cette instance sans altération. C'est une signature de documents, pas un niveau de build SLSA : la provenance des releases de Vectispire lui-même est une autre question, décrite dans le guide d'installation sous *Vérifier une release*.
 
 - **Paire de clés de signature** : ECDSA P-256 (courbe `secp256r1`) avec condensé SHA-256.
 - **Export Clé Publique** : `GET /api/v1/crypto/public-key.pub` (téléchargeable publiquement pour audit).
-- **Enveloppes DSSE** : Attestations in-toto empaquetées au standard Dead Simple Signing Envelope (`application/vnd.in-toto+json`).
+- **Enveloppes DSSE** : Attestations in-toto empaquetées en Dead Simple Signing Envelope (DSSE, signées sur l'encodage de pré-authentification de la spécification) (`application/vnd.in-toto+json`).
 - **Signatures Détachées Cosign** : Tous les SBOMs et avis VEX de l'archive Evidence Vault sont accompagnés de leur signature `.sig`.
 - **Vérification CLI** :
   ```bash
