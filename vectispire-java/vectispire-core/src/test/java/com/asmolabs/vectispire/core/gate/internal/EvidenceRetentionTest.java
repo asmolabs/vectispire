@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.access;
+package com.asmolabs.vectispire.core.gate.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,11 +10,12 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.access.persistence.LoginAttempts;
-import com.asmolabs.vectispire.core.access.persistence.MfaChallenges;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
+import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * How long the gate verdict register survives.
+ * How long the gate verdict register survives, and the compliance captures with it.
  *
  * <p><b>The defect this guards is silent and slow.</b> The register followed the raw-payload
  * window, ninety days by default, so an instance running perfectly well would present an assessor
@@ -38,20 +39,20 @@ class EvidenceRetentionTest {
 
     private static final Instant NOW = Instant.parse("2026-09-14T10:00:00Z");
 
-    private SessionCleanupService.EvidencePurge verdicts;
+    private GateVerdicts verdicts;
+    private ComplianceSnapshots snapshots;
     private SettingsService settings;
-    private SessionCleanupService cleanup;
+    private VerdictRetentionTask verdictRetention;
+    private SnapshotRetentionTask snapshotRetention;
 
     @BeforeEach
     void wire() {
-        verdicts = mock(SessionCleanupService.EvidencePurge.class);
+        verdicts = mock(GateVerdicts.class);
+        snapshots = mock(ComplianceSnapshots.class);
         settings = mock(SettingsService.class);
-        UserSessions sessions = mock(UserSessions.class);
-        LoginAttempts attempts = mock(LoginAttempts.class);
-        MfaChallenges challenges = mock(MfaChallenges.class);
-        cleanup = new SessionCleanupService(
-                sessions, attempts, challenges, java.util.List.of(verdicts), settings,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        verdictRetention = new VerdictRetentionTask(verdicts, settings, clock);
+        snapshotRetention = new SnapshotRetentionTask(snapshots, settings, clock);
     }
 
     @Test
@@ -69,10 +70,10 @@ class EvidenceRetentionTest {
     @DisplayName("purges verdicts older than the configured window")
     void purgesBeyondTheWindow() {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
-        when(verdicts.deleteBefore(any())).thenReturn(7);
 
-        assertThat(cleanup.prune().verdicts()).isEqualTo(7);
-        verify(verdicts).deleteBefore(NOW.minus(java.time.Duration.ofDays(400)));
+        verdictRetention.run();
+
+        verify(verdicts).deleteBefore(NOW.minus(Duration.ofDays(400)));
     }
 
     @Test
@@ -80,8 +81,11 @@ class EvidenceRetentionTest {
     void zeroKeepsEverything() {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(0);
 
-        assertThat(cleanup.prune().verdicts()).isZero();
+        verdictRetention.run();
+        snapshotRetention.run();
+
         verify(verdicts, never()).deleteBefore(any());
+        verify(snapshots, never()).deleteBefore(any());
     }
 
     @Test
@@ -90,8 +94,32 @@ class EvidenceRetentionTest {
         when(settings.asInt(Setting.RETENTION_MAX_AGE_DAYS)).thenReturn(1);
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
 
-        cleanup.prune();
+        verdictRetention.run();
 
-        verify(verdicts).deleteBefore(NOW.minus(java.time.Duration.ofDays(400)));
+        verify(verdicts).deleteBefore(NOW.minus(Duration.ofDays(400)));
+    }
+
+    @Test
+    @DisplayName("purges the compliance captures by the same dial")
+    void theCapturesFollowTheSameDial() {
+        when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
+
+        snapshotRetention.run();
+
+        // One dial for all evidence: a second window for the captures would be the drift the single
+        // setting exists to prevent.
+        verify(snapshots).deleteBefore(NOW.minus(Duration.ofDays(400)));
+    }
+
+    @Test
+    @DisplayName("a failing purge skips its table and does not end the turn")
+    void aFailureIsSwallowed() {
+        when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
+        when(verdicts.deleteBefore(any())).thenThrow(new IllegalStateException("locked"));
+
+        // Inside the authentication pass, a failing evidence purge skipped its own table and nothing
+        // else; as a task of its own it must not end the hourly turn either, which a throwing task
+        // does.
+        verdictRetention.run();
     }
 }

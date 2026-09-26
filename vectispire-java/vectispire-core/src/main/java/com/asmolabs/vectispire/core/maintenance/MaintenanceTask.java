@@ -72,6 +72,8 @@ public interface MaintenanceTask {
         public static final int WEEKLY_DIGEST = 600;
         public static final int COMPLIANCE_HISTORY = 700;
         public static final int SESSION_CLEANUP = 800;
+        public static final int GATE_VERDICTS = 810;
+        public static final int COMPLIANCE_SNAPSHOTS = 820;
         public static final int ORPHANED_TARGET_ROWS = 900;
 
         private Sequence() {}

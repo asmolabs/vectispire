@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.maintenance.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -10,10 +11,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
+import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.gate.internal.VerdictRetentionTask;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
 import com.asmolabs.vectispire.core.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.inventory.internal.InventoryBackfillTask;
 import com.asmolabs.vectispire.core.issues.IssueTriageService;
@@ -28,10 +34,14 @@ import com.asmolabs.vectispire.core.scanning.RetentionService;
 import com.asmolabs.vectispire.core.scanning.SchedulerService;
 import com.asmolabs.vectispire.core.scanning.internal.ScanRetentionTask;
 import com.asmolabs.vectispire.core.scanning.internal.SchedulingTickTask;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetDeletionService;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
 import com.asmolabs.vectispire.core.tickets.internal.TicketSweepTask;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -76,6 +86,8 @@ class MaintenanceJobsTest {
             WeeklyDigestTask.class,
             ComplianceHistoryTask.class,
             SessionCleanupTask.class,
+            VerdictRetentionTask.class,
+            SnapshotRetentionTask.class,
             OrphanedTargetRowsTask.class);
 
     private RetentionService retention;
@@ -88,6 +100,8 @@ class MaintenanceJobsTest {
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
     private ComplianceHistoryService complianceHistory;
+    private GateVerdicts verdicts;
+    private ComplianceSnapshots snapshots;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -103,8 +117,13 @@ class MaintenanceJobsTest {
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
         complianceHistory = mock(ComplianceHistoryService.class);
+        verdicts = mock(GateVerdicts.class);
+        snapshots = mock(ComplianceSnapshots.class);
+        SettingsService settings = mock(SettingsService.class);
+        Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
-        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0, 0));
+        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0));
+        when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
         when(triage.expireStale()).thenReturn(List.of());
 
         tasks = List.of(
@@ -118,6 +137,8 @@ class MaintenanceJobsTest {
                 new WeeklyDigestTask(digest),
                 new ComplianceHistoryTask(complianceHistory),
                 new SessionCleanupTask(sessions),
+                new VerdictRetentionTask(verdicts, settings, clock),
+                new SnapshotRetentionTask(snapshots, settings, clock),
                 new OrphanedTargetRowsTask(targetDeletion));
         jobs = new MaintenanceJobs(tasks);
     }
@@ -152,7 +173,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
-                targetDeletion);
+                verdicts, snapshots, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -161,6 +182,8 @@ class MaintenanceJobsTest {
         turn.verify(digest).runOnce();
         turn.verify(complianceHistory).capture();
         turn.verify(sessions).prune();
+        turn.verify(verdicts).deleteBefore(any());
+        turn.verify(snapshots).deleteBefore(any());
         turn.verify(targetDeletion).purgeOrphanedTargetData();
     }
 

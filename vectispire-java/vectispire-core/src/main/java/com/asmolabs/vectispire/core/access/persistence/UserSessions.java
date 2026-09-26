@@ -12,9 +12,9 @@ public interface UserSessions extends JpaRepository<SessionEntity, String> {
     /**
      * Closes every session of an account.
      *
-     * <p><b>{@code @Transactional} on a derived delete too.</b> The package note says every
-     * {@code @Modifying} query carries it; a derived {@code deleteBy…} needs it just as much and
-     * carries no annotation to remind anybody. Without it, deactivating an account, resetting
+     * <p><b>{@code @Transactional} on a derived delete too.</b> Every {@code @Modifying} query
+     * carries it; a derived {@code deleteBy…} needs it just as much and carries no annotation to
+     * remind anybody — {@code ArchitectureTest.everyRepositoryWriteIsTransactional} does now. Without it, deactivating an account, resetting
      * its password or changing its role all threw "No EntityManager with actual transaction
      * available" — the three paths that close sessions, which is to say all of them.
      */

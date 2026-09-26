@@ -8,7 +8,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * Expired sessions, old sign-in attempts, abandoned MFA challenges and aged gate verdicts, removed.
+ * Expired sessions, old sign-in attempts and abandoned MFA challenges, removed.
  */
 @Component
 @Order(MaintenanceTask.Sequence.SESSION_CLEANUP)
@@ -30,17 +30,13 @@ public class SessionCleanupTask implements MaintenanceTask {
     @Override
     public void run() {
         SessionCleanupService.CleanupResult cleaned = sessions.prune();
-        if (cleaned.sessions() > 0
-                || cleaned.attempts() > 0
-                || cleaned.challenges() > 0
-                || cleaned.verdicts() > 0) {
+        if (cleaned.sessions() > 0 || cleaned.attempts() > 0 || cleaned.challenges() > 0) {
             log.info(
-                    "Maintenance: {} expired session(s), {} old login attempt(s), {} abandoned "
-                            + "MFA challenge(s) and {} aged gate verdict(s) removed.",
+                    "Maintenance: {} expired session(s), {} old login attempt(s) and {} abandoned "
+                            + "MFA challenge(s) removed.",
                     cleaned.sessions(),
                     cleaned.attempts(),
-                    cleaned.challenges(),
-                    cleaned.verdicts());
+                    cleaned.challenges());
         }
     }
 }

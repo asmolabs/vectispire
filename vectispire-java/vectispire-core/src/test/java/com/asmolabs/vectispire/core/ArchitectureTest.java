@@ -318,11 +318,10 @@ class ArchitectureTest {
             // and the purge of a deleted target can be an event `targets` owns.
             Map.entry("targets", Set.of("access")),
             Map.entry("threatintel", Set.of("issues", "scanning", "siem", "targets")),
-            // `access` since gate became a module: its register is purged past the evidence window by
-            // the authentication tables' pass, which now reaches it through a port gate implements
-            // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
-            // read had closed a cycle; `access` uses nothing above the foundation.
-            Map.entry("gate", Set.of("access", "issues", "rules", "scanning", "siem", "targets")),
+            // Not `access` since step 5: the register was purged past the evidence window by the
+            // authentication tables' pass, through a port gate implemented; it is gate's own periodic
+            // task now (`VerdictRetentionTask`), and gate's routes reach `access` as every route does.
+            Map.entry("gate", Set.of("issues", "rules", "scanning", "siem", "targets")),
             // `access` since access became a module: a scan's delta is routed to the teams granted its
             // target that have a channel, and a team message is posted to that channel — both tables
             // access writes, which routing read through their repositories (now `TeamChannels`).
