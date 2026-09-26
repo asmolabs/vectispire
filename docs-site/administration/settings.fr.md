@@ -21,7 +21,9 @@ lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte
 
 Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le point d'arrivée et
 l'en-tête : changer le point d'arrivée **efface l'en-tête enregistré**, sauf si un nouveau est saisi
-avec lui. Un en-tête est émis pour un collecteur.
+avec lui. Un en-tête est émis pour un collecteur. Il n'est envoyé qu'avec le webhook, et refusé avec
+un protocole syslog — voir l'[export SIEM](../integrations/siem.md) pour les protocoles, le point
+d'arrivée que chacun lit et les événements envoyés.
 
 ## Longueur d'une valeur
 

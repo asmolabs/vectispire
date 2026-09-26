@@ -79,6 +79,12 @@ the same commit that violates it; a missing dependency cannot.
 | A webhook message is signed over the bytes actually sent, and an undecryptable secret refuses to send unsigned | `WebhookSigningTest`, `WebhookSignatureTest` |
 | Deleting a team removes its channel, where the cascade would not | `TeamVisibilityTest` |
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
+| A raw socket is opened by the syslog sender alone, to the address the guard pinned | `ArchitectureTest`, `SyslogSenderTest` |
+| A syslog collector is judged by the same address rules as a URL, reserved endpoints included | `OutboundUrlGuardTest`, `SiemRoutesTest` |
+| A SIEM event leaves after its transaction commits, is retried, and the relay knows its type | `SiemExportRoutesTest` |
+| Each security event is emitted by the gesture that causes it, and by nothing quieter | `SiemSignalsRoutesTest` |
+| A SIEM signature identifier does not change meaning | `SecurityEventTypeTest` |
+| A username cannot forge a second CEF event or a field | `CefEventTest`, `SiemSignalsRoutesTest` |
 | A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
@@ -204,5 +210,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 |---|---|
 | The agent's long poll parks a `DeferredResult` instead of sleeping in a service; a servlet container cannot afford a thread per idle agent | `AgentJobPoller` |
 | Transaction boundaries called from inside a class use `TransactionTemplate`, not `@Transactional` — the proxy is bypassed there, and the annotation reads as a guarantee while protecting nothing | `ScanDispatcher`, `OutboxService` |
+| SIEM events are outbox rows, not calls: queued in the transaction that caused them, sent by the relay after it commits — the `@Async` exporter ran synchronously inside the caller's transaction, there being no `@EnableAsync` ([decision 0025](../docs/architecture/en/decisions/0025-siem-events-leave-through-the-outbox.md)) | `SiemEvents`, `SiemDelivery` |
+| The audit log tells its listeners after the entry's commit, so a listener that fails cannot cost the entry | `AuditLogService` |
 | Settings are read through the `Setting` catalog, not by key plus a caller-supplied default that could drift from the screen's | `SettingsService` |
 | Spring Boot 4 auto-configures Jackson **3**; this codebase is annotated for Jackson 2, so the mapper is declared explicitly on both sides of the agent protocol | `CoreConfiguration` |

@@ -53,7 +53,7 @@ coordonnées par un bail » — est faux et enverrait un lecteur chercher un bai
 |---|---|---|
 | Tick du worker d'analyse | 15 s | inutile : **réclamer** une analyse en file est le contrôle de concurrence |
 | Planificateur d'analyses | 60 s | **leader seul**, sur le bail `scheduler` dans `t_leader_lease` |
-| Relais de notifications | 60 s | aucune : l'outbox marque ce qu'il a envoyé |
+| Relais de l'outbox — notifications et événements SIEM | 60 s | aucune : chaque message est **réservé** avant d'être envoyé, si bien que deux instances ne le livrent pas en même temps |
 | Maintenance horaire | 1 h | aucune : l'élagage est idempotent |
 
 Le planificateur est élu parce qu'il *crée* du travail : deux instances décidant indépendamment

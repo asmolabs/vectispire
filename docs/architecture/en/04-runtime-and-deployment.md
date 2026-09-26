@@ -51,7 +51,7 @@ coordinated by a lease" — is wrong and would send a reader looking for a lease
 |---|---|---|
 | Scan worker tick | 15 s | none needed: **claiming** a queued scan is the concurrency control |
 | Scan scheduler | 60 s | **leader-only**, on the `scheduler` lease in `t_leader_lease` |
-| Notification relay | 60 s | none: the outbox marks what it sent |
+| Outbox relay — notifications and SIEM events | 60 s | none: each message is **claimed** before it is sent, so two instances do not deliver it at once |
 | Hourly maintenance | 1 h | none: pruning is idempotent |
 
 The scheduler is elected because it *creates* work: two instances deciding independently that a

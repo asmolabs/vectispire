@@ -91,6 +91,17 @@ limites, elles répondent `413`.
 |---|---|
 | `VECTISPIRE_AUDIT_MIRROR` | Un chemin où chaque entrée d'audit est ajoutée comme une ligne JSON, hors de la base de données qu'elle surveille. Désactivé signifie que le journal n'a qu'une copie, et l'écran de vérification le dit. |
 
+## Export SIEM
+
+L'export se configure sur son [écran de réglages](../integrations/siem.fr.md), pas par des variables.
+Trois choses autour de lui relèvent du déploiement :
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_RELAY_INTERVAL` | `60s` | La fréquence à laquelle l'outbox est vidée — notifications et événements SIEM confondus, donc l'attente la plus longue d'un événement après sa validation. |
+| `HOSTNAME` | le nom de la machine | Ce que l'en-tête syslog déclare comme hôte émetteur. Les environnements de conteneurs le fixent. |
+| `JAVA_TOOL_OPTIONS` | *aucun* | Pour un collecteur syslog sur TLS signé par une autorité privée : `-Djavax.net.ssl.trustStore=/chemin/cacerts -Djavax.net.ssl.trustStorePassword=…`. Le nom du collecteur est vérifié contre son certificat dans tous les cas. |
+
 ## Personnalisation
 
 | Variable | Défaut |

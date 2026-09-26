@@ -20,7 +20,8 @@ Otherwise a role that cannot read a credential could collect it by pointing it a
 
 The SIEM form works the other way round, because the same role sets its endpoint and its header:
 changing the endpoint **drops the stored header** unless a new one is typed with it. A header is
-issued for one collector.
+issued for one collector. It is sent with the webhook only, and refused with a syslog protocol — see
+[SIEM export](../integrations/siem.md) for the protocols, the endpoint each reads and the events sent.
 
 ## How long a value may be
 

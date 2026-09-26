@@ -5,7 +5,7 @@ scan, which is what keeps the channel readable.
 
 | Destination | |
 |---|---|
-| **Webhook** | your own endpoint, a bus, a SIEM |
+| **Webhook** | your own endpoint, a bus — security events for a SOC have their own [SIEM export](siem.md) |
 | **Microsoft Teams** | an Adaptive Card through a Power Automate workflow |
 | **E-mail** | a distribution list |
 

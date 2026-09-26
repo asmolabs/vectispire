@@ -90,6 +90,17 @@ Three routes read their body whole before anything looks at it. Past these limit
 |---|---|
 | `VECTISPIRE_AUDIT_MIRROR` | A path where each audit entry is appended as one JSON line, outside the database it watches. Off means the log has one copy, and the verification screen says so. |
 
+## SIEM export
+
+The export is configured on its [settings screen](../integrations/siem.md), not by variables. Three
+things around it are the deployment's:
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_RELAY_INTERVAL` | `60s` | How often the outbox is drained — notifications and SIEM events alike, so the longest an event waits after its commit. |
+| `HOSTNAME` | the machine's name | What the syslog header states as the sending host. Container runtimes set it. |
+| `JAVA_TOOL_OPTIONS` | *none* | For a syslog-over-TLS collector signed by a private CA: `-Djavax.net.ssl.trustStore=/path/cacerts -Djavax.net.ssl.trustStorePassword=…`. The collector's name is verified against its certificate either way. |
+
 ## Branding
 
 | Variable | Default |

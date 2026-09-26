@@ -133,6 +133,7 @@ plugins:
             CI policy gate: Barrière CI
             Notifications: Notifications
             Tracker tickets: Tickets
+            SIEM export: Export SIEM
             Administration: Administration
             Users and teams: Utilisateurs et équipes
             Solutions and projects: Solutions et projets
@@ -207,6 +208,7 @@ nav:
       - CI policy gate: integrations/ci-gate.md
       - Notifications: integrations/notifications.md
       - Tracker tickets: integrations/ticketing.md
+      - SIEM export: integrations/siem.md
   - Administration:
       - Users and teams: administration/users-and-teams.md
       - Solutions and projects: administration/solutions-and-projects.md

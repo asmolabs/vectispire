@@ -5,7 +5,7 @@ chose — pas à chaque scan, ce qui est ce qui garde le canal lisible.
 
 | Destination | |
 |---|---|
-| **Webhook** | votre propre point d'entrée, un bus, un SIEM |
+| **Webhook** | votre propre point d'entrée, un bus — les événements de sécurité pour un SOC ont leur propre [export SIEM](siem.md) |
 | **Microsoft Teams** | une carte adaptative via un workflow Power Automate |
 | **Courriel** | une liste de diffusion |
 

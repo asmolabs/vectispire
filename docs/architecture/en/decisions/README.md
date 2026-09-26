@@ -28,6 +28,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0022](0022-https-clone-tokens-are-bound-to-a-host.md) | Cloning over HTTPS uses a managed token, bound to one host | accepted |
 | [0023](0023-solutions-projects-and-repositories.md) | Solutions contain projects, a project references repositories, and a grant may name a project | accepted |
 | [0024](0024-integration-api-keys-act-for-an-account.md) | An integration API key acts for one account, on the routes that accept it | accepted |
+| [0025](0025-siem-events-leave-through-the-outbox.md) | SIEM events leave through the outbox, after commit, and their catalogue is a contract | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
