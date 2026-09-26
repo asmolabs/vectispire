@@ -25,22 +25,19 @@ import org.springframework.modulith.docs.Documenter;
  * What Spring Modulith sees in the control plane, written down — <b>observed, not enforced</b>.
  *
  * <p><b>Why observation only.</b> Modulith takes the packages directly under the application class
- * as its modules. Since steps 3 and 4 (decision 0028) nineteen of them are domains — the foundation
- * and the leaf and middle domains, each {@code core.<domain>} with {@code web}, {@code internal} and
- * {@code persistence} beneath it — and five are still the layers of the old packaging: {@code api},
- * {@code services}, {@code repositories}, {@code persistence}, {@code config}. {@code issues},
- * {@code scanning}, {@code targets}, {@code platform} and {@code shared} are sub-packages of {@code
- * services}, so to Modulith they are one module's internals, and every module that calls one of them
- * is reported as reaching into {@code services}; every module they call closes a cycle through it.
- * Those violations are true of the packaging and are step 5's to remove, so this test builds the
- * model, writes the report and the generated documentation, prints what {@code verify()} would
- * reject, and fails on none of it. What it does assert is that the model was built, that it sees the
- * modules the migration has made, and that the files exist — an observation that silently produced
- * nothing would read exactly like an observation that found nothing.
+ * as its modules. Since step 5 (decisions 0028 and 0029) every one of them is a domain — {@code
+ * core.<domain>} with {@code web}, {@code internal} and {@code persistence} beneath it — but {@code
+ * config}, the application's infrastructure; the layers of the old packaging ({@code api}, {@code
+ * services}, {@code repositories}, {@code persistence}) are gone, and with them every violation this
+ * report used to list: it finds none. It still builds the model, writes the report and the generated
+ * documentation, prints what {@code verify()} would reject, and fails on none of it, because turning
+ * it into a gate is step 6's decision, not a side effect of this one. What it does assert is that the
+ * model was built, that it sees the modules the migration has made, and that the files exist — an
+ * observation that silently produced nothing would read exactly like an observation that found
+ * nothing.
  *
- * <p><b>Step 6 of the migration turns it into {@code verify()}</b>, once step 5 has moved {@code
- * issues}, {@code scanning} and {@code targets} into modules of their own and dissolved {@code
- * platform} and {@code shared}, so that every violation means a domain reached into another.
+ * <p><b>Step 6 of the migration turns it into {@code verify()}</b>, so that a violation fails the
+ * build: every message would now mean a domain reached into another.
  *
  * <p>The output lands in {@code build/modulith-docs/}: {@code modules.txt} (the module model and
  * the violations), {@code components.puml} and one {@code module-*.puml} per module (C4 component
@@ -56,10 +53,13 @@ class ModularityObservationTest {
     private static final Pattern NON_EXPOSED =
             Pattern.compile("Module '([^']+)' depends on non-exposed type (\\S+) within module '([^']+)'");
 
-    /** The top-level packages of the layered packaging, which step 5 empties. */
+    /**
+     * The top-level packages that are no domain's. The four layers of the old packaging were in this
+     * set until step 5 emptied them; {@code config} is what is left.
+     */
     private static final Set<String> LAYERED = Set.of("config");
 
-    /** The domains steps 3 and 4 made modules — the same list as {@code ArchitectureTest.MODULES}. */
+    /** The domains steps 3 to 5 made modules — the same list as {@code ArchitectureTest.MODULES}. */
     private static final List<String> MODULES = List.of(
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
@@ -125,17 +125,17 @@ class ModularityObservationTest {
     }
 
     /**
-     * The kind of a message, as the migration reads it: a reach into a package of the layered
-     * packaging is step 5's to remove, a reach into a module is a domain crossing another's boundary,
-     * and a cycle is named with the module it starts from.
+     * The kind of a message, as the migration reads it: a reach into {@code config} — the layered
+     * packaging's last package, which step 5 left — is infrastructure, a reach into a module is a
+     * domain crossing another's boundary, and a cycle is named with the module it starts from.
      */
     private static String kindOf(String message) {
         Matcher nonExposed = NON_EXPOSED.matcher(message);
         if (nonExposed.find()) {
             boolean fromLayered = LAYERED.contains(nonExposed.group(1));
             boolean intoLayered = LAYERED.contains(nonExposed.group(3));
-            return "non-exposed type, " + (fromLayered ? "layered package" : "module") + " -> "
-                    + (intoLayered ? "layered package (step 5)" : "module");
+            return "non-exposed type, " + (fromLayered ? "config" : "module") + " -> "
+                    + (intoLayered ? "config" : "module");
         }
         if (message.startsWith("Cycle detected")) {
             return "cycle";
@@ -155,9 +155,9 @@ class ModularityObservationTest {
     @Test
     @DisplayName("detects the application's top-level packages as modules: the domains moved so far, and the layers left")
     void detectsModules() {
-        // Every domain steps 3 and 4 moved is a module, and the layers step 5 empties are still there:
-        // the day one of these disappears, the packaging changed and this list — with the report — says
-        // by how much.
+        // Every domain is a module, and `config` is the one package that is not: the day one of these
+        // disappears, or a new top-level package appears, the packaging changed and this list — with
+        // the report — says by how much.
         assertThat(modules.stream().map(module -> module.getIdentifier().toString()))
                 .containsAll(MODULES)
                 .containsAll(LAYERED)
