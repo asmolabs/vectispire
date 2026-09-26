@@ -76,6 +76,8 @@ stateDiagram-v2
 
 ## The migrations
 
-Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/{vendor}/`
-(`postgresql`, `mysql`, `sqlite`), with dialect-specific native SQL scripts ensuring complete
-fidelity on each database engine.
+Managed by Flyway under `vectispire-java/vectispire-core/src/main/resources/db/migration/`: native
+SQL, read from `common/` and then from the engine's own directory (`postgresql`, `mysql`, `sqlite`).
+From V40 on, a migration that differs only by column types is written once in `common/` with the
+type placeholders `MigrationDialect` spells per engine; one whose structure diverges is written per
+engine ([ADR 0027](decisions/0027-common-migrations-with-type-placeholders.md)).

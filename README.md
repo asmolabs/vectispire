@@ -177,7 +177,7 @@ cd vectispire-java && ./gradlew :vectispire-core:bootRun   # API on http://local
 npm --workspace @vectispire/frontend start            # UI on http://localhost:4200
 ```
 
-The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
+The schema is owned by **Flyway migrations** (`src/main/resources/db/migration/common/`, then `db/migration/{vendor}/`) — `ddl-auto` is `validate`, deliberately: a
 schema synthesised from the entities is not the one production will receive, and testing
 against it would let a faulty script through. `SchemaParityIntegrationTest` asks Hibernate
 to validate the entities against the schema Flyway really built, on both deployable engines. It
@@ -187,7 +187,9 @@ about the mapping.
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
-# A new change is a new migration script in vectispire-core/src/main/resources/db/migration/<dialect>/.
+# A new change is a new migration script: once in vectispire-core/src/main/resources/db/migration/common/
+# with the type placeholders when only the column types differ, or once per dialect in
+# db/migration/<dialect>/ when the structure does (ADR 0027).
 ```
 
 ### Main pages
@@ -362,9 +364,10 @@ option.** That distinction is [ADR 0014](docs/architecture/en/decisions/0014-two
 which superseded an earlier decision to support four; this page said "four" for five days after
 that reversal, which is how a register stops being the thing anybody reads. All three targets are
 exercised by the full integration campaign — the fixture included, because a fixture nobody runs
-is a fixture nobody can trust. Flyway applies native migrations per dialect under
-`db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`), ensuring complete fidelity and
-avoiding dialect impedance mismatches. Point `VECTISPIRE_DB_URL` at the engine; it is read from
+is a fixture nobody can trust. Flyway applies native SQL migrations: once
+under `db/migration/common/`, with type placeholders spelled per engine, when only the column types
+differ, and per dialect under `db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`) when the
+structure does ([ADR 0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). Point `VECTISPIRE_DB_URL` at the engine; it is read from
 the URL, and MySQL is the default — the engine `docker-compose.yml` ships, so the shortest path
 and the documented one agree. A portability defect is invisible to reading and to a single
 engine; running the campaign across all three is the only way it gets found, and it found

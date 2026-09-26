@@ -93,8 +93,10 @@ It depends on nothing but the JDK, BouncyCastle and Jackson.
 ## 2. Database schema
 
 The schema belongs to **Flyway migrations**, under
-[`src/main/resources/db/migration/{vendor}/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — one native SQL set per
-engine (`postgresql`, `mysql`, `sqlite`). `ddl-auto` is `validate`
+[`src/main/resources/db/migration/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — native SQL, written once
+in `common/` with per-engine type placeholders when only the column types differ, and once per
+engine (`postgresql`, `mysql`, `sqlite`) when the structure does
+([ADR 0027](../architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). `ddl-auto` is `validate`
 and stays that way: Hibernate must never alter the schema at runtime.
 
 **The engine is chosen by `VECTISPIRE_DB_URL` and nothing else** — Hibernate and Flyway both read

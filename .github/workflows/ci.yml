@@ -461,11 +461,12 @@ jobs:
             exit 0
           fi
           # What can behave differently on MySQL, PostgreSQL and SQLite:
-          #   db/migration/      the schema, written three times by hand
+          #   db/migration/      the schema: common/ once with type placeholders, or per engine
           #   core/repositories/ JPQL, native queries, Specifications, locking — the query layer;
           #                      `ArchitectureTest` keeps SQL out of every other package
           #   core/persistence/  entity mappings, which `SchemaParityIntegrationTest` checks
-          #   core/config/       the datasource and per-engine setup (SQLite's WAL, foreign keys)
+          #   core/config/       the datasource and per-engine setup (SQLite's WAL, foreign keys,
+          #                      the migration type placeholders)
           #   src/integrationTest/  the campaign itself
           #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
           ENGINE_PATHS='src/main/resources/db/migration/|/core/repositories/|/core/persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile'

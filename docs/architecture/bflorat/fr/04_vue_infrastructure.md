@@ -38,9 +38,11 @@ flowchart TB
 
 **Deux moteurs sont déployables. Un troisième est une fixture de test et ne peut pas être déployé
 du tout** — voir l'[ADR 0014](../../fr/decisions/0014-two-engines-and-a-test-fixture.md), qui a
-corrigé un périmètre supporté qui en annonçait quatre. Les migrations sont du SQL natif par
-dialecte sous `src/main/resources/db/migration/{vendor}/`, gérées par **Flyway** ([ADR
-0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md)) :
+corrigé un périmètre supporté qui en annonçait quatre. Les migrations sont du SQL natif
+sous `src/main/resources/db/migration/common/` (placeholders de type par moteur) et
+`src/main/resources/db/migration/{vendor}/`, gérées par **Flyway** ([ADR
+0013](../../fr/decisions/0013-flyway-multi-dialect-migrations.md), amendée par l'[ADR
+0027](../../fr/decisions/0027-common-migrations-with-type-placeholders.md)) :
 
 | Moteur de SGBD | Version Min. Supportée | Dialecte Flyway | Usage Cible |
 |---|---|---|---|

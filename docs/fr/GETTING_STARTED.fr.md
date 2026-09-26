@@ -75,7 +75,9 @@ Le schéma appartient aux **migrations Flyway**, appliquées au démarrage :
 
 ```bash
 # Flyway applique les migrations au démarrage — il n'y a aucune commande séparée à lancer.
-# Un nouveau changement est un nouveau script dans vectispire-core/src/main/resources/db/migration/<dialecte>/.
+# Un nouveau changement est un nouveau script : une fois dans vectispire-core/src/main/resources/db/migration/common/
+# avec les placeholders de type quand seuls les types de colonne diffèrent, ou une fois par dialecte
+# dans db/migration/<dialecte>/ quand la structure diverge (ADR 0027).
 ```
 
 `ddl-auto` vaut `validate`, délibérément : un schéma synthétisé depuis les entités n'est pas

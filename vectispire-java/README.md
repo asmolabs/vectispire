@@ -71,6 +71,8 @@ that must survive the commit leaves through the outbox.
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
+| A migration version lives in `common` once or in every engine's directory, and a common one names no engine | `MigrationLayoutTest` |
+| Each type placeholder is what the engine declares and keeps (`datetime(6)`, identity never reused) | `MigrationPlaceholdersIntegrationTest` |
 | An expired session, a reset password and a role change all close the sessions | `AccountAdministrationService` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -145,8 +147,24 @@ which is global mutable state in a process that also serves HTTP.
 
 ## Flyway, and dialect-specific native migrations
 
-The schema is managed by **Flyway** with native migration sets per dialect under
-`vectispire-core/src/main/resources/db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`).
+The schema is managed by **Flyway** with native SQL, read from two locations:
+`vectispire-core/src/main/resources/db/migration/common/`, then the engine's own
+`db/migration/{vendor}/` (`postgresql`, `mysql`, `sqlite`).
+
+**Once, or three times — never in between** ([decision
+0027](../docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)). From V40
+on, a migration that differs between engines only by its column types is written once in `common`,
+with the placeholders `MigrationDialect` spells per engine and `MigrationPlaceholders` hands to
+Flyway: `${ts}`, `${id}` (the whole identity column, `primary key` included — SQLite accepts
+`autoincrement` only on the exact phrase `integer primary key`), `${bool}`, `${true}`, `${false}`,
+`${text}`, `${double}`. A migration whose structure diverges — a foreign key, a column change, date
+arithmetic, a data repair — is written in each vendor directory. `MigrationLayoutTest` fails the
+build when a version sits in one or two vendor directories, in both places, or under a name Flyway
+would skip, and refuses an engine token in `common`. **V1 to V39 stay where they are**: Flyway
+checks the checksum of every applied migration, and a moved or edited file stops every existing
+installation.
+
+The vendor sets use each engine's native DDL:
 
 This native multi-dialect approach solves the impedance mismatches and table-recreation traps
 historically experienced with abstractions:
@@ -155,13 +173,17 @@ historically experienced with abstractions:
 - MySQL uses its native types (`BIT(1)`, `DATETIME(6)`, `BIGINT AUTO_INCREMENT`). The declared
   precision is not decoration: a bare `DATETIME` truncates to the second, and the audit chain
   hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
+  `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
 that all forty-one tables are created by name, and that the twenty-seven foreign keys of the
 seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
-PostgreSQL and MySQL through Testcontainers and on the SQLite fixture. **There is no "skip if Docker is missing" guard, deliberately** — a
+PostgreSQL and MySQL through Testcontainers and on the SQLite fixture. `MigrationPlaceholdersIntegrationTest`
+applies a test-only common migration using every placeholder, through the application's own Flyway,
+and reads back on each engine the declared types and the behaviour — a millisecond kept, an identity
+never reused. **There is no "skip if Docker is missing" guard, deliberately** — a
 suite that skips itself reports green without having checked anything.
 
 See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md) for the architecture rationale.

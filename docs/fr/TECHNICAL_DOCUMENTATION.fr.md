@@ -95,8 +95,10 @@ d'export. Il ne dépend que du JDK, de BouncyCastle et de Jackson.
 ## 2. Schéma de base de données
 
 Le schéma appartient aux **migrations Flyway**, sous
-[`src/main/resources/db/migration/{vendor}/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — un jeu SQL natif par
-moteur (`postgresql`, `mysql`, `sqlite`). `ddl-auto` vaut `validate`
+[`src/main/resources/db/migration/`](../../vectispire-java/vectispire-core/src/main/resources/db/migration/) — du SQL natif, écrit une
+fois dans `common/` avec des placeholders de type par moteur quand seuls les types de colonne
+diffèrent, et une fois par moteur (`postgresql`, `mysql`, `sqlite`) quand la structure diverge
+([ADR 0027](../architecture/fr/decisions/0027-common-migrations-with-type-placeholders.md)). `ddl-auto` vaut `validate`
 et le reste : Hibernate ne doit jamais altérer le schéma à l'exécution.
 
 **Le moteur est choisi par `VECTISPIRE_DB_URL` et rien d'autre** — Hibernate et Flyway le lisent

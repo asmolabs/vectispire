@@ -38,9 +38,11 @@ flowchart TB
 
 **Two engines are deployable. A third is a test fixture and cannot be deployed at all** — see
 [ADR 0014](../../en/decisions/0014-two-engines-and-a-test-fixture.md), which corrected a supported
-set that had said four. Migrations are dialect-specific native SQL under
+set that had said four. Migrations are native SQL under
+`src/main/resources/db/migration/common/` (type placeholders per engine) and
 `src/main/resources/db/migration/{vendor}/`, managed by **Flyway** ([ADR
-0013](../../en/decisions/0013-flyway-multi-dialect-migrations.md)):
+0013](../../en/decisions/0013-flyway-multi-dialect-migrations.md), amended by [ADR
+0027](../../en/decisions/0027-common-migrations-with-type-placeholders.md)):
 
 | RDBMS Engine | Min. Supported Version | Flyway Dialect | Target Usage |
 |---|---|---|---|

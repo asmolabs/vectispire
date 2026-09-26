@@ -70,7 +70,9 @@ The schema belongs to **Flyway migrations**, applied at startup:
 
 ```bash
 # Flyway applies migrations at startup — there is no separate command to run.
-# A new change is a new migration script in vectispire-core/src/main/resources/db/migration/<dialect>/.
+# A new change is a new migration script: once in vectispire-core/src/main/resources/db/migration/common/
+# with the type placeholders when only the column types differ, or once per dialect in
+# db/migration/<dialect>/ when the structure does (ADR 0027).
 ```
 
 `ddl-auto` is `validate`, deliberately: a schema synthesised from the entities is not the one
