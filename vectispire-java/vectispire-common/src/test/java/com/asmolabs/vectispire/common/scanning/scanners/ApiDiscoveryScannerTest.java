@@ -290,4 +290,162 @@ class ApiDiscoveryScannerTest {
         ApiDiscoveryScanner.scan(tempDir);
         assertThat((System.nanoTime() - started) / 1_000_000).as("milliseconds").isLessThan(2_000);
     }
+
+    @Test
+    @DisplayName("a NestJS controller prefix is found past an unclosed @Controller( followed by a long run of spaces")
+    void theNestControllerPrefixDoesNotBacktrack(@TempDir Path tempDir) throws IOException {
+        // Three quantifiers that could all match the same spaces: 2,000 of them took two seconds,
+        // growing with the cube. The real prefix below is only reached once the first occurrence
+        // has failed — within the file's analysis budget, or the file is skipped.
+        Files.writeString(tempDir.resolve("users.controller.ts"),
+                "@Controller(" + " ".repeat(20_000) + "x\n"
+                        + "@Controller('api')\n"
+                        + "export class UsersController {\n"
+                        + "  @Get('users') list() {}\n"
+                        + "}\n");
+
+        List<String> paths = withinSeconds(() -> ApiDiscoveryScanner.scan(tempDir)).endpoints().stream()
+                .map(ApiEndpoint::path).toList();
+
+        assertThat(paths).containsExactly("/api/users");
+    }
+
+    @Test
+    @DisplayName("a NestJS route is found on a line after one holding @Get( and a long run of spaces")
+    void theNestRouteDoesNotBacktrack(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("items.controller.ts"),
+                "@Controller('shop')\n"
+                        + "export class ItemsController {\n"
+                        + "  @Get(" + " ".repeat(20_000) + "\n"
+                        + "  @Post('items') create() {}\n"
+                        + "}\n");
+
+        List<ApiEndpoint> endpoints = withinSeconds(() -> ApiDiscoveryScanner.scan(tempDir)).endpoints();
+
+        assertThat(endpoints).extracting(ApiEndpoint::method, ApiEndpoint::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("POST", "/shop/items"));
+    }
+
+    @Test
+    @DisplayName("NestJS routes keep their literal: quoted in any of the three quote styles, or none at all")
+    void nestRoutesKeepTheirShape(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("orders.controller.ts"), """
+                @Controller( "orders" )
+                export class OrdersController {
+                  @Get() list() {}
+                  @Get(':id') one() {}
+                  @Put(`:id`) update() {}
+                  @Delete( ":id" ) remove() {}
+                }
+                """);
+
+        List<ApiEndpoint> endpoints = ApiDiscoveryScanner.scan(tempDir).endpoints();
+
+        assertThat(endpoints).extracting(ApiEndpoint::method, ApiEndpoint::path).containsExactlyInAnyOrder(
+                org.assertj.core.groups.Tuple.tuple("GET", "/orders"),
+                org.assertj.core.groups.Tuple.tuple("GET", "/orders/:id"),
+                org.assertj.core.groups.Tuple.tuple("PUT", "/orders/:id"),
+                org.assertj.core.groups.Tuple.tuple("DELETE", "/orders/:id"));
+    }
+
+    @Test
+    @DisplayName("a Spring controller of many annotations and no closing parenthesis is read in linear time")
+    void routeAnnotationsWithoutClosingParenthesesAreLinear(@TempDir Path tempDir) throws IOException {
+        // Each annotation's parameters scanned to the end of the file before giving up, and each
+        // route searched the whole file backwards for a brace and counted its line from the start:
+        // three quadratic costs, none of them visible in a single quantifier.
+        // The shortest route annotation, as many as the size bound admits: the unbounded searches
+        // are vectorized and fast per character, so only the number of them shows.
+        Files.writeString(tempDir.resolve("Evil.java"),
+                "@RestController\nclass Evil {\n" + "@GET(".repeat(400_000));
+
+        List<ApiEndpoint> endpoints = withinSeconds(() -> ApiDiscoveryScanner.scan(tempDir)).endpoints();
+
+        assertThat(endpoints).extracting(ApiEndpoint::method, ApiEndpoint::path)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("GET", "/"));
+    }
+
+    @Test
+    @DisplayName("Spring routes keep their line numbers and the guards read around them")
+    void springRoutesKeepTheirContext(@TempDir Path tempDir) throws IOException {
+        Files.writeString(tempDir.resolve("Accounts.java"), """
+                @RestController
+                @RequestMapping(value = "/accounts", produces = "application/json")
+                class Accounts {
+                    @GetMapping
+                    List<String> list() { return List.of(); }
+
+                    @PreAuthorize("hasRole('ADMIN')")
+                    @PostMapping(path = "/{id}/lock", consumes = MediaType.of("x"))
+                    void lock() {}
+
+                    @RequestMapping(value = "/legacy", method = RequestMethod.PUT)
+                    void legacy(Principal principal) {}
+                }
+                """);
+
+        List<ApiEndpoint> endpoints = ApiDiscoveryScanner.scan(tempDir).endpoints();
+
+        assertThat(endpoints).extracting(
+                        ApiEndpoint::method, ApiEndpoint::path, ApiEndpoint::lineNumber, ApiEndpoint::authRequired)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("GET", "/accounts", 4, false),
+                        org.assertj.core.groups.Tuple.tuple("POST", "/accounts/{id}/lock", 8, true),
+                        org.assertj.core.groups.Tuple.tuple("PUT", "/accounts/legacy", 11, true));
+    }
+
+    @Test
+    @DisplayName("an OpenAPI document whose lines end in a long run of spaces and a separator is read in linear time")
+    void yamlLinesAreReadInLinearTime(@TempDir Path tempDir) throws IOException {
+        // `matches("^paths:\\s*.*")` retried every split of the run between its two quantifiers
+        // when the line held a character `.` does not match.
+        String run = " ".repeat(150_000) + "\u2028x";
+        Files.writeString(tempDir.resolve("openapi.yaml"),
+                "openapi: 3.0.0\n"
+                        + "paths:" + run + "\n"
+                        + "  /items:\n"
+                        + "    get:\n"
+                        + "components:" + run + "\n");
+
+        List<ApiContract> contracts = withinSeconds(() -> ApiDiscoveryScanner.scan(tempDir)).contracts();
+
+        assertThat(contracts).singleElement().satisfies(contract ->
+                assertThat(contract.declaredPaths()).containsExactly("/items"));
+    }
+
+    @Test
+    @DisplayName("a discovery past its deadline fails rather than answering with what it had reached")
+    void aDiscoveryPastItsDeadlineFails(@TempDir Path tempDir) throws IOException {
+        // Failed, not partial: a partial list retires every endpoint the walk did not reach. A file
+        // with no route, so that only the walk's own check can see the time is up.
+        Files.writeString(tempDir.resolve("README.txt"), "nothing to discover");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ApiDiscoveryScanner.scan(tempDir, java.time.Duration.ofSeconds(1), clockAdvancingAfter(0)))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class);
+    }
+
+    @Test
+    @DisplayName("the deadline is also held while endpoints are reconciled with the ingress paths")
+    void theReconciliationHoldsTheDeadline(@TempDir Path tempDir) throws IOException {
+        // The walk reads one file and checks the clock once; the reconciliation of its two
+        // endpoints is where the time runs out.
+        Files.writeString(tempDir.resolve("a.py"), "@app.get('/one')\n@app.get('/two')\n");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> ApiDiscoveryScanner.scan(tempDir, java.time.Duration.ofSeconds(1), clockAdvancingAfter(2)))
+                .isInstanceOf(com.asmolabs.vectispire.common.scanning.ScannerFailureException.class);
+        assertThat(ApiDiscoveryScanner.scan(tempDir, java.time.Duration.ofSeconds(1), clockAdvancingAfter(10)).endpoints())
+                .hasSize(2);
+    }
+
+    /** A clock that stands still for its first {@code readings} readings after the start, then jumps an hour. */
+    private static java.util.function.LongSupplier clockAdvancingAfter(int readings) {
+        int[] read = {-1};
+        return () -> ++read[0] > readings ? java.time.Duration.ofHours(1).toNanos() : 0L;
+    }
+
+    private static <T> T withinSeconds(org.junit.jupiter.api.function.ThrowingSupplier<T> body) {
+        return org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10), body);
+    }
 }

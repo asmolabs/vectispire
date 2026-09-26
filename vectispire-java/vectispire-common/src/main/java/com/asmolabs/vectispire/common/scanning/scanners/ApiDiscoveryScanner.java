@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.common.scanning.scanners;
 
+import com.asmolabs.vectispire.common.scanning.AnalysisBudget;
+import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.SourceFiles;
 import java.util.Locale;
 import org.slf4j.Logger;
@@ -15,11 +17,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.LongSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,7 +42,26 @@ public final class ApiDiscoveryScanner {
 
     public record Result(List<ApiEndpoint> endpoints, List<ApiContract> contracts) {}
 
+    /**
+     * How long the whole discovery may run before it is abandoned as failed.
+     *
+     * <p>Each file's patterns are bounded by an {@link AnalysisBudget}; this bounds what no single
+     * file decides — the number of files, and the reconciliation of every endpoint against every
+     * ingress path, which grows with the product of the two. Five minutes is far beyond what the
+     * linear passes take on a large repository, and far short of leaving a worker pinned for the
+     * rest of the day. Abandoned means failed, not empty: a partial list would retire the endpoints
+     * the discovery did not reach (decision 0007).
+     */
+    static final Duration DEADLINE = Duration.ofMinutes(5);
+
+    private static final String STEP = "api discovery";
+
     public static Result scan(Path workspaceRoot) {
+        return scan(workspaceRoot, DEADLINE, System::nanoTime);
+    }
+
+    static Result scan(Path workspaceRoot, Duration deadline, LongSupplier nanoClock) {
+        long giveUpAt = nanoClock.getAsLong() + deadline.toNanos();
         // A root that is not there — a sub-path absent from this checkout — means nothing was
         // looked at. Answering with empty lists said "looked, found no API".
         if (workspaceRoot == null || !Files.isDirectory(workspaceRoot)) {
@@ -67,6 +90,7 @@ public final class ApiDiscoveryScanner {
 
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                    requireTime(nanoClock, giveUpAt, deadline);
                     // Links and oversized files are not read: see SourceFiles for what a committed
                     // `a.js -> /dev/zero` did to the process running this walk.
                     if (!SourceFiles.isReadable(attrs)) {
@@ -100,6 +124,10 @@ public final class ApiDiscoveryScanner {
                         } else if (name.endsWith(".go")) {
                             extractGoEndpoints(file, relativePath, endpoints);
                         }
+                    } catch (AnalysisBudget.Exhausted pathological) {
+                        // At warn: a file whose shape defeats the patterns is either an attempt to
+                        // pin the worker or a defect in a pattern, and either is worth reading.
+                        log.warn("API discovery skipped {}: {}", relativePath, pathological.getMessage());
                     } catch (Exception unreadable) {
                         // One malformed file does not abort the discovery — it is a property of the
                         // scanned code, not a failure of the scanner — but it is no longer silent.
@@ -118,6 +146,7 @@ public final class ApiDiscoveryScanner {
         Set<String> seen = new HashSet<>();
         List<ApiEndpoint> adjusted = new ArrayList<>();
         for (ApiEndpoint ep : endpoints) {
+            requireTime(nanoClock, giveUpAt, deadline);
             String key = ep.method() + ":" + ep.path();
             if (seen.add(key)) {
                 if (publicIngressPaths.contains(ep.path()) || matchesAnyIngress(ep.path(), publicIngressPaths)) {
@@ -132,6 +161,12 @@ public final class ApiDiscoveryScanner {
         }
 
         return new Result(List.copyOf(adjusted), List.copyOf(contracts));
+    }
+
+    private static void requireTime(LongSupplier nanoClock, long giveUpAt, Duration deadline) {
+        if (nanoClock.getAsLong() - giveUpAt > 0) {
+            throw ScannerFailureException.timedOut(STEP, deadline);
+        }
     }
 
     /** Bounded and link-refusing; a file the walk admitted but that changed since is skipped. */
@@ -216,9 +251,10 @@ public final class ApiDiscoveryScanner {
                 return java.util.Optional.of(new ApiContract(relativePath, format, title, version, paths.size(), paths));
             } else {
                 // YAML parsing without external dependency
+                AnalysisBudget budget = AnalysisBudget.forContent(content);
                 String format = "UNKNOWN";
                 if (content.contains("openapi:")) {
-                    Matcher m = Pattern.compile("openapi:\\s*[\"']?([0-9]+)").matcher(content);
+                    Matcher m = OPENAPI_VERSION.matcher(budget.guard(content));
                     format = m.find() ? "OPENAPI_V" + m.group(1) : "OPENAPI_V3";
                 } else if (content.contains("swagger:")) {
                     format = "SWAGGER_V2";
@@ -227,11 +263,11 @@ public final class ApiDiscoveryScanner {
                 }
 
                 String title = "API Spec";
-                Matcher titleMatcher = Pattern.compile("title:\\s*[\"']?([^\"'\r\n]+)[\"']?").matcher(content);
+                Matcher titleMatcher = YAML_TITLE.matcher(budget.guard(content));
                 if (titleMatcher.find()) title = titleMatcher.group(1).trim();
 
                 String version = "1.0.0";
-                Matcher verMatcher = Pattern.compile("version:\\s*[\"']?([^\"'\r\n]+)[\"']?").matcher(content);
+                Matcher verMatcher = YAML_VERSION.matcher(budget.guard(content));
                 if (verMatcher.find()) version = verMatcher.group(1).trim();
 
                 boolean hasGlobalSecurity = content.contains("security:")
@@ -248,23 +284,26 @@ public final class ApiDiscoveryScanner {
                 String currentPath = null;
                 for (int idx = 0; idx < lines.length; idx++) {
                     String line = lines[idx];
-                    if (line.matches("^paths:\\s*.*")) {
+                    // A prefix test, where it was `matches("^paths:\\s*.*")`: the two overlapping
+                    // quantifiers retried every split of a long run of whitespace, and all the
+                    // expression ever decided was the prefix.
+                    if (line.startsWith("paths:")) {
                         inPaths = true;
                         continue;
                     }
                     if (inPaths) {
-                        if (line.matches("^[a-zA-Z0-9_-]+:\\s*.*") && !line.startsWith(" ")) {
+                        if (YAML_TOP_LEVEL_KEY.matcher(budget.guard(line)).lookingAt()) {
                             inPaths = false;
                             continue;
                         }
-                        Matcher pm = Pattern.compile("^\\s{2}(/[^:]+):\\s*").matcher(line);
+                        Matcher pm = YAML_PATH.matcher(budget.guard(line));
                         if (pm.find()) {
                             currentPath = pm.group(1).trim();
                             paths.add(currentPath);
                             continue;
                         }
                         if (currentPath != null) {
-                            Matcher methodMatcher = Pattern.compile("^\\s{4}(get|post|put|delete|patch|options|head):\\s*").matcher(line);
+                            Matcher methodMatcher = YAML_METHOD.matcher(budget.guard(line));
                             if (methodMatcher.find()) {
                                 String method = methodMatcher.group(1).toUpperCase(Locale.ROOT);
                                 boolean auth = hasGlobalSecurity && !line.contains("security: []");
@@ -301,8 +340,7 @@ public final class ApiDiscoveryScanner {
             if (!content.contains("kind: Ingress") && !content.contains("kind: \"Ingress\"")) {
                 return;
             }
-            Pattern pathPattern = Pattern.compile("path:\\s*([/a-zA-Z0-9_{}-]+)");
-            Matcher matcher = pathPattern.matcher(content);
+            Matcher matcher = INGRESS_PATH.matcher(AnalysisBudget.forContent(content).guard(content));
             while (matcher.find()) {
                 publicPaths.add(matcher.group(1).trim());
             }
@@ -418,6 +456,62 @@ public final class ApiDiscoveryScanner {
     private static final Pattern CLASS_DECLARATION =
             Pattern.compile("\\b(?:class|interface|record)\\s+([A-Za-z0-9_]+)");
 
+    /*
+     * Every pattern below reads text of the repository under analysis, so each is written for the
+     * input its author would choose rather than the input a controller usually is: no two adjacent
+     * quantifiers that can match the same character, possessive where a retry could only re-read
+     * what the first attempt read. Each is also handed its file through an AnalysisBudget, which
+     * stops the next pattern nobody noticed was super-linear.
+     */
+
+    private static final Pattern CLASS_MAPPING = Pattern.compile("@(?:RequestMapping|Path)\\s*+(?:\\(([^)]*+)\\))?");
+
+    /**
+     * The route annotation alone; its parameters are delimited by hand in {@link #annotationParams}.
+     *
+     * <p>They were {@code (?:\s*\(([^)]*)\))?} in the pattern, and on a file with many annotations
+     * and no closing parenthesis each one scanned to the end of the file before giving up — a
+     * quadratic cost no single quantifier shows.
+     */
+    private static final Pattern ROUTE_ANNOTATION = Pattern.compile(
+            "@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping|GET|POST|PUT|DELETE|PATCH)\\b");
+
+    private static final Pattern QUOTED = Pattern.compile("[\"']([^\"']++)[\"']");
+
+    private static final Pattern OPENAPI_VERSION = Pattern.compile("openapi:\\s*+[\"']?([0-9]+)");
+    private static final Pattern YAML_TITLE = Pattern.compile("title:\\s*[\"']?([^\"'\r\n]+)[\"']?");
+    private static final Pattern YAML_VERSION = Pattern.compile("version:\\s*[\"']?([^\"'\r\n]+)[\"']?");
+    private static final Pattern YAML_TOP_LEVEL_KEY = Pattern.compile("[a-zA-Z0-9_-]++:");
+    private static final Pattern YAML_PATH = Pattern.compile("^\\s{2}(/[^:]++):");
+    private static final Pattern YAML_METHOD = Pattern.compile("^\\s{4}(get|post|put|delete|patch|options|head):");
+    private static final Pattern INGRESS_PATH = Pattern.compile("path:\\s*+([/a-zA-Z0-9_{}-]++)");
+
+    private static final Pattern EXPRESS_ROUTE =
+            Pattern.compile("(?:app|router)\\.(get|post|put|delete|patch)\\s*+\\(\\s*+['\"`]([^'\"`]++)['\"`]");
+
+    /**
+     * A NestJS route: the annotation, then either nothing or one quoted literal between parentheses.
+     *
+     * <p>It was {@code \(\s*['"`]?([^'"`]*)['"`]?\s*\)}: the optional quotes let the two runs of
+     * whitespace and the unquoted capture all match the same spaces, and a line with a long run of
+     * them after {@code @Get(} and no closing parenthesis was retried in every three-way split —
+     * cubic, two seconds for 2,000 spaces. The quote is now required to open and to close the
+     * literal (a back-reference to the same character), every run is possessive, and an unquoted
+     * argument — a constant the discovery could not resolve anyway — is no longer read as a path.
+     */
+    private static final Pattern NEST_ROUTE =
+            Pattern.compile("@(Get|Post|Put|Delete|Patch)\\s*+\\(\\s*+(?:(['\"`])([^'\"`\r\n]*+)\\2)?\\s*+\\)");
+
+    /** The controller's prefix, under the same rule as {@link #NEST_ROUTE}, and read over the whole file. */
+    private static final Pattern NEST_CONTROLLER =
+            Pattern.compile("@Controller\\s*+\\(\\s*+(?:(['\"`])([^'\"`\r\n]*+)\\1)?\\s*+\\)");
+
+    private static final Pattern FASTAPI_ROUTE =
+            Pattern.compile("@(?:app|router)\\.(get|post|put|delete|patch)\\s*+\\(\\s*+['\"`]([^'\"`]++)['\"`]");
+    private static final Pattern FLASK_ROUTE = Pattern.compile("@app\\.route\\s*+\\(\\s*+['\"`]([^'\"`]++)['\"`]");
+    private static final Pattern GIN_ROUTE =
+            Pattern.compile("(?:r|router|engine|group|api)\\.(GET|POST|PUT|DELETE|PATCH)\\s*+\\(\\s*+[\"']([^\"']++)[\"']");
+
     // Java Spring Boot / JAX-RS Controller Parser
     private static void extractJavaSpringEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
         String rawContent = readSource(file);
@@ -427,19 +521,20 @@ public final class ApiDiscoveryScanner {
                 && !content.contains("@RequestMapping") && !content.contains("@Path")) {
             return;
         }
+        AnalysisBudget budget = AnalysisBudget.forContent(content);
+        CharSequence guarded = budget.guard(content);
 
         String classPrefix = "";
         int classIdx = -1;
-        Matcher cm = CLASS_DECLARATION.matcher(content);
+        Matcher cm = CLASS_DECLARATION.matcher(guarded);
         if (cm.find()) {
             classIdx = cm.start();
         }
 
         if (classIdx > 0) {
-            String header = content.substring(0, classIdx);
-            Matcher hm = Pattern.compile("@(?:RequestMapping|Path)\\s*(?:\\(([^)]*)\\))?").matcher(header);
+            Matcher hm = CLASS_MAPPING.matcher(guarded).region(0, classIdx);
             if (hm.find()) {
-                classPrefix = extractPathFromAnnotationParams(hm.group(1));
+                classPrefix = extractPathFromAnnotationParams(hm.group(1), budget);
             }
         }
 
@@ -453,17 +548,22 @@ public final class ApiDiscoveryScanner {
                         || content.substring(0, classIdx).contains("@RequiresSecurityLead")
         );
 
-        Pattern methodPattern = Pattern.compile("@(GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping|GET|POST|PUT|DELETE|PATCH)\\b(?:\\s*\\(([^)]*)\\))?");
-        Matcher m = methodPattern.matcher(content);
+        Matcher m = ROUTE_ANNOTATION.matcher(guarded);
+        Neighbourhood around = new Neighbourhood(content);
+        int from = 0;
 
-        while (m.find()) {
-            if (classIdx > 0 && m.start() < classIdx) {
+        while (from <= content.length() && m.find(from)) {
+            int start = m.start();
+            String annotation = m.group(1);
+            AnnotationParams annotationParams = around.params(m.end());
+            String params = annotationParams.text();
+            int end = annotationParams.end();
+            from = end;
+            if (classIdx > 0 && start < classIdx) {
                 continue;
             }
 
-            String annotation = m.group(1);
-            String params = m.group(2);
-            String subPath = extractPathFromAnnotationParams(params);
+            String subPath = extractPathFromAnnotationParams(params, budget);
 
             String httpMethod = switch (annotation) {
                 case "GetMapping", "GET" -> "GET";
@@ -475,13 +575,10 @@ public final class ApiDiscoveryScanner {
             };
 
             String fullPath = combinePaths(classPrefix, subPath);
-            int fullLineNum = getLineNumber(content, m.start());
+            int fullLineNum = around.lineOf(start);
 
-            int lastBrace = content.lastIndexOf('}', m.start());
-            int searchStart = Math.max(lastBrace >= 0 ? lastBrace : (classIdx > 0 ? classIdx : 0), m.start() - 500);
-            int nextBrace = content.indexOf('{', m.end());
-            int searchEnd = nextBrace > 0 ? Math.min(nextBrace, m.end() + 200) : m.end();
-            String methodContext = content.substring(searchStart, searchEnd);
+            String methodContext = content.substring(
+                    around.contextStart(start, classIdx > 0 ? classIdx : 0), around.contextEnd(end));
 
             boolean isExplicitPublic = methodContext.contains("@OpenToAnonymous")
                     || methodContext.contains("@PermitAll")
@@ -528,13 +625,113 @@ public final class ApiDiscoveryScanner {
                 || (path.startsWith("/api/v1/scorecards/repositories/") && path.endsWith("/badge.svg"));
     }
 
-    private static String extractPathFromAnnotationParams(String params) {
+    private static String extractPathFromAnnotationParams(String params, AnalysisBudget budget) {
         if (params == null || params.isBlank()) return "";
-        Matcher sm = Pattern.compile("[\"']([^\"']+)[\"']").matcher(params);
+        Matcher sm = QUOTED.matcher(budget.guard(params));
         if (sm.find()) {
             return sm.group(1).trim();
         }
         return "";
+    }
+
+    /** An annotation's parameter text, or {@code null} when it has none, and where the annotation ends. */
+    private record AnnotationParams(String text, int end) {}
+
+    /**
+     * What the Spring parser looks up around each route annotation, each lookup in amortized
+     * constant time.
+     *
+     * <p>They were {@code indexOf}, {@code lastIndexOf} and a count of newlines from the start of the
+     * file, once per annotation — linear each, so quadratic over a file of annotations, and the
+     * adversarial file is exactly one with thousands of them and none of the characters searched
+     * for. The annotations are visited in order, so each search resumes where the previous stopped,
+     * and a search that found nothing is not repeated; the results are the ones the unbounded
+     * searches gave.
+     */
+    private static final class Neighbourhood {
+
+        /** How far back and forward a route's annotations and signature are read for its guards. */
+        private static final int BEFORE = 500;
+        private static final int AFTER = 200;
+
+        private final String content;
+        private final int firstClosingBrace;
+        private final int lastOpeningBrace;
+        /** The next ')' at or after the last searched position; -2 before the first search. */
+        private int nextParenthesis = -2;
+        private int countedUpTo;
+        private int line = 1;
+
+        Neighbourhood(String content) {
+            this.content = content;
+            this.firstClosingBrace = content.indexOf('}');
+            this.lastOpeningBrace = content.lastIndexOf('{');
+        }
+
+        /** The parameters of the annotation ending at {@code annotationEnd}: {@code \s*(...)}, or none. */
+        AnnotationParams params(int annotationEnd) {
+            int cursor = annotationEnd;
+            while (cursor < content.length() && isRegexWhitespace(content.charAt(cursor))) {
+                cursor++;
+            }
+            if (cursor >= content.length() || content.charAt(cursor) != '(') {
+                return new AnnotationParams(null, annotationEnd);
+            }
+            // -1 is final: no ')' after an earlier position means none after a later one.
+            if (nextParenthesis != -1 && nextParenthesis <= cursor) {
+                nextParenthesis = content.indexOf(')', cursor + 1);
+            }
+            if (nextParenthesis < 0) {
+                return new AnnotationParams(null, annotationEnd);
+            }
+            return new AnnotationParams(content.substring(cursor + 1, nextParenthesis), nextParenthesis + 1);
+        }
+
+        /** The 1-based line of an offset; offsets are asked in increasing order. */
+        int lineOf(int offset) {
+            for (; countedUpTo < offset && countedUpTo < content.length(); countedUpTo++) {
+                if (content.charAt(countedUpTo) == '\n') {
+                    line++;
+                }
+            }
+            return line;
+        }
+
+        /**
+         * Where the context read before an annotation starts: the last '}' within {@value #BEFORE}
+         * characters, else {@value #BEFORE} characters back — or, when the file has no '}' before the
+         * annotation at all, the class declaration if that is nearer.
+         */
+        int contextStart(int annotationStart, int fallback) {
+            int floor = annotationStart - BEFORE;
+            for (int i = annotationStart; i >= Math.max(0, floor); i--) {
+                if (content.charAt(i) == '}') {
+                    return i;
+                }
+            }
+            boolean braceEarlier = firstClosingBrace >= 0 && firstClosingBrace < annotationStart;
+            return braceEarlier ? floor : Math.max(fallback, floor);
+        }
+
+        /**
+         * Where the context read after an annotation ends: the next '{' within {@value #AFTER}
+         * characters, else {@value #AFTER} characters on — or the annotation's end when the file has
+         * no '{' after it.
+         */
+        int contextEnd(int annotationEnd) {
+            int ceiling = annotationEnd + AFTER;
+            for (int i = annotationEnd; i <= ceiling && i < content.length(); i++) {
+                if (content.charAt(i) == '{') {
+                    return i;
+                }
+            }
+            return lastOpeningBrace > ceiling ? ceiling : annotationEnd;
+        }
+
+        /** {@code \s} as {@link Pattern} reads it without flags. */
+        private static boolean isRegexWhitespace(char c) {
+            return c == ' ' || c == '\t' || c == '\n' || c == 0x0B || c == '\f' || c == '\r';
+        }
     }
 
     private static String extractMethodFromRequestMappingParams(String params) {
@@ -547,32 +744,24 @@ public final class ApiDiscoveryScanner {
         return "ALL";
     }
 
-    private static int getLineNumber(String content, int offset) {
-        int line = 1;
-        for (int i = 0; i < offset && i < content.length(); i++) {
-            if (content.charAt(i) == '\n') line++;
-        }
-        return line;
-    }
-
     // Node (Express / NestJS) Parser
     private static void extractNodeEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
         String content = readSource(file);
         String[] lines = content.split("\n");
-
-        Pattern expressPattern = Pattern.compile("(?:app|router)\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]");
-        Pattern nestPattern = Pattern.compile("@(Get|Post|Put|Delete|Patch)\\s*\\(\\s*['\"`]?([^'\"`]*)['\"`]?\\s*\\)");
+        AnalysisBudget budget = AnalysisBudget.forContent(content);
 
         String nestPrefix = "";
-        Pattern nestController = Pattern.compile("@Controller\\s*\\(\\s*['\"`]?([^'\"`]*)['\"`]?\\s*\\)");
-        Matcher nestCtrlMatcher = nestController.matcher(content);
+        Matcher nestCtrlMatcher = NEST_CONTROLLER.matcher(budget.guard(content));
         if (nestCtrlMatcher.find()) {
-            nestPrefix = nestCtrlMatcher.group(1);
+            nestPrefix = nestCtrlMatcher.group(2);
         }
+        // Once per file: it was asked again for every route, a scan of the whole file each time.
+        boolean fileUsesGuards = content.contains("@UseGuards");
 
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
-            Matcher em = expressPattern.matcher(line);
+            CharSequence guardedLine = budget.guard(line);
+            Matcher em = EXPRESS_ROUTE.matcher(guardedLine);
             if (em.find()) {
                 String method = em.group(1).toUpperCase(Locale.ROOT);
                 String path = em.group(2);
@@ -582,12 +771,12 @@ public final class ApiDiscoveryScanner {
                         ApiVisibility.UNKNOWN, relativePath, i + 1, "EXPRESS", null, null, "Node/Express"));
             }
 
-            Matcher nm = nestPattern.matcher(line);
+            Matcher nm = NEST_ROUTE.matcher(guardedLine);
             if (nm.find()) {
                 String method = nm.group(1).toUpperCase(Locale.ROOT);
-                String path = nm.group(2);
+                String path = nm.group(3);
                 String fullPath = combinePaths(nestPrefix, path);
-                boolean auth = content.contains("@UseGuards") || line.contains("Guard");
+                boolean auth = fileUsesGuards || line.contains("Guard");
                 endpoints.add(new ApiEndpoint(
                         method, fullPath, auth, auth ? "NEST_GUARD" : "NONE",
                         ApiVisibility.UNKNOWN, relativePath, i + 1, "NESTJS", null, null, "Node/NestJS"));
@@ -599,13 +788,12 @@ public final class ApiDiscoveryScanner {
     private static void extractPythonEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
         String content = readSource(file);
         String[] lines = content.split("\n");
-
-        Pattern fastapiPattern = Pattern.compile("@(?:app|router)\\.(get|post|put|delete|patch)\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]");
-        Pattern flaskPattern = Pattern.compile("@app\\.route\\s*\\(\\s*['\"`]([^'\"`]+)['\"`]");
+        AnalysisBudget budget = AnalysisBudget.forContent(content);
 
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
-            Matcher fm = fastapiPattern.matcher(line);
+            CharSequence guardedLine = budget.guard(line);
+            Matcher fm = FASTAPI_ROUTE.matcher(guardedLine);
             if (fm.find()) {
                 String method = fm.group(1).toUpperCase(Locale.ROOT);
                 String path = fm.group(2);
@@ -615,7 +803,7 @@ public final class ApiDiscoveryScanner {
                         ApiVisibility.UNKNOWN, relativePath, i + 1, "FASTAPI", null, null, "Python/FastAPI"));
             }
 
-            Matcher flm = flaskPattern.matcher(line);
+            Matcher flm = FLASK_ROUTE.matcher(guardedLine);
             if (flm.find()) {
                 String path = flm.group(1);
                 boolean auth = (i > 0 && lines[i - 1].contains("login_required")) || (i + 1 < lines.length && lines[i + 1].contains("login_required"));
@@ -630,12 +818,11 @@ public final class ApiDiscoveryScanner {
     private static void extractGoEndpoints(Path file, String relativePath, List<ApiEndpoint> endpoints) throws IOException {
         String content = readSource(file);
         String[] lines = content.split("\n");
-
-        Pattern ginPattern = Pattern.compile("(?:r|router|engine|group|api)\\.(GET|POST|PUT|DELETE|PATCH)\\s*\\(\\s*[\"']([^\"']+)[\"']");
+        AnalysisBudget budget = AnalysisBudget.forContent(content);
 
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
-            Matcher gm = ginPattern.matcher(line);
+            Matcher gm = GIN_ROUTE.matcher(budget.guard(line));
             if (gm.find()) {
                 String method = gm.group(1).toUpperCase(Locale.ROOT);
                 String path = gm.group(2);

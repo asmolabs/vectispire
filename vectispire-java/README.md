@@ -135,6 +135,7 @@ same name; decision records written before that date keep the names they had.
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
 | A stored gate policy is what the verdict applies, and an empty threshold means the rule is off | `GatePoliciesRoutesTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
+| No file of a scanned repository can pin a worker in the API discovery: its patterns read within a budget per character, and the discovery within a deadline | `AnalysisBudgetTest`, `ApiDiscoveryScannerTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
@@ -308,6 +309,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |
 | A repository or image with any triage history could not be deleted: the purge queued its child rows' removal, the bulk delete of the issues ran first, the cascade took the children, and the commit failed on rows already gone. No test had ever deleted a target carrying history | `IssueRepository.deleteByIdIn`, `ScanRepository.deleteByIdIn`, `TargetDeletionTest` |
 | `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
+| The NestJS prefix pattern backtracked in the cube of a run of spaces — two seconds for 2,000 of them — and the Spring parser searched the whole file once per annotation: one committed file held a scan worker, in the built-in worker the control plane's own process | `ApiDiscoveryScanner`, `AnalysisBudget` |
 
 ### Shapes chosen deliberately
 
