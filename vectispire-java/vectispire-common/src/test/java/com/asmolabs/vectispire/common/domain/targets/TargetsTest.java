@@ -45,7 +45,18 @@ class TargetsTest {
             "https://169.254.169.254/latest/meta-data",
             "https://[fe80::1]/org/project.git",
             "https://[::ffff:169.254.169.254]/org/project.git",
-            "git@169.254.169.254:org/project.git"
+            "git@169.254.169.254:org/project.git",
+            // Read as one host by java.net.URI and as another by JGit, which performs the clone:
+            // the checks decided on the first, the connection went to the second.
+            "https://allowed.example#@other.example/repo.git",
+            "https://allowed.example?@other.example/repo.git",
+            "ssh://git@allowed.example#@other.example/repo.git",
+            "git://allowed.example?@other.example/repo",
+            "https://a@allowed.example@other.example/repo.git",
+            "https://allowed%2eexample/repo.git",
+            // An upper-case scheme is a local path to JGit, and so is an SCP path opening with //.
+            "HTTPS://allowed.example/repo.git",
+            "git@allowed.example://other.example/repo.git"
         })
         void refusesEverythingElse(String url) {
             // This value lands in a `git clone` run by an agent. An uncontrolled one there is
@@ -99,6 +110,31 @@ class TargetsTest {
             assertThat(RepositoryUrl.host("git@github.com:org/p.git")).contains("github.com");
             assertThat(RepositoryUrl.host("https://alice:t@gitlab.internal:8443/org/p.git")).contains("gitlab.internal");
             assertThat(RepositoryUrl.host("not a url")).isEmpty();
+        }
+
+        @ParameterizedTest(name = "no host is read from {0}")
+        @ValueSource(strings = {
+            "https://allowed.example#@other.example/repo.git",
+            "https://allowed.example?@other.example/repo.git",
+            "https://a@allowed.example@other.example/repo.git"
+        })
+        void anAmbiguousUrlHasNoHost(String url) {
+            // Every check that reads the host — the allowlist, the token binding, the link-local
+            // refusal — gets nothing rather than the host the clone would not connect to.
+            assertThat(RepositoryUrl.host(url)).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a credential is seen wherever JGit would read one, and masked there too")
+        void aCredentialBehindAFragmentIsSeen() {
+            // The user part stopped at '#' or '?', as java.net.URI reads it; JGit reads a password
+            // through them and sends it.
+            assertThat(RepositoryUrl.carriesCredential("https://user:secret#@host.example/repo.git")).isTrue();
+            assertThat(RepositoryUrl.carriesCredential("https://token?@host.example/repo.git")).isTrue();
+            assertThat(RepositoryUrl.redact("https://user:secret#@host.example/repo.git"))
+                    .isEqualTo("https://***@host.example/repo.git");
+            assertThat(RepositoryUrl.carriesCredential("https://host.example/org/p@1.git")).isFalse();
+            assertThat(RepositoryUrl.carriesCredential("ssh://git@host.example/p.git")).isFalse();
         }
 
         @Test

@@ -495,6 +495,21 @@ class ScanDispatcherTest {
         verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("is not allowed"));
     }
 
+    @Test
+    @DisplayName("a stored URL the clone would read as another host is refused before it is dispatched")
+    void anAmbiguousStoredUrlIsNotDispatched() {
+        // A row registered before the rule: java.net.URI reads one host, JGit another. Refused
+        // here, with no allowlist at all, before the task — and a credential — leave for an agent.
+        RepositoryEntity ambiguous = repository();
+        ambiguous.setUrl("https://forge.example#@elsewhere.example/team/service.git");
+        ambiguous.setSshKeyId(null);
+        when(repositories.findById(1L)).thenReturn(Optional.of(ambiguous));
+        queueHolds(repositoryScan());
+
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true)).isEmpty();
+        verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("Repository URL refused"));
+    }
+
     private static RepositoryEntity repository() {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setId(1L);

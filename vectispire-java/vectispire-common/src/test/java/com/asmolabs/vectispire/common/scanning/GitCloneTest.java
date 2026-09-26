@@ -94,6 +94,63 @@ class GitCloneTest {
                 .isEqualTo("The clone of ssh://git@host/p.git failed.");
     }
 
+    /**
+     * URLs {@code java.net.URI} and JGit's {@code URIish} have read as naming different hosts, and
+     * the ordinary forms every forge hands out.
+     */
+    static java.util.stream.Stream<String> repositoryUrls() {
+        return java.util.stream.Stream.of(
+                "https://github.com/org/project.git",
+                "https://alice:token@gitlab.internal:8443/org/p.git",
+                "ssh://git@github.com/org/project.git",
+                "ssh://git@gitlab.corp.example:2222/team/a.git",
+                "git://example.com/project",
+                "git@github.com:org/project.git",
+                "https://10.0.0.5/org/project.git",
+                "https://[2001:db8::1]/org/project.git",
+                "https://allowed.example#@other.example/repo.git",
+                "https://allowed.example?@other.example/repo.git",
+                "https://user:secret#@other.example/repo.git",
+                "ssh://git@allowed.example#@other.example/repo.git",
+                "git://allowed.example?@other.example/repo",
+                "https://a@allowed.example@other.example/repo.git",
+                "HTTPS://allowed.example/repo.git",
+                "https://allowed%2eexample/repo.git",
+                "git@allowed.example://other.example/repo.git");
+    }
+
+    @ParameterizedTest(name = "{0}: refused, or one host for both parsers")
+    @org.junit.jupiter.params.provider.MethodSource("repositoryUrls")
+    @DisplayName("a URL the checks accept names, for the clone, the host the checks decided on")
+    void theChecksAndTheCloneReadOneHost(String url) throws Exception {
+        // The allowlist, the token binding and the link-local refusal read the host through
+        // java.net.URI; JGit connects where URIish says. A URL on which they part passed every
+        // check for one host and was cloned from another.
+        if (com.asmolabs.vectispire.common.domain.targets.RepositoryUrl.validate(url).isPresent()) {
+            return;
+        }
+        org.eclipse.jgit.transport.URIish jgit = new org.eclipse.jgit.transport.URIish(url);
+        assertThat(jgit.getHost())
+                .isNotNull()
+                .isEqualToIgnoringCase(com.asmolabs.vectispire.common.domain.targets.RepositoryUrl.host(url).orElseThrow());
+        assertThat(GitClone.hostJGitConnectsTo(url)).isEqualToIgnoringCase(jgit.getHost());
+    }
+
+    @ParameterizedTest(name = "the clone refuses {0} on JGit's reading")
+    @ValueSource(strings = {
+        "https://allowed.example#@other.example/repo.git",
+        "https://allowed.example?@other.example/repo.git",
+        "HTTPS://allowed.example/repo.git",
+        "git@allowed.example://other.example/repo.git"
+    })
+    void theCloneRefusesAHostJGitReadsDifferently(String url) {
+        // Its own check, on the reading that connects, and not only the URL rules upstream: the
+        // next JGit release may part from java.net.URI on a form nobody has listed yet.
+        assertThatThrownBy(() -> GitClone.hostJGitConnectsTo(url))
+                .isInstanceOf(CloneFailureException.class)
+                .hasMessageContaining("Repository URL refused");
+    }
+
     @Test
     @DisplayName("the two host-key policies are named, so choosing one is deliberate")
     void hostKeyPolicyIsExplicit() {

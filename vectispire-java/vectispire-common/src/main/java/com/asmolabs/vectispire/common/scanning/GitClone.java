@@ -226,9 +226,10 @@ public final class GitClone {
         if (refused.isPresent()) {
             throw new CloneFailureException("Repository URL refused: " + refused.get(), "");
         }
+        String host = hostJGitConnectsTo(request.url());
         // The literal was refused above; a name is only known to point there once resolved, and
         // resolving is this machine's business — the agent's network, not the control plane's.
-        if (RepositoryUrl.host(request.url()).filter(LinkLocalHosts::resolvesToLinkLocal).isPresent()) {
+        if (LinkLocalHosts.resolvesToLinkLocal(host)) {
             throw new CloneFailureException(
                     "Repository URL refused: its host resolves to a link-local address, where the instance metadata lives.",
                     "");
@@ -275,6 +276,39 @@ public final class GitClone {
                     explain(request, failure),
                     rootMessage(failure).replace(request.url(), RepositoryUrl.redact(request.url())));
         }
+    }
+
+    /**
+     * The host the clone will connect to, as JGit reads the URL — refused unless it is the host
+     * every check before this one decided on.
+     *
+     * <p>{@link RepositoryUrl} validates with {@code java.net.URI}, and the allowlist, the token
+     * binding and the link-local refusal all read the host from there; JGit parses the same string
+     * with {@code URIish}, its own regular expressions, and connects where they say. The two have
+     * disagreed — a character that ends the authority for one is part of a user name for the other —
+     * and a URL could then pass every check for one host and be cloned from another. {@code
+     * RepositoryUrl} refuses the forms known to part them; this refuses whatever else does, on the
+     * reading that actually connects, so the next JGit release cannot reopen it quietly.
+     */
+    static String hostJGitConnectsTo(String url) {
+        URIish parsed;
+        try {
+            parsed = new URIish(url);
+        } catch (java.net.URISyntaxException unreadable) {
+            throw new CloneFailureException("Repository URL refused: it cannot be read as a git remote.", "");
+        }
+        boolean scp = !url.contains("://");
+        String expectedScheme = scp ? null : url.substring(0, url.indexOf("://"));
+        Optional<String> validated = RepositoryUrl.host(url);
+        if (parsed.getHost() == null
+                || validated.isEmpty()
+                || !parsed.getHost().equalsIgnoreCase(validated.get())
+                || !java.util.Objects.equals(parsed.getScheme(), expectedScheme)) {
+            throw new CloneFailureException(
+                    "Repository URL refused: its host part reads differently to the clone than to the checks."
+                            + " Use the address the forge gives for cloning.", "");
+        }
+        return parsed.getHost();
     }
 
     /**

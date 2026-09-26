@@ -482,6 +482,12 @@ public class ScanDispatcher {
         RepositoryView repository = targets
                 .repository(scan.getRepoId())
                 .orElseThrow(() -> new IllegalStateException("Repository " + scan.getRepoId() + " no longer exists."));
+        // The URL's own rules, before its host is judged: a row registered before a rule existed —
+        // an address two parsers read as two different hosts, since 2026-09 — is refused before its
+        // task and its credential leave for an agent, not only by the clone at the other end.
+        RepositoryUrl.validate(repository.url()).ifPresent(reason -> {
+            throw new IllegalStateException("Repository URL refused: " + reason);
+        });
         // Again here, not only when the URL was entered: a list tightened after a repository was
         // registered has to stop its scans too, and this is the one place every executor's task
         // is built — the worker's and every agent's.

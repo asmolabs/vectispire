@@ -35,6 +35,16 @@ class GitHostAllowlistTest {
     }
 
     @Test
+    @DisplayName("a URL naming a listed host to one parser and another host to the clone is refused")
+    void anAmbiguousHostIsNotPermitted() {
+        // java.net.URI reads the listed host; JGit, which clones, reads the other one.
+        GitHostAllowlist list = GitHostAllowlist.parse("gitlab.corp.example");
+
+        assertThat(list.permits("https://gitlab.corp.example#@evil.example/a.git")).isFalse();
+        assertThat(list.permits("https://gitlab.corp.example?@evil.example/a.git")).isFalse();
+    }
+
+    @Test
     @DisplayName("an entry that is not a host is refused when the setting is read")
     void aMalformedEntryIsRefused() {
         assertThatThrownBy(() -> GitHostAllowlist.parse("https://gitlab.corp.example"))
