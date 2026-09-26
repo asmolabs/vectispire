@@ -9,18 +9,17 @@ plugins {
  * The control plane: schema, repositories, use cases, HTTP API, agent protocol.
  *
  * Internally it keeps the layer rule the NestJS tree enforced, inside every domain module
- * (`core/<module>/web` ──► its root and `internal` ──► its `persistence`, decision 0028) and in the
- * packages of the domains still laid out by layer:
+ * (decisions 0028 and 0029) — the layers the packages used to be, one place each in a module:
  *
  * ```
- *   api ──► services ──► repositories ──► persistence ──► database
- *              │                              │
- *              └──────────────┬───────────────┘
- *                             ▼
- *                        vectispire-common
+ *   web ──► root and internal ──► persistence ──► database
+ *                 │                    │
+ *                 └─────────┬──────────┘
+ *                           ▼
+ *                   vectispire-common
  * ```
  *
- * **Only the repositories may speak SQL** — `core.repositories` and each module's `persistence`.
+ * **Only the repositories may speak SQL** — each module's `persistence`.
  * Not for purity: the behaviour the engines disagree about — locking, upsert, boolean width,
  * timestamp precision — has to sit where a portability suite can reach it, and that is there. A
  * service writing a query fails `ArchitectureTest`.
@@ -487,10 +486,10 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     classDirectories.setFrom(
         files(classDirectories.files.map {
             // Every package of the control plane but `config` and the application class, by
-            // exclusion rather than by list: the domains are moving out of `services`, `api`,
-            // `persistence` and `repositories` into modules of their own (decision 0028), and a list
-            // of the layered packages would have dropped each module from the measure as it moved —
-            // the figure rising or falling for a reason that has nothing to do with the tests.
+            // exclusion rather than by list: a list of packages is a list of modules to keep in step,
+            // and the one kept while the domains moved out of the layered packages (decisions 0028
+            // and 0029) would have dropped each module from the measure as it moved — the figure
+            // rising or falling for a reason that has nothing to do with the tests.
             fileTree(it) {
                 include("com/asmolabs/vectispire/core/*/**")
                 exclude("com/asmolabs/vectispire/core/config/**")

@@ -135,21 +135,20 @@ final class AuthorizationMarkers {
     private static final Path CORE_SOURCES = Path.of("src/main/java/com/asmolabs/vectispire/core");
 
     /**
-     * Every controller source the textual lints read: under {@code core/api/}, which holds the
-     * controllers of the domains still packaged by layer, and under {@code core/<module>/web/}, where
-     * a vertical module keeps its own (decision 0028).
+     * Every controller source the textual lints read: under {@code core/<module>/web/}, where every
+     * module keeps its own since step 5 emptied {@code core/api/} (decisions 0028 and 0029).
      *
      * <p><b>One walk for both lints, and it follows the modules.</b> Both used to walk
      * {@code core/api} alone; the first controller moved into a module would have left both rules
-     * reading around it, green, while a route there served whatever it liked.
+     * reading around it, green, while a route there served whatever it liked. A controller anywhere
+     * else fails {@code ArchitectureTest.everyClassHasAPlace} before it could be missed here.
      */
     static List<Path> controllerSources() {
         try (Stream<Path> files = Files.walk(CORE_SOURCES)) {
             return files.filter(file -> file.getFileName().toString().endsWith("Controller.java"))
                     .filter(file -> {
                         Path relative = CORE_SOURCES.relativize(file);
-                        return relative.getName(0).toString().equals("api")
-                                || (relative.getNameCount() > 2 && relative.getName(1).toString().equals("web"));
+                        return relative.getNameCount() > 2 && relative.getName(1).toString().equals("web");
                     })
                     .sorted()
                     .toList();
