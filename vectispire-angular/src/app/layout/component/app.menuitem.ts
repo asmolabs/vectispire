@@ -9,7 +9,7 @@ import {
     ChangeDetectionStrategy
 } from '@angular/core';
 import { MenuItem } from '@openng/optimus-ui/api';
-import { NavigationEnd, Router, RouterModule } from '@angular/router';
+import { NavigationEnd, Router, RouterModule, isActive as isUrlActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { RippleModule } from '@openng/optimus-ui/ripple';
 import { LayoutService } from '@/app/layout/service/layout.service';
@@ -203,12 +203,15 @@ export class AppMenuitem implements OnInit, AfterViewInit {
         const item = this.item();
         if (!item?.routerLink) return;
 
-        const isRouteActive = this.router.isActive(item.routerLink[0], {
+        // Every entry of `app.menu.ts` writes its link as a one-element array. Read once rather
+        // than kept: the entry only needs the answer at each navigation end, which is when it asks.
+        const [url] = item.routerLink as [string];
+        const isRouteActive = isUrlActive(url, this.router, {
             paths: 'exact',
             queryParams: 'ignored',
             matrixParams: 'ignored',
             fragment: 'ignored'
-        });
+        })();
 
         if (isRouteActive) {
             const parentPath = this.parentPath();
