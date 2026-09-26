@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.platform.web.SettingsController;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -237,7 +238,7 @@ class OwaspReportTest extends ApiTestBase {
             Mockito.when(ai.provider())
                     .thenReturn(com.asmolabs.vectispire.common.domain.aireview.AiProvider.OLLAMA);
             return new SettingsController(
-                    new com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService(
+                    new com.asmolabs.vectispire.core.platform.SettingsAdministrationService(
                             Mockito.mock(com.asmolabs.vectispire.core.settings.SettingsService.class),
                             ai,
                             new com.asmolabs.vectispire.core.access.TriageApprovers(

@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.platform.web.SettingsController;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,7 +51,7 @@ class AiEndpointAcknowledgementTest {
         settings = mock(SettingsService.class);
         aiReview = mock(AiReviewService.class);
         controller = new SettingsController(
-                new com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService(
+                new com.asmolabs.vectispire.core.platform.SettingsAdministrationService(
                         settings, aiReview,
                         new com.asmolabs.vectispire.core.access.TriageApprovers(
                                 mock(com.asmolabs.vectispire.core.access.persistence.Users.class)),

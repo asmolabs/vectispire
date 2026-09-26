@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.platform;
+package com.asmolabs.vectispire.core.platform;
 
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.TriageApprovers;
+import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;

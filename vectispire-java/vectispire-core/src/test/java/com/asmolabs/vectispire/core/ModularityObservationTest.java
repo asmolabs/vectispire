@@ -57,14 +57,14 @@ class ModularityObservationTest {
             Pattern.compile("Module '([^']+)' depends on non-exposed type (\\S+) within module '([^']+)'");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
-    private static final Set<String> LAYERED = Set.of("api", "services", "config");
+    private static final Set<String> LAYERED = Set.of("config");
 
     /** The domains steps 3 and 4 made modules — the same list as {@code ArchitectureTest.MODULES}. */
     private static final List<String> MODULES = List.of(
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
-            "targets", "scanning", "issues");
+            "targets", "scanning", "issues", "maintenance", "platform");
 
     /**
      * What {@code verify()} reported before step 3, taken on 2026-09-26 (step 2): five layer modules and
@@ -170,7 +170,7 @@ class ModularityObservationTest {
         // Declared on the application class; a module missing from that list would still be used by
         // every domain, and a module test would boot without it.
         assertThat(modules.getSharedModules().stream().map(module -> module.getIdentifier().toString()))
-                .containsExactlyInAnyOrder("settings", "outbound", "crypto", "audit", "outbox", "reporting");
+                .containsExactlyInAnyOrder("settings", "outbound", "crypto", "audit", "outbox", "reporting", "maintenance");
     }
 
     @Test

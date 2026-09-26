@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api.config;
+package com.asmolabs.vectispire.core.platform.internal;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.core.converter.AnnotatedType;

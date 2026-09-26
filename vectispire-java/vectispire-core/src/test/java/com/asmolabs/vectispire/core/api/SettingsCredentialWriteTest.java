@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
+import com.asmolabs.vectispire.core.platform.web.SettingsController;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -64,7 +65,7 @@ class SettingsCredentialWriteTest {
         // By default approvers exist: the opposite is the subject of a case of its own.
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(3L);
         controller = new SettingsController(
-                new com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService(
+                new com.asmolabs.vectispire.core.platform.SettingsAdministrationService(
                         settings, aiReview, new com.asmolabs.vectispire.core.access.TriageApprovers(users),
                         mock(TicketService.class), mock(NotificationService.class),
                         mock(AuditLogService.class)),

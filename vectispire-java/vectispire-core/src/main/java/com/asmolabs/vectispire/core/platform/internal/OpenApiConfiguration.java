@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api.config;
+package com.asmolabs.vectispire.core.platform.internal;
 
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import io.swagger.v3.oas.models.Components;

@@ -17,7 +17,7 @@ import org.springframework.modulith.Modulithic;
  * nothing at runtime.
  */
 @SpringBootApplication
-@Modulithic(sharedModules = {"settings", "outbound", "crypto", "audit", "outbox", "reporting"})
+@Modulithic(sharedModules = {"settings", "outbound", "crypto", "audit", "outbox", "reporting", "maintenance"})
 @org.springframework.boot.context.properties.ConfigurationPropertiesScan
 @org.springframework.scheduling.annotation.EnableScheduling
 public class VectispireApplication {

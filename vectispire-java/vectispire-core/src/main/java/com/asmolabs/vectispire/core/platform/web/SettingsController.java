@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.platform.web;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
-import com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService;
+import com.asmolabs.vectispire.core.platform.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;

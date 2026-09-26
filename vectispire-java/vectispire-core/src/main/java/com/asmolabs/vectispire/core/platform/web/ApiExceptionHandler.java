@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.platform.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
