@@ -80,18 +80,23 @@ class SchemaNameCollisionTest {
     private static final String CONTROL_PLANE = "com.asmolabs.vectispire.core";
 
     /**
-     * A JPA mapping: anything in {@code core.persistence}, where the step-5 domains' entities still
-     * are, and anything a module's {@code persistence} package maps as an entity.
+     * A JPA mapping, or anything else a {@code persistence} package holds: {@code core.persistence},
+     * any module's {@code persistence} and what lies beneath them, and anything mapped as an entity
+     * wherever it sits.
      *
-     * <p><b>Not every class of a module's {@code persistence} package.</b> A module keeps its
-     * repositories there too, and with them the constructor projections their queries select into.
-     * One of those, {@code RuleSetSummary}, is on the wire inside {@code RuleSetListing}: it was
-     * while it sat in {@code core.repositories}, which this rule never read, and matching the whole
-     * package would have turned a move into a contract change. It is a step-5 finding (decision
-     * 0028), not a mapping crossing a route.
+     * <p><b>The whole package, repositories' projections included.</b> Until step 5 it was entities
+     * only, because one projection — {@code RuleSetSummary}, what the rule sets' listing query selects
+     * into — was on the wire inside {@code RuleSetListing}, as it had been while it sat in {@code
+     * core.repositories}, a package this walk never read. The route now answers a record of {@code
+     * rules}' own with the same components and names, and the projection is {@code RuleSetRow}; a
+     * projection back on a route would be the table's shape as the contract again, which is what
+     * keeping entities off routes was for (decision 0029).
      */
     private static boolean isPersistence(Class<?> type) {
-        return type.getPackageName().equals(CONTROL_PLANE + ".persistence")
+        String name = type.getPackageName();
+        return name.equals(CONTROL_PLANE + ".persistence")
+                || (name.startsWith(CONTROL_PLANE + ".")
+                        && (name.endsWith(".persistence") || name.contains(".persistence.")))
                 || type.isAnnotationPresent(jakarta.persistence.Entity.class)
                 || type.isAnnotationPresent(jakarta.persistence.Embeddable.class)
                 || type.isAnnotationPresent(jakarta.persistence.MappedSuperclass.class);

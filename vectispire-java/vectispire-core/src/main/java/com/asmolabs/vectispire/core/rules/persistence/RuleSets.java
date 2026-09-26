@@ -42,12 +42,12 @@ public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
      * that by accident.
      */
     @Query("""
-            select new com.asmolabs.vectispire.core.rules.persistence.RuleSetSummary(
+            select new com.asmolabs.vectispire.core.rules.persistence.RuleSetRow(
                     r.id, r.name, r.contentHash, r.ruleCount, r.fileCount, cast(r.sizeBytes as string),
                     r.isActive, r.uploadedBy, r.uploadedAt, r.activationNote)
               from SemgrepRuleSetEntity r
              order by r.uploadedAt desc, r.id desc""")
-    List<RuleSetSummary> summaries();
+    List<RuleSetRow> summaries();
 
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)

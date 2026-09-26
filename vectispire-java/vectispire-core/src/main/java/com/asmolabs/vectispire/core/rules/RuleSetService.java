@@ -9,7 +9,6 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.rules.persistence.RuleSetSummary;
 import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -102,7 +101,7 @@ public class RuleSetService {
     /** Every stored set, newest first, without their content. */
     @Transactional(readOnly = true)
     public List<RuleSetSummary> list() {
-        return ruleSets.summaries();
+        return ruleSets.summaries().stream().map(RuleSetSummary::of).toList();
     }
 
     /** The active set, or empty when only the bundled rules apply. */
