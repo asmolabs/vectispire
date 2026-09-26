@@ -29,6 +29,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0023](0023-solutions-projects-and-repositories.md) | Une solution contient des projets, un projet référence des dépôts, et un droit peut viser un projet | acceptée |
 | [0024](0024-integration-api-keys-act-for-an-account.md) | Une clé API d'intégration agit pour un compte, sur les routes qui l'acceptent | acceptée |
 | [0025](0025-siem-events-leave-through-the-outbox.md) | Les événements SIEM partent par l'outbox, après validation, et leur catalogue est un contrat | acceptée |
+| [0026](0026-services-are-grouped-by-domain.md) | Les services sont regroupés par domaine, et les domaines dépendent dans un seul sens | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes
