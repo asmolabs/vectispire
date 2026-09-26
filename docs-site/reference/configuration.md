@@ -116,4 +116,9 @@ Then `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 
+How many scans an agent runs at once is **not** one of its variables: it is set on the agent's row
+in the control plane, 1 to 16, and the agent reads it from every answer to its polls — see
+[Running several scans at once](../administration/agents.md#running-several-scans-at-once).
+`VECTISPIRE_SCAN_MAX_CONCURRENT` is the built-in worker's, and has no effect on a remote agent.
+
 See [Agents](../administration/agents.md).

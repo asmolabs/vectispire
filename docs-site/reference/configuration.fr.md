@@ -117,4 +117,10 @@ Puis `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 
+Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses variables : il se règle
+sur la ligne de l'agent dans le plan de contrôle, de 1 à 16, et l'agent le lit dans chaque réponse à
+ses interrogations — voir
+[Mener plusieurs analyses en parallèle](../administration/agents.md#running-several-scans-at-once).
+`VECTISPIRE_SCAN_MAX_CONCURRENT` est celle du worker intégré, et n'a aucun effet sur un agent distant.
+
 Voir [Agents](../administration/agents.md).

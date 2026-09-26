@@ -53,6 +53,55 @@ database and the control plane's proxy are on networks it is not attached to. Th
 daemon access is root there. The profile is for evaluating the protocol. For the isolation, run
 the agent on another machine and set `VECTISPIRE_EMBEDDED_WORKER=false` on the control plane.
 
+## Running several scans at once
+
+**Concurrent scans** (`max_concurrent`) is how many scans one agent runs in parallel: **from 1 to
+16**, 1 when nothing is said. Set it when you declare the agent, or later with the sliders icon on
+its row — or `PATCH /api/v1/admin/agents/{id}` with `{"max_concurrent": 4}`. A value outside 1–16
+is refused with a 400 rather than quietly rounded. The row shows it as *running / allowed*, and a
+change is written to the audit log.
+
+It is enforced on both sides. The control plane hands an agent a new scan only while the scans it
+holds — claimed, not yet reported, lease still live — are fewer than the limit, and it counts them
+in the database, so two polls of the same agent cannot take it past the limit together. The agent
+stops polling as soon as it is full.
+
+**The limit belongs to the agent's row, not to a process.** Two processes started with the same key
+share one limit between them — and, in `delegated` mode, only the one that announced itself last can
+open a sealed key. For more machines, declare more agents.
+
+### Sizing it
+
+Each scan runs up to five scanner containers one after the other, each capped at 2 GB of memory and
+at all but one of the Docker host's cores, and the vulnerability matcher downloads its database —
+about 2 GB — into that scan's own workspace. Per concurrent scan, count roughly:
+
+| | per scan |
+|---|---|
+| CPU | one core |
+| Memory | 2 GB, on top of the agent's own JVM |
+| Disk (temporary directory) | 3 GB — the clone, the SBOM and the vulnerability database |
+
+Scans past what the machine can hold do not wait their turn: they compete for the same cores and
+time out together, 15 minutes per scanner. Stay below the machine; more capacity is another agent.
+
+### Changing it, and stopping an agent
+
+**A lowered limit applies to the next claim.** No new scan starts until the running ones fall below
+it, and nothing running is interrupted. The agent learns the new value from the answer to its next
+poll — raised or lowered, without a restart.
+
+**Stopping an agent waits for its scans.** On `SIGTERM` — `docker stop`, a rolling update — it stops
+claiming and waits for the scans in progress to be handed back. Abandoning them would cost more
+than waiting: the protocol has no call to give a scan back, so an abandoned scan keeps its lease
+until it lapses (20 minutes after its last heartbeat), then returns to the queue having used one of
+its three attempts, and its work is lost. Give the container a grace period as long as your longest
+scan — `stop_grace_period: 30m` in compose; Docker's default is 10 seconds.
+
+If the process is killed first — or the machine dies — that lapse is exactly what happens. Until
+then its scans still count against its limit, so an agent restarted at once claims only what is
+left; once they lapse they no longer count, even before the queue puts them back.
+
 ## Credentials modes
 
 | Mode | What the controller sends | When |
@@ -117,7 +166,8 @@ that one agent is down.
 
 ## Reading the page
 
-Each agent shows its concurrent scan capacity and when it last announced itself. An agent
+Each agent shows its running scans against its limit — see
+[Running several scans at once](#running-several-scans-at-once) — and when it last announced itself. An agent
 that has **never announced** has not reached the control plane at all: check the URL, the
 token, and that outbound HTTPS is allowed.
 

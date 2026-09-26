@@ -55,6 +55,60 @@ le même démon, et l'accès au démon y est root. Le profil sert à évaluer le
 l'isolation, faites tourner l'agent sur une autre machine et réglez `VECTISPIRE_EMBEDDED_WORKER=false`
 sur le plan de contrôle.
 
+## Mener plusieurs analyses en parallèle {#running-several-scans-at-once}
+
+**Analyses simultanées** (`max_concurrent`) est le nombre d'analyses qu'un agent mène en parallèle :
+**de 1 à 16**, 1 quand rien n'est précisé. Réglez-le en déclarant l'agent, ou plus tard avec l'icône
+de curseurs sur sa ligne — ou `PATCH /api/v1/admin/agents/{id}` avec `{"max_concurrent": 4}`. Une
+valeur hors de 1–16 est refusée par un 400 plutôt qu'arrondie en silence. La ligne l'affiche sous la
+forme *en cours / autorisées*, et un changement est inscrit au journal d'audit.
+
+La limite est appliquée des deux côtés. Le plan de contrôle ne confie une nouvelle analyse à un
+agent que tant que celles qu'il détient — prises en charge, pas encore rendues, bail encore vivant —
+sont moins nombreuses que la limite, et il les compte dans la base : deux interrogations du même
+agent ne peuvent pas la dépasser ensemble. L'agent, lui, cesse d'interroger dès qu'il est plein.
+
+**La limite appartient à la ligne de l'agent, pas à un processus.** Deux processus démarrés avec la
+même clé se partagent une seule limite — et, en mode `delegated`, seul celui qui s'est annoncé en
+dernier peut ouvrir une clé scellée. Pour davantage de machines, déclarez davantage d'agents.
+
+### Le dimensionner
+
+Chaque analyse lance jusqu'à cinq conteneurs de scanners l'un après l'autre, chacun plafonné à 2 Go
+de mémoire et à tous les cœurs de l'hôte Docker sauf un, et le rapprochement des vulnérabilités
+télécharge sa base — environ 2 Go — dans l'espace de travail propre à cette analyse. Par analyse
+simultanée, comptez environ :
+
+| | par analyse |
+|---|---|
+| CPU | un cœur |
+| Mémoire | 2 Go, en plus de la JVM de l'agent |
+| Disque (répertoire temporaire) | 3 Go — le clone, le SBOM et la base de vulnérabilités |
+
+Les analyses au-delà de ce que la machine peut tenir n'attendent pas leur tour : elles se disputent
+les mêmes cœurs et expirent ensemble, à 15 minutes par scanner. Restez en deçà de la machine ; plus
+de capacité, c'est un autre agent.
+
+### La modifier, et arrêter un agent
+
+**Une limite abaissée s'applique à la prochaine prise en charge.** Aucune nouvelle analyse ne
+démarre tant que celles en cours ne sont pas repassées sous la limite, et rien de ce qui tourne n'est
+interrompu. L'agent apprend la nouvelle valeur dans la réponse à sa prochaine interrogation —
+relevée ou abaissée, sans redémarrage.
+
+**Arrêter un agent attend ses analyses.** Sur `SIGTERM` — `docker stop`, une mise à jour progressive
+— il cesse de prendre du travail et attend que les analyses en cours soient rendues. Les abandonner
+coûterait plus cher qu'attendre : le protocole n'a pas d'appel pour rendre une analyse, donc une
+analyse abandonnée garde son bail jusqu'à ce qu'il expire (20 minutes après son dernier signe de
+vie), puis revient dans la file en ayant consommé l'une de ses trois tentatives, et son travail est
+perdu. Donnez au conteneur un délai d'arrêt aussi long que votre analyse la plus longue —
+`stop_grace_period: 30m` dans compose ; le défaut de Docker est de 10 secondes.
+
+Si le processus est tué avant — ou si la machine tombe —, c'est exactement cette expiration qui se
+produit. Jusque-là ses analyses comptent encore dans sa limite, si bien qu'un agent redémarré aussitôt
+ne prend que ce qui reste ; une fois expirées, elles ne comptent plus, avant même que la file les
+ait remises en attente.
+
 ## Modes d'identifiants {#credentials-modes}
 
 | Mode | Ce que le contrôleur envoie | Quand |
@@ -122,7 +176,8 @@ d'être analysée quand cet unique agent est indisponible.
 
 ## Lire la page
 
-Chaque agent affiche sa capacité de scans concurrents et la date de sa dernière annonce. Un
+Chaque agent affiche ses analyses en cours face à sa limite — voir
+[Mener plusieurs analyses en parallèle](#running-several-scans-at-once) — et la date de sa dernière annonce. Un
 agent qui **ne s'est jamais annoncé** n'a pas atteint le plan de contrôle du tout : vérifiez
 l'URL, le jeton, et que le HTTPS sortant est autorisé.
 

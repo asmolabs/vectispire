@@ -82,6 +82,8 @@ the same commit that violates it; a missing dependency cannot.
 | A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
+| An agent never holds more scans than its `max_concurrent`, even with two polls at once, and a lapsed lease does not count | `ScanQueueIntegrationTest` (MySQL, PostgreSQL), `AgentConcurrencyRoutesTest` |
+| An agent runs its limit in parallel, not one more, and a stop waits for the running scans | `AgentLoopConcurrencyTest` |
 
 ### Two decisions worth knowing
 
@@ -191,6 +193,10 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | No remote agent could hand back a result: `ScanArtifacts` is a record of `Optional`s, neither mapper registered Jackson 2's `jdk8` module, and every test of the protocol mocked the transport or sent `{}` | `AgentWireFormatTest`, `AgentResultWireTest` |
 | Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |
+| `max_concurrent` was stored, shown and sent to every agent, and nothing applied it: the claim took a scan whatever the agent held, and the agent ran one at a time. The count and the take now commit behind the agent's row — without that lock, two polls reading different candidates both count below the limit | `ScanQueue.claimWithin` |
+| The agent's stop raised a flag and returned; the JVM halts when its shutdown hooks do, so the scan its javadoc promised would finish was cut off mid-run | `AgentRunner.stop` |
+| A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |
+| `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
 
 ### Shapes chosen deliberately
 
