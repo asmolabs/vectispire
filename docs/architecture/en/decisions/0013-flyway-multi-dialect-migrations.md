@@ -1,6 +1,6 @@
 # 0013 — Flyway with dialect-specific native migrations
 
-**Date:** 2026-08-22 · **Status:** accepted · **Supersedes:** [0011](0011-liquibase-rather-than-flyway.md) · **Decider:** Laurent Boucher
+**Date:** 2026-08-22 · **Status:** accepted · **Supersedes:** [0011](0011-liquibase-rather-than-flyway.md) · **Amended by:** [0027](0027-common-migrations-with-type-placeholders.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -38,3 +38,10 @@ is declared where a reader can see it.
 identical across every engine for a long enough stretch that the duplication is pure ceremony. Not
 before: the reason this decision exists is a control that fails silently when the abstraction gets
 a type wrong.
+
+**Amended by [0027](0027-common-migrations-with-type-placeholders.md) (2026-09-26).** The second
+condition was met: thirteen of the first thirty-nine migrations were identical across engines, and
+most of the rest differed only by type names. From V40 on, such a migration is written once under
+`db/migration/common` with type placeholders spelled per engine in one table — `datetime(6)`
+included, visibly — and the vendor directories keep what diverges in structure. Native SQL, and
+`validate`, stand.

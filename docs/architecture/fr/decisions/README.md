@@ -16,7 +16,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0010](0010-one-scan-runner.md) | Exécuteur ScanRunner unique et concret | acceptée |
 | [0011](0011-liquibase-rather-than-flyway.md) | Liquibase, avec le DDL structurel écrit à la main | remplacée par [0013](0013-flyway-multi-dialect-migrations.md) |
 | [0012](0012-apache-2-0.md) | Licence Apache 2.0 | acceptée |
-| [0013](0013-flyway-multi-dialect-migrations.md) | Migrations Flyway multi-dialectes nativement gérées | acceptée |
+| [0013](0013-flyway-multi-dialect-migrations.md) | Migrations Flyway multi-dialectes nativement gérées | acceptée (amendée par [0027](0027-common-migrations-with-type-placeholders.md)) |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Deux moteurs déployables, et SQLite comme fixture de test | acceptée |
 | [0015](0015-one-secrets-engine.md) | Un seul moteur de secrets | acceptée |
 | [0016](0016-no-spdx-document.md) | CycloneDX est le SBOM généré ; SPDX n'est pas produit | acceptée |
@@ -30,6 +30,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0024](0024-integration-api-keys-act-for-an-account.md) | Une clé API d'intégration agit pour un compte, sur les routes qui l'acceptent | acceptée |
 | [0025](0025-siem-events-leave-through-the-outbox.md) | Les événements SIEM partent par l'outbox, après validation, et leur catalogue est un contrat | acceptée |
 | [0026](0026-services-are-grouped-by-domain.md) | Les services sont regroupés par domaine, et les domaines dépendent dans un seul sens | acceptée |
+| [0027](0027-common-migrations-with-type-placeholders.md) | Migrations communes avec des placeholders de type ; répertoires par moteur pour les divergences de structure | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

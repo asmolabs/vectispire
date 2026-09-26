@@ -16,7 +16,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0010](0010-one-scan-runner.md) | Single concrete ScanRunner | accepted |
 | [0011](0011-liquibase-rather-than-flyway.md) | Liquibase, with hand-written structural DDL | superseded by [0013](0013-flyway-multi-dialect-migrations.md) |
 | [0012](0012-apache-2-0.md) | Licensing under Apache 2.0 | accepted |
-| [0013](0013-flyway-multi-dialect-migrations.md) | Flyway multi-dialect SQL migrations | accepted |
+| [0013](0013-flyway-multi-dialect-migrations.md) | Flyway multi-dialect SQL migrations | accepted (amended by [0027](0027-common-migrations-with-type-placeholders.md)) |
 | [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture | accepted |
 | [0015](0015-one-secrets-engine.md) | One secrets engine | accepted |
 | [0016](0016-no-spdx-document.md) | CycloneDX is the generated SBOM; SPDX is not produced | accepted |
@@ -30,6 +30,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0024](0024-integration-api-keys-act-for-an-account.md) | An integration API key acts for one account, on the routes that accept it | accepted |
 | [0025](0025-siem-events-leave-through-the-outbox.md) | SIEM events leave through the outbox, after commit, and their catalogue is a contract | accepted |
 | [0026](0026-services-are-grouped-by-domain.md) | Services are grouped by domain, and the domains depend in one direction | accepted |
+| [0027](0027-common-migrations-with-type-placeholders.md) | Common migrations with type placeholders; vendor directories for structural divergence | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
