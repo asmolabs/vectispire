@@ -41,6 +41,16 @@ fails to compile.
 enforces them with ArchUnit. That is a genuine step down: an ArchUnit rule can be deleted by
 the same commit that violates it; a missing dependency cannot.
 
+**Inside `services`, domains.** The service layer is split into sub-packages by domain —
+`services.issues`, `services.scanning`, `services.access` and so on, twenty-two in all — over a
+foundation every domain may use (`shared`, `outbound`, `crypto`, `audit`, `outbox`). The domains
+form no cycle and depend in the directions [decision
+0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md) tabulates; a new
+service goes into the domain whose row matches what it needs, and a row that has to change changes
+in the same review, with its reason. Upwards, a lower domain declares a port and a higher one
+implements it (`ScanIngestor.Enricher`, `AuditLogService.Listener`, `OutboxHandler`); an effect
+that must survive the commit leaves through the outbox.
+
 ## What is checked, and where
 
 | Guarantee | Enforced by |
@@ -50,6 +60,7 @@ the same commit that violates it; a missing dependency cannot.
 | The domain depends on no framework, and no Docker client | `ArchitectureTest` |
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
+| Every service lives in a domain, the domains form no cycle, and each uses only what decision 0026 allows | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |

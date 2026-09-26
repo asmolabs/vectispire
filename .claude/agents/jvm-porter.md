@@ -33,6 +33,17 @@ downwards:
 ``` `vectispire-common/domain` depends on nothing but the JDK, BouncyCastle and
 Jackson — no Spring, no JPA, no Docker client.
 
+**A service goes into its domain's package, never into `core.services` itself.** `services` is
+split by domain (`services.issues`, `services.scanning`, `services.access`… twenty-two, decision
+0026) over a foundation any domain may use: `shared`, `outbound`, `crypto`, `audit`, `outbox`.
+`ArchitectureTest` fails on a class outside a listed domain, on any cycle between domains
+(`slices().matching("..core.services.(*)..")`, no exception list) and on a dependency the
+`MAY_USE` table does not allow. When a lower domain needs a higher one, declare a port it
+implements (`ScanIngestor.Enricher`, `AuditLogService.Listener`); an effect that must survive the
+commit goes through the outbox. Widening the table is a decision for the review, with its reason —
+not the line you add to turn the build green. `shared` stays small: three domains need it, and it
+decides nothing.
+
 ## What this codebase will not forgive
 
 **An analyzer that fails returns absent, never empty.** `ScanArtifacts` uses `Optional` fields

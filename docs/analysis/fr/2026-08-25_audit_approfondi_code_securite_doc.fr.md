@@ -162,7 +162,7 @@ La map `mfaChallenges` est par ailleurs une `ConcurrentHashMap` en mémoire, non
 
 ### 3.4 Le « quatre yeux » repose sur le rôle, pas sur l'identité (🟡 Moyenne)
 
-[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/IssueTriageService.java) rétrograde `NOT_AFFECTED` en `PENDING_APPROVAL` lorsque l'acteur ne possède pas `Role.canApproveTriage`, et `canApprove` est dérivé uniquement du rôle de l'appelant en [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
+[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/issues/IssueTriageService.java) rétrograde `NOT_AFFECTED` en `PENDING_APPROVAL` lorsque l'acteur ne possède pas `Role.canApproveTriage`, et `canApprove` est dérivé uniquement du rôle de l'appelant en [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
 
 Rien ne compare l'identité de l'approbateur à celle du demandeur. Un Security Champion peut lever une exemption et l'approuver dans le même appel, et un approbateur agissant seul contourne entièrement la file. Il s'agit d'une **barrière de rôle maker-checker**, qui est un vrai contrôle — mais ce n'est pas un contrôle à quatre yeux, et les évaluateurs DORA art. 9 / NIS 2 art. 21 lisent ce terme au sens littéral.
 
@@ -178,7 +178,7 @@ Par ailleurs, [`Dockerfile:76`](../../../Dockerfile) documente correctement que 
 
 ### 3.6 Le KMS échoue en mode ouvert (🟡 Moyenne)
 
-[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java) journalise `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` puis poursuit. Un jeton Vault expiré au démarrage bascule silencieusement toutes les écritures suivantes des clés gérées par Transit vers une clé locale dérivée par scrypt — un changement de garde des clés annoncé par une seule ligne WARN. Un contrôle qui se dégrade silencieusement est un contrôle qui n'est pas audité.
+[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/crypto/EncryptionService.java) journalise `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` puis poursuit. Un jeton Vault expiré au démarrage bascule silencieusement toutes les écritures suivantes des clés gérées par Transit vers une clé locale dérivée par scrypt — un changement de garde des clés annoncé par une seule ligne WARN. Un contrôle qui se dégrade silencieusement est un contrôle qui n'est pas audité.
 
 **Correctif :** lorsque `kmsType=vault` est explicitement configuré, refuser de démarrer sans point de terminaison Transit joignable.
 

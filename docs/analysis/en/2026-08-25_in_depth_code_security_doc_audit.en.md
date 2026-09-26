@@ -161,7 +161,7 @@ The `mfaChallenges` map is also an unbounded in-memory `ConcurrentHashMap` with 
 
 ### 3.4 Four-eyes approval is role-based, not identity-based (🟡 Medium)
 
-[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/IssueTriageService.java) downgrades `NOT_AFFECTED` to `PENDING_APPROVAL` when the actor lacks `Role.canApproveTriage`, and `canApprove` is derived purely from the caller's role at [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
+[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/issues/IssueTriageService.java) downgrades `NOT_AFFECTED` to `PENDING_APPROVAL` when the actor lacks `Role.canApproveTriage`, and `canApprove` is derived purely from the caller's role at [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
 
 Nothing compares the approver's identity to the requester's. A Security Champion can raise an exemption and approve it in the same call, and an approver acting alone bypasses the queue entirely. That is a **maker-checker role gate**, which is a real control — but it is not four-eyes, and DORA Art. 9 / NIS 2 Art. 21 assessors read the term literally.
 
@@ -177,7 +177,7 @@ Separately, [`Dockerfile:76`](../../../Dockerfile) correctly documents that the 
 
 ### 3.6 The KMS fails open (🟡 Medium)
 
-[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java) logs `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` and continues. An expired Vault token at boot silently moves every subsequent write from Transit-managed keys to a local scrypt-derived key — a change of key custody announced only in a WARN line. A control that degrades silently is a control that is not audited.
+[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/crypto/EncryptionService.java) logs `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` and continues. An expired Vault token at boot silently moves every subsequent write from Transit-managed keys to a local scrypt-derived key — a change of key custody announced only in a WARN line. A control that degrades silently is a control that is not audited.
 
 **Fix:** when `kmsType=vault` is explicitly configured, refuse to start without a reachable Transit endpoint.
 

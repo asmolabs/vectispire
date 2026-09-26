@@ -343,7 +343,7 @@ with a read-only archive.
 
 ### AI code review (Ollama), off by default
 
-[`AiReviewService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/AiReviewService.java) is a light complement to
+[`AiReviewService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/ai/AiReviewService.java) is a light complement to
 the scanners, not a SAST engine: one prompt, no guaranteed reproducibility. The sample sent
 is a sorted, extension-filtered concatenation of source files capped at 40,000 characters —
 no chunking, so large repositories are truncated.

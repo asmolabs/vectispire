@@ -348,7 +348,7 @@ et présente au conteneur une archive en lecture seule.
 
 ### Revue de code par IA (Ollama), désactivée par défaut
 
-[`AiReviewService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/AiReviewService.java) est un
+[`AiReviewService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/ai/AiReviewService.java) est un
 complément léger aux scanners, pas un moteur SAST : une invite, aucune reproductibilité garantie.
 L'échantillon envoyé est une concaténation triée et filtrée par extension de fichiers source
 plafonnée à 40 000 caractères — sans découpage, donc les gros dépôts sont tronqués.

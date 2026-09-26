@@ -29,7 +29,7 @@ Autrement dit : quiconque a obtenu une copie de l'ancien `database.sqlite` déti
 privée en clair. Elle doit être considérée comme compromise.
 
 **Ce que fait le code aujourd'hui.** Cette constante a été retirée d'
-[`EncryptionService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/EncryptionService.java) :
+[`EncryptionService`](../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/crypto/EncryptionService.java) :
 l'application ne transporte plus la clé qui ouvre sa propre base, et la valeur ci-dessus n'est
 plus essayée au déchiffrement. La ligne `perso` apparaît donc en **« Illisible »** sur la page
 *Clés SSH* — c'est le résultat attendu, et le remplacement ci-dessous est la seule suite

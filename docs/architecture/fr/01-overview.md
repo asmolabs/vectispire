@@ -84,6 +84,13 @@ api/ ──► services/ ──► repositories/ ──► persistence/ ──�
 Une règle stricte garantit la testabilité : **une couche ne connaît que la couche située
 immédiatement en dessous.**
 
+À l'intérieur de `services/`, les classes sont regroupées par domaine — `issues`, `scanning`,
+`access`, `compliance` et dix-huit autres — et les domaines dépendent les uns des autres dans un seul
+sens, au-dessus d'un socle (`shared`, `outbound`, `crypto`, `audit`, `outbox`) que tous peuvent
+utiliser. `ArchitectureTest` refuse un cycle entre domaines et une dépendance que le tableau
+n'autorise pas ; le tableau, et la raison pour laquelle ce n'est pas Spring Modulith, sont dans la
+[décision 0026](decisions/0026-services-are-grouped-by-domain.md).
+
 ## Le déroulement d'un scan
 
 ```mermaid
