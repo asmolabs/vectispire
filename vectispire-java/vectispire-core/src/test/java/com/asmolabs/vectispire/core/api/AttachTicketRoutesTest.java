@@ -142,7 +142,7 @@ class AttachTicketRoutesTest extends ApiTestBase {
     }
 
     @Autowired
-    private com.asmolabs.vectispire.core.services.shared.SettingsService settings;
+    private com.asmolabs.vectispire.core.services.settings.SettingsService settings;
 
     @Test
     @DisplayName("with a tracker configured, only a reference it issues, in its project, is accepted")

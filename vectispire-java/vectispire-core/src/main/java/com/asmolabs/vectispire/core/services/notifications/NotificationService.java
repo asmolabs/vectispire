@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;

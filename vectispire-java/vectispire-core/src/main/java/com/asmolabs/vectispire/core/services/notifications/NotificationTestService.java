@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.services.notifications;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

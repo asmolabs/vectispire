@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.services.issues.ExceptionsRegisterService;
 import com.asmolabs.vectispire.core.services.posture.RemediationDistributionService;
 import com.asmolabs.vectispire.core.services.rules.RuleCoverageService;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.time.YearMonth;

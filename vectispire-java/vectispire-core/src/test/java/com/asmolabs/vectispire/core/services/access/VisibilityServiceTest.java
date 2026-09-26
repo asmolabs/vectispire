@@ -21,7 +21,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;

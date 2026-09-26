@@ -40,26 +40,37 @@ d'événements, événements externalisés vers un broker), ou si un domaine doi
 ## Décision
 
 **`core/services` est divisé en sous-paquetages, un par domaine, et les domaines forment un graphe
-orienté sans cycle.** `ArchitectureTest` vérifie trois choses : que chaque classe de service vit
-dans un domaine connu, que `slices().matching("..core.services.(*)..")` est sans cycle, et que chaque
+orienté sans autre cycle que les deux consignés plus bas.** `ArchitectureTest` vérifie quatre
+choses : que chaque classe de service vit dans un domaine connu, que
+`slices().matching("..core.services.(*)..")` est sans cycle une fois les cycles consignés mis à
+part, que chaque cycle consigné existe encore (la liste ne peut donc que raccourcir), et que chaque
 domaine ne dépend que des domaines que le tableau ci-dessous lui permet.
+
+**Un domaine est dessiné comme un futur module, pas comme un regroupement technique.** Une étude à
+venir planifiera le passage à des modules *par domaine* — chacun possédant ses contrôleurs, ses
+services, ses dépôts et ses entités. Les paquetages sont choisis pour qu'un domaine ici puisse aussi
+posséder ceux-là : `issues` emporterait `IssuesController`, `Issues` et `IssueEntity`. Là où le code
+a placé une classe du mauvais côté d'une frontière, elle reste là où son module la posséderait et le
+cycle qu'elle ferme est consigné, plutôt que d'être déplacée au mauvais endroit pour faire
+disparaître le cycle.
 
 ### Les domaines
 
 | Domaine | Ce qu'il contient |
 |---|---|
-| `shared` | des utilitaires transverses sans décision propre : `TargetNaming`, `RowVisibility`, `ReportCursor`, `ProductVersion`, `ExportProperties`, `BrandingProperties`, `SettingsService` |
+| `settings` | la configuration du déploiement : `SettingsService`, les réglages de première installation, et ce que Vectispire dit de lui-même (`ProductVersion`, `ExportProperties`, `BrandingProperties`) |
 | `outbound` | l'unique porte de sortie : `PinnedHttpSender`, `OutboundJson`, `OutboundPost`, la configuration de la garde |
 | `crypto` | le chiffrement au repos, les sources de la clé, Vault, la clé de signature |
-| `audit` | l'écriture du journal d'audit et de son miroir, et `RequestActor` |
-| `outbox` | le relais : `OutboxService`, `OutboxHandler`, `NotificationChannel`, `GoneDestinationException` |
-| `access` | comptes, équipes, visibilité, sessions, parcours de connexion, seconds facteurs, OIDC, SCIM, clés API |
+| `audit` | le journal d'audit — son écriture, son miroir, sa relecture et le jugement de sa chaîne — et `RequestActor` |
+| `outbox` | le relais : `OutboxService`, et les deux contrats vers lesquels il distribue, `OutboxHandler` et `NotificationChannel`, avec `GoneDestinationException` |
+| `shared` | deux utilitaires encore sans domaine : `TargetNaming`, `ReportCursor` |
+| `access` | comptes, équipes, visibilité et garde des lignes, sessions, parcours de connexion, seconds facteurs, OIDC, SCIM, clés API, amorçage |
 | `siem` | le flux d'événements de sécurité et sa livraison |
 | `rules` | jeux de règles, catalogue amont, couverture des règles |
 | `inventory` | ce dont les cibles sont faites : composants, diff de SBOM, rayon d'impact, licences, contrats d'API |
 | `ai` | la revue par modèle et le conseiller |
-| `tickets` | le client du gestionnaire de tickets et les liens de tickets |
-| `issues` | synchronisation, triage, décisions, SLA, historique, exceptions, import VEX, le webhook et le balayage du gestionnaire de tickets |
+| `issues` | synchronisation, triage, décisions, SLA, historique, registre des exceptions, import VEX |
+| `tickets` | le client du gestionnaire de tickets, les liens de tickets, le webhook du gestionnaire et le balayage des tickets |
 | `scanning` | la file, la répartition, l'ingestion, le worker intégré, la planification, les lectures d'analyses |
 | `agents` | l'administration des agents et le protocole agent |
 | `targets` | dépôts, conteneurs, solutions et projets, identifiants de clonage, suppression |
@@ -68,36 +79,44 @@ domaine ne dépend que des domaines que le tableau ci-dessous lui permet.
 | `notifications` | ce que dit le delta d'une analyse, et les canaux qui le disent |
 | `exports` | VEX, CSAF, CycloneDX, attestation, les documents d'export |
 | `posture` | les chiffres du risque : tableau de bord, scorecards, dette, qualité, remédiation, chemins d'attaque, le rapport hebdomadaire |
-| `compliance` | référentiels, déclaration d'applicabilité, preuves, OWASP, et la relecture du journal d'audit |
-| `platform` | les racines de composition : la tâche de maintenance, la rétention, l'amorçage, l'écran des réglages |
+| `compliance` | référentiels, déclaration d'applicabilité, preuves, OWASP |
+| `platform` | les racines de composition : la tâche de maintenance, la rétention, l'écran des réglages |
 
-`shared` est petit à dessein et doit le rester : une classe n'y va que si trois domaines ou plus en
-ont besoin et qu'elle ne décide rien. `SettingsService` est celle qui semble déplacée ; elle y est
-parce que vingt-cinq classes réparties dans douze domaines lisent les réglages, et qu'un domaine
-`settings` qui la contiendrait devrait se trouver sous tous ceux-là tandis que l'*écran* des
-réglages — qui écrit les secrets de chaque domaine — se trouve au-dessus.
+**`shared` contient deux classes et doit se vider.** `TargetNaming` appartient à `targets`, qui
+possède les lignes qu'elle nomme ; elle ne peut pas y aller tant que `targets` appelle `scanning`
+pour mettre une analyse en file et `access` pour filtrer par visibilité, car ces deux-là lisent aussi
+des noms — neuf domaines le font. `ReportCursor`, la pagination PDF que partagent les rapports de
+quatre domaines, n'a pas de domaine propre ; un module de rendu, ou une copie par module, est à
+trancher par l'étude.
+
+**`platform` n'est pas un futur module.** Ses trois classes atteignent de nombreux domaines par
+nature : la tâche de maintenance appelle la tâche périodique de chaque domaine, la rétention purge
+les tables de chaque domaine, et l'écran des réglages écrit les secrets de chaque domaine. Dans un
+découpage en modules, elles se dissolvent dans les domaines qu'elles appellent — une tâche par
+module, une règle de rétention par module, une contribution aux réglages par module.
 
 ### Qui peut dépendre de qui
 
-Le **socle** — `shared`, `outbound`, `crypto`, `audit`, `outbox` — peut être utilisé par tous les
-domaines. À l'intérieur, `crypto` utilise `outbound` (Vault est atteint à travers la garde) et rien
-d'autre ne dépend de rien.
+Le **socle** — `settings`, `outbound`, `crypto`, `audit`, `outbox`, `shared` — peut être utilisé par
+tous les domaines. À l'intérieur, `crypto` utilise `outbound` (Vault est atteint à travers la garde)
+et rien d'autre ne dépend de rien, hormis l'arête consignée `audit` → `siem`.
 
 Au-dessus du socle, chaque domaine ne peut utiliser que les domaines indiqués :
 
 | Domaine | Peut aussi utiliser |
 |---|---|
-| `access`, `siem`, `rules`, `inventory`, `ai`, `tickets` | — |
-| `issues` | `tickets` |
-| `scanning` | `issues`, `inventory`, `rules` |
+| `access`, `siem`, `rules`, `inventory` | — |
+| `ai`, `issues` | `access` |
+| `tickets` | `access`, `issues` |
+| `scanning` | `access`, `inventory`, `issues`, `rules` |
 | `agents` | `scanning` |
 | `targets` | `access`, `scanning` |
 | `threatintel` | `scanning`, `siem` |
 | `gate` | `issues`, `rules`, `siem` |
 | `notifications` | `issues`, `scanning` |
 | `exports` | `gate`, `issues` |
-| `posture` | `gate`, `inventory`, `issues`, `notifications` |
-| `compliance` | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `siem` |
+| `posture` | `access`, `gate`, `inventory`, `issues`, `notifications` |
+| `compliance` | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules` |
 | `platform` | n'importe quel domaine ; rien ne dépend de lui |
 
 Le tableau décrit le code tel qu'il est, et y ajouter une ligne est une décision : elle appartient à
@@ -117,33 +136,36 @@ la même revue que la dépendance qui la requiert, avec sa raison.
   qui l'a causé et envoyée ensuite par le relais — jamais un appel direct depuis l'intérieur de la
   transaction, et jamais `@Async`, inerte ici.
 
-### Trois cycles cassés en chemin
+### Trois cycles : un cassé, deux consignés
 
-Le paquetage plat cachait trois cycles entre ce qui est devenu des domaines :
+Le paquetage plat cachait trois cycles entre ce qui est devenu des domaines.
 
-- `outbox` ↔ `notifications` — le relais interceptait `NotificationService.GoneDestinationException`,
-  et les notifications écrivent dans le relais. L'exception est le contrat du relais, pas celui des
-  notifications ; elle est devenue `outbox.GoneDestinationException`, de premier niveau, et
-  `NotificationChannel`, l'interface vers laquelle le relais distribue les lignes de notification,
-  l'a suivie.
-- `audit` ↔ `siem` — `SiemEvents` écoute le journal d'audit, et `AuditLogQueryService` publie un
-  événement SIEM quand la chaîne est rompue. Relire le journal et juger de son intégrité est une
-  question d'auditeur : le service de lecture et sa vue vivent donc dans `compliance`, à côté des
-  contrôles qui vérifient déjà la chaîne ; `audit` garde l'écrivain que tous les domaines appellent.
-- `issues` ↔ `tickets` — `IssueDecisionService.attachTicket` valide une référence contre le
-  gestionnaire configuré, tandis que le webhook du gestionnaire et le balayage des tickets appliquent
-  des transitions de problèmes. Le webhook et le balayage sont des gestes sur les problèmes qui font
-  intervenir un gestionnaire : ils vivent dans `issues`, et `tickets` garde le client et les liens.
+- **Cassé : `outbox` ↔ `notifications`.** Le relais interceptait
+  `NotificationService.GoneDestinationException`, et les notifications écrivent dans le relais.
+  L'exception est le contrat du relais, pas celui des notifications ; elle est devenue
+  `outbox.GoneDestinationException`, de premier niveau, et `NotificationChannel`, l'interface vers
+  laquelle le relais distribue les lignes de notification, l'a suivie.
+- **Consigné : `audit` → `siem`**, par `AuditLogQueryService` → `SiemEvents`. Vérifier la chaîne
+  publie `AUDIT_CHAIN_BROKEN`, tandis que le SIEM écoute le journal qu'elle vérifie. L'issue est un
+  événement applicatif auquel le SIEM s'abonne — ce que ferait un module, et plus qu'un déplacement
+  de paquetage.
+- **Consigné : `issues` → `tickets`**, par `IssueDecisionService` → `TicketService`. Attacher un
+  ticket valide la référence contre le gestionnaire configuré, tandis que le webhook du gestionnaire
+  et le balayage des tickets font transiter des problèmes. La validation appartient à `tickets` ; la
+  déplacer est un changement de méthode, pas de paquetage.
 
-Aucun cycle n'est consigné comme exception.
+Les deux arêtes consignées figurent dans `ArchitectureTest.KNOWN_CYCLES` avec ces raisons,
+exemptées de la règle des cycles et du tableau par classe — pas par paquetage — et un test échoue le
+jour où l'une disparaît : la liste raccourcit avec le code.
 
 ## Conséquences
 
 - Un nouveau service va dans le domaine dont la ligne du tableau correspond à ce dont il a besoin ;
   si aucune ne correspond, le tableau change d'abord, à découvert.
-- « Visibilité paquetage » veut maintenant dire « ce domaine ». Le déplacement a élargi une poignée
-  de membres qui étaient de visibilité paquetage et utilisés à travers ce qui est devenu une
-  frontière ; les autres sont restés privés à leur domaine.
+- « Visibilité paquetage » veut maintenant dire « ce domaine ». Le déplacement a élargi une seule
+  classe — `ReportCursor`, et les membres qu'appellent les rapports PDF — parce que ses appelants
+  vivent dans quatre domaines ; tout le reste de ce qui était de visibilité paquetage est resté privé
+  à son domaine.
 - La règle des couches ne change pas : `..services..` couvre les sous-paquetages.
 - Une règle ArchUnit peut être supprimée par le commit qui la viole, comme `vectispire-java/README.md`
   le dit déjà des couches. Le tableau de cet enregistrement est la référence contre laquelle la règle

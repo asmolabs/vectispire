@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.compliance;
+package com.asmolabs.vectispire.core.services.audit;
 
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import java.time.Instant;

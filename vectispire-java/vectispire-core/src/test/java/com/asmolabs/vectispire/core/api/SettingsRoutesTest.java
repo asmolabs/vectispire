@@ -29,7 +29,7 @@ import org.springframework.http.MediaType;
 class SettingsRoutesTest extends ApiTestBase {
 
     @org.springframework.beans.factory.annotation.Autowired
-    private com.asmolabs.vectispire.core.services.shared.SettingsService settingsStore;
+    private com.asmolabs.vectispire.core.services.settings.SettingsService settingsStore;
 
     /** Every writing route, with a body each will accept if it gets that far. */
     private static Map<String, String> writingRoutes() {

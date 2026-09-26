@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.shared.ProductVersion;
+import com.asmolabs.vectispire.core.services.settings.ProductVersion;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;

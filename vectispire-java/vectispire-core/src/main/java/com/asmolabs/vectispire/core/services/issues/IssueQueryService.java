@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueOrdering;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.time.Instant;

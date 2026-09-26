@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Instant;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;

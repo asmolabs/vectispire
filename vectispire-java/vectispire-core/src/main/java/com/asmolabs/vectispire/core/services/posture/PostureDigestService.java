@@ -18,7 +18,7 @@ import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.services.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;

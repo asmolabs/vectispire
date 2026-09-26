@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 
 /**
  * The routes' name for {@link RowVisibility}, which holds the rule and its reasons: 404 never 403,

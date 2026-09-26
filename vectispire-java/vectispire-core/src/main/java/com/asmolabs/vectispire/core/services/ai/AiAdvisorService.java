@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.platform;
+package com.asmolabs.vectispire.core.services.access;
 
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;

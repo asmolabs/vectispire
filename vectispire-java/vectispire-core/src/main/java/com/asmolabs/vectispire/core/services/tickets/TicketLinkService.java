@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.core.repositories.IssueTickets;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;

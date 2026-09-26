@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Optional;

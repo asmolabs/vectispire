@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.vectispire.core.services.shared.ProductVersion;
+import com.asmolabs.vectispire.core.services.settings.ProductVersion;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

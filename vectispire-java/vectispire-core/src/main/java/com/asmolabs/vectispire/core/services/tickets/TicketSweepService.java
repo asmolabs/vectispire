@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.issues;
+package com.asmolabs.vectispire.core.services.tickets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
@@ -15,8 +15,8 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
-import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

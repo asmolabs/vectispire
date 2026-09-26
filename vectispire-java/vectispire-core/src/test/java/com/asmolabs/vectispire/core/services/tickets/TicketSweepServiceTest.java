@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.issues;
+package com.asmolabs.vectispire.core.services.tickets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,7 +19,6 @@ import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
-import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

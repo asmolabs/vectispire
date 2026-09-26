@@ -15,7 +15,7 @@ import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

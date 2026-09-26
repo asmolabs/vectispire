@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.shared;
+package com.asmolabs.vectispire.core.services.settings;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.SettingEntity;
@@ -62,7 +62,7 @@ public class SettingsService {
      *
      * <p>Not the same question as {@link #get(Setting)} returning the default value: an operator
      * may have deliberately written the value the catalog also proposes, and overwriting that is
-     * overwriting a decision. The distinction is what lets {@code FirstInstallDefaults} seed a
+     * overwriting a decision. The distinction is what lets {@link FirstInstallDefaults} seed a
      * fresh install without ever undoing a choice.
      */
     @Transactional(readOnly = true)

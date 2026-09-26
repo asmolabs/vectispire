@@ -42,8 +42,9 @@ enforces them with ArchUnit. That is a genuine step down: an ArchUnit rule can b
 the same commit that violates it; a missing dependency cannot.
 
 **Inside `services`, domains.** The service layer is split into sub-packages by domain —
-`services.issues`, `services.scanning`, `services.access` and so on, twenty-two in all — over a
-foundation every domain may use (`shared`, `outbound`, `crypto`, `audit`, `outbox`). The domains
+`services.issues`, `services.scanning`, `services.access` and so on, twenty-three in all — over a
+foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, and a
+`shared` of two classes meant to empty). Each domain is drawn as the module it would become. The domains
 form no cycle and depend in the directions [decision
 0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md) tabulates; a new
 service goes into the domain whose row matches what it needs, and a row that has to change changes

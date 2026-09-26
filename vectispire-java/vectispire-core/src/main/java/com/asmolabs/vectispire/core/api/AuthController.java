@@ -49,7 +49,7 @@ public class AuthController {
     private final AuthenticationFlowService flows;
     private final AuthService auth;
     private final TotpService totp;
-    private final com.asmolabs.vectispire.core.services.shared.BrandingProperties branding;
+    private final com.asmolabs.vectispire.core.services.settings.BrandingProperties branding;
     private final TrustedProxies proxies;
 
     public record MfaVerifyRequest(@JsonProperty("mfa_token") String mfaToken, String code) {}
@@ -60,7 +60,7 @@ public class AuthController {
             AuthenticationFlowService flows,
             AuthService auth,
             TotpService totp,
-            com.asmolabs.vectispire.core.services.shared.BrandingProperties branding,
+            com.asmolabs.vectispire.core.services.settings.BrandingProperties branding,
             TrustedProxies proxies) {
         this.flows = flows;
         this.auth = auth;

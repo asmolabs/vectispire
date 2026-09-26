@@ -23,7 +23,7 @@ import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationSer
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
-import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

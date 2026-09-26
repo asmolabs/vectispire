@@ -1,12 +1,12 @@
-package com.asmolabs.vectispire.core.services.platform;
+package com.asmolabs.vectispire.core.services.settings;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.services.access.BootstrapService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

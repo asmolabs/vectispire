@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.platform;
+package com.asmolabs.vectispire.core.services.access;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.settings.FirstInstallDefaults;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

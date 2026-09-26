@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.shared;
+package com.asmolabs.vectispire.core.services.settings;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;

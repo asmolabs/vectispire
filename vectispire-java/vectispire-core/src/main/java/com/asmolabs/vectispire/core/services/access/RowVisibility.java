@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.shared;
+package com.asmolabs.vectispire.core.services.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;

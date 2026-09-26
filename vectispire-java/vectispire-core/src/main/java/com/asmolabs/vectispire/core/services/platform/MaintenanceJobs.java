@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.services.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
-import com.asmolabs.vectispire.core.services.issues.TicketSweepService;
+import com.asmolabs.vectispire.core.services.tickets.TicketSweepService;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import com.asmolabs.vectispire.core.services.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.services.scanning.SchedulerService;

@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy.Candidate
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
