@@ -195,7 +195,7 @@ public final class DependencyScanner {
             throw new UncheckedIOException("could not stage the vulnerability database cache", e);
         }
 
-        ContainerRunner.ContainerResult result = runner.run(ContainerRun.of(
+        ContainerRun run = ContainerRun.of(
                         images.grype(),
                         List.of("sbom:" + ContainerPaths.MOUNT + "/" + SBOM_FILENAME, "-o", "json"),
                         List.of(
@@ -203,8 +203,13 @@ public final class DependencyScanner {
                                 ContainerRun.Mount.writable(cache.toString(), ContainerPaths.DATABASE_CACHE)),
                         label)
                 // The matcher downloads and refreshes its vulnerability database.
-                .withNetwork()
-                .runningAsRoot());
+                .withNetwork();
+        // **As the workspace's owner, not as root.** As root, the directories it creates in the
+        // database mount were root's on the host: the unprivileged process that owns the workspace
+        // could not empty them, the cleanup — which skips what it cannot delete, so that one file
+        // does not keep the rest — skipped them, and every scan left its two gigabytes on the disk.
+        // As the owner it can still read the 0700 workspace, which is why it ran as root.
+        ContainerRunner.ContainerResult result = runner.run(ContainerRun.ownerOf(mounted).map(run::runningAs).orElseGet(run::runningAsRoot));
 
         return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
     }

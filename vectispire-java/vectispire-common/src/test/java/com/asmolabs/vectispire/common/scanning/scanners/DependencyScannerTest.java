@@ -102,10 +102,10 @@ class DependencyScannerTest {
         void onlyTheMatcherIsOnline() {
             when(runner.run(any())).thenReturn(new ContainerResult("{\"artifacts\": []}", "", 0));
 
-            Workspace.withWorkspace(workspace -> {
+            String owner = Workspace.withWorkspace(workspace -> {
                 scanner.sbomOfDirectory(workspace, null);
                 scanner.matchSbom(workspace, "{}");
-                return null;
+                return ContainerRun.ownerOf(workspace.root()).orElseThrow();
             });
 
             ArgumentCaptor<ContainerRun> runs = ArgumentCaptor.forClass(ContainerRun.class);
@@ -119,6 +119,10 @@ class DependencyScannerTest {
 
             assertThat(grype.image()).isEqualTo(ScannerImages.PINNED.grype());
             assertThat(grype.network()).isTrue();
+            // As the workspace's owner, not root: what it writes into the database mount has to be
+            // deletable by the process that removes the workspace.
+            assertThat(grype.asRoot()).isFalse();
+            assertThat(grype.user()).isEqualTo(owner);
             // The database cache is the one place it may write; the SBOM mount stays read-only.
             assertThat(grype.mounts()).filteredOn(ContainerRun.Mount::readOnly).hasSize(1);
             assertThat(grype.mounts()).filteredOn(mount -> !mount.readOnly())

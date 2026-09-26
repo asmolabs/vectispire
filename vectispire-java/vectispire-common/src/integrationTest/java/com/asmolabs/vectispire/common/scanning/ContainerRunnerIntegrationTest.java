@@ -145,6 +145,36 @@ class ContainerRunnerIntegrationTest {
     }
 
     @Test
+    @DisplayName("a tool run as the directory's owner writes what that owner can delete")
+    void theOwnerCanDeleteWhatTheToolWrote(@TempDir Path cache) throws IOException {
+        // As root, the matcher's database directories were root's on the host: the unprivileged
+        // process could not empty them, the cleanup skipped them, and each scan left two
+        // gigabytes behind. Docker Desktop maps ownership, so on a Linux daemon this is the proof;
+        // everywhere, the identity inside the container is.
+        String owner = ContainerRun.ownerOf(cache).orElseThrow();
+        String mount = ContainerRunner.DATABASE_CACHE_MOUNT;
+        ContainerRun request = ContainerRun.of(
+                        BUSYBOX,
+                        List.of("sh", "-c", "mkdir -p " + mount + "/6/nested && echo db > " + mount
+                                + "/6/nested/vulnerability.db && id -u && id -g"),
+                        List.of(ContainerRun.Mount.writable(cache.toString(), mount)),
+                        "integration")
+                .runningAs(owner);
+
+        assertThat(run(request).stdout().trim().replace('\n', ':')).isEqualTo(owner);
+        try (var written = Files.walk(cache)) {
+            for (Path path : written.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                if (!path.equals(cache)) {
+                    Files.delete(path);
+                }
+            }
+        }
+        try (var left = Files.list(cache)) {
+            assertThat(left).isEmpty();
+        }
+    }
+
+    @Test
     @DisplayName("every capability is dropped")
     void capabilitiesAreDropped() {
         // `cap_drop: ALL` on a record is a claim; the effective capability set inside the

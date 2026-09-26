@@ -307,7 +307,9 @@ public final class ContainerRunner {
                         // the loud failure rather than the quiet one.
                         "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT)
                 .withHostConfig(hostConfig);
-        if (request.asRoot()) {
+        if (request.user() != null) {
+            create = create.withUser(request.user());
+        } else if (request.asRoot()) {
             create = create.withUser("0:0");
         }
 

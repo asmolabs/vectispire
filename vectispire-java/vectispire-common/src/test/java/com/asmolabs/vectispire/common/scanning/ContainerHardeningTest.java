@@ -64,6 +64,24 @@ class ContainerHardeningTest {
     }
 
     @Test
+    @DisplayName("a run naming its user is created as that user, and root only when asked for")
+    void theUserIsTheOneAskedFor() {
+        try {
+            runner.run(ContainerRun.of("scanner:pinned", List.of(), List.of(), "probe").runningAs("1000:1001"));
+        } catch (RuntimeException expected) {
+            // The stub stops short of a running container; the request is built by then.
+        }
+        try {
+            runner.run(ContainerRun.of("scanner:pinned", List.of(), List.of(), "probe").runningAsRoot());
+        } catch (RuntimeException expected) {
+            // As above.
+        }
+
+        org.mockito.Mockito.verify(createCommand).withUser("1000:1001");
+        org.mockito.Mockito.verify(createCommand).withUser("0:0");
+    }
+
+    @Test
     @DisplayName("every hardening flag is on the request, and the CPU share among them")
     void theHostConfigCarriesEveryFlag() {
         try {
