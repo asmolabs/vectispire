@@ -1,6 +1,6 @@
-package com.asmolabs.vectispire.core.services.gate;
+package com.asmolabs.vectispire.core.gate;
 
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import java.time.Instant;
 import java.util.UUID;
 

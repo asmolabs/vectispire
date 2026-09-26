@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.gate;
+package com.asmolabs.vectispire.core.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

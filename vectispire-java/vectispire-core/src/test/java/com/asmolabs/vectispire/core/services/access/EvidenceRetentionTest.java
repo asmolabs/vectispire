@@ -10,8 +10,6 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.repositories.ComplianceSnapshots;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
@@ -40,20 +38,19 @@ class EvidenceRetentionTest {
 
     private static final Instant NOW = Instant.parse("2026-09-14T10:00:00Z");
 
-    private GateVerdicts verdicts;
+    private SessionCleanupService.EvidencePurge verdicts;
     private SettingsService settings;
     private SessionCleanupService cleanup;
 
     @BeforeEach
     void wire() {
-        verdicts = mock(GateVerdicts.class);
+        verdicts = mock(SessionCleanupService.EvidencePurge.class);
         settings = mock(SettingsService.class);
         UserSessions sessions = mock(UserSessions.class);
         LoginAttempts attempts = mock(LoginAttempts.class);
         MfaChallenges challenges = mock(MfaChallenges.class);
-        ComplianceSnapshots snapshots = mock(ComplianceSnapshots.class);
         cleanup = new SessionCleanupService(
-                sessions, attempts, challenges, verdicts, snapshots, settings,
+                sessions, attempts, challenges, java.util.List.of(verdicts), settings,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

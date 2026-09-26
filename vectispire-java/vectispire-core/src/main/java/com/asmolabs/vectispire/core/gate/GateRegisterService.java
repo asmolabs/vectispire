@@ -1,10 +1,11 @@
-package com.asmolabs.vectispire.core.services.gate;
+package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +27,31 @@ public class GateRegisterService {
 
     public GateRegisterService(GateVerdicts verdicts) {
         this.verdicts = verdicts;
+    }
+
+    /**
+     * The last verdict recorded for a repository at or after {@code from} and, when {@code until} is
+     * not null, before it — the answer the gate gave about the backlog one scan left.
+     *
+     * <p>This and {@link #lastForContainer} exist because the register is this module's table: the
+     * attestation read it through the repository while the code was packaged by layer. The window
+     * is the caller's to choose, and an empty one is an honest "not asked".
+     */
+    public Optional<GateVerdictView> lastForRepository(Long repoId, Instant from, Instant until) {
+        return (until == null
+                        ? verdicts.findFirstByRepoIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(repoId, from)
+                        : verdicts.findFirstByRepoIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
+                                repoId, from, until))
+                .map(GateVerdictView::of);
+    }
+
+    /** {@link #lastForRepository}, for a container image. */
+    public Optional<GateVerdictView> lastForContainer(Long containerId, Instant from, Instant until) {
+        return (until == null
+                        ? verdicts.findFirstByContainerIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(containerId, from)
+                        : verdicts.findFirstByContainerIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
+                                containerId, from, until))
+                .map(GateVerdictView::of);
     }
 
     /**

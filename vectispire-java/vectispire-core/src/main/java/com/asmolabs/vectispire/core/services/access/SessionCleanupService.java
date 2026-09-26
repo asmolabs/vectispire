@@ -3,20 +3,20 @@ package com.asmolabs.vectispire.core.services.access;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.repositories.ComplianceSnapshots;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.LoginAttempts;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Purging the two authentication tables.
+ * Purging the authentication tables, and the evidence other modules hand it through {@link EvidencePurge}.
  *
  * <p><b>This is not a security control, and saying so matters.</b> An expired session is
  * already refused on read, and an attempt outside the window is already not counted. This pass
@@ -42,8 +42,7 @@ public class SessionCleanupService {
     private final UserSessions sessions;
     private final LoginAttempts attempts;
     private final MfaChallenges challenges;
-    private final GateVerdicts verdicts;
-    private final ComplianceSnapshots snapshots;
+    private final List<EvidencePurge> evidence;
     private final SettingsService settings;
     private final Clock clock;
 
@@ -51,17 +50,34 @@ public class SessionCleanupService {
             UserSessions sessions,
             LoginAttempts attempts,
             MfaChallenges challenges,
-            GateVerdicts verdicts,
-            ComplianceSnapshots snapshots,
+            List<EvidencePurge> evidence,
             SettingsService settings,
             Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
         this.challenges = challenges;
-        this.verdicts = verdicts;
-        this.snapshots = snapshots;
+        this.evidence = evidence;
         this.settings = settings;
         this.clock = clock;
+    }
+
+    /**
+     * Evidence a module above this one keeps, purged past the evidence window by this pass: the
+     * gate's verdict register and the monthly compliance captures.
+     *
+     * <p><b>A port, because the tables are not this module's.</b> The pass read {@code GateVerdicts}
+     * and {@code ComplianceSnapshots} directly while the code was packaged by layer; once {@code gate}
+     * owned its register that read closed a cycle, {@code gate} depending on {@code access} for every
+     * route it serves. The owners implement this, and the window, its setting and the refusal to fail
+     * the tick stay here, where they were.
+     */
+    public interface EvidencePurge {
+
+        /** Deletes the rows recorded before {@code cutoff} and says how many went. */
+        int deleteBefore(Instant cutoff);
+
+        /** What the log line names when this purge is skipped: "Gate verdict", "Compliance snapshot". */
+        String label();
     }
 
     /**
@@ -81,26 +97,7 @@ public class SessionCleanupService {
      */
     public CleanupResult prune() {
         return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(),
-                pruneVerdicts() + pruneSnapshots());
-    }
-
-    /**
-     * Compliance captures older than the evidence window.
-     *
-     * <p>Counted with the verdicts rather than on a line of its own: both are evidence purged by
-     * the same dial, and a result that separated them would invite somebody to give them separate
-     * windows — which is the drift the single dial exists to prevent.
-     */
-    private int pruneSnapshots() {
-        try {
-            int days = settings.asInt(Setting.EVIDENCE_RETENTION_DAYS);
-            return EvidenceRetention.cutoff(days, clock.instant())
-                    .map(snapshots::deleteBefore)
-                    .orElse(0);
-        } catch (RuntimeException failed) {
-            log.warn("Compliance snapshot purge skipped: {}", failed.getMessage());
-            return 0;
-        }
+                evidence.stream().mapToInt(this::pruneEvidence).sum());
     }
 
     private int pruneSessions() {
@@ -113,7 +110,12 @@ public class SessionCleanupService {
     }
 
     /**
-     * Gate verdicts older than the retention window.
+     * Evidence older than the retention window — gate verdicts, and compliance captures.
+     *
+     * <p>The captures are counted with the verdicts rather than on a line of their own: both are
+     * evidence purged by the same dial, and a result that separated them would invite somebody to
+     * give them separate windows — which is the drift the single dial exists to prevent. Each purge
+     * is tried apart, as each was before the port: one failing skips its own table, not the other.
      *
      * <p><b>This table grows with the build rate, not with the estate.</b> A pipeline asks the
      * gate on every push, so a busy fortnight writes more rows than a year of scanning does.
@@ -126,14 +128,14 @@ public class SessionCleanupService {
      * good. The payload default of ninety days would have emptied this register months before an
      * annual assessment asked to see it — see {@link EvidenceRetention}. Zero purges nothing.
      */
-    private int pruneVerdicts() {
+    private int pruneEvidence(EvidencePurge purge) {
         try {
             int days = settings.asInt(Setting.EVIDENCE_RETENTION_DAYS);
             return EvidenceRetention.cutoff(days, clock.instant())
-                    .map(verdicts::deleteBefore)
+                    .map(purge::deleteBefore)
                     .orElse(0);
         } catch (RuntimeException failed) {
-            log.warn("Gate verdict purge skipped: {}", failed.getMessage());
+            log.warn("{} purge skipped: {}", purge.label(), failed.getMessage());
             return 0;
         }
     }

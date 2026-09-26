@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.gate;
+package com.asmolabs.vectispire.core.gate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,10 +10,10 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Clock;

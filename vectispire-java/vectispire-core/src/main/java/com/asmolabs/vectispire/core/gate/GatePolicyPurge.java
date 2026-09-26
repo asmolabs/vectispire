@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.gate;
+package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
 import com.asmolabs.vectispire.common.domain.targets.TargetPurge;

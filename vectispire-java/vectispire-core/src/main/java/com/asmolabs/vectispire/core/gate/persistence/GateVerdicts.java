@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.gate.persistence;
 
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import java.time.Instant;
 import java.util.List;
 import org.springframework.data.domain.Limit;

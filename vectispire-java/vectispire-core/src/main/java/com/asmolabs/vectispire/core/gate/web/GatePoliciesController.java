@@ -1,16 +1,17 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.gate.web;
 
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.gate.GatePolicyAdministrationService;
-import com.asmolabs.vectispire.core.services.gate.GateService;
-import com.asmolabs.vectispire.core.services.gate.GateService.PolicyScope;
-import com.asmolabs.vectispire.core.services.gate.StoredGatePolicyView;
+import com.asmolabs.vectispire.core.gate.GatePolicyAdministrationService;
+import com.asmolabs.vectispire.core.gate.GateService;
+import com.asmolabs.vectispire.core.gate.GateService.PolicyScope;
+import com.asmolabs.vectispire.core.gate.StoredGatePolicyView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;

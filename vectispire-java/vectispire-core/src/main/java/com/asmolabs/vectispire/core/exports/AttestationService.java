@@ -5,13 +5,13 @@ import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.gate.GateRegisterService;
+import com.asmolabs.vectispire.core.gate.GateVerdictView;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GateVerdicts;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
@@ -38,7 +38,7 @@ public class AttestationService {
     private final GitRepositories repositories;
     private final Containers containers;
     private final Findings findings;
-    private final GateVerdicts verdicts;
+    private final GateRegisterService verdicts;
     private final String version;
 
     public AttestationService(
@@ -46,7 +46,7 @@ public class AttestationService {
             GitRepositories repositories,
             Containers containers,
             Findings findings,
-            GateVerdicts verdicts,
+            GateRegisterService verdicts,
             ProductVersion version) {
         this.scans = scans;
         this.repositories = repositories;
@@ -122,7 +122,7 @@ public class AttestationService {
      * completed scan: before, it judged an older backlog; after, a newer one. None in that window
      * means the gate was not consulted, and the statement says nothing rather than "passed".
      */
-    private Optional<GateVerdictEntity> verdictAfter(ScanEntity scan) {
+    private Optional<GateVerdictView> verdictAfter(ScanEntity scan) {
         Instant from = scan.getCreatedAt();
         String completed = ScanStatus.COMPLETED.wireName();
         // An empty window with a later scan means "not asked", and must not fall through to the
@@ -131,30 +131,24 @@ public class AttestationService {
             Long id = scan.getRepoId();
             Optional<ScanEntity> next =
                     scans.findFirstByRepoIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(id, completed, from);
-            return next.isPresent()
-                    ? verdicts.findFirstByRepoIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
-                            id, from, next.get().getCreatedAt())
-                    : verdicts.findFirstByRepoIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(id, from);
+            return verdicts.lastForRepository(id, from, next.map(ScanEntity::getCreatedAt).orElse(null));
         }
         Long id = scan.getContainerId();
         Optional<ScanEntity> next =
                 scans.findFirstByContainerIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(id, completed, from);
-        return next.isPresent()
-                ? verdicts.findFirstByContainerIdAndDecidedAtGreaterThanEqualAndDecidedAtLessThanOrderByDecidedAtDesc(
-                        id, from, next.get().getCreatedAt())
-                : verdicts.findFirstByContainerIdAndDecidedAtGreaterThanEqualOrderByDecidedAtDesc(id, from);
+        return verdicts.lastForContainer(id, from, next.map(ScanEntity::getCreatedAt).orElse(null));
     }
 
-    private static InTotoAttestation.PolicyAssessment assessment(GateVerdictEntity verdict) {
-        List<String> violations = verdict.getViolations() > 0
-                ? List.of(verdict.getViolations() + " issue(s) over the policy out of " + verdict.getEvaluated() + " evaluated")
+    private static InTotoAttestation.PolicyAssessment assessment(GateVerdictView verdict) {
+        List<String> violations = verdict.violations() > 0
+                ? List.of(verdict.violations() + " issue(s) over the policy out of " + verdict.evaluated() + " evaluated")
                 : List.of();
         return new InTotoAttestation.PolicyAssessment(
-                verdict.isPassed(),
+                verdict.passed(),
                 violations,
-                verdict.getPolicySource(),
-                verdict.getPolicyVersion(),
-                verdict.getDecidedAt());
+                verdict.policySource(),
+                verdict.policyVersion(),
+                verdict.decidedAt());
     }
 
     /** A container by image and tag, as every other screen names it — not "Target #12". */

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
+import com.asmolabs.vectispire.core.gate.ViolationView;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 

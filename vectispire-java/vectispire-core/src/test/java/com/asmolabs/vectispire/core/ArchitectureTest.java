@@ -83,7 +83,7 @@ class ArchitectureTest {
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
             // through anything but the layered packages.
-            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports");
+            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -248,7 +248,11 @@ class ArchitectureTest {
             Map.entry("agents", Set.of("access", "rules", "scanning")),
             Map.entry("targets", Set.of("access", "scanning")),
             Map.entry("threatintel", Set.of("scanning", "siem")),
-            Map.entry("gate", Set.of("issues", "rules", "siem")),
+            // `access` since gate became a module: its register is purged past the evidence window by
+            // the authentication tables' pass, which now reaches it through a port gate implements
+            // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
+            // read had closed a cycle; `access` uses nothing above the foundation.
+            Map.entry("gate", Set.of("access", "issues", "rules", "siem")),
             Map.entry("notifications", Set.of("issues", "scanning")),
             // `scanning` since exports became a module and took its controllers: a document is made
             // for a scan, and its route first refuses a scan the caller may not see

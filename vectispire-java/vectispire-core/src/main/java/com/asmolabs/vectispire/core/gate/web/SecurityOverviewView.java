@@ -1,9 +1,10 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.gate.web;
 
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.gate.ViolationView;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;

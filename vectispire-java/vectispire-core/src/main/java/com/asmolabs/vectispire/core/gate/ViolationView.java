@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,8 +27,13 @@ import java.util.Locale;
  *
  * <p>This is the payload a build failure is explained by. Getting it wrong does not break the
  * verdict, it breaks the sentence that tells somebody why their build stopped.
+ *
+ * <p><b>Part of the gate module's API, and public for it</b> (decision 0028). It was a
+ * package-private record of {@code core.api}, shared by the gate's routes and the dashboard's; the
+ * dashboard is {@code posture}'s, which may use {@code gate}, and a record in either module's {@code
+ * web} package would be hidden from the other.
  */
-record ViolationView(
+public record ViolationView(
         String rule,
         Long issueId,
         String identifier,
@@ -37,11 +42,11 @@ record ViolationView(
         String fixVersions,
         String reason) {
 
-    static List<ViolationView> of(List<GateVerdict.Violation> violations) {
+    public static List<ViolationView> of(List<GateVerdict.Violation> violations) {
         return violations.stream().map(ViolationView::of).toList();
     }
 
-    static ViolationView of(GateVerdict.Violation violation) {
+    public static ViolationView of(GateVerdict.Violation violation) {
         return new ViolationView(
                 violation.rule().name().toLowerCase(Locale.ROOT),
                 violation.issueId(),
