@@ -24,8 +24,9 @@ cd vectispire-java && ./gradlew build
 ```
 
 Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture and HTTP suites.
-`ArchitectureTest` rejects repository access outside services, transactions in `api`, audit writes in
-`api` outside `api.security`.
+`ArchitectureTest` rejects repository access outside services, transactions and audit writes in a
+controller (`core.api` or a module's `web`) outside `core.access.web.security`, a class in no module
+place, and a module reaching into another module's internals (decision 0028).
 
 ## 3. Front end — on Node 24
 

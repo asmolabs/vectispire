@@ -8,7 +8,9 @@ plugins {
 /**
  * The control plane: schema, repositories, use cases, HTTP API, agent protocol.
  *
- * Internally it keeps the layer rule the NestJS tree enforced:
+ * Internally it keeps the layer rule the NestJS tree enforced, inside every domain module
+ * (`core/<module>/web` ──► its root and `internal` ──► its `persistence`, decision 0028) and in the
+ * packages of the domains still laid out by layer:
  *
  * ```
  *   api ──► services ──► repositories ──► persistence ──► database
@@ -18,10 +20,10 @@ plugins {
  *                        vectispire-common
  * ```
  *
- * **Only `repositories` may speak SQL.** Not for purity: the behaviour the engines disagree
- * about — locking, upsert, boolean width, timestamp precision — has to sit where a
- * portability suite can reach it, and that is there. A service writing a query fails
- * `ArchitectureTest`.
+ * **Only the repositories may speak SQL** — `core.repositories` and each module's `persistence`.
+ * Not for purity: the behaviour the engines disagree about — locking, upsert, boolean width,
+ * timestamp precision — has to sit where a portability suite can reach it, and that is there. A
+ * service writing a query fails `ArchitectureTest`.
  *
  * The four drivers are `runtimeOnly`. They must be in the image, and no compiled class may
  * name one: a class importing `org.postgresql` is a class that stopped working on the other

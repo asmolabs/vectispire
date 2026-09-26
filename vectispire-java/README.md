@@ -36,19 +36,34 @@ agent's existence is precisely what it does not have ([decision
 the build graph rather than a rule somebody enforces: the violation does not fail review, it
 fails to compile.
 
-**What that costs.** The layers *inside* `vectispire-core` — `persistence`, `repositories`,
-`services`, `api` — can no longer be expressed by the module graph, so `ArchitectureTest`
-enforces them with ArchUnit. That is a genuine step down: an ArchUnit rule can be deleted by
+**What that costs.** The layers *inside* `vectispire-core` — persistence, repositories, services,
+api — can no longer be expressed by the module graph, so `ArchitectureTest` enforces them with
+ArchUnit, in every module and in the layered packages alike. That is a genuine step down: an ArchUnit rule can be deleted by
 the same commit that violates it; a missing dependency cannot.
 
-**Inside `services`, domains.** The service layer is split into sub-packages by domain —
-`services.issues`, `services.scanning`, `services.access` and so on, twenty-four in all — over a
-foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
-and a `shared` of one class meant to empty). Each domain is drawn as the module it would become. The
-domains form no cycle — none recorded either, since both exceptions were broken — and depend in the
-directions [decision 0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md)
-tabulates; a new service goes into the domain whose row matches what it needs, and a row that has to
-change changes in the same review, with its reason. Upwards, a lower domain declares a port and a
+**Inside `vectispire-core`, domains — nineteen of them already modules.** The control plane is
+divided into twenty-four domains over a foundation every domain may use (`settings`, `outbound`,
+`crypto`, `audit`, `outbox`, `reporting`, and a `shared` of one class meant to empty). Nineteen are
+vertical modules ([decision 0028](../docs/architecture/en/decisions/0028-vertical-modules.md)), each a
+package of its own:
+
+```
+core/<module>/              its API: the services other modules call, their views, its events, its ports
+core/<module>/web/          its controllers; core/access/web/security/ is the one named interface
+core/<module>/internal/     what the API is built from
+core/<module>/persistence/  its entities and its repositories
+```
+
+`issues`, `scanning`, `targets`, `platform` and `shared` are still packaged by layer — `core/api/`,
+`core/services/<domain>/`, `core/repositories/`, `core/persistence/` — until step 5 of the migration
+moves them. A class goes where its callers put it: anything another module or the module's own
+controllers call is at the root, a public class only its services use is in `internal`. A controller
+calls its module's API, never `internal` or any `persistence`; a module reaches another only through
+that module's root or a named interface. The domains form no cycle — none recorded either, since both
+exceptions were broken — and depend in the directions decisions
+[0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md) and 0028 tabulate; new
+code goes into the module whose row matches what it needs, and a row that has to change changes in
+the same review, with its reason. Upwards, a lower domain declares a port and a
 higher one implements it (`ScanIngestor.Enricher`, `AuditLogService.Listener`, `TicketReferences`,
 `OutboxHandler`). **An effect across domains inside a transaction is a synchronous event**: target
 deletion publishes `TargetDeleted` in its transaction, and each owning domain purges its own rows in
@@ -56,9 +71,11 @@ a listener that requires that transaction, in the order `TargetPurge.Phase` fixe
 survive the commit leaves through the outbox.
 
 **Spring Modulith is present, in observation mode.** `ModularityObservationTest` writes what it sees
-into `build/modulith-docs/` and fails on nothing: packaged by layer, the code shows it five layer
-modules rather than the domains ([05](../docs/architecture/en/05-modularity.md)). At runtime it is
-inert, which `ModulithRuntimeInertTest` checks.
+into `build/modulith-docs/` and fails on nothing: twenty-four modules — the nineteen domains, the
+foundation declared shared, and the five layered packages step 5 empties — and 554 messages `verify()`
+would report, down from 1,304, none of them a module reaching into another module's internals
+([05](../docs/architecture/en/05-modularity.md)). At runtime it is inert, which
+`ModulithRuntimeInertTest` checks.
 
 ## What is checked, and where
 
@@ -69,10 +86,12 @@ inert, which `ModulithRuntimeInertTest` checks.
 | The domain depends on no framework, and no Docker client | `ArchitectureTest` |
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
-| Every service lives in a domain, the domains form no cycle, and each uses only what decision 0026 allows | `ArchitectureTest` |
+| Every service lives in a domain, the domains form no cycle, and each uses only what decisions 0026 and 0028 allow | `ArchitectureTest` |
+| Every class sits in a module's root, `web`, `internal` or `persistence`, or in a layered package; a module reaches another only through its root or a named interface; a controller calls its own module's API | `ArchitectureTest` |
+| The evidence another module keeps reaches the cleanup pass that purges it | `EvidencePurgeWiringTest`, `EvidenceRetentionTest` |
 | Deleting a target takes every row that names it and nobody else's, children before parents, atomically | `TargetDeletionTest`, `TargetPurgeOrderTest`, `TargetDeletionIntegrationTest` (MySQL, PostgreSQL) |
 | Spring Modulith contributes nothing at runtime, and what it sees is written down without enforcing it | `ModulithRuntimeInertTest`, `ModularityObservationTest` |
-| No class of `api` names a persistence type — the principal included; services answer with `…View` records | `ArchitectureTest` |
+| No controller — in `core.api` or a module's `web` — names a persistence type, the principal included; services answer with `…View` records | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
@@ -204,9 +223,10 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
 PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
-**when anything engine-sensitive changed** — a migration, `core/repositories/` (every query lives
-there, which `ArchitectureTest` enforces), `core/persistence/`, `core/config/`, the integration
-sources, or the dependency catalogue and lockfiles — or when the diff range cannot be resolved.
+**when anything engine-sensitive changed** — a migration, `core/repositories/` and a module's
+`core/<module>/persistence/` (every query lives there, which `ArchitectureTest` enforces),
+`core/persistence/`, `core/config/`, the integration sources, or the dependency catalogue and
+lockfiles — or when the diff range cannot be resolved.
 It used to watch migrations only, and a concurrency fix in `ScanQueue` reached `main` green before
 the nightly found it failing on SQLite. Every night, the `databases` job of
 [`nightly.yml`](../.github/workflows/nightly.yml) runs it unconditionally. A green push pipeline
@@ -243,7 +263,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | The backlog grouping took a column name as a string parameter | `Issues` |
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | No remote agent could hand back a result: `ScanArtifacts` is a record of `Optional`s, neither mapper registered Jackson 2's `jdk8` module, and every test of the protocol mocked the transport or sent `{}` | `AgentWireFormatTest`, `AgentResultWireTest` |
-| Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open | `repositories/package-info.java` |
+| Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open; a module's own repositories follow the same two conventions | `repositories/package-info.java` |
 | `max_concurrent` was stored, shown and sent to every agent, and nothing applied it: the claim took a scan whatever the agent held, and the agent ran one at a time. The count and the take now commit behind the agent's row — without that lock, two polls reading different candidates both count below the limit | `ScanQueue.claimWithin` |
 | The agent's stop raised a flag and returned; the JVM halts when its shutdown hooks do, so the scan its javadoc promised would finish was cut off mid-run | `AgentRunner.stop` |
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |

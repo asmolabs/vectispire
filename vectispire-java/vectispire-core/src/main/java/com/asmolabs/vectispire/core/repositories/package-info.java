@@ -21,5 +21,10 @@
  * a scan, taking a leader lease, superseding a rule set: in each case the affected row count is
  * what names the winner. A {@code save} reads then writes, and the winner becomes whoever wrote
  * last rather than whoever met the condition.
+ *
+ * <p><b>Not only here.</b> A domain that became a module keeps its repositories in its own {@code
+ * persistence} package, beside its entities (decision 0028) — {@code core.audit.persistence}, {@code
+ * core.access.persistence}… Both conventions hold there as they do here; this package keeps the
+ * queries of the domains still packaged by layer until step 5 moves them.
  */
 package com.asmolabs.vectispire.core.repositories;
