@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface ApiEndpoints extends JpaRepository<ApiEndpointEntity, Long> {
 
@@ -29,11 +30,15 @@ public interface ApiEndpoints extends JpaRepository<ApiEndpointEntity, Long> {
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from ApiEndpointEntity e where (:repositoryId is not null and e.repositoryId = :repositoryId) or e.scanId = :scanId")
+    @Transactional
     void deleteByRepositoryIdOrScanId(@Param("repositoryId") Long repositoryId, @Param("scanId") long scanId);
 
+    @Transactional
     void deleteByScanId(long scanId);
 
+    @Transactional
     void deleteByScanIdIn(Collection<Long> scanIds);
 
+    @Transactional
     void deleteByRepositoryId(Long repositoryId);
 }

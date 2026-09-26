@@ -6,6 +6,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface TriageEvents extends JpaRepository<TriageEventEntity, Long> {
 
@@ -60,5 +61,6 @@ public interface TriageEvents extends JpaRepository<TriageEventEntity, Long> {
              where e.issueId = i.id and i.repoId = :repoId""")
     long countForRepository(@Param("repoId") long repoId);
 
+    @Transactional
     void deleteByIssueIdIn(Collection<Long> issueIds);
 }

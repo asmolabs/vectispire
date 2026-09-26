@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.inventory.persistence;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface ApiContracts extends JpaRepository<ApiContractEntity, Long> {
 
@@ -21,11 +22,15 @@ public interface ApiContracts extends JpaRepository<ApiContractEntity, Long> {
 
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @org.springframework.data.jpa.repository.Query("delete from ApiContractEntity c where (:repositoryId is not null and c.repositoryId = :repositoryId) or c.scanId = :scanId")
+    @Transactional
     void deleteByRepositoryIdOrScanId(@org.springframework.data.repository.query.Param("repositoryId") Long repositoryId, @org.springframework.data.repository.query.Param("scanId") long scanId);
 
+    @Transactional
     void deleteByScanId(long scanId);
 
+    @Transactional
     void deleteByScanIdIn(Collection<Long> scanIds);
 
+    @Transactional
     void deleteByRepositoryId(Long repositoryId);
 }

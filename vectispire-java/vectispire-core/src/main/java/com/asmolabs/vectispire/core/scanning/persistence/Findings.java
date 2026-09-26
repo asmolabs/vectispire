@@ -5,6 +5,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface Findings extends JpaRepository<FindingEntity, Long>, FindingGraphQueries {
     List<FindingEntity> findByScanId(Long scanId);
@@ -63,8 +64,10 @@ public interface Findings extends JpaRepository<FindingEntity, Long>, FindingGra
 
     long countByScanIdAndSeverity(Long scanId, String severity);
 
+    @Transactional
     void deleteByScanIdIn(java.util.Collection<Long> scanIds);
 
+    @Transactional
     void deleteByIssueIdIn(java.util.Collection<Long> issueIds);
 
     /** One scan's findings that CISA lists as actively exploited — the attestation's KEV count. */

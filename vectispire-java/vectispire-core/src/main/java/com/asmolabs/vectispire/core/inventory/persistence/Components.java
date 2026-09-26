@@ -6,6 +6,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface Components extends JpaRepository<ComponentEntity, Long> {
 
@@ -55,8 +56,10 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
 
     List<ComponentEntity> findByScanIdIn(Collection<Long> scanIds);
 
+    @Transactional
     void deleteByScanId(long scanId);
 
+    @Transactional
     void deleteByScanIdIn(Collection<Long> scanIds);
 
     long countByScanIdIn(Collection<Long> scanIds);

@@ -5,6 +5,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface AiReviewResults extends JpaRepository<AiReviewResultEntity, Long> {
 
@@ -22,5 +23,6 @@ public interface AiReviewResults extends JpaRepository<AiReviewResultEntity, Lon
              order by r.createdAt desc, r.id desc""")
     List<AiReviewResultEntity> latestForRepository(@Param("repoId") long repoId, Limit limit);
 
+    @Transactional
     void deleteByScanIdIn(java.util.Collection<Long> scanIds);
 }
