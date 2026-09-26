@@ -54,7 +54,8 @@ class AuditMirrorTest {
         rows.clear();
         mirrorFile = scratch.resolve("nested").resolve("audit.ndjson");
         entries = auditLogOver(rows);
-        service = new AuditLogService(entries, new FileAuditMirror(mirrorFile, json), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of());
+        service = new AuditLogService(entries, new FileAuditMirror(mirrorFile, json), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of(),
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
     }
 
     /**
@@ -64,7 +65,7 @@ class AuditMirrorTest {
      */
     private static AuditLogRepository auditLogOver(List<AuditLogEntity> rows) {
         AuditLogRepository repository = mock(AuditLogRepository.class);
-        when(repository.save(any())).thenAnswer(call -> {
+        when(repository.saveAndFlush(any())).thenAnswer(call -> {
             AuditLogEntity row = call.getArgument(0);
             row.setId(UUID.randomUUID());
             rows.add(row);
@@ -146,7 +147,8 @@ class AuditMirrorTest {
     @DisplayName("no mirror configured is a state, not a clean bill of health")
     void aDisabledMirrorSaysSo() {
         AuditLogService withoutMirror = new AuditLogService(
-                auditLogOver(rows), new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of());
+                auditLogOver(rows), new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of(),
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
         withoutMirror.record(AuditLogService.Record.of(AuditOperation.LOGIN_SUCCESS, "alice", "in", "alice"));
 
         assertThat(withoutMirror.verifyAgainstMirror())

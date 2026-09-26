@@ -38,13 +38,14 @@ class AuditLogServiceTest {
         // No mirror here on purpose: this suite is about the chain the table carries. The
         // second copy has its own suite, and mixing the two would make a chain failure and a
         // mirror failure look alike.
-        service = new AuditLogService(entries, new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of());
+        service = new AuditLogService(entries, new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of(),
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
 
         // The fake assigns an identifier, because the database does: the column is
         // `@GeneratedValue`, and a fake that leaves it null tests a row shape production never
         // produces — then fails on the read path for a reason that has nothing to do with the
         // chain.
-        when(entries.save(any())).thenAnswer(call -> {
+        when(entries.saveAndFlush(any())).thenAnswer(call -> {
             AuditLogEntity row = call.getArgument(0);
             row.setId(UUID.randomUUID());
             stored.add(row);
@@ -89,7 +90,7 @@ class AuditLogServiceTest {
     void aFullTableDoesNotStopAnAdministratorLoggingIn() {
         org.mockito.Mockito.reset(entries);
         when(entries.findTopByOrderByTimestampDescIdDesc()).thenReturn(Optional.empty());
-        when(entries.save(any())).thenThrow(new IllegalStateException("disk full"));
+        when(entries.saveAndFlush(any())).thenThrow(new IllegalStateException("disk full"));
 
         // No exception: the opposite would give a full table the power to block authentication.
         service.record(AuditLogService.Record.of(AuditOperation.LOGIN_SUCCESS, "alice", "Login succeeded", "alice"));
@@ -103,6 +104,38 @@ class AuditLogServiceTest {
         assertThat(stored).singleElement().extracting(AuditLogEntity::getDescription)
                 .asString()
                 .hasSize(255);
+    }
+
+    @Test
+    @DisplayName("every bounded column is cut to its width, and the entry still verifies")
+    void everyBoundedColumnIsTruncated() {
+        service.record(new AuditLogService.Record(
+                AuditOperation.SETTING_UPDATED,
+                "k".repeat(1000),
+                "d".repeat(1000),
+                "u".repeat(1000),
+                "1".repeat(200),
+                "a".repeat(1000)));
+
+        assertThat(stored).singleElement().satisfies(row -> {
+            assertThat(row.getResourceId()).hasSize(255);
+            assertThat(row.getDescription()).hasSize(255);
+            assertThat(row.getUserId()).hasSize(255);
+            assertThat(row.getIpAddress()).hasSize(64);
+            assertThat(row.getUserAgent()).hasSize(255);
+        });
+        assertThat(service.verify()).returns(null, AuditChain.Verification::broken);
+    }
+
+    @Test
+    @DisplayName("a cut never splits a surrogate pair")
+    void aCutKeepsWholeCharacters() {
+        // U+1F600 is two UTF-16 units; placed across the boundary, a naive cut keeps half of it.
+        service.record(AuditLogService.Record.of(
+                AuditOperation.SETTING_UPDATED, "r", "x".repeat(254) + "\uD83D\uDE00", "alice"));
+
+        assertThat(stored).singleElement().extracting(AuditLogEntity::getDescription)
+                .isEqualTo("x".repeat(254));
     }
 
     @Test

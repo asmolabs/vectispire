@@ -87,4 +87,18 @@ class AuditLogDatabaseTest extends VectispireContextTest {
         assertThat(audit.rebuild()).isEqualTo(2);
         assertThat(audit.verify()).returns(null, AuditChain.Verification::broken);
     }
+
+    @Test
+    @DisplayName("a row the database refuses costs the entry, never the action")
+    void aRefusedRowDoesNotThrow() {
+        // A null description is refused by every engine, SQLite included — the one refusal this
+        // suite can provoke. The INSERT used to run at the commit, outside the `catch`: `record`
+        // threw into the action it described.
+        audit.record(AuditLogService.Record.of(AuditOperation.SETTING_UPDATED, "k", null, "alice"));
+
+        assertThat(entries.count()).isZero();
+        audit.record(AuditLogService.Record.of(AuditOperation.SETTING_UPDATED, "k", "after", "alice"));
+        assertThat(entries.count()).isEqualTo(1);
+        assertThat(audit.verify()).returns(null, AuditChain.Verification::broken);
+    }
 }
