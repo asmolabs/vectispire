@@ -11,9 +11,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
-        post: operations["create_8"];
+        post: operations["create_9"];
         delete?: never;
         options?: never;
         head?: never;
@@ -62,10 +62,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_4"];
+        delete: operations["remove_6"];
         options?: never;
         head?: never;
-        patch: operations["update_4"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/admin/agents/{id}/signing-key": {
@@ -219,9 +219,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
-        post: operations["create_7"];
+        post: operations["create_8"];
         delete?: never;
         options?: never;
         head?: never;
@@ -254,7 +254,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_7"];
+        delete: operations["remove_9"];
         options?: never;
         head?: never;
         patch?: never;
@@ -347,7 +347,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_15"];
         put?: never;
         post?: never;
         delete?: never;
@@ -855,9 +855,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
-        post: operations["create_6"];
+        post: operations["create_7"];
         delete?: never;
         options?: never;
         head?: never;
@@ -874,10 +874,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_3"];
+        delete: operations["remove_5"];
         options?: never;
         head?: never;
-        patch: operations["update_3"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/containers/{id}/scan": {
@@ -1171,7 +1171,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1239,9 +1239,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
-        post: operations["create_5"];
+        post: operations["create_6"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1258,7 +1258,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_6"];
+        delete: operations["remove_8"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1367,7 +1367,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1447,9 +1447,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
-        post: operations["create_4"];
+        post: operations["create_5"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1608,6 +1608,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete project
+         * @description Its repositories return to no project and its grants are revoked; no repository and no finding is deleted.
+         */
+        delete: operations["remove_4"];
+        options?: never;
+        head?: never;
+        /** Rename or describe project */
+        patch: operations["update_4"];
+        trace?: never;
+    };
+    "/api/v1/projects/{id}/repositories/{repositoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * File repository into project
+         * @description Moves it out of the project it was in, if any. A repository the caller cannot see answers 404, as one that does not exist.
+         */
+        put: operations["file"];
+        post?: never;
+        /**
+         * Remove repository from project
+         * @description Back to no project. 404 when the repository is not in this project.
+         */
+        delete: operations["unfile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/quality/overview": {
         parameters: {
             query?: never;
@@ -1707,13 +1752,13 @@ export interface paths {
          * List repositories
          * @description Returns all git repositories monitored by Vectispire visible to the caller.
          */
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         /**
          * Create repository
          * @description Registers a new Git repository for automated security scanning.
          */
-        post: operations["create_3"];
+        post: operations["create_4"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1734,14 +1779,14 @@ export interface paths {
          * Delete repository
          * @description Removes repository and cascades deletion of its issues, findings and history.
          */
-        delete: operations["remove_2"];
+        delete: operations["remove_3"];
         options?: never;
         head?: never;
         /**
          * Update repository
          * @description Updates configuration, schedule or credentials of a monitored repository.
          */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/repositories/{id}/apis": {
@@ -1847,7 +1892,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         post: operations["upload"];
         delete?: never;
@@ -1983,7 +2028,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2279,6 +2324,65 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/solutions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Solutions tree
+         * @description Solutions, their projects and the repositories filed in them, as far as the caller may see, with each project's open issues by severity and the repositories in no project as a group of their own.
+         */
+        get: operations["list_4"];
+        put?: never;
+        /** Create solution */
+        post: operations["create_3"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/solutions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete solution
+         * @description Refused with 409 while the solution holds projects.
+         */
+        delete: operations["remove_2"];
+        options?: never;
+        head?: never;
+        /** Rename or describe solution */
+        patch: operations["update_2"];
+        trace?: never;
+    };
+    "/api/v1/solutions/{id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create project in solution */
+        post: operations["createProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ssh-keys": {
         parameters: {
             query?: never;
@@ -2305,7 +2409,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["remove_5"];
+        delete: operations["remove_7"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4037,6 +4141,22 @@ export interface components {
             remoteAllowed: boolean;
             url?: string;
         };
+        OpenIssues: {
+            /** Format: int64 */
+            critical: number;
+            /** Format: int64 */
+            high: number;
+            /** Format: int64 */
+            low: number;
+            /** Format: int64 */
+            medium: number;
+            /** Format: int64 */
+            negligible: number;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            unknown: number;
+        };
         OpenVexDocument: {
             "@context"?: string;
             "@id"?: string;
@@ -4183,6 +4303,39 @@ export interface components {
         Project: {
             type?: string;
             version?: string;
+        };
+        ProjectChange: {
+            description?: string;
+            name?: string;
+        };
+        ProjectNode: {
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            openIssues?: components["schemas"]["OpenIssues"];
+            partial: boolean;
+            repositories?: components["schemas"]["RepositoryRef"][];
+            /** Format: int32 */
+            repositoryCount: number;
+            /** Format: int64 */
+            solutionId?: number;
+        };
+        ProjectRequest: {
+            description?: string;
+            name?: string;
+        };
+        ProjectView: {
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            /** Format: int64 */
+            solutionId?: number;
         };
         Publisher: {
             category?: string;
@@ -4370,6 +4523,11 @@ export interface components {
             tier?: string;
             url?: string;
         };
+        RepositoryRef: {
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+        };
         RepositorySummary: {
             branch?: string;
             displayName?: string;
@@ -4383,6 +4541,9 @@ export interface components {
             name?: string;
             /** Format: int64 */
             openIssues: number;
+            /** Format: int64 */
+            projectId?: number;
+            projectName?: string;
             requiredAgentLabel?: string;
             scanCron?: string;
             /** Format: int32 */
@@ -4826,6 +4987,35 @@ export interface components {
             /** Format: int32 */
             total: number;
         };
+        SolutionNode: {
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            openIssues?: components["schemas"]["OpenIssues"];
+            partial: boolean;
+            projects?: components["schemas"]["ProjectNode"][];
+            /** Format: int32 */
+            repositoryCount: number;
+        };
+        SolutionRequest: {
+            description?: string;
+            name?: string;
+        };
+        SolutionTree: {
+            solutions?: components["schemas"]["SolutionNode"][];
+            unfiled?: components["schemas"]["Unfiled"];
+        };
+        SolutionView: {
+            /** Format: date-time */
+            createdAt?: string;
+            description?: string;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+        };
         Source: {
             name?: string;
             url?: string;
@@ -4884,6 +5074,12 @@ export interface components {
             overdueCount: number;
             targetId?: string;
             type?: string;
+        };
+        TargetGrant: {
+            /** Format: int64 */
+            id?: number;
+            kind?: string;
+            name?: string;
         };
         TargetImpact: {
             cves?: string[];
@@ -5072,6 +5268,12 @@ export interface components {
             justification?: string;
             status?: string;
         };
+        Unfiled: {
+            openIssues?: components["schemas"]["OpenIssues"];
+            repositories?: components["schemas"]["RepositoryRef"][];
+            /** Format: int32 */
+            repositoryCount: number;
+        };
         UnroutableLabel: {
             label?: string;
             /** Format: int64 */
@@ -5227,7 +5429,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_10: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -5247,7 +5449,7 @@ export interface operations {
             };
         };
     };
-    create_8: {
+    create_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -5311,7 +5513,7 @@ export interface operations {
             };
         };
     };
-    remove_4: {
+    remove_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -5331,7 +5533,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -5574,7 +5776,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -5594,7 +5796,7 @@ export interface operations {
             };
         };
     };
-    create_7: {
+    create_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -5638,7 +5840,7 @@ export interface operations {
             };
         };
     };
-    remove_7: {
+    remove_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -5770,7 +5972,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_15: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -6386,7 +6588,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -6406,7 +6608,7 @@ export interface operations {
             };
         };
     };
-    create_6: {
+    create_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -6430,7 +6632,7 @@ export interface operations {
             };
         };
     };
-    remove_3: {
+    remove_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -6450,7 +6652,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -6856,7 +7058,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_14: {
         parameters: {
             query?: never;
             header?: never;
@@ -6971,7 +7173,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -6991,7 +7193,7 @@ export interface operations {
             };
         };
     };
-    create_5: {
+    create_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -7015,7 +7217,7 @@ export interface operations {
             };
         };
     };
-    remove_6: {
+    remove_8: {
         parameters: {
             query?: never;
             header?: never;
@@ -7168,7 +7370,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: {
                 state?: string;
@@ -7300,7 +7502,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -7322,7 +7524,7 @@ export interface operations {
             };
         };
     };
-    create_4: {
+    create_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -7570,6 +7772,94 @@ export interface operations {
             };
         };
     };
+    remove_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectChange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProjectView"];
+                };
+            };
+        };
+    };
+    file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     overview_1: {
         parameters: {
             query?: never;
@@ -7682,7 +7972,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -7702,7 +7992,7 @@ export interface operations {
             };
         };
     };
-    create_3: {
+    create_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -7726,7 +8016,7 @@ export interface operations {
             };
         };
     };
-    remove_2: {
+    remove_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -7747,7 +8037,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -7930,7 +8220,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -8156,7 +8446,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */
@@ -8744,6 +9034,122 @@ export interface operations {
             };
         };
     };
+    list_4: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SolutionTree"];
+                };
+            };
+        };
+    };
+    create_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SolutionView"];
+                };
+            };
+        };
+    };
+    remove_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    update_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolutionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SolutionView"];
+                };
+            };
+        };
+    };
+    createProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ProjectView"];
+                };
+            };
+        };
+    };
     list_3: {
         parameters: {
             query?: never;
@@ -8788,7 +9194,7 @@ export interface operations {
             };
         };
     };
-    remove_5: {
+    remove_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -9086,7 +9492,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TeamTargetAssignment"][];
+                    "*/*": components["schemas"]["TargetGrant"][];
                 };
             };
         };
@@ -9112,7 +9518,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["TeamTargetAssignment"][];
+                    "*/*": components["schemas"]["TargetGrant"][];
                 };
             };
         };
@@ -9323,7 +9729,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["UserTargetAssignment"][];
+                    "*/*": components["schemas"]["TargetGrant"][];
                 };
             };
         };
@@ -9349,7 +9755,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["UserTargetAssignment"][];
+                    "*/*": components["schemas"]["TargetGrant"][];
                 };
             };
         };

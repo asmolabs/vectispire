@@ -3653,6 +3653,40 @@
         "required" : [ "modelInstalled", "reachable", "remoteAllowed" ],
         "type" : "object"
       },
+      "OpenIssues" : {
+        "properties" : {
+          "critical" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "high" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "low" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "medium" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "negligible" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "unknown" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "critical", "high", "low", "medium", "negligible", "total", "unknown" ],
+        "type" : "object"
+      },
       "OpenVexDocument" : {
         "properties" : {
           "@context" : {
@@ -4053,6 +4087,91 @@
           },
           "version" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectChange" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectNode" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openIssues" : {
+            "$ref" : "#/components/schemas/OpenIssues"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "repositories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RepositoryRef"
+            },
+            "type" : "array"
+          },
+          "repositoryCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "solutionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "partial", "repositoryCount" ],
+        "type" : "object"
+      },
+      "ProjectRequest" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ProjectView" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "solutionId" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
         "type" : "object"
@@ -4545,6 +4664,18 @@
         },
         "type" : "object"
       },
+      "RepositoryRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "RepositorySummary" : {
         "properties" : {
           "branch" : {
@@ -4574,6 +4705,13 @@
           "openIssues" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
           },
           "requiredAgentLabel" : {
             "type" : "string"
@@ -5793,6 +5931,86 @@
         "required" : [ "complete", "declared", "findings", "reviewsOverdue", "total" ],
         "type" : "object"
       },
+      "SolutionNode" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "openIssues" : {
+            "$ref" : "#/components/schemas/OpenIssues"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "projects" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProjectNode"
+            },
+            "type" : "array"
+          },
+          "repositoryCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "partial", "repositoryCount" ],
+        "type" : "object"
+      },
+      "SolutionRequest" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SolutionTree" : {
+        "properties" : {
+          "solutions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SolutionNode"
+            },
+            "type" : "array"
+          },
+          "unfiled" : {
+            "$ref" : "#/components/schemas/Unfiled"
+          }
+        },
+        "type" : "object"
+      },
+      "SolutionView" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Source" : {
         "properties" : {
           "name" : {
@@ -5942,6 +6160,21 @@
           }
         },
         "required" : [ "openIssuesCount", "overallScore", "overdueCount" ],
+        "type" : "object"
+      },
+      "TargetGrant" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
         "type" : "object"
       },
       "TargetImpact" : {
@@ -6431,6 +6664,25 @@
         },
         "type" : "object"
       },
+      "Unfiled" : {
+        "properties" : {
+          "openIssues" : {
+            "$ref" : "#/components/schemas/OpenIssues"
+          },
+          "repositories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RepositoryRef"
+            },
+            "type" : "array"
+          },
+          "repositoryCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "repositoryCount" ],
+        "type" : "object"
+      },
       "UnroutableLabel" : {
         "properties" : {
           "label" : {
@@ -6869,7 +7121,7 @@
   "paths" : {
     "/api/v1/admin/agents" : {
       "get" : {
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "responses" : {
           "200" : {
             "content" : {
@@ -6888,7 +7140,7 @@
         "tags" : [ "agents-admin-controller" ]
       },
       "post" : {
-        "operationId" : "create_8",
+        "operationId" : "create_9",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -6955,7 +7207,7 @@
     },
     "/api/v1/admin/agents/{id}" : {
       "delete" : {
-        "operationId" : "remove_4",
+        "operationId" : "remove_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -6973,7 +7225,7 @@
         "tags" : [ "agents-admin-controller" ]
       },
       "patch" : {
-        "operationId" : "update_4",
+        "operationId" : "update_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7297,7 +7549,7 @@
     },
     "/api/v1/api-keys" : {
       "get" : {
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "responses" : {
           "200" : {
             "content" : {
@@ -7316,7 +7568,7 @@
         "tags" : [ "api-keys-controller" ]
       },
       "post" : {
-        "operationId" : "create_7",
+        "operationId" : "create_8",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -7362,7 +7614,7 @@
     },
     "/api/v1/api-keys/{id}" : {
       "delete" : {
-        "operationId" : "remove_7",
+        "operationId" : "remove_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7503,7 +7755,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_14",
+        "operationId" : "list_15",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -8263,7 +8515,7 @@
     },
     "/api/v1/containers" : {
       "get" : {
-        "operationId" : "list_8",
+        "operationId" : "list_9",
         "responses" : {
           "200" : {
             "content" : {
@@ -8282,7 +8534,7 @@
         "tags" : [ "containers-controller" ]
       },
       "post" : {
-        "operationId" : "create_6",
+        "operationId" : "create_7",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -8310,7 +8562,7 @@
     },
     "/api/v1/containers/{id}" : {
       "delete" : {
-        "operationId" : "remove_3",
+        "operationId" : "remove_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8328,7 +8580,7 @@
         "tags" : [ "containers-controller" ]
       },
       "patch" : {
-        "operationId" : "update_3",
+        "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8799,7 +9051,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_13",
+        "operationId" : "list_14",
         "responses" : {
           "200" : {
             "content" : {
@@ -8951,7 +9203,7 @@
     },
     "/api/v1/git-tokens" : {
       "get" : {
-        "operationId" : "list_7",
+        "operationId" : "list_8",
         "responses" : {
           "200" : {
             "content" : {
@@ -8970,7 +9222,7 @@
         "tags" : [ "git-tokens-controller" ]
       },
       "post" : {
-        "operationId" : "create_5",
+        "operationId" : "create_6",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -8998,7 +9250,7 @@
     },
     "/api/v1/git-tokens/{id}" : {
       "delete" : {
-        "operationId" : "remove_6",
+        "operationId" : "remove_8",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -9193,7 +9445,7 @@
     },
     "/api/v1/issues" : {
       "get" : {
-        "operationId" : "list_12",
+        "operationId" : "list_13",
         "parameters" : [ {
           "in" : "query",
           "name" : "state",
@@ -9445,7 +9697,7 @@
     },
     "/api/v1/issues/{issueId}/tickets" : {
       "get" : {
-        "operationId" : "list_6",
+        "operationId" : "list_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -9473,7 +9725,7 @@
         "tags" : [ "ticketing-controller" ]
       },
       "post" : {
-        "operationId" : "create_4",
+        "operationId" : "create_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -9797,6 +10049,122 @@
         "tags" : [ "OWASP coverage" ]
       }
     },
+    "/api/v1/projects/{id}" : {
+      "delete" : {
+        "description" : "Its repositories return to no project and its grants are revoked; no repository and no finding is deleted.",
+        "operationId" : "remove_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Delete project",
+        "tags" : [ "Solutions" ]
+      },
+      "patch" : {
+        "operationId" : "update_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectChange"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rename or describe project",
+        "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/projects/{id}/repositories/{repositoryId}" : {
+      "delete" : {
+        "description" : "Back to no project. 404 when the repository is not in this project.",
+        "operationId" : "unfile",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Remove repository from project",
+        "tags" : [ "Solutions" ]
+      },
+      "put" : {
+        "description" : "Moves it out of the project it was in, if any. A repository the caller cannot see answers 404, as one that does not exist.",
+        "operationId" : "file",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "File repository into project",
+        "tags" : [ "Solutions" ]
+      }
+    },
     "/api/v1/quality/overview" : {
       "get" : {
         "operationId" : "overview_1",
@@ -9967,7 +10335,7 @@
     "/api/v1/repositories" : {
       "get" : {
         "description" : "Returns all git repositories monitored by Vectispire visible to the caller.",
-        "operationId" : "list_5",
+        "operationId" : "list_6",
         "responses" : {
           "200" : {
             "content" : {
@@ -9988,7 +10356,7 @@
       },
       "post" : {
         "description" : "Registers a new Git repository for automated security scanning.",
-        "operationId" : "create_3",
+        "operationId" : "create_4",
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -10018,7 +10386,7 @@
     "/api/v1/repositories/{id}" : {
       "delete" : {
         "description" : "Removes repository and cascades deletion of its issues, findings and history.",
-        "operationId" : "remove_2",
+        "operationId" : "remove_3",
         "parameters" : [ {
           "description" : "Repository identifier",
           "in" : "path",
@@ -10039,7 +10407,7 @@
       },
       "patch" : {
         "description" : "Updates configuration, schedule or credentials of a monitored repository.",
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "description" : "Repository identifier",
           "in" : "path",
@@ -10269,7 +10637,7 @@
     },
     "/api/v1/rule-sets" : {
       "get" : {
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "responses" : {
           "200" : {
             "content" : {
@@ -10531,7 +10899,7 @@
     "/api/v1/scans" : {
       "get" : {
         "description" : "Returns historical security scans with filtering by repository or container target.",
-        "operationId" : "list_11",
+        "operationId" : "list_12",
         "parameters" : [ {
           "description" : "Filter by repository ID",
           "in" : "query",
@@ -11203,6 +11571,149 @@
         "tags" : [ "siem-controller" ]
       }
     },
+    "/api/v1/solutions" : {
+      "get" : {
+        "description" : "Solutions, their projects and the repositories filed in them, as far as the caller may see, with each project's open issues by severity and the repositories in no project as a group of their own.",
+        "operationId" : "list_4",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SolutionTree"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Solutions tree",
+        "tags" : [ "Solutions" ]
+      },
+      "post" : {
+        "operationId" : "create_3",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SolutionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SolutionView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Create solution",
+        "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/solutions/{id}" : {
+      "delete" : {
+        "description" : "Refused with 409 while the solution holds projects.",
+        "operationId" : "remove_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Delete solution",
+        "tags" : [ "Solutions" ]
+      },
+      "patch" : {
+        "operationId" : "update_2",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SolutionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SolutionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Rename or describe solution",
+        "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/solutions/{id}/projects" : {
+      "post" : {
+        "operationId" : "createProject",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ProjectRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProjectView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Create project in solution",
+        "tags" : [ "Solutions" ]
+      }
+    },
     "/api/v1/ssh-keys" : {
       "get" : {
         "operationId" : "list_3",
@@ -11252,7 +11763,7 @@
     },
     "/api/v1/ssh-keys/{id}" : {
       "delete" : {
-        "operationId" : "remove_5",
+        "operationId" : "remove_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -11663,7 +12174,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TeamTargetAssignment"
+                    "$ref" : "#/components/schemas/TargetGrant"
                   },
                   "type" : "array"
                 }
@@ -11704,7 +12215,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/TeamTargetAssignment"
+                    "$ref" : "#/components/schemas/TargetGrant"
                   },
                   "type" : "array"
                 }
@@ -11976,7 +12487,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/UserTargetAssignment"
+                    "$ref" : "#/components/schemas/TargetGrant"
                   },
                   "type" : "array"
                 }
@@ -12017,7 +12528,7 @@
               "*/*" : {
                 "schema" : {
                   "items" : {
-                    "$ref" : "#/components/schemas/UserTargetAssignment"
+                    "$ref" : "#/components/schemas/TargetGrant"
                   },
                   "type" : "array"
                 }
@@ -12529,6 +13040,9 @@
   }, {
     "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
     "name" : "Statement of Applicability"
+  }, {
+    "description" : "Solutions, their projects and the repositories filed in them",
+    "name" : "Solutions"
   }, {
     "description" : "The register of risk acceptances and dismissals",
     "name" : "Exceptions"
