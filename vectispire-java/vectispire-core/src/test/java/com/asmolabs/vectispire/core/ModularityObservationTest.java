@@ -25,20 +25,22 @@ import org.springframework.modulith.docs.Documenter;
  * What Spring Modulith sees in the control plane, written down — <b>observed, not enforced</b>.
  *
  * <p><b>Why observation only.</b> Modulith takes the packages directly under the application class
- * as its modules. This code is packaged by layer, so it sees {@code api}, {@code services},
- * {@code repositories}, {@code persistence}, {@code config}… as modules — the layers {@code
- * ArchitectureTest} already checks — and not the domains decision 0026 draws inside {@code
- * services}. A module's sub-packages are its internals to Modulith, and every service lives in a
- * sub-package of {@code services}: its verification reports each controller's use of a service as a
- * violation — true of the packaging, useless as a gate. So
- * this test builds the model, writes the report and the generated documentation, prints what
- * {@code verify()} would reject, and fails on none of it. What it does assert is that the model was
- * built and the files exist — an observation that silently produced nothing would read exactly like
- * an observation that found nothing.
+ * as its modules. Since steps 3 and 4 (decision 0028) nineteen of them are domains — the foundation
+ * and the leaf and middle domains, each {@code core.<domain>} with {@code web}, {@code internal} and
+ * {@code persistence} beneath it — and five are still the layers of the old packaging: {@code api},
+ * {@code services}, {@code repositories}, {@code persistence}, {@code config}. {@code issues},
+ * {@code scanning}, {@code targets}, {@code platform} and {@code shared} are sub-packages of {@code
+ * services}, so to Modulith they are one module's internals, and every module that calls one of them
+ * is reported as reaching into {@code services}; every module they call closes a cycle through it.
+ * Those violations are true of the packaging and are step 5's to remove, so this test builds the
+ * model, writes the report and the generated documentation, prints what {@code verify()} would
+ * reject, and fails on none of it. What it does assert is that the model was built, that it sees the
+ * modules the migration has made, and that the files exist — an observation that silently produced
+ * nothing would read exactly like an observation that found nothing.
  *
- * <p><b>Step 6 of the migration turns it into {@code verify()}</b>, once steps 3 to 5 have packaged
- * the code by domain — {@code issues/api}, {@code issues/services}, {@code issues/persistence} — so
- * that Modulith's modules are the domains and a violation means a domain reached into another.
+ * <p><b>Step 6 of the migration turns it into {@code verify()}</b>, once step 5 has moved {@code
+ * issues}, {@code scanning} and {@code targets} into modules of their own and dissolved {@code
+ * platform} and {@code shared}, so that every violation means a domain reached into another.
  *
  * <p>The output lands in {@code build/modulith-docs/}: {@code modules.txt} (the module model and
  * the violations), {@code components.puml} and one {@code module-*.puml} per module (C4 component
@@ -53,6 +55,23 @@ class ModularityObservationTest {
 
     private static final Pattern NON_EXPOSED =
             Pattern.compile("Module '([^']+)' depends on non-exposed type (\\S+) within module '([^']+)'");
+
+    /** The top-level packages of the layered packaging, which step 5 empties. */
+    private static final Set<String> LAYERED = Set.of("api", "services", "repositories", "persistence", "config");
+
+    /** The domains steps 3 and 4 made modules — the same list as {@code ArchitectureTest.MODULES}. */
+    private static final List<String> MODULES = List.of(
+            "settings", "outbound", "crypto", "audit", "outbox", "reporting",
+            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
+            "inventory", "posture", "compliance", "access");
+
+    /**
+     * What {@code verify()} reported before step 3, taken on 2026-09-26 (step 2): five layer modules and
+     * one kind of message, {@code api} reaching the non-exposed service sub-packages. Kept here so the
+     * report states the comparison it exists for.
+     */
+    private static final String BASELINE = "1304 messages, one kind: api -> non-exposed types of services "
+            + "(208 distinct types); 5 modules, all layers";
 
     private static ApplicationModules modules;
     private static Violations violations;
@@ -84,6 +103,14 @@ class ModularityObservationTest {
             byEdge.computeIfAbsent(edge, ignored -> new TreeSet<>()).add(matched ? nonExposed.group(2) : message);
             messagesByEdge.merge(edge, 1, Integer::sum);
         }
+        report.append("### By kind\n\n");
+        report.append("Before step 3 (baseline): ").append(BASELINE).append("\n\n");
+        Map<String, Integer> byKind = new TreeMap<>();
+        for (String message : violations.getMessages()) {
+            byKind.merge(kindOf(message), 1, Integer::sum);
+        }
+        byKind.forEach((kind, count) -> report.append("- ").append(kind).append(": ").append(count).append('\n'));
+        report.append("\n### By edge\n\n");
         byEdge.forEach((edge, types) -> report.append("- ").append(edge).append(": ")
                 .append(messagesByEdge.get(edge)).append(" messages, ").append(types.size())
                 .append(" distinct types\n"));
@@ -96,6 +123,25 @@ class ModularityObservationTest {
         System.out.println(report);
     }
 
+    /**
+     * The kind of a message, as the migration reads it: a reach into a package of the layered
+     * packaging is step 5's to remove, a reach into a module is a domain crossing another's boundary,
+     * and a cycle is named with the module it starts from.
+     */
+    private static String kindOf(String message) {
+        Matcher nonExposed = NON_EXPOSED.matcher(message);
+        if (nonExposed.find()) {
+            boolean fromLayered = LAYERED.contains(nonExposed.group(1));
+            boolean intoLayered = LAYERED.contains(nonExposed.group(3));
+            return "non-exposed type, " + (fromLayered ? "layered package" : "module") + " -> "
+                    + (intoLayered ? "layered package (step 5)" : "module");
+        }
+        if (message.startsWith("Cycle detected")) {
+            return "cycle";
+        }
+        return "other";
+    }
+
     private static String summary(ApplicationModule module) {
         List<String> dependsOn = module.getDirectDependencies(modules).uniqueModules()
                 .map(ApplicationModule::getIdentifier)
@@ -106,12 +152,24 @@ class ModularityObservationTest {
     }
 
     @Test
-    @DisplayName("detects the application's top-level packages as modules")
+    @DisplayName("detects the application's top-level packages as modules: the domains moved so far, and the layers left")
     void detectsModules() {
-        // The expected finding, and the reason for steps 3 to 5: packaged by layer, the modules are
-        // the layers. When this list becomes the domains, the packaging has changed.
+        // Every domain steps 3 and 4 moved is a module, and the layers step 5 empties are still there:
+        // the day one of these disappears, the packaging changed and this list — with the report — says
+        // by how much.
         assertThat(modules.stream().map(module -> module.getIdentifier().toString()))
-                .contains("api", "services", "repositories", "persistence", "config");
+                .containsAll(MODULES)
+                .containsAll(LAYERED)
+                .hasSize(MODULES.size() + LAYERED.size());
+    }
+
+    @Test
+    @DisplayName("sees the foundation as shared modules")
+    void seesTheFoundationAsShared() {
+        // Declared on the application class; a module missing from that list would still be used by
+        // every domain, and a module test would boot without it.
+        assertThat(modules.getSharedModules().stream().map(module -> module.getIdentifier().toString()))
+                .containsExactlyInAnyOrder("settings", "outbound", "crypto", "audit", "outbox", "reporting");
     }
 
     @Test
