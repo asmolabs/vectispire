@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.services.PlatformMetrics;
-import com.asmolabs.vectispire.core.services.ScanDispatcher;
+import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
+import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;

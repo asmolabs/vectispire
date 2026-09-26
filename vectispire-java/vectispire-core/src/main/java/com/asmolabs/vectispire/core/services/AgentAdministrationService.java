@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
+import com.asmolabs.vectispire.core.services.scanning.WorkerProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

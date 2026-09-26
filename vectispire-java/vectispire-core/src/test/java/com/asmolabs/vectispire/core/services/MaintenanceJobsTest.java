@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.services.issues.TicketSweepService;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
+import com.asmolabs.vectispire.core.services.scanning.SchedulerService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

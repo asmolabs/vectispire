@@ -21,6 +21,8 @@ import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
+import com.asmolabs.vectispire.core.services.scanning.CronExpressions;
+import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Instant;

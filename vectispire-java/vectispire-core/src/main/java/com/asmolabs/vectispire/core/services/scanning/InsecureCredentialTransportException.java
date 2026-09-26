@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.scanning;
 
 /**
  * Raised when a deployment key would travel unprotected.

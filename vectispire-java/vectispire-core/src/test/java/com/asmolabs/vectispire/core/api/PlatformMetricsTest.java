@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.asmolabs.vectispire.core.services.PlatformMetrics;
+import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.List;

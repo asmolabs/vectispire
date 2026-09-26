@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
+import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.util.ArrayList;
 import java.util.List;

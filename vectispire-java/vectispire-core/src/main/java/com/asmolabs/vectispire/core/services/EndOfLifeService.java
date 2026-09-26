@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
+import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.URLEncoder;

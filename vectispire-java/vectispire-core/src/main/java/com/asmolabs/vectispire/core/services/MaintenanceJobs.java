@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.services.issues.TicketSweepService;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
+import com.asmolabs.vectispire.core.services.scanning.SchedulerService;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;

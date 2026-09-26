@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.scanning;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;

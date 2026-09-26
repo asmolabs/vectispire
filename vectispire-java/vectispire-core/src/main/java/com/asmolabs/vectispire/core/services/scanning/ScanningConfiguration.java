@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;

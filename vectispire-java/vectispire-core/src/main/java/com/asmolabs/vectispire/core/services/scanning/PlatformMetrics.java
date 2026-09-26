@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.core.repositories.Agents;
 import com.asmolabs.vectispire.core.repositories.Outbox;

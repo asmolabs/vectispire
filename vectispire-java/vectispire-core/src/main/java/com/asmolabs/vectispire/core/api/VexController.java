@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.issues.IssueDecisionService;
-import com.asmolabs.vectispire.core.services.ScanDocumentService;
+import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VexGeneratorService;
 import com.asmolabs.vectispire.core.services.issues.VexIngestorService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
