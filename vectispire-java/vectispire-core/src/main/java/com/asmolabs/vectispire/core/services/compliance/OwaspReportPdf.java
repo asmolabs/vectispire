@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.services.compliance;
 
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
-import com.asmolabs.vectispire.core.services.reporting.ReportCursor;
+import com.asmolabs.vectispire.core.reporting.ReportCursor;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

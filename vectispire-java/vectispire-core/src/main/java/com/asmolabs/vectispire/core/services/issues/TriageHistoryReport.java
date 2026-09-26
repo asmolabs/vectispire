@@ -1,9 +1,9 @@
 package com.asmolabs.vectispire.core.services.issues;
 
+import com.asmolabs.vectispire.core.reporting.ReportCursor;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory.Decision;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory.ObservedIssue;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory.Scan;
-import com.asmolabs.vectispire.core.services.reporting.ReportCursor;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;

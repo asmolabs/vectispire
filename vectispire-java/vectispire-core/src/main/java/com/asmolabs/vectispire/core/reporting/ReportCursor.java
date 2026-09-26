@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.reporting;
+package com.asmolabs.vectispire.core.reporting;
 
 import java.awt.Color;
 import java.io.IOException;
