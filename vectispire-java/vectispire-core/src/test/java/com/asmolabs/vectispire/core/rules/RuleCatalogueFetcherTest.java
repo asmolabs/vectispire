@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

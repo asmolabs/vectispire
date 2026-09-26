@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;

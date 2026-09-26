@@ -1,19 +1,24 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.rules.web;
 
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
-import com.asmolabs.vectispire.core.services.rules.RuleCatalogueFetcher;
-import com.asmolabs.vectispire.core.services.rules.RuleSetView;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.Map;
+import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService;
-import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService.RuleSetListing;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.rules.RuleCatalogueFetcher;
+import com.asmolabs.vectispire.core.rules.RuleCoverageService;
+import com.asmolabs.vectispire.core.rules.RuleSetAdministrationService;
+import com.asmolabs.vectispire.core.rules.RuleSetAdministrationService.RuleSetListing;
+import com.asmolabs.vectispire.core.rules.RuleSetView;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,10 +26,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
-import com.asmolabs.vectispire.core.services.rules.RuleCoverageService;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.Operation;
 
 /**
  * Uploading Semgrep rule sets, and choosing which one is active.

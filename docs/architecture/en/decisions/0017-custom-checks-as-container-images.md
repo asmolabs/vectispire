@@ -10,7 +10,7 @@ convention nobody outside the company would recognise, a naming rule that only m
 against that company's registry.
 
 **The need is real and is not currently served.** The Semgrep rule set upload covers rules that
-Semgrep can express, and [`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/rules/RuleSetService.java)
+Semgrep can express, and [`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/rules/RuleSetService.java)
 already solves the hard half of the problem — storing an artefact centrally and serving it to every
 executor, so that two agents cannot disagree about what was looked for. Nothing covers a check that
 needs to *run code*: read a lockfile in a house format, call an internal convention, cross-reference

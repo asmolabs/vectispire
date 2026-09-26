@@ -80,13 +80,21 @@ class SchemaNameCollisionTest {
     private static final String CONTROL_PLANE = "com.asmolabs.vectispire.core";
 
     /**
-     * A persistence class: in {@code core.persistence}, where the step-5 domains' entities still
-     * are, or in a module's own {@code persistence} package.
+     * A JPA mapping: anything in {@code core.persistence}, where the step-5 domains' entities still
+     * are, and anything a module's {@code persistence} package maps as an entity.
+     *
+     * <p><b>Not every class of a module's {@code persistence} package.</b> A module keeps its
+     * repositories there too, and with them the constructor projections their queries select into.
+     * One of those, {@code RuleSetSummary}, is on the wire inside {@code RuleSetListing}: it was
+     * while it sat in {@code core.repositories}, which this rule never read, and matching the whole
+     * package would have turned a move into a contract change. It is a step-5 finding (decision
+     * 0028), not a mapping crossing a route.
      */
     private static boolean isPersistence(Class<?> type) {
-        String name = type.getPackageName();
-        return name.equals(CONTROL_PLANE + ".persistence")
-                || (name.startsWith(CONTROL_PLANE + ".") && name.endsWith(".persistence"));
+        return type.getPackageName().equals(CONTROL_PLANE + ".persistence")
+                || type.isAnnotationPresent(jakarta.persistence.Entity.class)
+                || type.isAnnotationPresent(jakarta.persistence.Embeddable.class)
+                || type.isAnnotationPresent(jakarta.persistence.MappedSuperclass.class);
     }
 
     /**

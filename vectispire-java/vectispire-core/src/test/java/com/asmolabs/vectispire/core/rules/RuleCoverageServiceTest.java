@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,8 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
-import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;

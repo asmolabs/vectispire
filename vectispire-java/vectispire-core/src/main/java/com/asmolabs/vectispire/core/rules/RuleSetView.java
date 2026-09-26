@@ -1,6 +1,6 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
-import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.time.Instant;
 
 /**

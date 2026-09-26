@@ -40,7 +40,7 @@ class TriageAndSettingsDatabaseTest extends VectispireContextTest {
     private Issues issues;
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.RuleSets ruleSets;
+    private com.asmolabs.vectispire.core.rules.persistence.RuleSets ruleSets;
 
     @Test
     @DisplayName("a decision is written, review date included")
@@ -155,12 +155,12 @@ class TriageAndSettingsDatabaseTest extends VectispireContextTest {
         // The order only makes the answer deterministic.
         assertThat(ruleSets.findFirstByContentHashOrderByIdAsc(hash))
                 .get()
-                .extracting(com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity::getId)
+                .extracting(com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity::getId)
                 .isEqualTo(first);
     }
 
-    private com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity storeRuleSet(String hash, String name) {
-        var entity = new com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity();
+    private com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity storeRuleSet(String hash, String name) {
+        var entity = new com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity();
         entity.setName(name);
         entity.setFiles("[]");
         entity.setContentHash(hash);

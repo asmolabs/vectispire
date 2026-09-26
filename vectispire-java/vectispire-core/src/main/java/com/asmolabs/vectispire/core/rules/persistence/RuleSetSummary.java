@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.rules.persistence;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;

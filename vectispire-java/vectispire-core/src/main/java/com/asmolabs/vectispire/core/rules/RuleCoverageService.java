@@ -1,16 +1,16 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
+import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
-import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
-import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;

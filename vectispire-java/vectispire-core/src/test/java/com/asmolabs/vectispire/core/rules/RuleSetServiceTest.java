@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.rules;
+package com.asmolabs.vectispire.core.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -9,12 +9,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.vectispire.common.domain.rules.RuleSet;
-import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.RuleSets;
+import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;

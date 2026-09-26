@@ -6,12 +6,12 @@ import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
-import com.asmolabs.vectispire.core.services.rules.RuleSetService;
+import com.asmolabs.vectispire.core.rules.RuleSetService;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

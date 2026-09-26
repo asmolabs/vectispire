@@ -10,7 +10,7 @@ une convention de configuration que personne à l'extérieur ne reconnaîtrait, 
 qui n'a de sens que contre le registre de cette société.
 
 **Le besoin est réel et n'est aujourd'hui pas servi.** Le téléversement de règles Semgrep couvre ce
-que Semgrep sait exprimer, et [`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/rules/RuleSetService.java)
+que Semgrep sait exprimer, et [`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/rules/RuleSetService.java)
 résout déjà la moitié difficile du problème — stocker un artefact centralement et le servir à tous
 les exécuteurs, pour que deux agents ne puissent pas diverger sur ce qui a été cherché. Rien ne
 couvre un check qui doit *exécuter du code* : lire un fichier de verrouillage dans un format maison,

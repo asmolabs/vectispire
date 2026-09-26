@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.rules.RuleCoverageService;
+import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.EnumMap;
 import java.util.Map;

@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.ComplianceSnapshotEntity;
 import com.asmolabs.vectispire.core.repositories.ComplianceSnapshots;
-import com.asmolabs.vectispire.core.services.rules.RuleCoverageService;
+import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
