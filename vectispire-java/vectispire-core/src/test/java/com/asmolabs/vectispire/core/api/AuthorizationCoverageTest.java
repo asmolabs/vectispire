@@ -88,6 +88,43 @@ class AuthorizationCoverageTest {
             // ends in `Controller.java` — the second is `SpaForwarding.java` — so neither was ever
             // inspected, and the entries exempted nothing. The test now refuses such entries.)
 
+    /**
+     * Whether a controller's source states who may see what it serves.
+     *
+     * <p>A role that sees everything by construction is an allowance, stated differently. Only
+     * those: {@code @RequiresWriteAccount} names who may call, and admits the two roles with a
+     * restricted scope — see {@code AuthorizationMarkers.SCOPE_GUARDS}. <b>And not in a controller
+     * that accepts an API key</b>: a key acts for its account narrowed to its target, which the
+     * role does not express — the evidence bundle, governance-guarded and open to export keys,
+     * handed a key restricted to one repository the estate's audit trail.
+     */
+    static boolean settlesScope(String source) {
+        boolean guardedByRole = SCOPE_GUARD.matcher(source).find() && !source.contains("@AcceptsApiKey");
+        boolean resolvesAllowance = source.contains("VisibilityService")
+                || source.contains("Visibilities.");
+        return guardedByRole || resolvesAllowance;
+    }
+
+    @Test
+    @DisplayName("a scope guard does not stand in for an allowance where an API key is accepted")
+    void aKeyNeedsAnAllowance() {
+        String guarded = """
+                @RequiresGovernanceRead
+                public class ProbeController {
+                    @GetMapping("/estate")
+                    public byte[] estate() { return service.everything(); }
+                }
+                """;
+
+        assertThat(settlesScope(guarded)).isTrue();
+        assertThat(settlesScope(guarded.replace("@GetMapping", "@AcceptsApiKey(ApiKeyScope.EXPORT)\n    @GetMapping")))
+                .isFalse();
+        assertThat(settlesScope(guarded.replace("@GetMapping", "@AcceptsApiKey(ApiKeyScope.EXPORT)\n    @GetMapping")
+                        .replace("service.everything()", "service.visible(visibility.of(user, restriction))")
+                        .replace("public class ProbeController {", "public class ProbeController {\n    VisibilityService visibility;")))
+                .isTrue();
+    }
+
     @Test
     @DisplayName("no controller serves target-scoped data on @RequiresAccount alone")
     void everyTargetScopedControllerResolvesAnAllowance() throws IOException {
@@ -106,14 +143,7 @@ class AuthorizationCoverageTest {
 
             String source = Files.readString(file, StandardCharsets.UTF_8);
 
-            // A role that sees everything by construction is an allowance, stated differently.
-            // Only those: `@RequiresWriteAccount` names who may call, and admits the two
-            // roles with a restricted scope — see `AuthorizationMarkers.SCOPE_GUARDS`.
-            boolean guardedByRole = SCOPE_GUARD.matcher(source).find();
-            boolean resolvesAllowance = source.contains("VisibilityService")
-                    || source.contains("Visibilities.");
-
-            if (!guardedByRole && !resolvesAllowance) {
+            if (!settlesScope(source)) {
                 offenders.add(name);
             }
         }

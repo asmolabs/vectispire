@@ -28,6 +28,10 @@ One click exports a **cryptographically signed evidence bundle**:
 GET /api/v1/compliance/evidence-bundle.zip
 ```
 
+An integration key restricted to some targets receives the bundle for those targets: the audit trail
+and the month-by-month progression describe the whole estate, so they are left out, and the
+manifest's `withheld` list says so.
+
 The signature is what makes the package worth more than a screenshot. It attests that this
 bundle is the one Vectispire produced, unmodified — which is the question anyone reviewing
 evidence after the fact actually has.

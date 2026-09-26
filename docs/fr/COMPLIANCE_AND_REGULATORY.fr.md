@@ -177,6 +177,14 @@ Vectispire produit des paquets de preuves directement opposables aux auditeurs e
    - `07_license_compliance.json` : Inventaire des licences et analyse de risque copyleft.
    - `08_cyclonedx_1_5_vex.json` & `.sig` : SBOM CycloneDX 1.5 enrichi et signature Cosign.
 
+   **Une clé d'intégration restreinte à certaines cibles reçoit un paquet plus étroit.** Chaque
+   section est construite dans le périmètre de l'appelant ; pour une telle clé, la synthèse des
+   licences (`07`) ne couvre que ses cibles, et les deux sections qui décrivent tout le parc et ne
+   peuvent pas être restreintes — la piste d'audit (`02`) et la progression de conformité (`14`) —
+   sont omises. Le manifeste (version 1.4) les liste sous `withheld`, chacune avec sa raison, et
+   `totalAuditLogEntries` vaut alors `null` plutôt qu'un nombre d'entrées que l'archive ne contient
+   pas. Une session ou une clé d'export non restreinte reçoit le paquet entier.
+
 ### 5.1 Ce que la piste d'audit prouve, et ce qu'elle ne prouve pas
 
 Un paquet de preuves est lu par quelqu'un qui va signer quelque chose sur sa foi : les limites de

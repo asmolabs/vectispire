@@ -183,6 +183,14 @@ Vectispire exports cryptographically sealed evidence packages ready for external
   - `07_license_compliance.json`: License inventory & copyleft governance.
   - `08_cyclonedx_1_5_vex.json` & `.sig`: CycloneDX 1.5 SBOM with BOM-linked VEX statements and signature.
 
+  **An integration key restricted to some targets receives a narrower bundle.** Every section is
+  built within the caller's allowance; for such a key the licence summary (`07`) covers its targets
+  only, and the two sections that describe the whole estate and cannot be narrowed — the audit trail
+  (`02`) and the compliance progression (`14`) — are left out. The manifest (version 1.4) lists them
+  under `withheld`, each with its reason, and `totalAuditLogEntries` is then `null` rather than a
+  count of entries the archive does not carry. A session or an unrestricted export key receives the
+  whole bundle.
+
 ### 5.1 What the audit trail proves, and what it does not
 
 An evidence bundle is read by somebody who will sign something on the strength of it, so the

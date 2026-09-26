@@ -1,11 +1,13 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -324,7 +326,34 @@ public class LicenseGovernanceService {
     }
 
     public LicenseSummary getSummary(Long repoIdFilter, Long containerIdFilter) {
-        List<LicenseEntry> inventory = getInventory(repoIdFilter, containerIdFilter);
+        return summarize(getInventory(repoIdFilter, containerIdFilter));
+    }
+
+    /**
+     * The summary over the targets {@code allowed} permits, for a reader that has an allowance
+     * rather than a target — the evidence bundle, handed a credential restricted to some targets.
+     *
+     * <p>An entry attached to no target ({@code general}) is permitted by an unrestricted allowance
+     * only, which is how {@link Visibility#permits} treats a missing target everywhere else.
+     */
+    public LicenseSummary getSummary(Visibility allowed) {
+        return summarize(getInventory(null, null).stream()
+                .filter(entry -> allowed.permits(targetOf(entry)))
+                .toList());
+    }
+
+    private static ScanTarget targetOf(LicenseEntry entry) {
+        if (entry.targetId() == null) {
+            return null;
+        }
+        return switch (entry.targetKind()) {
+            case "repository" -> new ScanTarget.Repository(entry.targetId());
+            case "container" -> new ScanTarget.Container(entry.targetId());
+            default -> null;
+        };
+    }
+
+    private static LicenseSummary summarize(List<LicenseEntry> inventory) {
         Map<LicenseRiskCategory, Long> breakdown = new EnumMap<>(LicenseRiskCategory.class);
         for (LicenseRiskCategory cat : LicenseRiskCategory.values()) {
             breakdown.put(cat, 0L);

@@ -24,8 +24,9 @@ class EvidenceBundleManifestTest {
                 Instant.parse("2026-08-22T10:00:00Z"),
                 "ciso@corp.internal",
                 "VERIFIED_INTACT",
-                150,
-                List.of(file));
+                150L,
+                List.of(file),
+                List.of());
 
         assertThat(manifest.version()).isEqualTo("1.0");
         assertThat(manifest.auditChainStatus()).isEqualTo("VERIFIED_INTACT");

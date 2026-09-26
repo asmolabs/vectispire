@@ -116,9 +116,12 @@ class RouteScopingTest {
             }
             String source = Files.readString(file, StandardCharsets.UTF_8);
 
-            // A class-level role guard settles every route it covers.
+            // A class-level role guard settles every route it covers — unless a route also accepts
+            // an API key, which the guard's own role does not narrow (see `settledByRole`).
             String head = source.substring(0, Math.max(0, source.indexOf("public class")));
-            if (ROLE_GUARD.matcher(head).find()) {
+            boolean classGuarded = ROLE_GUARD.matcher(head).find();
+            boolean classAcceptsKey = head.contains(ACCEPTS_API_KEY);
+            if (classGuarded && !classAcceptsKey && !source.contains(ACCEPTS_API_KEY)) {
                 continue;
             }
 
@@ -131,7 +134,7 @@ class RouteScopingTest {
 
             Set<String> trustedHelpers = helpersThatResolveAnAllowance(source);
 
-            for (Route route : routesOf(name, source)) {
+            for (Route route : routesOf(name, source, classGuarded, classAcceptsKey)) {
                 routes.add(route);
                 boolean scoped = isScoped(route, trustedHelpers);
                 if (scoped && NAMES_NO_TARGET.containsKey(route.id())) {
@@ -212,8 +215,53 @@ class RouteScopingTest {
         return false;
     }
 
+    private static final String ACCEPTS_API_KEY = "@AcceptsApiKey";
+
+    /**
+     * Whether a route's role settles its scope.
+     *
+     * <p><b>Not when it also accepts an API key.</b> A scope guard admits only roles that see the
+     * whole estate, which is why it stood in for an allowance — but an integration key acts for
+     * its account <em>narrowed to its target</em>, and the role says nothing about that narrowing.
+     * The evidence bundle carried a governance guard and accepted export keys, and three of its
+     * sections ignored the key's restriction while both lints counted the guard as the scope.
+     */
+    static boolean settledByRole(boolean guarded, boolean acceptsKey) {
+        return guarded && !acceptsKey;
+    }
+
+    @Test
+    @DisplayName("a scope guard on a route that accepts an API key does not settle its scope")
+    void aKeyOnAGuardedRouteNeedsAnAllowance() {
+        String source = """
+                @RestController
+                public class ProbeController {
+                    @RequiresGovernanceRead
+                    @AcceptsApiKey(ApiKeyScope.EXPORT)
+                    @GetMapping("/estate")
+                    public byte[] estate(VectispirePrincipal principal) {
+                        return service.everything();
+                    }
+
+                    @RequiresGovernanceRead
+                    @GetMapping("/sessions-only")
+                    public byte[] sessionsOnly(VectispirePrincipal principal) {
+                        return service.everything();
+                    }
+                }
+                """;
+
+        assertThat(routesOf("ProbeController", source, false, false))
+                .extracting(Route::method)
+                .containsExactly("estate");
+        assertThat(routesOf("ProbeController", source.replace("@RequiresGovernanceRead\n", ""), true, true))
+                .as("a class-level key admits a key on every route a class-level guard covers")
+                .extracting(Route::method)
+                .containsExactly("estate", "sessionsOnly");
+    }
+
     /** Every mapped method, with its annotation block and its body. */
-    private static List<Route> routesOf(String controller, String source) {
+    private static List<Route> routesOf(String controller, String source, boolean classGuarded, boolean classAcceptsKey) {
         List<Route> routes = new ArrayList<>();
         Matcher mapping = MAPPING.matcher(source);
 
@@ -226,7 +274,9 @@ class RouteScopingTest {
             // written above `@PostMapping` as below it, and reading only downwards reported five
             // `@RequiresSecurityLead` routes as unguarded.
             String decorations = source.substring(previousMemberEnd(source, mapping.start()), signature.start());
-            if (ROLE_GUARD.matcher(decorations).find()) {
+            boolean guarded = classGuarded || ROLE_GUARD.matcher(decorations).find();
+            boolean acceptsKey = classAcceptsKey || decorations.contains(ACCEPTS_API_KEY);
+            if (settledByRole(guarded, acceptsKey)) {
                 continue;
             }
             String body = bodyFrom(source, signature.end() - 1);

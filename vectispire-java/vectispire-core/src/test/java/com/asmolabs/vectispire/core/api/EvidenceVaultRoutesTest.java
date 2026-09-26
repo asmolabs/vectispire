@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.DisplayName;
@@ -109,6 +110,74 @@ class EvidenceVaultRoutesTest extends ApiTestBase {
                 "04_attestations/scan_" + attested + "_in_toto.dsse.json",
                 "04_attestations/scan_" + refused + "_not_attested.txt");
         assertThat(reason).contains("recorded no SBOM");
+    }
+
+    @Test
+    @DisplayName("a key restricted to one target takes its own archive: estate-wide sections withheld, and said")
+    void aRestrictedKeyTakesItsOwnArchive() throws Exception {
+        long mine = repository("corp/mine");
+        long other = repository("corp/other");
+        scan(mine, "{\"artifacts\":[{\"name\":\"lib-mine\",\"version\":\"1\",\"licenses\":[\"MIT\"]}]}");
+        scan(other, "{\"artifacts\":[{\"name\":\"lib-other\",\"version\":\"1\",\"licenses\":[\"GPL-3.0\"]},"
+                + "{\"name\":\"lib-other-2\",\"version\":\"1\",\"licenses\":[\"AGPL-3.0\"]}]}");
+        String key = issueKey(Map.of("name", "one-product", "scopes", List.of("export"),
+                "target_kind", "repository", "target_id", mine));
+
+        Map<String, byte[]> archive = unzip(mvc.perform(authenticated(
+                        get("/api/v1/compliance/evidence-bundle.zip"), key))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray());
+
+        assertThat(archive).doesNotContainKeys("02_immutable_audit_log.jsonl", "14_compliance_progression.json")
+                .containsKeys("manifest.json", "07_license_compliance.json", "13_statement_of_applicability.json");
+        com.fasterxml.jackson.databind.JsonNode manifest = json.readTree(archive.get("manifest.json"));
+        assertThat(manifest.path("withheld").findValuesAsText("path"))
+                .containsExactlyInAnyOrder("02_immutable_audit_log.jsonl", "14_compliance_progression.json");
+        assertThat(manifest.path("totalAuditLogEntries").isNull()).isTrue();
+        assertThat(json.readTree(archive.get("07_license_compliance.json")).path("totalDependencies").asLong())
+                .as("the licence summary counts the key's target only")
+                .isEqualTo(1);
+
+        // And the whole archive for an unrestricted key, so the narrowing is the restriction's.
+        String whole = issueKey(Map.of("name", "archive", "scopes", List.of("export")));
+        Map<String, byte[]> full = unzip(mvc.perform(authenticated(
+                        get("/api/v1/compliance/evidence-bundle.zip"), whole))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray());
+        assertThat(full).containsKeys("02_immutable_audit_log.jsonl", "14_compliance_progression.json");
+        assertThat(json.readTree(full.get("manifest.json")).path("withheld")).isEmpty();
+        assertThat(json.readTree(full.get("07_license_compliance.json")).path("totalDependencies").asLong())
+                .isEqualTo(3);
+    }
+
+    private long repository(String name) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setName(name);
+        repository.setUrl("https://example.invalid/" + name + "-" + System.nanoTime() + ".git");
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
+    private String issueKey(Map<String, Object> body) throws Exception {
+        String response = mvc.perform(authenticated(
+                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/api-keys"),
+                                asAdmin())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content(write(body)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(response).get("secret").asText();
+    }
+
+    private static Map<String, byte[]> unzip(byte[] zip) throws java.io.IOException {
+        Map<String, byte[]> entries = new java.util.LinkedHashMap<>();
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zip))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                entries.put(entry.getName(), zis.readAllBytes());
+            }
+        }
+        return entries;
     }
 
     private long scan(long repoId, String sbom) {

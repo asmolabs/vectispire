@@ -29,6 +29,10 @@ Un clic exporte un **paquet de preuves signé cryptographiquement** :
 GET /api/v1/compliance/evidence-bundle.zip
 ```
 
+Une clé d'intégration restreinte à certaines cibles reçoit le paquet de ces cibles : la piste d'audit
+et la progression mois par mois décrivent tout le parc, elles sont donc omises, et la liste
+`withheld` du manifeste le dit.
+
 La signature est ce qui rend le paquet plus utile qu'une capture d'écran. Elle atteste que ce
 paquet est bien celui que Vectispire a produit, non modifié — ce qui est la question que se
 pose réellement quiconque examine des preuves après coup.

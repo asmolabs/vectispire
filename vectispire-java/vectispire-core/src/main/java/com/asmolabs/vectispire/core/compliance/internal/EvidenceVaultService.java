@@ -54,6 +54,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EvidenceVaultService {
 
+    private static final String AUDIT_LOG = "02_immutable_audit_log.jsonl";
+
+    private static final String PROGRESSION = "14_compliance_progression.json";
+
     private final ComplianceService compliance;
     private final AuditLogService auditService;
     private final AuditLogQueryService auditLogRepo;
@@ -119,12 +123,26 @@ public class EvidenceVaultService {
      * session. The same data behind two doors with two different locks. The route now carries the
      * stricter of the two, and the allowance narrows what a lead with a scoped credential
      * receives.
+     *
+     * <p><b>A restricted allowance gets a narrower archive, and the manifest says which.</b> The
+     * governance roles see the whole estate, so a partial allowance comes from one place: an
+     * integration key restricted to some targets. Three sections were built without the allowance
+     * and handed such a key the estate — the audit trail (02), the licence summary (07) and the
+     * compliance progression (14). The licence summary narrows to the key's targets like the
+     * sections around it. The other two cannot: every account's actions and the estate's monthly
+     * verdicts, as stored, belong to no target. They are withheld and listed under {@code withheld}
+     * in the manifest with the reason, so an archive built for one pipeline reads as partial by
+     * design rather than as broken. The key was not simply refused the route: an unrestricted
+     * export key archiving the bundle on a schedule is the use it was opened for, and a key
+     * restricted to one product still has a sensible archive to take — its own.
      */
     @Transactional(readOnly = true)
     public byte[] generateEvidenceBundle(String username, Visibility allowed) throws IOException {
+        boolean wholeEstate = allowed instanceof Visibility.Everything;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(baos)) {
             List<EvidenceFileEntry> entries = new ArrayList<>();
+            List<EvidenceBundleManifest.WithheldSection> withheld = new ArrayList<>();
 
             // 0. Public Key — a convenience, and said to be one. A key carried inside the bundle it
             // verifies proves nothing about the bundle: whoever altered the bundle replaces the key
@@ -143,11 +161,19 @@ public class EvidenceVaultService {
                     complianceBytes);
 
             // 2. Immutable Audit Log
-            AuditLogQueryService.JsonLines logEntries = auditLogRepo.asJsonLines(json);
-            byte[] auditBytes = logEntries.text().getBytes(StandardCharsets.UTF_8);
-            addZipEntry(zip, entries, "02_immutable_audit_log.jsonl",
-                    "Cryptographic HMAC Merkle-like immutable audit trail",
-                    auditBytes);
+            Long auditEntryCount = null;
+            if (wholeEstate) {
+                AuditLogQueryService.JsonLines logEntries = auditLogRepo.asJsonLines(json);
+                byte[] auditBytes = logEntries.text().getBytes(StandardCharsets.UTF_8);
+                addZipEntry(zip, entries, AUDIT_LOG,
+                        "Cryptographic HMAC Merkle-like immutable audit trail",
+                        auditBytes);
+                auditEntryCount = (long) logEntries.entries();
+            } else {
+                withheld.add(new EvidenceBundleManifest.WithheldSection(AUDIT_LOG,
+                        "The audit trail records every account's actions across the estate and belongs to no "
+                                + "target; it is not included for a credential restricted to some targets."));
+            }
 
             // 3. Triage & Risk Acceptance Register
             // Scoped in SQL rather than filtered afterwards: the register is the triage
@@ -215,9 +241,12 @@ public class EvidenceVaultService {
                     signingKeyService.sign(csafBytes).getBytes(StandardCharsets.UTF_8));
 
             // 7. Open Source License Governance & Copyleft Compliance
-            byte[] licenseBytes = json.writeValueAsBytes(licenseService.getSummary());
+            byte[] licenseBytes = json.writeValueAsBytes(licenseService.getSummary(allowed));
             addZipEntry(zip, entries, "07_license_compliance.json",
-                    "Open Source License Inventory, Copyleft Risk Analysis, and Governance Policy",
+                    wholeEstate
+                            ? "Open Source License Inventory, Copyleft Risk Analysis, and Governance Policy"
+                            : "Open Source License Inventory and Copyleft Risk Analysis over the targets this "
+                                    + "credential is restricted to",
                     licenseBytes);
 
             // 8. CycloneDX 1.5 BOM-Linked VEX Advisory & detached signature
@@ -270,24 +299,32 @@ public class EvidenceVaultService {
             // show the controls operating; this one is the only place the archive says whether
             // that operation improved, and it is stored rather than recomputed for the reason
             // spelt out on ComplianceSnapshot.
-            byte[] historyBytes = json.writeValueAsBytes(complianceHistory.history());
-            addZipEntry(zip, entries, "14_compliance_progression.json",
-                    "Each framework's verdict month by month, with the estate that produced it and what plausibly moved it (ISO 27001 clause 9.3)",
-                    historyBytes);
+            if (wholeEstate) {
+                byte[] historyBytes = json.writeValueAsBytes(complianceHistory.history());
+                addZipEntry(zip, entries, PROGRESSION,
+                        "Each framework's verdict month by month, with the estate that produced it and what plausibly moved it (ISO 27001 clause 9.3)",
+                        historyBytes);
+            } else {
+                withheld.add(new EvidenceBundleManifest.WithheldSection(PROGRESSION,
+                        "The monthly verdicts are stored for the whole estate and cannot be narrowed to targets; "
+                                + "they are not included for a credential restricted to some targets."));
+            }
 
             // 15. Verification & Manifest
             AuditChain.Verification verification = auditService.verify();
             String chainStatus = verification.broken() == null ? "VERIFIED_INTACT" : "CHAIN_INTEGRITY_COMPROMISED";
 
-            // 1.1 adds sections 09-12, 1.2 section 13, 1.3 section 14. The version is in the manifest so an archive opened in two
-            // years says which generation produced it, rather than looking incomplete.
+            // 1.1 adds sections 09-12, 1.2 section 13, 1.3 section 14, 1.4 the withheld sections. The
+            // version is in the manifest so an archive opened in two years says which generation
+            // produced it, rather than looking incomplete.
             EvidenceBundleManifest manifest = new EvidenceBundleManifest(
-                    "1.3",
+                    "1.4",
                     Instant.now(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
-                    logEntries.entries(),
-                    entries);
+                    auditEntryCount,
+                    entries,
+                    withheld);
 
             byte[] manifestBytes = json.writeValueAsBytes(manifest);
             ZipEntry manifestEntry = new ZipEntry("manifest.json");
