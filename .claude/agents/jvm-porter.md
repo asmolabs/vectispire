@@ -34,17 +34,36 @@ downwards:
 Jackson — no Spring, no JPA, no Docker client.
 
 **A service goes into its domain's package, never into `core.services` itself.** `services` is
-split by domain (`services.issues`, `services.scanning`, `services.access`… twenty-three, decision
+split by domain (`services.issues`, `services.scanning`, `services.access`… twenty-four, decision
 0026) over a foundation any domain may use: `settings`, `outbound`, `crypto`, `audit`, `outbox`,
-and a `shared` of two classes meant to empty. Each domain is drawn as the module it would become —
-the one that would own its controllers, repositories and entities too — so place a class where
-that module would own it. `ArchitectureTest` fails on a class outside a listed domain, on any
-cycle between domains (`slices().matching("..core.services.(*)..")`, with two recorded exceptions
-in `KNOWN_CYCLES`, a list that only shrinks) and on a dependency the `MAY_USE` table does not
-allow. When a lower domain needs a higher one, declare a port it
-implements (`ScanIngestor.Enricher`, `AuditLogService.Listener`); an effect that must survive the
-commit goes through the outbox. Widening the table is a decision for the review, with its reason —
-not the line you add to turn the build green; nothing new goes into `shared`.
+`reporting`, and a `shared` of one class meant to empty. Each domain is drawn as the module it would
+become — the one that would own its controllers, repositories and entities too — so place a class
+where that module would own it. `ArchitectureTest` fails on a class outside a listed domain, on any
+cycle between domains (`slices().matching("..core.services.(*)..")`; `KNOWN_CYCLES` is empty and only
+shrinks) and on a dependency the `MAY_USE` table does not allow. When a lower domain needs a higher
+one, declare a port it implements (`ScanIngestor.Enricher`, `AuditLogService.Listener`,
+`TicketReferences`); an effect that must survive the commit goes through the outbox. Widening the
+table is a decision for the review, with its reason — not the line you add to turn the build green;
+nothing new goes into `shared`.
+
+**A cross-domain effect inside a transaction is a synchronous domain event** — the `TargetDeleted`
+pattern. The publisher stays in its transaction; each owning domain handles its own tables in a plain
+`@EventListener` declaring `Propagation.MANDATORY` (never `@TransactionalEventListener`, which would
+split the atomic step, and never a listener that opens its own transaction). Where the listeners touch
+tables linked by foreign keys, the order is explicit (`@Order` with the constants of
+`TargetPurge.Phase`, children first) and tested by probes between the phases — the schema's cascades
+hide a wrong order otherwise. A bulk `@Modifying` delete that follows Spring Data derived deletes in
+the same transaction needs `flushAutomatically = true`: the derived ones queue their removals, the
+bulk statement and its cascade run first, and the commit fails on rows already gone. An event type the
+listeners of lower domains must see lives where they can see it (`TargetDeleted` is in
+`common.domain.targets`, because `targets` uses `access` and `scanning`).
+
+**Spring Modulith is present in observation mode.** `ModularityObservationTest` writes what it sees
+to `build/modulith-docs/` and fails on nothing — packaged by layer, the code shows it five layer
+modules. It does nothing at runtime: no event publication registry (the outbox is the one, decision
+0025), no actuator endpoint, its "moments" auto-configuration excluded; `ModulithRuntimeInertTest`
+fails if one of its beans appears. Do not add a Modulith starter or turn the test into `verify()`
+outside the migration plan's steps.
 
 ## What this codebase will not forgive
 
