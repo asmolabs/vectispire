@@ -36,7 +36,7 @@ public class GatePolicyAdministrationService {
     }
 
     /** Stores a new version for the scope, attributed to the actor, and records what it now says. */
-    public GatePolicyEntity store(PolicyScope scope, GatePolicy policy, String note, RequestActor actor) {
+    public StoredGatePolicyView store(PolicyScope scope, GatePolicy policy, String note, RequestActor actor) {
         // The note is a `text` column: bounded like every stored text, so a paste past MySQL's
         // 64 KB is a 400 here rather than a 500 from the insert.
         BoundedText.within(note, BoundedText.TEXT_MAX, "The note");
@@ -45,7 +45,7 @@ public class GatePolicyAdministrationService {
         String what = scope.isGlobal() ? "the global policy" : scope.kind() + " " + scope.id();
         record(actor, scope, "Gate policy for " + what + " set to version " + stored.getVersion() + ": "
                 + describe(policy) + ".");
-        return stored;
+        return StoredGatePolicyView.of(stored);
     }
 
     /**

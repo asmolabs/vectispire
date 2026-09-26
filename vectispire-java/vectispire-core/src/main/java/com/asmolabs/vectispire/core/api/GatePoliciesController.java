@@ -6,12 +6,11 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.services.gate.GatePolicyAdministrationService;
 import com.asmolabs.vectispire.core.services.gate.GateService;
 import com.asmolabs.vectispire.core.services.gate.GateService.PolicyScope;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.issues.IssueViews;
+import com.asmolabs.vectispire.core.services.gate.StoredGatePolicyView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
@@ -168,7 +167,7 @@ public class GatePoliciesController {
     private GatePolicyView store(
             PolicyScope scope, VectispirePrincipal principal, HttpServletRequest request, PolicyRequest body) {
 
-        GatePolicyEntity stored = administration.store(scope, policyOf(body), body.note(), actor(principal, request));
+        StoredGatePolicyView stored = administration.store(scope, policyOf(body), body.note(), actor(principal, request));
         return view(stored, names.all());
     }
 
@@ -237,30 +236,30 @@ public class GatePoliciesController {
         };
     }
 
-    private static GatePolicyView view(GatePolicyEntity policy, TargetNaming.Names names) {
-        boolean global = "global".equals(policy.getTargetKind());
-        GatePolicy resolved = IssueViews.storedPolicy(policy).policy();
+    private static GatePolicyView view(StoredGatePolicyView policy, TargetNaming.Names names) {
+        boolean global = "global".equals(policy.targetKind());
+        GatePolicy resolved = policy.policy();
 
         return new GatePolicyView(
-                policy.getTargetKind(),
-                global ? null : policy.getTargetId(),
+                policy.targetKind(),
+                global ? null : policy.targetId(),
                 global ? null : nameOf(policy, names),
-                policy.getVersion(),
+                policy.version(),
                 resolved.failOnSeverity() == null ? null : resolved.failOnSeverity().wireName(),
                 resolved.failOnKev(),
                 resolved.fixableOnly(),
                 resolved.includeTriaged(),
                 resolved.includeAiReview(),
                 resolved.failOnUncoveredLanguages(),
-                policy.getNote(),
-                policy.getCreatedBy(),
-                policy.getCreatedAt() == null ? null : policy.getCreatedAt().toString());
+                policy.note(),
+                policy.createdBy(),
+                policy.createdAt() == null ? null : policy.createdAt().toString());
     }
 
-    private static String nameOf(GatePolicyEntity policy, TargetNaming.Names names) {
-        return "container".equals(policy.getTargetKind())
-                ? names.of(null, policy.getTargetId())
-                : names.of(policy.getTargetId(), null);
+    private static String nameOf(StoredGatePolicyView policy, TargetNaming.Names names) {
+        return "container".equals(policy.targetKind())
+                ? names.of(null, policy.targetId())
+                : names.of(policy.targetId(), null);
     }
 
     /** The code's own defaults, shown as a policy so the screen can compare like with like. */

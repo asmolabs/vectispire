@@ -34,7 +34,7 @@ public class GateRegisterService {
      *     page, never of the register, which would mean reading the whole of it
      * @param nextCursor where the next page starts, or null when the read reached the end
      */
-    public record Page(List<GateVerdictEntity> visible, long passed, long refused, String nextCursor) {}
+    public record Page(List<GateVerdictView> visible, long passed, long refused, String nextCursor) {}
 
     /**
      * One page of the register.
@@ -60,7 +60,7 @@ public class GateRegisterService {
                 .toList();
 
         return new Page(
-                visible,
+                visible.stream().map(GateVerdictView::of).toList(),
                 visible.stream().filter(GateVerdictEntity::isPassed).count(),
                 visible.stream().filter(row -> !row.isPassed()).count(),
                 nextCursor(read, capped));

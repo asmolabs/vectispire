@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.agents.AgentAdministrationService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
@@ -176,23 +176,23 @@ public class AgentsAdminController {
     public List<AgentSummary> list() {
         return administration.list().stream()
                 .map(view -> {
-                    AgentEntity agent = view.agent();
+                    AgentView agent = view.agent();
                     return new AgentSummary(
-                            agent.getId(),
-                            agent.getName(),
-                            agent.getDescription(),
-                            agent.getKind(),
-                            agent.getEnabled(),
-                            agent.getCredentialsMode(),
-                            agent.getLabels(),
-                            agent.getSealingPublicKey() != null,
-                            agent.getSigningPublicKey() != null,
+                            agent.id(),
+                            agent.name(),
+                            agent.description(),
+                            agent.kind(),
+                            agent.enabled(),
+                            agent.credentialsMode(),
+                            agent.labels(),
+                            agent.sealingPublicKey() != null,
+                            agent.signingPublicKey() != null,
                             view.maxConcurrent(),
-                            agent.getHostname(),
-                            agent.getPlatform(),
-                            agent.getVersion(),
-                            agent.getContractVersion(),
-                            agent.getLastSeenAt(),
+                            agent.hostname(),
+                            agent.platform(),
+                            agent.version(),
+                            agent.contractVersion(),
+                            agent.lastSeenAt(),
                             view.online(),
                             view.runningScans());
                 })
@@ -210,7 +210,7 @@ public class AgentsAdminController {
                 new AgentAdministrationService.Declaration(
                         body.name(), body.description(), body.credentialsMode(), body.labels(), body.maxConcurrent()),
                 RequestActors.of(principal, request));
-        return new DeclaredAgent(declared.agent().getId(), declared.agent().getName(), declared.secret());
+        return new DeclaredAgent(declared.agent().id(), declared.agent().name(), declared.secret());
     }
 
     /** Enables or disables. A disabled agent claims nothing, without losing its history. */

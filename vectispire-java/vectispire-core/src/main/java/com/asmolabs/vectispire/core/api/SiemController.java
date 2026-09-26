@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.services.siem.SiemConfigView;
 import com.asmolabs.vectispire.core.services.siem.SiemExporterService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,7 +63,7 @@ public class SiemController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest httpRequest) {
 
-        SiemConfigEntity saved = exporterService.saveConfig(
+        SiemConfigView saved = exporterService.saveConfig(
                 request.enabled(),
                 request.protocol(),
                 request.endpoint(),
@@ -80,13 +80,13 @@ public class SiemController {
         return exporterService.testConnection(request.protocol(), request.endpoint(), request.authHeader());
     }
 
-    private SiemConfigResponse toResponse(SiemConfigEntity entity) {
+    private SiemConfigResponse toResponse(SiemConfigView config) {
         return new SiemConfigResponse(
-                entity.isEnabled(),
-                entity.getProtocol(),
-                entity.getEndpoint(),
-                entity.getAuthHeader() != null && !entity.getAuthHeader().isBlank(),
-                entity.getMinSeverity(),
-                entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null);
+                config.enabled(),
+                config.protocol(),
+                config.endpoint(),
+                config.hasAuthHeader(),
+                config.minSeverity(),
+                config.updatedAt() != null ? config.updatedAt().toString() : null);
     }
 }

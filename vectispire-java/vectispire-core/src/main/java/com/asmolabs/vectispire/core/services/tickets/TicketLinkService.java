@@ -48,13 +48,19 @@ public class TicketLinkService {
     }
 
     /**
-     * The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike.
+     * Refuses an issue the caller may not see with "Issue not found.", absent or hidden alike.
      *
      * <p>Public so a route can refuse a hidden issue <em>before</em> it validates the rest of the
      * request: answering 400 to a malformed body on an issue the caller may not see, and 404 to a
-     * well-formed one, would tell the two apart.
+     * well-formed one, would tell the two apart. It answers nothing: the route only needed the
+     * refusal, and the row stays in this layer.
      */
-    public IssueEntity visibleIssue(long issueId, Visibility visibility) {
+    public void requireVisibleIssue(long issueId, Visibility visibility) {
+        visibleIssue(issueId, visibility);
+    }
+
+    /** The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike. */
+    private IssueEntity visibleIssue(long issueId, Visibility visibility) {
         return RowVisibility.requireVisible(issues.findById(issueId).orElse(null), visibility);
     }
 

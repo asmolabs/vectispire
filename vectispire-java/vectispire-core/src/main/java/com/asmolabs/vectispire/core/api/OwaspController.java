@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
+import com.asmolabs.vectispire.core.services.compliance.AiReviewResultView;
 import com.asmolabs.vectispire.core.services.compliance.OwaspReportService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -111,16 +111,16 @@ public class OwaspController {
                 .body(document);
     }
 
-    private static Report reportOf(AiReviewResultEntity result) {
+    private static Report reportOf(AiReviewResultView result) {
         return new Report(
-                result.getId(),
-                result.getStatus(),
-                result.getModel(),
-                result.getResponse(),
-                OwaspMarkdown.parse(result.getResponse()),
-                result.getError(),
-                result.getScanId(),
-                result.getInputs(),
-                result.getCreatedAt());
+                result.id(),
+                result.status(),
+                result.model(),
+                result.response(),
+                OwaspMarkdown.parse(result.response()),
+                result.error(),
+                result.scanId(),
+                result.inputs(),
+                result.createdAt());
     }
 }

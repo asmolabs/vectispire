@@ -52,9 +52,10 @@ public class OwaspReportService {
     }
 
     /** @throws NoSuchElementException for a hidden or absent repository, or one never reviewed */
-    public AiReviewResultEntity latest(long repositoryId, Visibility allowed) {
+    public AiReviewResultView latest(long repositoryId, Visibility allowed) {
         visible(repositoryId, allowed);
-        return reviews.latest(repositoryId).orElseThrow(() -> new NoSuchElementException(NO_REPORT));
+        return reviews.latest(repositoryId).map(AiReviewResultView::of)
+                .orElseThrow(() -> new NoSuchElementException(NO_REPORT));
     }
 
     /**
@@ -62,7 +63,7 @@ public class OwaspReportService {
      *
      * @param actor who asked, for the audit trail
      */
-    public AiReviewResultEntity run(
+    public AiReviewResultView run(
             long repositoryId, Visibility allowed, String actor, String ipAddress, String userAgent) {
 
         RepositoryEntity repository = visible(repositoryId, allowed);
@@ -79,7 +80,7 @@ public class OwaspReportService {
                 ipAddress,
                 userAgent));
 
-        return result;
+        return AiReviewResultView.of(result);
     }
 
     /**

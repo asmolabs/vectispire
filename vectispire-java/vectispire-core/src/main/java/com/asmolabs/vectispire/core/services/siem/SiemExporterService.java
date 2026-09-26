@@ -54,15 +54,15 @@ public class SiemExporterService {
         this.audit = audit;
     }
 
-    public Optional<SiemConfigEntity> getConfig() {
-        return repository.findById(SiemConfigEntity.SINGLETON_ID);
+    public Optional<SiemConfigView> getConfig() {
+        return repository.findById(SiemConfigEntity.SINGLETON_ID).map(SiemConfigView::of);
     }
 
     /**
      * Stores the configuration and audits the change — never the header, which is a credential and
      * the audit log is never purged.
      */
-    public SiemConfigEntity saveConfig(
+    public SiemConfigView saveConfig(
             boolean enabled, String protocol, String endpoint, String authHeader, String minSeverity, RequestActor actor) {
         // Every field is checked before the row is touched, so a refusal leaves the stored
         // configuration exactly as it was. Each of these reached its column unchecked, and a value
@@ -144,7 +144,7 @@ public class SiemExporterService {
                         "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol()
                                 + ", minimum severity=" + saved.getMinSeverity() + ")")
                 .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
-        return saved;
+        return SiemConfigView.of(saved);
     }
 
     /**
@@ -180,7 +180,7 @@ public class SiemExporterService {
         SiemEndpoint destination;
         try {
             parsed = protocol == null || protocol.isBlank()
-                    ? getConfig().flatMap(config -> SiemProtocol.byName(config.getProtocol())).orElse(SiemProtocol.WEBHOOK)
+                    ? getConfig().flatMap(config -> SiemProtocol.byName(config.protocol())).orElse(SiemProtocol.WEBHOOK)
                     : parseProtocol(protocol);
             destination = SiemEndpoint.parse(parsed, endpoint);
         } catch (IllegalArgumentException refused) {

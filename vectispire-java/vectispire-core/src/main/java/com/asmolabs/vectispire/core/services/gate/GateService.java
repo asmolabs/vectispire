@@ -271,8 +271,8 @@ public class GateService {
 
     /** Every policy somebody has stored, newest version of each scope, for the screen. */
     @Transactional(readOnly = true)
-    public List<GatePolicyEntity> storedPolicies() {
-        return policies.findByIsActiveTrue();
+    public List<StoredGatePolicyView> storedPolicies() {
+        return policies.findByIsActiveTrue().stream().map(StoredGatePolicyView::of).toList();
     }
 
     /**

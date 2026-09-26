@@ -59,7 +59,7 @@ public class TicketingController {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
         // Refused before the body is looked at, so a malformed request on a hidden issue answers
         // 404 like any other, and not a 400 that would confirm the issue is there.
-        ticketLinks.visibleIssue(issueId, allowed);
+        ticketLinks.requireVisibleIssue(issueId, allowed);
 
         if (body == null || body.provider() == null || body.ticketKey() == null || body.ticketUrl() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provider, ticket key and URL are required.");

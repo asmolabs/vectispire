@@ -122,6 +122,18 @@ public class RuleSetService {
         return ruleSets.findFirstByContentHashOrderByIdAsc(contentHash);
     }
 
+    /**
+     * What an executor fetches by the hash it holds: the hash, and the rules decoded.
+     *
+     * <p>One call rather than {@link #byHash} then {@link #filesOf}, so the row stays in this
+     * layer: the fetch route only ever needed what the row says, never the row.
+     */
+    public record Content(String contentHash, List<StoredFile> files) {}
+
+    public Optional<Content> contentByHash(String contentHash) {
+        return byHash(contentHash).map(row -> new Content(row.getContentHash(), filesOf(row)));
+    }
+
     /** The rules of a stored set, decoded. */
     public List<StoredFile> filesOf(SemgrepRuleSetEntity row) {
         try {

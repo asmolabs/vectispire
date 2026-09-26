@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.scanning.WorkerProperties;
@@ -101,13 +102,13 @@ public class AgentAdministrationService {
      * @param maxConcurrent the limit the queue applies — the column clamped to its bound, so the
      *     screen shows what the claim enforces rather than what an old row happens to hold
      */
-    public record AgentView(AgentEntity agent, boolean online, long runningScans, int maxConcurrent) {}
+    public record Listed(AgentView agent, boolean online, long runningScans, int maxConcurrent) {}
 
     public record Declaration(
             String name, String description, String credentialsMode, String labels, Integer maxConcurrent) {}
 
     /** @param secret the only occurrence of the plaintext key */
-    public record Declared(AgentEntity agent, String secret) {}
+    public record Declared(AgentView agent, String secret) {}
 
     /** Each field null when the caller left it as it was. */
     public record Change(Boolean enabled, String labels, Integer maxConcurrent) {}
@@ -273,12 +274,12 @@ public class AgentAdministrationService {
         return new Activity(runningItems, pendingItems, figures);
     }
 
-    public List<AgentView> list() {
+    public List<Listed> list() {
         Instant asOf = clock.instant();
         Map<String, Long> running = runningByAgent();
         return agents.findAllByOrderByNameAsc().stream()
-                .map(agent -> new AgentView(
-                        agent,
+                .map(agent -> new Listed(
+                        AgentView.of(agent),
                         isOnline(agent, asOf),
                         running.getOrDefault(agent.getId().toString(), 0L),
                         AgentConcurrency.effective(agent.getMaxConcurrent())))
@@ -347,7 +348,7 @@ public class AgentAdministrationService {
         });
 
         record(actor, saved.getId(), "Agent declared: " + name + " (" + mode.wireName() + ")");
-        return new Declared(saved, issued.fullKey());
+        return new Declared(AgentView.of(saved), issued.fullKey());
     }
 
     /**

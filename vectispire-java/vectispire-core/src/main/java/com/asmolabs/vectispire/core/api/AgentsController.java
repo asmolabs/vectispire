@@ -138,8 +138,8 @@ public class AgentsController {
         // 404 rather than an empty set: the agent must fail its SAST step, not scan with the
         // bundled rules alone and hand back a shorter list that reads as "analyzed, these issues
         // are gone".
-        return ruleSets.byHash(hash)
-                .map(set -> new RuleSetResponse(set.getContentHash(), ruleSets.filesOf(set)))
+        return ruleSets.contentByHash(hash)
+                .map(content -> new RuleSetResponse(content.contentHash(), content.files()))
                 .orElseThrow(() -> new NoSuchElementException("No rule set with hash " + hash + "."));
     }
 

@@ -59,7 +59,7 @@ public class RuleSetAdministrationService {
     }
 
     /** Stores an upload, attributed to the actor. Does not activate it. */
-    public SemgrepRuleSetEntity upload(List<UploadedFile> files, String name, RequestActor actor) {
+    public RuleSetView upload(List<UploadedFile> files, String name, RequestActor actor) {
         SemgrepRuleSetEntity stored = ruleSets.store(files == null ? List.of() : files, name, actor.username());
 
         audit.record(actor.entry(
@@ -67,7 +67,7 @@ public class RuleSetAdministrationService {
                 String.valueOf(stored.getId()),
                 "Rule set \"" + stored.getName() + "\" uploaded: " + stored.getFileCount() + " files, "
                         + stored.getRuleCount() + " rules."));
-        return stored;
+        return RuleSetView.of(stored);
     }
 
     /**
@@ -82,7 +82,7 @@ public class RuleSetAdministrationService {
      * agree to, and who agreed" has an answer a year from now. The languages are sorted, so the
      * same selection always reads the same in the log.
      */
-    public SemgrepRuleSetEntity importCatalogue(
+    public RuleSetView importCatalogue(
             String commit, List<String> requestedLanguages, String licenceSha256, RequestActor actor) {
 
         RuleCatalogue.requireCommit(commit);
@@ -116,7 +116,7 @@ public class RuleSetAdministrationService {
                 "Fetched " + RuleCatalogue.UPSTREAM + " at commit " + fetched.commit() + ", languages " + String.join(", ", sorted) + ": "
                         + stored.getRuleCount() + " rules. Licence " + RuleCatalogue.LICENCE
                         + " accepted, sha256 " + fetched.licenceSha256() + "."));
-        return stored;
+        return RuleSetView.of(stored);
     }
 
     /**
@@ -125,7 +125,7 @@ public class RuleSetAdministrationService {
      * @param note what the screen showed when they confirmed — what makes "why did four hundred
      *     issues close that afternoon" answerable six months later
      */
-    public SemgrepRuleSetEntity activate(long id, String note, RequestActor actor) {
+    public RuleSetView activate(long id, String note, RequestActor actor) {
         SemgrepRuleSetEntity activated = ruleSets.activate(id, note);
 
         audit.record(actor.entry(
@@ -133,7 +133,7 @@ public class RuleSetAdministrationService {
                 String.valueOf(activated.getId()),
                 "Rule set \"" + activated.getName() + "\" activated. "
                         + (activated.getActivationNote() == null ? "No impact recorded." : activated.getActivationNote())));
-        return activated;
+        return RuleSetView.of(activated);
     }
 
     /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */

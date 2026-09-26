@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.core.services.rules.RuleCatalogueFetcher;
+import com.asmolabs.vectispire.core.services.rules.RuleSetView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService;
 import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService.RuleSetListing;
 import jakarta.servlet.http.HttpServletRequest;
@@ -103,10 +103,10 @@ public class RuleSetsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        SemgrepRuleSetEntity stored =
+        RuleSetView stored =
                 administration.upload(body.files(), body.name(), RequestActors.of(principal, request));
         return new Uploaded(
-                stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
+                stored.id(), stored.contentHash(), stored.ruleCount(), stored.fileCount());
     }
 
     /**
@@ -175,10 +175,10 @@ public class RuleSetsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        SemgrepRuleSetEntity stored = administration.importCatalogue(
+        RuleSetView stored = administration.importCatalogue(
                 body.commit(), body.languages(), body.licenceSha256(), RequestActors.of(principal, request));
         return new Uploaded(
-                stored.getId(), stored.getContentHash(), stored.getRuleCount(), stored.getFileCount());
+                stored.id(), stored.contentHash(), stored.ruleCount(), stored.fileCount());
     }
 
     /**
@@ -209,8 +209,8 @@ public class RuleSetsController {
             HttpServletRequest request) {
 
         String note = body == null || body.note() == null || body.note().isBlank() ? null : body.note().trim();
-        SemgrepRuleSetEntity activated = administration.activate(id, note, RequestActors.of(principal, request));
-        return Map.of("id", activated.getId(), "contentHash", activated.getContentHash());
+        RuleSetView activated = administration.activate(id, note, RequestActors.of(principal, request));
+        return Map.of("id", activated.id(), "contentHash", activated.contentHash());
     }
 
     /** Returns to the bundled rules alone. Audited like an activation: it changes coverage. */

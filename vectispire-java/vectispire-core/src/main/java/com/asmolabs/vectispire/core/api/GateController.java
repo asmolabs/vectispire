@@ -13,10 +13,10 @@ import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.services.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.services.gate.GateService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import com.asmolabs.vectispire.core.services.gate.GateVerdictView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -226,26 +226,26 @@ public class GateController {
                 page.nextCursor());
     }
 
-    private static RegisteredVerdict view(GateVerdictEntity row) {
-        boolean isRepository = row.getRepoId() != null;
+    private static RegisteredVerdict view(GateVerdictView row) {
+        boolean isRepository = row.repoId() != null;
         return new RegisteredVerdict(
-                row.getId().toString(),
+                row.id().toString(),
                 isRepository ? "REPOSITORY" : "CONTAINER",
-                isRepository ? row.getRepoId() : row.getContainerId(),
-                row.isPassed(),
-                row.getEvaluated(),
-                row.getViolations(),
+                isRepository ? row.repoId() : row.containerId(),
+                row.passed(),
+                row.evaluated(),
+                row.violations(),
                 Map.of(
-                        "critical", row.getCriticalCount(),
-                        "high", row.getHighCount(),
-                        "medium", row.getMediumCount(),
-                        "low", row.getLowCount()),
-                row.getFailOnSeverity(),
-                row.getPolicySource(),
-                row.getPolicyVersion(),
-                row.isRelaxationsIgnored(),
-                row.getDecidedAt(),
-                row.getDecidedBy());
+                        "critical", row.criticalCount(),
+                        "high", row.highCount(),
+                        "medium", row.mediumCount(),
+                        "low", row.lowCount()),
+                row.failOnSeverity(),
+                row.policySource(),
+                row.policyVersion(),
+                row.relaxationsIgnored(),
+                row.decidedAt(),
+                row.decidedBy());
     }
 
     /**
