@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.ExportQueryService;
+import com.asmolabs.vectispire.core.services.exports.ExportQueryService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

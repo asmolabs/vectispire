@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionExc
 import com.asmolabs.vectispire.core.api.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.services.scanning.InsecureCredentialTransportException;
 import com.asmolabs.vectispire.core.services.crypto.MissingEncryptionKeyException;
-import com.asmolabs.vectispire.core.services.AttestationService;
+import com.asmolabs.vectispire.core.services.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;
 import java.util.NoSuchElementException;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.exports;
 
 import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;

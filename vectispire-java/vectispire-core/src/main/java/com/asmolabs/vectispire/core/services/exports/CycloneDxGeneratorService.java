@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.exports;
 
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;

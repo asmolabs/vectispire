@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.asmolabs.vectispire.core.services.AttestationService;
+import com.asmolabs.vectispire.core.services.exports.AttestationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;

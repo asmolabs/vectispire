@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.CsafGeneratorService;
+import com.asmolabs.vectispire.core.services.exports.CsafGeneratorService;
 import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.http.HttpHeaders;
