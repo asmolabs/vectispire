@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import java.time.Period;
 import java.util.List;
 import java.util.Optional;

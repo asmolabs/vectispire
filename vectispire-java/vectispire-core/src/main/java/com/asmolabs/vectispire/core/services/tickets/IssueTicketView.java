@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.tickets;
 
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
 import java.time.Instant;

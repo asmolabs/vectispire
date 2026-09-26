@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import com.asmolabs.vectispire.core.services.NotificationService;
 import com.asmolabs.vectispire.core.services.SettingsAdministrationService;
-import com.asmolabs.vectispire.core.services.TicketService;
+import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
