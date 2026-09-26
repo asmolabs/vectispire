@@ -155,6 +155,11 @@ class SchemaParityIntegrationTest {
                         + "the primary key `(team_id, user_id)` cannot answer it in this direction")
                 .contains("user_id");
 
+        assertThat(indexedFirstColumns("t_repository"))
+                .as("`VisibilityService` resolves every project grant into the project's "
+                        + "repositories on each request a project grantee makes (decision 0023)")
+                .contains("project_id");
+
         assertThat(indexedFirstColumns("t_api_key"))
                 .as("every API-key authentication: the pipelines and the agents")
                 .contains("prefix");
@@ -220,7 +225,13 @@ class SchemaParityIntegrationTest {
                 .contains("t_team");
 
         assertThat(referencedParents("t_agent")).contains("t_api_key");
-        assertThat(referencedParents("t_repository")).contains("t_ssh_key");
+        assertThat(referencedParents("t_repository"))
+                .as("a repository names its project, and a deleted project detaches it rather "
+                        + "than leaving it filed under nothing")
+                .contains("t_ssh_key", "t_project");
+        assertThat(referencedParents("t_project"))
+                .as("a project belongs to one solution, which cannot be deleted from under it")
+                .contains("t_solution");
     }
 
     /**

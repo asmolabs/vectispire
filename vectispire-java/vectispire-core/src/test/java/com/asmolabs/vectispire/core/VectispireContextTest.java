@@ -81,6 +81,10 @@ public abstract class VectispireContextTest {
             "t_api_key",
             "t_agent",
             "t_repository",
+            // After t_repository, which names its project, and before t_solution, which the
+            // project names: the foreign keys are enforced on this fixture.
+            "t_project",
+            "t_solution",
             "t_container",
             "t_ssh_key",
             // After t_repository, which may name one for its HTTPS clone. Left out, a token outlived its

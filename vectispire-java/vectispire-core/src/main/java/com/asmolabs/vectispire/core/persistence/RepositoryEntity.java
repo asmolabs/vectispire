@@ -84,6 +84,19 @@ public class RepositoryEntity {
     @Column(name = "in_certified_scope", nullable = false)
     private boolean inCertifiedScope;
 
+    /**
+     * The project this repository is filed in, or null for "no project" (decision 0023).
+     *
+     * <p><b>Read-only to Hibernate, and that is the point.</b> Which project a repository is in
+     * decides who sees it, so the column is written by the targeted updates in
+     * {@code GitRepositories} and by nothing else. Mapped writable, every save of this entity —
+     * the settings form, the badge publication — would write back whatever project the row held
+     * when it was read, and a repository moved in another tab would silently move back, taking
+     * its visibility with it.
+     */
+    @Column(name = "project_id", insertable = false, updatable = false)
+    private Long projectId;
+
     public Long getId() {
         return id;
     }
@@ -194,5 +207,10 @@ public class RepositoryEntity {
 
     public void setInCertifiedScope(boolean inCertifiedScope) {
         this.inCertifiedScope = inCertifiedScope;
+    }
+
+    /** No setter: see the field. */
+    public Long getProjectId() {
+        return projectId;
     }
 }

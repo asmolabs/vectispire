@@ -70,7 +70,8 @@ class MigrationsTest {
                         "t_issue_triage_event", "t_component", "t_team", "t_team_member", "t_team_target",
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
                         "t_api_endpoint", "t_api_contract", "t_mfa_challenge", "t_gate_verdict",
-                        "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery", "t_git_token");
+                        "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery", "t_git_token",
+                        "t_solution", "t_project");
     }
 
     @Test
@@ -92,7 +93,7 @@ class MigrationsTest {
                     "t_scan", "t_issue", "t_finding", "t_session", "t_agent", "t_repository",
                     "t_ai_review_result", "t_user_target", "t_issue_triage_event", "t_component",
                     "t_team_member", "t_team_target", "t_team_webhook", "t_issue_ticket",
-                    "t_mfa_challenge", "t_gate_verdict")) {
+                    "t_mfa_challenge", "t_gate_verdict", "t_project")) {
                 try (ResultSet rows = connection.getMetaData().getImportedKeys(null, null, table)) {
                     while (rows.next()) {
                         references.add(table + "." + rows.getString("FKCOLUMN_NAME")
@@ -124,8 +125,10 @@ class MigrationsTest {
                         "t_issue_ticket.issue_id -> t_issue",
                         "t_mfa_challenge.user_id -> t_user",
                         "t_gate_verdict.repo_id -> t_repository",
-                        "t_gate_verdict.container_id -> t_container")
-                .hasSize(25);
+                        "t_gate_verdict.container_id -> t_container",
+                        "t_repository.project_id -> t_project",
+                        "t_project.solution_id -> t_solution")
+                .hasSize(27);
     }
 
     @Test
