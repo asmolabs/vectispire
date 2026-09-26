@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.agent;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
@@ -80,11 +81,10 @@ public class AgentRunner implements ApplicationRunner {
         }
         if (!properties.url().startsWith("https://")) {
             // Warned and not refused: an agent in `local` mode receives no key, and a deployment
-            // behind a reverse proxy legitimately sees HTTP. The control plane refuses to
-            // delegate a clear key over a clear link — that is where the decision belongs,
-            // because that is where what would be sent is known. A sealed key never travels in
-            // the clear, so the requirement falls away by itself.
-            log.warn("Unencrypted link to {}: only sealed keys will be delegated there.", properties.url());
+            // behind a reverse proxy legitimately sees HTTP. A current control plane delegates a
+            // credential only sealed, over any link (decision 0031); the warning stands for the
+            // API key and the results, which still travel as they are.
+            log.warn("Unencrypted link to {}: the API key and the results travel in the clear.", properties.url());
         }
 
         // **Regenerated on every start, never written.** A restarted agent is a new recipient;
@@ -96,7 +96,10 @@ public class AgentRunner implements ApplicationRunner {
                 new AgentHttp(json, properties.url(), properties.token()),
                 json,
                 keyPair,
-                properties.signingKey());
+                properties.signingKey(),
+                // The pair's generation: the control plane keeps the newest it accepted, so a
+                // restarted agent's key replaces the last one and a replayed older one does not.
+                clock.millis());
         if (properties.signingKey().isEmpty()) {
             // Said once, at start, because the alternative is an operator who believes their
             // results are attested. The control plane cannot say it for them: an agent with no
@@ -105,17 +108,11 @@ public class AgentRunner implements ApplicationRunner {
                     + "Pin one from the agents administration screen to change that.");
         }
 
-        AgentProtocol.Identity identity = protocol.hello(new AgentProtocol.Description(
+        AgentProtocol.Identity identity = announce(protocol, new AgentProtocol.Description(
                 hostName(),
                 System.getProperty("os.name") + " " + System.getProperty("os.version"),
                 version,
                 properties.scannerEngine()));
-
-        log.info(
-                "Agent \"{}\" announced — contract {}, credentials {}.",
-                identity.name(),
-                identity.contractVersion(),
-                identity.credentialsMode());
 
         // **The rule provider, wired to the protocol.** Without it, an agent handed a task naming
         // an uploaded set would fail its SAST step — loudly and correctly, but with no way ever
@@ -189,6 +186,68 @@ public class AgentRunner implements ApplicationRunner {
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    /**
+     * The hello, then — for an agent that receives credentials — the signed sealing key.
+     *
+     * <p>Apart from {@link #run} so that the second call is tested where it is made: a sealing key
+     * the runner never announced would leave every delegated scan withheld, on an agent whose every
+     * other test passes.
+     */
+    static AgentProtocol.Identity announce(AgentProtocol protocol, AgentProtocol.Description description) {
+        AgentProtocol.Identity identity = protocol.hello(description);
+
+        log.info(
+                "Agent \"{}\" announced — contract {}, credentials {}.",
+                identity.name(),
+                identity.contractVersion(),
+                identity.credentialsMode());
+
+        if (CredentialsMode.byWireName(identity.credentialsMode())
+                .map(CredentialsMode::deliversCredentials)
+                .orElse(false)) {
+            announceSealingKey(protocol);
+        }
+        return identity;
+    }
+
+    /**
+     * Announces the sealing key a delegated credential is sealed for, and says what the answer asks
+     * of the operator.
+     *
+     * <p><b>Never fatal.</b> Whatever the answer, the agent runs: an image scan needs no credential,
+     * and a repository scan whose credential is withheld fails its claim with the control plane's
+     * reason, every time, in this log. Stopping here would trade one loud message for silence.
+     */
+    static AgentProtocol.SealingKeyOutcome announceSealingKey(AgentProtocol protocol) {
+        AgentProtocol.SealingKeyOutcome outcome;
+        try {
+            outcome = protocol.announceSealingKey();
+        } catch (AgentProtocol.UnauthorizedException refused) {
+            throw refused;
+        } catch (RuntimeException failed) {
+            log.warn("The sealing key could not be announced ({}); delegated credentials are withheld until it is.",
+                    failed.getMessage());
+            return AgentProtocol.SealingKeyOutcome.UNSIGNABLE;
+        }
+        switch (outcome) {
+            case ACCEPTED -> log.info("Sealing key verified by the control plane: delegated credentials are sealed "
+                    + "for this process alone.");
+            case NOT_SUPPORTED -> log.info("The control plane predates signed sealing keys; it seals for the key in "
+                    + "the hello. Upgrade it to take a TLS-terminating proxy out of the trust boundary.");
+            case NOT_PINNED -> log.warn("No signing key is pinned for this agent on the control plane, so it hands "
+                    + "this agent no delegated credential. Pin one from the agents administration screen and set "
+                    + "its private half as vectispire.agent.signing-key.");
+            case REFUSED -> log.error("The control plane refused this agent's sealing key: vectispire.agent.signing-key "
+                    + "is not the key pinned for it. No delegated credential will be handed to it.");
+            case STALE -> log.error("The control plane holds a newer sealing key than this process made: this host's "
+                    + "clock is behind. Correct it, or have an administrator reset this agent's sealing key.");
+            case UNSIGNABLE -> log.warn("This agent receives delegated credentials but has no "
+                    + "vectispire.agent.signing-key to sign its sealing key with: a current control plane hands it "
+                    + "none. Pin a key from the agents administration screen and configure its private half.");
+        }
+        return outcome;
     }
 
     private static String hostName() {

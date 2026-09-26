@@ -37,6 +37,51 @@ class AgentWireFormatTest {
     }
 
     /**
+     * The sealing key announcement, as the agent's own mapper writes it — what {@code AgentHttp}
+     * does with the body — against the names and types the control plane's {@code SealingKeyRequest}
+     * declares: {@code public_key}, a {@code generation} that is a number past 32 bits, and a
+     * signature that still verifies once it has been through the mapper.
+     */
+    @Test
+    @DisplayName("a sealing key announcement leaves as public_key, a numeric generation, and a signature that verifies")
+    @SuppressWarnings("unchecked")
+    void aSealingKeyAnnouncementIsWrittenAsTheContractSays() throws Exception {
+        java.util.UUID agent = java.util.UUID.randomUUID();
+        long generation = 1_790_380_800_000L;
+        var signing = com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.generate();
+        var pair = new com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope().generateKeyPair();
+        AgentHttp http = org.mockito.Mockito.mock(AgentHttp.class);
+        org.mockito.Mockito.when(http.call(org.mockito.ArgumentMatchers.eq("/api/v1/agent/hello"),
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new AgentHttp.Response(200, json.readTree(
+                        "{\"id\":\"" + agent + "\",\"name\":\"edge\",\"contractVersion\":\"1\",\"maxConcurrent\":1,"
+                                + "\"credentialsMode\":\"delegated\"}")));
+        org.mockito.Mockito.when(http.call(org.mockito.ArgumentMatchers.eq("/api/v1/agent/sealing-key"),
+                        org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new AgentHttp.Response(204, json.nullNode()));
+        AgentProtocol protocol = new AgentProtocol(http, json, pair, signing.privateKey(), generation);
+        protocol.hello(new AgentProtocol.Description("host", "linux", "1", "docker"));
+        protocol.announceSealingKey();
+
+        var body = org.mockito.ArgumentCaptor.forClass(Object.class);
+        org.mockito.Mockito.verify(http).call(org.mockito.ArgumentMatchers.eq("/api/v1/agent/sealing-key"),
+                org.mockito.ArgumentMatchers.eq("POST"), body.capture(), org.mockito.ArgumentMatchers.any());
+        JsonNode written = json.readTree(json.writeValueAsString(body.getValue()));
+
+        assertThat(written.path("public_key").asText()).isEqualTo(pair.publicKey());
+        assertThat(written.path("generation").isIntegralNumber())
+                .as("generation was written as %s", written.path("generation"))
+                .isTrue();
+        assertThat(written.path("generation").asLong()).isEqualTo(generation);
+        assertThat(com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation.verify(
+                        signing.publicKey(), agent, written.path("generation").asLong(),
+                        written.path("public_key").asText(), written.path("signature").asText()))
+                .isTrue();
+    }
+
+    /**
      * The result could not be written at all: {@code ScanArtifacts} is a record of
      * {@code Optional}s, Jackson 2 refuses one without the {@code jdk8} module, and every remote
      * scan ended in "The result could not be serialized". {@code AgentProtocolTest} mocks the

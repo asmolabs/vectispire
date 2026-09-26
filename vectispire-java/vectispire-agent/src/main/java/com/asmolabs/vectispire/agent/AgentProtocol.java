@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
@@ -15,16 +16,18 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The agent protocol's client: four routes, and nothing else.
+ * The agent protocol's client: a handful of routes, and nothing else.
  *
  * <p><b>No database access, and that is a security property rather than a detail.</b> An agent
  * with a connection would also need the encryption key — that is, the means to decrypt
  * <em>every</em> deployment key Vectispire holds. It therefore knows the control plane only
- * through these four calls, authenticated by an API key bearing the {@code agent} scope, and it
- * opens no inbound port.
+ * through these calls, authenticated by an API key bearing the {@code agent} scope, and it opens
+ * no inbound port. When it needs to tell the control plane something new — the signed sealing key,
+ * since decision 0031 — that is one more call, never a dependency.
  *
  * <p>This class only speaks HTTP: what actually runs the scanners is the shared {@code
  * ScanRunner}. That sharing is what makes a result produced on another machine
@@ -54,6 +57,28 @@ public class AgentProtocol {
 
     /** What the agent says about itself. Purely informational, except the contract. */
     public record Description(String hostname, String platform, String version, String scannerEngine) {}
+
+    /**
+     * What became of this process's sealing key announcement (decision 0031).
+     *
+     * <p>A closed set, because each answer asks something different of the operator, and the runner
+     * says which in the log: nothing, an upgrade of the control plane, a key to pin, a key to fix, a
+     * clock to fix.
+     */
+    public enum SealingKeyOutcome {
+        /** Verified against the pinned key: delegated credentials are sealed for this process. */
+        ACCEPTED,
+        /** The control plane predates signed sealing keys (404): it seals for the hello's key. */
+        NOT_SUPPORTED,
+        /** No signing key is pinned for this agent (412): it is handed no delegated credential. */
+        NOT_PINNED,
+        /** The signature does not verify against the pinned key (403): the configured key is not it. */
+        REFUSED,
+        /** Older than the key the control plane holds (409): this host's clock went back. */
+        STALE,
+        /** Nothing to sign with, or nothing to sign: no signing key configured, or no hello answered yet. */
+        UNSIGNABLE
+    }
 
     /** The two failures whose fix is a deployment or a configuration change, not a retry. */
     public static class ContractMismatchException extends RuntimeException {
@@ -99,14 +124,33 @@ public class AgentProtocol {
     /** Keyed by hash, therefore never to invalidate — see {@link #ruleSet}. */
     private final Map<String, List<StoredFile>> ruleSetCache = new ConcurrentHashMap<>();
 
+    /**
+     * When {@link #keyPair} was made, in epoch milliseconds — the generation the sealing key's
+     * signature covers, so the control plane can keep the newest and refuse an older one replayed.
+     */
+    private final long keyPairGeneration;
+
+    /** This agent's id, learnt from the hello's answer: the sealing key's signature covers it. */
+    private volatile UUID agentId;
+
+    /** The last announcement's outcome; {@link #claim} announces again only after an acceptance. */
+    private volatile SealingKeyOutcome sealing = SealingKeyOutcome.UNSIGNABLE;
+
     public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair) {
         this(http, json, keyPair, "");
     }
 
     public AgentProtocol(AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey) {
+        this(http, json, keyPair, signingKey, System.currentTimeMillis());
+    }
+
+    /** @param keyPairGeneration when {@code keyPair} was made, in epoch milliseconds */
+    public AgentProtocol(
+            AgentHttp http, ObjectMapper json, SealedEnvelope.KeyPair keyPair, String signingKey, long keyPairGeneration) {
         this.http = http;
         this.json = json;
         this.keyPair = Optional.ofNullable(keyPair);
+        this.keyPairGeneration = keyPairGeneration;
         this.signingKey = signingKey == null ? "" : signingKey.trim();
         if (!this.signingKey.isEmpty() && !ResultAttestation.isUsablePrivateKey(this.signingKey)) {
             // At construction and not at the first result: a key that is one character short would
@@ -131,10 +175,9 @@ public class AgentProtocol {
                 "hostname", description.hostname(),
                 "platform", description.platform(),
                 "scanner_engine", description.scannerEngine(),
-                // Announced at every start and never persisted: the control plane seals
-                // for the living pair, not for a key kept from a previous life. An older
-                // control plane ignores the field, and the agent then receives the key in
-                // the clear — degraded, not broken.
+                // Unsigned, for a control plane older than decision 0031, which seals for it.
+                // A current one reads it not at all: it believes only the signed announcement
+                // that follows the hello — see announceSealingKey.
                 "sealing_public_key", keyPair.map(SealedEnvelope.KeyPair::publicKey).orElse("")));
         // Only when known. It comes from build-info now, absent from a build without it, and
         // `Map.of` refuses a null: a missing version must not stop an agent from starting.
@@ -149,7 +192,54 @@ public class AgentProtocol {
         refuseIfUnauthorized(response);
         refuseIfFailed(response, "Announcement refused");
 
-        return read(response.body(), Identity.class);
+        Identity identity = read(response.body(), Identity.class);
+        agentId = parseId(identity.id());
+        return identity;
+    }
+
+    /**
+     * Announces this process's sealing key, signed with the result-signing key an administrator
+     * pinned for this agent — the only sealing key a control plane of this version believes.
+     *
+     * <p><b>After the hello, not inside it</b>, because the signature covers this agent's id and the
+     * hello's answer is where the agent learns it. Never an exception for an answer the control plane
+     * gives on purpose: every outcome leaves the agent running — its image scans need no credential —
+     * and the caller logs what the operator has to do.
+     *
+     * <p><b>A 404 is an older control plane</b>, which has no such route and seals for the key the
+     * hello carried; nothing is lost by carrying on.
+     *
+     * @throws UnauthorizedException when the API key itself is refused
+     */
+    public SealingKeyOutcome announceSealingKey() {
+        UUID id = agentId;
+        if (keyPair.isEmpty() || signingKey.isEmpty() || id == null) {
+            sealing = SealingKeyOutcome.UNSIGNABLE;
+            return sealing;
+        }
+        String publicKey = keyPair.get().publicKey();
+        Map<String, Object> body = Map.of(
+                "public_key", publicKey,
+                "generation", keyPairGeneration,
+                "signature", SealingKeyAttestation.sign(signingKey, id, keyPairGeneration, publicKey));
+
+        AgentHttp.Response response = http.call("/api/v1/agent/sealing-key", "POST", body, Duration.ofSeconds(30));
+        sealing = switch (response.status()) {
+            case 200, 204 -> SealingKeyOutcome.ACCEPTED;
+            case 404 -> SealingKeyOutcome.NOT_SUPPORTED;
+            case 412 -> SealingKeyOutcome.NOT_PINNED;
+            case 403 -> SealingKeyOutcome.REFUSED;
+            case 409 -> SealingKeyOutcome.STALE;
+            default -> {
+                if (response.status() == 401) {
+                    throw new UnauthorizedException(response.messageOr("API key refused."));
+                }
+                refuseIfFailed(response, "Sealing key announcement refused");
+                // A 2xx this protocol does not use: taken as accepted, like the 204 it stands for.
+                yield SealingKeyOutcome.ACCEPTED;
+            }
+        };
+        return sealing;
     }
 
     /**
@@ -173,11 +263,28 @@ public class AgentProtocol {
         }
         refuseIfUnauthorized(response);
         if (response.status() == 412) {
-            // The link is not encrypted and this agent receives deployment keys. Refusing loudly
-            // is the point: scanning without the key would produce a clone failure that looks
-            // like a network problem.
+            // A delegated credential withheld: the control plane holds no sealing key it can
+            // believe for this agent. Refusing loudly is the point — scanning without the key would
+            // produce a clone failure that looks like a network problem — and the message says
+            // what to fix. (An older control plane answered 412 for an unencrypted link.)
+            //
+            // After an accepted announcement it means the key was forgotten since — an
+            // administrator's reset, or a signing key pinned anew — so the agent announces once
+            // more, and the next claim takes the scan, which went back to the queue. Only after an
+            // acceptance: a refused key announced on every claim would fill the audit log.
+            if (sealing == SealingKeyOutcome.ACCEPTED) {
+                try {
+                    announceSealingKey();
+                } catch (UnauthorizedException refused) {
+                    throw refused;
+                } catch (RuntimeException unreachable) {
+                    // Left as it was, so the next withheld credential tries again; the control
+                    // plane's own message is the one worth reporting.
+                }
+            }
             throw new IllegalStateException(response.messageOr(
-                    "Unencrypted link refused for an agent with delegated credentials."));
+                    "A delegated credential was withheld: the control plane holds no verified sealing key for "
+                            + "this agent."));
         }
         refuseIfFailed(response, "Claim refused");
 
@@ -330,6 +437,15 @@ public class AgentProtocol {
         }
         refuseIfFailed(response, "Result refused");
         return true;
+    }
+
+    /** Null when unreadable: an agent that cannot sign its key still runs what needs no credential. */
+    private static UUID parseId(String id) {
+        try {
+            return id == null ? null : UUID.fromString(id.trim());
+        } catch (IllegalArgumentException notAnId) {
+            return null;
+        }
     }
 
     private <T> T read(JsonNode body, Class<T> type) {
