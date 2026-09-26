@@ -3,15 +3,14 @@ package com.asmolabs.vectispire.core.notifications.internal;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.access.TeamChannels;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
-import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
+import com.asmolabs.vectispire.core.services.issues.ScanDelta;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
@@ -23,8 +22,9 @@ import org.springframework.stereotype.Service;
  * The bridge between a reconciliation's outcome and the notification queue.
  *
  * <p>Its own class rather than a method on either side, because it is the only place that knows
- * both: {@link IssueSyncService} must not learn what a webhook is, and {@link
- * NotificationService} must not learn what an issue row looks like.
+ * both: the backlog must not learn what a webhook is, and {@link NotificationService} must not learn
+ * what an issue looks like. It implements {@code issues}' {@link ScanDelta.Sink}, the port through
+ * which the backlog announces what a scan changed.
  *
  * <p><b>And it is where a notification is routed</b>, because it is also the only place that
  * knows which target the delta is about. One copy for the global channel and one per owning team
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Service;
  * screens still announced every team's vulnerabilities where everybody reads.
  */
 @Service
-public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
+public class ScanDeltaNotifier implements ScanDelta.Sink {
 
     private final NotificationService notifications;
     private final List<NotificationChannel> channels;
@@ -64,14 +64,16 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
      * after the commit would reintroduce exactly the window it removes.
      */
     @Override
-    public void enqueue(ScanEntity scan, IssueSyncService.SyncResult result) {
+    public void enqueue(ScanDelta delta) {
+        Long repoId = delta.target() instanceof ScanTarget.Repository repository ? repository.id() : null;
+        Long containerId = delta.target() instanceof ScanTarget.Container container ? container.id() : null;
         notifications
                 .buildScanDelta(
-                        names.all().of(scan.getRepoId(), scan.getContainerId()),
-                        scan.getId(),
-                        notifiable(result.newIssues()),
-                        notifiable(result.reopenedIssues()),
-                        result.resolved())
+                        names.all().of(repoId, containerId),
+                        delta.scanId(),
+                        notifiable(delta.newIssues()),
+                        notifiable(delta.reopenedIssues()),
+                        delta.resolved())
                 .ifPresent(payload -> {
                     // **One row per configured destination.** Delivering three from a single row
                     // makes a partial failure unrepresentable: Teams accepted, the relay retries
@@ -88,7 +90,7 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
                             .forEach(channel -> outbox.enqueue(payload, channel.type()));
 
                     // And one webhook copy per owning team that has a channel of its own.
-                    for (Long teamId : teamsToTell(scan)) {
+                    for (Long teamId : teamsToTell(repoId, containerId)) {
                         outbox.enqueue(payload, OutboxService.TYPE_SCAN_DELTA, teamId);
                     }
                 });
@@ -107,9 +109,9 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
      * granted one by one, it would read findings on screen that its channel was never sent — and
      * nothing would say why. The project is read at the moment of the scan, as visibility reads it.
      */
-    private List<Long> teamsToTell(ScanEntity scan) {
-        String kind = scan.getContainerId() == null ? TeamRules.KIND_REPOSITORY : TeamRules.KIND_CONTAINER;
-        Long targetId = scan.getContainerId() == null ? scan.getRepoId() : scan.getContainerId();
+    private List<Long> teamsToTell(Long repoId, Long containerId) {
+        String kind = containerId == null ? TeamRules.KIND_REPOSITORY : TeamRules.KIND_CONTAINER;
+        Long targetId = containerId == null ? repoId : containerId;
         if (targetId == null) {
             return List.of();
         }
@@ -127,21 +129,21 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
         return teams.withChannel(owners);
     }
 
-    private static List<NotifiableIssue> notifiable(List<IssueEntity> issues) {
+    private static List<NotifiableIssue> notifiable(List<IssueView> issues) {
         return issues.stream().map(ScanDeltaNotifier::notifiable).toList();
     }
 
-    private static NotifiableIssue notifiable(IssueEntity issue) {
+    private static NotifiableIssue notifiable(IssueView issue) {
         return new NotifiableIssue(
-                issue.getId(),
-                issue.getIdentifier(),
-                FindingType.fromWireName(issue.getType()).orElse(null),
-                Severity.of(issue.getSeverity()),
-                issue.getIsKev(),
-                issue.getEpssScore(),
-                issue.getPackageName(),
-                issue.getFilePath(),
-                issue.getFixVersions(),
-                issue.getLink());
+                issue.id(),
+                issue.identifier(),
+                FindingType.fromWireName(issue.type()).orElse(null),
+                Severity.of(issue.severity()),
+                issue.isKev(),
+                issue.epssScore(),
+                issue.packageName(),
+                issue.filePath(),
+                issue.fixVersions(),
+                issue.link());
     }
 }

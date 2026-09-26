@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services.issues;
 
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.core.services.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
@@ -16,9 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * A purged target's issues and their triage history.
  *
- * <p><b>Two phases, because an issue is a parent twice over.</b> Its triage events go with the other
- * rows that hang off an issue alone; the issue itself only once the findings, which also hang off a
- * scan, are gone too — see {@link TargetPurge.Phase}. Synchronous and in the deleting transaction,
+ * <p><b>Three phases, because an issue is a parent twice over.</b> Its triage events go with the other
+ * rows that hang off an issue alone; its findings — occurrences that also hang off a scan, and
+ * {@code scanning}'s rows — in the findings phase; the issue itself only once they are all gone — see
+ * {@link TargetPurge.Phase}. Synchronous and in the deleting transaction,
  * like every {@link TargetPurge} listener.
  */
 @Component
@@ -29,11 +31,13 @@ class IssuePurge {
     private final PurgedIssues purged;
     private final Issues issues;
     private final TriageEvents triageEvents;
+    private final PurgedScans scans;
 
-    IssuePurge(PurgedIssues purged, Issues issues, TriageEvents triageEvents) {
+    IssuePurge(PurgedIssues purged, Issues issues, TriageEvents triageEvents, PurgedScans scans) {
         this.purged = purged;
         this.issues = issues;
         this.triageEvents = triageEvents;
+        this.scans = scans;
     }
 
     @EventListener
@@ -43,6 +47,21 @@ class IssuePurge {
         List<Long> issueIds = purged.idsOf(purge);
         if (!issueIds.isEmpty()) {
             triageEvents.deleteByIssueIdIn(issueIds);
+        }
+    }
+
+    /**
+     * The findings that are occurrences of the target's issues — {@code scanning}'s rows, deleted by
+     * {@code scanning}, selected here. {@code ScanPurge} takes the same target's findings by scan in
+     * this phase; the two selections should meet the same rows, and either order ends the same.
+     */
+    @EventListener
+    @Order(TargetPurge.Phase.FINDINGS)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void purgeFindings(TargetPurge purge) {
+        List<Long> issueIds = purged.idsOf(purge);
+        if (!issueIds.isEmpty()) {
+            scans.deleteFindingsOfIssues(issueIds);
         }
     }
 

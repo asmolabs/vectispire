@@ -1,11 +1,9 @@
 package com.asmolabs.vectispire.core.threatintel.internal;
 
 import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
-import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -58,49 +55,32 @@ public class EnrichmentService implements ScanIngestor.Enricher {
     }
 
     /**
-     * Sets the EPSS score and the exploited flag <b>in memory</b>.
+     * The EPSS scores and the exploited identifiers among these — the vulnerabilities' of one scan,
+     * sorted and distinct.
      *
-     * <p>Nothing is written here: the caller is in the middle of the ingestion transaction and
-     * will save these findings itself. Writing from this service would impose its own
-     * transaction and make findings appear in the database before the scan concluded — visible
-     * half-way, with counters matching nothing.
+     * <p><b>Nothing is written here</b>, and nothing is even set: the ingestion is in the middle of
+     * its transaction and writes these values onto its own findings, a score only where one is known
+     * — overwriting with null would erase a score obtained on the previous scan, on the day the API
+     * happens to be unavailable. Writing from this service would impose its own transaction and make
+     * findings appear in the database before the scan concluded — visible half-way, with counters
+     * matching nothing. It used to set them on the scan's rows in place; the rows are {@code
+     * scanning}'s (decision 0029).
      */
     @Override
-    public void enrich(List<FindingEntity> findings) {
-        if (!settings.isEnabled(Setting.ENRICHMENT_ENABLED)) {
-            return;
+    public Optional<ScanIngestor.Enrichment> enrich(List<String> identifiers) {
+        if (!settings.isEnabled(Setting.ENRICHMENT_ENABLED) || identifiers.isEmpty()) {
+            return Optional.empty();
         }
 
-        List<FindingEntity> vulnerabilities = findings.stream()
-                .filter(finding -> FindingType.VULNERABILITY.wireName().equals(finding.getType()))
-                .filter(finding -> finding.getIdentifier() != null && !finding.getIdentifier().isBlank())
-                .toList();
-        if (vulnerabilities.isEmpty()) {
-            return;
-        }
-
-        List<String> identifiers = List.copyOf(new TreeSet<>(vulnerabilities.stream()
-                .map(FindingEntity::getIdentifier)
-                .toList()));
         Map<String, Double> scores = epssScores(identifiers);
         Set<String> exploited = kevIdentifiers();
-
-        int flagged = 0;
-        for (FindingEntity finding : vulnerabilities) {
-            // Only when known: overwriting with null would erase a score obtained on the
-            // previous scan, on the day the API happens to be unavailable.
-            Optional.ofNullable(scores.get(finding.getIdentifier())).ifPresent(finding::setEpssScore);
-            finding.setIsKev(exploited.contains(finding.getIdentifier()));
-            if (Boolean.TRUE.equals(finding.getIsKev())) {
-                flagged++;
-            }
-        }
 
         log.info(
                 "Enrichment: {}/{} CVE with an EPSS score, {} in the KEV catalog.",
                 scores.size(),
                 identifiers.size(),
-                flagged);
+                identifiers.stream().filter(exploited::contains).count());
+        return Optional.of(new ScanIngestor.Enrichment(scores, exploited));
     }
 
     private Map<String, Double> epssScores(List<String> identifiers) {

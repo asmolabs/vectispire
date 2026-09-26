@@ -28,7 +28,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
@@ -331,8 +330,8 @@ class ScanDispatcherTest {
         when(queue.countRunning()).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
         ScanIngestor ingestor = mock(ScanIngestor.class);
-        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty()));
-        when(ingestor.ingest(any(), any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), java.time.Instant.EPOCH));
+        when(ingestor.ingest(any(), any(), any())).thenReturn(new ScanIngestor.Reconciliation(0, 0, 0, 0, List.of()));
         ScanRunner runner = mock(ScanRunner.class);
         when(runner.run(any())).thenReturn(ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(1)));
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
@@ -368,8 +367,8 @@ class ScanDispatcherTest {
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
 
         ScanIngestor ingestor = mock(ScanIngestor.class);
-        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty()));
-        when(ingestor.ingest(any(), any(), any())).thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), java.time.Instant.EPOCH));
+        when(ingestor.ingest(any(), any(), any())).thenReturn(new ScanIngestor.Reconciliation(0, 0, 0, 0, List.of()));
 
         ScanRunner runner = mock(ScanRunner.class);
         when(runner.run(any())).thenReturn(artifacts);

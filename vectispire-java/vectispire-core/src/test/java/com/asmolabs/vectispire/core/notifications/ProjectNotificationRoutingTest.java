@@ -17,7 +17,8 @@ import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
+import com.asmolabs.vectispire.core.services.issues.ScanDelta;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Projects;
@@ -95,8 +96,8 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
         issue.setType(FindingType.VULNERABILITY.wireName());
         issue.setSeverity(Severity.CRITICAL.wireName());
         issue.setState(IssueState.OPEN.wireName());
-        transactions.executeWithoutResult(status -> notifier.enqueue(
-                scan, new IssueSyncService.SyncResult(1, 0, 0, 0, List.of(issue), List.of())));
+        transactions.executeWithoutResult(status -> notifier.enqueue(new ScanDelta(
+                scan.getId(), scan.target(), List.of(IssueView.of(issue)), List.of(), 0)));
     }
 
     private long team(String name) {

@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFindings;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -52,7 +53,7 @@ class IssueSyncServiceTest {
     void wire() {
         issues = mock(Issues.class);
         findings = mock(Findings.class);
-        service = new IssueSyncService(issues, findings, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC));
 
         stored.clear();
         // `saveAll` assigns identifiers, because the service depends on them being there
@@ -112,7 +113,7 @@ class IssueSyncServiceTest {
             // The pivot. "No secret findings because nobody looked" must leave the secret issues
             // alone; only "the scanner ran and found nothing" may resolve them. Deriving the set
             // from the findings present cannot tell the two apart.
-            service.sync(scan(), List.of(), Set.of(), Map.of(), null);
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of()), Set.of(), Map.of(), null);
 
             verify(issues, never()).findOpenByTarget(anyString(), any(), any(), any());
         }
@@ -124,7 +125,7 @@ class IssueSyncServiceTest {
             when(issues.findOpenByTarget(anyString(), any(), any(), any())).thenReturn(List.of(goneSecret));
 
             IssueSyncService.SyncResult result =
-                    service.sync(scan(), List.of(), Set.of(FindingType.SECRET), Map.of(), null);
+                    service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of()), Set.of(FindingType.SECRET), Map.of(), null);
 
             assertThat(result.resolved()).isEqualTo(1);
             assertThat(goneSecret.getState()).isEqualTo("resolved");
@@ -138,15 +139,14 @@ class IssueSyncServiceTest {
             ScanEntity scan = scan();
 
             // The same fingerprint the service will compute for that finding.
-            IssueSyncService.SyncResult first = service.sync(scan, List.of(seen), Set.of(), Map.of(), null);
+            IssueSyncService.SyncResult first = service.sync(scan.getId(), scan.target(), ObservedFindings.of(List.of(seen)), Set.of(), Map.of(), null);
             String fingerprint = first.newIssues().getFirst().getFingerprint();
 
             IssueEntity existing = openIssue(fingerprint, FindingType.VULNERABILITY);
             when(issues.findByFingerprintIn(any())).thenReturn(List.of(existing));
             when(issues.findOpenByTarget(anyString(), any(), any(), any())).thenReturn(List.of(existing));
 
-            IssueSyncService.SyncResult second = service.sync(
-                    scan, List.of(finding(FindingType.VULNERABILITY, "CVE-1")),
+            IssueSyncService.SyncResult second = service.sync(scan.getId(), scan.target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))),
                     Set.of(FindingType.VULNERABILITY), Map.of(), null);
 
             assertThat(second.resolved()).isZero();
@@ -167,11 +167,13 @@ class IssueSyncServiceTest {
             List<FindingEntity> twice =
                     List.of(finding(FindingType.VULNERABILITY, "CVE-1"), finding(FindingType.VULNERABILITY, "CVE-1"));
 
-            IssueSyncService.SyncResult result = service.sync(scan(), twice, Set.of(), Map.of(), null);
+            IssueSyncService.SyncResult result = service.sync(scan().getId(), scan().target(), ObservedFindings.of(twice), Set.of(), Map.of(), null);
 
             assertThat(result.created()).isEqualTo(1);
-            // Both occurrences point at it, which is what makes the scan detail show them.
-            assertThat(twice).allSatisfy(finding -> assertThat(finding.getIssueId()).isNotNull());
+            // Both occurrences are answered the same issue, which the scan's rows then point at —
+            // what makes the scan detail show them.
+            assertThat(result.issueIds()).hasSize(2).doesNotContainNull()
+                    .containsOnly(result.newIssues().getFirst().getId());
         }
 
         @Test
@@ -180,14 +182,14 @@ class IssueSyncServiceTest {
             // Enrichment runs *after* this reconciliation for a brand new finding, so a missing
             // score on this pass must not wipe the one already stored.
             IssueSyncService.SyncResult first =
-                    service.sync(scan(), List.of(finding(FindingType.VULNERABILITY, "CVE-1")), Set.of(), Map.of(), null);
+                    service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))), Set.of(), Map.of(), null);
             IssueEntity existing = first.newIssues().getFirst();
             existing.setEpssScore(0.97);
             existing.setIsKev(true);
             when(issues.findByFingerprintIn(any())).thenReturn(List.of(existing));
 
             FindingEntity unenriched = finding(FindingType.VULNERABILITY, "CVE-1");
-            service.sync(scan(), List.of(unenriched), Set.of(), Map.of(), null);
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(unenriched)), Set.of(), Map.of(), null);
 
             assertThat(existing.getEpssScore()).isEqualTo(0.97);
             // False must not un-flag an exploited vulnerability, or the gate stops failing on it.
@@ -203,15 +205,14 @@ class IssueSyncServiceTest {
         @DisplayName("clears a fixed triage, because the fact just contradicted it")
         void fixedTriageIsCleared() {
             IssueSyncService.SyncResult first =
-                    service.sync(scan(), List.of(finding(FindingType.VULNERABILITY, "CVE-1")), Set.of(), Map.of(), null);
+                    service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))), Set.of(), Map.of(), null);
             IssueEntity resolvedIssue = first.newIssues().getFirst();
             resolvedIssue.setState("resolved");
             resolvedIssue.setTriageStatus(TriageStatus.FIXED.wireName());
             resolvedIssue.setTriagedBy("alice");
             when(issues.findByFingerprintIn(any())).thenReturn(List.of(resolvedIssue));
 
-            IssueSyncService.SyncResult result = service.sync(
-                    scan(), List.of(finding(FindingType.VULNERABILITY, "CVE-1")), Set.of(), Map.of(), null);
+            IssueSyncService.SyncResult result = service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))), Set.of(), Map.of(), null);
 
             assertThat(result.reopened()).isEqualTo(1);
             assertThat(resolvedIssue.getTriageStatus()).isEqualTo(TriageStatus.UNDER_REVIEW.wireName());
@@ -224,14 +225,14 @@ class IssueSyncServiceTest {
             // The package coming back does not contradict "the vulnerable path is unreachable in
             // our configuration". Clearing it would make somebody re-argue the same exemption.
             IssueSyncService.SyncResult first =
-                    service.sync(scan(), List.of(finding(FindingType.VULNERABILITY, "CVE-1")), Set.of(), Map.of(), null);
+                    service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))), Set.of(), Map.of(), null);
             IssueEntity resolvedIssue = first.newIssues().getFirst();
             resolvedIssue.setState("resolved");
             resolvedIssue.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
             resolvedIssue.setTriagedBy("alice");
             when(issues.findByFingerprintIn(any())).thenReturn(List.of(resolvedIssue));
 
-            service.sync(scan(), List.of(finding(FindingType.VULNERABILITY, "CVE-1")), Set.of(), Map.of(), null);
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.VULNERABILITY, "CVE-1"))), Set.of(), Map.of(), null);
 
             assertThat(resolvedIssue.getTriageStatus()).isEqualTo(TriageStatus.NOT_AFFECTED.wireName());
             assertThat(resolvedIssue.getTriagedBy()).isEqualTo("alice");
@@ -247,7 +248,7 @@ class IssueSyncServiceTest {
         void runsBeforeReturning() {
             AtomicReference<IssueSyncService.SyncResult> seen = new AtomicReference<>();
 
-            service.sync(scan(), List.of(finding(FindingType.SECRET, "aws-key")), Set.of(), Map.of(), seen::set);
+            service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-key"))), Set.of(), Map.of(), seen::set);
 
             assertThat(seen.get()).isNotNull();
             assertThat(seen.get().created()).isEqualTo(1);
@@ -258,9 +259,8 @@ class IssueSyncServiceTest {
         void failureIsAbsorbed() {
             // The results are what has value in this transaction. Losing them because a
             // notification could not be queued would be the wrong trade.
-            IssueSyncService.SyncResult result = service.sync(
-                    scan(),
-                    List.of(finding(FindingType.SECRET, "aws-key")),
+            IssueSyncService.SyncResult result = service.sync(scan().getId(), scan().target(),
+                    ObservedFindings.of(List.of(finding(FindingType.SECRET, "aws-key"))),
                     Set.of(),
                     Map.of(),
                     ignored -> {
@@ -281,21 +281,8 @@ class IssueSyncServiceTest {
         alien.setType("invented");
 
         org.assertj.core.api.Assertions.assertThatThrownBy(
-                        () -> service.sync(scan(), List.of(alien), Set.of(), Map.of(), null))
+                        () -> service.sync(scan().getId(), scan().target(), ObservedFindings.of(List.of(alien)), Set.of(), Map.of(), null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("invented");
-    }
-
-    @Test
-    @DisplayName("the scan carries the counts it produced")
-    void scanRecordsItsCounts() {
-        ScanEntity scan = scan();
-        IssueEntity gone = openIssue("f-old", FindingType.SECRET);
-        when(issues.findOpenByTarget(anyString(), any(), any(), any())).thenReturn(List.of(gone));
-
-        service.sync(scan, List.of(finding(FindingType.SECRET, "aws-key")), Set.of(FindingType.SECRET), Map.of(), null);
-
-        assertThat(scan.getNewIssuesCount()).isEqualTo(1);
-        assertThat(scan.getResolvedIssuesCount()).isEqualTo(1);
     }
 }

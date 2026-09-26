@@ -5,8 +5,6 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseBlocklist;
 import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
@@ -40,25 +38,31 @@ public class LicenseService implements ScanIngestor.LicenseSource {
     }
 
     @Override
-    public List<FindingEntity> findings(ScanEntity scan, JsonNode sbomDocument) {
+    public List<ObservedFinding> findings(JsonNode sbomDocument) {
         return blocklist().violations(new Sbom(sbomDocument)).stream()
-                .map(violation -> {
-                    FindingEntity finding = new FindingEntity();
-                    finding.setScanId(scan.getId());
-                    finding.setType(FindingType.LICENSE.wireName());
-                    // `medium`, not `high`: a forbidden licence is a legal risk somebody has to
-                    // decide on, not an exploitable vulnerability. Grading it higher would fail
-                    // builds over a decision that is not technical.
-                    finding.setSeverity(Severity.MEDIUM.wireName());
-                    finding.setIdentifier(violation.license());
-                    finding.setPackageName(violation.packageName());
-                    finding.setPackageVersion(violation.packageVersion());
-                    finding.setPurl(violation.purl());
-                    finding.setSource("syft");
-                    finding.setCreatedAt(clock.instant());
-                    finding.setIsKev(false);
-                    return finding;
-                })
+                .map(violation -> new ObservedFinding(
+                        FindingType.LICENSE.wireName(),
+                        "syft",
+                        violation.license(),
+                        // `medium`, not `high`: a forbidden licence is a legal risk somebody has to
+                        // decide on, not an exploitable vulnerability. Grading it higher would fail
+                        // builds over a decision that is not technical.
+                        Severity.MEDIUM.wireName(),
+                        violation.packageName(),
+                        violation.packageVersion(),
+                        violation.purl(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        false,
+                        null))
                 .toList();
     }
 }

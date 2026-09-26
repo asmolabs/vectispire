@@ -6,11 +6,9 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFinding;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -35,6 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The service holds no session of its own: it runs inside the caller's transaction. That is
  * what makes the {@code beforeCommit} guarantee possible at all.
+ *
+ * <p><b>It reads the findings, and writes only issues.</b> The findings are the scan's rows, and
+ * {@code scanning} writes them, pointing each at the issue this answers for it; so are the scan's
+ * counts. The sync used to take the scan's entities and write both, which is how {@code scanning}
+ * and {@code issues} came to use each other (decision 0029). It is reached through {@link
+ * IssueBacklog}, {@code scanning}'s {@code Backlog} port.
  */
 @Service
 public class IssueSyncService {
@@ -42,12 +46,10 @@ public class IssueSyncService {
     private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
 
     private final Issues issues;
-    private final Findings findings;
     private final Clock clock;
 
-    public IssueSyncService(Issues issues, Findings findings, Clock clock) {
+    public IssueSyncService(Issues issues, Clock clock) {
         this.issues = issues;
-        this.findings = findings;
         this.clock = clock;
     }
 
@@ -55,6 +57,8 @@ public class IssueSyncService {
      * @param newIssues the issues themselves, not only the counts: a notification has to say
      *     <em>what</em> appeared, and rebuilding the list afterwards would mean re-deducing
      *     "which ones are new" — the one thing this method already knows for certain
+     * @param issueIds the issue each finding is an occurrence of, in the order the findings were
+     *     given — what the scan's rows point at
      */
     public record SyncResult(
             int created,
@@ -62,7 +66,8 @@ public class IssueSyncService {
             int reopened,
             int stillOpen,
             List<IssueEntity> newIssues,
-            List<IssueEntity> reopenedIssues) {}
+            List<IssueEntity> reopenedIssues,
+            List<Long> issueIds) {}
 
     /**
      * @param scannedTypes the finding types this scan <b>actually looked at</b>, supplied by the
@@ -81,22 +86,25 @@ public class IssueSyncService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public SyncResult sync(
-            ScanEntity scan,
-            List<FindingEntity> scanFindings,
+            long scanId,
+            ScanTarget scanTarget,
+            List<ObservedFinding> scanFindings,
             Set<FindingType> scannedTypes,
             Map<String, String> descriptions,
             Consumer<SyncResult> beforeCommit) {
 
         Instant moment = clock.instant();
-        ScanTarget target = targetOf(scan);
+        ScanTarget target = requireTarget(scanId, scanTarget);
 
         // One finding can repeat within a scan — the same CVE at two places in one package. The
-        // issue is one; its occurrences are several.
-        Map<String, List<FindingEntity>> byFingerprint = new LinkedHashMap<>();
-        for (FindingEntity finding : scanFindings) {
-            byFingerprint
-                    .computeIfAbsent(fingerprintOf(target, finding), key -> new ArrayList<>())
-                    .add(finding);
+        // issue is one; its occurrences are several. The positions are kept to answer, per finding,
+        // the issue it belongs to.
+        Map<String, List<Integer>> byFingerprint = new LinkedHashMap<>();
+        List<String> fingerprints = new ArrayList<>(scanFindings.size());
+        for (int index = 0; index < scanFindings.size(); index++) {
+            String fingerprint = fingerprintOf(target, scanFindings.get(index));
+            fingerprints.add(fingerprint);
+            byFingerprint.computeIfAbsent(fingerprint, key -> new ArrayList<>()).add(index);
         }
 
         Map<String, IssueEntity> existing = byFingerprint.isEmpty()
@@ -108,15 +116,15 @@ public class IssueSyncService {
         List<IssueEntity> reopened = new ArrayList<>();
         List<IssueEntity> touched = new ArrayList<>(byFingerprint.size());
 
-        for (Map.Entry<String, List<FindingEntity>> entry : byFingerprint.entrySet()) {
-            FindingEntity finding = entry.getValue().getFirst();
+        for (Map.Entry<String, List<Integer>> entry : byFingerprint.entrySet()) {
+            ObservedFinding whole = scanFindings.get(entry.getValue().getFirst());
             IssueEntity issue = existing.get(entry.getKey());
             // Looked up while the identifier is still whole: the advisory text is keyed by it.
-            String description = BoundedText.clip(describe(finding, descriptions), BoundedText.TEXT_MAX);
-            entry.getValue().forEach(IssueSyncService::fitToColumns);
+            String description = BoundedText.clip(describe(whole, descriptions), BoundedText.TEXT_MAX);
+            ObservedFinding finding = fitToColumns(whole);
 
             if (issue == null) {
-                issue = create(scan, entry.getKey(), finding, moment);
+                issue = create(scanId, target, entry.getKey(), finding, moment);
                 issue.setDescription(description);
                 created.add(issue);
             } else {
@@ -124,7 +132,7 @@ public class IssueSyncService {
                     reopen(issue);
                     reopened.add(issue);
                 }
-                refresh(issue, finding, scan, moment);
+                refresh(issue, finding, scanId, moment);
                 if (issue.getDescription() == null) {
                     issue.setDescription(description);
                 }
@@ -132,29 +140,14 @@ public class IssueSyncService {
             touched.add(issue);
         }
 
-        // Saved before the occurrences are attached: a brand new issue has no identifier yet,
-        // and a finding cannot point at nothing.
+        // Saved before the occurrences are answered: a brand new issue has no identifier yet, and
+        // a finding cannot point at nothing.
         List<IssueEntity> saved = issues.saveAll(touched);
         Map<String, Long> idByFingerprint =
                 saved.stream().collect(Collectors.toMap(IssueEntity::getFingerprint, IssueEntity::getId, (a, b) -> a));
+        List<Long> issueIds = fingerprints.stream().map(idByFingerprint::get).toList();
 
-        for (Map.Entry<String, List<FindingEntity>> entry : byFingerprint.entrySet()) {
-            Long issueId = idByFingerprint.get(entry.getKey());
-            entry.getValue().forEach(occurrence -> occurrence.setIssueId(issueId));
-        }
-
-        // **The findings themselves are written here**, and forgetting it showed on screen: a
-        // scan's detail announced eight findings and displayed none. Issues carry a target's
-        // history; findings say what one scan observed — the material of the scan detail, of the
-        // SARIF export, and of the proof that an issue existed on a given date.
-        if (!scanFindings.isEmpty()) {
-            findings.saveAll(scanFindings);
-        }
-
-        int resolved = resolveDisappeared(scan, scannedTypes, byFingerprint.keySet(), moment);
-
-        scan.setNewIssuesCount(created.size());
-        scan.setResolvedIssuesCount(resolved);
+        int resolved = resolveDisappeared(target, scannedTypes, byFingerprint.keySet(), moment);
 
         SyncResult result = new SyncResult(
                 created.size(),
@@ -162,7 +155,8 @@ public class IssueSyncService {
                 reopened.size(),
                 byFingerprint.size() - created.size() - reopened.size(),
                 List.copyOf(created),
-                List.copyOf(reopened));
+                List.copyOf(reopened),
+                issueIds);
 
         if (beforeCommit != null) {
             try {
@@ -172,7 +166,7 @@ public class IssueSyncService {
                 // this transaction. The caller commits anyway, without what the hook wanted to
                 // add — and says so, because a notification that silently never happens is the
                 // kind of absence nobody reports.
-                log.warn("The post-sync hook failed for scan {}; its results are kept", scan.getId(), failed);
+                log.warn("The post-sync hook failed for scan {}; its results are kept", scanId, failed);
             }
         }
 
@@ -185,14 +179,14 @@ public class IssueSyncService {
      * <p>Restricted to the types the scan looked at, and to nothing at all when it looked at
      * none — the guard that makes a malformed call harmless rather than destructive.
      */
-    private int resolveDisappeared(ScanEntity scan, Set<FindingType> scannedTypes, Set<String> seen, Instant moment) {
+    private int resolveDisappeared(ScanTarget target, Set<FindingType> scannedTypes, Set<String> seen, Instant moment) {
         if (scannedTypes.isEmpty()) {
             return 0;
         }
 
         List<String> types = scannedTypes.stream().map(FindingType::wireName).toList();
         List<IssueEntity> disappeared = issues
-                .findOpenByTarget(IssueState.OPEN.wireName(), types, scan.getRepoId(), scan.getContainerId())
+                .findOpenByTarget(IssueState.OPEN.wireName(), types, repoIdOf(target), containerIdOf(target))
                 .stream()
                 .filter(issue -> !seen.contains(issue.getFingerprint()))
                 .toList();
@@ -204,21 +198,21 @@ public class IssueSyncService {
         return disappeared.size();
     }
 
-    private IssueEntity create(ScanEntity scan, String fingerprint, FindingEntity finding, Instant moment) {
+    private IssueEntity create(long scanId, ScanTarget target, String fingerprint, ObservedFinding finding, Instant moment) {
         IssueEntity issue = new IssueEntity();
-        issue.setRepoId(scan.getRepoId());
-        issue.setContainerId(scan.getContainerId());
+        issue.setRepoId(repoIdOf(target));
+        issue.setContainerId(containerIdOf(target));
         issue.setFingerprint(fingerprint);
-        issue.setType(finding.getType());
-        issue.setIdentifier(finding.getIdentifier());
-        issue.setPurl(finding.getPurl());
-        issue.setPackageName(finding.getPackageName());
-        issue.setFilePath(finding.getFilePath());
+        issue.setType(finding.type());
+        issue.setIdentifier(finding.identifier());
+        issue.setPurl(finding.purl());
+        issue.setPackageName(finding.packageName());
+        issue.setFilePath(finding.filePath());
         issue.setState(IssueState.OPEN.wireName());
         issue.setFirstSeenAt(moment);
         issue.setLastSeenAt(moment);
-        issue.setFirstSeenScanId(scan.getId());
-        issue.setLastSeenScanId(scan.getId());
+        issue.setFirstSeenScanId(scanId);
+        issue.setLastSeenScanId(scanId);
         issue.setTimesSeen(1);
         issue.setTriageStatus(TriageStatus.UNDER_REVIEW.wireName());
         copyRefreshedFields(issue, finding, true);
@@ -239,19 +233,19 @@ public class IssueSyncService {
      * <p>The lookup still wins where it has something: an advisory says more about a CVE than a
      * scanner's one-line summary.
      */
-    private static String describe(FindingEntity finding, Map<String, String> descriptions) {
-        String advisory = descriptions.get(orEmpty(finding.getIdentifier()));
+    private static String describe(ObservedFinding finding, Map<String, String> descriptions) {
+        String advisory = descriptions.get(orEmpty(finding.identifier()));
         if (advisory != null && !advisory.isBlank()) {
             return advisory;
         }
-        String own = finding.getDescription();
+        String own = finding.description();
         return own == null || own.isBlank() ? null : own;
     }
 
-    private void refresh(IssueEntity issue, FindingEntity finding, ScanEntity scan, Instant moment) {
+    private void refresh(IssueEntity issue, ObservedFinding finding, long scanId, Instant moment) {
         copyRefreshedFields(issue, finding, false);
         issue.setLastSeenAt(moment);
-        issue.setLastSeenScanId(scan.getId());
+        issue.setLastSeenScanId(scanId);
         issue.setTimesSeen(issue.getTimesSeen() + 1);
         issue.reopen();
     }
@@ -269,30 +263,30 @@ public class IssueSyncService {
      * finding, so an absent value on this pass must not erase what an earlier scan established.
      * On creation there is nothing to erase, so the null is the honest value.
      */
-    private static void copyRefreshedFields(IssueEntity issue, FindingEntity finding, boolean overwriteNulls) {
-        set(finding.getPackageVersion(), issue::setPackageVersion, overwriteNulls);
-        set(finding.getLine(), issue::setLine, overwriteNulls);
+    private static void copyRefreshedFields(IssueEntity issue, ObservedFinding finding, boolean overwriteNulls) {
+        set(finding.packageVersion(), issue::setPackageVersion, overwriteNulls);
+        set(finding.line(), issue::setLine, overwriteNulls);
         // Skipped when null like the rest, and for a reason of its own: a container scan does
         // not tell direct from transitive, and must not erase what a repository scan established.
-        set(finding.getIsDirectDependency(), issue::setIsDirectDependency, overwriteNulls);
-        set(finding.getSeverity(), issue::setSeverity, overwriteNulls);
+        set(finding.directDependency(), issue::setIsDirectDependency, overwriteNulls);
+        set(finding.severity(), issue::setSeverity, overwriteNulls);
         // Refreshed like the rest, and so never erased by a scan that does not carry it: a rule
         // that gains its OWASP declaration passes it on to findings already open, and an agent of
         // an earlier version — which does not send the field — does not take it away.
-        set(finding.getOwaspCategory(), issue::setOwaspCategory, overwriteNulls);
-        set(finding.getSource(), issue::setSource, overwriteNulls);
-        set(finding.getEpssScore(), issue::setEpssScore, overwriteNulls);
-        set(finding.getCvssScore(), issue::setCvssScore, overwriteNulls);
-        set(finding.getCvssVector(), issue::setCvssVector, overwriteNulls);
-        set(finding.getFixState(), issue::setFixState, overwriteNulls);
-        set(finding.getFixVersions(), issue::setFixVersions, overwriteNulls);
-        set(finding.getLink(), issue::setLink, overwriteNulls);
+        set(finding.owaspCategory(), issue::setOwaspCategory, overwriteNulls);
+        set(finding.source(), issue::setSource, overwriteNulls);
+        set(finding.epssScore(), issue::setEpssScore, overwriteNulls);
+        set(finding.cvssScore(), issue::setCvssScore, overwriteNulls);
+        set(finding.cvssVector(), issue::setCvssVector, overwriteNulls);
+        set(finding.fixState(), issue::setFixState, overwriteNulls);
+        set(finding.fixVersions(), issue::setFixVersions, overwriteNulls);
+        set(finding.link(), issue::setLink, overwriteNulls);
         // Both columns are non-nullable, so there is no absent value to skip — but false must
         // not overwrite true on a refresh. Enrichment sets this flag *after* reconciliation, so
         // a second scan arriving before enrichment would otherwise un-flag an exploited
         // vulnerability, and the gate would stop failing on it.
-        if (overwriteNulls || finding.getIsKev()) {
-            issue.setIsKev(finding.getIsKev());
+        if (overwriteNulls || finding.kev()) {
+            issue.setIsKev(finding.kev());
         }
     }
 
@@ -320,7 +314,8 @@ public class IssueSyncService {
     }
 
     /**
-     * Clips what a scanner reported to the columns the finding and its issue store it in.
+     * Clips what a scanner reported to the columns the issue stores it in — the finding's own are
+     * {@code scanning}'s to clip, at the same widths, when it writes the scan's rows.
      *
      * <p><b>Why here, and only here.</b> Every value below came from a scanner — a purl, a file
      * path, a fix-version list, an advisory link — and one of them past its column failed the flush
@@ -335,42 +330,55 @@ public class IssueSyncService {
      * of any finding whose value is long — so the stored column is a display copy, and the key is
      * the scanner's own value.
      */
-    private static void fitToColumns(FindingEntity finding) {
-        finding.setIdentifier(BoundedText.clip(finding.getIdentifier(), 255));
-        finding.setPackageName(BoundedText.clip(finding.getPackageName(), 255));
-        finding.setPackageVersion(BoundedText.clip(finding.getPackageVersion(), 255));
-        finding.setPurl(BoundedText.clip(finding.getPurl(), 255));
-        finding.setFilePath(BoundedText.clip(finding.getFilePath(), 500));
-        finding.setFixVersions(BoundedText.clip(finding.getFixVersions(), 255));
-        finding.setLink(BoundedText.clip(finding.getLink(), 500));
-        finding.setCvssVector(BoundedText.clip(finding.getCvssVector(), 255));
-        finding.setFixState(BoundedText.clip(finding.getFixState(), 50));
-        finding.setSeverity(BoundedText.clip(finding.getSeverity(), 50));
-        finding.setDescription(BoundedText.clip(finding.getDescription(), BoundedText.TEXT_MAX));
+    private static ObservedFinding fitToColumns(ObservedFinding finding) {
+        return new ObservedFinding(
+                finding.type(),
+                finding.source(),
+                BoundedText.clip(finding.identifier(), 255),
+                BoundedText.clip(finding.severity(), 50),
+                BoundedText.clip(finding.packageName(), 255),
+                BoundedText.clip(finding.packageVersion(), 255),
+                BoundedText.clip(finding.purl(), 255),
+                BoundedText.clip(finding.filePath(), 500),
+                finding.line(),
+                finding.directDependency(),
+                finding.owaspCategory(),
+                finding.epssScore(),
+                finding.cvssScore(),
+                BoundedText.clip(finding.cvssVector(), 255),
+                BoundedText.clip(finding.fixState(), 50),
+                BoundedText.clip(finding.fixVersions(), 255),
+                BoundedText.clip(finding.link(), 500),
+                finding.kev(),
+                BoundedText.clip(finding.description(), BoundedText.TEXT_MAX));
     }
 
-    private static String fingerprintOf(ScanTarget target, FindingEntity finding) {
-        FindingType type = FindingType.fromWireName(finding.getType())
+    private static String fingerprintOf(ScanTarget target, ObservedFinding finding) {
+        FindingType type = FindingType.fromWireName(finding.type())
                 .orElseThrow(() -> new IllegalStateException(
-                        "Unknown finding type \"" + finding.getType() + "\": it would fingerprint as itself and "
+                        "Unknown finding type \"" + finding.type() + "\": it would fingerprint as itself and "
                                 + "never match an existing issue."));
 
         return IssueFingerprint.of(new IssueFingerprint.Input(
                 target,
                 type,
-                finding.getIdentifier(),
-                finding.getPurl(),
-                finding.getPackageName(),
-                finding.getFilePath()));
+                finding.identifier(),
+                finding.purl(),
+                finding.packageName(),
+                finding.filePath()));
     }
 
-    private static ScanTarget targetOf(ScanEntity scan) {
-        return Optional.ofNullable(scan.getRepoId())
-                .<ScanTarget>map(ScanTarget.Repository::new)
-                .orElseGet(() -> new ScanTarget.Container(
-                        Optional.ofNullable(scan.getContainerId())
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "Scan " + scan.getId() + " belongs to no target."))));
+    private static ScanTarget requireTarget(long scanId, ScanTarget target) {
+        return Optional.ofNullable(target)
+                .orElseThrow(() -> new IllegalStateException("Scan " + scanId + " belongs to no target."));
+    }
+
+    private static Long repoIdOf(ScanTarget target) {
+        return target instanceof ScanTarget.Repository repository ? repository.id() : null;
+    }
+
+    private static Long containerIdOf(ScanTarget target) {
+        return target instanceof ScanTarget.Container container ? container.id() : null;
     }
 
     private static String orEmpty(String value) {

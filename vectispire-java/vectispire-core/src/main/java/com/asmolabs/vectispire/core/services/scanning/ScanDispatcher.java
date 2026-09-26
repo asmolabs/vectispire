@@ -17,7 +17,6 @@ import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
@@ -420,7 +419,7 @@ public class ScanDispatcher {
         }
 
         ScanEntity scan = queue.byId(scanId).orElseThrow();
-        IssueSyncService.SyncResult result = ingestor.ingest(scan, artifacts, prepared);
+        ScanIngestor.Reconciliation result = ingestor.ingest(scan, artifacts, prepared);
 
         // **A scan that observed nothing is a failure, not a completed scan.** Every step
         // absent *and* something broken means the target was never examined — the case that

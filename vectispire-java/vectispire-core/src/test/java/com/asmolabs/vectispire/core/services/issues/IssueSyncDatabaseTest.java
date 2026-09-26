@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
@@ -221,7 +222,7 @@ class IssueSyncDatabaseTest extends VectispireContextTest {
             ScanEntity scan, List<FindingEntity> findings, Set<FindingType> scanned) {
         // `sync` is MANDATORY: it refuses to run outside a transaction, which is the guarantee
         // that its writes commit with the scan's. Opening one here is what a caller does.
-        return transactions.execute(status -> sync.sync(scan, findings, scanned, Map.of(), result -> {}));
+        return transactions.execute(status -> sync.sync(scan.getId(), scan.target(), ObservedFindings.of(findings), scanned, Map.of(), result -> {}));
     }
 
     private List<String> openIdentifiers(long repoId) {

@@ -8,21 +8,21 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner.DependencyFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.IacScanner.IacFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner.SastFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -42,20 +42,32 @@ class ScanIngestorTest {
 
     private static final Instant NOW = Instant.parse("2026-08-13T10:00:00Z");
 
-    private IssueSyncService sync;
+    /** The issue the backlog answers for every finding: whatever, so long as each gets one. */
+    private static final long ISSUE = 41L;
+
+    private ScanIngestor.Backlog sync;
+    private com.asmolabs.vectispire.core.repositories.Findings rows;
     private ScanIngestor.InventorySink components;
     private ScanIngestor ingestor;
 
     @BeforeEach
     void wire() {
-        sync = mock(IssueSyncService.class);
-        when(sync.sync(any(), any(), any(), any(), any()))
-                .thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
+        sync = mock(ScanIngestor.Backlog.class);
+        when(sync.reconcile(any())).thenAnswer(call -> reconciled(call.getArgument(0)));
+        rows = mock(com.asmolabs.vectispire.core.repositories.Findings.class);
         components = mock(ScanIngestor.InventorySink.class);
-        ingestor = new ScanIngestor(
-                sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
-                components,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        ingestor = ingestor(Optional.empty(), Optional.empty(), Optional.empty());
+    }
+
+    private ScanIngestor ingestor(
+            Optional<ScanIngestor.Enricher> enricher,
+            Optional<ScanIngestor.EndOfLifeSource> endOfLife,
+            Optional<ScanIngestor.LicenseSource> licenses) {
+        return new ScanIngestor(sync, rows, enricher, endOfLife, licenses, components, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    private static ScanIngestor.Reconciliation reconciled(ScanIngestor.Observation observation) {
+        return new ScanIngestor.Reconciliation(0, 0, 0, 0, Collections.nCopies(observation.findings().size(), ISSUE));
     }
 
     private static ScanEntity scan() {
@@ -65,17 +77,21 @@ class ScanIngestorTest {
         return scan;
     }
 
-    @SuppressWarnings("unchecked")
-    private Set<FindingType> scannedTypes() {
-        ArgumentCaptor<Set<FindingType>> captor = ArgumentCaptor.forClass(Set.class);
-        org.mockito.Mockito.verify(sync).sync(any(), any(), captor.capture(), any(), any());
+    private ScanIngestor.Observation observation() {
+        ArgumentCaptor<ScanIngestor.Observation> captor = ArgumentCaptor.forClass(ScanIngestor.Observation.class);
+        org.mockito.Mockito.verify(sync).reconcile(captor.capture());
         return captor.getValue();
     }
 
+    private Set<FindingType> scannedTypes() {
+        return observation().scannedTypes();
+    }
+
+    /** The scan's rows, as written after the backlog answered. */
     @SuppressWarnings("unchecked")
     private List<FindingEntity> producedFindings() {
         ArgumentCaptor<List<FindingEntity>> captor = ArgumentCaptor.forClass(List.class);
-        org.mockito.Mockito.verify(sync).sync(any(), captor.capture(), any(), any(), any());
+        org.mockito.Mockito.verify(rows).saveAll(captor.capture());
         return captor.getValue();
     }
 
@@ -128,8 +144,7 @@ class ScanIngestorTest {
             ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
             when(source.isEnabled()).thenReturn(false);
 
-            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
-                            Clock.fixed(NOW, ZoneOffset.UTC))
+            ingestor(Optional.empty(), Optional.of(source), Optional.empty())
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
             assertThat(scannedTypes()).doesNotContain(FindingType.EOL);
@@ -142,10 +157,9 @@ class ScanIngestorTest {
             // list — "ran, found nothing" — which resolved every end-of-life issue of the target.
             ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
             when(source.isEnabled()).thenReturn(true);
-            when(source.findings(any(), any())).thenReturn(Optional.empty());
+            when(source.findings(any())).thenReturn(Optional.empty());
 
-            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
-                            Clock.fixed(NOW, ZoneOffset.UTC))
+            ingestor(Optional.empty(), Optional.of(source), Optional.empty())
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
             assertThat(scannedTypes()).doesNotContain(FindingType.EOL);
@@ -156,10 +170,9 @@ class ScanIngestorTest {
         void emptyEndOfLifeIsDeclared() {
             ScanIngestor.EndOfLifeSource source = mock(ScanIngestor.EndOfLifeSource.class);
             when(source.isEnabled()).thenReturn(true);
-            when(source.findings(any(), any())).thenReturn(Optional.of(List.of()));
+            when(source.findings(any())).thenReturn(Optional.of(List.of()));
 
-            new ScanIngestor(sync, Optional.empty(), Optional.of(source), Optional.empty(), Optional.empty(), components,
-                            Clock.fixed(NOW, ZoneOffset.UTC))
+            ingestor(Optional.empty(), Optional.of(source), Optional.empty())
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
             assertThat(scannedTypes()).contains(FindingType.EOL);
@@ -172,10 +185,9 @@ class ScanIngestorTest {
             // means "no forbidden licence" — including when the list is empty, in which case the
             // old findings should indeed resolve.
             ScanIngestor.LicenseSource source = mock(ScanIngestor.LicenseSource.class);
-            when(source.findings(any(), any())).thenReturn(List.of());
+            when(source.findings(any())).thenReturn(List.of());
 
-            new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.of(source), Optional.empty(), components,
-                            Clock.fixed(NOW, ZoneOffset.UTC))
+            ingestor(Optional.empty(), Optional.empty(), Optional.of(source))
                     .ingest(scan(), ScanArtifacts.builder().sbom(sbom()).build(Duration.ZERO));
 
             assertThat(scannedTypes()).contains(FindingType.LICENSE);
@@ -201,8 +213,9 @@ class ScanIngestorTest {
                 assertThat(finding.getFilePath()).isEqualTo("app.py");
                 assertThat(finding.getScanId()).isEqualTo(7L);
                 // Set here because the column is mandatory and a database default would apply
-                // after the insert — too late for the entity the reconciliation reads.
+                // after the insert — too late for the entity in memory.
                 assertThat(finding.getCreatedAt()).isEqualTo(NOW);
+                assertThat(finding.getIssueId()).as("each row points at the issue the backlog answered").isEqualTo(ISSUE);
             });
         }
 
@@ -283,44 +296,86 @@ class ScanIngestorTest {
     }
 
     @Test
-    @DisplayName("enrichment runs before the write, not after")
+    @DisplayName("enrichment runs before the write, not after, and what it found reaches the backlog")
     void enrichesBeforeSyncing() {
         // Enriching afterwards would need a second write outside the scan's transaction, and
         // would leave a window in which the gate sees findings without their exploited flag —
         // a green verdict on an actively exploited vulnerability.
-        AtomicReference<Boolean> enrichedBeforeSync = new AtomicReference<>(false);
-        ScanIngestor.Enricher enricher = findings -> enrichedBeforeSync.set(true);
-        when(sync.sync(any(), any(), any(), any(), any())).thenAnswer(call -> {
-            assertThat(enrichedBeforeSync.get()).as("enrichment must have run already").isTrue();
-            return new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of());
+        ScanIngestor.Enricher enricher = identifiers -> Optional.of(new ScanIngestor.Enrichment(
+                Map.of("CVE-2024-1", 0.42), Set.of("CVE-2024-1")));
+
+        ingestor(Optional.of(enricher), Optional.empty(), Optional.empty())
+                .ingest(scan(), ScanArtifacts.builder().dependencies(List.of(vulnerability("CVE-2024-1"))).build(Duration.ZERO));
+
+        assertThat(observation().findings()).singleElement().satisfies(finding -> {
+            assertThat(finding.epssScore()).isEqualTo(0.42);
+            assertThat(finding.kev()).isTrue();
         });
-
-        new ScanIngestor(sync, Optional.of(enricher), Optional.empty(), Optional.empty(), Optional.empty(), components,
-                        Clock.fixed(NOW, ZoneOffset.UTC))
-                .ingest(scan(), ScanArtifacts.builder().secrets(List.of()).build(Duration.ZERO));
-
-        assertThat(enrichedBeforeSync.get()).isTrue();
     }
 
     @Test
-    @DisplayName("the notification is queued through the pre-commit hook, not after the sync")
-    void notifiesInsideTheTransaction() {
-        // A notification written one line later is lost by the very crash the outbox covers.
-        AtomicReference<Boolean> notified = new AtomicReference<>(false);
-        ScanIngestor.NotificationSink sink = (scan, result) -> notified.set(true);
+    @DisplayName("a CVE enrichment does not know keeps no score and is not exploited")
+    void anUnknownCveIsLeftAlone() {
+        // Only a known score is written: overwriting with null would erase one obtained on the
+        // previous scan — through the issue it refreshes — on the day the API is unavailable.
+        ScanIngestor.Enricher enricher = identifiers -> Optional.of(new ScanIngestor.Enrichment(Map.of(), Set.of()));
 
-        when(sync.sync(any(), any(), any(), any(), any())).thenAnswer(call -> {
-            java.util.function.Consumer<IssueSyncService.SyncResult> hook = call.getArgument(4);
-            IssueSyncService.SyncResult result = new IssueSyncService.SyncResult(1, 0, 0, 0, List.of(), List.of());
-            hook.accept(result);
-            return result;
+        ingestor(Optional.of(enricher), Optional.empty(), Optional.empty())
+                .ingest(scan(), ScanArtifacts.builder().dependencies(List.of(vulnerability("CVE-2024-2"))).build(Duration.ZERO));
+
+        assertThat(observation().findings()).singleElement().satisfies(finding -> {
+            assertThat(finding.epssScore()).isNull();
+            assertThat(finding.kev()).isFalse();
         });
+    }
 
-        new ScanIngestor(sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.of(sink), components,
-                        Clock.fixed(NOW, ZoneOffset.UTC))
-                .ingest(scan(), ScanArtifacts.builder().secrets(List.of()).build(Duration.ZERO));
+    @Test
+    @DisplayName("findings of other types are not sent to the catalogs")
+    void onlyVulnerabilitiesAreLookedUp() {
+        ScanIngestor.Enricher enricher = mock(ScanIngestor.Enricher.class);
 
-        assertThat(notified.get()).isTrue();
+        ingestor(Optional.of(enricher), Optional.empty(), Optional.empty())
+                .ingest(scan(), ScanArtifacts.builder()
+                        .secrets(List.of(new SecretFinding("generic-api-key", "key", "app.py", 1, null)))
+                        .build(Duration.ZERO));
+
+        // Not "the flag stayed false" — nothing was asked at all. A secret's rule id has no
+        // meaning to either catalog, and sending it would leak a rule name for no answer.
+        org.mockito.Mockito.verifyNoInteractions(enricher);
+    }
+
+    @Test
+    @DisplayName("the backlog folds the whole values; only the rows are clipped, after")
+    void wholeValuesCrossAndRowsAreClipped() {
+        // The path is a fingerprint input (AGENTS.md: a data contract). The backlog must see it
+        // whole, or two findings sharing their first 500 characters would be one issue; the row
+        // is clipped to its column, or one long path would fail the flush of the whole scan.
+        String path = "src/" + "d/".repeat(400) + "Main.java";
+
+        ingestor.ingest(scan(), ScanArtifacts.builder()
+                .secrets(List.of(new SecretFinding("aws-key", "AWS token", path, 12, "abc")))
+                .build(Duration.ZERO));
+
+        assertThat(observation().findings()).singleElement()
+                .satisfies(finding -> assertThat(finding.filePath()).isEqualTo(path));
+        assertThat(producedFindings()).singleElement()
+                .satisfies(finding -> assertThat(finding.getFilePath()).hasSize(500));
+    }
+
+    @Test
+    @DisplayName("the scan's counts are the backlog's answer")
+    void theCountsAreTheBacklogs() {
+        org.mockito.Mockito.doAnswer(call -> {
+            ScanIngestor.Observation observation = call.getArgument(0);
+            return new ScanIngestor.Reconciliation(
+                    2, 5, 0, 0, Collections.nCopies(observation.findings().size(), ISSUE));
+        }).when(sync).reconcile(any());
+        ScanEntity scan = scan();
+
+        ingestor.ingest(scan, ScanArtifacts.builder().secrets(List.of()).build(Duration.ZERO));
+
+        assertThat(scan.getNewIssuesCount()).isEqualTo(2);
+        assertThat(scan.getResolvedIssuesCount()).isEqualTo(5);
     }
 
     @Test
@@ -376,6 +431,10 @@ class ScanIngestorTest {
                 org.mockito.ArgumentMatchers.eq(s.getRepoId()),
                 org.mockito.ArgumentMatchers.eq(Optional.of(List.of(endpoint))),
                 org.mockito.ArgumentMatchers.eq(Optional.<List<com.asmolabs.vectispire.common.domain.apis.ApiContract>>empty()));
+    }
+
+    private static DependencyFinding vulnerability(String cve) {
+        return new DependencyFinding(cve, Severity.HIGH, "openssl", "1.1.1", "", null, null, "pkg:generic/openssl@1.1.1");
     }
 
     private static com.fasterxml.jackson.databind.JsonNode sbom() {

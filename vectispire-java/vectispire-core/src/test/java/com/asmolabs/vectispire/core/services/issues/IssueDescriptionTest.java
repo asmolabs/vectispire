@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
@@ -57,13 +58,12 @@ class IssueDescriptionTest extends VectispireContextTest {
     void theScannerSentenceIsKept() {
         ScanEntity scan = seedScan();
 
-        transactions.executeWithoutResult(status -> sync.sync(
-                scan,
-                List.of(
+        transactions.executeWithoutResult(status -> sync.sync(scan.getId(), scan.target(),
+                ObservedFindings.of(List.of(
                         finding(scan, FindingType.SECRET, "generic-api-key",
                                 "Detected a Generic API Key, potentially exposing access to various services."),
                         finding(scan, FindingType.IAC, "CKV2_GHA_1",
-                                "Ensure top-level permissions are not set to write-all")),
+                                "Ensure top-level permissions are not set to write-all"))),
                 java.util.Set.of(FindingType.SECRET, FindingType.IAC),
                 Map.of(),
                 result -> {}));
@@ -83,9 +83,8 @@ class IssueDescriptionTest extends VectispireContextTest {
     void theAdvisoryWins() {
         ScanEntity scan = seedScan();
 
-        transactions.executeWithoutResult(status -> sync.sync(
-                scan,
-                List.of(finding(scan, FindingType.VULNERABILITY, "CVE-2026-1", "short summary from the scanner")),
+        transactions.executeWithoutResult(status -> sync.sync(scan.getId(), scan.target(),
+                ObservedFindings.of(List.of(finding(scan, FindingType.VULNERABILITY, "CVE-2026-1", "short summary from the scanner"))),
                 java.util.Set.of(FindingType.VULNERABILITY),
                 Map.of("CVE-2026-1", "The full advisory, with the conditions under which it applies."),
                 result -> {}));

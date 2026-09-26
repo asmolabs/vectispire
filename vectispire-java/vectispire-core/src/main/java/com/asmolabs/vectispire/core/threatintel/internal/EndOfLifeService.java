@@ -1,16 +1,15 @@
 package com.asmolabs.vectispire.core.threatintel.internal;
 
-import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle.Candidate;
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle.Product;
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle.Release;
+import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.sbom.Sbom;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFinding;
 import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -125,13 +124,13 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
      * only this step is reported as not having run, and the backlog is left alone.
      */
     @Override
-    public Optional<List<FindingEntity>> findings(ScanEntity scan, JsonNode sbomDocument) {
+    public Optional<List<ObservedFinding>> findings(JsonNode sbomDocument) {
         try {
             Sbom sbom = new Sbom(sbomDocument);
             Duration window = warningWindow();
             LocalDate today = LifeCycle.today(clock.instant());
 
-            List<FindingEntity> findings = new ArrayList<>();
+            List<ObservedFinding> findings = new ArrayList<>();
             Set<String> seen = new HashSet<>();
 
             for (Candidate candidate : candidates(sbom)) {
@@ -153,7 +152,7 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
 
                 LifeCycle.assess(release.get(), today, window)
                         .ifPresent(verdict -> findings.add(
-                                finding(scan, candidate, release.get(), product.get(), verdict.severity().wireName())));
+                                finding(candidate, release.get(), product.get(), verdict.severity().wireName())));
             }
 
             if (!findings.isEmpty()) {
@@ -173,34 +172,40 @@ public class EndOfLifeService implements ScanIngestor.EndOfLifeSource {
      * descriptions — an end-of-life finding with no sentence would display an identifier alone.
      */
     @Override
-    public String describe(FindingEntity finding) {
-        return finding.getPackageName() + " " + finding.getPackageVersion()
+    public String describe(ObservedFinding finding) {
+        return finding.packageName() + " " + finding.packageVersion()
                 + " belongs to a cycle whose security support has ended or is about to. No fix will be published "
                 + "for this component's next vulnerability, whatever it turns out to be.";
     }
 
-    private FindingEntity finding(ScanEntity scan, Candidate candidate, Release release, Product product, String severity) {
+    private static ObservedFinding finding(Candidate candidate, Release release, Product product, String severity) {
         // **Stable from one patch of a cycle to the next**, because the date applies to the
         // cycle: "python 3.9" reaches end of life, not "python 3.9.18". The fingerprint is built
         // on this, so the issue keeps its history and its triage when the patch moves.
         String identifier = "EOL-" + candidate.product() + "-" + release.name();
         Optional<String> recommended = LifeCycle.recommendedVersion(product);
 
-        FindingEntity finding = new FindingEntity();
-        finding.setScanId(scan.getId());
-        finding.setType(FindingType.EOL.wireName());
-        finding.setSeverity(severity);
-        finding.setIdentifier(identifier);
-        finding.setPackageName(candidate.label());
-        finding.setPackageVersion(candidate.version());
-        finding.setPurl(candidate.purl());
-        finding.setSource(SOURCE);
-        finding.setLink("https://endoflife.date/" + candidate.product());
-        finding.setFixVersions(recommended.orElse(null));
-        finding.setFixState(recommended.isPresent() ? "fixed" : "unknown");
-        finding.setCreatedAt(clock.instant());
-        finding.setIsKev(false);
-        return finding;
+        // The scan and the instant are the ingestion's to stamp, when it turns this into the scan's row.
+        return new ObservedFinding(
+                FindingType.EOL.wireName(),
+                SOURCE,
+                identifier,
+                severity,
+                candidate.label(),
+                candidate.version(),
+                candidate.purl(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                recommended.isPresent() ? "fixed" : "unknown",
+                recommended.orElse(null),
+                "https://endoflife.date/" + candidate.product(),
+                false,
+                null);
     }
 
     private List<Candidate> candidates(Sbom sbom) {

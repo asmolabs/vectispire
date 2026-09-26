@@ -12,8 +12,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.services.scanning.ObservedFinding;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,17 +52,17 @@ class EndOfLifeServiceTest {
     void reportsAnExpiredDistribution() {
         productReturns("debian", expired("10"));
 
-        List<FindingEntity> findings = service.findings(scan(), sbom("""
+        List<ObservedFinding> findings = service.findings(sbom("""
                 {"distro": {"id": "debian", "versionID": "10", "name": "Debian GNU/Linux"}, "artifacts": []}""")).orElseThrow();
 
         assertThat(findings).singleElement().satisfies(finding -> {
-            assertThat(finding.getIdentifier()).isEqualTo("EOL-debian-10");
-            assertThat(finding.getSeverity()).isEqualTo(Severity.HIGH.wireName());
-            assertThat(finding.getPackageName()).isEqualTo("Debian GNU/Linux");
-            assertThat(finding.getLink()).isEqualTo("https://endoflife.date/debian");
+            assertThat(finding.identifier()).isEqualTo("EOL-debian-10");
+            assertThat(finding.severity()).isEqualTo(Severity.HIGH.wireName());
+            assertThat(finding.packageName()).isEqualTo("Debian GNU/Linux");
+            assertThat(finding.link()).isEqualTo("https://endoflife.date/debian");
             // The recommended version reads like any other actionable finding's fix.
-            assertThat(finding.getFixVersions()).isEqualTo("12.5");
-            assertThat(finding.getFixState()).isEqualTo("fixed");
+            assertThat(finding.fixVersions()).isEqualTo("12.5");
+            assertThat(finding.fixState()).isEqualTo("fixed");
         });
     }
 
@@ -74,12 +73,12 @@ class EndOfLifeServiceTest {
         indexReturns("""
                 {"result": [{"identifier": "pkg:generic/python", "product": {"name": "python"}}]}""");
 
-        List<FindingEntity> findings = service.findings(scan(), sbom("""
+        List<ObservedFinding> findings = service.findings(sbom("""
                 {"artifacts": [{"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"}]}""")).orElseThrow();
 
         // "python 3.9" reaches end of life, not "python 3.9.18". The fingerprint is built on
         // this, so the issue keeps its triage when the patch moves.
-        assertThat(findings).singleElement().returns("EOL-python-3.9", FindingEntity::getIdentifier);
+        assertThat(findings).singleElement().returns("EOL-python-3.9", ObservedFinding::identifier);
     }
 
     @Test
@@ -89,7 +88,7 @@ class EndOfLifeServiceTest {
         indexReturns("""
                 {"result": [{"identifier": "pkg:generic/python", "product": {"name": "python"}}]}""");
 
-        List<FindingEntity> findings = service.findings(scan(), sbom("""
+        List<ObservedFinding> findings = service.findings(sbom("""
                 {"artifacts": [
                    {"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"},
                    {"name": "python3", "version": "3.9.2", "purl": "pkg:generic/python@3.9.2"}]}""")).orElseThrow();
@@ -106,7 +105,7 @@ class EndOfLifeServiceTest {
                     "latest": {"name": "12.5"}}]}}""");
 
         // Present and empty: the step ran and found nothing, which may resolve the backlog.
-        assertThat(service.findings(scan(), sbom("""
+        assertThat(service.findings(sbom("""
                 {"distro": {"id": "debian", "versionID": "12", "name": "Debian"}, "artifacts": []}""")))
                 .hasValueSatisfying(findings -> assertThat(findings).isEmpty());
     }
@@ -120,7 +119,7 @@ class EndOfLifeServiceTest {
         when(outbound.get(anyString(), any(), anyString()))
                 .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
 
-        assertThat(service.findings(scan(), sbom("""
+        assertThat(service.findings(sbom("""
                 {"distro": {"id": "debian", "versionID": "10"}, "artifacts": []}"""))).isEmpty();
     }
 
@@ -135,7 +134,7 @@ class EndOfLifeServiceTest {
         when(outbound.get(contains("/products/python/"), any(), anyString()))
                 .thenThrow(new OutboundJson.OutboundFailureException("HTTP 503."));
 
-        assertThat(service.findings(scan(), sbom("""
+        assertThat(service.findings(sbom("""
                 {"distro": {"id": "debian", "versionID": "10", "name": "Debian"},
                  "artifacts": [{"name": "python", "version": "3.9.18", "purl": "pkg:generic/python@3.9.18"}]}""")))
                 .isEmpty();
@@ -152,8 +151,8 @@ class EndOfLifeServiceTest {
         String document = """
                 {"artifacts": []}""";
 
-        assertThat(service.findings(scan(), sbom(document))).isEmpty();
-        assertThat(service.findings(scan(), sbom(document))).isPresent();
+        assertThat(service.findings(sbom(document))).isEmpty();
+        assertThat(service.findings(sbom(document))).isPresent();
     }
 
     @Test
@@ -162,7 +161,7 @@ class EndOfLifeServiceTest {
         indexReturns("""
                 {"result": [{"identifier": "pkg:generic/obscure", "product": {"name": "obscure"}}]}""");
 
-        service.findings(scan(), sbom("""
+        service.findings(sbom("""
                 {"artifacts": [
                    {"name": "obscure", "version": "1.0", "purl": "pkg:generic/obscure@1.0"},
                    {"name": "obscure", "version": "1.1", "purl": "pkg:generic/obscure@1.1"}]}"""));
@@ -172,9 +171,9 @@ class EndOfLifeServiceTest {
 
     @Test
     void describesTheFindingInWords() {
-        FindingEntity finding = new FindingEntity();
-        finding.setPackageName("debian");
-        finding.setPackageVersion("10");
+        ObservedFinding finding = new ObservedFinding(
+                "eol", "endoflife.date", "EOL-debian-10", "high", "debian", "10", null, null, null, null, null,
+                null, null, null, null, null, null, false, null);
 
         assertThat(service.describe(finding)).contains("debian 10").contains("No fix will be published");
     }
@@ -206,11 +205,5 @@ class EndOfLifeServiceTest {
 
     private static JsonNode sbom(String body) {
         return parse(body);
-    }
-
-    private static ScanEntity scan() {
-        ScanEntity scan = new ScanEntity();
-        scan.setId(3L);
-        return scan;
     }
 }

@@ -9,11 +9,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -50,41 +49,36 @@ class EnrichmentServiceTest {
     void setsTheScoreAndTheExploitedFlag() {
         epssReturns("{\"data\":[{\"cve\":\"CVE-2024-1\",\"epss\":\"0.42\"}]}");
         kevReturns("{\"vulnerabilities\":[{\"cveID\":\"CVE-2024-1\"}]}");
-        FindingEntity finding = vulnerability("CVE-2024-1");
 
-        service.enrich(List.of(finding));
+        ScanIngestor.Enrichment found = service.enrich(List.of("CVE-2024-1")).orElseThrow();
 
-        assertThat(finding.getEpssScore()).isEqualTo(0.42);
-        assertThat(finding.getIsKev()).isTrue();
+        assertThat(found.epssScores()).containsEntry("CVE-2024-1", 0.42);
+        assertThat(found.exploited()).contains("CVE-2024-1");
     }
 
     @Test
-    @DisplayName("a CVE the catalogs do not know keeps whatever it had")
+    @DisplayName("a CVE the catalogs do not know gets no score, rather than a null one")
     void anUnknownScoreIsNotOverwritten() {
-        FindingEntity finding = vulnerability("CVE-2024-2");
-        finding.setEpssScore(0.9);
+        ScanIngestor.Enrichment found = service.enrich(List.of("CVE-2024-2")).orElseThrow();
 
-        service.enrich(List.of(finding));
-
-        // Overwriting with null would erase a score obtained on the previous scan, on the day
-        // the API happens to be unavailable.
-        assertThat(finding.getEpssScore()).isEqualTo(0.9);
-        assertThat(finding.getIsKev()).isFalse();
+        // Absent from the map, not mapped to null: the ingestion writes only a known score, and
+        // overwriting with null would erase one obtained on the previous scan, on the day the API
+        // happens to be unavailable.
+        assertThat(found.epssScores()).doesNotContainKey("CVE-2024-2");
+        assertThat(found.exploited()).doesNotContain("CVE-2024-2");
     }
 
     @Test
     @DisplayName("an empty KEV catalog is refused rather than cached")
     void anEmptyCatalogKeepsThePreviousOne() {
         kevReturns("{\"vulnerabilities\":[{\"cveID\":\"CVE-2024-1\"}]}");
-        service.enrich(List.of(vulnerability("CVE-2024-1")));
+        service.enrich(List.of("CVE-2024-1"));
 
         // A KEV catalog holds well over a thousand entries. Caching an empty one would mark
         // every vulnerability as unexploited for twenty-four hours.
         kevReturns("{\"vulnerabilities\":[]}");
-        FindingEntity finding = vulnerability("CVE-2024-1");
-        service.enrich(List.of(finding));
 
-        assertThat(finding.getIsKev()).isTrue();
+        assertThat(service.enrich(List.of("CVE-2024-1")).orElseThrow().exploited()).contains("CVE-2024-1");
     }
 
     @Test
@@ -92,35 +86,29 @@ class EnrichmentServiceTest {
     void anOutageDoesNotFailTheScan() {
         when(outbound.get(anyString(), any(), anyString()))
                 .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
-        FindingEntity finding = vulnerability("CVE-2024-1");
 
-        service.enrich(List.of(finding));
+        ScanIngestor.Enrichment found = service.enrich(List.of("CVE-2024-1")).orElseThrow();
 
-        // The visible cost: false means "we could not ask", not "it is not exploited".
-        assertThat(finding.getIsKev()).isFalse();
+        // The visible cost: not exploited means "we could not ask", not "it is not exploited".
+        assertThat(found.exploited()).doesNotContain("CVE-2024-1");
+        assertThat(found.epssScores()).isEmpty();
     }
 
     @Test
     void doesNothingWhenDisabled() {
         when(settings.isEnabled(Setting.ENRICHMENT_ENABLED)).thenReturn(false);
-        FindingEntity finding = vulnerability("CVE-2024-1");
 
-        service.enrich(List.of(finding));
-
-        assertThat(finding.getEpssScore()).isNull();
+        assertThat(service.enrich(List.of("CVE-2024-1"))).isEmpty();
+        verifyNoInteractions(outbound);
     }
 
     @Test
-    @DisplayName("findings of other types are not sent to the catalogs")
-    void onlyVulnerabilitiesAreLookedUp() {
-        FindingEntity secret = new FindingEntity();
-        secret.setType(FindingType.SECRET.wireName());
-        secret.setIdentifier("generic-api-key");
-
-        service.enrich(List.of(secret));
-
-        // Not "the flag stayed false" — nothing was asked at all. A secret's rule id has no
-        // meaning to either catalog, and sending it would leak a rule name for no answer.
+    @DisplayName("nothing to look up asks nothing")
+    void noIdentifierNoRequest() {
+        // The ingestion sends vulnerabilities' identifiers only — a secret's rule id has no meaning
+        // to either catalog, and sending it would leak a rule name for no answer — so a scan with
+        // none sends an empty list, and that must not reach the network either.
+        assertThat(service.enrich(List.of())).isEmpty();
         verifyNoInteractions(outbound);
     }
 
@@ -139,12 +127,5 @@ class EnrichmentServiceTest {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    private static FindingEntity vulnerability(String cve) {
-        FindingEntity finding = new FindingEntity();
-        finding.setType(FindingType.VULNERABILITY.wireName());
-        finding.setIdentifier(cve);
-        return finding;
     }
 }

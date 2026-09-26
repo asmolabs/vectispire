@@ -38,7 +38,8 @@ public sealed interface TargetPurge permits TargetDeleted, OrphanedTargetRows {
      * undo. Deleting leaves first holds whatever the cascade does, and holds still if a key is ever
      * declared {@code restrict}: a parent deleted before its children would then fail on the two
      * deployable engines and nowhere in the unit suite. Pass these to {@code @Order} on the listener
-     * method; listeners of one phase touch disjoint tables and may run in any order among themselves.
+     * method; listeners of one phase touch disjoint tables — or, for the findings, one table by two
+     * selections whose union is the same whatever the order — and may run in any order among themselves.
      *
      * <p>The graph, as the migrations declare it: {@code t_issue_triage_event} and {@code
      * t_issue_ticket} depend on {@code t_issue}; {@code t_finding} on {@code t_issue} and {@code
@@ -60,7 +61,11 @@ public sealed interface TargetPurge permits TargetDeleted, OrphanedTargetRows {
         /** What hangs off an issue alone: triage events, ticket links. */
         public static final int ISSUE_CHILDREN = 200;
 
-        /** Findings, which hang off both an issue and a scan. */
+        /**
+         * Findings, which hang off both an issue and a scan: taken by scan by {@code scanning}, by
+         * issue by {@code issues} — one table, two selections that should meet the same rows, and
+         * either order ends the same.
+         */
         public static final int FINDINGS = 300;
 
         /** The issues, once nothing refers to them; before the scans they were first and last seen in. */

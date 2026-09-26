@@ -273,7 +273,11 @@ class ArchitectureTest {
             Map.entry("ai", Set.of("access")),
             // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
             // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
-            Map.entry("issues", Set.of("access", "targets")),
+            // `scanning` since step 5, and in place of `scanning` -> `issues`: the backlog reads scans and
+            // findings for its history and its sightings, and deletes an issue's findings through
+            // `scanning` when a target goes; a completed scan's findings reach the backlog through
+            // `ScanIngestor.Backlog`, a port `scanning` declares and `issues` implements.
+            Map.entry("issues", Set.of("access", "scanning", "targets")),
             // `gate` since step 5 gave the stored policies to gate: the sweep opens a ticket only for an
             // issue the policy of its scope would fail on, so it evaluates the gate, and asks `gate`
             // for the policies in force instead of reading their table from below it. `gate` uses
@@ -282,7 +286,7 @@ class ArchitectureTest {
             // `targets` since step 5: a scan is of a target — the dispatcher reads its row and
             // credentials, the scheduler its schedule — and the target screens' latest scan and "scan
             // now" are answered through `TargetScans`, a port `targets` declares.
-            Map.entry("scanning", Set.of("access", "issues", "targets")),
+            Map.entry("scanning", Set.of("access", "targets")),
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
             // above the foundation.
@@ -301,7 +305,9 @@ class ArchitectureTest {
             // target that have a channel, and a team message is posted to that channel — both tables
             // access writes, which routing read through their repositories (now `TeamChannels`).
             // `access` uses nothing above the foundation.
-            Map.entry("notifications", Set.of("access", "issues", "scanning", "targets")),
+            // Not `scanning` since step 5: a scan's delta is the backlog's, announced through
+            // `ScanDelta.Sink`, a port of `issues`; it was `ScanIngestor.NotificationSink`.
+            Map.entry("notifications", Set.of("access", "issues", "targets")),
             // `scanning` since exports became a module and took its controllers: a document is made
             // for a scan, and its route first refuses a scan the caller may not see
             // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.

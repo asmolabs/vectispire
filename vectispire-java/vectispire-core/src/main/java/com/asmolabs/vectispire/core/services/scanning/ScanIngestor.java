@@ -6,12 +6,15 @@ import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.common.domain.dependencies.Directness;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
+import com.asmolabs.vectispire.core.repositories.Findings;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -19,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +37,12 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Getting it wrong resolves a type's entire history in silence — no error, no log line, and
  * nobody notices before the next audit.
+ *
+ * <p><b>What crosses its ports carries no row.</b> Enrichment, end of life, the inventory and the
+ * backlog are other modules' work — {@code threatintel}, {@code inventory}, {@code issues} — and they
+ * used to receive the scan's {@code FindingEntity} and {@code ScanEntity}, mutable, to fill in place.
+ * They receive identifiers and {@link ObservedFinding} records now, and answer values this class
+ * applies; the rows, their clipping and their writing are {@code scanning}'s (decision 0029).
  */
 @Service
 public class ScanIngestor {
@@ -42,26 +52,67 @@ public class ScanIngestor {
      *
      * <p>Optional on purpose. Enrichment calls two public catalogues and end-of-life consults a
      * remote one, so an ingestion test that leaves them out stays offline and deterministic
-     * instead of depending on somebody else's availability. Notification is optional for a
-     * different reason: without a webhook configured, ingestion is exactly what it was.
+     * instead of depending on somebody else's availability.
      */
     public interface Enricher {
-        /** Fills the exploitation score and the exploited-in-the-wild flag, in place. */
-        void enrich(List<FindingEntity> findings);
+        /**
+         * The exploitation scores and the exploited-in-the-wild identifiers among these vulnerability
+         * identifiers — or empty when enrichment is switched off, in which case nothing is changed.
+         * A score missing from the map is unknown, and leaves the finding's as it was.
+         */
+        Optional<Enrichment> enrich(List<String> identifiers);
     }
+
+    /** What enrichment found: a score per identifier where one is known, and the exploited ones. */
+    public record Enrichment(Map<String, Double> epssScores, Set<String> exploited) {}
 
     public interface EndOfLifeSource {
         boolean isEnabled();
 
         /** Absent when the lookup failed, even partly: the type then counts as not scanned. */
-        Optional<List<FindingEntity>> findings(ScanEntity scan, JsonNode sbom);
+        Optional<List<ObservedFinding>> findings(JsonNode sbom);
 
-        String describe(FindingEntity finding);
+        String describe(ObservedFinding finding);
     }
 
     public interface LicenseSource {
-        List<FindingEntity> findings(ScanEntity scan, JsonNode sbom);
+        List<ObservedFinding> findings(JsonNode sbom);
     }
+
+    /**
+     * Where a completed scan's findings become issues.
+     *
+     * <p><b>A port, implemented by {@code issues}.</b> The ingestor called {@code IssueSyncService}
+     * directly while the backlog read the scans and findings for its history and its sightings —
+     * {@code scanning} and {@code issues} used each other. The direction kept is {@code issues} →
+     * {@code scanning}: the backlog is derived from what scans observe (decision 0029). Called inside
+     * the scan's transaction, which the backlog joins; the delta it announces is queued there too.
+     */
+    public interface Backlog {
+        Reconciliation reconcile(Observation observation);
+    }
+
+    /**
+     * One scan's findings, as the backlog folds them.
+     *
+     * @param target {@code null} for a scan attached to neither target, which the backlog refuses
+     * @param scannedTypes the types this scan <b>actually looked at</b> — never inferred from the
+     *     findings present (decision 0007)
+     * @param descriptions advisory text by identifier, for the issues' description
+     */
+    public record Observation(
+            long scanId,
+            ScanTarget target,
+            List<ObservedFinding> findings,
+            Set<FindingType> scannedTypes,
+            Map<String, String> descriptions) {}
+
+    /**
+     * What folding the findings did to the backlog.
+     *
+     * @param issueIds the issue each finding is an occurrence of, in the order the findings were given
+     */
+    public record Reconciliation(int created, int resolved, int reopened, int stillOpen, List<Long> issueIds) {}
 
     /**
      * Where what a scan says the target is made of goes: its components, read from the SBOM, and its
@@ -86,33 +137,28 @@ public class ScanIngestor {
                 Optional<List<ApiContract>> contracts);
     }
 
-    public interface NotificationSink {
-        /** Queues the delta inside the caller's transaction, or does nothing. */
-        void enqueue(ScanEntity scan, IssueSyncService.SyncResult result);
-    }
-
     private final InventorySink inventory;
-    private final IssueSyncService sync;
+    private final Backlog backlog;
+    private final Findings findingRows;
     private final Optional<Enricher> enricher;
     private final Optional<EndOfLifeSource> endOfLife;
     private final Optional<LicenseSource> licenses;
-    private final Optional<NotificationSink> notifications;
     private final Clock clock;
 
     public ScanIngestor(
-            IssueSyncService sync,
+            Backlog backlog,
+            Findings findingRows,
             Optional<Enricher> enricher,
             Optional<EndOfLifeSource> endOfLife,
             Optional<LicenseSource> licenses,
-            Optional<NotificationSink> notifications,
             InventorySink inventory,
             Clock clock) {
         this.inventory = inventory;
-        this.sync = sync;
+        this.backlog = backlog;
+        this.findingRows = findingRows;
         this.enricher = enricher;
         this.endOfLife = endOfLife;
         this.licenses = licenses;
-        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -121,8 +167,10 @@ public class ScanIngestor {
      *
      * @param endOfLife the end-of-life findings, or empty when the step did not run — no SBOM,
      *     detection off, or a failed lookup — in which case the type is not declared scanned
+     * @param at when they were looked up: their rows are dated then, as they were when the source
+     *     built the rows itself
      */
-    public record Prepared(Optional<List<FindingEntity>> endOfLife) {}
+    public record Prepared(Optional<List<ObservedFinding>> endOfLife, Instant at) {}
 
     /**
      * Performs the remote lookups, <b>outside any transaction</b>.
@@ -134,18 +182,20 @@ public class ScanIngestor {
      * where that promise is kept.
      */
     public Prepared prepare(ScanEntity scan, ScanArtifacts artifacts) {
-        return new Prepared(artifacts.sbom().flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
-                .flatMap(source -> source.findings(scan, sbom))));
+        return new Prepared(
+                artifacts.sbom().flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
+                        .flatMap(source -> source.findings(sbom))),
+                clock.instant());
     }
 
     /** Prepares and ingests in one go — for a caller with no transaction to keep short. */
     @Transactional(propagation = Propagation.MANDATORY)
-    public IssueSyncService.SyncResult ingest(ScanEntity scan, ScanArtifacts artifacts) {
+    public Reconciliation ingest(ScanEntity scan, ScanArtifacts artifacts) {
         return ingest(scan, artifacts, prepare(scan, artifacts));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public IssueSyncService.SyncResult ingest(ScanEntity scan, ScanArtifacts artifacts, Prepared prepared) {
+    public Reconciliation ingest(ScanEntity scan, ScanArtifacts artifacts, Prepared prepared) {
         List<FindingEntity> findings = new ArrayList<>();
         Set<FindingType> scannedTypes = EnumSet.noneOf(FindingType.class);
         Map<String, String> descriptions = new HashMap<>();
@@ -250,11 +300,11 @@ public class ScanIngestor {
         prepared.endOfLife().ifPresent(found -> {
             scannedTypes.add(FindingType.EOL);
             endOfLife.ifPresent(source -> found.forEach(finding -> {
-                if (finding.getIdentifier() != null) {
-                    descriptions.put(finding.getIdentifier(), source.describe(finding));
+                if (finding.identifier() != null) {
+                    descriptions.put(finding.identifier(), source.describe(finding));
                 }
             }));
-            findings.addAll(found);
+            found.forEach(finding -> findings.add(row(scan, finding, prepared.at())));
         });
 
         // Licences are read from the same SBOM, with no network call and no extra tool. The type
@@ -263,7 +313,9 @@ public class ScanIngestor {
         // when the list is empty, in which case the old findings should indeed resolve.
         artifacts.sbom().ifPresent(sbom -> licenses.ifPresent(source -> {
             scannedTypes.add(FindingType.LICENSE);
-            List<FindingEntity> found = source.findings(scan, sbom);
+            List<FindingEntity> found = source.findings(sbom).stream()
+                    .map(finding -> row(scan, finding, clock.instant()))
+                    .toList();
             // Licence findings carry a purl, so the same question — declared or dragged in —
             // applies to them, and the answer changes what can be done about it.
             found.forEach(finding -> setDirectness(
@@ -271,16 +323,118 @@ public class ScanIngestor {
             findings.addAll(found);
         }));
 
-        // **Before the write, not after.** The findings are persisted by the sync; enriching
-        // them afterwards would need a second write outside the scan's transaction, and would
-        // leave a window in which the gate sees findings without their exploited-in-the-wild
+        // **Before the write, not after.** The findings and the issues they open are written below;
+        // enriching them afterwards would need a second write outside the scan's transaction, and
+        // would leave a window in which the gate sees findings without their exploited-in-the-wild
         // flag — that is, a green verdict on an actively exploited vulnerability.
-        enricher.ifPresent(enrich -> enrich.enrich(findings));
+        enricher.ifPresent(source -> enrich(source, findings));
 
-        return sync.sync(scan, findings, scannedTypes, descriptions, result ->
-                // **Queued inside the scan's transaction**, never after: a notification written
-                // one line later is lost by the very crash the outbox exists to cover.
-                notifications.ifPresent(sink -> sink.enqueue(scan, result)));
+        // The backlog folds the whole values — the fingerprint's inputs — and queues its delta inside
+        // this transaction, never after: a notification written one line later is lost by the very
+        // crash the outbox exists to cover.
+        Reconciliation result = backlog.reconcile(new Observation(
+                scan.getId(),
+                scan.target(),
+                findings.stream().map(ObservedFinding::of).toList(),
+                scannedTypes,
+                descriptions));
+
+        // **The findings themselves are written here**, and forgetting it showed on screen: a scan's
+        // detail announced eight findings and displayed none. Issues carry a target's history;
+        // findings say what one scan observed — the material of the scan detail, of the SARIF export,
+        // and of the proof that an issue existed on a given date. Each points at the issue it is an
+        // occurrence of, and is clipped to its columns only now, after the fingerprint.
+        for (int index = 0; index < findings.size(); index++) {
+            FindingEntity finding = findings.get(index);
+            finding.setIssueId(result.issueIds().get(index));
+            fitToColumns(finding);
+        }
+        if (!findings.isEmpty()) {
+            findingRows.saveAll(findings);
+        }
+
+        scan.setNewIssuesCount(result.created());
+        scan.setResolvedIssuesCount(result.resolved());
+        return result;
+    }
+
+    /**
+     * Fills the exploitation score and the exploited-in-the-wild flag of the vulnerabilities, with
+     * what enrichment found for their identifiers. Only a known score is written — overwriting with
+     * {@code null} would erase one obtained on the previous scan, on the day the API happens to be
+     * unavailable — and the flag is what the catalogue says, {@code false} for an identifier it does
+     * not list.
+     */
+    private static void enrich(Enricher enricher, List<FindingEntity> findings) {
+        List<FindingEntity> vulnerabilities = findings.stream()
+                .filter(finding -> FindingType.VULNERABILITY.wireName().equals(finding.getType()))
+                .filter(finding -> finding.getIdentifier() != null && !finding.getIdentifier().isBlank())
+                .toList();
+        if (vulnerabilities.isEmpty()) {
+            return;
+        }
+        List<String> identifiers = List.copyOf(new TreeSet<>(vulnerabilities.stream()
+                .map(FindingEntity::getIdentifier)
+                .toList()));
+        enricher.enrich(identifiers).ifPresent(found -> vulnerabilities.forEach(finding -> {
+            Optional.ofNullable(found.epssScores().get(finding.getIdentifier())).ifPresent(finding::setEpssScore);
+            finding.setIsKev(found.exploited().contains(finding.getIdentifier()));
+        }));
+    }
+
+    /** A finding another step built, as this scan's row: the scan, its instant, not yet exploited. */
+    private static FindingEntity row(ScanEntity scan, ObservedFinding observed, Instant at) {
+        FindingEntity finding = new FindingEntity();
+        finding.setScanId(scan.getId());
+        finding.setType(observed.type());
+        finding.setSource(observed.source());
+        finding.setIdentifier(observed.identifier());
+        finding.setSeverity(observed.severity());
+        finding.setPackageName(observed.packageName());
+        finding.setPackageVersion(observed.packageVersion());
+        finding.setPurl(observed.purl());
+        finding.setFilePath(observed.filePath());
+        finding.setLine(observed.line());
+        finding.setIsDirectDependency(observed.directDependency());
+        finding.setOwaspCategory(observed.owaspCategory());
+        finding.setEpssScore(observed.epssScore());
+        finding.setCvssScore(observed.cvssScore());
+        finding.setCvssVector(observed.cvssVector());
+        finding.setFixState(observed.fixState());
+        finding.setFixVersions(observed.fixVersions());
+        finding.setLink(observed.link());
+        finding.setIsKev(observed.kev());
+        finding.setDescription(observed.description());
+        finding.setCreatedAt(at);
+        return finding;
+    }
+
+    /**
+     * Clips what a scanner reported to the columns the finding stores it in.
+     *
+     * <p><b>Why here, and only here.</b> Every value below came from a scanner — a purl, a file
+     * path, a fix-version list, an advisory link — and one of them past its column failed the flush
+     * of the whole scan: every finding of every type lost, the scan marked failed, for one long
+     * purl. The backlog clips the issue's columns for the same reason, and {@code ComponentInventory}
+     * its own. Refusing is not an option for a value nobody here typed.
+     *
+     * <p><b>After the fingerprint, never before it.</b> The identifier, the purl, the package name
+     * and the path are the fingerprint's inputs (AGENTS.md: a data contract); the backlog computed
+     * every fingerprint from the whole values it was handed before this runs. The stored column is
+     * a display copy, and the key is the scanner's own value.
+     */
+    private static void fitToColumns(FindingEntity finding) {
+        finding.setIdentifier(BoundedText.clip(finding.getIdentifier(), 255));
+        finding.setPackageName(BoundedText.clip(finding.getPackageName(), 255));
+        finding.setPackageVersion(BoundedText.clip(finding.getPackageVersion(), 255));
+        finding.setPurl(BoundedText.clip(finding.getPurl(), 255));
+        finding.setFilePath(BoundedText.clip(finding.getFilePath(), 500));
+        finding.setFixVersions(BoundedText.clip(finding.getFixVersions(), 255));
+        finding.setLink(BoundedText.clip(finding.getLink(), 500));
+        finding.setCvssVector(BoundedText.clip(finding.getCvssVector(), 255));
+        finding.setFixState(BoundedText.clip(finding.getFixState(), 50));
+        finding.setSeverity(BoundedText.clip(finding.getSeverity(), 50));
+        finding.setDescription(BoundedText.clip(finding.getDescription(), BoundedText.TEXT_MAX));
     }
 
     /**
