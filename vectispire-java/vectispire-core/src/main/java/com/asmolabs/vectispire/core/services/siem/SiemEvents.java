@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.siem.SiemSeverityFilter;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.services.audit.AuditChainBroken;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -48,7 +50,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       behind a load balancer is the balancer — a defect of the audit trail, and of this feed until
  *       it is fixed there.
  *   <li>{@link #enqueue} and {@link #publish} — for the few events with no audit entry behind them:
- *       a KEV reclassification, a gate refusal, a broken audit chain.
+ *       a KEV reclassification, a gate refusal.
+ *   <li>{@link #auditChainBroken} — the audit log's own alarm, an application event rather than a
+ *       call, so that the audit log, which the SIEM listens to, does not call the SIEM back.
  * </ul>
  *
  * <p>Nothing is queued when the export is off, has no endpoint, or the event is below the configured
@@ -160,6 +164,23 @@ public class SiemEvents implements AuditLogService.Listener {
                 .target(entry.resourceId())
                 .userAgent(entry.userAgent())
                 .build()));
+    }
+
+    /**
+     * A verification found the trail tampered with.
+     *
+     * <p>Heard synchronously, in the verifying request's thread and outside any transaction — see
+     * {@code AuditLogQueryService#verify} for why not after a commit. {@link #publish} gives it a
+     * transaction of its own and swallows a failure, so the verification answers whatever the
+     * export does.
+     */
+    @EventListener
+    public void auditChainBroken(AuditChainBroken broken) {
+        publish(CefEvent.builder(SecurityEventType.AUDIT_CHAIN_BROKEN)
+                .message(broken.describe())
+                .action("AUDIT_VERIFIED")
+                .target(broken.brokenAt())
+                .build());
     }
 
     private void queue(CefEvent event) {

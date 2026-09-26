@@ -2,10 +2,8 @@ package com.asmolabs.vectispire.core;
 
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
-import com.asmolabs.vectispire.core.services.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.issues.IssueDecisionService;
-import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
@@ -162,15 +160,13 @@ class ArchitectureTest {
     private record KnownCycle(Class<?> origin, Class<?> target, String reason) {}
 
     /**
-     * <b>A list that only shrinks.</b> Two entries on 2026-09-26, both between domains whose
+     * <b>A list that only shrinks.</b> Two entries on 2026-09-26 — {@code audit} → {@code siem}
+     * left the same day, by the {@code AuditChainBroken} event the SIEM listens to — both between domains whose
      * classes sit where the future modules would own them (decision 0026); placing a class in the
      * wrong domain to make a cycle disappear would have hidden it rather than removed it.
      * {@link #knownCyclesAreStillThere} fails the day one of them goes, so the entry leaves with it.
      */
     private static final List<KnownCycle> KNOWN_CYCLES = List.of(
-            new KnownCycle(AuditLogQueryService.class, SiemEvents.class,
-                    "verifying the chain publishes AUDIT_CHAIN_BROKEN, while the SIEM listens to the audit"
-                            + " log it verifies; an application event the SIEM subscribes to would remove it"),
             new KnownCycle(IssueDecisionService.class, TicketService.class,
                     "attaching a ticket validates the reference against the configured tracker, while the"
                             + " tracker's webhook and sweep transition issues; the validation belongs to tickets"));

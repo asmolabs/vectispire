@@ -1,13 +1,11 @@
 package com.asmolabs.vectispire.core.services.audit;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
-import com.asmolabs.vectispire.common.domain.siem.CefEvent;
-import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
-import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -26,12 +24,12 @@ public class AuditLogQueryService {
 
     private final AuditLog entries;
     private final AuditLogService log;
-    private final SiemEvents siem;
+    private final ApplicationEventPublisher events;
 
-    public AuditLogQueryService(AuditLog entries, AuditLogService log, SiemEvents siem) {
+    public AuditLogQueryService(AuditLog entries, AuditLogService log, ApplicationEventPublisher events) {
         this.entries = entries;
         this.log = log;
-        this.siem = siem;
+        this.events = events;
     }
 
     /** @param limit and {@code offset} as actually applied, after clamping */
@@ -82,16 +80,18 @@ public class AuditLogQueryService {
         if (!intact) {
             // **Sent every time a verification finds it, not once.** A SOC deduplicates; what it
             // cannot do is hear about a tampering that was reported to one screen and nowhere else.
-            // The event leaves through the outbox, which the tampering did not touch — and says
-            // where the chain broke, so the alarm does not depend on the log it is about.
-            siem.publish(CefEvent.builder(SecurityEventType.AUDIT_CHAIN_BROKEN)
-                    .message(result.broken() != null
-                            ? "The audit chain breaks at entry " + result.broken()
-                            : mirror.missingFromTable() + " entr" + (mirror.missingFromTable() == 1 ? "y" : "ies")
-                                    + " held by the mirror are missing from the table")
-                    .action("AUDIT_VERIFIED")
-                    .target(result.broken())
-                    .build());
+            // The SIEM queues it in the outbox, which the tampering did not touch — and says where
+            // the chain broke, so the alarm does not depend on the log it is about.
+            //
+            // **A plain event, heard synchronously, and deliberately not an after-commit one.** This
+            // method opens no transaction: the two reads above each ran in their own read-only one,
+            // closed by now. A `@TransactionalEventListener` published with no transaction active is
+            // dropped without a word unless told otherwise — the alarm lost, which is the one outcome
+            // this path exists to prevent. There is nothing to roll back either: a verification
+            // writes nothing, and the event describes the table's state, not a change this call made.
+            // The listener queues it in a transaction of its own and never throws, as the direct
+            // call did.
+            events.publishEvent(new AuditChainBroken(result.broken(), mirror.missingFromTable()));
         }
         return new Integrity(
                 total,
