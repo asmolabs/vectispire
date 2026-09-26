@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Clock;

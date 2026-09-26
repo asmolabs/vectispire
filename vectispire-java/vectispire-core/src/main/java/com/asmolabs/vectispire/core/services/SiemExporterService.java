@@ -10,6 +10,8 @@ import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import java.time.Instant;
 import java.util.Arrays;

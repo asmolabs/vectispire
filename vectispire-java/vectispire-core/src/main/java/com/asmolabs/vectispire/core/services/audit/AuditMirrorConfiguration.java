@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Path;

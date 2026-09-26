@@ -14,6 +14,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Period;

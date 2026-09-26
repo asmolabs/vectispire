@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.ControlDeclarationEntity;
 import com.asmolabs.vectispire.core.repositories.ControlDeclarations;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;

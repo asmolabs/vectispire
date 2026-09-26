@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.siem.SiemSeverityFilter;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;

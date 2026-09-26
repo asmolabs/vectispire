@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;

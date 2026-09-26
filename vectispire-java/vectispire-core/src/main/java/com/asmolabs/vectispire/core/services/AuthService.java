@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.core.persistence.LoginAttemptEntity;

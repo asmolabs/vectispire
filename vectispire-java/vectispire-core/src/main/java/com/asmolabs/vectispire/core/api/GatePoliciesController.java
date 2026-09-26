@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.services.GatePolicyAdministrationService;
 import com.asmolabs.vectispire.core.services.GateService;
 import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
-import com.asmolabs.vectispire.core.services.RequestActor;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.IssueViews;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;

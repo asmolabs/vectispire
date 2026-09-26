@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

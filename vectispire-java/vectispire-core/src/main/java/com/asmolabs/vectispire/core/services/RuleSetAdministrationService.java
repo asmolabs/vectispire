@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
 import com.asmolabs.vectispire.core.repositories.RuleSetSummary;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;

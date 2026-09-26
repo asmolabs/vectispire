@@ -17,7 +17,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.AiReviewService;
-import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.NotificationService;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.asmolabs.vectispire.core.services.TicketService;

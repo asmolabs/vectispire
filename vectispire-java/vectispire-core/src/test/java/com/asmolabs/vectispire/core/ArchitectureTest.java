@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core;
 
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -117,13 +118,15 @@ class ArchitectureTest {
         // when this was added. `api.security` is left out on purpose: the filter chain audits what
         // happens before any controller runs — a refused bearer token, a denied route, a
         // single-sign-on callback — events that belong to no service method the entry could move to.
+        // Named by class literal, not by string: the class moved package once, and a string naming
+        // where it used to be would have left this rule checking nothing.
         ArchRuleDefinition.noClasses()
                 .that().resideInAPackage(ROOT + ".core.api..")
                 .and().resideOutsideOfPackage(ROOT + ".core.api.security..")
                 .should().dependOnClassesThat()
-                .haveFullyQualifiedName(ROOT + ".core.services.AuditLogService")
+                .haveFullyQualifiedName(AuditLogService.class.getName())
                 .orShould().dependOnClassesThat()
-                .haveFullyQualifiedName(ROOT + ".core.services.AuditLogService$Record")
+                .haveFullyQualifiedName(AuditLogService.Record.class.getName())
                 .check(classes);
     }
 

@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Clock;

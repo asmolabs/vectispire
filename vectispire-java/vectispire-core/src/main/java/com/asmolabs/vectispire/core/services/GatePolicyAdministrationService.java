@@ -5,6 +5,8 @@ import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;

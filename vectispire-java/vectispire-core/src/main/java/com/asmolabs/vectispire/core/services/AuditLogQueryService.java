@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.domain.Page;

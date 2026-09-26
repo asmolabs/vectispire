@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;

@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.util.List;
 import java.util.Map;

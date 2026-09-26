@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.repositories.IssueTickets;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import java.time.Clock;
 import java.time.Instant;

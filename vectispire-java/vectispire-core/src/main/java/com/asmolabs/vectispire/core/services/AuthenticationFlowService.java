@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

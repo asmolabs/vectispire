@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

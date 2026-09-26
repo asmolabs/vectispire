@@ -31,6 +31,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;

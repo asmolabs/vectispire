@@ -13,6 +13,8 @@ import com.asmolabs.vectispire.core.repositories.Projects;
 import com.asmolabs.vectispire.core.repositories.Solutions;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;

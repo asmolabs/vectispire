@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.ScimProvisioningService;
 import com.fasterxml.jackson.databind.ObjectMapper;

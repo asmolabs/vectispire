@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.RequestActor;
+import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService.TeamView;

@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.api.security;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.services.AuditLogService;
+import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.AuthService;
 import com.asmolabs.vectispire.core.services.ExternalIdentityService;
 import com.asmolabs.vectispire.core.services.FederatedSecondFactorPolicy;
