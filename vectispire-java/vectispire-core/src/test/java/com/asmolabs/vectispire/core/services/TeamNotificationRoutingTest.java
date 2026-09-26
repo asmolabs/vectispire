@@ -106,7 +106,7 @@ class TeamNotificationRoutingTest {
         // deserves none — nothing about waiting brings it back, and twelve attempts would fill
         // the log with an error nobody can act on.
         assertThatThrownBy(() -> service.deliver(payload(), 7L))
-                .isInstanceOf(NotificationService.GoneDestinationException.class)
+                .isInstanceOf(GoneDestinationException.class)
                 .hasMessageContaining("no longer has a webhook");
     }
 
@@ -119,7 +119,7 @@ class TeamNotificationRoutingTest {
         when(webhooks.findById(7L)).thenReturn(Optional.of(new TeamWebhookEntity(7L, "   ")));
 
         assertThatThrownBy(() -> service.deliver(payload(), 7L))
-                .isInstanceOf(NotificationService.GoneDestinationException.class);
+                .isInstanceOf(GoneDestinationException.class);
     }
 
     @Test
@@ -128,7 +128,7 @@ class TeamNotificationRoutingTest {
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn("");
 
         assertThatThrownBy(() -> service.deliver(payload(), null))
-                .isInstanceOf(NotificationService.GoneDestinationException.class)
+                .isInstanceOf(GoneDestinationException.class)
                 .hasMessageContaining("global webhook URL has been cleared");
     }
 

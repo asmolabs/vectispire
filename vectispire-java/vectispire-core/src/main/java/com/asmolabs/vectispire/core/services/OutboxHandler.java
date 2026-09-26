@@ -13,7 +13,7 @@ import java.util.UUID;
  * reaches the handler as the text that was stored, and the handler reads its own shape.
  *
  * <p>Like a channel, a handler <b>throws on failure</b> — the relay turns the exception into a
- * retry — and throws {@link NotificationService.GoneDestinationException} when the destination no
+ * retry — and throws {@link GoneDestinationException} when the destination no
  * longer exists, which the relay abandons at once rather than retrying for four hours.
  */
 public interface OutboxHandler {

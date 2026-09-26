@@ -42,7 +42,7 @@ public class SiemDelivery implements OutboxHandler {
     }
 
     /**
-     * @throws NotificationService.GoneDestinationException when the export has been switched off or
+     * @throws GoneDestinationException when the export has been switched off or
      *     its endpoint cleared or made unreadable since the event was queued: nothing about waiting
      *     brings a destination back, so the relay abandons the row at once, with this reason
      */
@@ -51,17 +51,17 @@ public class SiemDelivery implements OutboxHandler {
         SiemConfigEntity config = configs.findById(SiemConfigEntity.SINGLETON_ID)
                 .filter(SiemConfigEntity::isEnabled)
                 .filter(found -> found.getEndpoint() != null && !found.getEndpoint().isBlank())
-                .orElseThrow(() -> new NotificationService.GoneDestinationException(
+                .orElseThrow(() -> new GoneDestinationException(
                         "the SIEM export was switched off or its endpoint cleared after this event was queued"));
 
         SiemProtocol protocol = SiemProtocol.byName(config.getProtocol()).orElseThrow(() ->
-                new NotificationService.GoneDestinationException(
+                new GoneDestinationException(
                         "the stored SIEM protocol \"" + config.getProtocol() + "\" is not one this version speaks"));
         SiemEndpoint endpoint;
         try {
             endpoint = SiemEndpoint.parse(protocol, config.getEndpoint());
         } catch (IllegalArgumentException unreadable) {
-            throw new NotificationService.GoneDestinationException(
+            throw new GoneDestinationException(
                     "the stored SIEM endpoint is unusable for " + protocol + ": " + unreadable.getMessage());
         }
 

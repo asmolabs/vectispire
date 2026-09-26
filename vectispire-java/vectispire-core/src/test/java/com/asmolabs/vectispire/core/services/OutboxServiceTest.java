@@ -271,7 +271,7 @@ class OutboxServiceTest {
     void aGoneHandlerDestinationIsAbandoned() {
         OutboxHandler siem = mock(OutboxHandler.class);
         when(siem.type()).thenReturn("siem_event");
-        doThrow(new NotificationService.GoneDestinationException("the SIEM export was switched off"))
+        doThrow(new GoneDestinationException("the SIEM export was switched off"))
                 .when(siem).deliver(any(), any());
         OutboxService routed = new OutboxService(
                 messages, List.of(notifications), List.of(siem), new ObjectMapper(),

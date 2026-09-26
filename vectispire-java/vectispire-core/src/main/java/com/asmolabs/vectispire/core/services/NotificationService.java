@@ -230,20 +230,4 @@ public class NotificationService implements NotificationChannel {
                 .orElseThrow(() -> new GoneDestinationException(
                         "team " + teamId + " no longer has a webhook — deleted, or its channel was cleared"));
     }
-
-    /**
-     * A destination that no longer exists.
-     *
-     * <p>Distinct from an unreachable one on purpose: the second deserves the twelve retries the
-     * backoff policy grants, the first deserves none, because nothing about waiting will bring
-     * back a team somebody deleted.
-     */
-    public static class GoneDestinationException extends RuntimeException {
-
-        private static final long serialVersionUID = 1L;
-
-        public GoneDestinationException(String message) {
-            super(message);
-        }
-    }
 }

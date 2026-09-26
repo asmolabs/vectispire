@@ -152,7 +152,7 @@ public class OutboxService {
             int attempts = message.getAttempts() + 1;
             try {
                 deliver(message);
-            } catch (NotificationService.GoneDestinationException gone) {
+            } catch (GoneDestinationException gone) {
                 // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
                 // back a team somebody deleted, and twelve attempts would fill the log with an
                 // error nobody can act on — the log an operator has to read to notice the ones
