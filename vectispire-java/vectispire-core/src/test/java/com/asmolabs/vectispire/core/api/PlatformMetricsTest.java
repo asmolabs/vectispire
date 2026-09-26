@@ -87,16 +87,26 @@ class PlatformMetricsTest extends ApiTestBase {
     @Test
     @DisplayName("count a long poll answered with work apart from one answered empty")
     void count_polls_by_outcome() {
+        // Counted from where the registry stood, not from zero: the context — and its registry —
+        // is shared with every HTTP test, and one that polls the real claim route has already
+        // counted its own polls by the time this runs, in whatever order the suite chose.
+        double jobsBefore = polls("job");
+        double idleBefore = polls("idle");
+
         metrics.agentPolled(true);
         metrics.agentPolled(false);
         metrics.agentPolled(false);
 
-        assertThat(registry.find("vectispire.agents.polls").tag("outcome", "job").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.count()).isEqualTo(1.0));
-        assertThat(registry.find("vectispire.agents.polls").tag("outcome", "idle").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.count()).isEqualTo(2.0));
+        assertThat(polls("job") - jobsBefore).isEqualTo(1.0);
+        assertThat(polls("idle") - idleBefore).isEqualTo(2.0);
+        assertThat(registry.find("vectispire.agents.polls").tag("outcome", "job").counter()).isNotNull();
+        assertThat(registry.find("vectispire.agents.polls").tag("outcome", "idle").counter()).isNotNull();
+    }
+
+    private double polls(String outcome) {
+        io.micrometer.core.instrument.Counter counter =
+                registry.find("vectispire.agents.polls").tag("outcome", outcome).counter();
+        return counter == null ? 0.0 : counter.count();
     }
 
     @Test
