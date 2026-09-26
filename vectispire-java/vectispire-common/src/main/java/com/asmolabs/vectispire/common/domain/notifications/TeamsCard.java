@@ -58,15 +58,17 @@ public final class TeamsCard {
     public static Map<String, Object> of(NotificationPayload payload, String publicUrl) {
         List<Map<String, Object>> body = new ArrayList<>();
 
-        body.add(text(payload.text(), "bolder", "large", "default", false));
+        // Every value the card did not write itself goes through ChatText.teams: a package name or a
+        // path is the scanned repository's text, and a text block renders markdown links.
+        body.add(text(ChatText.teams(payload.text()), "bolder", "large", "default", false));
         body.add(text(
-                payload.target() + "  ·  scan #" + payload.scanId(),
+                ChatText.teams(payload.target()) + "  ·  scan #" + payload.scanId(),
                 "default", "small", "default", true));
         body.add(facts(payload));
 
         for (NotificationPayload.Detail issue : payload.issues()) {
-            body.add(text(issueLine(issue), "bolder", "default", colourOf(issue.severity()), false));
-            String context = context(issue);
+            body.add(text(ChatText.teams(issueLine(issue)), "bolder", "default", colourOf(issue.severity()), false));
+            String context = ChatText.teams(context(issue));
             if (!context.isEmpty()) {
                 body.add(text(context, "default", "small", "default", true));
             }

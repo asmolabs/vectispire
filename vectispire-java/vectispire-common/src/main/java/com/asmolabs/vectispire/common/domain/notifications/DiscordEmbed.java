@@ -9,6 +9,10 @@ import java.util.Map;
 
 /**
  * Builds Discord Webhook Rich Embed JSON payloads.
+ *
+ * <p>Every value the message did not write itself goes through {@link ChatText#discord}, and the
+ * payload allows no mention: a package name is the scanned repository's text, and in Discord markdown
+ * it could otherwise carry a masked link or a mass mention.
  */
 public final class DiscordEmbed {
 
@@ -24,8 +28,8 @@ public final class DiscordEmbed {
         }
 
         Map<String, Object> embed = new LinkedHashMap<>();
-        embed.put("title", "🛡️ Vectispire: " + payload.target() + " (Scan #" + payload.scanId() + ")");
-        embed.put("description", payload.text());
+        embed.put("title", "🛡️ Vectispire: " + ChatText.discord(payload.target()) + " (Scan #" + payload.scanId() + ")");
+        embed.put("description", ChatText.discord(payload.text()));
         embed.put("color", color);
         embed.put("timestamp", Instant.now().toString());
 
@@ -45,9 +49,9 @@ public final class DiscordEmbed {
         if (!payload.issues().isEmpty()) {
             StringBuilder issuesSb = new StringBuilder();
             for (NotificationPayload.Detail issue : payload.issues()) {
-                String cve = issue.identifier() != null ? issue.identifier() : issue.type();
-                String pkg = issue.packageName() != null ? " (" + issue.packageName() + ")" : "";
-                String fix = issue.fixVersions() != null ? " → fix: " + issue.fixVersions() : "";
+                String cve = ChatText.discord(issue.identifier() != null ? issue.identifier() : issue.type());
+                String pkg = issue.packageName() != null ? " (" + ChatText.discord(issue.packageName()) + ")" : "";
+                String fix = issue.fixVersions() != null ? " → fix: " + ChatText.discord(issue.fixVersions()) : "";
                 issuesSb.append(String.format("• **[%s]** %s%s%s\n",
                         issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "FINDING",
                         cve, pkg, fix));
@@ -64,6 +68,8 @@ public final class DiscordEmbed {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("username", "Vectispire Security");
         root.put("embeds", List.of(embed));
+        // Nothing this message says may ping anybody, whatever a value managed to spell.
+        root.put("allowed_mentions", Map.of("parse", List.of()));
         return root;
     }
 }

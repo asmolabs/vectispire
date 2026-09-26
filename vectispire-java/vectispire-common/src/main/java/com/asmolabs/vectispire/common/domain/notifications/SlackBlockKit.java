@@ -8,6 +8,10 @@ import java.util.Map;
 
 /**
  * Builds Slack Block Kit formatted JSON payloads for rich interactive notifications.
+ *
+ * <p>Every value the message did not write itself goes through {@link ChatText#slack}: a package
+ * name or a rule identifier is the scanned repository's text, and in {@code mrkdwn} a {@code <} opens
+ * a mention or a link.
  */
 public final class SlackBlockKit {
 
@@ -23,7 +27,7 @@ public final class SlackBlockKit {
 
         // 2. Summary section
         String summaryMarkdown = String.format("*Target:* `%s` (Scan #%d)\n*%s*",
-                payload.target(), payload.scanId(), payload.text());
+                ChatText.slack(payload.target()), payload.scanId(), ChatText.slack(payload.text()));
         blocks.add(Map.of(
                 "type", "section",
                 "text", Map.of("type", "mrkdwn", "text", summaryMarkdown)));
@@ -50,9 +54,9 @@ public final class SlackBlockKit {
                 case "medium" -> "🟡";
                 default -> "⚪";
             };
-            String cve = issue.identifier() != null ? issue.identifier() : issue.type();
-            String pkg = issue.packageName() != null ? " in `" + issue.packageName() + "`" : "";
-            String fix = issue.fixVersions() != null ? " (fix: " + issue.fixVersions() + ")" : "";
+            String cve = ChatText.slack(issue.identifier() != null ? issue.identifier() : issue.type());
+            String pkg = issue.packageName() != null ? " in `" + ChatText.slack(issue.packageName()) + "`" : "";
+            String fix = issue.fixVersions() != null ? " (fix: " + ChatText.slack(issue.fixVersions()) + ")" : "";
             String kev = issue.kev() ? " `[CISA KEV]`" : "";
             issuesMd.append(String.format("%s *%s*%s%s%s\n", emoji, cve, pkg, fix, kev));
         }
@@ -77,7 +81,8 @@ public final class SlackBlockKit {
         }
 
         Map<String, Object> root = new LinkedHashMap<>();
-        root.put("text", payload.text());
+        // The notification's fallback text is read as mrkdwn too.
+        root.put("text", ChatText.slack(payload.text()));
         root.put("blocks", blocks);
         return root;
     }
