@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;

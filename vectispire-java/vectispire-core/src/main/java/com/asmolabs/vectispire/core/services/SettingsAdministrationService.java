@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;

@@ -235,7 +235,7 @@ class OwaspReportTest extends ApiTestBase {
                     .thenReturn(com.asmolabs.vectispire.common.domain.aireview.AiProvider.OLLAMA);
             return new SettingsController(
                     new com.asmolabs.vectispire.core.services.SettingsAdministrationService(
-                            Mockito.mock(com.asmolabs.vectispire.core.services.SettingsService.class),
+                            Mockito.mock(com.asmolabs.vectispire.core.services.shared.SettingsService.class),
                             ai,
                             Mockito.mock(com.asmolabs.vectispire.core.repositories.Users.class),
                             Mockito.mock(com.asmolabs.vectispire.core.services.TicketService.class),

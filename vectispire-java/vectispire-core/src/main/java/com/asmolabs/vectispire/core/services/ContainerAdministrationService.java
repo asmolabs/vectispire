@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.LatestScan;
+import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

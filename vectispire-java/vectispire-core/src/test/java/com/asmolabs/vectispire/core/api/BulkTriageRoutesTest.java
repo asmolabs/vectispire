@@ -17,7 +17,7 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
-import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

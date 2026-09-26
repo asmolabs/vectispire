@@ -5,6 +5,8 @@ import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.shared.RowVisibility;
+import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.springframework.data.domain.Limit;

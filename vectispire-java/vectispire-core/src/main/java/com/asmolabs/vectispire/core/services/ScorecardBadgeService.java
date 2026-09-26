@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.scorecard.SvgBadgeGenerator;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Optional;

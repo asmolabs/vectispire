@@ -15,6 +15,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;

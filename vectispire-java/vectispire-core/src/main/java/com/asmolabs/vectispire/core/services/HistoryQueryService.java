@@ -14,6 +14,8 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.core.services.shared.BrandingProperties;
+import com.asmolabs.vectispire.core.services.shared.RowVisibility;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.ArrayList;

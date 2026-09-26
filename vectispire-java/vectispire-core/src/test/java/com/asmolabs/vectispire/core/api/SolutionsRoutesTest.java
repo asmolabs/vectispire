@@ -26,7 +26,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.RequestActor;
-import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.asmolabs.vectispire.core.services.SolutionAdministrationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;

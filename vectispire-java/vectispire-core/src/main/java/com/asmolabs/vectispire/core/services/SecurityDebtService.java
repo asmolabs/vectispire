@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;

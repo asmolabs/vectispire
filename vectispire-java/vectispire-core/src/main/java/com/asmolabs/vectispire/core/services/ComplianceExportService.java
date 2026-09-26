@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.services.shared.BrandingProperties;
 import java.io.IOException;
 import java.time.Clock;
 import org.springframework.stereotype.Service;

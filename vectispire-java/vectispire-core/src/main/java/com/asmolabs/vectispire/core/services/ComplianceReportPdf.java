@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceControl;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
+import com.asmolabs.vectispire.core.services.shared.ReportCursor;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

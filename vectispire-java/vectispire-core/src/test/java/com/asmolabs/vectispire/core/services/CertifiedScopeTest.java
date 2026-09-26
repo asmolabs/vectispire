@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

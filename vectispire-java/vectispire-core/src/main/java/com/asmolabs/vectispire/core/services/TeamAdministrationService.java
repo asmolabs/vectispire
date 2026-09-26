@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
+import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Comparator;

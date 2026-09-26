@@ -23,7 +23,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.MaintenanceJobs;
-import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.asmolabs.vectispire.core.services.SiemEvents;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.DatagramPacket;

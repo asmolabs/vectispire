@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.shared;
 
 import java.awt.Color;
 import java.io.IOException;
@@ -28,10 +28,10 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
  * Two copies of the pagination rule would be two answers to "did this page overflow", and the
  * failure mode of the wrong answer is silent.
  */
-final class ReportCursor {
+public final class ReportCursor {
 
     static final float MARGIN = 50;
-    static final float LINE = 14;
+    public static final float LINE = 14;
 
     /** A4 minus both margins: the width a wrapped line has to fit into. */
     static final float CONTENT_WIDTH = PDRectangle.A4.getWidth() - 2 * MARGIN;
@@ -45,7 +45,7 @@ final class ReportCursor {
     private float y;
     private Color pending;
 
-    ReportCursor(PDDocument document) throws IOException {
+    public ReportCursor(PDDocument document) throws IOException {
         this.document = document;
         newPage();
     }
@@ -61,12 +61,12 @@ final class ReportCursor {
         y = page.getMediaBox().getHeight() - MARGIN;
     }
 
-    void text(String value, Font font) {
+    public void text(String value, Font font) {
         write(MARGIN, value, font);
         y -= LINE;
     }
 
-    void text(String value, Font font, Color color) {
+    public void text(String value, Font font, Color color) {
         pending = color;
         try {
             text(value, font);
@@ -85,7 +85,7 @@ final class ReportCursor {
      * characters: a proportional face makes "iiii" and "MMMM" the same count and four times the
      * width.
      */
-    void paragraph(String value, Font font, float indent) {
+    public void paragraph(String value, Font font, float indent) {
         if (value == null || value.isBlank()) {
             return;
         }
@@ -128,7 +128,7 @@ final class ReportCursor {
     }
 
     /** A horizontal rule, for a heading that has to separate rather than merely sit above. */
-    void rule(Color color) {
+    public void rule(Color color) {
         try {
             if (y < MARGIN + LINE) {
                 newPage();
@@ -146,7 +146,7 @@ final class ReportCursor {
     }
 
     /** A filled band behind a heading. Drawn before the text, or it would cover it. */
-    void band(float height, Color color) {
+    public void band(float height, Color color) {
         try {
             if (y < MARGIN + height + LINE) {
                 newPage();
@@ -168,14 +168,14 @@ final class ReportCursor {
      * get right for no reader's benefit. Each cell is truncated to the width its offset allows,
      * which is what keeps a long package name out of the next column.
      */
-    void row(String[] values, float[] offsets, int[] widths, Font font) {
+    public void row(String[] values, float[] offsets, int[] widths, Font font) {
         for (int index = 0; index < values.length; index++) {
             write(MARGIN + offsets[index], truncate(values[index] == null ? "" : values[index], widths[index]), font);
         }
         y -= LINE;
     }
 
-    void gap() {
+    public void gap() {
         y -= LINE / 2;
     }
 
@@ -186,7 +186,7 @@ final class ReportCursor {
      * beside it. Written as two calls rather than a "bullet paragraph" primitive because the
      * marker differs — a glyph, a number, a severity tag — and only the stepping back is common.
      */
-    void up() {
+    public void up() {
         y += LINE;
     }
 
@@ -229,7 +229,7 @@ final class ReportCursor {
     /**
      * Renders a 2-column table row with independent line-wrapping in each column.
      */
-    void tableRow2(String col1, String col2, float col1Width, Font font1, Font font2, Color color1, Color color2) {
+    public void tableRow2(String col1, String col2, float col1Width, Font font1, Font font2, Color color1, Color color2) {
         float col2Width = CONTENT_WIDTH - col1Width - 16;
         List<String> col1Lines = wrap(col1, font1, col1Width);
         List<String> col2Lines = wrap(col2, font2, col2Width);
@@ -262,7 +262,7 @@ final class ReportCursor {
     /**
      * Renders a styled callout / blockquote with proper height and left accent bar.
      */
-    void callout(String text, Font font, Color bgColor, Color accentColor) {
+    public void callout(String text, Font font, Color bgColor, Color accentColor) {
         float textWidth = CONTENT_WIDTH - 24;
         List<String> lines = wrap(text, font, textWidth);
         if (lines.isEmpty()) {
@@ -330,7 +330,7 @@ final class ReportCursor {
      * the finished document holds. Each page is reopened in append mode, which is the one way to
      * write onto a page whose content stream is already closed.
      */
-    void close(String footer) throws IOException {
+    public void close(String footer) throws IOException {
         stream.close();
         for (int index = 0; index < pages.size(); index++) {
             try (PDPageContentStream stamp =
@@ -345,7 +345,7 @@ final class ReportCursor {
         }
     }
 
-    void close() throws IOException {
+    public void close() throws IOException {
         stream.close();
     }
 
@@ -382,17 +382,17 @@ final class ReportCursor {
         }
     }
 
-    static String truncate(String value, int width) {
+    public static String truncate(String value, int width) {
         return value.length() <= width ? value : value.substring(0, width - 1) + "…";
     }
 
     /** A font and its size, so a call site names both or neither. */
     record Font(PDFont font, float size) {}
 
-    static final Font HELVETICA_BOLD_16 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16);
-    static final Font HELVETICA_BOLD_12 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
-    static final Font HELVETICA_BOLD_10 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
-    static final Font HELVETICA_BOLD_9 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 9);
-    static final Font HELVETICA_10 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10);
-    static final Font HELVETICA_9 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
+    public static final Font HELVETICA_BOLD_16 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 16);
+    public static final Font HELVETICA_BOLD_12 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 12);
+    public static final Font HELVETICA_BOLD_10 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 10);
+    public static final Font HELVETICA_BOLD_9 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 9);
+    public static final Font HELVETICA_10 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 10);
+    public static final Font HELVETICA_9 = new Font(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 9);
 }

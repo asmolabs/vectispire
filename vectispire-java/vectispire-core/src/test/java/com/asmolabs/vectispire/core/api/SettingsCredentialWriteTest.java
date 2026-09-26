@@ -16,7 +16,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.AiReviewService;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import com.asmolabs.vectispire.core.services.NotificationService;
-import com.asmolabs.vectispire.core.services.SettingsService;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.asmolabs.vectispire.core.services.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;

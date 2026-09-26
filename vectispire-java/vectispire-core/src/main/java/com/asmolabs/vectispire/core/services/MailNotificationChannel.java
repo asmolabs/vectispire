@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.notifications.MailMessage;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.services.shared.ExportProperties;
+import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
