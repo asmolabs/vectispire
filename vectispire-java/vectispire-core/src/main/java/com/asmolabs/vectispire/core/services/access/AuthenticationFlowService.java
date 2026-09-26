@@ -6,7 +6,6 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.persistence.MfaChallengeEntity;
-import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.MfaChallenges;
 import com.asmolabs.vectispire.core.repositories.UserSessions;
@@ -118,7 +117,7 @@ public class AuthenticationFlowService {
          */
         record ChallengesSaturated() implements SignIn {}
 
-        record SignedIn(AuthService.IssuedSession issued, UserEntity user) implements SignIn {}
+        record SignedIn(AuthService.IssuedSession issued, UserView user) implements SignIn {}
     }
 
     public SignIn signIn(Attempt attempt) {
@@ -168,7 +167,7 @@ public class AuthenticationFlowService {
                         attempt.ipAddress());
                 yield stored ? new SignIn.ChallengeIssued(mfaToken) : new SignIn.ChallengesSaturated();
             }
-            case AuthService.Outcome.Success success -> new SignIn.SignedIn(success.issued(), success.user());
+            case AuthService.Outcome.Success success -> new SignIn.SignedIn(success.issued(), UserView.of(success.user()));
         };
     }
 
@@ -188,7 +187,7 @@ public class AuthenticationFlowService {
         /** The account has absorbed its wrong codes for this window, whatever challenge carries it. */
         record Throttled(Duration retryAfter) implements Verification {}
 
-        record Verified(AuthService.IssuedSession issued, UserEntity user) implements Verification {}
+        record Verified(AuthService.IssuedSession issued, UserView user) implements Verification {}
     }
 
     public Verification verify(String mfaToken, String code, String userAgent, String ipAddress) {
@@ -267,7 +266,7 @@ public class AuthenticationFlowService {
                 ipAddress,
                 userAgent));
 
-        return new Verification.Verified(session, user);
+        return new Verification.Verified(session, UserView.of(user));
     }
 
     /**
@@ -316,16 +315,16 @@ public class AuthenticationFlowService {
 
         record AccountMissing() implements Handoff {}
 
-        record Exchanged(SessionEntity session, UserEntity user) implements Handoff {}
+        record Exchanged(SessionView session, UserView user) implements Handoff {}
     }
 
     public Handoff exchange(String token) {
-        Optional<SessionEntity> session = auth.resolve("Bearer " + token);
+        Optional<SessionView> session = auth.resolve("Bearer " + token);
         if (session.isEmpty()) {
             return new Handoff.Expired();
         }
-        return users.findById(session.get().getUserId())
-                .<Handoff>map(user -> new Handoff.Exchanged(session.get(), user))
+        return users.findById(session.get().userId())
+                .<Handoff>map(user -> new Handoff.Exchanged(session.get(), UserView.of(user)))
                 .orElseGet(Handoff.AccountMissing::new);
     }
 
@@ -372,16 +371,22 @@ public class AuthenticationFlowService {
      * of its meaning. The current session survives, or the screen would bounce back to the login
      * page immediately after succeeding.
      *
+     * <p>The hash is read here, from the account's row, rather than carried in by the caller: the
+     * principal holds a {@link UserView}, which has no password to compare against — deliberately.
+     *
      * @throws IllegalArgumentException when the new password breaks a rule, with the rule's text
+     * @throws java.util.NoSuchElementException when the account is gone — the bearer filter found it
+     *     active at the start of this request, so only a deletion racing it lands here
      */
     public PasswordChange changePassword(
-            UserEntity user,
-            Optional<SessionEntity> currentSession,
+            UserView account,
+            Optional<SessionView> currentSession,
             String currentPassword,
             String newPassword,
             String ipAddress,
             String userAgent) {
 
+        UserEntity user = users.findById(account.id()).orElseThrow();
         if (!PasswordHasher.verify(currentPassword, user.getPassword())) {
             return PasswordChange.CURRENT_PASSWORD_WRONG;
         }
@@ -393,7 +398,7 @@ public class AuthenticationFlowService {
         }
 
         users.changePassword(user.getId(), PasswordHasher.hash(newPassword), clock.instant());
-        currentSession.ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.getTokenHash()));
+        currentSession.ifPresent(session -> sessions.deleteByUserIdExcept(user.getId(), session.tokenHash()));
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.PASSWORD_CHANGED,

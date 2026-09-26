@@ -12,8 +12,8 @@ import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import com.asmolabs.vectispire.core.services.settings.SettingsService;
@@ -77,10 +77,10 @@ public class IssueDecisionService {
      *
      * @param user absent for a caller that is not an account — an agent key
      */
-    public record Caller(Optional<UserEntity> user, Visibility visibility, String ipAddress, String userAgent) {
+    public record Caller(Optional<UserView> user, Visibility visibility, String ipAddress, String userAgent) {
 
         String actor() {
-            return user.map(UserEntity::getUsername).orElse("unknown");
+            return user.map(UserView::username).orElse("unknown");
         }
     }
 
@@ -265,7 +265,7 @@ public class IssueDecisionService {
     private boolean canApprove(Caller caller) {
         boolean fourEyesRequired = settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED);
         return !fourEyesRequired || caller.user()
-                .flatMap(user -> Role.of(user.getRole()))
+                .flatMap(user -> Role.of(user.role()))
                 .map(Role::canApproveTriage)
                 .orElse(true);
     }

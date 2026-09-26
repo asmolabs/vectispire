@@ -69,7 +69,7 @@ class VisibilityServiceTest {
                 .thenReturn(List.of(new TeamTargetEntity(TEAM, "project", 20L)));
         when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L));
 
-        Visibility visibility = service.of(reader());
+        Visibility visibility = service.of(UserView.of(reader()));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Collection<Long>> asked = ArgumentCaptor.forClass(Collection.class);
@@ -91,7 +91,7 @@ class VisibilityServiceTest {
         // it matches everything: every repository filed anywhere.
         when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L, 300L));
 
-        Visibility visibility = service.of(reader());
+        Visibility visibility = service.of(UserView.of(reader()));
 
         verify(repositories, never()).findIdsByProjectIdIn(any());
         assertThat(visibility.asFilter()).contains(Set.of(new ScanTarget.Repository(1L)));
@@ -104,7 +104,7 @@ class VisibilityServiceTest {
         when(memberships.findByUserId(USER)).thenReturn(List.of());
         when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of());
 
-        VisibilityService.Allowance allowance = service.allowance(reader(), Visibility.everything());
+        VisibilityService.Allowance allowance = service.allowance(UserView.of(reader()), Visibility.everything());
 
         assertThat(allowance.visibility().isEmpty()).isTrue();
         assertThat(allowance.grantedProjects()).containsExactly(10L);
@@ -118,7 +118,7 @@ class VisibilityServiceTest {
         when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L));
 
         VisibilityService.Allowance allowance =
-                service.allowance(reader(), Visibility.only(List.of(new ScanTarget.Repository(100L))));
+                service.allowance(UserView.of(reader()), Visibility.only(List.of(new ScanTarget.Repository(100L))));
 
         assertThat(allowance.visibility().asFilter()).contains(Set.of(new ScanTarget.Repository(100L)));
         assertThat(allowance.grantedProjects()).isEmpty();

@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -34,7 +35,7 @@ class CredentialConfinementTest {
         owner.setUsername("ci-owner");
         owner.setRole("viewer");
         SecurityContextHolder.getContext().setAuthentication(VectispirePrincipal.ofIntegration(
-                new ApiKeyAuthService.Integration(owner, keyId, "ci", Set.of(ApiKeyScope.READ), Visibility.everything())));
+                new ApiKeyAuthService.Integration(UserView.of(owner), keyId, "ci", Set.of(ApiKeyScope.READ), Visibility.everything())));
     }
 
     @AfterEach

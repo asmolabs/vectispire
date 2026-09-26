@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.services.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
@@ -95,7 +95,7 @@ public class AgentsController {
      */
     @PostMapping("/hello")
     public HelloResponse hello(@RequestBody HelloRequest body, @AuthenticationPrincipal VectispirePrincipal principal) {
-        AgentEntity agent = authenticate(principal);
+        AgentView agent = authenticate(principal);
         AgentProtocolService.Hello answer = protocol.hello(agent, new AgentProtocolService.Announcement(
                 body.contractVersion(),
                 body.sealingPublicKey(),
@@ -113,11 +113,11 @@ public class AgentsController {
                     "This agent speaks contract \"" + (announced.isEmpty() ? "unknown" : announced)
                             + "\" and Vectispire speaks \"" + AgentContract.VERSION + "\". Update the agent.");
             case AgentProtocolService.Hello.Accepted(int maxConcurrent) -> new HelloResponse(
-                    agent.getId(),
-                    agent.getName(),
+                    agent.id(),
+                    agent.name(),
                     AgentContract.VERSION,
                     maxConcurrent,
-                    agent.getCredentialsMode());
+                    agent.credentialsMode());
         };
     }
 
@@ -158,7 +158,7 @@ public class AgentsController {
             @RequestParam(required = false, defaultValue = "0") int wait,
             HttpServletRequest request) {
 
-        AgentEntity agent = authenticate(principal);
+        AgentView agent = authenticate(principal);
         // **The refusal is not decided here.** It used to be, duplicating the same rule in the
         // dispatcher — and the two copies had already diverged. Only the dispatcher knows what
         // the task actually contains; it raises, and the handler turns that into a 412.
@@ -175,7 +175,7 @@ public class AgentsController {
     @PostMapping("/jobs/{scanId}/heartbeat")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void heartbeat(@PathVariable long scanId, @AuthenticationPrincipal VectispirePrincipal principal) {
-        AgentEntity agent = authenticate(principal);
+        AgentView agent = authenticate(principal);
         if (!dispatcher.renewAgentLease(scanId, agent)) {
             // 409: the lease was taken over while the agent worked. It has to give up rather than
             // hand back a result that would overwrite its successor's.
@@ -209,7 +209,7 @@ public class AgentsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        AgentEntity agent = authenticate(principal);
+        AgentView agent = authenticate(principal);
         AgentProtocolService.Submission outcome = protocol.submitResult(
                 agent,
                 scanId,
@@ -225,7 +225,7 @@ public class AgentsController {
                     HttpStatus.FORBIDDEN,
                     "This agent's results must be signed: the " + ResultAttestation.HEADER
                             + " header is absent or does not verify against the key pinned for \""
-                            + agent.getName() + "\".");
+                            + agent.name() + "\".");
             // 400 and not 500: the agent sent something, and what it sent is the problem.
             case AgentProtocolService.Submission.Unreadable unreadable -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "The result body is not a readable ScanArtifacts document.");
@@ -234,16 +234,16 @@ public class AgentsController {
         };
     }
 
-    private static AgentEntity authenticate(VectispirePrincipal principal) {
-        AgentEntity agent = principal == null
+    private static AgentView authenticate(VectispirePrincipal principal) {
+        AgentView agent = principal == null
                 ? null
                 : principal.agent().orElse(null);
         if (agent == null) {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "API key absent, invalid, or without the \"agent\" scope.");
         }
-        if (!agent.getEnabled()) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Agent \"" + agent.getName() + "\" is disabled.");
+        if (!agent.enabled()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Agent \"" + agent.name() + "\" is disabled.");
         }
         return agent;
     }

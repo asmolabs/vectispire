@@ -144,7 +144,7 @@ class AuthDatabaseTest extends VectispireContextTest {
 
         auth.revoke(issued.session());
 
-        assertThat(sessions.findById(issued.session().getTokenHash())).isEmpty();
+        assertThat(sessions.findById(issued.session().tokenHash())).isEmpty();
         assertThat(auth.resolve("Bearer " + issued.token())).isEmpty();
     }
 

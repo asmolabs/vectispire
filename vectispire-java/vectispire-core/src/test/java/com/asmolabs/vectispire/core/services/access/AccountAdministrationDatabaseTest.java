@@ -170,9 +170,9 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already taken");
 
-        UserEntity created = accounts.create(newAccount("fresh", null), null, ACTOR).user();
-        assertThat(created.getRole()).isEqualTo(Role.USER.name());
-        assertThat(created.getMustChangePassword()).isTrue();
+        UserView created = accounts.create(newAccount("fresh", null), null, ACTOR).user();
+        assertThat(created.role()).isEqualTo(Role.USER.name());
+        assertThat(created.mustChangePassword()).isTrue();
         assertThat(audit.findAllByOrderByTimestampAscIdAsc())
                 .extracting(AuditLogEntity::getDescription)
                 .containsExactly("Account created: fresh (USER)");

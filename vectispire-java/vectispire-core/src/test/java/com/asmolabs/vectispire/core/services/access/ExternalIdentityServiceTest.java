@@ -54,9 +54,9 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
     void theFirstSignOnBinds() {
         account("alice");
 
-        UserEntity resolved = identities.resolve("sub-1", ISSUER, "alice");
+        UserView resolved = identities.resolve("sub-1", ISSUER, "alice");
 
-        assertThat(resolved.getUsername()).isEqualTo("alice");
+        assertThat(resolved.username()).isEqualTo("alice");
         assertThat(users.findByKeycloakId("sub-1")).isPresent();
     }
 
@@ -71,7 +71,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         alice.setUsername("alice.martin");
         users.save(alice);
 
-        assertThat(identities.resolve("sub-1", ISSUER, "alice.martin").getId()).isEqualTo(alice.getId());
+        assertThat(identities.resolve("sub-1", ISSUER, "alice.martin").id()).isEqualTo(alice.getId());
     }
 
     @Test
@@ -125,7 +125,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         assertThat(users.findByKeycloakId("sub-1")).isEmpty();
 
         assertThat(identities.resolve("sub-1", ISSUER, new ExternalIdentityService.Claimed(null, "alice@example.com", true))
-                        .getUsername())
+                        .username())
                 .isEqualTo("alice@example.com");
     }
 
@@ -147,7 +147,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
 
         ExternalIdentityService trusting =
                 new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(), true);
-        assertThat(trusting.resolve("sub-admin", ISSUER, "admin").getKeycloakId()).isEqualTo("sub-admin");
+        assertThat(trusting.resolve("sub-admin", ISSUER, "admin").keycloakId()).isEqualTo("sub-admin");
     }
 
     @Test

@@ -101,7 +101,7 @@ Above the foundation, each domain may use only the domains listed:
 | `ai`, `issues` | `access` |
 | `tickets` | `access`, `issues` |
 | `scanning` | `access`, `inventory`, `issues`, `rules` |
-| `agents` | `scanning` |
+| `agents` | `access`, `scanning` |
 | `targets` | `access`, `scanning` |
 | `threatintel` | `scanning`, `siem` |
 | `gate` | `issues`, `rules`, `siem` |

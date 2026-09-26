@@ -6,10 +6,8 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
@@ -47,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       the exception a team cannot express, one contractor on one repository. Intersecting them
  *       would mean joining a team <em>narrows</em> what somebody already had, so an
  *       administrator adding a team member would silently revoke.
- *   <li><b>Account and credential: intersection</b> ({@link #of(UserEntity, Visibility)}). Those
+ *   <li><b>Account and credential: intersection</b> ({@link #of(UserView, Visibility)}). Those
  *       answer different questions — who is this, and what is this key for. A narrow key held by
  *       a broad account must stay narrow.
  * </ul>
@@ -102,9 +100,9 @@ public class VisibilityService {
         }
     }
 
-    /** {@link #of(UserEntity, Visibility)}, with the projects granted as such beside it. */
+    /** {@link #of(UserView, Visibility)}, with the projects granted as such beside it. */
     @Transactional(readOnly = true)
-    public Allowance allowance(UserEntity user, Visibility restriction) {
+    public Allowance allowance(UserView user, Visibility restriction) {
         Allowance account = resolve(user);
         Visibility visibility = account.visibility().and(restriction);
         return new Allowance(
@@ -124,12 +122,12 @@ public class VisibilityService {
      *     narrow credential held by a broad account stays narrow
      */
     @Transactional(readOnly = true)
-    public Visibility of(UserEntity user, Visibility restriction) {
+    public Visibility of(UserView user, Visibility restriction) {
         return accountVisibility(user).and(restriction);
     }
 
     @Transactional(readOnly = true)
-    public Visibility of(UserEntity user) {
+    public Visibility of(UserView user) {
         return accountVisibility(user);
     }
 
@@ -141,15 +139,15 @@ public class VisibilityService {
      * the queue's own label routing. Restricting it here would express nothing and suggest the
      * agent protocol goes through these filters, which it does not.
      */
-    public Visibility of(AgentEntity agent) {
+    public Visibility of(AgentView agent) {
         return Visibility.everything();
     }
 
-    private Visibility accountVisibility(UserEntity user) {
+    private Visibility accountVisibility(UserView user) {
         return resolve(user).visibility();
     }
 
-    private Allowance resolve(UserEntity user) {
+    private Allowance resolve(UserView user) {
         if (user == null) {
             // No account, no visibility. Reached only if a route forgot its marker, and the safe
             // answer to "who is this" being unanswerable is "nothing".
@@ -165,11 +163,11 @@ public class VisibilityService {
         Set<ScanTarget> visible = new LinkedHashSet<>();
         Set<Long> projects = new LinkedHashSet<>();
 
-        for (UserTargetEntity row : assignments.findByUserId(user.getId())) {
+        for (UserTargetEntity row : assignments.findByUserId(user.id())) {
             collect(row.getId().targetKind(), row.getId().targetId(), visible, projects);
         }
 
-        List<Long> teams = memberships.findByUserId(user.getId()).stream()
+        List<Long> teams = memberships.findByUserId(user.id()).stream()
                 .map(membership -> membership.getId().teamId())
                 .toList();
         // **The guard, not an optimisation.** `in ()` is a syntax error on some engines and
@@ -203,8 +201,8 @@ public class VisibilityService {
         }
     }
 
-    private static boolean hasGlobalScope(UserEntity user) {
-        return Role.of(user.getRole()).map(Role::hasGlobalSecurityScope).orElse(false);
+    private static boolean hasGlobalScope(UserView user) {
+        return Role.of(user.role()).map(Role::hasGlobalSecurityScope).orElse(false);
     }
 
     private static Optional<ScanTarget> targetOf(String kind, Long id) {

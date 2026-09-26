@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.services.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
@@ -80,7 +80,7 @@ public class UsersController {
 
         // The screen needs to know which account is its own, so it does not offer actions the
         // server will refuse anyway.
-        return new UserListing(summaries, principal.user().map(UserEntity::getId).orElse(null));
+        return new UserListing(summaries, principal.user().map(UserView::id).orElse(null));
     }
 
     @PostMapping
@@ -148,20 +148,20 @@ public class UsersController {
     }
 
     private static Long actingAccountId(VectispirePrincipal principal) {
-        return principal.user().map(UserEntity::getId).orElse(null);
+        return principal.user().map(UserView::id).orElse(null);
     }
 
     private static UserAdminSummary summaryOf(AccountView view) {
-        UserEntity user = view.user();
+        UserView user = view.user();
         return new UserAdminSummary(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getDisplayName(),
-                user.getRole(),
-                user.getIsActive(),
-                user.getMustChangePassword(),
-                user.getCreatedAt(),
+                user.id(),
+                user.username(),
+                user.email(),
+                user.displayName(),
+                user.role(),
+                user.isActive(),
+                user.mustChangePassword(),
+                user.createdAt(),
                 view.activeSessions());
     }
 }

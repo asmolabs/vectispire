@@ -72,7 +72,7 @@ public class AccountAdministrationService {
     }
 
     /** An account and how many live sessions it holds. */
-    public record AccountView(UserEntity user, long activeSessions) {}
+    public record AccountView(UserView user, long activeSessions) {}
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
     public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
@@ -86,7 +86,7 @@ public class AccountAdministrationService {
         Map<Long, Long> active = activeSessionsByUser();
         List<AccountView> views = new ArrayList<>();
         users.findAllByOrderByUsernameAsc()
-                .forEach(user -> views.add(new AccountView(user, active.getOrDefault(user.getId(), 0L))));
+                .forEach(user -> views.add(new AccountView(UserView.of(user), active.getOrDefault(user.getId(), 0L))));
         return views;
     }
 
@@ -127,7 +127,7 @@ public class AccountAdministrationService {
 
         UserEntity saved = users.save(user);
         record(actor, saved.getId(), "Account created: " + username + " (" + role + ")");
-        return new AccountView(saved, 0);
+        return new AccountView(UserView.of(saved), 0);
     }
 
     /**
@@ -208,7 +208,7 @@ public class AccountAdministrationService {
         if (!changes.isEmpty()) {
             record(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
         }
-        return new AccountView(user, revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
+        return new AccountView(UserView.of(user), revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
     }
 
     /**

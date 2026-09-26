@@ -5,7 +5,6 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
@@ -55,7 +54,7 @@ public class ApiKeyAuthService {
      * @param restriction the key's own narrowing, intersected with the account's by every route
      */
     public record Integration(
-            UserEntity owner, UUID keyId, String keyName, Set<ApiKeyScope> scopes, Visibility restriction) {}
+            UserView owner, UUID keyId, String keyName, Set<ApiKeyScope> scopes, Visibility restriction) {}
 
     /**
      * The account and narrowing an integration key carries, or empty when it carries none.
@@ -65,8 +64,8 @@ public class ApiKeyAuthService {
      * account whose authority it borrows.
      */
     @Transactional(readOnly = true)
-    public Optional<Integration> integrationFor(ApiKeyEntity key) {
-        if (hasScope(key, ApiKeyScope.AGENT) || key.getOwnerUserId() == null) {
+    public Optional<Integration> integrationFor(ApiKeyView key) {
+        if (hasScope(key, ApiKeyScope.AGENT) || key.ownerUserId() == null) {
             return Optional.empty();
         }
         Set<ApiKeyScope> scopes = EnumSet.noneOf(ApiKeyScope.class);
@@ -75,19 +74,20 @@ public class ApiKeyAuthService {
                 scopes.add(scope);
             }
         }
-        return users.findById(key.getOwnerUserId())
+        return users.findById(key.ownerUserId())
                 .filter(UserEntity::getIsActive)
-                .map(owner -> new Integration(owner, key.getId(), key.getName(), Set.copyOf(scopes), restrictionOf(key)));
+                .map(owner -> new Integration(
+                        UserView.of(owner), key.id(), key.name(), Set.copyOf(scopes), restrictionOf(key)));
     }
 
     /** Everything when unrestricted; otherwise the one target the key was issued for. */
-    private static Visibility restrictionOf(ApiKeyEntity key) {
-        if (key.getTargetKind() == null || key.getTargetId() == null) {
+    private static Visibility restrictionOf(ApiKeyView key) {
+        if (key.targetKind() == null || key.targetId() == null) {
             return Visibility.everything();
         }
-        return switch (key.getTargetKind()) {
-            case "repository" -> Visibility.only(List.of(new ScanTarget.Repository(key.getTargetId())));
-            case "container" -> Visibility.only(List.of(new ScanTarget.Container(key.getTargetId())));
+        return switch (key.targetKind()) {
+            case "repository" -> Visibility.only(List.of(new ScanTarget.Repository(key.targetId())));
+            case "container" -> Visibility.only(List.of(new ScanTarget.Container(key.targetId())));
             // A kind nobody wrote is a key nobody understands: it sees nothing, never everything.
             default -> Visibility.only(List.of());
         };
@@ -100,7 +100,7 @@ public class ApiKeyAuthService {
      * which half of a guess was right.
      */
     @Transactional
-    public Optional<ApiKeyEntity> resolve(String presented) {
+    public Optional<ApiKeyView> resolve(String presented) {
         String trimmed = presented == null ? "" : presented.trim();
         if (trimmed.length() <= ApiKeys.PREFIX_LENGTH) {
             return Optional.empty();
@@ -118,20 +118,20 @@ public class ApiKeyAuthService {
             // `lastUsedAt` is set without waiting: it is the only trace that lets an operator
             // spot a key issued for a use that never happened.
             keys.markUsed(candidate.getId(), asOf);
-            return Optional.of(candidate);
+            return Optional.of(ApiKeyView.of(candidate));
         }
         return Optional.empty();
     }
 
     /** Does this key carry that scope? */
-    public boolean hasScope(ApiKeyEntity key, ApiKeyScope scope) {
-        String scopes = key.getScopes() == null ? "" : key.getScopes();
+    public boolean hasScope(ApiKeyView key, ApiKeyScope scope) {
+        String scopes = key.scopes() == null ? "" : key.scopes();
         return Arrays.stream(scopes.split(",")).map(String::trim).anyMatch(scope.wireName()::equals);
     }
 
     /** The agent this key belongs to, if there is one. */
     @Transactional(readOnly = true)
-    public Optional<AgentEntity> agentFor(ApiKeyEntity key) {
-        return agents.findByApiKeyId(key.getId());
+    public Optional<AgentView> agentFor(ApiKeyView key) {
+        return agents.findByApiKeyId(key.id()).map(AgentView::of);
     }
 }

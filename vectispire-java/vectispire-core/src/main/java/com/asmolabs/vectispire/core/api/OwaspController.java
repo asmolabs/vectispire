@@ -87,7 +87,7 @@ public class OwaspController {
         return reportOf(reports.run(
                 id,
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
-                principal.user().map(user -> user.getUsername()).orElse("unknown"),
+                principal.user().map(user -> user.username()).orElse("unknown"),
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent")));
     }

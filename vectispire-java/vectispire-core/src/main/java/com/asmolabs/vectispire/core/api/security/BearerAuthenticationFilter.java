@@ -3,10 +3,10 @@ package com.asmolabs.vectispire.core.api.security;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.core.api.scim.ScimProperties;
-import com.asmolabs.vectispire.core.persistence.SessionEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
 import com.asmolabs.vectispire.core.services.access.AuthService;
+import com.asmolabs.vectispire.core.services.access.SessionView;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -74,9 +74,9 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private Optional<VectispirePrincipal> authenticate(String header, String path) {
-        Optional<SessionEntity> session = auth.resolve(header);
+        Optional<SessionView> session = auth.resolve(header);
         if (session.isPresent()) {
-            Optional<UserEntity> user = auth.activeUserOf(session.get());
+            Optional<UserView> user = auth.activeUserOf(session.get());
             if (user.isEmpty()) {
                 auth.revoke(session.get());
                 return Optional.empty();
@@ -116,7 +116,7 @@ public class BearerAuthenticationFilter extends OncePerRequestFilter {
     private Optional<VectispirePrincipal> apiKeyPrincipal(String token) {
         return apiKeys.resolve(token).flatMap(key -> apiKeys.hasScope(key, ApiKeyScope.AGENT)
                 // No credential restriction: the agent protocol reads no visibility, and an agent's
-                // key is issued unrestricted — see VisibilityService.of(AgentEntity).
+                // key is issued unrestricted — see VisibilityService.of(AgentView).
                 ? apiKeys.agentFor(key).map(agent -> VectispirePrincipal.ofAgent(agent, visibility.of(agent)))
                 : apiKeys.integrationFor(key).map(VectispirePrincipal::ofIntegration));
     }

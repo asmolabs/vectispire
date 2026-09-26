@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -32,7 +32,7 @@ public final class RequestActors {
                 ? fallback
                 : principal.integration().isPresent()
                         ? principal.getName()
-                        : principal.user().map(UserEntity::getUsername).orElse(fallback);
+                        : principal.user().map(UserView::username).orElse(fallback);
         return named(username, request);
     }
 

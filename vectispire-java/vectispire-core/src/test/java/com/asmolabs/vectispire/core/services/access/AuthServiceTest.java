@@ -65,10 +65,10 @@ class AuthServiceTest {
         assertThat(result.outcome()).isInstanceOfSatisfying(AuthService.Outcome.Success.class, success -> {
             assertThat(success.issued().token()).isNotBlank();
             // The clear token is handed out; the row keeps its hash and nothing else.
-            assertThat(success.issued().session().getTokenHash())
+            assertThat(success.issued().session().tokenHash())
                     .isEqualTo(Sessions.hashOf(success.issued().token()))
                     .isNotEqualTo(success.issued().token());
-            assertThat(success.issued().session().getExpiresAt())
+            assertThat(success.issued().session().expiresAt())
                     .isEqualTo(NOW.plus(Sessions.Policy.DEFAULT.absoluteLifetime()));
         });
         assertThat(result.audit().operation()).isEqualTo(AuditOperation.LOGIN_SUCCESS);
@@ -184,7 +184,7 @@ class AuthServiceTest {
         session.setLastSeenAt(NOW.minusSeconds(60));
         when(sessions.findById(Sessions.hashOf("t"))).thenReturn(Optional.of(session));
 
-        assertThat(service.resolve("Bearer t")).get().returns(NOW, SessionEntity::getLastSeenAt);
+        assertThat(service.resolve("Bearer t")).get().returns(NOW, SessionView::lastSeenAt);
     }
 
     @Test

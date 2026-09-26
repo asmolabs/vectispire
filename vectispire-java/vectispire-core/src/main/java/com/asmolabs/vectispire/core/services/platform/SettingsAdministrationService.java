@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
@@ -117,14 +117,14 @@ public class SettingsAdministrationService {
             String provider,
             boolean remoteAllowed) {}
 
-    public List<Entry> catalog(Optional<UserEntity> reader) {
+    public List<Entry> catalog(Optional<UserView> reader) {
         Map<String, String> stored = settings.stored();
         // **A sensitive setting's value only leaves for an administrator.** A webhook URL is a
         // bearer capability: whoever reads it can post in the channel where the team awaits
         // Vectispire's alerts. The catalog itself stays readable by everybody — the screen needs
         // the labels and the types.
         boolean isAdmin = reader
-                .flatMap(user -> Role.of(user.getRole()))
+                .flatMap(user -> Role.of(user.role()))
                 .map(Role::isAdministrative)
                 .orElse(false);
 
@@ -152,7 +152,7 @@ public class SettingsAdministrationService {
      * <p>All validated before any is written: a partial write would leave the configuration
      * half-way between two intended states.
      */
-    public Applied update(Map<String, String> body, Optional<UserEntity> writer, RequestActor actor) {
+    public Applied update(Map<String, String> body, Optional<UserView> writer, RequestActor actor) {
         if (body == null || body.isEmpty()) {
             throw new IllegalArgumentException("No setting supplied.");
         }
@@ -267,7 +267,7 @@ public class SettingsAdministrationService {
                 && !pending.get(Setting.AI_REVIEW_ALLOW_REMOTE).equals(previousAcknowledgement)) {
             if (remoteAfter) {
                 aiReview.recordRiskAcknowledgement(
-                        writer.map(user -> user.getUsername()).orElse(""), Instant.now());
+                        writer.map(user -> user.username()).orElse(""), Instant.now());
             } else {
                 aiReview.clearRiskAcknowledgement();
             }
@@ -434,12 +434,12 @@ public class SettingsAdministrationService {
     }
 
     /** The role that decides the rules, and the only one that cannot act under them. */
-    private static boolean administrative(Optional<UserEntity> writer) {
-        return writer.flatMap(u -> Role.of(u.getRole())).map(Role::isAdministrative).orElse(false);
+    private static boolean administrative(Optional<UserView> writer) {
+        return writer.flatMap(u -> Role.of(u.role())).map(Role::isAdministrative).orElse(false);
     }
 
-    private static boolean governsPlatform(Optional<UserEntity> writer) {
-        return writer.flatMap(u -> Role.of(u.getRole())).map(Role::governsPlatform).orElse(false);
+    private static boolean governsPlatform(Optional<UserView> writer) {
+        return writer.flatMap(u -> Role.of(u.role())).map(Role::governsPlatform).orElse(false);
     }
 
     /**

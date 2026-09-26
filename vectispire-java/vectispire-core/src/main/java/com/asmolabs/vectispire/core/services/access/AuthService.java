@@ -98,10 +98,10 @@ public class AuthService {
      * <p>The two travel together for the length of one request and then part: the token goes out
      * over HTTPS and is forgotten, the row stays with only its hash. Any caller that needs to
      * *identify* the session later — to revoke it, or to spare it — uses
-     * {@link SessionEntity#getTokenHash()}; only a caller handing the session to its owner uses
+     * {@link SessionView#tokenHash()}; only a caller handing the session to its owner uses
      * {@link #token()}.
      */
-    public record IssuedSession(SessionEntity session, String token) {}
+    public record IssuedSession(SessionView session, String token) {}
 
     /**
      * @param audit returned rather than written here, so this service does not depend on the
@@ -198,8 +198,8 @@ public class AuthService {
      * repositories, any more than a controller does.
      */
     @Transactional(readOnly = true)
-    public Optional<UserEntity> activeUserOf(SessionEntity session) {
-        return users.findById(session.getUserId()).filter(UserEntity::getIsActive);
+    public Optional<UserView> activeUserOf(SessionView session) {
+        return users.findById(session.userId()).filter(UserEntity::getIsActive).map(UserView::of);
     }
 
     /**
@@ -210,7 +210,7 @@ public class AuthService {
      * collecting what nobody touched.
      */
     @Transactional
-    public Optional<SessionEntity> resolve(String authorizationHeader) {
+    public Optional<SessionView> resolve(String authorizationHeader) {
         Optional<String> token = Sessions.bearerToken(authorizationHeader);
         if (token.isEmpty()) {
             return Optional.empty();
@@ -235,24 +235,24 @@ public class AuthService {
         // Throttled: see `Sessions.shouldRecordActivity`. Writing here on every request turned any
         // page making several calls into a fight between its own requests over one row.
         if (!Sessions.shouldRecordActivity(session.getLastSeenAt(), now, policy)) {
-            return Optional.of(session);
+            return Optional.of(SessionView.of(session));
         }
 
         session.setLastSeenAt(now);
-        return Optional.of(sessions.save(session));
+        return Optional.of(SessionView.of(sessions.save(session)));
     }
 
     /**
      * A real logout: the row disappears and the token is worth nothing.
      *
-     * <p>Takes the row rather than the token because the row is what every caller has — the
-     * bearer filter and the logout route both hold a resolved session — and because a
+     * <p>Takes the resolved session rather than the token because that is what every caller has —
+     * the bearer filter and the logout route both hold one — and because a
      * {@code revoke(String)} would accept either the token or its hash, one of which silently
      * revokes nothing.
      */
     @Transactional
-    public void revoke(SessionEntity session) {
-        sessions.deleteById(session.getTokenHash());
+    public void revoke(SessionView session) {
+        sessions.deleteById(session.tokenHash());
     }
 
     /**
@@ -284,21 +284,25 @@ public class AuthService {
     }
 
     @Transactional
-    public IssuedSession openFederatedSession(UserEntity user, String userAgent, String ipAddress) {
-        return openSession(user, new LoginRequest(user.getUsername(), null, userAgent, ipAddress), clock.instant());
+    public IssuedSession openFederatedSession(UserView user, String userAgent, String ipAddress) {
+        return openSession(user.id(), new LoginRequest(user.username(), null, userAgent, ipAddress), clock.instant());
     }
 
     private IssuedSession openSession(UserEntity user, LoginRequest request, Instant now) {
+        return openSession(user.getId(), request, now);
+    }
+
+    private IssuedSession openSession(Long userId, LoginRequest request, Instant now) {
         Sessions.IssuedToken minted = Sessions.issue();
         SessionEntity session = new SessionEntity();
         session.setTokenHash(minted.hash());
-        session.setUserId(user.getId());
+        session.setUserId(userId);
         session.setCreatedAt(now);
         session.setLastSeenAt(now);
         session.setExpiresAt(now.plus(policy.absoluteLifetime()));
         session.setUserAgent(clip(request.userAgent()));
         session.setIpAddress(request.ipAddress());
-        return new IssuedSession(sessions.save(session), minted.token());
+        return new IssuedSession(SessionView.of(sessions.save(session)), minted.token());
     }
 
     /**

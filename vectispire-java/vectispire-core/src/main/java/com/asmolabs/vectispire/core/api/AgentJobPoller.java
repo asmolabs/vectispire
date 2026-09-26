@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
@@ -64,12 +64,12 @@ public class AgentJobPoller {
      * <p>204 rather than an empty object: "is there work?" has to be readable from the status
      * code, with no body to parse.
      */
-    public DeferredResult<ResponseEntity<Object>> claim(AgentEntity agent, boolean secureTransport, Duration wait) {
+    public DeferredResult<ResponseEntity<Object>> claim(AgentView agent, boolean secureTransport, Duration wait) {
         Duration bounded = wait.isNegative() ? Duration.ZERO : min(wait, MAX_WAIT);
         // The container's own timeout is set past ours, so the deadline that fires is the one
         // that knows what to answer. Letting the container win produces a 503 the agent reads as
         // an outage.
-        String limit = String.valueOf(AgentConcurrency.effective(agent.getMaxConcurrent()));
+        String limit = String.valueOf(AgentConcurrency.effective(agent.maxConcurrent()));
         DeferredResult<ResponseEntity<Object>> result =
                 new DeferredResult<>(bounded.plusSeconds(5).toMillis(), noJob(limit));
 
@@ -86,7 +86,7 @@ public class AgentJobPoller {
 
     private void schedule(
             DeferredResult<ResponseEntity<Object>> result,
-            AgentEntity agent,
+            AgentView agent,
             boolean secureTransport,
             String limit,
             Instant deadline) {

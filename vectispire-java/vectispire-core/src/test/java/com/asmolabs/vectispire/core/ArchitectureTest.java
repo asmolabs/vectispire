@@ -142,7 +142,7 @@ class ArchitectureTest {
             Map.entry("issues", Set.of("access")),
             Map.entry("tickets", Set.of("access", "issues")),
             Map.entry("scanning", Set.of("access", "inventory", "issues", "rules")),
-            Map.entry("agents", Set.of("scanning")),
+            Map.entry("agents", Set.of("access", "scanning")),
             Map.entry("targets", Set.of("access", "scanning")),
             Map.entry("threatintel", Set.of("scanning", "siem")),
             Map.entry("gate", Set.of("issues", "rules", "siem")),

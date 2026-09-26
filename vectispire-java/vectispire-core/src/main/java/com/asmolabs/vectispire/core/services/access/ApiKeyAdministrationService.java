@@ -205,7 +205,7 @@ public class ApiKeyAdministrationService {
                 ? repositories.existsById(targetId)
                 : containers.existsById(targetId);
         boolean visible = exists && users.findById(ownerUserId)
-                .map(owner -> visibility.of(owner).permits(target))
+                .map(owner -> visibility.of(UserView.of(owner)).permits(target))
                 .orElse(false);
         if (!visible) {
             throw new InvalidApiKeyException("No " + targetKind + " " + targetId + " to restrict the key to.");

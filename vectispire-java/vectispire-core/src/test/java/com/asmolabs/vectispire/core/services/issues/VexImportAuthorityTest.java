@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import java.time.Instant;
 import java.util.List;
@@ -140,7 +141,7 @@ class VexImportAuthorityTest extends VectispireContextTest {
         UserEntity user = new UserEntity();
         user.setUsername(username);
         user.setRole(role.name());
-        return new IssueDecisionService.Caller(Optional.of(user), visibility, "192.0.2.1", "test");
+        return new IssueDecisionService.Caller(Optional.of(UserView.of(user)), visibility, "192.0.2.1", "test");
     }
 
     private long repository(String name) {

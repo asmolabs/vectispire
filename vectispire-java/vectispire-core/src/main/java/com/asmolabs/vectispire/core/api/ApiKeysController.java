@@ -82,7 +82,7 @@ public class ApiKeysController {
         ApiKeyAdministrationService.Issued issued = administration.issue(
                 new ApiKeyAdministrationService.Request(
                         body.name(), body.scopes(), body.targetKind(), body.targetId(), body.expiresInDays(),
-                        principal.requireUser().getId()),
+                        principal.requireUser().id()),
                 RequestActors.of(principal, request));
         return new IssuedKey(summaryOf(issued.key()), issued.secret());
     }

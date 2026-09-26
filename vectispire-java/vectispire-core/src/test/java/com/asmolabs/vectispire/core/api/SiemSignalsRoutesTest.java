@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.platform.MaintenanceJobs;
 import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import com.asmolabs.vectispire.core.services.siem.SiemEvents;
@@ -259,8 +260,8 @@ class SiemSignalsRoutesTest extends ApiTestBase {
         UserEntity pending = users.findByUsername(mfaAccount()).orElseThrow();
         pending.setMfaEnabled(false);
         UserEntity user = users.save(pending);
-        String secret = totp.setup(user).secret();
-        List<String> codes = totp.enable(user, secret,
+        String secret = totp.setup(UserView.of(user)).secret();
+        List<String> codes = totp.enable(UserView.of(user), secret,
                 com.asmolabs.vectispire.common.domain.auth.Totp.generateCode(secret, Instant.now())).backupCodes();
 
         // An operation that signals on its own: USER_UPDATED is an account change whoever writes it.

@@ -14,8 +14,12 @@ import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.access.ApiKeyView;
 import com.asmolabs.vectispire.core.services.access.AuthService;
+import com.asmolabs.vectispire.core.services.access.SessionView;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,7 +64,7 @@ class BearerAuthenticationFilterTest {
     @Test
     @DisplayName("a session token becomes its account")
     void aSessionBecomesItsUser() throws Exception {
-        SessionEntity session = session(7L);
+        SessionView session = session(7L);
         when(auth.resolve("Bearer s")).thenReturn(Optional.of(session));
         when(auth.activeUserOf(session)).thenReturn(Optional.of(user(7L, true)));
 
@@ -71,7 +75,7 @@ class BearerAuthenticationFilterTest {
     @Test
     @DisplayName("a deactivated account is nobody, and its session is closed on the spot")
     void aDeactivatedAccountIsRefused() throws Exception {
-        SessionEntity session = session(7L);
+        SessionView session = session(7L);
         when(auth.resolve("Bearer s")).thenReturn(Optional.of(session));
         when(auth.activeUserOf(session)).thenReturn(Optional.empty());
 
@@ -89,8 +93,7 @@ class BearerAuthenticationFilterTest {
     @Test
     @DisplayName("an API key acts as an agent only with the agent scope")
     void onlyAnAgentKeyIsAnAgent() throws Exception {
-        ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(UUID.randomUUID());
+        ApiKeyView key = ApiKeyView.of(keyRow());
         when(apiKeys.resolve("zsk")).thenReturn(Optional.of(key));
         when(apiKeys.hasScope(key, ApiKeyScope.AGENT)).thenReturn(false);
 
@@ -101,10 +104,10 @@ class BearerAuthenticationFilterTest {
     @Test
     @DisplayName("an agent key becomes its agent, with the agent's visibility")
     void anAgentKeyIsItsAgent() throws Exception {
-        ApiKeyEntity key = new ApiKeyEntity();
-        key.setId(UUID.randomUUID());
-        AgentEntity agent = new AgentEntity();
-        agent.setId(UUID.randomUUID());
+        ApiKeyView key = ApiKeyView.of(keyRow());
+        AgentEntity row = new AgentEntity();
+        row.setId(UUID.randomUUID());
+        AgentView agent = AgentView.of(row);
         Visibility agents = Visibility.everything();
         when(apiKeys.resolve("zsk")).thenReturn(Optional.of(key));
         when(apiKeys.hasScope(key, ApiKeyScope.AGENT)).thenReturn(true);
@@ -133,17 +136,23 @@ class BearerAuthenticationFilterTest {
         return SecurityContextHolder.getContext().getAuthentication();
     }
 
-    private static SessionEntity session(long userId) {
+    private static SessionView session(long userId) {
         SessionEntity session = new SessionEntity();
         session.setUserId(userId);
-        return session;
+        return SessionView.of(session);
     }
 
-    private static UserEntity user(long id, boolean active) {
+    private static UserView user(long id, boolean active) {
         UserEntity user = new UserEntity();
         user.setId(id);
         user.setRole("USER");
         user.setIsActive(active);
-        return user;
+        return UserView.of(user);
+    }
+
+    private static ApiKeyEntity keyRow() {
+        ApiKeyEntity key = new ApiKeyEntity();
+        key.setId(UUID.randomUUID());
+        return key;
     }
 }

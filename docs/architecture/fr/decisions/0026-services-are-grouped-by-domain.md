@@ -109,7 +109,7 @@ Au-dessus du socle, chaque domaine ne peut utiliser que les domaines indiqués :
 | `ai`, `issues` | `access` |
 | `tickets` | `access`, `issues` |
 | `scanning` | `access`, `inventory`, `issues`, `rules` |
-| `agents` | `scanning` |
+| `agents` | `access`, `scanning` |
 | `targets` | `access`, `scanning` |
 | `threatintel` | `scanning`, `siem` |
 | `gate` | `issues`, `rules`, `siem` |

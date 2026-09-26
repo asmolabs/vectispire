@@ -57,14 +57,22 @@ public class TotpService {
 
     public record EnableResponse(boolean success, List<String> backupCodes) {}
 
-    public SetupResponse setup(UserEntity user) {
+    public SetupResponse setup(UserView user) {
         String secret = Totp.generateSecret();
         String issuer = "Vectispire";
-        String qrUri = Totp.qrCodeUri(user.getUsername(), secret, issuer);
+        String qrUri = Totp.qrCodeUri(user.username(), secret, issuer);
         return new SetupResponse(secret, qrUri, issuer);
     }
 
-    public EnableResponse enable(UserEntity user, String secret, String code) {
+    /**
+     * The row is read here, by the account's id: the caller holds a {@link UserView}, which carries
+     * no secret and is not something to save.
+     *
+     * @throws java.util.NoSuchElementException when the account is gone — only a deletion racing
+     *     this request, which the bearer filter found active
+     */
+    public EnableResponse enable(UserView account, String secret, String code) {
+        UserEntity user = users.findById(account.id()).orElseThrow();
         // Enrolling over an active factor replaced it with no proof of the old one: a session
         // left open on somebody's desk was enough to move their second factor onto one's own
         // phone. Disabling asks for a code, so replacing goes through disabling.
@@ -102,7 +110,9 @@ public class TotpService {
         return new EnableResponse(true, backupCodes);
     }
 
-    public void disable(UserEntity user, String code) {
+    /** Reads the row by the account's id, as {@link #enable} does. */
+    public void disable(UserView account, String code) {
+        UserEntity user = users.findById(account.id()).orElseThrow();
         // **The same budget as the sign-in challenge.** Disabling asks for a code, and it had no
         // ceiling: a session left open on somebody's desk could try codes here without limit and,
         // at a million possibilities, eventually disarm the factor. Wrong codes count against the

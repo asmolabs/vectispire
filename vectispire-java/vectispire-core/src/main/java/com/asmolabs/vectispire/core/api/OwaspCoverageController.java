@@ -159,6 +159,6 @@ public class OwaspCoverageController {
                         body.externalEvidence(),
                         body.owner(),
                         body.reviewDueAt()),
-                principal.user().map(user -> user.getUsername()).orElse("unknown"));
+                principal.user().map(user -> user.username()).orElse("unknown"));
     }
 }

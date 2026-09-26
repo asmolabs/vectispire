@@ -2,10 +2,10 @@ package com.asmolabs.vectispire.core.api.security;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.persistence.SessionEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.access.SessionView;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +20,12 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
  * session, no role and no password to change — and modelling them as two token classes would
  * mean every filter and every controller asking "which kind is this" before it can do
  * anything. One token that can answer both questions keeps that branch in one place.
+ *
+ * <p><b>Records, not rows.</b> It carried the {@code UserEntity}, {@code SessionEntity} and
+ * {@code AgentEntity} the filter loaded, which put a password hash and a TOTP secret within reach
+ * of every controller, and let a controller hand a row back to a service that saved it. It holds
+ * the services' views now; a service that needs the row reads it by id, and {@code
+ * ArchitectureTest} refuses any class of {@code api} that names a persistence type.
  */
 public final class VectispirePrincipal extends AbstractAuthenticationToken {
 
@@ -28,9 +34,9 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
     /** The authority prefix Spring Security expects on a role. */
     static final String ROLE_PREFIX = "ROLE_";
 
-    private final transient UserEntity user;
-    private final transient SessionEntity session;
-    private final transient AgentEntity agent;
+    private final transient UserView user;
+    private final transient SessionView session;
+    private final transient AgentView agent;
 
     /**
      * The narrowing the credential itself carries.
@@ -50,18 +56,18 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
     private final transient ApiKeyAuthService.Integration integration;
 
     private VectispirePrincipal(
-            UserEntity user,
-            SessionEntity session,
-            AgentEntity agent,
+            UserView user,
+            SessionView session,
+            AgentView agent,
             Visibility credentialRestriction,
             Collection<? extends GrantedAuthority> authorities) {
         this(user, session, agent, credentialRestriction, authorities, null);
     }
 
     private VectispirePrincipal(
-            UserEntity user,
-            SessionEntity session,
-            AgentEntity agent,
+            UserView user,
+            SessionView session,
+            AgentView agent,
             Visibility credentialRestriction,
             Collection<? extends GrantedAuthority> authorities,
             ApiKeyAuthService.Integration integration) {
@@ -82,7 +88,7 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
      * session: nothing about a key belongs to a browser.
      */
     public static VectispirePrincipal ofIntegration(ApiKeyAuthService.Integration integration) {
-        Role role = Role.of(integration.owner().getRole()).orElse(null);
+        Role role = Role.of(integration.owner().role()).orElse(null);
         List<GrantedAuthority> authorities = role == null
                 ? List.of()
                 : List.of(new SimpleGrantedAuthority(ROLE_PREFIX + role.name()));
@@ -94,8 +100,8 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         return Optional.ofNullable(integration);
     }
 
-    public static VectispirePrincipal ofUser(UserEntity user, SessionEntity session) {
-        Role role = Role.of(user.getRole()).orElse(null);
+    public static VectispirePrincipal ofUser(UserView user, SessionView session) {
+        Role role = Role.of(user.role()).orElse(null);
         List<GrantedAuthority> authorities = role == null
                 // An unreadable role authorizes nothing. Not a fallback to the least privileged
                 // role either: that would silently keep an account working after somebody
@@ -107,7 +113,7 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         return new VectispirePrincipal(user, session, null, Visibility.everything(), authorities);
     }
 
-    public static VectispirePrincipal ofAgent(AgentEntity agent, Visibility credentialRestriction) {
+    public static VectispirePrincipal ofAgent(AgentView agent, Visibility credentialRestriction) {
         return new VectispirePrincipal(
                 null, null, agent, credentialRestriction, List.of(new SimpleGrantedAuthority("SCOPE_AGENT")));
     }
@@ -126,20 +132,20 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         return credentialRestriction;
     }
 
-    public Optional<UserEntity> user() {
+    public Optional<UserView> user() {
         return Optional.ofNullable(user);
     }
 
-    public Optional<SessionEntity> session() {
+    public Optional<SessionView> session() {
         return Optional.ofNullable(session);
     }
 
-    public Optional<AgentEntity> agent() {
+    public Optional<AgentView> agent() {
         return Optional.ofNullable(agent);
     }
 
     /** The signed-in account, or a failure: for the routes where anonymity is already excluded. */
-    public UserEntity requireUser() {
+    public UserView requireUser() {
         return user().orElseThrow(() -> new IllegalStateException("This route requires a signed-in account."));
     }
 
@@ -190,11 +196,11 @@ public final class VectispirePrincipal extends AbstractAuthenticationToken {
         if (integration != null) {
             // The account, and the key beside it: every write the key makes is the account's, and
             // the audit entry must still say which credential made it.
-            return attribution(user.getUsername(), integration.keyName());
+            return attribution(user.username(), integration.keyName());
         }
         if (user != null) {
-            return user.getUsername();
+            return user.username();
         }
-        return agent != null ? "agent:" + agent.getName() : "anonymous";
+        return agent != null ? "agent:" + agent.name() : "anonymous";
     }
 }

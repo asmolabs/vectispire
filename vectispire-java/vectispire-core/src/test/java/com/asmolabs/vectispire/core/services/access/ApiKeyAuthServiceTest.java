@@ -92,8 +92,8 @@ class ApiKeyAuthServiceTest {
         ApiKeyEntity stored = key(null);
         stored.setScopes(" scan , read ");
 
-        assertThat(service.hasScope(stored, ApiKeyScope.SCAN)).isTrue();
-        assertThat(service.hasScope(stored, ApiKeyScope.AGENT)).isFalse();
+        assertThat(service.hasScope(ApiKeyView.of(stored), ApiKeyScope.SCAN)).isTrue();
+        assertThat(service.hasScope(ApiKeyView.of(stored), ApiKeyScope.AGENT)).isFalse();
     }
 
     private ApiKeyEntity key(Instant expiresAt) {

@@ -31,6 +31,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
@@ -176,10 +177,10 @@ class ScanDispatcherTest {
     @DisplayName("an unreadable credentials mode reads as local")
     void anUnknownModeDeliversNothing() {
         queueHolds(repositoryScan());
-        AgentEntity agent = agent(CredentialsMode.DELEGATED, null);
+        AgentEntity agent = agentRow(CredentialsMode.DELEGATED, null);
         agent.setCredentialsMode("something-a-later-version-wrote");
 
-        ScanTask task = dispatcher.claimForAgent(agent, true).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(AgentView.of(agent), true).orElseThrow().task();
 
         assertThat(repositoryTarget(task).privateKey()).isNull();
     }
@@ -215,20 +216,20 @@ class ScanDispatcherTest {
     @DisplayName("an agent's claim is held to its limit as the queue applies it, never to the raw column")
     void anAgentClaimsWithinItsEffectiveLimit() {
         queueHolds(imageScan());
-        AgentEntity agent = agent(CredentialsMode.LOCAL, null);
+        AgentEntity agent = agentRow(CredentialsMode.LOCAL, null);
 
         agent.setMaxConcurrent(4);
-        dispatcher.claimForAgent(agent, true);
+        dispatcher.claimForAgent(AgentView.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 4, List.of());
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
-        dispatcher.claimForAgent(agent, true);
+        dispatcher.claimForAgent(AgentView.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 16, List.of());
 
         agent.setMaxConcurrent(0);
-        dispatcher.claimForAgent(agent, true);
+        dispatcher.claimForAgent(AgentView.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 1, List.of());
     }
 
@@ -523,7 +524,11 @@ class ScanDispatcherTest {
         return key;
     }
 
-    private static AgentEntity agent(CredentialsMode mode, String sealingPublicKey) {
+    private static AgentView agent(CredentialsMode mode, String sealingPublicKey) {
+        return AgentView.of(agentRow(mode, sealingPublicKey));
+    }
+
+    private static AgentEntity agentRow(CredentialsMode mode, String sealingPublicKey) {
         AgentEntity agent = new AgentEntity();
         agent.setId(UUID.fromString("00000000-0000-0000-0000-0000000000bb"));
         agent.setCredentialsMode(mode.wireName());

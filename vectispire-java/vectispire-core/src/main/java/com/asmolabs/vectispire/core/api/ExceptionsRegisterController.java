@@ -100,7 +100,7 @@ public class ExceptionsRegisterController {
                 issueId,
                 body.outcome(),
                 body.comment(),
-                principal.user().map(user -> user.getUsername()).orElse(null),
+                principal.user().map(user -> user.username()).orElse(null),
                 body.newExpiry(),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }

@@ -13,7 +13,6 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.GitTokenEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
@@ -24,6 +23,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
@@ -210,14 +210,14 @@ public class ScanDispatcher {
      * CredentialsMode#DELEGATED} receives the repository's private key; sending it in the clear
      * hands it to whoever is listening. The scan is put back in the queue rather than entrusted.
      */
-    public Optional<AgentTask> claimForAgent(AgentEntity agent, boolean secureTransport) {
+    public Optional<AgentTask> claimForAgent(AgentView agent, boolean secureTransport) {
         // **Within the agent's limit, counted by the database.** The agent stops polling at its
         // limit too, but that is courtesy: two processes sharing a key, or an older agent that
         // never read the setting, would each believe they had room. The count is the one both
         // cannot get wrong, and a lowered limit therefore applies to the next claim while the
         // scans already running finish.
         Optional<ScanEntity> claimed = queue.claimWithin(
-                agent.getId(), AgentConcurrency.effective(agent.getMaxConcurrent()), AgentLabels.parse(agent.getLabels()));
+                agent.id(), AgentConcurrency.effective(agent.maxConcurrent()), AgentLabels.parse(agent.labels()));
         if (claimed.isEmpty()) {
             return Optional.empty();
         }
@@ -232,20 +232,20 @@ public class ScanDispatcher {
             String privateKey = privateKeyOf(task);
             ScanTask.Target.HttpsCredential https = httpsOf(task);
             if (privateKey != null || https != null) {
-                boolean sealed = SealedEnvelope.isUsablePublicKey(agent.getSealingPublicKey());
+                boolean sealed = SealedEnvelope.isUsablePublicKey(agent.sealingPublicKey());
                 if (sealed) {
                     // The token is sealed exactly as the key is (decision 0022); its host and user
                     // name are not secrets and travel in the clear, so the agent can enforce the
                     // binding before opening anything.
                     task = privateKey != null
-                            ? withPrivateKey(task, envelopes.seal(agent.getSealingPublicKey(), privateKey))
+                            ? withPrivateKey(task, envelopes.seal(agent.sealingPublicKey(), privateKey))
                             : withHttps(task, new ScanTask.Target.HttpsCredential(
-                                    https.host(), https.username(), envelopes.seal(agent.getSealingPublicKey(), https.token())));
+                                    https.host(), https.username(), envelopes.seal(agent.sealingPublicKey(), https.token())));
                     recordCredentialSent(agent, scan, "sealed for the agent's announced key");
                 } else if (!secureTransport) {
                     // Put back in the queue *before* refusing: otherwise the scan stays claimed by
                     // an agent that received nothing, until the lease lapses.
-                    queue.requeue(scan.getId(), agent.getId().toString());
+                    queue.requeue(scan.getId(), agent.id().toString());
                     throw new InsecureCredentialTransportException();
                 }
                 // An older agent announces no sealing key and therefore falls back on the
@@ -259,7 +259,7 @@ public class ScanDispatcher {
         } catch (InsecureCredentialTransportException refused) {
             throw refused;
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), agent.getId().toString(), String.valueOf(error.getMessage()));
+            queue.fail(scan.getId(), agent.id().toString(), String.valueOf(error.getMessage()));
             return Optional.empty();
         }
     }
@@ -272,13 +272,13 @@ public class ScanDispatcher {
      * only names the risky path cannot answer it. How it travelled is in the description, which is
      * where an auditor reading a specific entry looks.
      */
-    private void recordCredentialSent(AgentEntity agent, ScanEntity scan, String how) {
+    private void recordCredentialSent(AgentView agent, ScanEntity scan, String how) {
         audit.record(AuditLogService.Record.of(
                 AuditOperation.AGENT_CREDENTIAL_SENT,
                 String.valueOf(scan.getId()),
-                "Deployment key delegated to agent \"" + agent.getName() + "\" for scan " + scan.getId()
+                "Deployment key delegated to agent \"" + agent.name() + "\" for scan " + scan.getId()
                         + ", " + how + ".",
-                agent.getName()));
+                agent.name()));
     }
 
     /**
@@ -288,16 +288,16 @@ public class ScanDispatcher {
      * another worker has since taken is left alone. The attempt the claim counted is not refunded —
      * a scan that keeps going undelivered should reach its limit rather than circulate for ever.
      */
-    public void returnUndelivered(long scanId, AgentEntity agent) {
-        if (queue.requeue(scanId, agent.getId().toString())) {
+    public void returnUndelivered(long scanId, AgentView agent) {
+        if (queue.requeue(scanId, agent.id().toString())) {
             log.info("Scan {} was claimed for agent \"{}\" but never delivered — back in the queue.",
-                    scanId, agent.getName());
+                    scanId, agent.name());
         }
     }
 
     /** Extends the lease of a scan entrusted to this agent. */
-    public boolean renewAgentLease(long scanId, AgentEntity agent) {
-        return queue.renewLease(scanId, agent.getId().toString());
+    public boolean renewAgentLease(long scanId, AgentView agent) {
+        return queue.renewLease(scanId, agent.id().toString());
     }
 
     /**
@@ -306,12 +306,12 @@ public class ScanDispatcher {
      * <p>False when the lease was taken over in the meantime: the results are discarded rather
      * than written, so the successor's work is not overwritten.
      */
-    public boolean acceptAgentResult(long scanId, AgentEntity agent, ScanArtifacts artifacts) {
+    public boolean acceptAgentResult(long scanId, AgentView agent, ScanArtifacts artifacts) {
         // Read before the write, because recording the result clears the claim. Timed from the
         // claim rather than from the submission: what an operator wants to know is how long the
         // agent held the work, which is the number that grows when an agent is struggling.
         Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
-        boolean accepted = record(scanId, agent.getId().toString(), artifacts);
+        boolean accepted = record(scanId, agent.id().toString(), artifacts);
         metrics.scanFinishedSince(claimedAt, accepted, true);
         return accepted;
     }
@@ -614,7 +614,7 @@ public class ScanDispatcher {
      * <p>Never as {@code delegated}: the safe reading of "I do not know what this agent is
      * allowed" is "not the deployment key".
      */
-    private static CredentialsMode credentialsMode(AgentEntity agent) {
-        return CredentialsMode.byWireName(agent.getCredentialsMode()).orElse(CredentialsMode.LOCAL);
+    private static CredentialsMode credentialsMode(AgentView agent) {
+        return CredentialsMode.byWireName(agent.credentialsMode()).orElse(CredentialsMode.LOCAL);
     }
 }

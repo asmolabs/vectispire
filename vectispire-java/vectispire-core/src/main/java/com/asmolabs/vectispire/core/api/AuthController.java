@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
@@ -7,7 +8,6 @@ import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.AuthService;
 import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService;
 import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService.Handoff;
@@ -111,7 +111,7 @@ public class AuthController {
             case SignIn.ChallengeIssued challenge -> new LoginResponse(null, null, null, true, challenge.mfaToken());
             case SignIn.SignedIn signedIn -> new LoginResponse(
                     signedIn.issued().token(),
-                    signedIn.issued().session().getExpiresAt(),
+                    signedIn.issued().session().expiresAt(),
                     summaryOf(signedIn.user()),
                     false,
                     null);
@@ -141,7 +141,7 @@ public class AuthController {
             case Verification.Throttled throttled -> throw throttled(throttled.retryAfter());
             case Verification.Verified verified -> new LoginResponse(
                     verified.issued().token(),
-                    verified.issued().session().getExpiresAt(),
+                    verified.issued().session().expiresAt(),
                     summaryOf(verified.user()),
                     false,
                     null);
@@ -239,7 +239,7 @@ public class AuthController {
             case Handoff.AccountMissing ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found.");
             case Handoff.Exchanged exchanged ->
-                new LoginResponse(token, exchanged.session().getExpiresAt(), summaryOf(exchanged.user()), false, null);
+                new LoginResponse(token, exchanged.session().expiresAt(), summaryOf(exchanged.user()), false, null);
         };
     }
 
@@ -309,9 +309,9 @@ public class AuthController {
         return ResponseEntity.ok(summaryOf(principal.requireUser()));
     }
 
-    private static UserSummary summaryOf(UserEntity user) {
+    private static UserSummary summaryOf(UserView user) {
         return new UserSummary(
-                user.getUsername(), user.getDisplayName(), user.getRole(), user.getMustChangePassword(), user.getMfaEnabled());
+                user.username(), user.displayName(), user.role(), user.mustChangePassword(), user.mfaEnabled());
     }
 
     private static String text(String value) {

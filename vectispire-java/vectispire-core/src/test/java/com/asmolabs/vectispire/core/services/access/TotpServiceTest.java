@@ -50,8 +50,8 @@ class TotpServiceTest extends VectispireContextTest {
         user.setUpdatedAt(now);
         user = users.save(user);
 
-        String secret = totp.setup(user).secret();
-        List<String> codes = totp.enable(user, secret, Totp.generateCode(secret, now)).backupCodes();
+        String secret = totp.setup(UserView.of(user)).secret();
+        List<String> codes = totp.enable(UserView.of(user), secret, Totp.generateCode(secret, now)).backupCodes();
         return new Enrolled(users.findById(user.getId()).orElseThrow(), secret, codes);
     }
 
@@ -94,9 +94,9 @@ class TotpServiceTest extends VectispireContextTest {
     @DisplayName("enrolling over an active factor is refused: replacing it goes through disabling it")
     void anActiveFactorIsNotOverwritten() {
         Enrolled account = enrolled();
-        String attacker = totp.setup(account.user()).secret();
+        String attacker = totp.setup(UserView.of(account.user())).secret();
 
-        assertThatThrownBy(() -> totp.enable(account.user(), attacker, Totp.generateCode(attacker, clock.instant())))
+        assertThatThrownBy(() -> totp.enable(UserView.of(account.user()), attacker, Totp.generateCode(attacker, clock.instant())))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("already enabled");
         assertThat(totp.verify(account.user(), Totp.generateCode(account.secret(), clock.instant().plusSeconds(30))))

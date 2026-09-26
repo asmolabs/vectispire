@@ -30,7 +30,7 @@ public class PasswordChangeInterceptor implements HandlerInterceptor {
         if (!(authentication instanceof VectispirePrincipal principal)) {
             return true;
         }
-        boolean pending = principal.user().map(user -> user.getMustChangePassword()).orElse(false);
+        boolean pending = principal.user().map(user -> user.mustChangePassword()).orElse(false);
         if (!pending || allowsPending(method)) {
             return true;
         }

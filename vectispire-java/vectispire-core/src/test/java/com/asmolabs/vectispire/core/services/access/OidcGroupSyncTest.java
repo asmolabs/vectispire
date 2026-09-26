@@ -73,7 +73,7 @@ class OidcGroupSyncTest {
         teamNamed("AppSec", 5L);
         alreadyIn();
 
-        service.syncGroups(user, List.of("AppSec"));
+        service.syncGroups(UserView.of(user), List.of("AppSec"));
 
         assertThat(saved().getId()).isEqualTo(new TeamMemberEntity.Id(5L, 10L));
         assertThat(saved().getOrigin())
@@ -87,7 +87,7 @@ class OidcGroupSyncTest {
         teamNamed("AppSec", 5L);
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC));
 
-        service.syncGroups(user, List.of("AppSec"));
+        service.syncGroups(UserView.of(user), List.of("AppSec"));
 
         verify(teamMembers, never()).save(any(TeamMemberEntity.class));
     }
@@ -102,7 +102,7 @@ class OidcGroupSyncTest {
         TeamMemberEntity gone = new TeamMemberEntity(9L, 10L, TeamMemberEntity.Origin.OIDC);
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC), gone);
 
-        service.syncGroups(user, List.of("AppSec"));
+        service.syncGroups(UserView.of(user), List.of("AppSec"));
 
         verify(teamMembers).delete(gone);
     }
@@ -117,7 +117,7 @@ class OidcGroupSyncTest {
         TeamMemberEntity byScim = new TeamMemberEntity(8L, 10L, TeamMemberEntity.Origin.SCIM);
         alreadyIn(byHand, byScim);
 
-        service.syncGroups(user, List.of("AppSec"));
+        service.syncGroups(UserView.of(user), List.of("AppSec"));
 
         verify(teamMembers, never()).delete(byHand);
         verify(teamMembers, never()).delete(byScim);
@@ -131,8 +131,8 @@ class OidcGroupSyncTest {
         // everybody off at the first missed setting.
         alreadyIn(new TeamMemberEntity(5L, 10L, TeamMemberEntity.Origin.OIDC));
 
-        service.syncGroups(user, List.of());
-        service.syncGroups(user, null);
+        service.syncGroups(UserView.of(user), List.of());
+        service.syncGroups(UserView.of(user), null);
 
         verify(teamMembers, never()).delete(any(TeamMemberEntity.class));
     }
@@ -144,7 +144,7 @@ class OidcGroupSyncTest {
         when(teams.findByNameIgnoreCase("Comptabilité")).thenReturn(Optional.empty());
         alreadyIn();
 
-        service.syncGroups(user, List.of("Comptabilité"));
+        service.syncGroups(UserView.of(user), List.of("Comptabilité"));
 
         verify(teamMembers, never()).save(any(TeamMemberEntity.class));
         verify(teamMembers, never()).delete(any(TeamMemberEntity.class));

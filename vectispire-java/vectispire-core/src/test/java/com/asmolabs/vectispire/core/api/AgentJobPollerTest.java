@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
@@ -30,7 +31,7 @@ class AgentJobPollerTest {
     private final ScanDispatcher dispatcher = mock(ScanDispatcher.class);
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final AtomicReference<Runnable> recheck = new AtomicReference<>();
-    private final AgentEntity agent = new AgentEntity();
+    private final AgentView agent = AgentView.of(new AgentEntity());
 
     @Test
     @DisplayName("a scan claimed after the agent stopped listening goes straight back to the queue")
@@ -71,16 +72,18 @@ class AgentJobPollerTest {
     void everyAnswerCarriesTheLimit() {
         // The 204 is the answer an agent waiting at its limit receives: if it did not carry the
         // new value, a raised limit would reach the agent only at its next restart.
-        agent.setMaxConcurrent(3);
+        AgentEntity row = new AgentEntity();
+        row.setMaxConcurrent(3);
+        AgentView limited = AgentView.of(row);
         AgentJobPoller poller = poller();
 
         when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
-        ResponseEntity<?> none = (ResponseEntity<?>) poller.claim(agent, true, Duration.ZERO).getResult();
+        ResponseEntity<?> none = (ResponseEntity<?>) poller.claim(limited, true, Duration.ZERO).getResult();
         assertThat(none.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(none.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
 
         when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
-        ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(agent, true, Duration.ZERO).getResult();
+        ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(limited, true, Duration.ZERO).getResult();
         assertThat(one.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(one.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
     }

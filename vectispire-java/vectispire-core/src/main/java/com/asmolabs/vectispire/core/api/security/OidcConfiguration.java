@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.api.security;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.access.AuthService;
 import com.asmolabs.vectispire.core.services.access.ExternalIdentityService;
@@ -168,7 +168,7 @@ public class OidcConfiguration {
                 // subject to an account on its way out.
                 String secondFactor = secondFactors.require(
                         oidc.getClaimAsStringList("amr"), oidc.getClaimAsString("acr"));
-                UserEntity user = identities.resolve(
+                UserView user = identities.resolve(
                         oidc.getSubject(),
                         oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
                         new ExternalIdentityService.Claimed(
@@ -187,9 +187,9 @@ public class OidcConfiguration {
 
                 audit.record(new AuditLogService.Record(
                         AuditOperation.LOGIN_SUCCESS,
-                        user.getUsername(),
+                        user.username(),
                         "Signed in through " + oidc.getIssuer() + ", " + secondFactor,
-                        user.getUsername(),
+                        user.username(),
                         request.getRemoteAddr(),
                         request.getHeader("User-Agent")));
 

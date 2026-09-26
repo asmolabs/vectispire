@@ -96,7 +96,7 @@ public class VexIngestorService {
      *     takes no triage decision under them
      */
     public IngestionResult ingestPayload(String payload, IssueDecisionService.Caller caller) {
-        if (caller.user().flatMap(user -> Role.of(user.getRole())).map(Role::governsPlatform).orElse(false)) {
+        if (caller.user().flatMap(user -> Role.of(user.role())).map(Role::governsPlatform).orElse(false)) {
             throw new AccessDeniedException(
                     "Importing VEX settles triage decisions, and the platform governor takes none: "
                             + "it decides the rules the others act under.");
@@ -138,7 +138,7 @@ public class VexIngestorService {
     /** Four-eyes, exactly as {@code IssueDecisionService} applies it to a decision taken by hand. */
     private boolean canApprove(IssueDecisionService.Caller caller) {
         return !settings.isEnabled(Setting.FOUR_EYES_APPROVAL_REQUIRED) || caller.user()
-                .flatMap(user -> Role.of(user.getRole()))
+                .flatMap(user -> Role.of(user.role()))
                 .map(Role::canApproveTriage)
                 .orElse(false);
     }

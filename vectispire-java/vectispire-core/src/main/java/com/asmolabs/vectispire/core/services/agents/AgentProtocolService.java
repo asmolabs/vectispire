@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
@@ -82,7 +82,7 @@ public class AgentProtocolService {
      * <p>If this call answers, the URL, the key, the scope and the agent row are all correct —
      * that is, most of what can be misconfigured.
      */
-    public Hello hello(AgentEntity agent, Announcement announcement) {
+    public Hello hello(AgentView agent, Announcement announcement) {
         String announced = announcement.contractVersion() == null ? "" : announcement.contractVersion();
 
         if (!AgentContract.isCompatible(announced)) {
@@ -106,7 +106,7 @@ public class AgentProtocolService {
         // decide something, the contract version and the sealing key, are checked above and never
         // clipped.
         agents.recordHeartbeat(
-                agent.getId(),
+                agent.id(),
                 clock.instant(),
                 BoundedText.clip(text(announcement.hostname()), 255),
                 BoundedText.clip(text(announcement.platform()), 255),
@@ -118,7 +118,7 @@ public class AgentProtocolService {
                 announced.trim(),
                 sealingKey);
 
-        return new Hello.Accepted(AgentConcurrency.effective(agent.getMaxConcurrent()));
+        return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()));
     }
 
     /**
@@ -132,7 +132,7 @@ public class AgentProtocolService {
      * <p><b>The body arrives as bytes, and that is what the signature covers.</b> Parsing first
      * and verifying the re-serialization would verify what the server chose to write.
      */
-    public Submission submitResult(AgentEntity agent, long scanId, byte[] body, String signature, RequestActor origin) {
+    public Submission submitResult(AgentView agent, long scanId, byte[] body, String signature, RequestActor origin) {
         if (!attested(agent, scanId, body, signature, origin)) {
             return new Submission.NotAttested();
         }
@@ -151,9 +151,9 @@ public class AgentProtocolService {
         audit.record(new AuditLogService.Record(
                 AuditOperation.AGENT_RESULT_SUBMITTED,
                 String.valueOf(scanId),
-                "Result accepted from agent \"" + agent.getName() + "\""
-                        + (agent.getSigningPublicKey() == null ? " (not attested)." : ", attestation verified."),
-                agent.getName(),
+                "Result accepted from agent \"" + agent.name() + "\""
+                        + (agent.signingPublicKey() == null ? " (not attested)." : ", attestation verified."),
+                agent.name(),
                 origin.ipAddress(),
                 origin.userAgent()));
 
@@ -170,8 +170,8 @@ public class AgentProtocolService {
      * <p>The refusal is audited here, before the caller answers, because a probe that leaves no
      * trace is the one nobody investigates.
      */
-    private boolean attested(AgentEntity agent, long scanId, byte[] body, String signature, RequestActor origin) {
-        String pinned = agent.getSigningPublicKey();
+    private boolean attested(AgentView agent, long scanId, byte[] body, String signature, RequestActor origin) {
+        String pinned = agent.signingPublicKey();
         if (pinned == null || pinned.isBlank()) {
             return true;
         }
@@ -185,8 +185,8 @@ public class AgentProtocolService {
                 (signature == null || signature.isBlank()
                                 ? "Result submitted with no attestation"
                                 : "Result submitted with an attestation that does not verify")
-                        + " by agent \"" + agent.getName() + "\", whose signing key is pinned.",
-                agent.getName(),
+                        + " by agent \"" + agent.name() + "\", whose signing key is pinned.",
+                agent.name(),
                 origin.ipAddress(),
                 origin.userAgent()));
         return false;

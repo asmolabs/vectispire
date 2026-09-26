@@ -139,7 +139,7 @@ public class StatementOfApplicabilityController {
                         body.externalEvidence(),
                         body.owner(),
                         body.reviewDueAt()),
-                principal.user().map(user -> user.getUsername()).orElse(null));
+                principal.user().map(user -> user.username()).orElse(null));
     }
 
     private com.asmolabs.vectispire.common.domain.access.Visibility allowed(VectispirePrincipal principal) {

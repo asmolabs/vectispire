@@ -102,7 +102,7 @@ public class ExternalIdentityService {
     }
 
     /** A username claim alone — what a provider sending no email amounts to. */
-    public UserEntity resolve(String subject, String issuer, String claimedName) {
+    public UserView resolve(String subject, String issuer, String claimedName) {
         return resolve(subject, issuer, new Claimed(claimedName, null, false));
     }
 
@@ -130,7 +130,11 @@ public class ExternalIdentityService {
      * @param issuer which provider vouched for it. Required, and <b>not</b> part of the lookup
      */
     @Transactional
-    public UserEntity resolve(String subject, String issuer, Claimed claimed) {
+    public UserView resolve(String subject, String issuer, Claimed claimed) {
+        return UserView.of(bind(subject, issuer, claimed));
+    }
+
+    private UserEntity bind(String subject, String issuer, Claimed claimed) {
         if (subject == null || subject.isBlank() || issuer == null || issuer.isBlank()) {
             throw new SignInRefusedException(Refusal.NO_SUBJECT, "The identity provider returned no usable subject.");
         }
@@ -210,7 +214,7 @@ public class ExternalIdentityService {
      * mass revocation.
      */
     @Transactional
-    public void syncGroups(UserEntity user, List<String> groupNames) {
+    public void syncGroups(UserView user, List<String> groupNames) {
         if (groupNames == null || groupNames.isEmpty() || teams.isEmpty() || teamMembers.isEmpty()) {
             return;
         }
@@ -227,13 +231,13 @@ public class ExternalIdentityService {
                     .ifPresent(team -> claimed.add(team.getId()));
         }
 
-        List<TeamMemberEntity> held = membersRepo.findByUserId(user.getId());
+        List<TeamMemberEntity> held = membersRepo.findByUserId(user.id());
         Set<Long> alreadyIn = held.stream().map(m -> m.getId().teamId()).collect(Collectors.toSet());
 
         for (Long teamId : claimed) {
             if (!alreadyIn.contains(teamId)) {
-                membersRepo.save(new TeamMemberEntity(teamId, user.getId(), TeamMemberEntity.Origin.OIDC));
-                log.info("OIDC sync: user '{}' joined team {}", user.getUsername(), teamId);
+                membersRepo.save(new TeamMemberEntity(teamId, user.id(), TeamMemberEntity.Origin.OIDC));
+                log.info("OIDC sync: user '{}' joined team {}", user.username(), teamId);
             }
         }
 
@@ -242,7 +246,7 @@ public class ExternalIdentityService {
                     && !claimed.contains(membership.getId().teamId())) {
                 membersRepo.delete(membership);
                 log.info("OIDC sync: user '{}' left team {} — no longer in the claim",
-                        user.getUsername(), membership.getId().teamId());
+                        user.username(), membership.getId().teamId());
             }
         }
     }
