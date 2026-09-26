@@ -24,7 +24,7 @@ import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.MaintenanceJobs;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
-import com.asmolabs.vectispire.core.services.SiemEvents;
+import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;

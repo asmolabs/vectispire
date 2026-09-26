@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.core.repositories.ThreatIntelSyncs;
 import com.asmolabs.vectispire.core.repositories.ThreatIntels;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
+import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;

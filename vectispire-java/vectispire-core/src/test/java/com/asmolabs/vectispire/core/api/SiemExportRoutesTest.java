@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.asmolabs.vectispire.core.services.MaintenanceJobs;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
-import com.asmolabs.vectispire.core.services.SiemEvents;
+import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import java.io.InputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
