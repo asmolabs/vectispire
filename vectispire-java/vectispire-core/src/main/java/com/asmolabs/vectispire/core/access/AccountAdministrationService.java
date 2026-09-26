@@ -14,7 +14,6 @@ import com.asmolabs.vectispire.core.access.persistence.UserTargets;
 import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -52,7 +51,7 @@ public class AccountAdministrationService {
     private final AuditLogService audit;
     private final Clock clock;
     private final GrantTargets grantTargets;
-    private final TargetNaming naming;
+    private final GrantableTargets targets;
 
     public AccountAdministrationService(
             Users users,
@@ -62,7 +61,7 @@ public class AccountAdministrationService {
             AuditLogService audit,
             Clock clock,
             GrantTargets grantTargets,
-            TargetNaming naming) {
+            GrantableTargets targets) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;
@@ -70,14 +69,14 @@ public class AccountAdministrationService {
         this.audit = audit;
         this.clock = clock;
         this.grantTargets = grantTargets;
-        this.naming = naming;
+        this.targets = targets;
     }
 
     /** An account and how many live sessions it holds. */
     public record AccountView(UserView user, long activeSessions) {}
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
 
@@ -219,9 +218,9 @@ public class AccountAdministrationService {
      * <p>A project grant is listed as the project, not as its repositories: the grant is what an
      * administrator made and can revoke, and what it resolves to changes as repositories are filed.
      */
-    public List<TargetNaming.TargetGrant> targets(long id) {
+    public List<GrantableTargets.TargetGrant> targets(long id) {
         requireAccount(id);
-        return naming.named(assignments.findByUserId(id).stream()
+        return targets.named(assignments.findByUserId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .toList());
     }
@@ -241,7 +240,7 @@ public class AccountAdministrationService {
      * @param requested as sent, possibly null or holding nulls
      * @return the assignments as stored, which is what the screen must show — not what it sent
      */
-    public List<TargetNaming.TargetGrant> replaceTargets(
+    public List<GrantableTargets.TargetGrant> replaceTargets(
             long id, List<TargetAssignment> requested, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
@@ -265,7 +264,7 @@ public class AccountAdministrationService {
         record(actor, id,
                 "Visible targets of " + user.getUsername() + ": "
                         + (wanted.isEmpty() ? "none" : wanted.size() + " assigned"));
-        return naming.named(wanted);
+        return targets.named(wanted);
     }
 
     /** @param actingAccountId as for {@link #update}: refuses deleting one's own account */

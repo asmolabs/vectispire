@@ -18,7 +18,6 @@ import com.asmolabs.vectispire.core.access.persistence.Teams;
 import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -67,7 +66,7 @@ public class TeamAdministrationService {
     private final AuditLogService audit;
     private final Clock clock;
     private final GrantTargets grantTargets;
-    private final TargetNaming naming;
+    private final GrantableTargets grantable;
 
     public TeamAdministrationService(
             Teams teams,
@@ -80,7 +79,7 @@ public class TeamAdministrationService {
             AuditLogService audit,
             Clock clock,
             GrantTargets grantTargets,
-            TargetNaming naming) {
+            GrantableTargets grantable) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
@@ -91,7 +90,7 @@ public class TeamAdministrationService {
         this.audit = audit;
         this.clock = clock;
         this.grantTargets = grantTargets;
-        this.naming = naming;
+        this.grantable = grantable;
     }
 
     /**
@@ -118,7 +117,7 @@ public class TeamAdministrationService {
     }
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
-    public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
+    public record TargetAssignment(String kind, Long id) implements GrantableTargets.Grant {}
 
     public List<TeamView> list() {
         // Counted in two queries rather than in one per team: the screen shows every team, and a
@@ -251,9 +250,9 @@ public class TeamAdministrationService {
     }
 
     /** What the team owns, each target named — a project grant included, which no selector lists. */
-    public List<TargetNaming.TargetGrant> targets(long id) {
+    public List<GrantableTargets.TargetGrant> targets(long id) {
         requireTeam(id);
-        return naming.named(targets.findByTeamId(id).stream()
+        return grantable.named(targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
                 .toList());
     }
@@ -264,7 +263,7 @@ public class TeamAdministrationService {
      * @param requested as sent; a null entry, or one with no id, is skipped
      * @return the assignments as stored, named
      */
-    public List<TargetNaming.TargetGrant> replaceTargets(
+    public List<GrantableTargets.TargetGrant> replaceTargets(
             long id, List<TargetAssignment> requested, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         List<TargetAssignment> wanted = new ArrayList<>();
@@ -284,7 +283,7 @@ public class TeamAdministrationService {
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Targets of " + team.getName() + ": " + wanted.size());
-        return naming.named(wanted);
+        return grantable.named(wanted);
     }
 
     /**

@@ -16,7 +16,6 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.asmolabs.vectispire.core.services.targets.TargetScans.LatestScan;
 import java.util.List;
 import java.util.Map;

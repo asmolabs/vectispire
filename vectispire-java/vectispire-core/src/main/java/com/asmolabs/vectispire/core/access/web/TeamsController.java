@@ -1,12 +1,12 @@
 package com.asmolabs.vectispire.core.access.web;
 
-import com.asmolabs.vectispire.core.access.TeamAdministrationService;
+import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.TeamAdministrationService.TeamView;
+import com.asmolabs.vectispire.core.access.TeamAdministrationService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -125,12 +125,12 @@ public class TeamsController {
     }
 
     @GetMapping("/{id}/targets")
-    public List<TargetNaming.TargetGrant> targets(@PathVariable long id) {
+    public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
         return teams.targets(id);
     }
 
     @PutMapping("/{id}/targets")
-    public List<TargetNaming.TargetGrant> setTargets(
+    public List<GrantableTargets.TargetGrant> setTargets(
             @PathVariable long id,
             @RequestBody List<TeamTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,

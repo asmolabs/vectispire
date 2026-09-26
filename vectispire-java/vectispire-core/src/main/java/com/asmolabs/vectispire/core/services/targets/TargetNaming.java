@@ -1,8 +1,11 @@
-package com.asmolabs.vectispire.core.services.shared;
+package com.asmolabs.vectispire.core.services.targets;
 
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.access.GrantableTargets.Grant;
+import com.asmolabs.vectispire.core.access.GrantableTargets.TargetGrant;
+import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
@@ -46,27 +49,10 @@ public class TargetNaming {
         this.solutions = solutions;
     }
 
-    /** A grant as the account and team administration hold one: a kind and an identifier. */
-    public interface Grant {
-        String kind();
-
-        Long id();
-    }
-
     /**
-     * A grant as a screen lists it.
-     *
-     * <p>Named here rather than left to the client to look up. The client used to label a grant
-     * from the list of repositories and images it fetched for the selector; a project is in
-     * neither, so a project grant would have been listed as a bare number — or, worse, not at all,
-     * on the screen whose job is to say what somebody can read.
-     *
-     * @param name what the target is called now, {@link TargetNaming#DELETED} when it no longer exists — a
-     *     grant row outliving its target is worth seeing rather than hiding
+     * The grants, in the order given, each with its target's name — three queries at most. The grant
+     * types are {@code access}'s, which asks through {@link GrantableTargets}.
      */
-    public record TargetGrant(String kind, Long id, String name) {}
-
-    /** The grants, in the order given, each with its target's name — three queries at most. */
     @Transactional(readOnly = true)
     public List<TargetGrant> named(List<? extends Grant> grants) {
         Names names = forIds(idsOf(grants, TeamRules.KIND_REPOSITORY), idsOf(grants, TeamRules.KIND_CONTAINER));

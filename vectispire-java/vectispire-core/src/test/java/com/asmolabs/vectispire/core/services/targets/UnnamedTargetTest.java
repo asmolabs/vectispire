@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.shared;
+package com.asmolabs.vectispire.core.services.targets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

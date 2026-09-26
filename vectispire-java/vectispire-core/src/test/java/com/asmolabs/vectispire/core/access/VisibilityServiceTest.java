@@ -20,7 +20,6 @@ import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.Collection;
 import java.util.List;
@@ -48,7 +47,7 @@ class VisibilityServiceTest {
     private final UserTargets assignments = mock(UserTargets.class);
     private final TeamMembers memberships = mock(TeamMembers.class);
     private final TeamTargets teamTargets = mock(TeamTargets.class);
-    private final GitRepositories repositories = mock(GitRepositories.class);
+    private final GrantableTargets repositories = mock(GrantableTargets.class);
 
     private final VisibilityService service =
             new VisibilityService(settings, assignments, memberships, teamTargets, repositories);
@@ -67,13 +66,13 @@ class VisibilityServiceTest {
         when(memberships.findByUserId(USER)).thenReturn(List.of(new TeamMemberEntity(TEAM, USER)));
         when(teamTargets.findByTeamIdIn(List.of(TEAM)))
                 .thenReturn(List.of(new TeamTargetEntity(TEAM, "project", 20L)));
-        when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L));
+        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L));
 
         Visibility visibility = service.of(UserView.of(reader()));
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Collection<Long>> asked = ArgumentCaptor.forClass(Collection.class);
-        verify(repositories).findIdsByProjectIdIn(asked.capture());
+        verify(repositories).repositoriesIn(asked.capture());
         assertThat(asked.getValue()).containsExactlyInAnyOrder(10L, 20L);
 
         assertThat(visibility.asFilter()).contains(Set.of(
@@ -89,11 +88,11 @@ class VisibilityServiceTest {
         when(memberships.findByUserId(USER)).thenReturn(List.of());
         // Were the guard gone, this is what an unguarded `in ()` would answer on the engines where
         // it matches everything: every repository filed anywhere.
-        when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L, 300L));
+        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L, 300L));
 
         Visibility visibility = service.of(UserView.of(reader()));
 
-        verify(repositories, never()).findIdsByProjectIdIn(any());
+        verify(repositories, never()).repositoriesIn(any());
         assertThat(visibility.asFilter()).contains(Set.of(new ScanTarget.Repository(1L)));
     }
 
@@ -102,7 +101,7 @@ class VisibilityServiceTest {
     void anEmptyProjectGrantsNothingButIsKnown() {
         when(assignments.findByUserId(USER)).thenReturn(List.of(new UserTargetEntity(USER, "project", 10L)));
         when(memberships.findByUserId(USER)).thenReturn(List.of());
-        when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of());
+        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of());
 
         VisibilityService.Allowance allowance = service.allowance(UserView.of(reader()), Visibility.everything());
 
@@ -115,7 +114,7 @@ class VisibilityServiceTest {
     void aRestrictedCredentialStaysNarrow() {
         when(assignments.findByUserId(USER)).thenReturn(List.of(new UserTargetEntity(USER, "project", 10L)));
         when(memberships.findByUserId(USER)).thenReturn(List.of());
-        when(repositories.findIdsByProjectIdIn(anyCollection())).thenReturn(List.of(100L, 200L));
+        when(repositories.repositoriesIn(anyCollection())).thenReturn(List.of(100L, 200L));
 
         VisibilityService.Allowance allowance =
                 service.allowance(UserView.of(reader()), Visibility.only(List.of(new ScanTarget.Repository(100L))));

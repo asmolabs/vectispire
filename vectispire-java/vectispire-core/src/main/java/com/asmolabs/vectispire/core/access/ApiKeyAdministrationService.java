@@ -11,9 +11,6 @@ import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
 import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
@@ -32,9 +29,7 @@ import org.springframework.stereotype.Service;
 public class ApiKeyAdministrationService {
 
     private final ApiKeysRepository keys;
-    private final GitRepositories repositories;
-    private final Containers containers;
-    private final TargetNaming naming;
+    private final GrantableTargets targets;
     private final AuditLogService audit;
     private final Clock clock;
     private final Users users;
@@ -48,17 +43,13 @@ public class ApiKeyAdministrationService {
 
     public ApiKeyAdministrationService(
             ApiKeysRepository keys,
-            GitRepositories repositories,
-            Containers containers,
-            TargetNaming naming,
+            GrantableTargets targets,
             AuditLogService audit,
             Clock clock,
             Users users,
             VisibilityService visibility) {
         this.keys = keys;
-        this.repositories = repositories;
-        this.containers = containers;
-        this.naming = naming;
+        this.targets = targets;
         this.audit = audit;
         this.clock = clock;
         this.users = users;
@@ -100,7 +91,7 @@ public class ApiKeyAdministrationService {
 
     public List<KeyView> list() {
         Instant asOf = clock.instant();
-        TargetNaming.Names names = naming.all();
+        GrantableTargets.Labels names = targets.labels();
         Map<Long, String> owners = new HashMap<>();
         users.findAll().forEach(user -> owners.put(user.getId(), user.getUsername()));
         return keys.findAllByOrderByCreatedAtDesc().stream()
@@ -162,7 +153,7 @@ public class ApiKeyAdministrationService {
         Map<Long, String> owner = users.findById(saved.getOwnerUserId())
                 .map(user -> Map.of(user.getId(), user.getUsername()))
                 .orElse(Map.of());
-        return new Issued(viewOf(saved, issuedAt, naming.all(), owner), issued.fullKey());
+        return new Issued(viewOf(saved, issuedAt, targets.labels(), owner), issued.fullKey());
     }
 
     public void revoke(UUID id, RequestActor actor) {
@@ -176,15 +167,12 @@ public class ApiKeyAdministrationService {
 
     /** The targets a key can be restricted to, so the screen offers names rather than numbers. */
     public TargetOptions targets() {
+        GrantableTargets.Labels labels = targets.labels();
         List<TargetOption> repositoryOptions = new ArrayList<>();
-        repositories.findAll()
-                .forEach(repository -> repositoryOptions.add(
-                        new TargetOption(repository.getId(), TargetNaming.of(repository))));
+        labels.repositories().forEach((id, label) -> repositoryOptions.add(new TargetOption(id, label)));
 
         List<TargetOption> containerOptions = new ArrayList<>();
-        containers.findAll()
-                .forEach(container -> containerOptions.add(
-                        new TargetOption(container.getId(), TargetNaming.of(container))));
+        labels.containers().forEach((id, label) -> containerOptions.add(new TargetOption(id, label)));
 
         return new TargetOptions(repositoryOptions, containerOptions);
     }
@@ -201,9 +189,7 @@ public class ApiKeyAdministrationService {
         ScanTarget target = "repository".equals(targetKind)
                 ? new ScanTarget.Repository(targetId)
                 : new ScanTarget.Container(targetId);
-        boolean exists = "repository".equals(targetKind)
-                ? repositories.existsById(targetId)
-                : containers.existsById(targetId);
+        boolean exists = targets.exists(target);
         boolean visible = exists && users.findById(ownerUserId)
                 .map(owner -> visibility.of(UserView.of(owner)).permits(target))
                 .orElse(false);
@@ -232,7 +218,7 @@ public class ApiKeyAdministrationService {
         return kind;
     }
 
-    private static KeyView viewOf(ApiKeyEntity key, Instant asOf, TargetNaming.Names names, Map<Long, String> owners) {
+    private static KeyView viewOf(ApiKeyEntity key, Instant asOf, GrantableTargets.Labels names, Map<Long, String> owners) {
         return new KeyView(
                 key.getId(),
                 key.getName(),
@@ -251,7 +237,7 @@ public class ApiKeyAdministrationService {
     }
 
     /** A target deleted since the key was issued: say so rather than showing a blank. */
-    private static String targetLabel(ApiKeyEntity key, TargetNaming.Names names) {
+    private static String targetLabel(ApiKeyEntity key, GrantableTargets.Labels names) {
         if (key.getTargetKind() == null || key.getTargetId() == null) {
             return null;
         }

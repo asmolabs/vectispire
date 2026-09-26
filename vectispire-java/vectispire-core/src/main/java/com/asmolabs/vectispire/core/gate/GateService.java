@@ -31,7 +31,7 @@ import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
+import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
 import java.util.ArrayList;

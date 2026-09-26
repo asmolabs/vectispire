@@ -1,12 +1,12 @@
 package com.asmolabs.vectispire.core.access.web;
 
-import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
+import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -115,13 +115,13 @@ public class UsersController {
 
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
-    public List<TargetNaming.TargetGrant> targets(@PathVariable long id) {
+    public List<GrantableTargets.TargetGrant> targets(@PathVariable long id) {
         return accounts.targets(id);
     }
 
     /** Replaces the set wholesale, so that removing a target is something the screen can do. */
     @PutMapping("/{id}/targets")
-    public List<TargetNaming.TargetGrant> setTargets(
+    public List<GrantableTargets.TargetGrant> setTargets(
             @PathVariable long id,
             @RequestBody List<UserTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,

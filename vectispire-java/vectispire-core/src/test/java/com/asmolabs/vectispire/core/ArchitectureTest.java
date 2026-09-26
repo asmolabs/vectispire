@@ -197,17 +197,21 @@ class ArchitectureTest {
     }
 
     /**
-     * The domains every other domain may use: the helper left without a domain, the deployment's
-     * settings, the door out, encryption, the audit writer, the outbox relay and the PDF pagination
-     * four domains' reports share (decision 0026). Declared to Spring Modulith as its shared modules,
+     * The domains every other domain may use: the deployment's settings, the door out, encryption,
+     * the audit writer, the outbox relay and the PDF pagination four domains' reports share (decision
+     * 0026). Declared to Spring Modulith as its shared modules,
      * on {@link VectispireApplication}, for the same reason (decision 0028).
      *
      * <p>{@code reporting} joined on 2026-09-26, when {@code ReportCursor} left {@code shared}: it is
      * a capability like {@code outbound} — how a page is laid out, not what it says — and a copy per
      * domain would be four answers to "did this page overflow", the defect the class exists for.
+     *
+     * <p>{@code shared} left it in step 5, empty: its last class, {@code TargetNaming}, went to {@code
+     * targets} (decision 0029). No longer a known domain, a class dropped back into {@code
+     * core.services.shared} fails {@link #everyServiceLivesInAKnownDomain}.
      */
     private static final Set<String> FOUNDATION =
-            Set.of("shared", "settings", "outbound", "crypto", "audit", "outbox", "reporting");
+            Set.of("settings", "outbound", "crypto", "audit", "outbox", "reporting");
 
     /**
      * What each domain may use besides itself — and, above the foundation, besides the foundation.
@@ -223,9 +227,16 @@ class ArchitectureTest {
      * controller calling another domain's service, belonged to no domain and was checked by nothing.
      * The edges that surfaced when a domain became a module are in this table with the reason each
      * exists (decision 0028).
+     *
+     * <p><b>{@code targets} in most rows since step 5.</b> Every domain that shows, routes or reports
+     * on a target names it through {@code TargetNaming}, which sat in {@code shared}, the foundation,
+     * while {@code targets} used {@code access} and {@code scanning}. Once {@code targets} used nothing
+     * but {@code access} — its figures and its "scan now" became ports — the names could go home, and
+     * those domains' dependency on the targets became a line of this table instead of a foundation
+     * class (decision 0029). {@code targets} uses only {@code access}, so none of these lines can close
+     * a cycle.
      */
     private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
-            Map.entry("shared", Set.of()),
             Map.entry("settings", Set.of()),
             Map.entry("outbound", Set.of()),
             // `settings` since the foundation became modules: the document signing key is kept in a
@@ -245,7 +256,7 @@ class ArchitectureTest {
             // `rules` implements. Called the other way, `scanning` -> `rules` -> `inventory` ->
             // `scanning` would be a cycle once the inventory reads scans through their module.
             Map.entry("rules", Set.of("inventory", "scanning")),
-            Map.entry("inventory", Set.of()),
+            Map.entry("inventory", Set.of("targets")),
             Map.entry("ai", Set.of("access")),
             // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
             // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
@@ -254,7 +265,7 @@ class ArchitectureTest {
             // issue the policy of its scope would fail on, so it evaluates the gate, and asks `gate`
             // for the policies in force instead of reading their table from below it. `gate` uses
             // nothing that uses `tickets` (the tracker implements `issues`' `TicketReferences`).
-            Map.entry("tickets", Set.of("access", "gate", "issues")),
+            Map.entry("tickets", Set.of("access", "gate", "issues", "targets")),
             // `targets` since step 5: a scan is of a target — the dispatcher reads its row and
             // credentials, the scheduler its schedule — and the target screens' latest scan and "scan
             // now" are answered through `TargetScans`, a port `targets` declares.
@@ -272,17 +283,17 @@ class ArchitectureTest {
             // the authentication tables' pass, which now reaches it through a port gate implements
             // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
             // read had closed a cycle; `access` uses nothing above the foundation.
-            Map.entry("gate", Set.of("access", "issues", "rules", "siem")),
+            Map.entry("gate", Set.of("access", "issues", "rules", "siem", "targets")),
             // `access` since access became a module: a scan's delta is routed to the teams granted its
             // target that have a channel, and a team message is posted to that channel — both tables
             // access writes, which routing read through their repositories (now `TeamChannels`).
             // `access` uses nothing above the foundation.
-            Map.entry("notifications", Set.of("access", "issues", "scanning")),
+            Map.entry("notifications", Set.of("access", "issues", "scanning", "targets")),
             // `scanning` since exports became a module and took its controllers: a document is made
             // for a scan, and its route first refuses a scan the caller may not see
             // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.
-            Map.entry("exports", Set.of("gate", "issues", "scanning")),
-            Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications")),
+            Map.entry("exports", Set.of("gate", "issues", "scanning", "targets")),
+            Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications", "targets")),
             Map.entry("compliance",
                     Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules")));
 

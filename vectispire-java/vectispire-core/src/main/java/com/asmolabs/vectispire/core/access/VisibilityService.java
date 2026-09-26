@@ -6,13 +6,11 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -67,19 +65,19 @@ public class VisibilityService {
     private final UserTargets assignments;
     private final TeamMembers memberships;
     private final TeamTargets teamTargets;
-    private final GitRepositories repositories;
+    private final GrantableTargets targets;
 
     public VisibilityService(
             SettingsService settings,
             UserTargets assignments,
             TeamMembers memberships,
             TeamTargets teamTargets,
-            GitRepositories repositories) {
+            GrantableTargets targets) {
         this.settings = settings;
         this.assignments = assignments;
         this.memberships = memberships;
         this.teamTargets = teamTargets;
-        this.repositories = repositories;
+        this.targets = targets;
     }
 
     /**
@@ -185,7 +183,7 @@ public class VisibilityService {
         // has been filed anywhere. One query for all the granted projects, whether they came
         // directly or through teams — the union rule, applied before anything is read.
         if (!projects.isEmpty()) {
-            for (Long repositoryId : repositories.findIdsByProjectIdIn(projects)) {
+            for (Long repositoryId : targets.repositoriesIn(projects)) {
                 visible.add(new ScanTarget.Repository(repositoryId));
             }
         }

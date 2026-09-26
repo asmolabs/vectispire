@@ -15,7 +15,6 @@ import com.asmolabs.vectispire.core.persistence.SolutionEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Projects;
 import com.asmolabs.vectispire.core.repositories.Solutions;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.NoSuchElementException;

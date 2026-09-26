@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.access.internal;
 
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.VisibilityService;
-import com.asmolabs.vectispire.core.repositories.Projects;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,16 +17,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class GrantTargets {
 
-    private final Projects projects;
+    private final GrantableTargets targets;
 
-    public GrantTargets(Projects projects) {
-        this.projects = projects;
+    public GrantTargets(GrantableTargets targets) {
+        this.targets = targets;
     }
 
     /** The kind normalized, or a refusal naming what is wrong with the grant. */
     public String validate(String kind, Long id) {
         String normalized = TeamRules.validateTargetKind(kind);
-        if (TeamRules.KIND_PROJECT.equals(normalized) && !projects.existsById(id)) {
+        if (TeamRules.KIND_PROJECT.equals(normalized) && !targets.projectExists(id)) {
             throw new IllegalArgumentException("No project with id " + id + ".");
         }
         return normalized;

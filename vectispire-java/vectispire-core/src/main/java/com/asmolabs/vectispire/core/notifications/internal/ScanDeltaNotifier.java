@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
+import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;

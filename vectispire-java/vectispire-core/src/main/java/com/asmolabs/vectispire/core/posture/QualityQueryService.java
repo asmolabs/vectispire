@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
+import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Limit;
