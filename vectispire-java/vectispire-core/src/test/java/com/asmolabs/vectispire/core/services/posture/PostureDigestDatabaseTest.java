@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -108,8 +108,8 @@ class PostureDigestDatabaseTest extends VectispireContextTest {
                 .count();
     }
 
-    private com.asmolabs.vectispire.core.persistence.AuditLogEntity entry() {
-        var row = new com.asmolabs.vectispire.core.persistence.AuditLogEntity();
+    private com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity entry() {
+        var row = new com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity();
         row.setOperationType(AuditOperation.POSTURE_DIGEST_SENT.wireName());
         row.setResourceId("earlier-this-week");
         row.setDescription("Weekly posture report sent");

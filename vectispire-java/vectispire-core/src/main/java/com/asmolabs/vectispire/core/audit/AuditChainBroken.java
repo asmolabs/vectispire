@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.audit;
+package com.asmolabs.vectispire.core.audit;
 
 /**
  * A verification found the audit trail tampered with: the chain breaks, or the mirror holds entries

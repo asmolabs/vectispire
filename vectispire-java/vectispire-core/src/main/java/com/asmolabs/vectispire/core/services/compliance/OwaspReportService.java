@@ -4,15 +4,15 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
+import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 

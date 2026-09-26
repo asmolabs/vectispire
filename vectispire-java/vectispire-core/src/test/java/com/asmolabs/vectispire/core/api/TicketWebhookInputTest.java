@@ -118,7 +118,7 @@ class TicketWebhookInputTest extends ApiTestBase {
     }
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.AuditLog auditLog;
+    private com.asmolabs.vectispire.core.audit.persistence.AuditLog auditLog;
 
     private long webhookEntries() {
         return auditLog.findAll().stream().filter(entry -> "ticket_webhook".equals(entry.getResourceId())).count();

@@ -7,8 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import org.junit.jupiter.api.DisplayName;

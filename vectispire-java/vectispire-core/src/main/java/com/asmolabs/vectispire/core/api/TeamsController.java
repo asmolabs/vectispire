@@ -2,10 +2,10 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.shared.TargetNaming;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.access.TeamAdministrationService;
 import com.asmolabs.vectispire.core.services.access.TeamAdministrationService.TeamView;
+import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;

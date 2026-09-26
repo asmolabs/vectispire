@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.audit;
+package com.asmolabs.vectispire.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,8 +7,9 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

@@ -1,8 +1,11 @@
-package com.asmolabs.vectispire.core.services.audit;
+package com.asmolabs.vectispire.core.audit;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,6 +69,38 @@ public class AuditLogQueryService {
         return new Entries(
                 page.getContent().stream().map(AuditEntryView::of).toList(), page.getTotalElements(), size, from);
     }
+
+    /**
+     * How many entries of one operation were written since {@code since}: whether this week's posture
+     * digest already went out is answered by the entry its sending writes.
+     *
+     * <p>This method and {@link #asJsonLines} exist because the trail is this module's table. While
+     * the code was packaged by layer, {@code posture} and {@code compliance} read it through the
+     * repository — a dependency on the audit log's storage that nothing showed.
+     */
+    public long countSince(String operationType, Instant since) {
+        return entries.countByOperationTypeAndTimestampGreaterThanEqual(operationType, since);
+    }
+
+    /**
+     * The whole trail, oldest first, one document per line as {@code json} writes an entry: the
+     * evidence bundle's {@code 02_immutable_audit_log.jsonl}.
+     *
+     * <p><b>The row itself is serialized, with the caller's mapper</b> — not {@link AuditEntryView},
+     * and not this module's mapper: the bundle is a document an auditor already holds copies of, and
+     * the same trail must produce the same bytes it did before the audit log became a module.
+     */
+    public JsonLines asJsonLines(ObjectMapper json) throws JsonProcessingException {
+        List<AuditLogEntity> all = entries.findAllByOrderByTimestampAscIdAsc();
+        StringBuilder lines = new StringBuilder();
+        for (AuditLogEntity entry : all) {
+            lines.append(json.writeValueAsString(entry)).append("\n");
+        }
+        return new JsonLines(lines.toString(), all.size());
+    }
+
+    /** @param entries how many lines {@code text} holds, which the bundle's manifest states */
+    public record JsonLines(String text, int entries) {}
 
     /** The values actually present, so the filter offers nothing empty. */
     public List<String> operationTypes() {

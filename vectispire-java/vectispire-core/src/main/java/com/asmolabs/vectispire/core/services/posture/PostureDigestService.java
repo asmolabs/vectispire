@@ -9,15 +9,15 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.PostureDigest;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.gate.GateService;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.services.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
-import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -80,7 +80,7 @@ public class PostureDigestService {
     private final GateService gate;
     private final SlaService sla;
     private final Issues issues;
-    private final AuditLog auditLog;
+    private final AuditLogQueryService auditLog;
     private final AuditLogService audit;
     private final NotificationService webhook;
     private final MailNotificationChannel mail;
@@ -92,7 +92,7 @@ public class PostureDigestService {
             GateService gate,
             SlaService sla,
             Issues issues,
-            AuditLog auditLog,
+            AuditLogQueryService auditLog,
             AuditLogService audit,
             NotificationService webhook,
             MailNotificationChannel mail,
@@ -140,7 +140,7 @@ public class PostureDigestService {
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         Instant since = weekStarting.atStartOfDay(ZoneOffset.UTC).toInstant();
 
-        if (auditLog.countByOperationTypeAndTimestampGreaterThanEqual(
+        if (auditLog.countSince(
                         AuditOperation.POSTURE_DIGEST_SENT.wireName(), since)
                 > 0) {
             return false;

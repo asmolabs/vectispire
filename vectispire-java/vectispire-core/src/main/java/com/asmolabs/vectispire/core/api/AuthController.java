@@ -1,12 +1,10 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.core.services.access.UserView;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.vectispire.core.api.security.TrustedProxies;
+import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
 import com.asmolabs.vectispire.core.api.security.PasswordChangeGate;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.OidcConfiguration;
+import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.access.AuthService;
 import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService;
@@ -14,12 +12,14 @@ import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService.Ha
 import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService.SignIn;
 import com.asmolabs.vectispire.core.services.access.AuthenticationFlowService.Verification;
 import com.asmolabs.vectispire.core.services.access.TotpService;
+import com.asmolabs.vectispire.core.services.access.UserView;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.time.Instant;
 import java.util.Map;
 import org.springframework.http.HttpStatus;

@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core;
 
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -78,7 +78,7 @@ class ArchitectureTest {
      * issues}, {@code scanning}, {@code targets}, {@code platform} and {@code shared} are step 5's
      * and still live in the layered packages.
      */
-    private static final List<String> MODULES = List.of("settings", "outbound", "crypto");
+    private static final List<String> MODULES = List.of("settings", "outbound", "crypto", "audit");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =

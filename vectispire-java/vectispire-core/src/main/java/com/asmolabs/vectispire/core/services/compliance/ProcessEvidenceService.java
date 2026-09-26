@@ -1,9 +1,9 @@
 package com.asmolabs.vectispire.core.services.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
-import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;

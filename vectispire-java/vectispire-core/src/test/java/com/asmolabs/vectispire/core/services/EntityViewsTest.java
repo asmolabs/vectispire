@@ -2,13 +2,13 @@ package com.asmolabs.vectispire.core.services;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.core.audit.AuditEntryView;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.services.audit.AuditEntryView;
 import com.asmolabs.vectispire.core.services.inventory.ApiContractView;
 import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;
@@ -20,10 +20,10 @@ import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.api.DisplayName;
 
 /**
  * No JPA entity crosses a route; a record restating its fields does, and a restatement drifts.

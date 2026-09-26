@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.access.UserView;
-import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**

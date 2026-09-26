@@ -25,8 +25,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -240,7 +240,7 @@ class OwaspReportTest extends ApiTestBase {
                             Mockito.mock(com.asmolabs.vectispire.core.repositories.Users.class),
                             Mockito.mock(com.asmolabs.vectispire.core.services.tickets.TicketService.class),
                             Mockito.mock(com.asmolabs.vectispire.core.services.notifications.NotificationService.class),
-                            Mockito.mock(com.asmolabs.vectispire.core.services.audit.AuditLogService.class)),
+                            Mockito.mock(com.asmolabs.vectispire.core.audit.AuditLogService.class)),
                     Mockito.mock(com.asmolabs.vectispire.core.services.tickets.TicketService.class),
                     ai,
                     Mockito.mock(com.asmolabs.vectispire.core.services.notifications.NotificationService.class));

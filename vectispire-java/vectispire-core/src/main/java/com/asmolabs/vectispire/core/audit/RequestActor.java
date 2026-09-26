@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.audit;
+package com.asmolabs.vectispire.core.audit;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 

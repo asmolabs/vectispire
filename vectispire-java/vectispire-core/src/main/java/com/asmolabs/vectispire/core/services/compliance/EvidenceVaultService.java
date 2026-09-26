@@ -1,20 +1,19 @@
 package com.asmolabs.vectispire.core.services.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest;
 import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest.EvidenceFileEntry;
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import com.asmolabs.vectispire.core.services.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.exports.CsafGeneratorService;
 import com.asmolabs.vectispire.core.services.exports.CycloneDxGeneratorService;
@@ -56,7 +55,7 @@ public class EvidenceVaultService {
 
     private final ComplianceService compliance;
     private final AuditLogService auditService;
-    private final AuditLog auditLogRepo;
+    private final AuditLogQueryService auditLogRepo;
     private final Issues issuesRepo;
     private final Scans scansRepo;
     private final AttestationService attestationService;
@@ -73,7 +72,7 @@ public class EvidenceVaultService {
     public EvidenceVaultService(
             ComplianceService compliance,
             AuditLogService auditService,
-            AuditLog auditLogRepo,
+            AuditLogQueryService auditLogRepo,
             Issues issuesRepo,
             Scans scansRepo,
             AttestationService attestationService,
@@ -143,12 +142,8 @@ public class EvidenceVaultService {
                     complianceBytes);
 
             // 2. Immutable Audit Log
-            List<AuditLogEntity> logEntries = auditLogRepo.findAllByOrderByTimestampAscIdAsc();
-            StringBuilder auditLogJsonl = new StringBuilder();
-            for (AuditLogEntity logEntity : logEntries) {
-                auditLogJsonl.append(json.writeValueAsString(logEntity)).append("\n");
-            }
-            byte[] auditBytes = auditLogJsonl.toString().getBytes(StandardCharsets.UTF_8);
+            AuditLogQueryService.JsonLines logEntries = auditLogRepo.asJsonLines(json);
+            byte[] auditBytes = logEntries.text().getBytes(StandardCharsets.UTF_8);
             addZipEntry(zip, entries, "02_immutable_audit_log.jsonl",
                     "Cryptographic HMAC Merkle-like immutable audit trail",
                     auditBytes);
@@ -294,7 +289,7 @@ public class EvidenceVaultService {
                     Instant.now(),
                     username != null ? username : "ciso@vectispire.internal",
                     chainStatus,
-                    logEntries.size(),
+                    logEntries.entries(),
                     entries);
 
             byte[] manifestBytes = json.writeValueAsBytes(manifest);

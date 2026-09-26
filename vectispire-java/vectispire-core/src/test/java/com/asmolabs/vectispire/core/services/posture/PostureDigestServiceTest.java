@@ -12,17 +12,17 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.outbound.OutboundJson;
+import com.asmolabs.vectispire.core.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.gate.GateService;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.services.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
-import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -49,7 +49,7 @@ class PostureDigestServiceTest {
     private static final Instant WEDNESDAY = Instant.parse("2026-08-19T09:00:00Z");
 
     private SettingsService settings;
-    private AuditLog auditLog;
+    private AuditLogQueryService auditLog;
     private AuditLogService audit;
     private NotificationService webhook;
     private MailNotificationChannel mail;
@@ -59,7 +59,7 @@ class PostureDigestServiceTest {
     @BeforeEach
     void wire() {
         settings = mock(SettingsService.class);
-        auditLog = mock(AuditLog.class);
+        auditLog = mock(AuditLogQueryService.class);
         audit = mock(AuditLogService.class);
         webhook = mock(NotificationService.class);
         mail = mock(MailNotificationChannel.class);
@@ -73,7 +73,7 @@ class PostureDigestServiceTest {
         when(webhook.webhookUrl()).thenReturn("https://hooks.example.com/weekly");
         when(webhook.signingSecret()).thenReturn("");
         when(mail.isConfigured()).thenReturn(false);
-        when(auditLog.countByOperationTypeAndTimestampGreaterThanEqual(anyString(), any())).thenReturn(0L);
+        when(auditLog.countSince(anyString(), any())).thenReturn(0L);
         when(gate.overview(any())).thenReturn(new SecurityOverview.Overview(List.of(), 0, 0, 0, 0, 0));
         when(issues.findAll(ArgumentMatchers.<Specification<IssueEntity>>any())).thenReturn(List.of());
 
@@ -117,7 +117,7 @@ class PostureDigestServiceTest {
     @Test
     @DisplayName("a report already recorded this week is not sent again")
     void oncePerWeek() {
-        when(auditLog.countByOperationTypeAndTimestampGreaterThanEqual(
+        when(auditLog.countSince(
                         eq(AuditOperation.POSTURE_DIGEST_SENT.wireName()), any()))
                 .thenReturn(1L);
 
@@ -133,6 +133,6 @@ class PostureDigestServiceTest {
         assertThat(digest.runOnce()).isFalse();
         // Checked before the log is consulted: a disabled feature should cost a deployment nothing
         // per hour, and this is the cheap half of that.
-        verify(auditLog, never()).countByOperationTypeAndTimestampGreaterThanEqual(anyString(), any());
+        verify(auditLog, never()).countSince(anyString(), any());
     }
 }

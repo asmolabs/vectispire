@@ -9,15 +9,14 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimUserDto;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.access.AuthService;
 import com.asmolabs.vectispire.core.services.access.ScimProvisioningService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.BooleanNode;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Clock;
 import java.time.Instant;
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.databind.node.BooleanNode;
 
 @DisplayName("SCIM Users Controller")
 class ScimUsersControllerTest {

@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.repositories.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
 import com.asmolabs.vectispire.core.repositories.ControlDeclarations;
 import java.time.Clock;
 import java.util.List;

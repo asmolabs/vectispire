@@ -1,6 +1,6 @@
-package com.asmolabs.vectispire.core.services.audit;
+package com.asmolabs.vectispire.core.audit;
 
-import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Instant;
 import java.util.UUID;
 
