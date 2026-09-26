@@ -1635,7 +1635,8 @@
     "https_token_none_for_host": "Aucun jeton HTTPS n’est lié à {{host}}. Déclarez-en un sur la",
     "https_token_link": "page Jetons HTTPS",
     "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte.",
-    "grade_tag": "Note {{grade}}"
+    "grade_tag": "Note {{grade}}",
+    "project": "Projet :"
   },
   "roles": {
     "user": "Utilisateur",

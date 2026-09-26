@@ -92,6 +92,22 @@
                                 <span>{{ 'repositories.nothing_outstanding' | translate }}</span>
                             }
                             · <span>{{ scheduleLabel(repository) }}</span>
+                            <!--
+                                The project it is filed in, linking to that project in the tree; a
+                                dash when it is in none, because "no project" is a state an
+                                administrator has to act on, not an absence of data.
+                            -->
+                            ·
+                            <span data-testid="repository-project"
+                                >{{ 'repositories.project' | translate }}
+                                @if (repository.projectId != null) {
+                                    <a [routerLink]="['/solutions']" [fragment]="'project-' + repository.projectId">{{
+                                        repository.projectName
+                                    }}</a>
+                                } @else {
+                                    <span>—</span>
+                                }
+                            </span>
                         </div>
                     </div>
 

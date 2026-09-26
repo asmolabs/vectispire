@@ -1635,7 +1635,8 @@
     "https_token_none_for_host": "No HTTPS token is bound to {{host}}. Declare one on the",
     "https_token_link": "HTTPS tokens page",
     "https_token_hint": "Only the tokens bound to this URL’s host are offered: a token is never sent to another host.",
-    "grade_tag": "Grade {{grade}}"
+    "grade_tag": "Grade {{grade}}",
+    "project": "Project:"
   },
   "roles": {
     "user": "User",

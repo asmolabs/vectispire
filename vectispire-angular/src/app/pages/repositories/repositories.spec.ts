@@ -80,6 +80,25 @@ describe('the repository list', () => {
         expect(link.getAttribute('href')).toContain('repository_id=5');
     });
 
+    it('names the project a repository is filed in, and links to it in the tree', () => {
+        load(asSchema('RepositorySummary', { ...REPOSITORY, projectId: 11, projectName: 'Gateway' }));
+
+        const cell = fixture.nativeElement.querySelector('[data-testid="repository-project"]') as HTMLElement;
+        expect(cell.textContent).toContain('Gateway');
+        const link = cell.querySelector('a') as HTMLAnchorElement;
+        // The fragment is the project's anchor in the tree, so the link lands on the project and not
+        // on the top of a page listing every solution.
+        expect(link.getAttribute('href')).toBe('/solutions#project-11');
+    });
+
+    it('shows a dash, and no link, for a repository in no project', () => {
+        load();
+
+        const cell = fixture.nativeElement.querySelector('[data-testid="repository-project"]') as HTMLElement;
+        expect(cell.textContent).toContain('—');
+        expect(cell.querySelector('a')).toBeNull();
+    });
+
     it('says "nothing outstanding" rather than showing a bare zero', () => {
         load({ ...REPOSITORY, openIssues: 0 });
         expect(fixture.nativeElement.textContent).toContain('repositories.nothing_outstanding');
