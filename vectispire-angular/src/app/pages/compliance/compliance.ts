@@ -17,6 +17,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { ComplianceSummary, ComplianceEvaluation } from '../../core/api.models';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-compliance',
@@ -383,7 +384,7 @@ export class Compliance {
                 },
                 error: (err) => {
                     this.importing.set(false);
-                    this.importError.set(err?.error?.message ?? this.i18n.t('compliance.error_vex_ingest'));
+                    this.importError.set(messageOf(err, this.i18n.t('compliance.error_vex_ingest')));
                 }
             });
         } catch (e) {
@@ -469,7 +470,7 @@ export class Compliance {
                 },
                 error: (err) => {
                     this.verifying.set(false);
-                    this.verifyError.set(err?.error?.message ?? this.i18n.t('compliance.error_verify'));
+                    this.verifyError.set(messageOf(err, this.i18n.t('compliance.error_verify')));
                 }
             });
     }

@@ -28,6 +28,7 @@ import type { MonitoredRepository, OwaspReport } from '../../core/api.models';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { OwaspGridComponent } from '@/app/shared/owasp-grid';
 import { LatestRequest } from '@/app/core/latest-request';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-owasp',
@@ -110,7 +111,7 @@ export class Owasp {
             },
             error: (response) => {
                 this.running.set(false);
-                this.error.set(response?.error?.message ?? this.i18n.t('owasp.report_failed'));
+                this.error.set(messageOf(response, this.i18n.t('owasp.report_failed')));
             }
         });
     }

@@ -25,6 +25,7 @@ import { I18nService } from '@/app/core/i18n/i18n.service';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { BrandingService } from '@/app/core/branding.service';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'zs-login',
@@ -155,9 +156,9 @@ export class Login {
                     void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
                 }
             },
-            error: (response: { status: number; error?: { message?: string } }) => {
+            error: (response: unknown) => {
                 this.loading.set(false);
-                this.error.set(response.error?.message ?? this.i18n.t('auth.error_mfa_invalid'));
+                this.error.set(messageOf(response, this.i18n.t('auth.error_mfa_invalid')));
             }
         });
     }
@@ -188,7 +189,7 @@ export class Login {
                     void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
                 }
             },
-            error: (response: { status: number; error?: { message?: string; retryAfterSeconds?: number } }) => {
+            error: (response: { status: number; error?: { retryAfterSeconds?: number } }) => {
                 this.loading.set(false);
                 const retryAfter = response.error?.retryAfterSeconds;
                 if (retryAfter) {

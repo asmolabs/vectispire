@@ -12,6 +12,7 @@ import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 import { I18nService } from '@/app/core/i18n/i18n.service';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-notifications',
@@ -58,7 +59,7 @@ export class Notifications implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('notifications.load_failed'));
+                this.error.set(messageOf(err, this.i18n.t('notifications.load_failed')));
                 this.loading.set(false);
             }
         });
@@ -82,7 +83,7 @@ export class Notifications implements OnInit {
                     [channelType]: {
                         type: channelType,
                         success: false,
-                        message: err?.error?.message ?? this.i18n.t('notifications.test_failed'),
+                        message: messageOf(err, this.i18n.t('notifications.test_failed')),
                         testedAt: new Date().toISOString()
                     }
                 }));

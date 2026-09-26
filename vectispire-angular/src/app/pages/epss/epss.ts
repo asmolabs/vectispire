@@ -119,7 +119,7 @@ export class Epss implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('epss.load_failed'));
+                this.error.set(messageOf(err, this.i18n.t('epss.load_failed')));
                 this.loading.set(false);
             }
         });
@@ -137,7 +137,7 @@ export class Epss implements OnInit {
             },
             error: (err) => {
                 this.syncing.set(false);
-                this.error.set(err?.error?.message ?? this.i18n.t('epss.sync_failed'));
+                this.error.set(messageOf(err, this.i18n.t('epss.sync_failed')));
             }
         });
     }

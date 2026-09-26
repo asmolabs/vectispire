@@ -11,6 +11,7 @@ import { MessageModule } from '@openng/optimus-ui/message';
 import { ProgressSpinnerModule } from '@openng/optimus-ui/progressspinner';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
+import { messageOf } from '@/app/core/api-error';
 
 @Component({
     selector: 'app-blast-radius',
@@ -78,7 +79,7 @@ export class BlastRadius implements OnInit {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('blast_radius.error_explore'));
+                this.error.set(messageOf(err, this.i18n.t('blast_radius.error_explore')));
                 this.loading.set(false);
             }
         });

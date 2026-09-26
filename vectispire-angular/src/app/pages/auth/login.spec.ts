@@ -160,6 +160,25 @@ describe('the sign-in screen', () => {
         expect(navigate).toHaveBeenCalledWith(['/dashboard']);
     });
 
+    it("shows the server's explanation for a refused second factor, read from `detail`", () => {
+        attempt();
+        http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+            asSchema('LoginResponse', { mfa_required: true, mfa_token: 'challenge-1' })
+        );
+        const page = fixture.componentInstance;
+        page.mfaCode = '000000';
+        page.submit();
+
+        // RFC 7807: the sentence is in `detail`. The screen read `message`, which the server never
+        // sends, and always showed the generic fallback instead.
+        http.expectOne((call) => call.url === '/api/v1/auth/mfa/verify').flush(
+            { title: 'Unauthorized', status: 401, detail: 'This challenge has expired. Sign in again.' },
+            { status: 401, statusText: 'Unauthorized' }
+        );
+
+        expect(page.error()).toBe('This challenge has expired. Sign in again.');
+    });
+
     it('sends a provisioned account to change its password before anywhere else', () => {
         attempt();
         http.expectOne((call) => call.url === '/api/v1/auth/login').flush(

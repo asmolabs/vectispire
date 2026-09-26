@@ -148,7 +148,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.loading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_load'));
+                this.error.set(messageOf(err, this.i18n.t('attack_surface.error_load')));
                 this.loading.set(false);
             }
         });
@@ -180,7 +180,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.repoLoading.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_repo_apis'));
+                this.error.set(messageOf(err, this.i18n.t('attack_surface.error_repo_apis')));
                 this.repoLoading.set(false);
             }
         });
@@ -238,7 +238,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 this.exporting.set(false);
             },
             error: (err) => {
-                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_export'));
+                this.error.set(messageOf(err, this.i18n.t('attack_surface.error_export')));
                 this.exporting.set(false);
             }
         });
@@ -299,7 +299,7 @@ export class AttackSurface implements OnInit, OnDestroy {
             },
             error: (err) => {
                 this.scanningRepo.set(false);
-                this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_scan'));
+                this.error.set(messageOf(err, this.i18n.t('attack_surface.error_scan')));
             }
         });
     }
@@ -322,7 +322,7 @@ export class AttackSurface implements OnInit, OnDestroy {
                 },
                 error: (err) => {
                     this.scanningRepo.set(false);
-                    this.error.set(err?.error?.message ?? this.i18n.t('attack_surface.error_scan_all'));
+                    this.error.set(messageOf(err, this.i18n.t('attack_surface.error_scan_all')));
                 }
             });
         });
