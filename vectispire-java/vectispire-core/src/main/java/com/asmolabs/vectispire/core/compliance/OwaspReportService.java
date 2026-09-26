@@ -9,11 +9,11 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReportPdf;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ public class OwaspReportService {
     private static final String NO_REPORT = "No OWASP report has been produced for this target.";
 
     private final OwaspReviewService reviews;
-    private final GitRepositories repositories;
+    private final TargetCatalog targets;
     private final Scans scans;
     private final Issues issues;
     private final AuditLogService audit;
@@ -40,13 +40,13 @@ public class OwaspReportService {
 
     public OwaspReportService(
             OwaspReviewService reviews,
-            GitRepositories repositories,
+            TargetCatalog targets,
             Scans scans,
             Issues issues,
             AuditLogService audit,
             BrandingProperties branding) {
         this.reviews = reviews;
-        this.repositories = repositories;
+        this.targets = targets;
         this.scans = scans;
         this.issues = issues;
         this.audit = audit;
@@ -68,7 +68,7 @@ public class OwaspReportService {
     public AiReviewResultView run(
             long repositoryId, Visibility allowed, String actor, String ipAddress, String userAgent) {
 
-        RepositoryEntity repository = visible(repositoryId, allowed);
+        RepositoryView repository = visible(repositoryId, allowed);
         AiReviewResultEntity result = reviews.run(repository);
 
         // **Audited like any outbound send.** This call puts the target's finding list — its
@@ -95,7 +95,7 @@ public class OwaspReportService {
      * report exists, it just is not a document.
      */
     public byte[] pdf(long repositoryId, Visibility allowed) {
-        RepositoryEntity repository = visible(repositoryId, allowed);
+        RepositoryView repository = visible(repositoryId, allowed);
         AiReviewResultEntity result =
                 reviews.latest(repositoryId).orElseThrow(() -> new NoSuchElementException(NO_REPORT));
 
@@ -107,8 +107,8 @@ public class OwaspReportService {
         ScanEntity scan = scans.findById(result.getScanId()).orElse(null);
         return OwaspReportPdf.render(
                 new OwaspReportPdf.Subject(
-                        repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
-                        repository.getBranch(),
+                        repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
+                        repository.branch(),
                         scan == null ? null : scan.getVersion(),
                         result.getModel(),
                         result.getScanId(),
@@ -119,7 +119,7 @@ public class OwaspReportService {
                 result.getResponse());
     }
 
-    private RepositoryEntity visible(long repositoryId, Visibility allowed) {
-        return RowVisibility.requireVisibleRepository(repositories.findById(repositoryId).orElse(null), repositoryId, allowed);
+    private RepositoryView visible(long repositoryId, Visibility allowed) {
+        return RowVisibility.requireVisibleRepository(targets.repository(repositoryId).orElse(null), repositoryId, allowed);
     }
 }

@@ -7,13 +7,12 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.gate.GateVerdictView;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.List;
@@ -35,22 +34,19 @@ import org.springframework.stereotype.Service;
 public class AttestationService {
 
     private final Scans scans;
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetCatalog targets;
     private final Findings findings;
     private final GateRegisterService verdicts;
     private final String version;
 
     public AttestationService(
             Scans scans,
-            GitRepositories repositories,
-            Containers containers,
+            TargetCatalog targets,
             Findings findings,
             GateRegisterService verdicts,
             ProductVersion version) {
         this.scans = scans;
-        this.repositories = repositories;
-        this.containers = containers;
+        this.targets = targets;
         this.findings = findings;
         this.verdicts = verdicts;
         // The version every export states. It was the literal "0.9.0", which every release after
@@ -154,16 +150,16 @@ public class AttestationService {
     /** A container by image and tag, as every other screen names it — not "Target #12". */
     private String targetName(ScanEntity scan) {
         if (scan.getRepoId() != null) {
-            return repositories.findById(scan.getRepoId())
-                    .map(RepositoryEntity::getName)
+            return targets.repository(scan.getRepoId())
+                    .map(RepositoryView::name)
                     .orElse("repository-" + scan.getRepoId());
         }
-        return containers.findById(scan.getContainerId())
+        return targets.container(scan.getContainerId())
                 .map(AttestationService::imageOf)
                 .orElse("container-" + scan.getContainerId());
     }
 
-    private static String imageOf(ContainerEntity container) {
-        return container.getTag() == null ? container.getImageName() : container.getImageName() + ":" + container.getTag();
+    private static String imageOf(ContainerView container) {
+        return container.tag() == null ? container.imageName() : container.imageName() + ":" + container.tag();
     }
 }

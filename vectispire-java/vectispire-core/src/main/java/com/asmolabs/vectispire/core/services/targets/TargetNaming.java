@@ -166,6 +166,15 @@ public class TargetNaming {
         return RepositoryUrl.displayName(repository.getName(), repository.getUrl());
     }
 
+    /** The same name for the view another module holds — the rule is one, whatever carries the row. */
+    public static String of(RepositoryView repository) {
+        return RepositoryUrl.displayName(repository.name(), repository.url());
+    }
+
+    public static String of(ContainerView container) {
+        return new ImageReference(container.registry(), container.imageName(), container.tag()).displayName();
+    }
+
     public static String of(ContainerEntity container) {
         return new ImageReference(container.getRegistry(), container.getImageName(), container.getTag())
                 .displayName();

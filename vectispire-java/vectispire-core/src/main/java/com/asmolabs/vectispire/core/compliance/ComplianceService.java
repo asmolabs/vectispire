@@ -17,8 +17,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
@@ -43,8 +41,6 @@ public class ComplianceService {
     private final GateService gate;
     private final Issues issues;
     private final Scans scans;
-    private final GitRepositories repositories;
-    private final Containers containers;
     private final SlaService sla;
     private final AuditLogService audit;
     private final EncryptionService encryption;
@@ -58,8 +54,6 @@ public class ComplianceService {
             GateService gate,
             Issues issues,
             Scans scans,
-            GitRepositories repositories,
-            Containers containers,
             SlaService sla,
             AuditLogService audit,
             EncryptionService encryption,
@@ -70,8 +64,6 @@ public class ComplianceService {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
-        this.repositories = repositories;
-        this.containers = containers;
         this.sla = sla;
         this.audit = audit;
         this.encryption = encryption;

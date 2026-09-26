@@ -9,11 +9,11 @@ import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
     private final OutboxService outbox;
     private final TargetNaming names;
     private final TeamChannels teams;
-    private final GitRepositories repositories;
+    private final TargetCatalog targets;
 
     public ScanDeltaNotifier(
             NotificationService notifications,
@@ -47,13 +47,13 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
             OutboxService outbox,
             TargetNaming names,
             TeamChannels teams,
-            GitRepositories repositories) {
+            TargetCatalog targets) {
         this.notifications = notifications;
         this.channels = channels;
         this.outbox = outbox;
         this.names = names;
         this.teams = teams;
-        this.repositories = repositories;
+        this.targets = targets;
     }
 
     /**
@@ -116,8 +116,8 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
 
         List<Long> claims = new ArrayList<>(teams.teamsGranted(kind, targetId));
         if (TeamRules.KIND_REPOSITORY.equals(kind)) {
-            repositories.findById(targetId)
-                    .map(RepositoryEntity::getProjectId)
+            targets.repository(targetId)
+                    .map(RepositoryView::projectId)
                     .ifPresent(projectId -> claims.addAll(teams.teamsGranted(TeamRules.KIND_PROJECT, projectId)));
         }
         List<Long> owners = claims.stream().distinct().toList();

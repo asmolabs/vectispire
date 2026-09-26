@@ -57,7 +57,7 @@ class OwaspReportTest extends ApiTestBase {
 
     private AiReviewService models;
     private OwaspReviewService service;
-    private RepositoryEntity repository;
+    private com.asmolabs.vectispire.core.services.targets.RepositoryView repository;
 
     @BeforeEach
     void wire() {
@@ -70,7 +70,7 @@ class OwaspReportTest extends ApiTestBase {
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
         entity.setName("Arm Libs Spring");
         entity.setBranch("master");
-        repository = repositories.save(entity);
+        repository = com.asmolabs.vectispire.core.services.targets.RepositoryView.of(repositories.save(entity));
     }
 
     @Nested
@@ -112,7 +112,7 @@ class OwaspReportTest extends ApiTestBase {
             // vanished would leave the page identical to one nobody ever asked for.
             assertThat(stored.getStatus()).isEqualTo("failed");
             assertThat(stored.getError()).contains("Connection refused");
-            assertThat(service.latest(repository.getId())).get().extracting(AiReviewResultEntity::getStatus)
+            assertThat(service.latest(repository.id())).get().extracting(AiReviewResultEntity::getStatus)
                     .isEqualTo("failed");
         }
     }
@@ -150,7 +150,7 @@ class OwaspReportTest extends ApiTestBase {
 
     private long seedScan(String version) {
         ScanEntity scan = new ScanEntity();
-        scan.setRepoId(repository.getId());
+        scan.setRepoId(repository.id());
         scan.setBranch("master");
         scan.setStatus(ScanStatus.COMPLETED.wireName());
         scan.setCreatedAt(NOW.minusSeconds(3600));
@@ -160,7 +160,7 @@ class OwaspReportTest extends ApiTestBase {
 
     private void seedIssue(long scanId) {
         IssueEntity issue = new IssueEntity();
-        issue.setRepoId(repository.getId());
+        issue.setRepoId(repository.id());
         issue.setFingerprint("fp-CVE-2026-1234");
         issue.setType(FindingType.VULNERABILITY.wireName());
         issue.setIdentifier("CVE-2026-1234");
@@ -191,7 +191,7 @@ class OwaspReportTest extends ApiTestBase {
 
         byte[] pdf = mvc.perform(authenticated(
                         org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                .get("/api/v1/repositories/" + repository.getId() + "/owasp-review/export.pdf"),
+                                .get("/api/v1/repositories/" + repository.id() + "/owasp-review/export.pdf"),
                         asAdmin()))
                 .andExpect(status().isOk())
                 .andReturn()

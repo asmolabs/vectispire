@@ -13,14 +13,13 @@ import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicies;
 import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicyEntity;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
@@ -52,8 +51,7 @@ public class LicenseGovernanceService {
     private final Components componentsRepo;
     private final Findings findingsRepo;
     private final Scans scansRepo;
-    private final GitRepositories gitRepo;
-    private final Containers containersRepo;
+    private final TargetCatalog targets;
     private final ObjectMapper objectMapper;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
@@ -63,8 +61,7 @@ public class LicenseGovernanceService {
             Components componentsRepo,
             Findings findingsRepo,
             Scans scansRepo,
-            GitRepositories gitRepo,
-            Containers containersRepo,
+            TargetCatalog targets,
             ObjectMapper objectMapper,
             AuditLogService audit,
             TransactionTemplate transactions) {
@@ -72,8 +69,7 @@ public class LicenseGovernanceService {
         this.componentsRepo = componentsRepo;
         this.findingsRepo = findingsRepo;
         this.scansRepo = scansRepo;
-        this.gitRepo = gitRepo;
-        this.containersRepo = containersRepo;
+        this.targets = targets;
         this.objectMapper = objectMapper;
         this.audit = audit;
         this.transactions = transactions;
@@ -159,11 +155,11 @@ public class LicenseGovernanceService {
         LicensePolicy policy = getPolicy();
         Map<String, LicenseEntry> entryMap = new HashMap<>();
 
-        Map<Long, RepositoryEntity> repos = gitRepo.findAll().stream()
-                .collect(Collectors.toMap(RepositoryEntity::getId, r -> r, (a, b) -> a));
+        Map<Long, RepositoryView> repos = targets.repositories().stream()
+                .collect(Collectors.toMap(RepositoryView::id, r -> r, (a, b) -> a));
 
-        Map<Long, ContainerEntity> containers = containersRepo.findAll().stream()
-                .collect(Collectors.toMap(ContainerEntity::getId, c -> c, (a, b) -> a));
+        Map<Long, ContainerView> containers = targets.containers().stream()
+                .collect(Collectors.toMap(ContainerView::id, c -> c, (a, b) -> a));
 
         List<ScanEntity> selected;
         if (repoIdFilter != null) {
@@ -191,9 +187,9 @@ public class LicenseGovernanceService {
             Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
             String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
             String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).getName()
+                    ? repos.get(scan.getRepoId()).name()
                     : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).getImageName() + ":" + containers.get(scan.getContainerId()).getTag()
+                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
                             : "General");
 
             if (scan.getSbom() != null && !scan.getSbom().isBlank()) {
@@ -256,9 +252,9 @@ public class LicenseGovernanceService {
             Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
             String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
             String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).getName()
+                    ? repos.get(scan.getRepoId()).name()
                     : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).getImageName() + ":" + containers.get(scan.getContainerId()).getTag()
+                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
                             : "General");
 
             String key = targetKind + ":" + targetId + ":" + comp.getName() + ":" + (comp.getVersion() != null ? comp.getVersion() : "");
@@ -300,9 +296,9 @@ public class LicenseGovernanceService {
             Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
             String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
             String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).getName()
+                    ? repos.get(scan.getRepoId()).name()
                     : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).getImageName() + ":" + containers.get(scan.getContainerId()).getTag()
+                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
                             : "General");
 
             String license = finding.getIdentifier() != null ? finding.getIdentifier() : "UNKNOWN";

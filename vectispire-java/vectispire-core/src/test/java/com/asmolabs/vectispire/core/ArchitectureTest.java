@@ -233,7 +233,8 @@ class ArchitectureTest {
      * while {@code targets} used {@code access} and {@code scanning}. Once {@code targets} used nothing
      * but {@code access} — its figures and its "scan now" became ports — the names could go home, and
      * those domains' dependency on the targets became a line of this table instead of a foundation
-     * class (decision 0029). {@code targets} uses only {@code access}, so none of these lines can close
+     * class; {@code agents}, {@code compliance} and {@code threatintel} joined when they stopped
+     * reading the targets' rows and asked {@code TargetCatalog} instead (decision 0029). {@code targets} uses only {@code access}, so none of these lines can close
      * a cycle.
      */
     private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
@@ -273,12 +274,12 @@ class ArchitectureTest {
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
             // above the foundation.
-            Map.entry("agents", Set.of("access", "rules", "scanning")),
+            Map.entry("agents", Set.of("access", "rules", "scanning", "targets")),
             // Not `scanning` any more, nor `issues` (step 5): the listings' figures and the scan trigger
             // are ports `targets` declares, so every domain that names a target can depend on it,
             // and the purge of a deleted target can be an event `targets` owns.
             Map.entry("targets", Set.of("access")),
-            Map.entry("threatintel", Set.of("scanning", "siem")),
+            Map.entry("threatintel", Set.of("scanning", "siem", "targets")),
             // `access` since gate became a module: its register is purged past the evidence window by
             // the authentication tables' pass, which now reaches it through a port gate implements
             // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
@@ -295,7 +296,7 @@ class ArchitectureTest {
             Map.entry("exports", Set.of("gate", "issues", "scanning", "targets")),
             Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications", "targets")),
             Map.entry("compliance",
-                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules")));
+                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "targets")));
 
     private static final String PLATFORM = "platform";
 

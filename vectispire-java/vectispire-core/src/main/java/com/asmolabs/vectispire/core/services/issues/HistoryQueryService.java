@@ -7,11 +7,11 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.persistence.TriageEventEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
@@ -49,7 +49,7 @@ public class HistoryQueryService {
 
     private static final int MAX_FINDINGS = 500;
 
-    private final GitRepositories repositories;
+    private final TargetCatalog targets;
     private final Scans scans;
     private final Findings findings;
     private final Issues issues;
@@ -58,14 +58,14 @@ public class HistoryQueryService {
     private final Clock clock;
 
     public HistoryQueryService(
-            GitRepositories repositories,
+            TargetCatalog targets,
             Scans scans,
             Findings findings,
             Issues issues,
             TriageEvents events,
             BrandingProperties branding,
             Clock clock) {
-        this.repositories = repositories;
+        this.targets = targets;
         this.scans = scans;
         this.findings = findings;
         this.issues = issues;
@@ -75,8 +75,8 @@ public class HistoryQueryService {
     }
 
     public List<TriageHistory.Repository> repositories(Visibility allowed) {
-        return repositories.findAll().stream()
-                .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
+        return targets.repositories().stream()
+                .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.id())))
                 .map(this::rowOf)
                 .sorted(Comparator.comparing(
                         TriageHistory.Repository::lastScanAt, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -84,29 +84,29 @@ public class HistoryQueryService {
     }
 
     public TriageHistory.Dossier dossier(long id, int limit, Visibility allowed) {
-        RepositoryEntity repository = visible(id, allowed);
+        RepositoryView repository = visible(id, allowed);
         return new TriageHistory.Dossier(rowOf(repository), scanRows(id, limit), clock.instant());
     }
 
     /** The CSV export, as UTF-8 bytes. */
     public byte[] csv(long id, Visibility allowed) {
-        RepositoryEntity repository = visible(id, allowed);
+        RepositoryView repository = visible(id, allowed);
         return TriageHistoryCsv.render(rowOf(repository), scanRows(id, MAX_SCANS)).getBytes(StandardCharsets.UTF_8);
     }
 
     public byte[] pdf(long id, Visibility allowed) {
-        RepositoryEntity repository = visible(id, allowed);
+        RepositoryView repository = visible(id, allowed);
         return TriageHistoryReport.render(rowOf(repository), scanRows(id, MAX_SCANS), clock.instant(), branding.name());
     }
 
-    private RepositoryEntity visible(long id, Visibility allowed) {
+    private RepositoryView visible(long id, Visibility allowed) {
         // 404 rather than 403 when it exists but is not visible, in the same words as when it does
         // not exist — see `RowVisibility`.
-        return RowVisibility.requireVisibleRepository(repositories.findById(id).orElse(null), id, allowed);
+        return RowVisibility.requireVisibleRepository(targets.repository(id).orElse(null), id, allowed);
     }
 
-    private TriageHistory.Repository rowOf(RepositoryEntity repository) {
-        List<ScanEntity> history = scans.findHistory(repository.getId(), null, Limit.of(MAX_SCANS));
+    private TriageHistory.Repository rowOf(RepositoryView repository) {
+        List<ScanEntity> history = scans.findHistory(repository.id(), null, Limit.of(MAX_SCANS));
 
         // The most recent scan that actually read a version, not the most recent scan: a failed
         // clone would otherwise blank the version the day it happens, and a target would appear
@@ -123,18 +123,18 @@ public class HistoryQueryService {
                 .orElse(null);
 
         return new TriageHistory.Repository(
-                repository.getId(),
-                repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
+                repository.id(),
+                repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
                 // Masked here, at the source of the trail, so the screen, the CSV and the PDF
                 // built from it all carry the same safe form.
-                RepositoryUrl.redact(repository.getUrl()),
-                repository.getBranch(),
+                RepositoryUrl.redact(repository.url()),
+                repository.branch(),
                 version,
                 type,
                 history.size(),
                 history.stream().map(ScanEntity::getCreatedAt).max(Comparator.naturalOrder()).orElse(null),
-                issues.countByStateAndRepository(IssueState.OPEN.wireName(), repository.getId()),
-                events.countForRepository(repository.getId()));
+                issues.countByStateAndRepository(IssueState.OPEN.wireName(), repository.id()),
+                events.countForRepository(repository.id()));
     }
 
     private List<TriageHistory.Scan> scanRows(long repositoryId, int limit) {

@@ -1,19 +1,17 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix;
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFleetSummary;
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssPrioritizedIssue;
+import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntels;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,20 +34,17 @@ public class EpssPrioritizationService {
     private final Issues issuesRepo;
     private final ThreatIntels intelRepo;
     private final ThreatIntelFeedService threatIntelService;
-    private final GitRepositories reposRepo;
-    private final Containers containersRepo;
+    private final TargetCatalog targets;
 
     public EpssPrioritizationService(
             Issues issuesRepo,
             ThreatIntels intelRepo,
             ThreatIntelFeedService threatIntelService,
-            GitRepositories reposRepo,
-            Containers containersRepo) {
+            TargetCatalog targets) {
         this.issuesRepo = issuesRepo;
         this.intelRepo = intelRepo;
         this.threatIntelService = threatIntelService;
-        this.reposRepo = reposRepo;
-        this.containersRepo = containersRepo;
+        this.targets = targets;
     }
 
     /**
@@ -90,10 +85,10 @@ public class EpssPrioritizationService {
 
         // Named by the targets these issues actually belong to, rather than by reading every
         // repository and every container in the deployment to look two of them up.
-        Map<Long, RepositoryEntity> reposMap = byId(
-                reposRepo.findAllById(idsOf(openIssues, IssueRows.EpssRow::repoId)), RepositoryEntity::getId);
-        Map<Long, ContainerEntity> containersMap = byId(
-                containersRepo.findAllById(idsOf(openIssues, IssueRows.EpssRow::containerId)), ContainerEntity::getId);
+        Map<Long, RepositoryView> reposMap = byId(
+                targets.repositories(idsOf(openIssues, IssueRows.EpssRow::repoId)), RepositoryView::id);
+        Map<Long, ContainerView> containersMap = byId(
+                targets.containers(idsOf(openIssues, IssueRows.EpssRow::containerId)), ContainerView::id);
 
         // **One query for the intel, not one per issue.** This loop asked `lookupCve` per row —
         // 18, 168 then 468 queries for 20, 220 and 620 issues, measured with the Hibernate
@@ -152,9 +147,9 @@ public class EpssPrioritizationService {
             tierBreakdown.put(tier, tierBreakdown.getOrDefault(tier, 0) + 1);
 
             String targetName = issue.repoId() != null && reposMap.containsKey(issue.repoId())
-                    ? reposMap.get(issue.repoId()).getName()
+                    ? reposMap.get(issue.repoId()).name()
                     : (issue.containerId() != null && containersMap.containsKey(issue.containerId())
-                            ? containersMap.get(issue.containerId()).getImageName() + ":" + containersMap.get(issue.containerId()).getTag()
+                            ? containersMap.get(issue.containerId()).imageName() + ":" + containersMap.get(issue.containerId()).tag()
                             : "target-" + (issue.repoId() != null ? issue.repoId() : issue.containerId()));
 
             String targetKind = issue.repoId() != null ? "REPOSITORY" : "CONTAINER";

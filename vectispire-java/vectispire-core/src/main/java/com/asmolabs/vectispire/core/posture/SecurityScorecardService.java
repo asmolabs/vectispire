@@ -7,16 +7,13 @@ import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -32,29 +29,26 @@ import org.springframework.stereotype.Service;
 public class SecurityScorecardService {
 
     private final Issues issuesRepo;
-    private final GitRepositories gitRepo;
-    private final Containers containerRepo;
+    private final TargetCatalog targets;
     private final Scans scansRepo;
     private final LicenseGovernanceService licenseService;
     private final SlaService sla;
 
     public SecurityScorecardService(
             Issues issuesRepo,
-            GitRepositories gitRepo,
-            Containers containerRepo,
+            TargetCatalog targets,
             Scans scansRepo,
             LicenseGovernanceService licenseService,
             SlaService sla) {
         this.issuesRepo = issuesRepo;
-        this.gitRepo = gitRepo;
-        this.containerRepo = containerRepo;
+        this.targets = targets;
         this.scansRepo = scansRepo;
         this.licenseService = licenseService;
         this.sla = sla;
     }
 
     public Optional<SecurityScorecard> getRepositoryScorecard(Long repoId) {
-        return gitRepo.findById(repoId).map(repo -> {
+        return targets.repository(repoId).map(repo -> {
             // The route is guarded by the controller; this narrows the *read*, which used to be
             // the whole table filtered down to one repository afterwards.
             List<IssueRows.Posture> openIssues = issuesRepo
@@ -73,12 +67,12 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.existsByRepoIdAndStatusIgnoreCase(repoId, "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Repository(repoId))));
 
-            return computeScorecard(repoId, "repository", repo.getName(), openIssues, licenses, hasAttestation, overdue);
+            return computeScorecard(repoId, "repository", repo.name(), openIssues, licenses, hasAttestation, overdue);
         });
     }
 
     public Optional<SecurityScorecard> getContainerScorecard(Long containerId) {
-        return containerRepo.findById(containerId).map(container -> {
+        return targets.container(containerId).map(container -> {
             // The repository form was narrowed and this one was not, in the same change — which
             // is what a sweep is for and what reading the diff was not enough to catch.
             List<IssueRows.Posture> openIssues = issuesRepo
@@ -95,7 +89,7 @@ public class SecurityScorecardService {
             boolean hasAttestation = scansRepo.existsByContainerIdAndStatusIgnoreCase(containerId, "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Container(containerId))));
 
-            return computeScorecard(containerId, "container", container.getImageName() + ":" + container.getTag(), openIssues, licenses, hasAttestation, overdue);
+            return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), openIssues, licenses, hasAttestation, overdue);
         });
     }
 

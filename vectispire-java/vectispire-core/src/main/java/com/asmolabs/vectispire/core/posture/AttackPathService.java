@@ -10,12 +10,11 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,15 +32,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AttackPathService {
 
-    private final GitRepositories repositories;
+    private final TargetCatalog targets;
     private final ApiInventoryService apiInventory;
     private final Issues issues;
 
     public AttackPathService(
-            GitRepositories repositories,
+            TargetCatalog targets,
             ApiInventoryService apiInventory,
             Issues issues) {
-        this.repositories = repositories;
+        this.targets = targets;
         this.apiInventory = apiInventory;
         this.issues = issues;
     }
@@ -77,7 +76,7 @@ public class AttackPathService {
 
     @Transactional(readOnly = true)
     public Optional<AttackPathGraph> getAttackPathGraph(Long repositoryId) {
-        Optional<RepositoryEntity> repoOpt = repositories.findById(repositoryId);
+        Optional<RepositoryView> repoOpt = targets.repository(repositoryId);
         if (repoOpt.isEmpty()) {
             return Optional.empty();
         }
@@ -97,12 +96,12 @@ public class AttackPathService {
      * where one target costs four. Nothing about the graph changed; only who fetched its inputs.
      */
     private AttackPathGraph buildGraph(
-            RepositoryEntity repo,
+            RepositoryView repo,
             List<ApiInventoryService.EndpointView> endpoints,
             List<IssueRows.GraphNode> openIssues) {
 
-        Long repositoryId = repo.getId();
-        String repoName = repo.getName() != null ? repo.getName() : RepositoryUrl.redact(repo.getUrl());
+        Long repositoryId = repo.id();
+        String repoName = repo.name() != null ? repo.name() : RepositoryUrl.redact(repo.url());
 
         List<AttackPathNode> nodes = new ArrayList<>();
         List<AttackPathEdge> edges = new ArrayList<>();
@@ -371,12 +370,12 @@ public class AttackPathService {
      */
     @Transactional(readOnly = true)
     public List<AttackPathGraph> getOverview(Visibility allowed) {
-        List<RepositoryEntity> visible = allowed.asFilter()
-                .map(targets -> repositories.findAllById(targets.stream()
+        List<RepositoryView> visible = allowed.asFilter()
+                .map(permitted -> this.targets.repositories(permitted.stream()
                         .filter(ScanTarget.Repository.class::isInstance)
                         .map(target -> ((ScanTarget.Repository) target).id())
                         .toList()))
-                .orElseGet(repositories::findAll);
+                .orElseGet(this.targets::repositories);
 
         if (visible.isEmpty()) {
             return List.of();
@@ -385,7 +384,7 @@ public class AttackPathService {
         // **Three reads for the page, not four per repository.** Endpoints, contracts and open
         // issues are fetched for every visible target at once and handed to `buildGraph`, which
         // is the same computation it always was on the same inputs.
-        List<Long> repoIds = visible.stream().map(RepositoryEntity::getId).toList();
+        List<Long> repoIds = visible.stream().map(RepositoryView::id).toList();
         Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
                 apiInventory.endpointViewsByRepository(repoIds);
         Map<Long, List<IssueRows.GraphNode>> issuesByRepo = issues
@@ -394,11 +393,11 @@ public class AttackPathService {
                 .collect(Collectors.groupingBy(IssueRows.GraphNode::repoId));
 
         List<AttackPathGraph> graphs = new ArrayList<>();
-        for (RepositoryEntity repo : visible) {
+        for (RepositoryView repo : visible) {
             graphs.add(buildGraph(
                     repo,
-                    endpointsByRepo.getOrDefault(repo.getId(), List.of()),
-                    issuesByRepo.getOrDefault(repo.getId(), List.of())));
+                    endpointsByRepo.getOrDefault(repo.id(), List.of()),
+                    issuesByRepo.getOrDefault(repo.id(), List.of())));
         }
         return graphs;
     }

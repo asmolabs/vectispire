@@ -4,10 +4,9 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
@@ -40,20 +39,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CertifiedScopeService {
 
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetCatalog targets;
     private final Scans scans;
     private final SettingsService settings;
     private final Clock clock;
 
     public CertifiedScopeService(
-            GitRepositories repositories,
-            Containers containers,
+            TargetCatalog targets,
             Scans scans,
             SettingsService settings,
             Clock clock) {
-        this.repositories = repositories;
-        this.containers = containers;
+        this.targets = targets;
         this.scans = scans;
         this.settings = settings;
         this.clock = clock;
@@ -104,12 +100,12 @@ public class CertifiedScopeService {
     @Transactional(readOnly = true)
     public Set<ScanTarget> inScope(Visibility allowed) {
         return java.util.stream.Stream.concat(
-                        repositories.findAll().stream()
-                                .filter(row -> row.isInCertifiedScope())
-                                .<ScanTarget>map(row -> new ScanTarget.Repository(row.getId())),
-                        containers.findAll().stream()
-                                .filter(row -> row.isInCertifiedScope())
-                                .<ScanTarget>map(row -> new ScanTarget.Container(row.getId())))
+                        targets.repositories().stream()
+                                .filter(row -> row.inCertifiedScope())
+                                .<ScanTarget>map(row -> new ScanTarget.Repository(row.id())),
+                        targets.containers().stream()
+                                .filter(row -> row.inCertifiedScope())
+                                .<ScanTarget>map(row -> new ScanTarget.Container(row.id())))
                 .filter(allowed::permits)
                 .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
     }
@@ -121,24 +117,7 @@ public class CertifiedScopeService {
      */
     @Transactional
     public boolean setInScope(ScanTarget target, boolean inScope) {
-        return switch (target) {
-            case ScanTarget.Repository repository -> repositories.findById(repository.id())
-                    .map(row -> {
-                        boolean changed = row.isInCertifiedScope() != inScope;
-                        row.setInCertifiedScope(inScope);
-                        repositories.save(row);
-                        return changed;
-                    })
-                    .orElse(false);
-            case ScanTarget.Container container -> containers.findById(container.id())
-                    .map(row -> {
-                        boolean changed = row.isInCertifiedScope() != inScope;
-                        row.setInCertifiedScope(inScope);
-                        containers.save(row);
-                        return changed;
-                    })
-                    .orElse(false);
-        };
+        return targets.setInCertifiedScope(target, inScope);
     }
 
     private int freshnessDays() {

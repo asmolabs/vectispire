@@ -18,10 +18,9 @@ import com.asmolabs.vectispire.core.agents.persistence.Agents;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.scanning.WorkerProperties;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,8 +65,7 @@ public class AgentAdministrationService {
     private final Agents agents;
     private final AgentKeys keys;
     private final Scans scans;
-    private final GitRepositories gitRepositories;
-    private final Containers containers;
+    private final TargetCatalog targets;
     private final AuditLogService audit;
     private final WorkerProperties worker;
     private final TransactionTemplate transactions;
@@ -77,8 +75,7 @@ public class AgentAdministrationService {
             Agents agents,
             AgentKeys keys,
             Scans scans,
-            GitRepositories gitRepositories,
-            Containers containers,
+            TargetCatalog targets,
             AuditLogService audit,
             WorkerProperties worker,
             TransactionTemplate transactions,
@@ -86,8 +83,7 @@ public class AgentAdministrationService {
         this.agents = agents;
         this.keys = keys;
         this.scans = scans;
-        this.gitRepositories = gitRepositories;
-        this.containers = containers;
+        this.targets = targets;
         this.audit = audit;
         this.worker = worker;
         this.transactions = transactions;
@@ -175,15 +171,15 @@ public class AgentAdministrationService {
         activeAgentLabels.addAll(AgentLabels.parse(worker.labels()));
 
         Map<Long, String> repoNames = new HashMap<>();
-        gitRepositories.findAll().forEach(r -> {
-            String name = r.getName() != null && !r.getName().isBlank() ? r.getName() : RepositoryUrl.redact(r.getUrl());
-            repoNames.put(r.getId(), name != null ? name : "Repo #" + r.getId());
+        targets.repositories().forEach(r -> {
+            String name = r.name() != null && !r.name().isBlank() ? r.name() : RepositoryUrl.redact(r.url());
+            repoNames.put(r.id(), name != null ? name : "Repo #" + r.id());
         });
 
         Map<Long, String> containerNames = new HashMap<>();
-        containers.findAll().forEach(c -> {
-            String name = c.getImageName() + (c.getTag() != null && !c.getTag().isBlank() ? ":" + c.getTag() : "");
-            containerNames.put(c.getId(), name);
+        targets.containers().forEach(c -> {
+            String name = c.imageName() + (c.tag() != null && !c.tag().isBlank() ? ":" + c.tag() : "");
+            containerNames.put(c.id(), name);
         });
 
         List<ScanEntity> activeScans = scans.findByStatusInOrderByCreatedAtAsc(

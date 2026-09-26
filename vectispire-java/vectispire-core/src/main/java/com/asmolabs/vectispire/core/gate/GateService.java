@@ -23,14 +23,13 @@ import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
@@ -70,8 +69,7 @@ public class GateService {
     /** The reading the ticket sweep shares; built over the same repository, so it holds no state of its own. */
     private final ActiveGatePolicies activePolicies;
     private final GateVerdicts verdicts;
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetCatalog catalog;
     private final Scans scans;
     private final RuleCoverageService ruleCoverage;
     private final SiemEvents siem;
@@ -81,8 +79,7 @@ public class GateService {
             Issues issues,
             GatePolicies policies,
             GateVerdicts verdicts,
-            GitRepositories repositories,
-            Containers containers,
+            TargetCatalog catalog,
             Scans scans,
             RuleCoverageService ruleCoverage,
             SiemEvents siem,
@@ -92,8 +89,7 @@ public class GateService {
         this.activePolicies = new ActiveGatePolicies(policies);
         this.verdicts = verdicts;
         this.ruleCoverage = ruleCoverage;
-        this.repositories = repositories;
-        this.containers = containers;
+        this.catalog = catalog;
         this.scans = scans;
         this.siem = siem;
         this.clock = clock;
@@ -245,16 +241,16 @@ public class GateService {
 
         List<SecurityOverview.NamedTarget> targets = new ArrayList<>();
         Map<ScanTarget, StoredPolicy> policiesByTarget = new HashMap<>();
-        repositories.findAll().forEach(repository -> {
-            ScanTarget target = new ScanTarget.Repository(repository.getId());
+        catalog.repositories().forEach(repository -> {
+            ScanTarget target = new ScanTarget.Repository(repository.id());
             if (!visibility.permits(target)) {
                 return;
             }
             targets.add(new SecurityOverview.NamedTarget(target, TargetNaming.of(repository)));
             Optional.ofNullable(byScope.get(scopeKey(target))).ifPresent(policy -> policiesByTarget.put(target, policy));
         });
-        containers.findAll().forEach(container -> {
-            ScanTarget target = new ScanTarget.Container(container.getId());
+        catalog.containers().forEach(container -> {
+            ScanTarget target = new ScanTarget.Container(container.id());
             if (!visibility.permits(target)) {
                 return;
             }
@@ -340,8 +336,8 @@ public class GateService {
     private void requireScopeExists(PolicyScope scope) {
         boolean exists = switch (scope.kind()) {
             case SCOPE_GLOBAL -> true;
-            case "repository" -> repositories.existsById(scope.id());
-            case "container" -> containers.existsById(scope.id());
+            case "repository" -> catalog.exists(new ScanTarget.Repository(scope.id()));
+            case "container" -> catalog.exists(new ScanTarget.Container(scope.id()));
             default -> throw new IllegalArgumentException(
                     "Unknown policy scope: \"" + scope.kind() + "\". Use global, repository or container.");
         };

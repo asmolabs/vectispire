@@ -8,14 +8,13 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.services.targets.TargetNaming;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -105,16 +104,13 @@ public class SecurityDebtService {
     private static final int MOST_LEVERAGE_EVER = 50;
 
     private final Issues issues;
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetCatalog targets;
 
     public SecurityDebtService(
             Issues issues,
-            GitRepositories repositories,
-            Containers containers) {
+            TargetCatalog targets) {
         this.issues = issues;
-        this.repositories = repositories;
-        this.containers = containers;
+        this.targets = targets;
     }
 
     @Transactional(readOnly = true)
@@ -329,10 +325,10 @@ public class SecurityDebtService {
         //
         // The naming rule is not this class's to hold anyway. Had the null not thrown, this
         // screen would have called a repository something no other screen calls it.
-        Map<Long, String> repoNames = repositories.findAllById(repoIds).stream()
-                .collect(Collectors.toMap(RepositoryEntity::getId, TargetNaming::of, (a, b) -> a));
-        Map<Long, String> containerNames = containers.findAllById(containerIds).stream()
-                .collect(Collectors.toMap(ContainerEntity::getId, TargetNaming::of, (a, b) -> a));
+        Map<Long, String> repoNames = targets.repositories(repoIds).stream()
+                .collect(Collectors.toMap(RepositoryView::id, TargetNaming::of, (a, b) -> a));
+        Map<Long, String> containerNames = targets.containers(containerIds).stream()
+                .collect(Collectors.toMap(ContainerView::id, TargetNaming::of, (a, b) -> a));
 
         Map<String, Detail> details = new LinkedHashMap<>();
         for (IssueAggregates.PackageDetail row : rows) {

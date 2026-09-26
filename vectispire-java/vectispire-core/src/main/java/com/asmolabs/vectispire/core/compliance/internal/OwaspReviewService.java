@@ -7,10 +7,10 @@ import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
@@ -86,22 +86,22 @@ public class OwaspReviewService {
      * posture PDF names, in a format that reads even more like a verdict.
      */
     @Transactional
-    public AiReviewResultEntity run(RepositoryEntity repository) {
+    public AiReviewResultEntity run(RepositoryView repository) {
         if (!models.isEnabled()) {
             throw new ReviewRefusedException(
                     "Model review is switched off. Turn it on under Settings → Model review.");
         }
 
-        ScanEntity scan = scans.findHistory(repository.getId(), null, Limit.of(1)).stream()
+        ScanEntity scan = scans.findHistory(repository.id(), null, Limit.of(1)).stream()
                 .findFirst()
                 .orElseThrow(() -> new ReviewRefusedException(
                         "This repository has never been scanned. There is nothing to report on yet."));
 
-        List<IssueEntity> open = issues.findByRepositoryAndState(repository.getId(), IssueState.OPEN.wireName());
+        List<IssueEntity> open = issues.findByRepositoryAndState(repository.id(), IssueState.OPEN.wireName());
         String digest = OwaspReview.digest(
                 new OwaspReview.Subject(
-                        repository.getName() == null ? RepositoryUrl.redact(repository.getUrl()) : repository.getName(),
-                        repository.getBranch(),
+                        repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
+                        repository.branch(),
                         scan.getVersion(),
                         open.size()),
                 open.stream().map(OwaspReviewService::evidenceOf).toList(),
@@ -123,7 +123,7 @@ public class OwaspReviewService {
         } catch (RuntimeException failure) {
             // Recorded rather than rethrown: the screen shows the attempt and its reason, and an
             // operator can tell "the model refused" from "nobody ever asked".
-            log.warn("OWASP report for repository {} failed: {}", repository.getId(), failure.getMessage());
+            log.warn("OWASP report for repository {} failed: {}", repository.id(), failure.getMessage());
             result.setStatus(STATUS_FAILED);
             result.setError(truncate(failure.getMessage()));
         }

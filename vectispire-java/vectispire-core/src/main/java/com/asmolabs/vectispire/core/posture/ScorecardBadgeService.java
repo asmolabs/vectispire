@@ -8,8 +8,8 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog.BadgeToken;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Optional;
@@ -30,13 +30,13 @@ public class ScorecardBadgeService {
     /** 32 bytes, url-safe, unpadded: it lives in a README's URL and must survive being copied. */
     private static final SecureRandom TOKENS = new SecureRandom();
 
-    private final GitRepositories repositories;
+    private final TargetCatalog targets;
     private final SecurityScorecardService scorecards;
     private final AuditLogService audit;
 
     public ScorecardBadgeService(
-            GitRepositories repositories, SecurityScorecardService scorecards, AuditLogService audit) {
-        this.repositories = repositories;
+            TargetCatalog targets, SecurityScorecardService scorecards, AuditLogService audit) {
+        this.targets = targets;
         this.scorecards = scorecards;
         this.audit = audit;
     }
@@ -55,8 +55,8 @@ public class ScorecardBadgeService {
      * say that a repository once had a badge, which is a fact about the estate.
      */
     public Optional<String> publishedSvg(String token) {
-        return repositories.findByBadgeToken(token).map(repository -> {
-            SecurityScorecard scorecard = scorecards.getRepositoryScorecard(repository.getId()).orElse(null);
+        return targets.repositoryWithBadge(token).map(repositoryId -> {
+            SecurityScorecard scorecard = scorecards.getRepositoryScorecard(repositoryId).orElse(null);
             String grade = scorecard != null ? scorecard.grade().getLabel() : "unknown";
             String color = scorecard != null ? scorecard.grade().getBadgeColor() : "#555";
             return SvgBadgeGenerator.generateBadge("security grade", grade, color);
@@ -80,30 +80,30 @@ public class ScorecardBadgeService {
      */
     public Optional<Badge> publish(long repoId, Visibility allowed, RequestActor actor) {
         return visible(repoId, allowed).map(repository -> {
-            if (repository.getBadgeToken() != null) {
+            if (repository.token() != null) {
                 return badgeOf(repository, false);
             }
             byte[] raw = new byte[32];
             TOKENS.nextBytes(raw);
-            repository.setBadgeToken(Base64.getUrlEncoder().withoutPadding().encodeToString(raw));
-            repositories.save(repository);
+            BadgeToken published = new BadgeToken(
+                    repository.repositoryId(), Base64.getUrlEncoder().withoutPadding().encodeToString(raw));
+            targets.setBadgeToken(repoId, published.token());
             record(actor, repoId,
                     "Security badge published for repository " + repoId
                             + ": its grade is now readable by anyone holding the badge URL.");
-            return badgeOf(repository, true);
+            return badgeOf(published, true);
         });
     }
 
     /** Revokes the badge. Every README carrying the old URL starts answering 404. */
     public Optional<Badge> revoke(long repoId, Visibility allowed, RequestActor actor) {
         return visible(repoId, allowed).map(repository -> {
-            if (repository.getBadgeToken() == null) {
+            if (repository.token() == null) {
                 return badgeOf(repository, false);
             }
-            repository.setBadgeToken(null);
-            repositories.save(repository);
+            targets.setBadgeToken(repoId, null);
             record(actor, repoId, "Security badge revoked for repository " + repoId + ".");
-            return badgeOf(repository, true);
+            return badgeOf(new BadgeToken(repository.repositoryId(), null), true);
         });
     }
 
@@ -113,16 +113,16 @@ public class ScorecardBadgeService {
      * <p>A hidden repository is refused as a hidden target, before anything is read, so that no
      * lookup distinguishes it from one the reader may see.
      */
-    private Optional<RepositoryEntity> visible(long repoId, Visibility allowed) {
+    private Optional<BadgeToken> visible(long repoId, Visibility allowed) {
         RowVisibility.requireVisible(new ScanTarget.Repository(repoId), allowed);
-        return repositories.findById(repoId);
+        return targets.badgeToken(repoId);
     }
 
     private void record(RequestActor actor, long repoId, String description) {
         audit.record(actor.entry(AuditOperation.BADGE_PUBLISHED, "repository:" + repoId + ":badge", description));
     }
 
-    private static Badge badgeOf(RepositoryEntity repository, boolean changed) {
-        return new Badge(repository.getId(), repository.getBadgeToken(), changed);
+    private static Badge badgeOf(BadgeToken repository, boolean changed) {
+        return new Badge(repository.repositoryId(), repository.token(), changed);
     }
 }

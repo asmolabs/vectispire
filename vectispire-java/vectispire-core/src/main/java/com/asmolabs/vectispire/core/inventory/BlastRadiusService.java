@@ -1,23 +1,21 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TargetImpact;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TopImpactPackage;
-import com.asmolabs.vectispire.common.domain.graph.DependencyGraph;
+import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphEdge;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphNode;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
+import com.asmolabs.vectispire.common.domain.graph.DependencyGraph;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.FindingGraphQueries;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
+import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -37,20 +35,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class BlastRadiusService {
 
-    private final GitRepositories repositoriesRepo;
-    private final Containers containersRepo;
+    private final TargetCatalog targets;
     private final Findings findingsRepo;
     private final Issues issuesRepo;
     private final Scans scansRepo;
 
     public BlastRadiusService(
-            GitRepositories repositoriesRepo,
-            Containers containersRepo,
+            TargetCatalog targets,
             Findings findingsRepo,
             Issues issuesRepo,
             Scans scansRepo) {
-        this.repositoriesRepo = repositoriesRepo;
-        this.containersRepo = containersRepo;
+        this.targets = targets;
         this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
         this.scansRepo = scansRepo;
@@ -77,8 +72,8 @@ public class BlastRadiusService {
         List<FindingGraphQueries.GraphRow> rows = findingsRepo.forGraph(query, isCveQuery, true, allowed);
 
         // Named only for the targets that actually appeared, rather than by loading both tables.
-        Map<Long, RepositoryEntity> reposMap = namedRepositories(rows);
-        Map<Long, ContainerEntity> containersMap = namedContainers(rows);
+        Map<Long, RepositoryView> reposMap = namedRepositories(rows);
+        Map<Long, ContainerView> containersMap = namedContainers(rows);
 
         List<TargetImpact> targets = new ArrayList<>();
         Map<String, GraphNode> nodesMap = new HashMap<>();
@@ -104,15 +99,15 @@ public class BlastRadiusService {
             if (targetId == null) continue;
 
             String targetName = scan.getRepoId() != null && reposMap.containsKey(targetId)
-                    ? reposMap.get(targetId).getName()
+                    ? reposMap.get(targetId).name()
                     : (scan.getContainerId() != null && containersMap.containsKey(targetId)
-                            ? containersMap.get(targetId).getImageName() + ":" + containersMap.get(targetId).getTag()
+                            ? containersMap.get(targetId).imageName() + ":" + containersMap.get(targetId).tag()
                             : "target-" + targetId);
 
             String targetContext = scan.getRepoId() != null
                     ? (scan.getBranch() != null ? scan.getBranch() : "main")
                     : (scan.getContainerId() != null && containersMap.containsKey(targetId)
-                            ? containersMap.get(targetId).getTag()
+                            ? containersMap.get(targetId).tag()
                             : "latest");
 
             String targetNodeId = "target-" + targetKind.toLowerCase(Locale.ROOT) + "-" + targetId;
@@ -259,26 +254,26 @@ public class BlastRadiusService {
     }
 
     /** The repositories named by these rows, and no others. */
-    private Map<Long, RepositoryEntity> namedRepositories(List<FindingGraphQueries.GraphRow> rows) {
+    private Map<Long, RepositoryView> namedRepositories(List<FindingGraphQueries.GraphRow> rows) {
         Set<Long> ids = rows.stream()
                 .map(row -> row.scan().getRepoId())
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         return ids.isEmpty()
                 ? Map.of()
-                : repositoriesRepo.findAllById(ids).stream()
-                        .collect(Collectors.toMap(RepositoryEntity::getId, r -> r));
+                : targets.repositories(ids).stream()
+                        .collect(Collectors.toMap(RepositoryView::id, r -> r));
     }
 
-    private Map<Long, ContainerEntity> namedContainers(List<FindingGraphQueries.GraphRow> rows) {
+    private Map<Long, ContainerView> namedContainers(List<FindingGraphQueries.GraphRow> rows) {
         Set<Long> ids = rows.stream()
                 .map(row -> row.scan().getContainerId())
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         return ids.isEmpty()
                 ? Map.of()
-                : containersRepo.findAllById(ids).stream()
-                        .collect(Collectors.toMap(ContainerEntity::getId, c -> c));
+                : targets.containers(ids).stream()
+                        .collect(Collectors.toMap(ContainerView::id, c -> c));
     }
 
 }
