@@ -1,9 +1,9 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.targets;
 
-import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.COLUMN_LENGTH;
-import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.optional;
-import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.requiredLabel;
-import static com.asmolabs.vectispire.core.services.RepositoryAdministrationService.trim;
+import static com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.COLUMN_LENGTH;
+import static com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.optional;
+import static com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.requiredLabel;
+import static com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.trim;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -19,7 +19,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.LatestScan;
+import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.LatestScan;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;

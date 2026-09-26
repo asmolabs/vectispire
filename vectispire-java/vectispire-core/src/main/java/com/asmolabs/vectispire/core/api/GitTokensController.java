@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.GitTokenAdministrationService;
+import com.asmolabs.vectispire.core.services.targets.GitTokenAdministrationService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.targets;
 
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.repositories.AiReviewResults;
