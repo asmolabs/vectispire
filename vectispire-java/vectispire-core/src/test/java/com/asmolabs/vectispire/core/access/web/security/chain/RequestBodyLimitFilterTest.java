@@ -23,7 +23,7 @@ import org.springframework.util.unit.DataSize;
 class RequestBodyLimitFilterTest {
 
     private final RequestBodyLimitFilter filter =
-            new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30));
+            new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")
@@ -57,6 +57,17 @@ class RequestBodyLimitFilterTest {
         assertThat(declared("/api/v1/agent/jobs/42/result", 31)).isEqualTo(413);
         assertThat(declared("/api/v1/agent/jobs/42/result", 30)).isEqualTo(200);
         assertThat(declared("/api/v1/settings/ticket-token", 1_000)).as("not a raw-body route").isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("the sign-in routes anybody may post to have a ceiling of their own")
+    void theSignInRoutesAreBounded() throws Exception {
+        // Read by the JSON converter with no ceiling but the container's, on routes that need no
+        // credential: the webhook's buffering, offered to anyone.
+        for (String path : new String[] {"/api/v1/auth/login", "/api/v1/auth/mfa/verify", "/api/v1/auth/session/exchange"}) {
+            assertThat(declared(path, 41)).as(path).isEqualTo(413);
+            assertThat(declared(path, 40)).as(path).isEqualTo(200);
+        }
     }
 
     private int declared(String path, int length) throws Exception {

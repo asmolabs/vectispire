@@ -69,14 +69,15 @@ refusal is still answered `401` or `403`.
 
 ## Request bodies
 
-Three routes read their body whole before anything looks at it. Past these limits they answer
-`413`.
+Three routes read their body whole before anything looks at it, and the sign-in routes can be
+posted to by anyone. Past these limits they answer `413`.
 
 | Variable | Default | Route |
 |---|---|---|
 | `VECTISPIRE_MAX_BODY_TICKET_WEBHOOK` | `1MB` | `POST /api/v1/tickets/webhook/{provider}` — a tracker event is tens of kilobytes |
 | `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — a VEX document for a large product |
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — the result carries the SBOM |
+| `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | every `POST /api/v1/auth/…` — a login, a one-time code or a session exchange is a few hundred bytes |
 
 ## Cloning
 

@@ -18,7 +18,8 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * A ceiling on the three request bodies read whole into memory before anything looks at them.
+ * A ceiling on the request bodies read whole into memory before anything looks at them, and on the
+ * sign-in routes anybody may post to.
  *
  * <p><b>Why a filter, and not a container setting.</b> Tomcat's {@code maxPostSize} and Spring's
  * multipart limits apply to form and multipart bodies only; a {@code @RequestBody String} or
@@ -42,8 +43,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *   <li>Agent result, 256 MB: the result carries the SBOM, and a large container image's is tens of
  *       megabytes of JSON. The sender holds an agent key; the ceiling is against a runaway, not a
  *       stranger, and is set well above anything a real scan produces.
+ *   <li>Sign-in, 16 KB, every {@code POST} under {@code /api/v1/auth/}: a login, a one-time code, a
+ *       session exchange or a password change is a few hundred bytes of JSON. Three of these routes
+ *       are open to anyone, and their bodies were read by the JSON converter with no ceiling but the
+ *       container's — the same buffering as the webhook's, offered to a client with no credential.
  * </ul>
- * All three are properties, so an estate that needs more can say so.
+ * All four are properties, so an estate that needs more can say so.
+ *
+ * <p>No default for every other route, deliberately: the rule-set upload and the gate take documents
+ * whose size is the estate's, and a ceiling guessed for them would be an outage. Those routes are
+ * reached by an authenticated caller only.
  */
 @Component
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
@@ -51,14 +60,20 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     private final DataSize webhook;
     private final DataSize vexIngest;
     private final DataSize agentResult;
+    private final DataSize signIn;
+
+    /** The prefix of the sign-in routes, three of them open to anyone. */
+    static final String SIGN_IN_PREFIX = "/api/v1/auth/";
 
     public RequestBodyLimitFilter(
             @Value("${vectispire.http.max-body.ticket-webhook:1MB}") DataSize webhook,
             @Value("${vectispire.http.max-body.vex-ingest:16MB}") DataSize vexIngest,
-            @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult) {
+            @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult,
+            @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn) {
         this.webhook = webhook;
         this.vexIngest = vexIngest;
         this.agentResult = agentResult;
+        this.signIn = signIn;
     }
 
     @Override
@@ -97,6 +112,9 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/api/v1/agent/jobs/") && path.endsWith("/result")) {
             return Optional.of(agentResult.toBytes());
+        }
+        if (path.startsWith(SIGN_IN_PREFIX)) {
+            return Optional.of(signIn.toBytes());
         }
         return Optional.empty();
     }

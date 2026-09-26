@@ -159,14 +159,15 @@ vectispire:
     webhook-requests-per-window: ${VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW:300}
     webhook-request-window: ${VECTISPIRE_WEBHOOK_REQUEST_WINDOW:PT1M}
 
-  # **The three request bodies read whole into memory**, which no container setting bounds: Tomcat's
-  # and Spring's limits apply to forms and multipart only. Past these, 413. The reasoning for each
-  # value is on `RequestBodyLimitFilter`.
+  # **The request bodies read whole into memory, and the sign-in routes anyone may post to**, which no
+  # container setting bounds: Tomcat's and Spring's limits apply to forms and multipart only. Past
+  # these, 413. The reasoning for each value is on `RequestBodyLimitFilter`.
   http:
     max-body:
       ticket-webhook: ${VECTISPIRE_MAX_BODY_TICKET_WEBHOOK:1MB}
       vex-ingest: ${VECTISPIRE_MAX_BODY_VEX_INGEST:16MB}
       agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}
+      sign-in: ${VECTISPIRE_MAX_BODY_SIGN_IN:16KB}
 
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}

@@ -70,14 +70,15 @@ total. Chaque refus reçoit toujours sa réponse `401` ou `403`.
 
 ## Corps de requête
 
-Trois routes lisent leur corps en entier avant que quoi que ce soit ne le regarde. Au-delà de ces
-limites, elles répondent `413`.
+Trois routes lisent leur corps en entier avant que quoi que ce soit ne le regarde, et les routes de
+connexion acceptent un envoi de n'importe qui. Au-delà de ces limites, elles répondent `413`.
 
 | Variable | Défaut | Route |
 |---|---|---|
 | `VECTISPIRE_MAX_BODY_TICKET_WEBHOOK` | `1MB` | `POST /api/v1/tickets/webhook/{provider}` — un événement de tracker pèse quelques dizaines de kilo-octets |
 | `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — un document VEX pour un gros produit |
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — le résultat porte le SBOM |
+| `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | chaque `POST /api/v1/auth/…` — une connexion, un code à usage unique ou un échange de session pèse quelques centaines d'octets |
 
 ## Clonage
 
