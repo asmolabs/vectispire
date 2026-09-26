@@ -1,15 +1,13 @@
 # 05 — La modularité vue par Spring Modulith
 
-> **Observé le 2026-09-26, après l'étape 5 de la migration vers Spring Modulith**, avec l'observation
-> de l'étape 2 gardée comme référence. Modulith est dans le build pour qu'on l'interroge, pas pour
-> imposer ses réponses : `ModularityObservationTest` construit son modèle du plan de contrôle, écrit le
-> rapport et les diagrammes générés dans `vectispire-java/vectispire-core/build/modulith-docs/`, et
-> n'échoue sur rien de ce qu'il trouve. À l'exécution, il ne fait rien — `ModulithRuntimeInertTest`
-> échoue si l'un de ses beans devient actif. Les règles qui *sont* imposées sont celles
-> d'[`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java),
-> telles que les décisions [0026](decisions/0026-services-are-grouped-by-domain.md),
-> [0028](decisions/0028-vertical-modules.md) et [0029](decisions/0029-core-domains-become-modules.md)
-> les décrivent.
+> **Vérifié depuis le 2026-09-26, étape 6 de la migration vers Spring Modulith**, avec l'observation
+> de l'étape 2 gardée comme référence. [`ModularityTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ModularityTest.java)
+> construit le modèle Modulith du plan de contrôle, **casse le build à la première violation** —
+> `ApplicationModules.verify()` — et écrit le modèle des modules et les diagrammes générés dans
+> `vectispire-java/vectispire-core/build/modulith-docs/` ([décision 0030](decisions/0030-modulith-verifies-the-module-boundaries.md)).
+> La production porte les annotations de Modulith et rien d'autre ; `ModulithRuntimeInertTest` échoue
+> si davantage atteint le jar ou si l'un de ses beans devient actif. Les couches à l'intérieur d'un
+> module restent celles d'[`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java).
 
 ## Ce que Modulith détecte : vingt-quatre domaines et `config`
 
@@ -46,7 +44,11 @@ paquetages par couche ont disparu :
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 
-`access` figure dans la plupart des lignes à travers les contrôleurs : chaque route a besoin de ses
+Chaque ligne est aussi ce que déclare le `package-info` du module, dans
+`@ApplicationModule(allowedDependencies = …)`, avec les interfaces nommées qu'il lit (`access::security`,
+`issues::queries`, `scanning::queries`) et la raison de chaque ligne ; `verify()` échoue sur une
+dépendance absente d'une liste, et `ModularityTest` sur une ligne qu'aucun usage ne demande. `access`
+figure dans la plupart des lignes à travers les contrôleurs : chaque route a besoin de ses
 marqueurs et résout une `Visibility`. Le socle est déclaré partagé (`@Modulithic(sharedModules = …)` sur
 `VectispireApplication`) et reste fermé : ses paquetages `internal` et `persistence` sont cachés comme
 ceux de n'importe quel module. Trois interfaces nommées sont publiées : `security` d'`access` (les
@@ -60,30 +62,42 @@ dépendance à `common.domain` est invisible pour Modulith. Depuis l'étape 5, a
 pour être vu par des modules inférieurs : `TargetDeleted` et `TargetPurge` appartiennent à `targets`,
 et tous les écouteurs sont au-dessus de lui.
 
-## Ce que `verify()` rejetterait
+## Ce que `verify()` rejette
 
-| | Avant l'étape 3 (étape 2) | Après l'étape 4 | Après l'étape 5 |
-|---|---|---|---|
-| Modules | 5, toutes des couches | 24 : 19 domaines (6 partagés), 5 couches | 25 : 24 domaines (7 partagés), `config` |
-| Messages | **1 304** | **554** | **0** |
-| `api` → types non exposés de `services` (couche → couche) | 1 304 (208 types) | 278 (50 types) | — |
-| un module → types non exposés de `services` (module → couche) | — | 201 | — |
-| un paquetage par couche → types non exposés d'un module | — | 18 | — |
-| un module → types non exposés d'un autre module | — | **0** | **0** |
-| cycles | 0 | 57, tous à travers `services` | **0** |
+| | Avant l'étape 3 (étape 2) | Après l'étape 4 | Après l'étape 5 | Étape 6 |
+|---|---|---|---|---|
+| Modules | 5, toutes des couches | 24 : 19 domaines (6 partagés), 5 couches | 25 : 24 domaines (7 partagés), `config` | les mêmes 25 |
+| Messages | **1 304** | **554** | **0** | **0 — et le build casse au premier** |
+| `api` → types non exposés de `services` (couche → couche) | 1 304 (208 types) | 278 (50 types) | — | — |
+| un module → types non exposés de `services` (module → couche) | — | 201 | — | — |
+| un paquetage par couche → types non exposés d'un module | — | 18 | — | — |
+| un module → types non exposés d'un autre module | — | **0** | **0** | **0** |
+| cycles | 0 | 57, tous à travers `services` | **0** | **0** |
+| une dépendance que la liste du module ne déclare pas | — | — | — | **0** (listes déclarées à l'étape 6) |
 
-**`verify()` passerait.** Tous les messages restants venaient du découpage par couche, et ce découpage
-a disparu : les contrôleurs ont suivi leurs domaines, chaque lecture des tables d'un autre module est
-devenue un appel à l'API du propriétaire ou un port, et les 57 cycles — un seul artefact, `services` vu
-comme un module, posé sur une poignée de vraies dépendances à double sens — ont été rompus un à un,
-chacun dans le sens que donne le métier (la 0029 en donne le tableau). La propre règle de cycles
-d'`ArchitectureTest`, découpée par module, est d'accord : rien à signaler, `KNOWN_CYCLES` vide.
+**`verify()` passe, et c'est la barrière.** Tous les messages que l'étape 5 laissait venaient du
+découpage par couche, et ce découpage a disparu : les contrôleurs ont suivi leurs domaines, chaque
+lecture des tables d'un autre module est devenue un appel à l'API du propriétaire ou un port, et les 57
+cycles — un seul artefact, `services` vu comme un module, posé sur une poignée de vraies dépendances à
+double sens — ont été rompus un à un, chacun dans le sens que donne le métier (la 0029 en donne le
+tableau). L'étape 6 a rendu le contrôle bloquant et lui a donné le tableau : la règle de cycles,
+`modulesMeetAtTheirApi` et `MAY_USE` ont quitté `ArchitectureTest` (la 0030 dit règle par règle ce qui
+est parti et ce qui est resté).
 
-Deux couplages restent que ni Modulith ni ArchUnit ne peuvent compter, parce que ce sont des chaînes :
-des requêtes JPQL qui nomment l'entité d'un autre module — les balayages d'orphelins, les jointures de
-l'inventaire aux scans qui ont vu chaque composant, `AiReviewResults`,
-`Scans.findWithSbomButNoComponents`. Chacune est une instruction sur deux tables, moins chère que deux
-requêtes et une différence d'ensembles ; la 0029 les liste comme ce qui reste.
+**Deux choses qu'une liste de module ne sait pas dire** restent hors de `verify()`. Le socle est partagé,
+et Modulith autorise tout module partagé à tout module, ceux du socle compris : `ModularityTest` tient la
+liste de chaque module du socle à ce qu'il utilise. Et six modules n'utilisent `access` que pour leurs
+routes — `siem`, `rules`, `inventory`, `threatintel`, `gate`, `exports` —, ce qu'une liste, une par
+module, ne peut exprimer : `ArchitectureTest.accessForRoutesOnly` en tient leurs services à l'écart.
+
+**Les couplages que ni Modulith ni ArchUnit ne peuvent compter sont des chaînes** : des requêtes JPQL qui
+nomment l'entité d'un autre module. `CrossModuleQueriesTest` lit chaque requête de dépôt, rattache les
+entités, tables et classes qu'elle nomme à leur module, et échoue sur une référence que sa liste ne porte
+pas. Il en trouve onze — les balayages d'orphelins d'`Issues` et de `Scans` (les tables de `targets`),
+les cinq jointures de l'inventaire aux scans qui ont vu chaque composant,
+`AiReviewResults.latestForRepository` (les scans), et `Scans.findWithSbomButNoComponents`, qui lit
+`inventory` depuis `scanning`, à contresens des modules, et le dit. Chacune est une instruction sur deux
+tables, moins chère que deux requêtes et une différence d'ensembles ; la dernière est celle à déplacer.
 
 ## Ce qui a changé avant cette observation (étape 1)
 
@@ -136,9 +150,18 @@ ce que Modulith vérifiera plus tard parte d'un graphe sans exception connue :
   devenue une règle, `everyRepositoryWriteIsTransactional` — qui a trouvé quinze suppressions dérivées
   sans `@Transactional`.
 
-## Ce que change l'étape 6
+## Ce qu'a changé l'étape 6
 
-`ModularityObservationTest` devient `ApplicationModules.verify()`. Rien n'a à bouger d'abord : le
-rapport est vide. Ce que l'étape 6 doit décider, c'est seulement comment le build échoue — sur le
-modèle entier, ou avec les trois interfaces nommées déclarées comme la surface publiée qu'elles sont
-déjà.
+- **`ModularityObservationTest` est devenu `ModularityTest`**, qui appelle `verify()` et casse le build ;
+  il écrit toujours les fiches et les diagrammes de composants C4.
+- **Chaque module déclare ce qu'il peut utiliser**, sur son `package-info`, avec les raisons que portait
+  `MAY_USE` ; seul `platform` ne déclare rien, ce qui pour Modulith veut dire « tout ». Les interfaces
+  nommées se listent par leur nom : les listes disent donc quels modules lisent `issues::queries`,
+  `scanning::queries` et `access::security`.
+- **`ArchitectureTest` garde l'intérieur d'un module** : les couches, les quatre places, ce qu'un
+  contrôleur, une entité ou un dépôt peut toucher. Retirées, chacune remplacée par `verify()` : la règle
+  de cycles avec `KNOWN_CYCLES`, `modulesMeetAtTheirApi`, `domainsDependOnlyWhereAllowed` avec `MAY_USE`.
+- **Les chaînes de requête sont contrôlées** (`CrossModuleQueriesTest`), avec la liste ci-dessus.
+- **La production ne dépend plus que de `spring-modulith-api`** : le starter core, son modèle
+  d'exécution, ses moments, son processeur d'annotations, jMolecules et ArchUnit ont quitté le jar
+  (de 122 379 585 à 117 310 636 octets), et l'application démarre avec les mêmes 208 routes.

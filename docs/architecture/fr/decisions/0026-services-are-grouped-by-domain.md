@@ -1,6 +1,16 @@
 # 0026 — Les services sont regroupés par domaine, et les domaines dépendent dans un seul sens
 
-**Date :** 2026-09-26 · **Statut :** acceptée · **Décideur :** Laurent Boucher
+**Date :** 2026-09-26 · **Statut :** **remplacé** par [0030](0030-modulith-verifies-the-module-boundaries.md) le 2026-09-26 · **Décideur :** Laurent Boucher
+
+> **Remplacée le 2026-09-26 par la [0030](0030-modulith-verifies-the-module-boundaries.md).** Ce qui
+> l'a démentie, c'est sa propre condition : elle écartait Spring Modulith *pour l'instant* parce que le
+> code était rangé par couche, et nommait le rangement par fonctionnalité comme raison de reconsidérer.
+> Les étapes 3 à 5 ont fait exactement cela, et deux autorités vérifiaient alors une même frontière.
+> Les domaines et le sens de leurs dépendances tiennent, dans la [0028](0028-vertical-modules.md) et la
+> [0029](0029-core-domains-become-modules.md) ; le tableau ci-dessous est devenu le `package-info` de
+> chaque module, vérifié par Modulith, et `KNOWN_CYCLES` est parti avec les règles ArchUnit — un cycle
+> se rompt dans la revue qui le trouve, il ne se consigne plus. Le reste de cette décision est le
+> raisonnement tel qu'il était.
 
 > **Voir aussi** [05 — La modularité vue par Spring Modulith](../05-modularity.md). Plus tard le
 > même jour, l'étape 1 de la migration vers Spring Modulith a rompu les deux cycles consignés

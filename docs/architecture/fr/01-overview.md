@@ -105,12 +105,12 @@ immédiatement en dessous.** Un contrôleur appelle l'API de son module, jamais 
 ni `persistence` ; un module n'en atteint un autre que par la racine de celui-ci, ou par l'une des
 trois interfaces nommées que la migration a déclarées (les marqueurs de route et le principal
 d'`access`, et les enregistrements de requêtes de `scanning` et d'`issues`). Les
-domaines dépendent les uns des autres dans un seul sens, au-dessus du socle que tous peuvent utiliser.
-`ArchitectureTest` refuse un cycle entre domaines, une dépendance que le tableau n'autorise pas, et un
-accès aux internes d'un autre module ; le tableau est dans la
-[décision 0026](decisions/0026-services-are-grouped-by-domain.md), avec les arêtes que les modules ont
-révélées dans la 0028 et la 0029. Spring Modulith est dans le build en mode observation seulement — ce
-qu'il voit, et qu'il ne signale plus rien, c'est le [05](05-modularity.md).
+domaines dépendent les uns des autres dans un seul sens, au-dessus du socle que tous peuvent utiliser,
+et le `package-info` de chaque module liste ce qu'il peut utiliser. **Spring Modulith vérifie les
+frontières et casse le build** — un cycle entre modules, un accès aux internes d'un autre module, une
+dépendance que la liste ne porte pas ([décision 0030](decisions/0030-modulith-verifies-the-module-boundaries.md)) ;
+`ArchitectureTest` garde les couches à l'intérieur de chaque module. Ce que Modulith voit, c'est le
+[05](05-modularity.md).
 
 ## Le déroulement d'un scan
 

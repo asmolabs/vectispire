@@ -29,10 +29,11 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0023](0023-solutions-projects-and-repositories.md) | Solutions contain projects, a project references repositories, and a grant may name a project | accepted |
 | [0024](0024-integration-api-keys-act-for-an-account.md) | An integration API key acts for one account, on the routes that accept it | accepted |
 | [0025](0025-siem-events-leave-through-the-outbox.md) | SIEM events leave through the outbox, after commit, and their catalogue is a contract | accepted |
-| [0026](0026-services-are-grouped-by-domain.md) | Services are grouped by domain, and the domains depend in one direction | accepted |
+| [0026](0026-services-are-grouped-by-domain.md) | Services are grouped by domain, and the domains depend in one direction | superseded by [0030](0030-modulith-verifies-the-module-boundaries.md) |
 | [0027](0027-common-migrations-with-type-placeholders.md) | Common migrations with type placeholders; vendor directories for structural divergence | accepted |
 | [0028](0028-vertical-modules.md) | The domains become vertical modules, and the foundation is shared | accepted (completed by [0029](0029-core-domains-become-modules.md)) |
 | [0029](0029-core-domains-become-modules.md) | The core domains become modules, and the layered packages are gone | accepted |
+| [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

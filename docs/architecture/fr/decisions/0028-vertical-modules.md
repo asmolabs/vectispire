@@ -7,6 +7,11 @@
 > 3 et 4 de la migration vers Spring Modulith — à quoi ressemble un domaine quand il possède ses
 > paquetages, ce qui a migré, ce qui ne le pouvait pas encore, et ce que l'étape 5 doit trancher. Ce que
 > Modulith voit avant et après est dans [05 — La modularité](../05-modularity.md).
+>
+> Depuis l'étape 6 ([0030](0030-modulith-verifies-the-module-boundaries.md)), `MAY_USE` et les règles que
+> cette décision nomme entre modules — `modulesMeetAtTheirApi`, la règle de cycles — sont à Spring
+> Modulith : chaque module déclare ses dépendances autorisées sur son `package-info`, et `verify()` casse
+> le build.
 
 ## Contexte
 

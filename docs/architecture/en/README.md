@@ -13,7 +13,7 @@ what breaks if you change it without knowing.
 | [02 — Data model](02-data-model.md) | What is stored, and why is a *finding* not an *issue*? |
 | [03 — Security](03-security.md) | What are the trust boundaries, what guards them, and what is still open? |
 | [04 — Runtime and deployment](04-runtime-and-deployment.md) | One instance, several, remote agents: what is allowed and what is refused? |
-| [05 — Modularity as Spring Modulith sees it](05-modularity.md) | Which modules does Modulith detect since the domains became modules, what would its verification still reject, and what does step 5 change? |
+| [05 — Modularity as Spring Modulith sees it](05-modularity.md) | Which modules does Modulith detect since the domains became modules, what does its verification reject — it fails the build since step 6 — and what did each step change? |
 | [Decision register](decisions/) | One page per structural decision, with the alternative that was rejected. |
 
 Three further bodies of work live beside these chapters, and are reached from here rather than only

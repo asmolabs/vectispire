@@ -8,6 +8,11 @@
 > `platform` et `shared` sont dissous, et `core.api`, `core.services`, `core.repositories` et
 > `core.persistence` sont vidés. Ce que Modulith voit avant et après est dans
 > [05 — La modularité](../05-modularity.md).
+>
+> Depuis l'étape 6 ([0030](0030-modulith-verifies-the-module-boundaries.md)), `MAY_USE` et les règles que
+> cette décision nomme entre modules — `modulesMeetAtTheirApi`, la règle de cycles — sont à Spring
+> Modulith : chaque module déclare ses dépendances autorisées sur son `package-info`, et `verify()` casse
+> le build.
 
 ## Contexte
 

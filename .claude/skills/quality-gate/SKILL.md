@@ -24,9 +24,15 @@ cd vectispire-java && ./gradlew build
 ```
 
 Compile (with `-Werror` — a dangling doc comment fails it), unit, architecture and HTTP suites.
-`ArchitectureTest` rejects repository access outside services, transactions and audit writes in a
-controller (`core.api` or a module's `web`) outside `core.access.web.security`, a class in no module
-place, and a module reaching into another module's internals (decision 0028).
+`ModularityTest` runs Spring Modulith's `verify()` (decision 0030): a cycle between modules, a reach
+into another module's internals, or a dependency the module's `package-info` does not list fails the
+build, and so does a module without a list or a line nothing uses. Its message names the edge; the
+answer is the owner's API or a port, and a new line in a list is the review's decision, with its reason
+beside it. `ArchitectureTest` rejects, inside a module, repository access outside services,
+transactions and audit writes in a module's `web` outside `core.access.web.security`, a class in no
+module place, and `access` used by the services of a module that uses it for its routes only.
+`CrossModuleQueriesTest` rejects a query string naming another module's table that its list does not
+carry.
 
 ## 3. Front end — on Node 24
 

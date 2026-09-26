@@ -38,8 +38,9 @@ fails to compile.
 
 **What that costs.** The layers *inside* `vectispire-core` — persistence, services, web — can no
 longer be expressed by the module graph, so `ArchitectureTest` enforces them with ArchUnit, in every
-module. That is a genuine step down: an ArchUnit rule can be deleted by the same commit that violates
-it; a missing dependency cannot.
+module, and Spring Modulith verifies the boundaries between modules against the list each module
+declares. That is a genuine step down: a rule, or a line in a list, can be changed by the same commit
+that needs it; a missing dependency cannot.
 
 **Inside `vectispire-core`, twenty-four modules.** The control plane is divided into domains over a
 foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
@@ -66,11 +67,12 @@ is at the root, a public class only its services use is in `internal`. A control
 module's API, never `internal` or any `persistence`; a module reaches another only through that
 module's root or a named interface — reading another module's repository is exactly what the modules
 exist to show, so the owner gets an API method (`TargetCatalog`, `ScanCatalog`, `IssueCatalog` answer
-views) or, when it sits above you, a port. The domains form no cycle — none recorded either — and
-depend in the directions decisions
-[0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md), 0028 and 0029
-tabulate; new code goes into the module whose row matches what it needs, and a row that has to change
-changes in the same review, with its reason. Upwards, a lower domain declares a port and a higher one
+views) or, when it sits above you, a port. The domains form no cycle and depend in one direction:
+**each module's `package-info` lists what it may use** — `@ApplicationModule(allowedDependencies = …)`,
+named interfaces by name (`access::security`, `scanning::queries`), each line with its reason — and
+Spring Modulith verifies it ([0030](../docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)).
+New code goes into the module whose list matches what it needs, and a line that has to be added is
+added in the same review, with its reason. Upwards, a lower domain declares a port and a higher one
 implements it (`TargetScans`, `TargetBacklog`, `ScanIngestor.Backlog`, `GrantableTargets`,
 `AuditLogService.Listener`, `TicketReferences`). **An effect across domains inside a transaction is a
 synchronous event**: target deletion publishes `TargetDeleted` in its transaction, and each owning
@@ -79,28 +81,35 @@ domain purges its own rows in a listener that requires that transaction, in the 
 periodic job is a `MaintenanceTask`** in the owner's `internal`, placed in `MaintenanceTask.Sequence`
 and listed in `MaintenanceJobsTest.COMPOSITION`: the tick knows none of the work.
 
-**Spring Modulith is present, in observation mode.** `ModularityObservationTest` writes what it sees
-into `build/modulith-docs/` and fails on nothing — and since step 5 it finds nothing: twenty-five
-modules (the twenty-four above, seven of them shared, and `config`), no message `verify()` would
-report, down from 1,304 and then 554 ([05](../docs/architecture/en/05-modularity.md)). At runtime it is
-inert, which `ModulithRuntimeInertTest` checks.
+**Spring Modulith is the authority on the module boundaries.** `ModularityTest` calls `verify()` and
+fails the build on a cycle between modules, a reach into another module's internals, or a dependency a
+list does not carry; it sees twenty-five modules (the twenty-four above, seven of them shared, and
+`config`) and writes their canvases and diagrams into `build/modulith-docs/`
+([05](../docs/architecture/en/05-modularity.md)). `ArchitectureTest` keeps what Modulith cannot say:
+the layers inside a module, and the six modules that use `access` for their routes only. A JPQL string
+naming another module's entity is invisible to both, and `CrossModuleQueriesTest` lists the eleven
+there are. Production carries Modulith's annotations and nothing else, which `ModulithRuntimeInertTest`
+checks.
 
 ## What is checked, and where
 
 | Guarantee | Enforced by |
 |---|---|
 | The agent cannot reach the database | the module graph, plus `AgentIsolationTest` |
-| Layering inside the control plane | `ArchitectureTest` (ArchUnit) |
+| Layering inside every module of the control plane | `ArchitectureTest` (ArchUnit) |
 | The domain depends on no framework, and no Docker client | `ArchitectureTest` |
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only a module's `persistence` speaks SQL | `ArchitectureTest` |
 | Every repository write — `@Modifying` or a derived `deleteBy…` — carries `@Transactional` | `ArchitectureTest` |
-| The domains form no cycle, and each uses only what decisions 0026, 0028 and 0029 allow; nothing uses `platform` | `ArchitectureTest` |
-| Every class sits in a module's root, `web`, `internal` or `persistence`, or in `config`; a module reaches another only through its root or a named interface; a controller calls its own module's API | `ArchitectureTest` |
+| The modules form no cycle; a module reaches another only through its root or a named interface, and uses only what its `package-info` lists; nothing uses `platform` or `config` | `ModularityTest` (Spring Modulith's `verify()`) |
+| Every module but `platform` declares its list, and each list is exactly what the module uses — the edges between foundation modules included, which `verify()` allows wholesale | `ModularityTest` |
+| The six modules that use `access` for their routes use it nowhere else | `ArchitectureTest` |
+| A query string naming another module's table is listed with its reason, and one against the modules' direction says so | `CrossModuleQueriesTest` |
+| Every class sits in a module's root, `web`, `internal` or `persistence`, or in `config`; a controller calls its own module's API | `ArchitectureTest` |
 | The gate's verdicts and the compliance captures are purged by one dial, not the payload window, and a failed purge skips only its table | `EvidenceRetentionTest` |
 | The running application contributes exactly the periodic tasks the tick is tested with, in their order | `MaintenanceCompositionTest`, `MaintenanceJobsTest` |
 | Deleting a target takes every row that names it and nobody else's, children before parents, atomically | `TargetDeletionTest`, `TargetPurgeOrderTest`, `TargetDeletionIntegrationTest` (MySQL, PostgreSQL) |
-| Spring Modulith contributes nothing at runtime, and what it sees is written down without enforcing it | `ModulithRuntimeInertTest`, `ModularityObservationTest` |
+| Production carries Spring Modulith's annotations and nothing else — no runtime, no moments, no ArchUnit — and no Modulith bean activates | `ModulithRuntimeInertTest` |
 | No controller names a persistence type — an entity, a repository or a published query record — the principal included; services answer with `…View` records | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |

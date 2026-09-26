@@ -66,17 +66,24 @@ queries select into that other modules read unchanged, and `IssueFilters`, the c
 over the backlog applies. Nothing else of `persistence` is published; the predicate built from the
 criteria (`IssueSpecifications`) stays beside the repository. A foundation module keeps no controller:
 its routes need `access`'s markers and `access` uses the foundation, so they close a cycle — they live
-in `platform.web`. `ArchitectureTest` fails on a class in no module place and not in `config`
-(`everyClassHasAPlace`), on any cycle between modules (`KNOWN_CYCLES` is empty and only shrinks), on a
-reach into another module's internals (`modulesMeetAtTheirApi`), and on a dependency the `MAY_USE`
-table does not allow — read over a whole module, controllers and entities included; any module's
-`web` may use `access`. When a lower domain needs a higher one, declare a port it implements
+in `platform.web`. **Each module's `package-info` lists what it may use**,
+`@ApplicationModule(allowedDependencies = …)`, each line with its reason — named interfaces by name
+(`access::security`, `scanning::queries`, `issues::queries`), the foundation never (it is shared) but
+in a foundation module's own list; `platform` alone declares nothing, which means "anything". Spring
+Modulith's `verify()` (`ModularityTest`, decision 0030) fails on a cycle between modules, on a reach
+into another module's internals, and on a dependency a list lacks — read over a whole module,
+controllers and entities included; `ModularityTest` also fails on a module without a list and on a line
+nothing uses. `ArchitectureTest` keeps the inside of a module: a class in no module place and not in
+`config` (`everyClassHasAPlace`), the layers, and `accessForRoutesOnly` — `siem`, `rules`,
+`inventory`, `threatintel`, `gate` and `exports` use `access` from their routes only. A JPQL query
+naming another module's entity is invisible to both: `CrossModuleQueriesTest` fails on one its `KNOWN`
+list lacks — ask the owner's API instead. When a lower domain needs a higher one, declare a port it implements
 (`TargetScans`, `TargetBacklog`, `ScanIngestor.Backlog`, `GrantableTargets`, `AuditLogService.Listener`,
 `TicketReferences`); an effect that must survive the commit goes through the outbox. **A periodic job
 is a `MaintenanceTask`** in the owner's `internal` — never a line in a composition root: place it in
 `MaintenanceTask.Sequence` and list it in `MaintenanceJobsTest.COMPOSITION`, whose context twin fails
-if the application contributes a task the tick is not tested with, or misses one. Widening the table is
-a decision for the review, with its reason — not the line you add to turn the build green.
+if the application contributes a task the tick is not tested with, or misses one. Widening a module's
+list is a decision for the review, with its reason — not the line you add to turn the build green.
 
 **A cross-domain effect inside a transaction is a synchronous domain event** — the `TargetDeleted`
 pattern. The publisher stays in its transaction; each owning domain handles its own tables in a plain
@@ -91,16 +98,18 @@ publisher's (`TargetDeleted` and `TargetPurge` are `targets`'): every listener s
 publisher, and an owner below it that must act in the same transaction is called by the publisher
 before the first phase (`TargetGrants.revokeAll`).
 
-**Spring Modulith is present in observation mode.** `ModularityObservationTest` writes what it sees
-to `build/modulith-docs/` and fails on nothing — and since step 5 it finds nothing: twenty-five modules
-(twenty-four domains, seven shared, and `config`), zero violations, so `verify()` would pass
-(docs/architecture 05). Keep it at zero: a new message in the report is a reach you just added. A new
-module goes into `ArchitectureTest.MODULES`, the test's list and, if it is foundation, `sharedModules`
-and `FOUNDATION`; a new named interface is a `@NamedInterface` on a `package-info`, and a reason in
-it. It does nothing at runtime: no event publication registry (the outbox is the one, decision
-0025), no actuator endpoint, its "moments" auto-configuration excluded; `ModulithRuntimeInertTest`
-fails if one of its beans appears. Do not add a Modulith starter or turn the test into `verify()`
-outside the migration plan's steps.
+**Spring Modulith verifies the module boundaries, and does nothing at runtime** (decision 0030).
+`ModularityTest` calls `verify()` over twenty-five modules (twenty-four domains, seven shared, and
+`config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
+just added: answer it with the owner's API or a port, never by moving a class to wherever the message
+stops. A new module is a package under `core`, a `package-info` with its list, a line in
+`ArchitectureTest.MODULES` and `ModularityTest.MODULES` and, if it is foundation, in `sharedModules`;
+a new named interface is a `@NamedInterface` on a `package-info`, and a reason in it. Production
+depends on `spring-modulith-api` alone — the annotations; the verification, the documenter and
+ArchUnit are the test starter's — and `ModulithRuntimeInertTest` fails if more of Modulith reaches the
+production classpath (it reads the lockfile) or one of its beans appears. No event publication
+registry (the outbox is the one, decision 0025), no actuator endpoint, no Modulith starter on
+`implementation`.
 
 ## What this codebase will not forgive
 

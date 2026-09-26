@@ -7,6 +7,10 @@
 > migration to Spring Modulith — what a domain looks like once it owns its packages, what moved, what
 > could not yet, and what step 5 has to settle. What Modulith sees before and after is in
 > [05 — Modularity](../05-modularity.md).
+>
+> Since step 6 ([0030](0030-modulith-verifies-the-module-boundaries.md)), `MAY_USE` and the rules this
+> record names between modules — `modulesMeetAtTheirApi`, the cycle rule — are Spring Modulith's: each
+> module declares its allowed dependencies on its `package-info`, and `verify()` fails the build.
 
 ## Context
 

@@ -1,6 +1,15 @@
 # 0026 — Services are grouped by domain, and the domains depend in one direction
 
-**Date:** 2026-09-26 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-09-26 · **Status:** **superseded** by [0030](0030-modulith-verifies-the-module-boundaries.md) on 2026-09-26 · **Decider:** Laurent Boucher
+
+> **Superseded on 2026-09-26 by [0030](0030-modulith-verifies-the-module-boundaries.md).** What proved
+> it wrong was its own condition: it rejected Spring Modulith *for now* because the code was packaged by
+> layer, and named packaging by feature as the reason to reconsider. Steps 3 to 5 did exactly that, and
+> two authorities then checked one boundary. The domains and the direction they depend in hold, in
+> [0028](0028-vertical-modules.md) and [0029](0029-core-domains-become-modules.md); the table below
+> became each module's `package-info`, verified by Modulith, and `KNOWN_CYCLES` went with the ArchUnit
+> rules — a cycle is broken in the review that finds it, not recorded. The rest of this record is the
+> reasoning as it stood.
 
 > **See also** [05 — Modularity as Spring Modulith sees it](../05-modularity.md). Later the same
 > day, step 1 of the migration to Spring Modulith broke both recorded cycles (`KNOWN_CYCLES` is

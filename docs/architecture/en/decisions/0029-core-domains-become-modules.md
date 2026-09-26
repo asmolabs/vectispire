@@ -7,6 +7,10 @@
 > migration to Spring Modulith — `targets`, `scanning` and `issues` become modules, `platform` and
 > `shared` are dissolved, and `core.api`, `core.services`, `core.repositories` and `core.persistence` are
 > emptied. What Modulith sees before and after is in [05 — Modularity](../05-modularity.md).
+>
+> Since step 6 ([0030](0030-modulith-verifies-the-module-boundaries.md)), `MAY_USE` and the rules this
+> record names between modules — `modulesMeetAtTheirApi`, the cycle rule — are Spring Modulith's: each
+> module declares its allowed dependencies on its `package-info`, and `verify()` fails the build.
 
 ## Context
 

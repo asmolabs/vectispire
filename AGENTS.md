@@ -120,8 +120,13 @@ vertical module ([0028](docs/architecture/en/decisions/0028-vertical-modules.md)
 [0029](docs/architecture/en/decisions/0029-core-domains-become-modules.md)). A service writing
 SQL, or a domain class importing Spring, fails the suite. Every domain is `core/<module>/` with
 `web`, `internal` and `persistence` beneath; the packages by layer are gone and `core/config/` is the
-one package outside a module. A module reaching into another module's internals fails the suite as
-well, and Spring Modulith, still in observation mode, reports no violation.
+one package outside a module. **Between modules, Spring Modulith is the authority**
+([0030](docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)):
+`ModularityTest` runs `verify()` and fails the build on a cycle, on a reach into another module's
+internals, and on a dependency the module's `package-info` does not list in
+`@ApplicationModule(allowedDependencies = …)`. Adding a line there is a decision for the review, with
+its reason beside it. A JPQL string naming another module's entity is invisible to both tools;
+`CrossModuleQueriesTest` holds those to a list that only shrinks.
 
 **The agent's isolation is not one of those rules — it is a fact about the build graph.**
 `vectispire-agent` does not depend on `vectispire-core`, so no JDBC driver is on its compile

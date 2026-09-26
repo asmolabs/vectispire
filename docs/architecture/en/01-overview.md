@@ -102,12 +102,12 @@ web/ ──► module root + internal/ ──► persistence/ ──► database
 One rule, and it is what makes the whole thing testable: **a layer only knows the one below it.**
 A controller calls its module's API, never its `internal` or `persistence` package; a module reaches
 another only through that module's root, or one of the three named interfaces the migration
-declared (`access`'s route markers and principal, and the query records of `scanning` and `issues`). The domains depend on each other in one direction, over
-the foundation every domain may use. `ArchitectureTest` refuses a cycle between domains, a dependency
-the table does not allow, and a reach into another module's internals; the table is in [decision
-0026](decisions/0026-services-are-grouped-by-domain.md), with the edges the modules surfaced in
-0028 and 0029. Spring Modulith is in the build in observation mode only — what it sees, and that it
-reports nothing any more, is [05](05-modularity.md).
+declared (`access`'s route markers and principal, and the query records of `scanning` and `issues`).
+The domains depend on each other in one direction, over the foundation every domain may use, and each
+module's `package-info` lists what it may use. **Spring Modulith verifies the boundaries and fails the
+build** — a cycle between modules, a reach into another module's internals, a dependency the list does
+not carry ([decision 0030](decisions/0030-modulith-verifies-the-module-boundaries.md)); `ArchitectureTest`
+keeps the layers inside each module. What Modulith sees is [05](05-modularity.md).
 
 ## The path of a scan
 
