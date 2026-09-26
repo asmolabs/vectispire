@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.scanning;
+package com.asmolabs.vectispire.core.services.targets;
 
 import com.asmolabs.vectispire.common.domain.scheduling.CronSchedule;
 import java.time.Instant;

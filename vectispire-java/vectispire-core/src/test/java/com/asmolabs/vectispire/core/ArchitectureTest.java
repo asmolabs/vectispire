@@ -247,18 +247,26 @@ class ArchitectureTest {
             Map.entry("rules", Set.of("inventory", "scanning")),
             Map.entry("inventory", Set.of()),
             Map.entry("ai", Set.of("access")),
-            Map.entry("issues", Set.of("access")),
+            // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
+            // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
+            Map.entry("issues", Set.of("access", "targets")),
             // `gate` since step 5 gave the stored policies to gate: the sweep opens a ticket only for an
             // issue the policy of its scope would fail on, so it evaluates the gate, and asks `gate`
             // for the policies in force instead of reading their table from below it. `gate` uses
             // nothing that uses `tickets` (the tracker implements `issues`' `TicketReferences`).
             Map.entry("tickets", Set.of("access", "gate", "issues")),
-            Map.entry("scanning", Set.of("access", "inventory", "issues")),
+            // `targets` since step 5: a scan is of a target — the dispatcher reads its row and
+            // credentials, the scheduler its schedule — and the target screens' latest scan and "scan
+            // now" are answered through `TargetScans`, a port `targets` declares.
+            Map.entry("scanning", Set.of("access", "inventory", "issues", "targets")),
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
             // above the foundation.
             Map.entry("agents", Set.of("access", "rules", "scanning")),
-            Map.entry("targets", Set.of("access", "scanning")),
+            // Not `scanning` any more, nor `issues` (step 5): the listings' figures and the scan trigger
+            // are ports `targets` declares, so every domain that names a target can depend on it,
+            // and the purge of a deleted target can be an event `targets` owns.
+            Map.entry("targets", Set.of("access")),
             Map.entry("threatintel", Set.of("scanning", "siem")),
             // `access` since gate became a module: its register is purged past the evidence window by
             // the authentication tables' pass, which now reaches it through a port gate implements

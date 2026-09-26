@@ -8,9 +8,6 @@ import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.SolutionEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.IssueAggregates;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Projects;
 import com.asmolabs.vectispire.core.repositories.Solutions;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
@@ -55,13 +52,13 @@ public class SolutionQueryService {
     private final Solutions solutions;
     private final Projects projects;
     private final GitRepositories repositories;
-    private final Issues issues;
+    private final TargetBacklog backlog;
 
-    public SolutionQueryService(Solutions solutions, Projects projects, GitRepositories repositories, Issues issues) {
+    public SolutionQueryService(Solutions solutions, Projects projects, GitRepositories repositories, TargetBacklog backlog) {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;
-        this.issues = issues;
+        this.backlog = backlog;
     }
 
     /**
@@ -203,8 +200,9 @@ public class SolutionQueryService {
     /**
      * The open backlog per visible repository and severity, in one query.
      *
-     * <p>Through the scoreboard's own grouped count, narrowed to the visible repositories — the
-     * reader's visibility with its containers dropped, since no container is in a project. An
+     * <p>Through the scoreboard's own grouped count — asked of {@code issues}, which owns it —
+     * narrowed to the visible repositories: the reader's visibility with its containers dropped,
+     * since no container is in a project. An
      * unrestricted reader is not narrowed at all: listing every repository in an {@code or} would
      * say the same thing at the cost of a statement as long as the estate.
      */
@@ -217,17 +215,7 @@ public class SolutionQueryService {
                 : Visibility.only(visible.stream()
                         .<ScanTarget>map(repository -> new ScanTarget.Repository(repository.getId()))
                         .toList());
-        Map<Long, Map<Severity, Long>> counts = new HashMap<>();
-        for (IssueAggregates.TargetSeverityCount row : issues.countOpenByTargetAndSeverity(
-                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), narrowed)
-                        .toSpecification())) {
-            if (row.repoId() == null) {
-                continue;
-            }
-            counts.computeIfAbsent(row.repoId(), id -> new EnumMap<>(Severity.class))
-                    .merge(Severity.of(row.severity()), row.count(), Long::sum);
-        }
-        return counts;
+        return backlog.openBySeverityPerRepository(narrowed);
     }
 
     private static OpenIssues sum(Collection<RepositoryEntity> repositories, Map<Long, Map<Severity, Long>> open) {

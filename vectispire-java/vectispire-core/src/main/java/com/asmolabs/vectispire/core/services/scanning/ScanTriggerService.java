@@ -1,10 +1,10 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
 import java.time.Clock;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,29 +42,29 @@ public class ScanTriggerService {
     }
 
     @Transactional
-    public ScanEntity trigger(RepositoryEntity repository) {
-        refuseIfQueued(scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.getId()));
+    public ScanEntity trigger(RepositoryView repository) {
+        refuseIfQueued(scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.id()));
 
         ScanEntity scan = pending();
-        scan.setRepoId(repository.getId());
-        scan.setBranch(repository.getBranch());
-        scan.setSubPath(repository.getSubPath());
+        scan.setRepoId(repository.id());
+        scan.setBranch(repository.branch());
+        scan.setSubPath(repository.subPath());
         // Copied at queue time: this scan keeps the requirement that held when it was asked
         // for, even if the target's label changes afterwards.
-        scan.setRequiredAgentLabel(repository.getRequiredAgentLabel());
+        scan.setRequiredAgentLabel(repository.requiredAgentLabel());
         return scans.save(scan);
     }
 
     @Transactional
-    public ScanEntity trigger(ContainerEntity container) {
-        refuseIfQueued(scans.countByStatusAndContainerId(ScanStatus.PENDING.wireName(), container.getId()));
+    public ScanEntity trigger(ContainerView container) {
+        refuseIfQueued(scans.countByStatusAndContainerId(ScanStatus.PENDING.wireName(), container.id()));
 
         ScanEntity scan = pending();
-        scan.setContainerId(container.getId());
+        scan.setContainerId(container.id());
         // "n/a", the same value the scheduler writes: a manual scan and a scheduled one must be
         // indistinguishable downstream.
         scan.setBranch("n/a");
-        scan.setRequiredAgentLabel(container.getRequiredAgentLabel());
+        scan.setRequiredAgentLabel(container.requiredAgentLabel());
         return scans.save(scan);
     }
 

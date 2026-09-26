@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.services.targets;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
@@ -14,20 +13,11 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
-import com.asmolabs.vectispire.core.services.scanning.CronExpressions;
-import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
-import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
-import java.time.Instant;
-import java.util.HashMap;
+import com.asmolabs.vectispire.core.services.targets.TargetScans.LatestScan;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -49,9 +39,8 @@ import org.springframework.stereotype.Service;
 public class RepositoryAdministrationService {
 
     private final GitRepositories repositories;
-    private final Scans scans;
-    private final Issues issues;
-    private final ScanTriggerService trigger;
+    private final TargetScans scans;
+    private final TargetBacklog backlog;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
     private final GitTokens gitTokens;
@@ -67,9 +56,8 @@ public class RepositoryAdministrationService {
 
     public RepositoryAdministrationService(
             GitRepositories repositories,
-            Scans scans,
-            Issues issues,
-            ScanTriggerService trigger,
+            TargetScans scans,
+            TargetBacklog backlog,
             TargetDeletionService targetDeletion,
             AuditLogService audit,
             GitTokens gitTokens,
@@ -78,8 +66,7 @@ public class RepositoryAdministrationService {
             TargetNaming naming) {
         this.repositories = repositories;
         this.scans = scans;
-        this.issues = issues;
-        this.trigger = trigger;
+        this.backlog = backlog;
         this.targetDeletion = targetDeletion;
         this.audit = audit;
         this.gitTokens = gitTokens;
@@ -87,9 +74,6 @@ public class RepositoryAdministrationService {
         this.allowedHosts = allowedHosts;
         this.naming = naming;
     }
-
-    /** A target's most recent scan, whatever its outcome. Shared with the container inventory. */
-    public record LatestScan(Long id, String status, Instant createdAt, String error) {}
 
     /**
      * A repository as the inventory shows it: the row, its latest scan, what waits on it, and the
@@ -132,12 +116,12 @@ public class RepositoryAdministrationService {
         }
     }
 
-    public record Triggered(RepositoryView repository, ScanView scan) {}
+    public record Triggered(RepositoryView repository, TargetScans.Queued scan) {}
 
     /** Every repository the allowance permits, with each one's latest scan and open issue count. */
     public List<Listed> list(Visibility allowed) {
-        Map<Long, LatestScan> latest = latestScans();
-        Map<Long, Long> open = openIssueCounts();
+        Map<Long, LatestScan> latest = scans.latestPerRepository();
+        Map<Long, Long> open = backlog.openPerRepository();
 
         List<RepositoryEntity> visible = repositories.findAll().stream()
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
@@ -284,10 +268,11 @@ public class RepositoryAdministrationService {
     public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
         RepositoryEntity repository =
                 RowVisibility.requireVisible(repositories.findById(id), new ScanTarget.Repository(id), allowed);
-        ScanEntity scan = trigger.trigger(repository);
+        RepositoryView view = RepositoryView.of(repository);
+        TargetScans.Queued scan = scans.queue(view);
         audit.record(actor.entry(
-                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
-        return new Triggered(RepositoryView.of(repository), ScanView.of(scan));
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.id()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
+        return new Triggered(view, scan);
     }
 
     /** Deletes the repository and everything hanging off it. */
@@ -297,22 +282,6 @@ public class RepositoryAdministrationService {
         targetDeletion.deleteRepository(id);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(id), "Repository deleted: " + RepositoryUrl.redact(repository.getUrl())));
-    }
-
-    private Map<Long, LatestScan> latestScans() {
-        Map<Long, LatestScan> latest = new HashMap<>();
-        for (LatestScanRow row : scans.findLatestPerRepository()) {
-            latest.put(row.targetId(), new LatestScan(row.scanId(), row.status(), row.createdAt(), row.error()));
-        }
-        return latest;
-    }
-
-    private Map<Long, Long> openIssueCounts() {
-        Map<Long, Long> counts = new HashMap<>();
-        for (OpenIssueCount row : issues.countOpenByRepository(IssueState.OPEN.wireName())) {
-            counts.put(row.targetId(), row.count());
-        }
-        return counts;
     }
 
     /**

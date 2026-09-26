@@ -7,7 +7,6 @@ import static com.asmolabs.vectispire.core.services.targets.RepositoryAdministra
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -16,16 +15,8 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
-import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
-import com.asmolabs.vectispire.core.services.scanning.ScanView;
-import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.LatestScan;
-import java.util.HashMap;
+import com.asmolabs.vectispire.core.services.targets.TargetScans.LatestScan;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -45,23 +36,20 @@ import org.springframework.stereotype.Service;
 public class ContainerAdministrationService {
 
     private final Containers containers;
-    private final Scans scans;
-    private final Issues issues;
-    private final ScanTriggerService trigger;
+    private final TargetScans scans;
+    private final TargetBacklog backlog;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
 
     public ContainerAdministrationService(
             Containers containers,
-            Scans scans,
-            Issues issues,
-            ScanTriggerService trigger,
+            TargetScans scans,
+            TargetBacklog backlog,
             TargetDeletionService targetDeletion,
             AuditLogService audit) {
         this.containers = containers;
         this.scans = scans;
-        this.issues = issues;
-        this.trigger = trigger;
+        this.backlog = backlog;
         this.targetDeletion = targetDeletion;
         this.audit = audit;
     }
@@ -79,11 +67,11 @@ public class ContainerAdministrationService {
             String requiredAgentLabel,
             String tier) {}
 
-    public record Triggered(ContainerView container, ScanView scan) {}
+    public record Triggered(ContainerView container, TargetScans.Queued scan) {}
 
     public List<Listed> list(Visibility allowed) {
-        Map<Long, LatestScan> latest = latestScans();
-        Map<Long, Long> open = openIssueCounts();
+        Map<Long, LatestScan> latest = scans.latestPerContainer();
+        Map<Long, Long> open = backlog.openPerContainer();
 
         return containers.findAll().stream()
                 .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
@@ -186,10 +174,11 @@ public class ContainerAdministrationService {
     public Triggered trigger(long id, Visibility allowed, RequestActor actor) {
         ContainerEntity container =
                 RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
-        ScanEntity scan = trigger.trigger(container);
+        ContainerView view = ContainerView.of(container);
+        TargetScans.Queued scan = scans.queue(view);
         audit.record(actor.entry(
-                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + referenceOf(container).format()));
-        return new Triggered(ContainerView.of(container), ScanView.of(scan));
+                AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.id()), "Scan requested: " + referenceOf(container).format()));
+        return new Triggered(view, scan);
     }
 
     /** Deletes the image and everything hanging off it. */
@@ -219,22 +208,6 @@ public class ContainerAdministrationService {
 
     private static ImageReference referenceOf(ContainerEntity container) {
         return new ImageReference(container.getRegistry(), container.getImageName(), container.getTag());
-    }
-
-    private Map<Long, LatestScan> latestScans() {
-        Map<Long, LatestScan> latest = new HashMap<>();
-        for (LatestScanRow row : scans.findLatestPerContainer()) {
-            latest.put(row.targetId(), new LatestScan(row.scanId(), row.status(), row.createdAt(), row.error()));
-        }
-        return latest;
-    }
-
-    private Map<Long, Long> openIssueCounts() {
-        Map<Long, Long> counts = new HashMap<>();
-        for (OpenIssueCount row : issues.countOpenByContainer(IssueState.OPEN.wireName())) {
-            counts.put(row.targetId(), row.count());
-        }
-        return counts;
     }
 
     /**

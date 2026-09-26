@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +44,7 @@ class ScanTriggerDatabaseTest extends VectispireContextTest {
     void queuesARepositoryScan() {
         RepositoryEntity repository = repository("production");
 
-        ScanEntity queued = trigger.trigger(repository);
+        ScanEntity queued = trigger.trigger(RepositoryView.of(repository));
 
         ScanEntity stored = scans.findById(queued.getId()).orElseThrow();
         assertThat(stored.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
@@ -59,7 +61,7 @@ class ScanTriggerDatabaseTest extends VectispireContextTest {
         // Copied, not referenced: relabelling a target must not move a scan already waiting to a
         // different set of agents.
         RepositoryEntity repository = repository("production");
-        ScanEntity queued = trigger.trigger(repository);
+        ScanEntity queued = trigger.trigger(RepositoryView.of(repository));
 
         repository.setRequiredAgentLabel("staging");
         repositories.save(repository);
@@ -71,9 +73,9 @@ class ScanTriggerDatabaseTest extends VectispireContextTest {
     @DisplayName("a second request while one is waiting is refused, and writes nothing")
     void aSecondRequestIsRefused() {
         RepositoryEntity repository = repository(null);
-        trigger.trigger(repository);
+        trigger.trigger(RepositoryView.of(repository));
 
-        assertThatThrownBy(() -> trigger.trigger(repository))
+        assertThatThrownBy(() -> trigger.trigger(RepositoryView.of(repository)))
                 .isInstanceOf(ScanTriggerService.AlreadyQueuedException.class);
         assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isEqualTo(1);
     }
@@ -84,11 +86,11 @@ class ScanTriggerDatabaseTest extends VectispireContextTest {
         // Only a *waiting* scan refuses: blocking on a running one would make a long scan prevent
         // the next request until it finished.
         RepositoryEntity repository = repository(null);
-        ScanEntity first = trigger.trigger(repository);
+        ScanEntity first = trigger.trigger(RepositoryView.of(repository));
         first.setStatus(ScanStatus.SCANNING.wireName());
         scans.save(first);
 
-        assertThat(trigger.trigger(repository).getId()).isNotEqualTo(first.getId());
+        assertThat(trigger.trigger(RepositoryView.of(repository)).getId()).isNotEqualTo(first.getId());
     }
 
     @Test
@@ -100,13 +102,13 @@ class ScanTriggerDatabaseTest extends VectispireContextTest {
         container.setRequiredAgentLabel("dmz");
         container = containers.save(container);
 
-        ScanEntity stored = scans.findById(trigger.trigger(container).getId()).orElseThrow();
+        ScanEntity stored = scans.findById(trigger.trigger(ContainerView.of(container)).getId()).orElseThrow();
 
         assertThat(stored.getContainerId()).isEqualTo(container.getId());
         assertThat(stored.getRepoId()).isNull();
         assertThat(stored.getBranch()).isEqualTo("n/a");
         assertThat(stored.getRequiredAgentLabel()).isEqualTo("dmz");
-        assertThatThrownBy(() -> trigger.trigger(containers.findById(stored.getContainerId()).orElseThrow()))
+        assertThatThrownBy(() -> trigger.trigger(ContainerView.of(containers.findById(stored.getContainerId()).orElseThrow())))
                 .isInstanceOf(ScanTriggerService.AlreadyQueuedException.class);
     }
 
