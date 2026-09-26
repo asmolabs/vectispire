@@ -584,7 +584,7 @@
                 icon="pi pi-check"
                 [label]="'compliance.ingest_and_apply' | translate"
                 [loading]="importing()"
-                [disabled]="!importJson.trim()"
+                [disabled]="!importJson().trim()"
                 (click)="submitIngestVex()"
             ></button>
         </ng-template>
@@ -717,7 +717,7 @@
                 icon="pi pi-verified"
                 [label]="'compliance.verify_integrity' | translate"
                 [loading]="verifying()"
-                [disabled]="!verifyPayload.trim() || !verifySignature.trim()"
+                [disabled]="!verifyPayload().trim() || !verifySignature().trim()"
                 (click)="submitVerification()"
             ></button>
         </ng-template>

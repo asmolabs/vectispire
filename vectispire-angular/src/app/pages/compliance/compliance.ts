@@ -120,8 +120,13 @@ export class Compliance {
     readonly downloadingPubKey = signal<boolean>(false);
     readonly verifyOpen = signal<boolean>(false);
     readonly verifying = signal<boolean>(false);
-    verifyPayload = '';
-    verifySignature = '';
+    /**
+     * Signals, not fields: a file picker fills them from `FileReader.onload`, and in a zoneless
+     * application nothing renders after a callback that only assigns a plain field. The textarea
+     * stayed empty and Verify stayed disabled after a file had been read.
+     */
+    readonly verifyPayload = signal('');
+    readonly verifySignature = signal('');
     verifyPublicKey = '';
     readonly verifyResult = signal<{
         valid: boolean;
@@ -140,7 +145,8 @@ export class Compliance {
     // VEX Ingest
     readonly importOpen = signal<boolean>(false);
     readonly importing = signal<boolean>(false);
-    importJson = '';
+    /** A signal for the same reason as `verifyPayload`: the file picker writes it from a callback. */
+    readonly importJson = signal('');
     readonly importSuccess = signal<string | null>(null);
     readonly importError = signal<string | null>(null);
 
@@ -337,7 +343,7 @@ export class Compliance {
     }
 
     openImport(): void {
-        this.importJson = '';
+        this.importJson.set('');
         this.importSuccess.set(null);
         this.importError.set(null);
         this.importOpen.set(true);
@@ -349,19 +355,19 @@ export class Compliance {
         const file = input.files[0];
         const reader = new FileReader();
         reader.onload = (e) => {
-            this.importJson = e.target?.result as string;
+            this.importJson.set(e.target?.result as string);
         };
         reader.readAsText(file);
     }
 
     submitIngestVex(): void {
-        if (!this.importJson.trim()) return;
+        if (!this.importJson().trim()) return;
         this.importing.set(true);
         this.importSuccess.set(null);
         this.importError.set(null);
 
         try {
-            const parsed = JSON.parse(this.importJson);
+            const parsed = JSON.parse(this.importJson());
             this.documentsApi.ingestVex(parsed).subscribe({
                 next: (res) => {
                     this.importing.set(false);
@@ -409,8 +415,8 @@ export class Compliance {
     }
 
     openVerifier(): void {
-        this.verifyPayload = '';
-        this.verifySignature = '';
+        this.verifyPayload.set('');
+        this.verifySignature.set('');
         this.verifyPublicKey = '';
         this.verifyResult.set(null);
         this.verifyError.set(null);
@@ -428,7 +434,7 @@ export class Compliance {
         const file = input.files[0];
         const reader = new FileReader();
         reader.onload = (e) => {
-            this.verifyPayload = e.target?.result as string;
+            this.verifyPayload.set(e.target?.result as string);
         };
         reader.readAsText(file);
     }
@@ -439,19 +445,23 @@ export class Compliance {
         const file = input.files[0];
         const reader = new FileReader();
         reader.onload = (e) => {
-            this.verifySignature = (e.target?.result as string).trim();
+            this.verifySignature.set((e.target?.result as string).trim());
         };
         reader.readAsText(file);
     }
 
     submitVerification(): void {
-        if (!this.verifyPayload.trim() || !this.verifySignature.trim()) return;
+        if (!this.verifyPayload().trim() || !this.verifySignature().trim()) return;
         this.verifying.set(true);
         this.verifyResult.set(null);
         this.verifyError.set(null);
 
         this.documentsApi
-            .verifyCryptoSignature(this.verifyPayload, this.verifySignature, this.verifyPublicKey.trim() || undefined)
+            .verifyCryptoSignature(
+                this.verifyPayload(),
+                this.verifySignature(),
+                this.verifyPublicKey.trim() || undefined
+            )
             .subscribe({
                 next: (res) => {
                     this.verifying.set(false);

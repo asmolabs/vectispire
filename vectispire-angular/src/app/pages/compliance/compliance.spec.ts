@@ -1,7 +1,7 @@
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Compliance } from './compliance';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { asSchema } from '@/app/core/testing/contract';
@@ -116,5 +116,35 @@ describe('Compliance Page', () => {
         // on a fresh deployment teaches its reader to ignore the one that matters.
         expect(fixture.componentInstance.freshnessRate()).toBe(100);
         expect(fixture.componentInstance.neverObserved()).toBe(0);
+    });
+
+    /**
+     * A file picked in the import dialog enables Import — **without a `detectChanges` from the test.**
+     *
+     * The file is read in `FileReader.onload`, a callback no template event wraps. While the text
+     * was a plain field, a zoneless application rendered nothing after it: the textarea stayed
+     * empty and the button disabled, although the component held the document. Calling
+     * `detectChanges` here would hide exactly that, so the test only waits.
+     */
+    it('enables Import once a picked file has been read', async () => {
+        fixture.autoDetectChanges();
+        http.expectOne('/api/v1/compliance/summary').flush(MOCK_SUMMARY);
+        component.openImport();
+        await fixture.whenStable();
+
+        const input = document.getElementById('vex-import-file') as HTMLInputElement;
+        const textarea = document.getElementById('vex-import-json') as HTMLTextAreaElement;
+        const importButton = () =>
+            [...document.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.querySelector('.pi-check'))!;
+        expect(importButton().disabled).toBe(true);
+
+        const vex = '{ "statements": [] }';
+        Object.defineProperty(input, 'files', { value: [new File([vex], 'vex.json')] });
+        input.dispatchEvent(new Event('change'));
+
+        await vi.waitFor(() => {
+            expect(importButton().disabled).toBe(false);
+            expect(textarea.value).toBe(vex);
+        });
     });
 });
