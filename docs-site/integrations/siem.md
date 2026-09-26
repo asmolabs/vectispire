@@ -117,12 +117,13 @@ change meaning.
 | `ZAN-SEC-011` | Team access grant changed | 6 | a team's members or targets change |
 | `ZAN-SEC-012` | API key issued | 5 | an integration key is issued |
 | `ZAN-SEC-013` | API key revoked | 4 | an integration key is revoked |
-| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | an agent is declared, enabled, disabled, deleted, or its signing key pinned or removed |
+| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | an agent is declared, enabled, disabled, deleted, its signing key pinned or removed, or its sealing key reset by an administrator |
 | `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | an agent's signed result fails verification |
 | `ZAN-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |
 | `ZAN-SEC-017` | Four-eyes triage request refused | 4 | a pending request is sent back |
 | `ZAN-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
 | `ZAN-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
+| `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | the connection test |
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by

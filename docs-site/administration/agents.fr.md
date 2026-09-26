@@ -7,7 +7,7 @@ la même table, listées ensemble sur la page **Agents**.
 configuration — ce qui est pourquoi une installation mono-machine fonctionne d'emblée.
 
 **Les agents distants** sont des processus de travail séparés sur d'autres machines, parlant un
-protocole à quatre routes : `hello`, `jobs`, `heartbeat`, `result`.
+protocole court : `hello`, `sealing-key` (pour un agent `delegated`), `jobs`, `rules`, `heartbeat`, `result`.
 
 Deux durées le traversent, sous deux formes différentes, pour qui écrit un client d'après le
 contrat publié. `GET /api/v1/agent/jobs?wait=30` prend l'attente du long-poll en **secondes
@@ -116,15 +116,61 @@ ait remises en attente.
 | `local` (défaut) | rien | la machine de l'agent a son propre accès git — en SSH : un dépôt privé en HTTPS ne peut pas être cloné dans ce mode. Un agent compromis ne livre que ce qui avait été accordé à cette machine. |
 | `delegated` | la clé de déploiement ou le jeton HTTPS, par travail | une machine de confiance seulement. |
 
-`delegated` **exige HTTPS et est refusé sans lui**. La clé ou le jeton n'est jamais écrit sur
-disque — il est lu en mémoire et remis au transport — et chaque remise est auditée. Un agent qui a annoncé une
-clé de scellement **refuse une clé arrivée non scellée** : c'est ce que produirait un proxy TLS qui
-retire l'annonce, et le scellement existe justement pour tenir la clé hors de portée de ce proxy.
+En mode `delegated`, la clé ou le jeton **ne part jamais que scellé** pour le processus de l'agent
+lui-même, et jamais en clair — en HTTPS ou non. Il n'est jamais écrit sur le disque de l'agent — il
+est lu en mémoire et remis au transport — et chaque remise est auditée.
+
+### Avant de déléguer des identifiants : épingler la clé de signature {#before-delegating-credentials-pin-the-signing-key}
+
+**Un agent `delegated` ne reçoit rien tant qu'aucune clé de signature des résultats n'est épinglée
+pour lui** — voir [Attester les résultats d'un agent](#attesting-an-agents-results) — et que sa
+moitié privée n'est pas dans la configuration de l'agent. La raison tient à l'origine de la clé de
+scellement. L'agent fabrique une paire X25519 neuve à chaque démarrage et en annonce la moitié
+publique ; le plan de contrôle scelle les identifiants pour elle. Cette annonce emprunte le même
+chemin réseau que les identifiants, si bien qu'un proxy qui termine TLS sur ce chemin pourrait
+autrement la modifier. L'agent **signe donc sa clé de scellement avec sa clé de signature
+épinglée**, et le plan de contrôle n'accepte qu'une clé de scellement dont la signature se vérifie
+contre la clé qu'un administrateur a épinglée ([décision 0031](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)).
+**Le scellement sort un proxy qui termine TLS de la frontière de confiance, pourvu qu'une clé de
+signature soit épinglée.**
+
+Donc, pour chaque agent `delegated` :
+
+1. Épinglez une clé de signature sur sa ligne (l'icône de cadenas sur `/agents`), et posez la
+   moitié privée affichée une seule fois dans `VECTISPIRE_AGENT_SIGNING_KEY`, dans la configuration
+   de l'agent.
+2. Faites tourner un agent de cette version et redémarrez-le. Après son `hello`, il annonce sa clé
+   de scellement, signée ; son journal dit `Sealing key verified by the control plane`.
+3. La ligne indique alors *Scellé de bout en bout*. Jusque-là elle indique *Aucune clé de scellement
+   vérifiée : identifiants retenus*, et chaque prise en charge d'une analyse qui demande une clé ou
+   un jeton reçoit un **412** qui nomme l'étape manquante — l'analyse retourne dans la file, rien
+   n'est envoyé. Les analyses d'images, qui ne demandent aucun identifiant, tournent en attendant.
+
+**La rotation est automatique.** Chaque démarrage fabrique une paire neuve, datée de sa création ;
+le plan de contrôle garde la plus récente signée par la clé épinglée et refuse une plus ancienne
+(**409**, audité). Un `hello` sans clé, ou avec une clé que personne n'a signée, ne remplace ni
+n'efface jamais la clé acceptée.
+
+**La réinitialiser est un acte d'administrateur.** `DELETE /api/v1/admin/agents/{id}/sealing-key`
+oublie la clé — pour un hôte d'agent dont l'horloge a reculé, si bien que toutes ses nouvelles clés
+paraissent plus anciennes, ou soupçonné d'avoir laissé fuir la sienne. Épingler, remplacer ou
+retirer la clé de signature l'oublie aussi. Les deux sont audités, et l'agent annonce une nouvelle
+clé à son prochain démarrage, ou à sa prochaine prise en charge.
+
+Une signature qui ne se vérifie pas est refusée en **403**, écrite au journal d'audit sous
+`AGENT_SEALING_KEY_REFUSED` et envoyée au SIEM sous `ZAN-SEC-020` : la clé configurée sur l'agent
+n'est pas celle qui est épinglée, ou la clé de scellement n'a pas été fabriquée par l'agent.
+
+**Mise à niveau.** Un agent plus ancien que cette version ne sait pas signer sa clé : un plan de
+contrôle à jour ne lui remet aucun identifiant délégué (412, dans le journal de l'agent), tandis que
+son `hello`, le mode `local` et les analyses d'images continuent de fonctionner. Un agent de cette
+version face à un plan de contrôle plus ancien fonctionne comme avant — son `hello` porte la clé
+non signée pour laquelle ce plan de contrôle scelle.
 
 Préférez `local`. Cela borne les dégâts qu'un agent compromis peut faire à l'accès propre de
 cette machine, ce qui est toute la raison d'exécuter des scans sur un hôte séparé.
 
-## Attester les résultats d'un agent
+## Attester les résultats d'un agent {#attesting-an-agents-results}
 
 **C'est le contrôle qui mérite d'être activé avant les autres.** Rendre le résultat d'un scan est
 l'opération la plus lourde du produit : des artefacts présents et vides signifient « analysé, rien
@@ -156,6 +202,9 @@ mot `generate`.
 l'intérêt. Une signature vérifiée contre une clé que son signataire a publiée sur le même canal ne
 prouve que ce que le jeton porteur prouvait déjà. Celle-ci doit venir de quelqu'un qui n'est pas
 l'agent.
+
+La même clé se porte garante de la clé de scellement de l'agent : c'est pourquoi un agent
+`delegated` ne reçoit aucun identifiant sans elle — voir [Avant de déléguer des identifiants](#before-delegating-credentials-pin-the-signing-key).
 
 La ligne dit dans quel état est chaque agent — *Results attested* ou *Results unsigned* — parce
 qu'un opérateur qui croit son parc attesté n'a aucun autre moyen d'apprendre qu'il ne l'est pas.

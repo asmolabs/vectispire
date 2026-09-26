@@ -17,8 +17,10 @@
 4. **Moindre Privilège des Agents Distants** : Les agents distants ne peuvent pas atteindre la base
    SQL — imposé par le graphe de modules, la violation échoue donc à la compilation — et ne
    détiennent jamais l'`ENCRYPTION_KEY`. Ils reçoivent *bien* des clés de déploiement de dépôt en
-   mode `DELEGATED`, scellées vers la clé publique que l'agent a annoncée à l'enrôlement (X25519 →
-   HKDF → AES-256-GCM) et auditées à chaque envoi ; `LOCAL`, le défaut, n'envoie rien. Énoncé en
+   mode `DELEGATED`, scellées (X25519 → HKDF → AES-256-GCM) uniquement pour une clé que l'agent a
+   signée avec sa clé de signature des résultats épinglée, jamais en clair, et auditées à chaque
+   envoi ([décision 0031](../../fr/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) ;
+   `LOCAL`, le défaut, n'envoie rien. Énoncé en
    entier plutôt qu'en « les agents ne détiennent aucun identifiant », qui est l'affirmation la plus
    courte et la fausse — voir la [décision
    0003](../../fr/decisions/0003-long-polling-for-agents.md).

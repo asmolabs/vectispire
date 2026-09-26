@@ -53,6 +53,15 @@ followed by JGit or `PinnedHttpSender`, a sealed secret never accepted in clear 
 announced (downgrade). Unbounded request bodies, and anonymous routes whose every refusal writes a
 permanent audit row.
 
+**Keys announced over the channel they protect.** A public key that arrives over the same channel
+it is meant to protect — an agent's sealing key in its `hello`, any "encrypt to the key I just sent
+you" — proves nothing about who sent it: whoever can rewrite that channel swaps or strips it. Ask
+what vouches for it (here: a signature by the agent's *pinned* key, `SealingKeyAttestation`, decision
+0031), whether a missing or unsigned announcement can replace or erase the accepted key, whether its
+absence falls back on the clear, and whether an older announcement can be replayed. The unsigned
+sealing key survived every review until the 2026-09-26 audit: the agent refused a clear credential,
+which read as a defence, but only after the proxy had read it.
+
 **Secrets and integrity.** A secret returned, logged, audited, exported or sent to the browser; a
 decryption failure that silently disables a check; a signing key that does not survive a restart or
 does not match its published half; a verification route that accepts the caller's own key; DSSE

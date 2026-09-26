@@ -6,7 +6,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 |---|---|---|
 | [0001](0001-pluggable-scan-layer.md) | Couche d'analyse extensible | remplacée par [0010](0010-one-scan-runner.md) |
 | [0002](0002-the-database-carries-the-queue.md) | La base de données porte la file d'attente | acceptée |
-| [0003](0003-long-polling-for-agents.md) | Long-polling pour la communication avec les agents distants | acceptée |
+| [0003](0003-long-polling-for-agents.md) | Long-polling pour la communication avec les agents distants | acceptée (amendée par [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) |
 | [0004](0004-sqlite-and-postgresql-only.md) | Support initial de SQLite et PostgreSQL | remplacée par [0008](0008-postgresql-and-mysql.md) |
 | [0005](0005-quality-never-blocks-the-gate.md) | Les règles de qualité de code ne bloquent jamais les gates | acceptée |
 | [0006](0006-semgrep-rules-written-here.md) | Inclusion native des règles Semgrep dans l'application | acceptée |
@@ -34,6 +34,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0028](0028-vertical-modules.md) | Les domaines deviennent des modules verticaux, et le socle est partagé | acceptée (achevée par la [0029](0029-core-domains-become-modules.md)) |
 | [0029](0029-core-domains-become-modules.md) | Les domaines cœur deviennent des modules, et les paquetages par couche disparaissent | acceptée |
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith vérifie les frontières des modules, et ArchUnit garde les couches | acceptée |
+| [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | La clé de scellement d'un agent n'est crue que sur la parole de sa clé de signature épinglée | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

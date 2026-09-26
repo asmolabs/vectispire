@@ -6,7 +6,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 |---|---|---|
 | [0001](0001-pluggable-scan-layer.md) | Pluggable scan layer | superseded by [0010](0010-one-scan-runner.md) |
 | [0002](0002-the-database-carries-the-queue.md) | The database carries the scan queue | accepted |
-| [0003](0003-long-polling-for-agents.md) | Long polling for agents | accepted |
+| [0003](0003-long-polling-for-agents.md) | Long polling for agents | accepted (amended by [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) |
 | [0004](0004-sqlite-and-postgresql-only.md) | SQLite and PostgreSQL support | superseded by [0008](0008-postgresql-and-mysql.md) |
 | [0005](0005-quality-never-blocks-the-gate.md) | Quality findings never block the gate | accepted |
 | [0006](0006-semgrep-rules-written-here.md) | Bundled Semgrep rules | accepted |
@@ -34,6 +34,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0028](0028-vertical-modules.md) | The domains become vertical modules, and the foundation is shared | accepted (completed by [0029](0029-core-domains-become-modules.md)) |
 | [0029](0029-core-domains-become-modules.md) | The core domains become modules, and the layered packages are gone | accepted |
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
+| [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | An agent's sealing key is believed only on the word of its pinned signing key | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

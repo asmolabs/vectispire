@@ -6,8 +6,8 @@ table, listed together on the **Agents** page.
 **The built-in agent** is the web process itself. Created automatically at startup, with no
 configuration — which is why a single-machine install works out of the box.
 
-**Remote agents** are separate worker processes on other machines, speaking a four-route
-protocol: `hello`, `jobs`, `heartbeat`, `result`.
+**Remote agents** are separate worker processes on other machines, speaking a short
+protocol: `hello`, `sealing-key` (for a `delegated` agent), `jobs`, `rules`, `heartbeat`, `result`.
 
 Two durations cross it, in two different forms, for anyone writing a client against the
 published contract. `GET /api/v1/agent/jobs?wait=30` takes the long-poll wait as **whole
@@ -109,10 +109,50 @@ left; once they lapse they no longer count, even before the queue puts them back
 | `local` (default) | nothing | the agent's machine has its own git access — over SSH: a private repository over HTTPS cannot be cloned in this mode. A compromised agent yields only what that machine was granted. |
 | `delegated` | the deploy key or HTTPS token, per job | a trusted machine only. |
 
-`delegated` **requires HTTPS and is refused without it**. The key or token is never written to
-disk — it is parsed in memory and handed to the transport — and every delivery is audited. An agent that announced a sealing key
-**refuses a key that arrives unsealed**: that is what a TLS-terminating proxy stripping the
-announcement would produce, and the sealing exists precisely to keep the key from that proxy.
+In `delegated` mode the key or token **only ever leaves sealed** for the agent's own process, and
+never in the clear — over HTTPS or not. It is never written to disk on the agent — it is parsed in
+memory and handed to the transport — and every delivery is audited.
+
+### Before delegating credentials: pin the signing key {#before-delegating-credentials-pin-the-signing-key}
+
+**A delegated agent receives nothing until a result-signing key is pinned for it** — see
+[Attesting an agent's results](#attesting-an-agents-results) — and its private half is in the
+agent's configuration. The reason is where the sealing key comes from. The agent makes a fresh
+X25519 pair at every start and announces the public half; the control plane seals credentials for
+it. That announcement crosses the same network path as the credentials, so a TLS-terminating proxy
+on that path could otherwise change it. The agent therefore **signs its sealing key with its pinned
+signing key**, and the control plane accepts only a sealing key whose signature verifies against the
+key an administrator pinned ([decision 0031](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)).
+**Sealing takes a TLS-terminating proxy out of the trust boundary, given a pinned signing key.**
+
+So, for each `delegated` agent:
+
+1. Pin a signing key on its row (the lock icon on `/agents`), and set the private half shown once as
+   `VECTISPIRE_AGENT_SIGNING_KEY` in the agent's configuration.
+2. Run an agent of this version and restart it. After its `hello` it announces its sealing key,
+   signed; the log says `Sealing key verified by the control plane`.
+3. The row now reads *Sealed end to end*. Until then it reads *No verified sealing key: credentials
+   withheld*, and every claim of a scan that needs a key or token is answered **412** with the step
+   that is missing — the scan goes back to the queue, nothing is sent. Image scans, which need no
+   credential, run meanwhile.
+
+**Rotation is automatic.** Each start makes a new pair, stamped with its creation time; the control
+plane keeps the newest key signed with the pinned key and refuses an older one (**409**, audited).
+A `hello` without a key, or with one nobody signed, never replaces or clears the accepted key.
+
+**Resetting it is an administrator's act.** `DELETE /api/v1/admin/agents/{id}/sealing-key` forgets
+the key — for an agent host whose clock went back, so that its new keys all read as older, or one
+suspected of having leaked. Pinning, replacing or removing the signing key forgets it too. Both are
+audited, and the agent announces a new key at its next start, or at its next claim.
+
+A signature that does not verify is refused with **403**, written to the audit log as
+`AGENT_SEALING_KEY_REFUSED` and sent to the SIEM as `ZAN-SEC-020`: the agent's configured key is not
+the pinned one, or the key was not made by the agent.
+
+**Upgrading.** An agent older than this version cannot sign its key: a current control plane hands
+it no delegated credential (412, in the agent's log) while its `hello`, `local` mode and image scans
+keep working. An agent of this version talking to an older control plane still works as before —
+its `hello` carries the unsigned key that control plane seals for.
 
 Prefer `local`. It bounds the damage a compromised agent can do to that machine's own
 access, which is the entire reason for running scans on a separate host in the first place.
@@ -146,6 +186,9 @@ Prefer generating the pair yourself if you would rather the private half never e
 **The key is never one the agent announces**, and that asymmetry with the sealing key is the whole
 point. A signature verified against a key its signer published on the same channel proves only what
 the bearer token already proved. This one has to arrive from somebody who is not the agent.
+
+The same key vouches for the agent's sealing key, which is why a `delegated` agent receives no
+credential without it — see [Before delegating credentials](#before-delegating-credentials-pin-the-signing-key).
 
 The row says which state each agent is in — *Results attested* or *Results unsigned* — because an
 operator who believes their fleet is attested has no other way to find out it is not.

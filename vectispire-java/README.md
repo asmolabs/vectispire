@@ -174,6 +174,7 @@ same name; decision records written before that date keep the names they had.
 | A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
+| A delegated credential leaves only sealed for a sealing key the agent's pinned signing key vouched for — never in the clear; an unsigned, stale or absent announcement neither replaces nor clears the accepted key | `SealingKeyAttestationTest`, `AgentSealingKeyRoutesTest`, `ScanDispatcherTest`, `AgentSealingKeyIntegrationTest` (MySQL, PostgreSQL), `AgentSealingKeyAnnouncementTest` |
 | An agent never holds more scans than its `max_concurrent`, even with two polls at once, and a lapsed lease does not count | `ScanQueueIntegrationTest` (MySQL, PostgreSQL), `AgentConcurrencyRoutesTest` |
 | An agent runs its limit in parallel, not one more, and a stop waits for the running scans | `AgentLoopConcurrencyTest` |
 
@@ -300,6 +301,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | `mustChangePassword` was enforced by the Angular client alone — a direct API call ignored it, and the bootstrap password stayed a valid SUPERUSER credential with no expiry | `PasswordChangeInterceptor` |
 | Resetting a password did not close the account's sessions, so a stolen token kept working for twelve hours while the screen confirmed the change | `AccountAdministrationService` |
 | The dispatcher consulted the transport and not the agent's `credentialsMode`, so an agent declared `local` received every repository's decrypted deployment key | `ScanDispatcher` |
+| The sealing key a delegated credential was sealed for came unsigned from the agent's latest `hello`, and none meant the clear over TLS — sealing was only as trustworthy as the channel it distrusts. It is now signed with the agent's pinned key, kept until a newer signed one arrives, and its absence withholds the credential ([decision 0031](../docs/architecture/en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md)) | `AgentProtocolService`, `ScanDispatcher` |
 | A malformed notification threshold fell back to `UNKNOWN`, which ranks last — the threshold silently let everything through | `NotificationService` |
 | The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityQueryService` |
 | The backlog grouping took a column name as a string parameter | `IssueRepository` |

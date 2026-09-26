@@ -126,12 +126,13 @@ changera pas de sens.
 | `ZAN-SEC-011` | Team access grant changed | 6 | les membres ou les cibles d'une équipe changent |
 | `ZAN-SEC-012` | API key issued | 5 | une clé d'intégration est émise |
 | `ZAN-SEC-013` | API key revoked | 4 | une clé d'intégration est révoquée |
-| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | un agent est déclaré, activé, désactivé, supprimé, ou sa clé de signature épinglée ou retirée |
+| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | un agent est déclaré, activé, désactivé, supprimé, sa clé de signature épinglée ou retirée, ou sa clé de scellement réinitialisée par un administrateur |
 | `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | le résultat signé d'un agent ne se vérifie pas |
 | `ZAN-SEC-016` | Four-eyes triage request approved | 5 | une seconde personne tranche une demande en attente |
 | `ZAN-SEC-017` | Four-eyes triage request refused | 4 | une demande en attente est renvoyée |
 | `ZAN-SEC-018` | Audit log integrity verification failed | 10 | une vérification trouve la chaîne de hachage rompue ou des entrées manquantes dans la table |
 | `ZAN-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change |
+| `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | l'annonce de la clé de scellement d'un agent est refusée : sa signature ne se vérifie pas contre la clé de signature épinglée, ou elle est plus ancienne que la clé déjà acceptée ; aucun identifiant n'est scellé pour elle |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.

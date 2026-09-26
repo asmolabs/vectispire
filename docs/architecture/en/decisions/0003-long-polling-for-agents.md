@@ -1,6 +1,6 @@
 # 0003 — Agents speak HTTP long-polling, never to the database
 
-**Date:** 2026-08-06 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-08-06 · **Status:** accepted · **Amended by:** [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -55,3 +55,10 @@ written promise that no key would reach it received the decrypted deployment key
 repository whose scan it claimed — and nothing routed the queue, so it could harvest them all.
 That is the defect this decision is shaped around, and why the check lives on the mode rather than
 on anything observable about the connection.
+
+## Amended
+
+[0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md), 2026-09-26: the announced key proved nothing about who announced it, and the control
+plane fell back on the clear when none arrived. A delegated credential is now sealed only for a key
+signed with the agent's pinned result-signing key, never sent in the clear, and an agent with no
+pinned key receives none.

@@ -16,9 +16,10 @@
    decisions.
 4. **Least Privilege for Remote Agents**: Remote agents cannot reach the SQL database — enforced by
    the module graph, so the violation fails to compile — and never hold `ENCRYPTION_KEY`. They *do*
-   receive repository deployment keys in `DELEGATED` mode, sealed to the public key the agent
-   announced at enrolment (X25519 → HKDF → AES-256-GCM) and audited on every send; `LOCAL`, the
-   default, sends nothing. Stated in full rather than as "agents hold no credentials", which is the
+   receive repository deployment keys in `DELEGATED` mode, sealed (X25519 → HKDF → AES-256-GCM)
+   only to a key the agent signed with its pinned result-signing key, never in the clear, and
+   audited on every send ([decision 0031](../../en/decisions/0031-a-sealing-key-is-believed-only-on-the-pinned-key.md));
+   `LOCAL`, the default, sends nothing. Stated in full rather than as "agents hold no credentials", which is the
    shorter claim and the false one — see [decision
    0003](../../en/decisions/0003-long-polling-for-agents.md).
 

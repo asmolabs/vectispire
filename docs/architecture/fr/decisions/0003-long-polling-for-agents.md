@@ -1,6 +1,6 @@
 # 0003 — Les agents parlent en long-polling HTTP, jamais à la base
 
-**Date :** 2026-08-06 · **Statut :** accepté · **Décideur :** Laurent Boucher
+**Date :** 2026-08-06 · **Statut :** accepté · **Amendée par :** [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -56,3 +56,10 @@ consultait le transport à la place : un agent placé sur une machine moins prot
 dont il réclamait l'analyse — et rien ne routait la file, il pouvait donc toutes les moissonner.
 C'est le défaut autour duquel cette décision est façonnée, et la raison pour laquelle le contrôle
 porte sur le mode plutôt que sur quoi que ce soit d'observable de la connexion.
+
+## Amendement
+
+[0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md), 2026-09-26 : la clé annoncée ne prouvait rien de qui l'annonçait, et le plan de
+contrôle se rabattait sur le clair quand aucune n'arrivait. Un identifiant délégué n'est plus scellé
+que pour une clé signée par la clé de signature des résultats épinglée pour l'agent, n'est jamais
+envoyé en clair, et un agent sans clé épinglée n'en reçoit aucun.
