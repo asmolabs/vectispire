@@ -184,14 +184,14 @@ public class OidcConfiguration {
                 }
 
                 AuthService.IssuedSession session = auth.openFederatedSession(
-                        user, request.getHeader("User-Agent"), request.getRemoteAddr());
+                        user, request.getHeader("User-Agent"), proxies.clientAddress(request));
 
                 audit.record(new AuditLogService.Record(
                         AuditOperation.LOGIN_SUCCESS,
                         user.username(),
                         "Signed in through " + oidc.getIssuer() + ", " + secondFactor,
                         user.username(),
-                        request.getRemoteAddr(),
+                        proxies.clientAddress(request),
                         request.getHeader("User-Agent")));
 
                 // The clear token, straight from the mint into the one-time cookie: the row it
@@ -214,7 +214,7 @@ public class OidcConfiguration {
                         oidc.getSubject(),
                         "Single sign-on refused: " + refused.getMessage(),
                         null,
-                        request.getRemoteAddr(),
+                        proxies.clientAddress(request),
                         request.getHeader("User-Agent")));
                 redirectRefused(response, refused.refusal());
             }

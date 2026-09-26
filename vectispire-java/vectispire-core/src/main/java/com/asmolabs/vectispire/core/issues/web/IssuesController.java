@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.issues.IssueDecisionService;
 import com.asmolabs.vectispire.core.issues.IssueQueryService;
@@ -240,7 +241,7 @@ public class IssuesController {
         return new IssueDecisionService.Caller(
                 principal.user(),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
-                request.getRemoteAddr(),
+                TrustedProxies.resolvedClientAddress(request),
                 request.getHeader("User-Agent"));
     }
 }

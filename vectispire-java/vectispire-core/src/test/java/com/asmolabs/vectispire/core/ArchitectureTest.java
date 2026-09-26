@@ -419,6 +419,23 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("the client's address is read through TrustedProxies alone")
+    void onlyTrustedProxiesReadsThePeerAddress() {
+        // Behind a load balancer the peer is the balancer. Eight places read it directly and wrote
+        // it into audit entries, SIEM events and session rows, while the throttles, which asked
+        // TrustedProxies, named the client. Any other reader of the peer is that defect again.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().doNotHaveFullyQualifiedName(
+                        com.asmolabs.vectispire.core.access.web.security.TrustedProxies.class.getName())
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "getRemoteAddr on a servlet request",
+                        call -> call.getName().equals("getRemoteAddr")
+                                && call.getTargetOwner().isAssignableTo(jakarta.servlet.ServletRequest.class)))
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("an entity describes a table and nothing else")
     void persistenceHasNoWebOrService() {
         // Dependency injection is not an entity's business, and neither is HTTP.

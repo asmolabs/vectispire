@@ -158,8 +158,10 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             "frame-ancestors 'none'");
 
     @Bean
-    SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+    SecurityFilterChain apiSecurity(HttpSecurity http, ClientAddressFilter clientAddress) throws Exception {
         return http
+                // First, so every later filter, handler and audit entry reads the same address.
+                .addFilterBefore(clientAddress, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.class)
                 // On every response, static files included: the document that carries the
                 // injected string is `index.html`, so a policy applied only to `/api` would
                 // guard the JSON and leave the page it is rendered into unprotected.
@@ -305,7 +307,7 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                     request.getRequestURI(),
                     "Access denied: " + denied.getMessage(),
                     who,
-                    request.getRemoteAddr(),
+                    com.asmolabs.vectispire.core.access.web.security.TrustedProxies.resolvedClientAddress(request),
                     request.getHeader("User-Agent")));
             response.sendError(HttpStatus.FORBIDDEN.value());
         };

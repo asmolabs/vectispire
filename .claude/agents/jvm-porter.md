@@ -218,7 +218,9 @@ minutes is a production incident no test sees. `@Async` is inert here — there 
 `@EnableAsync` — so work meant to leave after commit goes through the outbox.
 
 **The client's address comes from `TrustedProxies`**, never `getRemoteAddr()`: behind a load
-balancer every audit entry and every throttle would name the balancer.
+balancer every audit entry and every throttle would name the balancer. A caller without an instance
+reads `TrustedProxies.resolvedClientAddress(request)`, which `ClientAddressFilter` fills at the head
+of the chain; `ArchitectureTest.onlyTrustedProxiesReadsThePeerAddress` refuses any other reader.
 
 **Roles are a separation of duties, not a ladder.** The platform governor (SUPERUSER) decides the
 rules — four-eyes, visibility — and takes no triage decision; only a governor administers the

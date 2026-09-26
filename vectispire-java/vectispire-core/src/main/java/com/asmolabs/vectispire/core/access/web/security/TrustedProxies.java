@@ -37,6 +37,12 @@ public class TrustedProxies {
 
     private static final Logger log = LoggerFactory.getLogger(TrustedProxies.class);
 
+    /**
+     * The request attribute holding the address {@link #clientAddress} resolved at the head of the
+     * chain — see {@code ClientAddressFilter}.
+     */
+    public static final String CLIENT_ADDRESS = TrustedProxies.class.getName() + ".clientAddress";
+
     private final List<IpAddressMatcher> matchers;
 
     public TrustedProxies(@Value("${vectispire.security.trusted-proxies:}") String configured) {
@@ -101,6 +107,19 @@ public class TrustedProxies {
         // Every hop claims to be a trusted proxy. Nothing here identifies a client, so the peer
         // is what is left — and it is a real address rather than a claimed one.
         return peer;
+    }
+
+    /**
+     * The client's address as the chain resolved it, for a caller that holds no instance — a static
+     * helper, the access-denied handler, a route building an actor.
+     *
+     * <p>A request that never crossed the chain has no resolution, and then the peer is all that is
+     * known — which is what {@link #clientAddress} answers with no proxy trusted.
+     */
+    public static String resolvedClientAddress(HttpServletRequest request) {
+        return request.getAttribute(CLIENT_ADDRESS) instanceof String resolved
+                ? resolved
+                : request.getRemoteAddr() == null ? "unknown" : request.getRemoteAddr();
     }
 
     /**

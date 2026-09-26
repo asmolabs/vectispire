@@ -34,9 +34,11 @@ existent, et sur quoi un SOC peut compter pour les deux.
   par leur auteur (`Record.signalling`). Les trois événements sans entrée d'audit derrière eux — une
   reclassification KEV, un refus de la gate, une chaîne d'audit rompue — sont mis en file
   explicitement. Acteur, adresse, cible et action viennent de l'entrée, si bien qu'un événement dit
-  ce que dit le journal d'audit — y compris son adresse, que la connexion, la MFA, le plafond des
-  jetons bearer et la gate résolvent au travers des proxys de confiance, et que les entrées écrites
-  par `RequestActors` ne résolvent pas encore.
+  ce que dit le journal d'audit — y compris son adresse, que toute entrée résout au travers des
+  proxys de confiance. (Jusqu'au 2026-09-26, seules la connexion, la MFA, le plafond des jetons bearer
+  et la gate le faisaient ; les entrées écrites par `RequestActors` et le gestionnaire de refus
+  nommaient le pair. `ClientAddressFilter` résout désormais l'adresse une fois par requête, et
+  `ArchitectureTest` refuse toute lecture du pair hors de `TrustedProxies`.)
 - **Au moins une fois.** Un collecteur peut accepter un événement et la transaction qui l'enregistre
   échouer ; l'événement est alors renvoyé. Chacun porte l'identifiant de son message d'outbox en
   `externalId` CEF, sur lequel un SOC déduplique. En UDP, « envoyé » veut dire remis au réseau : rien

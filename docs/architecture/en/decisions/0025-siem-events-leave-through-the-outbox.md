@@ -30,8 +30,11 @@ SOC may rely on about both.
   `ACCESS_DENIED` — are named by their writer (`Record.signalling`). The three events with no audit
   entry behind them — a KEV reclassification, a gate refusal, a broken audit chain — are queued
   explicitly. Actor, address, target and action come from the entry, so an event says what the audit
-  log says — including its address, which sign-in, MFA, the bearer ceiling and the gate resolve
-  through the trusted proxies and the entries written through `RequestActors` do not yet.
+  log says — including its address, which every entry resolves through the trusted proxies. (Until
+  2026-09-26 only sign-in, MFA, the bearer ceiling and the gate did; the entries written through
+  `RequestActors` and the access-denied handler named the peer. `ClientAddressFilter` now resolves the
+  address once per request, and `ArchitectureTest` refuses a read of the peer outside
+  `TrustedProxies`.)
 - **At least once.** A collector can accept an event and the transaction recording it can fail; the
   event is then sent again. Each carries its outbox message id as CEF `externalId`, which is what a SOC
   deduplicates on. Over UDP, "sent" means handed to the network: nothing comes back.

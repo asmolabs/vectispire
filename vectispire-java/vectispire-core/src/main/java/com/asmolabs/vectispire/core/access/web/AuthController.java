@@ -295,7 +295,7 @@ public class AuthController {
                 principal.session(),
                 text(body == null ? null : body.currentPassword()),
                 text(body == null ? null : body.newPassword()),
-                request.getRemoteAddr(),
+                proxies.clientAddress(request),
                 request.getHeader("User-Agent"));
 
         return switch (outcome) {

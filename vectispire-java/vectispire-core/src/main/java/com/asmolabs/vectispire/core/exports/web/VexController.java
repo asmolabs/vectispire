@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.exports.VexGeneratorService;
 import com.asmolabs.vectispire.core.issues.IssueDecisionService;
@@ -88,7 +89,7 @@ public class VexController {
         return vexIngestor.ingestPayload(payload, new IssueDecisionService.Caller(
                 principal.user(),
                 allowanceOf(principal),
-                request.getRemoteAddr(),
+                TrustedProxies.resolvedClientAddress(request),
                 request.getHeader("User-Agent")));
     }
 

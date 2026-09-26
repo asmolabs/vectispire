@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.compliance.AiReviewResultView;
 import com.asmolabs.vectispire.core.compliance.OwaspReportService;
@@ -88,7 +89,7 @@ public class OwaspController {
                 id,
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
                 principal.user().map(user -> user.username()).orElse("unknown"),
-                request.getRemoteAddr(),
+                TrustedProxies.resolvedClientAddress(request),
                 request.getHeader("User-Agent")));
     }
 

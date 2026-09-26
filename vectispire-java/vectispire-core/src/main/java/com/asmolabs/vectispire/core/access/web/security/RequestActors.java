@@ -39,7 +39,7 @@ public final class RequestActors {
     public static RequestActor named(String username, HttpServletRequest request) {
         return request == null
                 ? new RequestActor(username, null, null)
-                : new RequestActor(username, request.getRemoteAddr(), request.getHeader("User-Agent"));
+                : new RequestActor(username, TrustedProxies.resolvedClientAddress(request), request.getHeader("User-Agent"));
     }
 
     /** From this address, for a service that names the actor from what it authenticated. */
