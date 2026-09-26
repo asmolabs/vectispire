@@ -149,7 +149,9 @@ public enum SecurityEventType {
         return switch (operation) {
             case USER_CREATED, USER_UPDATED, USER_DELETED, USER_PASSWORD_RESET, PASSWORD_CHANGED ->
                     Optional.of(ACCOUNT_CHANGED);
-            case TEAM_ACCESS_CHANGED -> Optional.of(ACCESS_GRANT_CHANGED);
+            // Filing or moving a repository moves it in or out of every project grant at once
+            // (decision 0023): who may see it changes, with no grant row touched.
+            case TEAM_ACCESS_CHANGED, PROJECT_REPOSITORIES_CHANGED -> Optional.of(ACCESS_GRANT_CHANGED);
             case API_KEY_CREATED -> Optional.of(API_KEY_ISSUED);
             case API_KEY_DELETED -> Optional.of(API_KEY_REVOKED);
             case AGENT_CREATED, AGENT_UPDATED, AGENT_DELETED, AGENT_SIGNING_KEY_PINNED -> Optional.of(AGENT_CHANGED);
@@ -161,7 +163,10 @@ public enum SecurityEventType {
                     SCAN_TRIGGERED, AI_REVIEW_REQUESTED, REPORT_EXPORTED, TICKET_CREATED, TICKET_LINKED,
                     TICKET_CLOSED, TICKET_SYNCED, CONTROL_DECLARED, TEAM_UPDATED, ACCESS_DENIED,
                     AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED, RULE_SET_UPLOADED,
-                    RULE_SET_ACTIVATED, RULE_SET_DEACTIVATED, POSTURE_DIGEST_SENT -> Optional.empty();
+                    RULE_SET_ACTIVATED, RULE_SET_DEACTIVATED, POSTURE_DIGEST_SENT,
+                    // A name or a description; a project deleted with grants on it names the event
+                    // itself, since only its writer knows whether any were revoked.
+                    SOLUTION_UPDATED, PROJECT_UPDATED -> Optional.empty();
         };
     }
 }

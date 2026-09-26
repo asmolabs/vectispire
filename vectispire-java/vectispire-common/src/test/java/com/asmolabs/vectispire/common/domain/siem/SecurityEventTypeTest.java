@@ -65,6 +65,9 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.TEAM_ACCESS_CHANGED))
                 .contains(SecurityEventType.ACCESS_GRANT_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.USER_UPDATED)).contains(SecurityEventType.ACCOUNT_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PROJECT_REPOSITORIES_CHANGED))
+                .contains(SecurityEventType.ACCESS_GRANT_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PROJECT_UPDATED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_UPDATED)).contains(SecurityEventType.AGENT_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SIGNING_KEY_PINNED))
                 .contains(SecurityEventType.AGENT_CHANGED);

@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
@@ -220,9 +221,10 @@ public class SolutionAdministrationService {
             return new Removed(detached, grants);
         });
 
-        audit.record(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id),
+        AuditLogService.Record deleted = actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id),
                 "Project deleted: " + project.getName() + " (" + removed.detached()
-                        + " repository(ies) returned to no project, " + removed.grants() + " grant(s) revoked)"));
+                        + " repository(ies) returned to no project, " + removed.grants() + " grant(s) revoked)");
+        audit.record(removed.grants() > 0 ? deleted.signalling(SecurityEventType.ACCESS_GRANT_CHANGED) : deleted);
     }
 
     // ------------------------------------------------------------------ filing a repository

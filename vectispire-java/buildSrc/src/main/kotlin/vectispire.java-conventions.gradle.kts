@@ -34,6 +34,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // Every distinct `@MockitoBean` or property set is a Spring context of its own, and the test
+    // framework caches up to 32 of them. On Gradle's default 512 MB worker the suite ran out of
+    // heap the day three branches' contexts met — as a context-load failure blamed on whichever
+    // bean happened to be created last. A bounded cache and an explicit heap make the ceiling a
+    // setting rather than an accident of how many suites exist.
+    maxHeapSize = "2g"
+    systemProperty("spring.test.context.cache.maxSize", "16")
     testLogging {
         events("failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

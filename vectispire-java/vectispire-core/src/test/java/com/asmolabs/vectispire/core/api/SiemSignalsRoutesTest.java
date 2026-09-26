@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -275,6 +276,50 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     }
 
     /** Turns the export on, then forgets what the save itself queued, so each test counts its own. */
+    @Test
+    @DisplayName("filing a repository, and deleting a project that held grants, change who sees what")
+    void projectVisibilityChanges() throws Exception {
+        exportTo("127.0.0.1:9");
+        String admin = asAdmin();
+        long solution = json.readTree(mvc.perform(authenticated(post("/api/v1/solutions"), admin)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of("name", "siem-" + System.nanoTime()))))
+                        .andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString())
+                .get("id").asLong();
+        long granted = projectIn(solution, admin);
+        long empty = projectIn(solution, admin);
+
+        // Decision 0023: filing moves the repository into every grant on the project at once.
+        mvc.perform(authenticated(put("/api/v1/projects/" + granted + "/repositories/" + repository()), admin))
+                .andExpect(status().isNoContent());
+        assertThat(queued("ACCESS_GRANT_CHANGED")).hasSize(1);
+
+        tokenFor("siem-grantee", Role.USER, false);
+        long grantee = users.findByUsername("siem-grantee").orElseThrow().getId();
+        mvc.perform(authenticated(put("/api/v1/users/" + grantee + "/targets"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(List.of(Map.of("kind", "project", "id", granted)))))
+                .andExpect(status().isOk());
+        outbox.deleteAll();
+
+        mvc.perform(authenticated(delete("/api/v1/projects/" + empty), admin)).andExpect(status().isNoContent());
+        assertThat(queued("ACCESS_GRANT_CHANGED")).as("nobody held the empty project").isEmpty();
+
+        mvc.perform(authenticated(delete("/api/v1/projects/" + granted), admin)).andExpect(status().isNoContent());
+        assertThat(queued("ACCESS_GRANT_CHANGED")).singleElement()
+                .satisfies(event -> assertThat(event.at("/message").asText()).contains("grant(s) revoked"));
+    }
+
+    private long projectIn(long solution, String admin) throws Exception {
+        return json.readTree(mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), admin)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(write(Map.of("name", "p-" + System.nanoTime()))))
+                        .andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString())
+                .get("id").asLong();
+    }
+
     private void exportTo(String endpoint) throws Exception {
         settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
         mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
