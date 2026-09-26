@@ -187,7 +187,7 @@ public class AgentsAdminController {
                             agent.getLabels(),
                             agent.getSealingPublicKey() != null,
                             agent.getSigningPublicKey() != null,
-                            agent.getMaxConcurrent(),
+                            view.maxConcurrent(),
                             agent.getHostname(),
                             agent.getPlatform(),
                             agent.getVersion(),

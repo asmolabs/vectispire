@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
@@ -94,8 +95,10 @@ public class AgentAdministrationService {
     /**
      * @param online seen recently, not "enabled" — see {@link #isOnline}
      * @param runningScans the scans this agent holds a lease on right now
+     * @param maxConcurrent the limit the queue applies — the column clamped to its bound, so the
+     *     screen shows what the claim enforces rather than what an old row happens to hold
      */
-    public record AgentView(AgentEntity agent, boolean online, long runningScans) {}
+    public record AgentView(AgentEntity agent, boolean online, long runningScans, int maxConcurrent) {}
 
     public record Declaration(
             String name, String description, String credentialsMode, String labels, Integer maxConcurrent) {}
@@ -272,7 +275,10 @@ public class AgentAdministrationService {
         Map<String, Long> running = runningByAgent();
         return agents.findAllByOrderByNameAsc().stream()
                 .map(agent -> new AgentView(
-                        agent, isOnline(agent, asOf), running.getOrDefault(agent.getId().toString(), 0L)))
+                        agent,
+                        isOnline(agent, asOf),
+                        running.getOrDefault(agent.getId().toString(), 0L),
+                        AgentConcurrency.effective(agent.getMaxConcurrent())))
                 .toList();
     }
 
@@ -293,6 +299,9 @@ public class AgentAdministrationService {
         BoundedText.within(name, MAX_NAME_LENGTH, "The agent's name");
         String description = BoundedText.optional(declaration.description(), MAX_DESCRIPTION_LENGTH, "The description");
         String labels = joinedLabels(declaration.labels());
+        int maxConcurrent = declaration.maxConcurrent() == null
+                ? AgentConcurrency.DEFAULT
+                : bounded(declaration.maxConcurrent());
 
         CredentialsMode mode = declaration.credentialsMode() == null || declaration.credentialsMode().isBlank()
                 ? CredentialsMode.LOCAL
@@ -327,7 +336,7 @@ public class AgentAdministrationService {
             // two divergent normalizations would leave a scan waiting for an agent that is present.
             agent.setLabels(labels);
             agent.setEnabled(true);
-            agent.setMaxConcurrent(declaration.maxConcurrent() == null ? 1 : declaration.maxConcurrent());
+            agent.setMaxConcurrent(maxConcurrent);
             agent.setApiKeyId(savedKey.getId());
             agent.setCreatedAt(at);
 
@@ -338,13 +347,18 @@ public class AgentAdministrationService {
         return new Declared(saved, issued.fullKey());
     }
 
-    /** Enables or disables. A disabled agent claims nothing, without losing its history. */
+    /**
+     * Enables or disables, relabels, resizes. A disabled agent claims nothing, without losing its
+     * history; a lowered limit stops new claims and lets the running scans finish.
+     */
     public Changed change(UUID id, Change change, RequestActor actor) {
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
 
         boolean enabled = change.enabled() == null ? agent.getEnabled() : change.enabled();
         String labels = change.labels() == null ? agent.getLabels() : joinedLabels(change.labels());
-        Integer maxConcurrent = change.maxConcurrent() == null ? agent.getMaxConcurrent() : change.maxConcurrent();
+        Integer maxConcurrent = change.maxConcurrent() == null
+                ? agent.getMaxConcurrent()
+                : Integer.valueOf(bounded(change.maxConcurrent()));
 
         if (!Objects.equals(labels, agent.getLabels())) {
             // **Recorded, because it is an authorization decision.** Widening an agent's labels
@@ -357,6 +371,12 @@ public class AgentAdministrationService {
         if (enabled != agent.getEnabled()) {
             record(actor, id, "Agent " + agent.getName() + (enabled ? " re-enabled" : " disabled"));
         }
+        if (!Objects.equals(maxConcurrent, agent.getMaxConcurrent())) {
+            // Recorded because it moves load onto somebody's machine: an agent raised from 2 to 16
+            // runs eight times the containers on a host whose owner may not have been asked.
+            record(actor, id, "Agent " + agent.getName() + " max concurrent scans: " + maxConcurrent
+                    + " (previously " + AgentConcurrency.effective(agent.getMaxConcurrent()) + ")");
+        }
 
         agent.setEnabled(enabled);
         agent.setLabels(labels);
@@ -364,6 +384,20 @@ public class AgentAdministrationService {
         agents.save(agent);
 
         return new Changed(id, enabled, labels);
+    }
+
+    /**
+     * The limit an administrator asked for, or a 400 naming the bound.
+     *
+     * <p>Checked here and not only on the screen: the queue clamps what it reads, so a value of
+     * 50 written through the API would have been stored, shown back as 50, and applied as 16 — a
+     * setting that says one thing and does another.
+     */
+    private static int bounded(int requested) {
+        AgentConcurrency.refusal(requested).ifPresent(reason -> {
+            throw new IllegalArgumentException(reason);
+        });
+        return requested;
     }
 
     /**

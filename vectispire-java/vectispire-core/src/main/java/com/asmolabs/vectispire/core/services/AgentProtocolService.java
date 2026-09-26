@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
@@ -53,7 +54,11 @@ public class AgentProtocolService {
         /** @param announced the version the agent claimed, empty when it claimed none */
         record IncompatibleContract(String announced) implements Hello {}
 
-        record Accepted() implements Hello {}
+        /**
+         * @param maxConcurrent the limit the queue applies, not the column: a row written before
+         *     the bound existed would otherwise announce a limit the claim then refuses to honour
+         */
+        record Accepted(int maxConcurrent) implements Hello {}
     }
 
     public sealed interface Submission {
@@ -110,7 +115,7 @@ public class AgentProtocolService {
                 announced.trim(),
                 sealingKey);
 
-        return new Hello.Accepted();
+        return new Hello.Accepted(AgentConcurrency.effective(agent.getMaxConcurrent()));
     }
 
     /**

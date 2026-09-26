@@ -105,21 +105,20 @@ public class AgentsController {
                 body.scannerEngine(),
                 body.capabilities()));
 
-        if (answer instanceof AgentProtocolService.Hello.IncompatibleContract(String announced)) {
+        return switch (answer) {
             // 409 and not 400: the request is well formed, the two sides simply disagree about
             // the protocol — and the fix is a deployment, not another call.
-            throw new ResponseStatusException(
+            case AgentProtocolService.Hello.IncompatibleContract(String announced) -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This agent speaks contract \"" + (announced.isEmpty() ? "unknown" : announced)
                             + "\" and Vectispire speaks \"" + AgentContract.VERSION + "\". Update the agent.");
-        }
-
-        return new HelloResponse(
-                agent.getId(),
-                agent.getName(),
-                AgentContract.VERSION,
-                agent.getMaxConcurrent() == null ? 1 : agent.getMaxConcurrent(),
-                agent.getCredentialsMode());
+            case AgentProtocolService.Hello.Accepted(int maxConcurrent) -> new HelloResponse(
+                    agent.getId(),
+                    agent.getName(),
+                    AgentContract.VERSION,
+                    maxConcurrent,
+                    agent.getCredentialsMode());
+        };
     }
 
     /**
