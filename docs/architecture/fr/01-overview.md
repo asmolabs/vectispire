@@ -11,6 +11,12 @@ renvoie une liste ; Vectispire renvoie un **backlog** : ce qui est apparu, ce qu
 par qui, ce qui est présent depuis six scans, ce qui a disparu. Un rapport dit ce qui existe
 aujourd'hui ; un backlog dit ce qui a changé, ce qui est la seule information sur laquelle on agit.
 
+Les cibles sont analysées une à une, mais les organisations les lisent par produit : une
+**solution** contient des **projets**, et un projet référence les dépôts qui le composent — chaque
+dépôt dans un projet au plus, et « sans projet » traité comme un groupe à part entière
+([0023](decisions/0023-solutions-projects-and-repositories.md)). Une attribution peut nommer un
+projet, et les chiffres par projet sont calculés sur les dépôts que le lecteur a le droit de voir.
+
 Le second usage est le **verdict de conformité** : `POST /api/v1/gate` indique à un pipeline de
 build si une cible passe les contrôles selon une politique explicite. C'est là que Vectispire cesse
 d'être un tableau de bord pour devenir une décision.

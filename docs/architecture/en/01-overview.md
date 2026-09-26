@@ -11,6 +11,12 @@ Vectispire returns a **backlog**: what appeared, what was triaged and by whom, w
 there for six scans, what has gone away. A report says what exists today; a backlog says what
 changed, which is the only information anyone acts on.
 
+Targets are scanned one by one, but organisations read them by product: a **solution** holds
+**projects**, and a project references the repositories that make it up — each repository in at
+most one project, and "no project" treated as a group of its own
+([0023](decisions/0023-solutions-projects-and-repositories.md)). A grant may name a project, and
+per-project figures are computed over the repositories the reader may see.
+
 The second use is the **compliance verdict**: `POST /api/v1/gate` tells a build pipeline whether a
 target passes, according to an explicit policy. This is where Vectispire stops being a dashboard and
 becomes a decision.

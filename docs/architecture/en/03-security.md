@@ -50,6 +50,18 @@ flowchart LR
     AGENT -->|"never the database"| APP
 ```
 
+## Who sees what
+
+Every read that names a target is narrowed by a `Visibility`, resolved once per request by
+`VisibilityService`: everything for an administrator or a role with a global scope, otherwise the
+**union** of what the account was granted directly and what its teams were granted, **intersected**
+with the credential's own restriction. A grant names a repository, an image or a **project**; a
+project grant is resolved at that moment into the repositories filed in the project
+([0023](decisions/0023-solutions-projects-and-repositories.md)), so filing a repository into a
+project grants it at once to the project's holders, and moving it out revokes it at once — the audit
+entry for the move says so. What reaches the queries is still a set of targets, and a target the
+reader may not see answers 404, exactly like one that does not exist.
+
 ## Three boundaries worth naming separately
 
 **The daemon is the one that is narrowed rather than closed.** No Vectispire container mounts

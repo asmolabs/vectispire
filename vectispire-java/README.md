@@ -65,6 +65,8 @@ the same commit that violates it; a missing dependency cannot.
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |
+| A project grant covers the project's repositories as they are at each request, and no project grant asks nothing | `VisibilityServiceTest`, `SolutionsRoutesTest` |
+| A partial grant sees a partial project and says so; no grant, no project | `SolutionsRoutesTest` |
 | A new installation starts partitioned, an upgrade does not, and neither undoes a choice | `FirstInstallDefaultsTest`, `FirstInstallDefaultsDatabaseTest`, `BootstrapServiceTest` |
 | A remediation deadline counts from the first sighting, and a rescan cannot reset it | `RemediationSlaTest` |
 | The overdue figure and the list it links to count the same rows | `RemediationSlaRoutesTest` |
@@ -134,8 +136,8 @@ historically experienced with abstractions:
   hashes a millisecond timestamp — see [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-migrations.md).
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all thirty-seven tables are created by name, and that the twenty-four foreign keys of the
-sixteen tables that carry one really exist.
+that all forty-one tables are created by name, and that the twenty-seven foreign keys of the
+seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
 PostgreSQL and MySQL through Testcontainers and on the SQLite fixture. **There is no "skip if Docker is missing" guard, deliberately** — a

@@ -135,6 +135,7 @@ plugins:
             Tracker tickets: Tickets
             Administration: Administration
             Users and teams: Utilisateurs et équipes
+            Solutions and projects: Solutions et projets
             Your account and MFA: Votre compte et le second facteur
             Four-eyes approval: Double validation
             Single sign-on: Authentification unique
@@ -208,6 +209,7 @@ nav:
       - Tracker tickets: integrations/ticketing.md
   - Administration:
       - Users and teams: administration/users-and-teams.md
+      - Solutions and projects: administration/solutions-and-projects.md
       - Your account and MFA: administration/account.md
       - Four-eyes approval: administration/four-eyes.md
       - Single sign-on: administration/sso.md

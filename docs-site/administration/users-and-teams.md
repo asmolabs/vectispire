@@ -53,6 +53,30 @@ backlog-over-time series included.
 That narrowing is uniform on purpose. A view that quietly ignored it would let somebody
 infer the shape of an estate they cannot open.
 
+## What a grant names
+
+A grant — to an account directly, or to a team — names one of three things:
+
+| Kind | Covers |
+|---|---|
+| `repository` | that repository |
+| `container` | that container image |
+| `project` | every repository in the project **at the moment of each request** — see [Solutions and projects](solutions-and-projects.md) |
+
+What a person sees is the **union** of everything granted to them directly and everything granted
+to their teams. Joining a team never narrows what someone already had.
+
+**A project grant follows the project.** A repository filed into the project after the grant was
+made is visible to its holders as soon as it is filed; a repository moved out stops being visible
+through that grant at the same moment. Nothing is re-granted, which is the point — and why moving a
+repository between projects is audited as the access change it is.
+
+There is no grant on a solution: grant each of its projects. A grant naming a project that does not
+exist is refused. Deleting a project revokes every grant naming it.
+
+The grant lists of an account and of a team show each target by name — a project as
+`Solution / Project` — and a target that has since been deleted as "deleted target".
+
 ## Unlabelled targets
 
 A target belonging to no team is visible only to those who can see everything. It is worth

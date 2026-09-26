@@ -55,6 +55,31 @@ visibilité du lecteur — la série « backlog dans le temps » du tableau de b
 Cette restriction est uniforme à dessein. Une vue qui l'ignorerait discrètement laisserait
 quelqu'un déduire la forme d'un parc qu'il ne peut pas ouvrir.
 
+## Ce qu'une attribution nomme
+
+Une attribution — à un compte directement, ou à une équipe — nomme l'une de trois choses :
+
+| Type | Couvre |
+|---|---|
+| `repository` | ce dépôt |
+| `container` | cette image de conteneur |
+| `project` | tous les dépôts du projet **au moment de chaque requête** — voir [Solutions et projets](solutions-and-projects.md) |
+
+Ce qu'une personne voit est l'**union** de tout ce qui lui est attribué directement et de tout ce
+qui est attribué à ses équipes. Rejoindre une équipe ne restreint jamais ce qu'on avait déjà.
+
+**Une attribution de projet suit le projet.** Un dépôt rangé dans le projet après l'attribution est
+visible de ses titulaires dès qu'il y est rangé ; un dépôt qui en sort cesse d'être visible par
+cette attribution au même instant. Rien n'est réattribué, c'est tout l'intérêt — et c'est pourquoi
+déplacer un dépôt d'un projet à l'autre est audité comme le changement d'accès qu'il est.
+
+Il n'y a pas d'attribution sur une solution : attribuez chacun de ses projets. Une attribution
+nommant un projet inexistant est refusée. Supprimer un projet révoque toute attribution qui le
+nomme.
+
+Les listes d'attributions d'un compte et d'une équipe montrent chaque cible par son nom — un projet
+sous la forme `Solution / Projet` — et une cible supprimée depuis comme « deleted target ».
+
 ## Cibles sans étiquette
 
 Une cible n'appartenant à aucune équipe n'est visible que de ceux qui voient tout. Il vaut la

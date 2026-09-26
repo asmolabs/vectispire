@@ -25,13 +25,36 @@ erDiagram
     SCAN       ||--o{ AI_REVIEW_RESULT : "transporte"
 ```
 
-**Le diagramme est un sous-ensemble délibéré : onze tables sur trente-sept.** Il montre le chemin
+**Le diagramme est un sous-ensemble délibéré : onze tables sur quarante et une.** Il montre le chemin
 d'une analyse, parce que c'est la partie dont il faut comprendre la forme avant de toucher au
 schéma. Le reste — la billetterie, l'inventaire d'API, le renseignement sur les menaces, la
 configuration SIEM, les sessions, les paramètres, le journal d'audit — s'y raccroche sans le
 modifier. C'est `SchemaParityIntegrationTest` qui tient le compte honnête, et il a un jour affirmé
 vingt-six contre un arbre de trente-trois : un nombre exact dans un document est un nombre que
 personne ne met à jour.
+
+## Solutions, projets, et ce qu'une attribution nomme
+
+```mermaid
+erDiagram
+    SOLUTION   ||--o{ PROJECT : "contient"
+    PROJECT    |o--o{ REPOSITORY : "référence (project_id, nullable)"
+    USER_TARGET }o--o| PROJECT : "peut nommer (kind = project)"
+    TEAM_TARGET }o--o| PROJECT : "peut nommer (kind = project)"
+```
+
+Un dépôt appartient à **un projet au plus**, par une colonne `t_repository.project_id` nullable
+plutôt qu'une table de liaison, pour qu'un chiffre s'additionne à un seul projet sans double
+comptage ([0023](decisions/0023-solutions-projects-and-repositories.md)). Les dépôts existants
+démarrent sans projet ; rien n'est déduit. Supprimer un projet ramène ses dépôts à « sans projet »
+et révoque ses attributions ; une solution n'est supprimée que lorsqu'elle ne contient plus aucun
+projet.
+
+Les attributions vivent dans `t_user_target` et `t_team_target` sous la forme
+`(target_kind, target_id)`, et le type peut être `repository`, `container` ou `project` — jamais une
+solution. Une attribution de projet n'est pas recopiée en attributions de dépôts :
+`VisibilityService` la résout en dépôts du projet **à chaque requête**, si bien que la `Visibility`
+reçue par chaque requête reste un ensemble de cibles.
 
 ## L'empreinte (Fingerprint)
 

@@ -52,6 +52,19 @@ flowchart LR
     AGENT -->|"jamais d'accès direct à la base"| APP
 ```
 
+## Qui voit quoi
+
+Toute lecture qui nomme une cible est restreinte par une `Visibility`, résolue une fois par requête
+par `VisibilityService` : tout pour un administrateur ou un rôle à périmètre global, sinon
+l'**union** de ce qui a été attribué directement au compte et de ce qui l'a été à ses équipes,
+**intersectée** avec la restriction propre à l'identifiant présenté. Une attribution nomme un dépôt,
+une image ou un **projet** ; une attribution de projet est résolue à ce moment-là en dépôts rangés
+dans le projet ([0023](decisions/0023-solutions-projects-and-repositories.md)), si bien que ranger
+un dépôt dans un projet l'accorde aussitôt aux titulaires du projet, et l'en sortir le leur retire
+aussitôt — l'entrée d'audit du déplacement le dit. Ce qui atteint les requêtes reste un ensemble de
+cibles, et une cible que le lecteur ne peut pas voir répond 404, exactement comme une cible qui
+n'existe pas.
+
 ## Trois frontières qui méritent d'être nommées à part
 
 **Le démon est celle que l'on rétrécit, pas celle que l'on ferme.** Aucun conteneur Vectispire ne
