@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.services.AgentProtocolService;
+import com.asmolabs.vectispire.core.services.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.services.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
