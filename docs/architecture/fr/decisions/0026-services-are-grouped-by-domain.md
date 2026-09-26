@@ -166,7 +166,11 @@ jour où l'une disparaît : la liste raccourcit avec le code.
   classe — `ReportCursor`, et les membres qu'appellent les rapports PDF — parce que ses appelants
   vivent dans quatre domaines ; tout le reste de ce qui était de visibilité paquetage est resté privé
   à son domaine.
-- La règle des couches ne change pas : `..services..` couvre les sous-paquetages.
+- La règle des couches ne change pas : `..services..` couvre les sous-paquetages. Décidé le même
+  jour et vérifié à côté : aucune classe d'`api` ne dépend de `persistence`. Les services répondent
+  par des records `…View`, le principal porte `UserView`, `SessionView` et `AgentView` — d'où
+  l'usage d'`access` par `agents` — et une route qui ne tenait une ligne que pour la rendre passe
+  un identifiant.
 - Une règle ArchUnit peut être supprimée par le commit qui la viole, comme `vectispire-java/README.md`
   le dit déjà des couches. Le tableau de cet enregistrement est la référence contre laquelle la règle
   est relue.

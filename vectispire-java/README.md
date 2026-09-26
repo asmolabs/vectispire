@@ -62,6 +62,7 @@ that must survive the commit leaves through the outbox.
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
 | Every service lives in a domain, the domains form no cycle, and each uses only what decision 0026 allows | `ArchitectureTest` |
+| No class of `api` names a persistence type — the principal included; services answer with `…View` records | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |

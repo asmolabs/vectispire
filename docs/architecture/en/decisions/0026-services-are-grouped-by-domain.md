@@ -154,6 +154,9 @@ disappears, so the list shrinks with the code.
 - Package-private now means "this domain". Moving the classes widened one class — `ReportCursor`,
   and the members the PDF reports call — because its callers live in four domains; everything else
   that was package-private stayed private to its domain.
-- The layer rule is unchanged: `..services..` covers the sub-packages.
+- The layer rule is unchanged: `..services..` covers the sub-packages. Decided the same day and
+  enforced beside it: no class of `api` depends on `persistence` at all. Services answer with
+  `…View` records, the principal holds `UserView`, `SessionView` and `AgentView` — which is why
+  `agents` uses `access` — and a route that held a row only to hand it back passes an id.
 - An ArchUnit rule can be deleted by the commit that violates it, as `vectispire-java/README.md`
   already says of the layers. The table in this record is the reference the rule is reviewed against.

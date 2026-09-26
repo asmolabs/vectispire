@@ -106,6 +106,13 @@ it was mapped. `SchemaNameCollisionTest` walks every type reachable from a route
 components, getters) and fails on a `persistence` class; `EntityViewsTest` fails when an entity
 gains a property its view does not carry.
 
+**Nothing of `persistence` reaches `api` at all** — not in a response, not for one call.
+`ArchitectureTest.apiNeverTouchesPersistence` is firm, with no exception list. A service returns a
+`…View` record (`UserView`, `RepositoryView`, `ScanView`…); the principal holds `UserView`,
+`SessionView` and `AgentView`; a route that only needed a row to hand it back to a guard passes an
+id (`ScanDocumentService.requireVisible`, `TicketLinkService.requireVisibleIssue`). A service that
+needs a secret — a password hash, a TOTP secret — reads the row by id itself.
+
 **A credential that is not a session is confined, and the confinement is not the visibility.**
 An agent key passes only on `@RequiresAgentKey` routes, an integration key only on
 `@AcceptsApiKey(scope)` routes (`CredentialConfinement`). An integration key acts for its account,
