@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.SolutionEntity;
+import com.asmolabs.vectispire.core.services.compliance.AuditEntryView;
 import com.asmolabs.vectispire.core.services.inventory.ApiContractView;
 import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;

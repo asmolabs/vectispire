@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
-import com.asmolabs.vectispire.core.services.AuditEntryView;
-import com.asmolabs.vectispire.core.services.AuditLogQueryService;
+import com.asmolabs.vectispire.core.services.compliance.AuditEntryView;
+import com.asmolabs.vectispire.core.services.compliance.AuditLogQueryService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

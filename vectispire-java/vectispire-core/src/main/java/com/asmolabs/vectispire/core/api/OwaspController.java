@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.services.OwaspReportService;
+import com.asmolabs.vectispire.core.services.compliance.OwaspReportService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;

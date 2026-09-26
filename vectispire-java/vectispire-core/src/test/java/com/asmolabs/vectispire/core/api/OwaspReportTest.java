@@ -18,7 +18,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.ai.AiReviewService;
-import com.asmolabs.vectispire.core.services.OwaspReviewService;
+import com.asmolabs.vectispire.core.services.compliance.OwaspReviewService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

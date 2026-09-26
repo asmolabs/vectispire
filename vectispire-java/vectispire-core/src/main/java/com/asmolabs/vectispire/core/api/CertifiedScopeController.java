@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.CertifiedScopeService;
+import com.asmolabs.vectispire.core.services.compliance.CertifiedScopeService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;

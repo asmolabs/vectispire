@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.compliance;
 
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
 import com.asmolabs.vectispire.core.services.shared.ReportCursor;
