@@ -188,6 +188,24 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("a raw socket is opened by the syslog sender alone, to the address the guard pinned")
+    void onlySyslogSenderOpensSockets() {
+        // The HTTP rule above says nothing about `java.net.Socket`: a second class opening one
+        // would reach the metadata endpoint or the Docker proxy with no guard in the way, and
+        // would look like a perfectly ordinary TCP client in review.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core..")
+                .and().haveNameNotMatching(".*\\.SyslogSender(\\$.*)?")
+                .should().dependOnClassesThat()
+                .haveFullyQualifiedName("java.net.Socket")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.net.DatagramSocket")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.SocketChannel")
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("java.nio.channels.DatagramChannel")
+                .orShould().dependOnClassesThat().resideInAPackage("javax.net..")
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("an entity describes a table and nothing else")
     void persistenceHasNoWebOrService() {
         // Dependency injection is not an entity's business, and neither is HTTP.

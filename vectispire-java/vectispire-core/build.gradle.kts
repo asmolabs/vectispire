@@ -162,6 +162,13 @@ dependencies {
     // and MySQL are the integration campaign's business.
     testRuntimeOnly(libs.sqlite)
     testImplementation(libs.sqlite)
+    // BouncyCastle's certificate builder, for the TLS syslog collector the SIEM tests stand up:
+    // its certificate is generated in the test rather than committed, so there is no key in the
+    // repository and nothing that expires. Already on the runtime classpath through
+    // vectispire-common; declared here because depending on something by accident is not
+    // depending on it.
+    testImplementation(libs.bouncycastle)
+    testImplementation(libs.bouncycastle.pkix)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
