@@ -14,7 +14,7 @@ rather than reproduced.
 |---|---|
 | Backend | Spring Boot 4.1, JDK 25, Gradle, `vectispire-java/` — see [`vectispire-java/README.md`](vectispire-java/README.md) |
 | Frontend | Angular 22, TypeScript 6.0, Optimus UI 2, `vectispire-angular/` — see [`vectispire-angular/README.md`](vectispire-angular/README.md) |
-| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/{vendor}`). SQLite is the test fixture, not a deployment ([0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md)) |
+| Database | MySQL (default), PostgreSQL — Flyway migrations (`db/migration/common` + `db/migration/{vendor}`). SQLite is the test fixture, not a deployment ([0014](docs/architecture/en/decisions/0014-two-engines-and-a-test-fixture.md)) |
 | Node | pinned by `.nvmrc` to LTS 24; Angular refuses Node 25 |
 
 ```bash
@@ -147,8 +147,14 @@ accounts' data; the rest lose your own:
   rule decides a scan's status — every step absent and something broken means the target was
   never examined, and `completed` would say the opposite.
 - **`ddl-auto` stays `validate`.** The schema belongs to the Flyway migrations, written by
-  hand *per dialect* under `db/migration/{postgresql,mysql,sqlite}/` — a migration is written
-  three times, and forgetting one is a startup failure on that engine only.
+  hand in native SQL. From V40 on, a migration that differs only by column types is written
+  **once** under `db/migration/common` with the type placeholders `MigrationDialect` spells per
+  engine (`${ts}`, `${id}`, `${bool}`…); one whose structure diverges — a foreign key, a column
+  change, date arithmetic — is written **three times**, under
+  `db/migration/{postgresql,mysql,sqlite}/`, and forgetting one is a startup failure on that engine
+  only ([0027](docs/architecture/en/decisions/0027-common-migrations-with-type-placeholders.md)).
+  A version lives in exactly one of the two places, and `MigrationLayoutTest` fails the build
+  otherwise. V1–V39 are never moved or edited: Flyway checks their checksums on every start.
   `SchemaParityIntegrationTest` checks on every engine the campaign runs that the entities agree
   with it.
   Letting Hibernate reconcile the schema would mean two authorities for one schema, and the

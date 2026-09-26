@@ -47,8 +47,10 @@ Migrations, `core/repositories/`, `core/persistence/`, `core/config/`, `src/inte
 cd vectispire-java && ./gradlew integrationTestAll
 ```
 
-MySQL, PostgreSQL (Testcontainers, needs Docker) and the SQLite fixture. A migration is written three
-times, one per dialect.
+MySQL, PostgreSQL (Testcontainers, needs Docker) and the SQLite fixture. A migration is written once
+under `db/migration/common` with the type placeholders when only the types differ, or three times,
+one per dialect, when the structure does (decision 0027); `MigrationLayoutTest` in `./gradlew build`
+refuses anything in between.
 
 ## 5. Contract — when a route's shape changed
 

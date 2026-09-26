@@ -58,11 +58,19 @@ path normalization. Change one and every existing issue is resolved and recreate
 triage, across every target.
 
 **Hibernate never writes the schema, and the migrations are not portable by accident.**
-`ddl-auto: validate`, and Flyway runs hand-written SQL kept *per dialect* under
-`db/migration/{postgresql,mysql,sqlite}/`. There is no single changelog and no dialect-abstraction
-layer: decision 0013 replaced Liquibase precisely because the generated DDL hid where the engines
-differ. A migration is therefore written three times, and forgetting one is a startup failure on
-that engine only.
+`ddl-auto: validate`, and Flyway runs hand-written native SQL. There is no single changelog and no
+dialect-abstraction layer: decision 0013 replaced Liquibase precisely because the generated DDL hid
+where the engines differ. What there is, since decision 0027, is a table of type placeholders in
+`MigrationDialect` — `${ts}` (`datetime(6)` on MySQL, and that precision is the audit chain's),
+`${id}` (the whole identity column, `primary key` included, so `id ${id},`), `${bool}`, `${true}`,
+`${false}`, `${text}`, `${double}` — spelled once and visible. A migration from V40 on that differs
+only by types is written **once** under `db/migration/common`; one whose structure diverges — a
+foreign key (MySQL ignores an inline one, SQLite cannot add one later), a column change, date
+arithmetic, a data repair — is written **three times** under `db/migration/{postgresql,mysql,sqlite}/`,
+and forgetting one is a startup failure on that engine only. Never both, never one or two:
+`MigrationLayoutTest` fails the build, and refuses an engine token in `common`. **Never move or edit
+V1–V39**, even the identical ones: Flyway checks every applied checksum, and a changed file stops
+every existing installation. A placeholder's value is frozen once a common migration used it.
 
 Run `integrationTestAll` whenever you touch it. It covers **two deployable engines, PostgreSQL and
 MySQL, plus SQLite as a test fixture** — decision 0014, which replaced the earlier claim of four.
