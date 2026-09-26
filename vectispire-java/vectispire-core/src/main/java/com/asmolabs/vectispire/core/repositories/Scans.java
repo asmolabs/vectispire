@@ -1,11 +1,8 @@
 package com.asmolabs.vectispire.core.repositories;
 
-import com.asmolabs.vectispire.common.domain.targets.OrphanedTargetRows;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -17,7 +14,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.persistence.QueryHint;
 
 /**
  * The scan queue, whose claim is the whole point.
@@ -369,22 +365,6 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
              where (s.containerId is not null and s.containerId not in (select c.id from ContainerEntity c))
                 or (s.repoId is not null and s.repoId not in (select r.id from RepositoryEntity r))""")
     List<Long> findOrphanedIds();
-
-    /**
-     * The scans a purge takes: every one of a deleted target, or every one whose target is gone.
-     *
-     * <p>One answer for every domain purging what hangs off them — components, AI reviews, findings
-     * — so that two listeners of the same purge cannot disagree about which scans it concerns.
-     */
-    default List<Long> findIdsPurgedBy(TargetPurge purge) {
-        return switch (purge) {
-            case TargetDeleted deleted -> switch (deleted.target()) {
-                case ScanTarget.Repository repository -> findIdsByRepoId(repository.id());
-                case ScanTarget.Container container -> findIdsByContainerId(container.id());
-            };
-            case OrphanedTargetRows ignored -> findOrphanedIds();
-        };
-    }
 
     /**
      * Deletes in one statement, <b>after flushing what the persistence context still holds</b>.

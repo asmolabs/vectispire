@@ -27,15 +27,15 @@ import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
-import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
+import com.asmolabs.vectispire.core.targets.persistence.Containers;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -68,7 +68,7 @@ class ScanDispatcherTest {
     private GitRepositories repositories;
     private Containers containers;
     private SshKeys sshKeys;
-    private com.asmolabs.vectispire.core.repositories.GitTokens gitTokens;
+    private com.asmolabs.vectispire.core.targets.persistence.GitTokens gitTokens;
     private SettingsService settings;
     private ScanRuleSets ruleSets;
     private ScanDispatcher dispatcher;
@@ -79,7 +79,7 @@ class ScanDispatcherTest {
         repositories = mock(GitRepositories.class);
         containers = mock(Containers.class);
         sshKeys = mock(SshKeys.class);
-        gitTokens = mock(com.asmolabs.vectispire.core.repositories.GitTokens.class);
+        gitTokens = mock(com.asmolabs.vectispire.core.targets.persistence.GitTokens.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(ScanRuleSets.class);
 
@@ -424,7 +424,7 @@ class ScanDispatcherTest {
         https.setBranch("main");
         https.setHttpsTokenId(TOKEN_ID);
         when(repositories.findById(1L)).thenReturn(Optional.of(https));
-        com.asmolabs.vectispire.core.persistence.GitTokenEntity token = new com.asmolabs.vectispire.core.persistence.GitTokenEntity();
+        com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity token = new com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity();
         token.setId(TOKEN_ID);
         token.setName("gitlab");
         token.setHost("gitlab.example.com");

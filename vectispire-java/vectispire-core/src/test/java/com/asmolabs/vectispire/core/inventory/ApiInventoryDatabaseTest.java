@@ -9,10 +9,10 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -57,7 +57,7 @@ class ApiInventoryDatabaseTest extends VectispireContextTest {
     void absentContractsAreNotAnErasure() {
         long repositoryId = repository();
         ScanEntity first = scan(repositoryId);
-        inventory.record(first, Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of(contract())));
+        inventory.record(first.getId(), first.getRepoId(), Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of(contract())));
 
         // Scoped to this repository rather than `findAll`: the suite shares a database, and an
         // assertion over every row would pass or fail on what a neighbouring test happened to leave.
@@ -66,7 +66,7 @@ class ApiInventoryDatabaseTest extends VectispireContextTest {
         // The extractor ran, the cataloguer did not. Before the fix this deleted the contract and
         // wrote nothing back, and the endpoint then read as undocumented.
         ScanEntity second = scan(repositoryId);
-        inventory.record(second, Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.empty());
+        inventory.record(second.getId(), second.getRepoId(), Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.empty());
 
         assertThat(contracts.findByRepositoryIdOrderByCreatedAtDesc(repositoryId))
                 .as("a cataloguer that did not run must not erase what the last one found")
@@ -78,12 +78,12 @@ class ApiInventoryDatabaseTest extends VectispireContextTest {
     @DisplayName("a cataloguer that ran and found nothing does clear them")
     void emptyContractsAreAnAnswer() {
         long repositoryId = repository();
-        inventory.record(scan(repositoryId), Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of(contract())));
+        inventory.record(scan(repositoryId).getId(), repositoryId, Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of(contract())));
         assertThat(contracts.findByRepositoryIdOrderByCreatedAtDesc(repositoryId)).hasSize(1);
 
         // Present and empty is not the same case: the cataloguer ran, and the target declares no
         // contracts any more. Keeping the old ones would be the opposite mistake.
-        inventory.record(scan(repositoryId), Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of()));
+        inventory.record(scan(repositoryId).getId(), repositoryId, Optional.of(List.of(endpoint("/api/v1/checkout"))), Optional.of(List.of()));
 
         assertThat(contracts.findByRepositoryIdOrderByCreatedAtDesc(repositoryId)).isEmpty();
     }

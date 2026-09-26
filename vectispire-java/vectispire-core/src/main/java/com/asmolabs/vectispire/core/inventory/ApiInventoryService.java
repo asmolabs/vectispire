@@ -12,7 +12,6 @@ import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Clock;
 import java.time.Instant;
@@ -106,10 +105,7 @@ public class ApiInventoryService {
      */
     @Transactional(propagation = Propagation.REQUIRED)
     public void record(
-            ScanEntity scan, Optional<List<ApiEndpoint>> endpointsFound, Optional<List<ApiContract>> contractsFound) {
-        if (scan == null) return;
-        long scanId = scan.getId();
-        Long repoId = scan.getRepoId();
+            long scanId, Long repoId, Optional<List<ApiEndpoint>> endpointsFound, Optional<List<ApiContract>> contractsFound) {
 
         List<ApiEndpoint> endpoints = endpointsFound.orElse(null);
         List<ApiContract> contracts = contractsFound.orElse(null);

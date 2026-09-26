@@ -84,7 +84,9 @@ class ArchitectureTest {
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
             // through anything but the layered packages.
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
-            "inventory", "posture", "compliance", "access");
+            "inventory", "posture", "compliance", "access",
+            // Step 5: the core domains, bottom-up — each only once what it uses was a module.
+            "targets");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -257,7 +259,11 @@ class ArchitectureTest {
             // `rules` implements. Called the other way, `scanning` -> `rules` -> `inventory` ->
             // `scanning` would be a cycle once the inventory reads scans through their module.
             Map.entry("rules", Set.of("inventory", "scanning")),
-            Map.entry("inventory", Set.of("targets")),
+            // `scanning` since step 5, and in place of `scanning` -> `inventory`: the inventory reads
+            // scans and findings (licences, SBOM diff, blast radius, the purge's selection), while a
+            // scan's components and API surface reach it through `ScanIngestor.InventorySink`, a port
+            // `scanning` declares and `inventory` implements.
+            Map.entry("inventory", Set.of("scanning", "targets")),
             Map.entry("ai", Set.of("access")),
             // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
             // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
@@ -270,7 +276,7 @@ class ArchitectureTest {
             // `targets` since step 5: a scan is of a target — the dispatcher reads its row and
             // credentials, the scheduler its schedule — and the target screens' latest scan and "scan
             // now" are answered through `TargetScans`, a port `targets` declares.
-            Map.entry("scanning", Set.of("access", "inventory", "issues", "targets")),
+            Map.entry("scanning", Set.of("access", "issues", "targets")),
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
             // above the foundation.
@@ -296,7 +302,8 @@ class ArchitectureTest {
             Map.entry("exports", Set.of("gate", "issues", "scanning", "targets")),
             Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications", "targets")),
             Map.entry("compliance",
-                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "targets")));
+                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "scanning",
+                            "targets")));
 
     private static final String PLATFORM = "platform";
 

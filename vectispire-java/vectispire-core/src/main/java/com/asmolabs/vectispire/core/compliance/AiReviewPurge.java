@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.compliance;
 
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.PurgedScans;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -19,10 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class AiReviewPurge {
 
-    private final Scans scans;
+    private final PurgedScans scans;
     private final AiReviewResults reviews;
 
-    AiReviewPurge(Scans scans, AiReviewResults reviews) {
+    AiReviewPurge(PurgedScans scans, AiReviewResults reviews) {
         this.scans = scans;
         this.reviews = reviews;
     }
@@ -31,7 +31,7 @@ class AiReviewPurge {
     @Order(TargetPurge.Phase.SCAN_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetPurge purge) {
-        List<Long> scanIds = scans.findIdsPurgedBy(purge);
+        List<Long> scanIds = scans.idsOf(purge);
         if (!scanIds.isEmpty()) {
             reviews.deleteByScanIdIn(scanIds);
         }

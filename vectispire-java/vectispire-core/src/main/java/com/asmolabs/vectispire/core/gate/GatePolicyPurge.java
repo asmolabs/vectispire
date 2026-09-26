@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.gate;
 
-import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.targets.TargetDeleted;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

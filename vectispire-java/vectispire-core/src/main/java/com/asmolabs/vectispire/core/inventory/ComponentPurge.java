@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.inventory;
 
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.PurgedScans;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class ComponentPurge {
 
-    private final Scans scans;
+    private final PurgedScans scans;
     private final Components components;
 
-    ComponentPurge(Scans scans, Components components) {
+    ComponentPurge(PurgedScans scans, Components components) {
         this.scans = scans;
         this.components = components;
     }
@@ -32,7 +32,7 @@ class ComponentPurge {
     @Order(TargetPurge.Phase.SCAN_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetPurge purge) {
-        List<Long> scanIds = scans.findIdsPurgedBy(purge);
+        List<Long> scanIds = scans.idsOf(purge);
         if (!scanIds.isEmpty()) {
             components.deleteByScanIdIn(scanIds);
         }

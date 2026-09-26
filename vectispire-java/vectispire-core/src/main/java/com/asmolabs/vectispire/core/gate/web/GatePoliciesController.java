@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.core.gate.GatePolicyAdministrationService;
 import com.asmolabs.vectispire.core.gate.GateService.PolicyScope;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.gate.StoredGatePolicyView;
-import com.asmolabs.vectispire.core.services.targets.TargetNaming;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;

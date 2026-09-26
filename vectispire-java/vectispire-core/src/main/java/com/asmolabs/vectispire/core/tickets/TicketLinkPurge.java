@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.tickets;
 
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.PurgedIssues;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.util.List;
 import org.springframework.context.event.EventListener;
@@ -20,10 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class TicketLinkPurge {
 
-    private final Issues issues;
+    private final PurgedIssues issues;
     private final IssueTickets links;
 
-    TicketLinkPurge(Issues issues, IssueTickets links) {
+    TicketLinkPurge(PurgedIssues issues, IssueTickets links) {
         this.issues = issues;
         this.links = links;
     }
@@ -32,7 +32,7 @@ class TicketLinkPurge {
     @Order(TargetPurge.Phase.ISSUE_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetPurge purge) {
-        List<Long> issueIds = issues.findIdsPurgedBy(purge);
+        List<Long> issueIds = issues.idsOf(purge);
         if (!issueIds.isEmpty()) {
             links.deleteByIssueIdIn(issueIds);
         }

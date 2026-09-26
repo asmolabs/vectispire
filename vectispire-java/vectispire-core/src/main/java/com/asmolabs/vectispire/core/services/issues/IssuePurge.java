@@ -1,9 +1,9 @@
 package com.asmolabs.vectispire.core.services.issues;
 
-import com.asmolabs.vectispire.common.domain.targets.OrphanedTargetRows;
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
+import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,10 +26,12 @@ class IssuePurge {
 
     private static final Logger log = LoggerFactory.getLogger(IssuePurge.class);
 
+    private final PurgedIssues purged;
     private final Issues issues;
     private final TriageEvents triageEvents;
 
-    IssuePurge(Issues issues, TriageEvents triageEvents) {
+    IssuePurge(PurgedIssues purged, Issues issues, TriageEvents triageEvents) {
+        this.purged = purged;
         this.issues = issues;
         this.triageEvents = triageEvents;
     }
@@ -38,7 +40,7 @@ class IssuePurge {
     @Order(TargetPurge.Phase.ISSUE_CHILDREN)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeTriageHistory(TargetPurge purge) {
-        List<Long> issueIds = issues.findIdsPurgedBy(purge);
+        List<Long> issueIds = purged.idsOf(purge);
         if (!issueIds.isEmpty()) {
             triageEvents.deleteByIssueIdIn(issueIds);
         }
@@ -48,7 +50,7 @@ class IssuePurge {
     @Order(TargetPurge.Phase.ISSUES)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeIssues(TargetPurge purge) {
-        List<Long> issueIds = issues.findIdsPurgedBy(purge);
+        List<Long> issueIds = purged.idsOf(purge);
         if (!issueIds.isEmpty()) {
             issues.deleteByIdIn(issueIds);
             log.info(purge instanceof OrphanedTargetRows

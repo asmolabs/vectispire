@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.services.scanning.SchedulerService;
-import com.asmolabs.vectispire.core.services.targets.TargetDeletionService;
+import com.asmolabs.vectispire.core.targets.TargetDeletionService;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

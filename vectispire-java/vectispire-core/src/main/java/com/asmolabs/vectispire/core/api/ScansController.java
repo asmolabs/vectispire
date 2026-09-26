@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.services.scanning.ScanQueryService;
 import com.asmolabs.vectispire.core.services.scanning.ScanView;
-import com.asmolabs.vectispire.core.services.targets.TargetNaming;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

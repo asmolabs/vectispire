@@ -1,12 +1,12 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
+import com.asmolabs.vectispire.common.domain.apis.ApiContract;
+import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.common.domain.dependencies.Directness;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
-import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
-import com.asmolabs.vectispire.core.inventory.ComponentInventory;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
@@ -63,29 +63,49 @@ public class ScanIngestor {
         List<FindingEntity> findings(ScanEntity scan, JsonNode sbom);
     }
 
+    /**
+     * Where what a scan says the target is made of goes: its components, read from the SBOM, and its
+     * API endpoints and contracts.
+     *
+     * <p><b>A port, implemented by {@code inventory}.</b> The ingestor called {@code
+     * ComponentInventory} and {@code ApiInventoryService} directly, while the inventory reads scans
+     * and findings for the licence screen, the SBOM diff and the blast radius: {@code scanning} and
+     * {@code inventory} used each other (decision 0029). Declared here, the ingestor hands the
+     * inventory what it found and knows nothing of its tables.
+     *
+     * <p><b>Absent stays absent across it.</b> Each {@code Optional} is what the analyzer reported:
+     * empty means "ran, found nothing" and clears that half; absent means "did not run" and leaves
+     * the half alone (decision 0007).
+     */
+    public interface InventorySink {
+        /** The SBOM's components for this scan, with their directness from the same document. */
+        void components(long scanId, JsonNode sbom, DependencyGraph graph);
+
+        /** The API surface, each half only if its analyzer ran. Never called with both absent. */
+        void apis(long scanId, Long repositoryId, Optional<List<ApiEndpoint>> endpoints,
+                Optional<List<ApiContract>> contracts);
+    }
+
     public interface NotificationSink {
         /** Queues the delta inside the caller's transaction, or does nothing. */
         void enqueue(ScanEntity scan, IssueSyncService.SyncResult result);
     }
 
-    private final ComponentInventory inventory;
+    private final InventorySink inventory;
     private final IssueSyncService sync;
     private final Optional<Enricher> enricher;
     private final Optional<EndOfLifeSource> endOfLife;
     private final Optional<LicenseSource> licenses;
     private final Optional<NotificationSink> notifications;
-    private final Optional<ApiInventoryService> apiInventory;
     private final Clock clock;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public ScanIngestor(
             IssueSyncService sync,
             Optional<Enricher> enricher,
             Optional<EndOfLifeSource> endOfLife,
             Optional<LicenseSource> licenses,
             Optional<NotificationSink> notifications,
-            ComponentInventory inventory,
-            Optional<ApiInventoryService> apiInventory,
+            InventorySink inventory,
             Clock clock) {
         this.inventory = inventory;
         this.sync = sync;
@@ -93,19 +113,7 @@ public class ScanIngestor {
         this.endOfLife = endOfLife;
         this.licenses = licenses;
         this.notifications = notifications;
-        this.apiInventory = apiInventory;
         this.clock = clock;
-    }
-
-    public ScanIngestor(
-            IssueSyncService sync,
-            Optional<Enricher> enricher,
-            Optional<EndOfLifeSource> endOfLife,
-            Optional<LicenseSource> licenses,
-            Optional<NotificationSink> notifications,
-            ComponentInventory inventory,
-            Clock clock) {
-        this(sync, enricher, endOfLife, licenses, notifications, inventory, Optional.empty(), clock);
     }
 
     /**
@@ -152,18 +160,16 @@ public class ScanIngestor {
         // the cataloguer did not run — and absent means the previous scan's inventory is left
         // alone rather than replaced by nothing, exactly as an absent finding list leaves the
         // backlog alone.
-        artifacts.sbom().ifPresent(sbom -> inventory.record(scan.getId(), sbom, graph));
+        artifacts.sbom().ifPresent(sbom -> inventory.components(scan.getId(), sbom, graph));
 
         // **The two Optionals travel intact, and that is the fix.** They used to be flattened
         // with `orElse(List.of())` here, which handed the inventory "the cataloguer found no
         // contracts" when the truth was "the cataloguer did not run" — and the inventory replaced
         // the repository's contracts with nothing. Same rule as the SBOM three lines above; it was
         // stated there and broken here.
-        apiInventory.ifPresent(service -> {
-            if (artifacts.apiEndpoints().isPresent() || artifacts.apiContracts().isPresent()) {
-                service.record(scan, artifacts.apiEndpoints(), artifacts.apiContracts());
-            }
-        });
+        if (artifacts.apiEndpoints().isPresent() || artifacts.apiContracts().isPresent()) {
+            inventory.apis(scan.getId(), scan.getRepoId(), artifacts.apiEndpoints(), artifacts.apiContracts());
+        }
 
         artifacts.dependencies().ifPresent(dependencies -> {
             scannedTypes.add(FindingType.VULNERABILITY);

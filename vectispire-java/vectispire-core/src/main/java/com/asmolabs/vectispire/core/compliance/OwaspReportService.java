@@ -12,9 +12,9 @@ import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.targets.RepositoryView;
-import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
+import com.asmolabs.vectispire.core.targets.RepositoryView;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 

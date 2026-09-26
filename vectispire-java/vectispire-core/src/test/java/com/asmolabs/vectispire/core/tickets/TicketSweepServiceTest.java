@@ -18,7 +18,7 @@ import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.targets.TargetNaming;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

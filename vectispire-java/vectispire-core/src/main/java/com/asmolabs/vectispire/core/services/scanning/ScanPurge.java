@@ -1,10 +1,10 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
-import com.asmolabs.vectispire.common.domain.targets.OrphanedTargetRows;
-import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.issues.PurgedIssues;
+import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
+import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +27,14 @@ class ScanPurge {
 
     private static final Logger log = LoggerFactory.getLogger(ScanPurge.class);
 
-    private final Issues issues;
+    private final PurgedIssues purgedIssues;
+    private final PurgedScans purgedScans;
     private final Scans scans;
     private final Findings findings;
 
-    ScanPurge(Issues issues, Scans scans, Findings findings) {
-        this.issues = issues;
+    ScanPurge(PurgedIssues purgedIssues, PurgedScans purgedScans, Scans scans, Findings findings) {
+        this.purgedIssues = purgedIssues;
+        this.purgedScans = purgedScans;
         this.scans = scans;
         this.findings = findings;
     }
@@ -41,11 +43,11 @@ class ScanPurge {
     @Order(TargetPurge.Phase.FINDINGS)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeFindings(TargetPurge purge) {
-        List<Long> issueIds = issues.findIdsPurgedBy(purge);
+        List<Long> issueIds = purgedIssues.idsOf(purge);
         if (!issueIds.isEmpty()) {
             findings.deleteByIssueIdIn(issueIds);
         }
-        List<Long> scanIds = scans.findIdsPurgedBy(purge);
+        List<Long> scanIds = purgedScans.idsOf(purge);
         if (!scanIds.isEmpty()) {
             findings.deleteByScanIdIn(scanIds);
         }
@@ -55,7 +57,7 @@ class ScanPurge {
     @Order(TargetPurge.Phase.SCANS)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purgeScans(TargetPurge purge) {
-        List<Long> scanIds = scans.findIdsPurgedBy(purge);
+        List<Long> scanIds = purgedScans.idsOf(purge);
         if (!scanIds.isEmpty()) {
             scans.deleteByIdIn(scanIds);
             log.info(purge instanceof OrphanedTargetRows

@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.services.targets.TargetNaming;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;

@@ -14,11 +14,11 @@ import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -57,7 +57,7 @@ class OwaspReportTest extends ApiTestBase {
 
     private AiReviewService models;
     private OwaspReviewService service;
-    private com.asmolabs.vectispire.core.services.targets.RepositoryView repository;
+    private com.asmolabs.vectispire.core.targets.RepositoryView repository;
 
     @BeforeEach
     void wire() {
@@ -70,7 +70,7 @@ class OwaspReportTest extends ApiTestBase {
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
         entity.setName("Arm Libs Spring");
         entity.setBranch("master");
-        repository = com.asmolabs.vectispire.core.services.targets.RepositoryView.of(repositories.save(entity));
+        repository = com.asmolabs.vectispire.core.targets.RepositoryView.of(repositories.save(entity));
     }
 
     @Nested

@@ -11,8 +11,6 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.scanners.IacScanner.IacFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner.SastFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
-import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
-import com.asmolabs.vectispire.core.inventory.ComponentInventory;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
@@ -45,7 +43,7 @@ class ScanIngestorTest {
     private static final Instant NOW = Instant.parse("2026-08-13T10:00:00Z");
 
     private IssueSyncService sync;
-    private ComponentInventory components;
+    private ScanIngestor.InventorySink components;
     private ScanIngestor ingestor;
 
     @BeforeEach
@@ -53,7 +51,7 @@ class ScanIngestorTest {
         sync = mock(IssueSyncService.class);
         when(sync.sync(any(), any(), any(), any(), any()))
                 .thenReturn(new IssueSyncService.SyncResult(0, 0, 0, 0, List.of(), List.of()));
-        components = mock(ComponentInventory.class);
+        components = mock(ScanIngestor.InventorySink.class);
         ingestor = new ScanIngestor(
                 sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
                 components,
@@ -326,13 +324,9 @@ class ScanIngestorTest {
     }
 
     @Test
-    @DisplayName("records API endpoints and contracts into ApiInventoryService")
+    @DisplayName("hands API endpoints and contracts to the inventory")
     void recordsApiInventory() {
-        ApiInventoryService apiService = mock(ApiInventoryService.class);
-        ScanIngestor customIngestor = new ScanIngestor(
-                sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
-                components, Optional.of(apiService),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        ScanIngestor customIngestor = ingestor;
 
         var endpoint = new com.asmolabs.vectispire.common.domain.apis.ApiEndpoint(
                 "POST", "/api/v1/checkout", true, "Bearer",
@@ -349,8 +343,9 @@ class ScanIngestorTest {
 
         // Explicitly empty travels as *present and empty*: the cataloguer ran and found no
         // contracts, so the inventory is right to clear them.
-        org.mockito.Mockito.verify(apiService).record(
-                org.mockito.ArgumentMatchers.eq(s),
+        org.mockito.Mockito.verify(components).apis(
+                org.mockito.ArgumentMatchers.eq(s.getId()),
+                org.mockito.ArgumentMatchers.eq(s.getRepoId()),
                 org.mockito.ArgumentMatchers.eq(Optional.of(List.of(endpoint))),
                 org.mockito.ArgumentMatchers.eq(Optional.of(List.<com.asmolabs.vectispire.common.domain.apis.ApiContract>of())));
     }
@@ -358,11 +353,7 @@ class ScanIngestorTest {
     @Test
     @DisplayName("a cataloguer that did not run stays absent, instead of arriving as an empty list")
     void anAbsentCataloguerIsNotAnEmptyInventory() {
-        ApiInventoryService apiService = mock(ApiInventoryService.class);
-        ScanIngestor customIngestor = new ScanIngestor(
-                sync, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(),
-                components, Optional.of(apiService),
-                Clock.fixed(NOW, ZoneOffset.UTC));
+        ScanIngestor customIngestor = ingestor;
 
         var endpoint = new com.asmolabs.vectispire.common.domain.apis.ApiEndpoint(
                 "POST", "/api/v1/checkout", true, "Bearer",
@@ -380,8 +371,9 @@ class ScanIngestorTest {
         ScanEntity s = scan();
         customIngestor.ingest(s, artifacts);
 
-        org.mockito.Mockito.verify(apiService).record(
-                org.mockito.ArgumentMatchers.eq(s),
+        org.mockito.Mockito.verify(components).apis(
+                org.mockito.ArgumentMatchers.eq(s.getId()),
+                org.mockito.ArgumentMatchers.eq(s.getRepoId()),
                 org.mockito.ArgumentMatchers.eq(Optional.of(List.of(endpoint))),
                 org.mockito.ArgumentMatchers.eq(Optional.<List<com.asmolabs.vectispire.common.domain.apis.ApiContract>>empty()));
     }

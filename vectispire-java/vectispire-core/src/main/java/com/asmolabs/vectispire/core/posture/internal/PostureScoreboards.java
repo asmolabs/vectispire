@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.Target
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetTotals;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
-import com.asmolabs.vectispire.core.services.targets.TargetNaming;
+import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;

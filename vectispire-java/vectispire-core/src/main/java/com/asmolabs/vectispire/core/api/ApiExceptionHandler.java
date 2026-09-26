@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.scanning.InsecureCredentialTransportException;
 import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
-import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;
+import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;

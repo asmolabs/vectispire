@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
-import com.asmolabs.vectispire.core.services.targets.TargetCatalog;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;

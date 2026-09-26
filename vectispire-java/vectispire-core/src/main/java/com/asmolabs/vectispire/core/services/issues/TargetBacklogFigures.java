@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
-import com.asmolabs.vectispire.core.services.targets.TargetBacklog;
+import com.asmolabs.vectispire.core.targets.TargetBacklog;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
