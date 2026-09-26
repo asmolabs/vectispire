@@ -3,7 +3,7 @@ import { useEnglish } from '@/app/core/testing/english';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Teams } from './teams';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
@@ -110,9 +110,30 @@ describe('the teams screen', () => {
             ])
         );
 
-        expect(fixture.componentInstance.selectedMembers).toEqual([2]);
+        expect(fixture.componentInstance.selectedMembers()).toEqual([2]);
         // Held as `kind:id` strings because that is what the picker's option values are.
-        expect(fixture.componentInstance.selectedTargets).toEqual(['repository:7', 'container:3']);
+        expect(fixture.componentInstance.selectedTargets()).toEqual(['repository:7', 'container:3']);
+    });
+
+    /**
+     * The same prefill, **as the administrator sees it.** The case above passed for as long as the
+     * selection was a plain field written from the subscription — and in a zoneless application
+     * nothing rendered it: the picker read "nobody yet", and saving what it showed emptied the
+     * team. No `detectChanges` after the answers, since that is precisely what would hide it.
+     */
+    it('shows the prefilled members in the picker once they arrive', async () => {
+        settleBoot();
+        fixture.autoDetectChanges();
+        fixture.componentInstance.openAccess(TEAM);
+        await fixture.whenStable();
+
+        const picker = () => document.querySelector('#team-members')?.closest('p-multiselect') as HTMLElement;
+        expect(picker().textContent).not.toContain('reader');
+
+        http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([2]);
+        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([]);
+
+        await vi.waitFor(() => expect(picker().textContent).toContain('reader'));
     });
 
     it('parses the identifiers back into numbers when saving', () => {
@@ -122,8 +143,8 @@ describe('the teams screen', () => {
         http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([]);
         http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([]);
 
-        page.selectedMembers = [2];
-        page.selectedTargets = ['repository:7', 'container:3'];
+        page.selectedMembers.set([2]);
+        page.selectedTargets.set(['repository:7', 'container:3']);
         page.saveAccess();
 
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/members').flush([2]);
@@ -147,8 +168,8 @@ describe('the teams screen', () => {
         http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([]);
         http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([]);
 
-        page.selectedMembers = [2];
-        page.selectedTargets = ['repository:7'];
+        page.selectedMembers.set([2]);
+        page.selectedTargets.set(['repository:7']);
         page.saveAccess();
 
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/members').flush([2]);

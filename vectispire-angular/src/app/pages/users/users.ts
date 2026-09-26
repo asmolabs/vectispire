@@ -105,7 +105,12 @@ export class Users {
             }))
         ];
     });
-    selectedTargets: string[] = [];
+    /**
+     * A signal because the dialog fills it from the answer to `userTargets`, after it has opened:
+     * a plain field written from a subscription is not rendered in a zoneless application, so the
+     * dialog showed nothing ticked, and saving it as shown took every grant away.
+     */
+    readonly selectedTargets = signal<string[]>([]);
 
     /**
      * The deployment's visibility mode, read so the screen can denounce itself.
@@ -155,11 +160,11 @@ export class Users {
     openAccess(user: UserSummary): void {
         this.accessUser.set(user);
         this.formError.set(null);
-        this.selectedTargets = [];
+        this.selectedTargets.set([]);
         this.accessVisible.set(true);
 
         this.accountsApi.userTargets(user.id).subscribe({
-            next: (targets) => (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            next: (targets) => this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`)),
             error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
         });
     }
@@ -175,7 +180,7 @@ export class Users {
         const user = this.accessUser();
         if (!user) return;
 
-        const targets: UserTargetAssignment[] = this.selectedTargets.map((value) => {
+        const targets: UserTargetAssignment[] = this.selectedTargets().map((value) => {
             const [kind, id] = value.split(':');
             return { kind, id: Number(id) };
         });

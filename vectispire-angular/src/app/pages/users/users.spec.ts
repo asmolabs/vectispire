@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Users } from './users';
 import { asSchema, asSchemaList } from '@/app/core/testing/contract';
 
@@ -136,7 +136,28 @@ describe('the accounts screen', () => {
 
         // A dialog that opened empty would make every save a total revocation: the administrator
         // ticks what they want to add, sends, and removes everything else without meaning to.
-        expect(page.selectedTargets).toEqual(['repository:7']);
+        expect(page.selectedTargets()).toEqual(['repository:7']);
+    });
+
+    /**
+     * The same prefill, **on screen.** The case above passed while the selection was a plain field
+     * written from the subscription, which a zoneless application does not render: the picker read
+     * "none", and saving what it showed revoked every grant. The test waits rather than calling
+     * `detectChanges`, which would hide exactly that.
+     */
+    it("shows the account's targets in the picker once they arrive", async () => {
+        fixture.autoDetectChanges();
+        fixture.componentInstance.openAccess(LIST.users[1]);
+        await fixture.whenStable();
+
+        const picker = () => document.querySelector('#user-targets')?.closest('p-multiselect') as HTMLElement;
+        expect(picker().textContent).not.toContain('helios-portal');
+
+        http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
+            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+        );
+
+        await vi.waitFor(() => expect(picker().textContent).toContain('helios-portal'));
     });
 
     it('sends the set as it stands, empty included, because empty is the revocation', () => {
@@ -146,7 +167,7 @@ describe('the accounts screen', () => {
             asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
         );
 
-        page.selectedTargets = [];
+        page.selectedTargets.set([]);
         page.saveAccess();
 
         const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
@@ -164,7 +185,7 @@ describe('the accounts screen', () => {
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
 
-        page.selectedTargets = ['container:3', 'repository:7'];
+        page.selectedTargets.set(['container:3', 'repository:7']);
         page.saveAccess();
 
         const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
@@ -182,7 +203,7 @@ describe('the accounts screen', () => {
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush([]);
 
-        page.selectedTargets = ['repository:7'];
+        page.selectedTargets.set(['repository:7']);
         page.saveAccess();
         http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets').flush(
             { message: 'Account not found.' },

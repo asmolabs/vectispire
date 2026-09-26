@@ -100,8 +100,13 @@ export class Teams {
     );
 
     form = { name: '', description: '' };
-    selectedMembers: number[] = [];
-    selectedTargets: string[] = [];
+    /**
+     * Signals because the access dialog fills them from two answers that arrive after it has opened:
+     * plain fields written from a subscription are not rendered in a zoneless application, so the
+     * dialog showed nobody and nothing, and saving it as shown emptied the team.
+     */
+    readonly selectedMembers = signal<number[]>([]);
+    readonly selectedTargets = signal<string[]>([]);
     /** Always starts empty, even for a team that has one: nothing returns the URL, so there is
      *  nothing to prefill. Saving an empty field is how a channel is removed, which is why the
      *  dialog says so rather than leaving it to be discovered. */
@@ -182,16 +187,16 @@ export class Teams {
     openAccess(team: TeamSummary): void {
         this.accessTeam.set(team);
         this.formError.set(null);
-        this.selectedMembers = [];
-        this.selectedTargets = [];
+        this.selectedMembers.set([]);
+        this.selectedTargets.set([]);
         this.accessVisible.set(true);
 
         this.accountsApi.teamMembers(team.id).subscribe({
-            next: (ids) => (this.selectedMembers = ids ?? []),
+            next: (ids) => this.selectedMembers.set(ids ?? []),
             error: () => this.formError.set(this.i18n.t('teams.error_read_members'))
         });
         this.accountsApi.teamTargets(team.id).subscribe({
-            next: (targets) => (this.selectedTargets = (targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            next: (targets) => this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`)),
             error: () => this.formError.set(this.i18n.t('teams.error_read_targets'))
         });
     }
@@ -200,14 +205,14 @@ export class Teams {
         const team = this.accessTeam();
         if (!team) return;
 
-        const targets: TeamTargetAssignment[] = this.selectedTargets.map((value) => {
+        const targets: TeamTargetAssignment[] = this.selectedTargets().map((value) => {
             const [kind, id] = value.split(':');
             return { kind, id: Number(id) };
         });
 
         this.saving.set(true);
         this.formError.set(null);
-        this.accountsApi.setTeamMembers(team.id, this.selectedMembers).subscribe({
+        this.accountsApi.setTeamMembers(team.id, this.selectedMembers()).subscribe({
             next: () =>
                 this.accountsApi.setTeamTargets(team.id, targets).subscribe({
                     next: () => {
