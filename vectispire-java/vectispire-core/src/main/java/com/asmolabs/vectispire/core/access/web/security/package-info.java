@@ -5,9 +5,11 @@
  * com.asmolabs.vectispire.core.access.web.security.Visibilities}), the audit actor built from a request,
  * and the exceptions the chain raises for the error handler to map.
  *
- * <p><b>A named interface, and the only one</b> (decision 0028). Everything else a module publishes
- * is at its root; this is not, because it is web vocabulary — route annotations, a Spring Security
- * token, a helper taking an {@code HttpServletRequest} — and a module's root is its service layer.
+ * <p><b>A named interface</b> (decision 0028) — one of three, with the {@code queries} of {@code
+ * scanning} and {@code issues} (decision 0029) — that a module lists as {@code access::security} among
+ * its allowed dependencies. Everything else {@code access} publishes is at its root; this is not,
+ * because it is web vocabulary — route annotations, a Spring Security token, a helper taking an {@code
+ * HttpServletRequest} — and a module's root is its service layer.
  * Put there, the principal would become something a service could take as a parameter, and the
  * actor of an audit entry something a service could read off a request: both have been spoofable
  * here before, and keeping them in {@code web} keeps services deciding on what they are handed. The

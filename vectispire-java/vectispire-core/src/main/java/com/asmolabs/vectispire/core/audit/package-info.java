@@ -1,0 +1,20 @@
+/**
+ * The audit log — writing it, its mirror, reading it back and judging its chain — and {@code
+ * RequestActor}. Uses nothing: a broken chain is announced by the {@code AuditChainBroken} event
+ * the SIEM listens to, never by a call (decision 0026, step 1).
+ *
+ * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
+ * ModularityTest}, decision 0030): a dependency on a module, or on a named interface ({@code
+ * module::name}), missing from this list fails the build, and so does a line nothing uses. A domain
+ * does not list the foundation, which is shared. Adding a line is a decision for the review that
+ * needs it, with its reason written beside it — not the edit that turns the build green.
+ *
+ * <p><b>Foundation, declared shared on {@code VectispireApplication}</b>: every module may use it.
+ * Modulith adds the shared modules to every module's allowed dependencies, the foundation's own
+ * included, so {@code verify()} alone would let one foundation module use any other: {@code
+ * ModularityTest.eachModuleDeclaresExactlyWhatItUses} holds this list to the code.
+ */
+@ApplicationModule(allowedDependencies = {})
+package com.asmolabs.vectispire.core.audit;
+
+import org.springframework.modulith.ApplicationModule;

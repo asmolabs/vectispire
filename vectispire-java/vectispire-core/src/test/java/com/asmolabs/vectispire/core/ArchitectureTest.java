@@ -4,7 +4,6 @@ import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.tngtech.archunit.base.DescribedPredicate;
-import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -13,19 +12,12 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
-import com.tngtech.archunit.library.dependencies.SliceAssignment;
-import com.tngtech.archunit.library.dependencies.SliceIdentifier;
-import com.tngtech.archunit.library.dependencies.SliceRule;
-import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.modulith.NamedInterface;
 
 /**
  * The layer rule, checked.
@@ -48,6 +40,16 @@ import org.springframework.modulith.NamedInterface;
  * core.repositories}, {@code core.persistence}, emptied by step 5 of the migration — read now as the
  * same place in every module. Outside the modules there is {@code core.config}, the datasource and
  * the engines' setup, which belongs to no domain.
+ *
+ * <h2>Inside a module, not between modules</h2>
+ *
+ * What crosses between modules is Spring Modulith's to verify since step 6 (decision 0030, {@code
+ * ModularityTest}): no cycle, nothing reached but a module's root or a named interface, nothing used
+ * that the module's {@code package-info} does not list. The rules that did the same here — the cycle
+ * rule, {@code modulesMeetAtTheirApi}, the {@code MAY_USE} table — were retired with it, so that one
+ * boundary has one authority. What stays is what Modulith cannot express, because it reads a module
+ * whole: the layers inside every module, the places a class may sit, what a controller, an entity or a
+ * repository may touch, and the few libraries a single class may hold.
  *
  * <h2>Why {@code common.domain} is pure</h2>
  *
@@ -204,327 +206,45 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    /**
-     * The domains every other domain may use: the deployment's settings, the door out, encryption,
-     * the audit writer, the outbox relay and the PDF pagination four domains' reports share (decision
-     * 0026). Declared to Spring Modulith as its shared modules,
-     * on {@link VectispireApplication}, for the same reason (decision 0028).
-     *
-     * <p>{@code reporting} joined on 2026-09-26, when {@code ReportCursor} left {@code shared}: it is
-     * a capability like {@code outbound} — how a page is laid out, not what it says — and a copy per
-     * domain would be four answers to "did this page overflow", the defect the class exists for.
-     *
-     * <p>{@code shared} left it in step 5, empty: its last class, {@code TargetNaming}, went to {@code
-     * targets} (decision 0029). No longer a known place, a class dropped back into {@code
-     * core.services.shared} fails {@link #everyClassHasAPlace}.
-     *
-     * <p>{@code maintenance} joined in step 5: the periodic jobs' port. Eight domains contribute a
-     * task to the tick, so the port has to sit where every domain may reach it; it names none of
-     * them, and the tick that runs the tasks uses nothing but the port (decision 0029).
+    /*
+     * Between modules, Spring Modulith is the authority since step 6 (decision 0030): `ModularityTest`
+     * runs `ApplicationModules.verify()`, which fails the build on a cycle between modules (what
+     * `domainsFormNoCycle` and its `KNOWN_CYCLES` checked), on a reach into another module's internals —
+     * anything but its root package or a named interface (`modulesMeetAtTheirApi`) — and on a dependency
+     * the origin's `package-info` does not list in `@ApplicationModule(allowedDependencies = …)` (the
+     * `MAY_USE` table and `domainsDependOnlyWhereAllowed`). The table's reasons moved with its lines, into
+     * each module's `package-info`. What Modulith cannot say about a module is below: it reads a module
+     * whole, so the layers inside one are this file's, and so is the one line of the table that was about
+     * a layer rather than a module.
      */
-    private static final Set<String> FOUNDATION =
-            Set.of("settings", "outbound", "crypto", "audit", "outbox", "reporting", "maintenance");
 
     /**
-     * What each domain may use besides itself — and, above the foundation, besides the foundation.
-     *
-     * <p>This is the table of decision 0026, and it is the code as it stood when the flat package
-     * was split: every line is a dependency that existed. Adding one is a decision to take in the
-     * review that needs it, not a line to append until the build is green — the flat package is
-     * what "append until green" produced. {@code platform} is absent on purpose: it is the shell —
-     * the settings screen, which composes the credentials and checks of four domains, and the routes
-     * of the foundation, which may keep no controller of its own — so it may use any domain, and
-     * nothing may use it.
-     *
-     * <p><b>A module is read whole</b> — its controllers and its entities as well as its services —
-     * which the layered packaging never allowed: a service reaching another domain's repository, or a
-     * controller calling another domain's service, belonged to no domain and was checked by nothing.
-     * The edges that surfaced when a domain became a module are in this table with the reason each
-     * exists (decision 0028).
-     *
-     * <p><b>{@code targets} in most rows since step 5.</b> Every domain that shows, routes or reports
-     * on a target names it through {@code TargetNaming}, which sat in {@code shared}, the foundation,
-     * while {@code targets} used {@code access} and {@code scanning}. Once {@code targets} used nothing
-     * but {@code access} — its figures and its "scan now" became ports — the names could go home, and
-     * those domains' dependency on the targets became a line of this table instead of a foundation
-     * class; {@code agents}, {@code compliance} and {@code threatintel} joined when they stopped
-     * reading the targets' rows and asked {@code TargetCatalog} instead (decision 0029). {@code
-     * targets} uses only {@code access}, so none of these lines can close a cycle.
-     *
-     * <p><b>{@code scanning} likewise</b>, in the rows of {@code gate}, {@code posture}, {@code
-     * compliance} and {@code inventory}: they read the scans table through its repository, which the
-     * layered packaging let any class name. They ask {@code ScanCatalog} now, the owner's API, and the
-     * dependency they always had is written down. {@code scanning} uses only {@code access} and
-     * {@code targets}, below all four.
-     *
-     * <p><b>And {@code issues}</b>, in the rows of {@code ai} (the advisor explains an issue),
-     * {@code rules} (a rule set's impact on the open SAST issues) and {@code threatintel} (the feed
-     * re-evaluates the backlog's exploitation): they read the issues table through the layered
-     * repository and ask {@code IssueCatalog} now. {@code issues} uses {@code access}, {@code targets}
-     * and {@code scanning}, none of which uses these three.
+     * The modules whose service layer never used {@code access}, although their routes do — every route
+     * needs the principal and its marker, and a route naming a target resolves a {@code Visibility}. The
+     * table said so with a clause, "any module's {@code web} may use {@code access}", which a module's
+     * list of allowed dependencies cannot: it is one list for the whole module. So a module whose routes
+     * call {@code VisibilityService} lists {@code access}, and this set keeps its services, its
+     * implementation and its entities off it. {@code gate} is here on purpose: its register was purged
+     * through a port {@code access} declared until step 5, and that coupling is what this line keeps
+     * gone.
      */
-    private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
-            Map.entry("settings", Set.of()),
-            Map.entry("outbound", Set.of()),
-            // `settings` since the foundation became modules: the document signing key is kept in a
-            // `t_setting` row, which `crypto` read and wrote through the repository. Now through
-            // `SettingsService`; `settings` uses nothing, so no cycle can close.
-            Map.entry("crypto", Set.of("outbound", "settings")),
-            Map.entry("audit", Set.of()),
-            // `maintenance` since step 5: the relay and the purge of delivered messages are the
-            // outbox's contributions to the periodic tick, and a foundation module reaches another
-            // only through this table. `maintenance` uses nothing, so no cycle can close.
-            Map.entry("outbox", Set.of("maintenance")),
-            Map.entry("maintenance", Set.of()),
-            Map.entry("reporting", Set.of()),
-            Map.entry("access", Set.of()),
-            Map.entry("siem", Set.of()),
-            // `inventory` since inventory became a module: rule coverage compares the rule sets with the
-            // package URLs the components inventory holds, which it read through the repository.
-            // `inventory` uses nothing above the foundation.
-            // `scanning` since step 5, and in place of `scanning` -> `rules`: a scan asks which rule set
-            // is active and fetches its files through `ScanRuleSets`, a port `scanning` declares and
-            // `rules` implements. Called the other way, `scanning` -> `rules` -> `inventory` ->
-            // `scanning` would be a cycle once the inventory reads scans through their module.
-            Map.entry("rules", Set.of("inventory", "issues", "scanning")),
-            // `scanning` since step 5, and in place of `scanning` -> `inventory`: the inventory reads
-            // scans and findings (licences, SBOM diff, blast radius, the purge's selection), while a
-            // scan's components and API surface reach it through `ScanIngestor.InventorySink`, a port
-            // `scanning` declares and `inventory` implements.
-            Map.entry("inventory", Set.of("scanning", "targets")),
-            Map.entry("ai", Set.of("access", "issues")),
-            // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
-            // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
-            // `scanning` since step 5, and in place of `scanning` -> `issues`: the backlog reads scans and
-            // findings for its history and its sightings, and deletes an issue's findings through
-            // `scanning` when a target goes; a completed scan's findings reach the backlog through
-            // `ScanIngestor.Backlog`, a port `scanning` declares and `issues` implements.
-            Map.entry("issues", Set.of("access", "scanning", "targets")),
-            // `gate` since step 5 gave the stored policies to gate: the sweep opens a ticket only for an
-            // issue the policy of its scope would fail on, so it evaluates the gate, and asks `gate`
-            // for the policies in force instead of reading their table from below it. `gate` uses
-            // nothing that uses `tickets` (the tracker implements `issues`' `TicketReferences`).
-            Map.entry("tickets", Set.of("access", "gate", "issues", "targets")),
-            // `targets` since step 5: a scan is of a target — the dispatcher reads its row and
-            // credentials, the scheduler its schedule — and the target screens' latest scan and "scan
-            // now" are answered through `TargetScans`, a port `targets` declares.
-            Map.entry("scanning", Set.of("access", "targets")),
-            // `rules` since agents became a module and took its controllers: a remote agent fetches the
-            // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
-            // above the foundation.
-            Map.entry("agents", Set.of("access", "rules", "scanning", "targets")),
-            // Not `scanning` any more, nor `issues` (step 5): the listings' figures and the scan trigger
-            // are ports `targets` declares, so every domain that names a target can depend on it,
-            // and the purge of a deleted target can be an event `targets` owns.
-            Map.entry("targets", Set.of("access")),
-            Map.entry("threatintel", Set.of("issues", "scanning", "siem", "targets")),
-            // Not `access` since step 5: the register was purged past the evidence window by the
-            // authentication tables' pass, through a port gate implemented; it is gate's own periodic
-            // task now (`VerdictRetentionTask`), and gate's routes reach `access` as every route does.
-            Map.entry("gate", Set.of("issues", "rules", "scanning", "siem", "targets")),
-            // `access` since access became a module: a scan's delta is routed to the teams granted its
-            // target that have a channel, and a team message is posted to that channel — both tables
-            // access writes, which routing read through their repositories (now `TeamChannels`).
-            // `access` uses nothing above the foundation.
-            // Not `scanning` since step 5: a scan's delta is the backlog's, announced through
-            // `ScanDelta.Sink`, a port of `issues`; it was `ScanIngestor.NotificationSink`.
-            Map.entry("notifications", Set.of("access", "issues", "targets")),
-            // `scanning` since exports became a module and took its controllers: a document is made
-            // for a scan, and its route first refuses a scan the caller may not see
-            // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.
-            Map.entry("exports", Set.of("gate", "issues", "scanning", "targets")),
-            Map.entry("posture",
-                    Set.of("access", "gate", "inventory", "issues", "notifications", "scanning", "targets")),
-            Map.entry("compliance",
-                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "scanning",
-                            "targets")));
-
-    private static final String PLATFORM = "platform";
-
-    /**
-     * What any module's controllers may use beyond their own module's table row: {@code access}, which
-     * authenticates the caller and resolves what they may see. Every route needs the principal and its
-     * marker, and every route naming a target resolves a {@code Visibility}; a table row per module
-     * repeating it would be noise. It cannot close a cycle: {@code access} uses nothing above the
-     * foundation.
-     */
-    private static final String EVERY_ROUTE_USES = "access";
-
-    /**
-     * A dependency that points against the table and closes a cycle, kept because breaking it is
-     * more than a package move — each says why, and what would remove it.
-     */
-    private record KnownCycle(Class<?> origin, Class<?> target, String reason) {}
-
-    /**
-     * <b>A list that only shrinks, and has.</b> Two entries on 2026-09-26, both between domains
-     * whose classes sat where the future modules would own them (decision 0026). Both were broken
-     * the same day without moving a class: {@code audit} → {@code siem} by the {@code
-     * AuditChainBroken} event the SIEM listens to, {@code issues} → {@code tickets} by the {@code
-     * TicketReferences} port the tracker implements. The mechanism stays so that a cycle which cannot
-     * be broken in the review that finds it is recorded with its reason rather than hidden by moving a
-     * class to the wrong domain; {@link #knownCyclesAreStillThere} fails the day an entry goes stale.
-     */
-    private static final List<KnownCycle> KNOWN_CYCLES = List.of();
-
-    /**
-     * The module a class belongs to — {@code core.<module>} and everything beneath it — or empty
-     * outside any: {@code core.config} and the application class belong to no domain.
-     */
-    private static Optional<String> domainOf(JavaClass type) {
-        String name = type.getPackageName();
-        return MODULES.stream()
-                .filter(module -> name.equals(CORE + "." + module) || name.startsWith(CORE + "." + module + "."))
-                .findFirst();
-    }
-
-    /** A module's root package: its API, what another module may call. */
-    private static boolean isModuleRoot(JavaClass type, String module) {
-        return type.getPackageName().equals(CORE + "." + module);
-    }
-
-    private static boolean isWeb(JavaClass type) {
-        return MODULES.stream().anyMatch(module -> type.getPackageName().equals(CORE + "." + module + ".web")
-                || type.getPackageName().startsWith(CORE + "." + module + ".web."));
-    }
-
-    /**
-     * Exposed beyond the module root through Spring Modulith's own declaration: a package whose
-     * {@code package-info} carries {@link NamedInterface}, or a type that does. Read from the
-     * annotation rather than listed here, so this rule and step 6's {@code verify()} cannot disagree
-     * about what a module publishes.
-     */
-    private static boolean isNamedInterface(JavaClass type) {
-        JavaClass top = type;
-        while (top.getEnclosingClass().isPresent()) {
-            top = top.getEnclosingClass().get();
-        }
-        return top.isAnnotatedWith(NamedInterface.class) || type.getPackage().isAnnotatedWith(NamedInterface.class);
-    }
-
-    /** The class itself, its nested classes and its lambdas' holders — what a source file owns. */
-    private static boolean ownedBy(JavaClass type, Class<?> owner) {
-        return type.getName().equals(owner.getName()) || type.getName().startsWith(owner.getName() + "$");
-    }
-
-    private static boolean isKnownCycle(Dependency dependency) {
-        return KNOWN_CYCLES.stream().anyMatch(known -> ownedBy(dependency.getOriginClass(), known.origin())
-                && ownedBy(dependency.getTargetClass(), known.target()));
-    }
-
-    private static boolean mayUse(String from, String to) {
-        return MAY_USE.getOrDefault(from, Set.of()).contains(to)
-                || (!FOUNDATION.contains(from) && FOUNDATION.contains(to));
-    }
+    private static final Set<String> ACCESS_FOR_ROUTES_ONLY =
+            Set.of("siem", "rules", "inventory", "threatintel", "gate", "exports");
 
     @Test
-    @DisplayName("the domains form no cycle but the ones recorded")
-    void domainsFormNoCycle() {
-        // A cycle between two domains makes them one domain with two names: neither can be read,
-        // tested or changed without the other. Sliced by module rather than by package: a module's
-        // `web`, `internal` and `persistence` are the module, and a cycle through them is one.
-        SliceAssignment byDomain = new SliceAssignment() {
-            @Override
-            public SliceIdentifier getIdentifierOf(JavaClass type) {
-                return domainOf(type).map(SliceIdentifier::of).orElse(SliceIdentifier.ignore());
-            }
-
-            @Override
-            public String getDescription() {
-                return "the modules";
-            }
-        };
-        SliceRule rule = SlicesRuleDefinition.slices().assignedFrom(byDomain).should().beFreeOfCycles();
-        for (KnownCycle known : KNOWN_CYCLES) {
-            rule = rule.ignoreDependency(
-                    DescribedPredicate.describe(known.origin().getSimpleName(), type -> ownedBy(type, known.origin())),
-                    DescribedPredicate.describe(known.target().getSimpleName(), type -> ownedBy(type, known.target())));
+    @DisplayName("a module that uses access for its routes uses it nowhere else")
+    void accessForRoutesOnly() {
+        // `access` uses nothing above the foundation, so no line of this set could close a cycle; what it
+        // keeps is the direction the domains were given. A service deciding on who the caller is, or what
+        // they may see, is a service of a module that lists `access` for it, in the review that needs it.
+        for (String module : ACCESS_FOR_ROUTES_ONLY) {
+            ArchRuleDefinition.noClasses()
+                    .that().resideInAnyPackage(CORE + "." + module, CORE + "." + module + ".internal..",
+                            CORE + "." + module + ".persistence..")
+                    .should().dependOnClassesThat().resideInAPackage(CORE + ".access..")
+                    .because(module + "'s services do not use access; only its routes do")
+                    .check(classes);
         }
-        rule.check(classes);
-    }
-
-    @Test
-    @DisplayName("a recorded cycle is still a cycle, or it leaves the list")
-    void knownCyclesAreStillThere() {
-        for (KnownCycle known : KNOWN_CYCLES) {
-            boolean present = classes.stream()
-                    .filter(type -> ownedBy(type, known.origin()))
-                    .flatMap(type -> type.getDirectDependenciesFromSelf().stream())
-                    .anyMatch(dependency -> ownedBy(dependency.getTargetClass(), known.target()));
-            org.assertj.core.api.Assertions.assertThat(present)
-                    .as("%s no longer depends on %s: remove it from KNOWN_CYCLES",
-                            known.origin().getSimpleName(), known.target().getSimpleName())
-                    .isTrue();
-        }
-    }
-
-    @Test
-    @DisplayName("a domain uses only the domains it is allowed")
-    void domainsDependOnlyWhereAllowed() {
-        // Acyclic is not enough: a new dependency pointing the wrong way can be acyclic today and
-        // close a cycle with the next one. The table fixes the direction.
-        ArchCondition<JavaClass> useOnlyAllowedDomains =
-                new ArchCondition<>("use only the domains decisions 0026 and 0028 allow") {
-                    @Override
-                    public void check(JavaClass type, ConditionEvents events) {
-                        // `platform` may use every module; `config` belongs to none and is the residence
-                        // rule's to keep small.
-                        String from = domainOf(type).orElse(PLATFORM);
-                        if (from.equals(PLATFORM)) {
-                            return;
-                        }
-                        boolean web = isWeb(type);
-                        for (Dependency dependency : type.getDirectDependenciesFromSelf()) {
-                            Optional<String> to = domainOf(dependency.getTargetClass());
-                            if (to.isEmpty() || to.get().equals(from) || mayUse(from, to.get())
-                                    || (web && to.get().equals(EVERY_ROUTE_USES))
-                                    || isKnownCycle(dependency)) {
-                                continue;
-                            }
-                            events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
-                                    + " — " + from + " may not use " + to.get()));
-                        }
-                    }
-                };
-        ArchRuleDefinition.classes()
-                .that().resideInAnyPackage(MODULES.stream().map(module -> CORE + "." + module + "..")
-                        .toArray(String[]::new))
-                .should(useOnlyAllowedDomains)
-                .check(classes);
-    }
-
-    @Test
-    @DisplayName("a module reaches another module through its API, never through its internals")
-    void modulesMeetAtTheirApi() {
-        // What Spring Modulith's `verify()` will enforce at step 6, enforced now between the modules
-        // that exist: another module's root package, or what it publishes as a named interface — never
-        // its `internal`, `persistence` or `web`. A module reading another's repository is the coupling
-        // the layered packaging hid, and the one a module boundary exists to show. Every class of the
-        // control plane but `core.config` is a module's since step 5, so every one is held to it.
-        ArchCondition<JavaClass> meetAtTheApi = new ArchCondition<>("use another module only through its root "
-                + "package or a named interface") {
-            @Override
-            public void check(JavaClass type, ConditionEvents events) {
-                String from = domainOf(type).orElseThrow();
-                for (Dependency dependency : type.getDirectDependenciesFromSelf()) {
-                    JavaClass target = dependency.getTargetClass();
-                    Optional<String> to = domainOf(target).filter(MODULES::contains);
-                    if (to.isEmpty() || to.get().equals(from) || isModuleRoot(target, to.get())
-                            || isNamedInterface(target)) {
-                        continue;
-                    }
-                    events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
-                            + " — " + target.getPackageName() + " is internal to " + to.get()));
-                }
-            }
-        };
-        if (MODULES.isEmpty()) {
-            return;
-        }
-        ArchRuleDefinition.classes()
-                .that().resideInAnyPackage(MODULES.stream().map(module -> CORE + "." + module + "..").toArray(String[]::new))
-                .should(meetAtTheApi)
-                .check(classes);
     }
 
     @Test
@@ -532,7 +252,7 @@ class ArchitectureTest {
     void controllersCallTheirModuleApi() {
         // `internal` is what the API is built from. A controller reaching into it makes the class it
         // reaches part of the module's surface without saying so; if a route needs it, it belongs at
-        // the root. Persistence is `webNeverTouchesPersistence`'s.
+        // the root. Persistence is `apiNeverTouchesPersistence`'s.
         for (String module : MODULES) {
             ArchRuleDefinition.noClasses()
                     .that().resideInAPackage(CORE + "." + module + ".web..")
