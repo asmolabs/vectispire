@@ -31,6 +31,10 @@ class PlatformMetricsTest extends ApiTestBase {
     @Autowired
     private PlatformMetrics metrics;
 
+    /** The two agent meters moved with the agent row into {@code agents} (decision 0029). */
+    @Autowired
+    private com.asmolabs.vectispire.core.agents.AgentMetrics agentMetrics;
+
     @Test
     @DisplayName("are all registered under one prefix an operator can search for")
     void are_all_registered_under_one_prefix() {
@@ -93,9 +97,9 @@ class PlatformMetricsTest extends ApiTestBase {
         double jobsBefore = polls("job");
         double idleBefore = polls("idle");
 
-        metrics.agentPolled(true);
-        metrics.agentPolled(false);
-        metrics.agentPolled(false);
+        agentMetrics.agentPolled(true);
+        agentMetrics.agentPolled(false);
+        agentMetrics.agentPolled(false);
 
         assertThat(polls("job") - jobsBefore).isEqualTo(1.0);
         assertThat(polls("idle") - idleBefore).isEqualTo(2.0);

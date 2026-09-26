@@ -24,7 +24,6 @@ import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
-import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;

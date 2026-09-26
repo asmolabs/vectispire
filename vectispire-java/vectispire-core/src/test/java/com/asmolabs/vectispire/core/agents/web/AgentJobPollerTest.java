@@ -11,8 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.access.AgentView;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,7 +30,7 @@ class AgentJobPollerTest {
     private final ScanDispatcher dispatcher = mock(ScanDispatcher.class);
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final AtomicReference<Runnable> recheck = new AtomicReference<>();
-    private final AgentView agent = AgentView.of(new AgentEntity());
+    private final AgentView agent = com.asmolabs.vectispire.core.agents.internal.AgentViews.of(new AgentEntity());
 
     @Test
     @DisplayName("a scan claimed after the agent stopped listening goes straight back to the queue")
@@ -74,7 +73,7 @@ class AgentJobPollerTest {
         // new value, a raised limit would reach the agent only at its next restart.
         AgentEntity row = new AgentEntity();
         row.setMaxConcurrent(3);
-        AgentView limited = AgentView.of(row);
+        AgentView limited = com.asmolabs.vectispire.core.agents.internal.AgentViews.of(row);
         AgentJobPoller poller = poller();
 
         when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
@@ -93,6 +92,6 @@ class AgentJobPollerTest {
             recheck.set(call.getArgument(0));
             return null;
         });
-        return new AgentJobPoller(dispatcher, mock(PlatformMetrics.class), scheduler);
+        return new AgentJobPoller(dispatcher, mock(com.asmolabs.vectispire.core.agents.AgentMetrics.class), scheduler);
     }
 }

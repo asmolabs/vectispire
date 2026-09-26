@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.access;
 
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -9,8 +8,9 @@ import java.util.UUID;
  *
  * <p>In {@code access} rather than {@code agents} because this is what an agent key authenticates
  * to — {@code ApiKeyAuthService.agentFor} produces it for the principal — and because the claim in
- * {@code scanning} reads it, and {@code agents} sits above {@code scanning}. A service that writes
- * the agent's row reads the row itself, by {@link #id}.
+ * {@code scanning} reads it, and {@code agents} sits above {@code scanning}. The row itself is
+ * {@code agents}' (decision 0029), which builds this record from it ({@code AgentViews}) and answers
+ * {@link AgentDirectory}; a service that writes the agent's row reads the row itself, by {@link #id}.
  */
 public record AgentView(
         UUID id,
@@ -31,28 +31,4 @@ public record AgentView(
         String sealingPublicKey,
         String signingPublicKey,
         Instant lastSeenAt,
-        Instant createdAt) {
-
-    public static AgentView of(AgentEntity agent) {
-        return new AgentView(
-                agent.getId(),
-                agent.getName(),
-                agent.getDescription(),
-                agent.getKind(),
-                agent.getLabels(),
-                agent.getCredentialsMode(),
-                agent.getEnabled(),
-                agent.getMaxConcurrent(),
-                agent.getApiKeyId(),
-                agent.getHostname(),
-                agent.getPlatform(),
-                agent.getVersion(),
-                agent.getScannerEngine(),
-                agent.getCapabilities(),
-                agent.getContractVersion(),
-                agent.getSealingPublicKey(),
-                agent.getSigningPublicKey(),
-                agent.getLastSeenAt(),
-                agent.getCreatedAt());
-    }
-}
+        Instant createdAt) {}

@@ -12,11 +12,12 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.AgentKeys;
 import com.asmolabs.vectispire.core.access.AgentView;
+import com.asmolabs.vectispire.core.agents.internal.AgentViews;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.agents.persistence.Agents;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Agents;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
@@ -276,7 +277,7 @@ public class AgentAdministrationService {
         Map<String, Long> running = runningByAgent();
         return agents.findAllByOrderByNameAsc().stream()
                 .map(agent -> new Listed(
-                        AgentView.of(agent),
+                        AgentViews.of(agent),
                         isOnline(agent, asOf),
                         running.getOrDefault(agent.getId().toString(), 0L),
                         AgentConcurrency.effective(agent.getMaxConcurrent())))
@@ -338,7 +339,7 @@ public class AgentAdministrationService {
         });
 
         record(actor, saved.getId(), "Agent declared: " + name + " (" + mode.wireName() + ")");
-        return new Declared(AgentView.of(saved), issued.fullKey());
+        return new Declared(AgentViews.of(saved), issued.fullKey());
     }
 
     /**

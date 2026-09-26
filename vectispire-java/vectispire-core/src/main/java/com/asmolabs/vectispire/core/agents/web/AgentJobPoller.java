@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.access.AgentView;
-import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
+import com.asmolabs.vectispire.core.agents.AgentMetrics;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
@@ -40,7 +40,7 @@ public class AgentJobPoller {
     static final Duration MAX_WAIT = Duration.ofSeconds(30);
 
     private final ScanDispatcher dispatcher;
-    private final PlatformMetrics metrics;
+    private final AgentMetrics metrics;
 
     /**
      * <b>The agents' scheduler, not the jobs' one.</b> These two used to be the same bean, which
@@ -51,7 +51,7 @@ public class AgentJobPoller {
 
     public AgentJobPoller(
             ScanDispatcher dispatcher,
-            PlatformMetrics metrics,
+            AgentMetrics metrics,
             @Qualifier("agentPollScheduler") TaskScheduler scheduler) {
         this.dispatcher = dispatcher;
         this.metrics = metrics;

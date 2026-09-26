@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.repositories.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.agents.persistence.Agents;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.UUID;

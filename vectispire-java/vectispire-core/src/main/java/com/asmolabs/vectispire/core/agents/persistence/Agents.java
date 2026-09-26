@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.agents.persistence;
 
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

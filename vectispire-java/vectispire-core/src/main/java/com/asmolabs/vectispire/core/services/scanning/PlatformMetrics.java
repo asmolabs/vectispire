@@ -1,9 +1,6 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.core.outbox.OutboxService;
-import com.asmolabs.vectispire.core.repositories.Agents;
-import com.asmolabs.vectispire.core.repositories.ScanQueue;
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
@@ -12,7 +9,6 @@ import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
@@ -32,7 +28,9 @@ import org.springframework.stereotype.Service;
  *
  * <h2>What is measured, and what deliberately is not</h2>
  *
- * <p>Six meters, each tied to a question somebody asks at three in the morning. Rate-limit
+ * <p>Four meters here and two in {@code agents}' {@code AgentMetrics} — the enabled agents and their
+ * polls, which moved with the agent row (decision 0029) — each tied to a question somebody asks at
+ * three in the morning. Rate-limit
  * refusals are <em>not</em> among them: the bearer filter already writes an audit entry when its
  * ceiling is reached, and turning that into a counter means changing two filters' constructors —
  * one of which is being edited elsewhere. Worth adding once that work lands. There is no
@@ -68,7 +66,6 @@ public class PlatformMetrics {
     private final MeterRegistry registry;
     private final ScanQueue queue;
     private final OutboxService outbox;
-    private final Agents agents;
     private final Clock clock;
 
     /**
@@ -83,13 +80,11 @@ public class PlatformMetrics {
     private final AtomicReference<Double> lastQueued = new AtomicReference<>(0.0);
     private final AtomicReference<Double> lastRunning = new AtomicReference<>(0.0);
     private final AtomicReference<Double> lastOutbox = new AtomicReference<>(0.0);
-    private final AtomicReference<Double> lastAgents = new AtomicReference<>(0.0);
 
-    public PlatformMetrics(MeterRegistry registry, ScanQueue queue, OutboxService outbox, Agents agents, Clock clock) {
+    public PlatformMetrics(MeterRegistry registry, ScanQueue queue, OutboxService outbox, Clock clock) {
         this.registry = registry;
         this.queue = queue;
         this.outbox = outbox;
-        this.agents = agents;
         this.clock = clock;
     }
 
@@ -105,10 +100,6 @@ public class PlatformMetrics {
 
         Gauge.builder(PREFIX + "outbox.pending", this, self -> self.safely(lastOutbox, this::pendingMessages))
                 .description("Notifications accepted but not yet delivered")
-                .register(registry);
-
-        Gauge.builder(PREFIX + "agents.enabled", this, self -> self.safely(lastAgents, this::enabledAgents))
-                .description("Remote agents an operator has enabled")
                 .register(registry);
     }
 
@@ -142,15 +133,6 @@ public class PlatformMetrics {
                 .record(took);
     }
 
-    /** An agent asked for work and was answered — with a job, or with nothing. */
-    public void agentPolled(boolean gotWork) {
-        Counter.builder(PREFIX + "agents.polls")
-                .description("Long polls answered")
-                .tag("outcome", gotWork ? "job" : "idle")
-                .register(registry)
-                .increment();
-    }
-
     private double safely(AtomicReference<Double> last, java.util.function.LongSupplier read) {
         try {
             double value = read.getAsLong();
@@ -174,11 +156,6 @@ public class PlatformMetrics {
             }
         }
         return pending;
-    }
-
-    private long enabledAgents() {
-        List<?> enabled = agents.findByEnabledTrue();
-        return enabled.size();
     }
 
 }

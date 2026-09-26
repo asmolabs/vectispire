@@ -9,7 +9,6 @@ import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.Users;
-import com.asmolabs.vectispire.core.repositories.Agents;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -36,11 +35,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ApiKeyAuthService {
 
     private final ApiKeysRepository keys;
-    private final Agents agents;
+    private final AgentDirectory agents;
     private final Clock clock;
     private final Users users;
 
-    public ApiKeyAuthService(ApiKeysRepository keys, Agents agents, Clock clock, Users users) {
+    public ApiKeyAuthService(ApiKeysRepository keys, AgentDirectory agents, Clock clock, Users users) {
         this.keys = keys;
         this.agents = agents;
         this.clock = clock;
@@ -132,6 +131,6 @@ public class ApiKeyAuthService {
     /** The agent this key belongs to, if there is one. */
     @Transactional(readOnly = true)
     public Optional<AgentView> agentFor(ApiKeyView key) {
-        return agents.findByApiKeyId(key.id()).map(AgentView::of);
+        return agents.byApiKey(key.id());
     }
 }

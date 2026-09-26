@@ -13,7 +13,6 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
-import com.asmolabs.vectispire.core.repositories.Agents;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -35,7 +34,7 @@ class ApiKeyAuthServiceTest {
     @BeforeEach
     void wire() {
         keys = mock(ApiKeysRepository.class);
-        service = new ApiKeyAuthService(keys, mock(Agents.class), Clock.fixed(NOW, ZoneOffset.UTC), mock(com.asmolabs.vectispire.core.access.persistence.Users.class));
+        service = new ApiKeyAuthService(keys, mock(AgentDirectory.class), Clock.fixed(NOW, ZoneOffset.UTC), mock(com.asmolabs.vectispire.core.access.persistence.Users.class));
         issued = ApiKeys.generate();
         when(keys.findByPrefix(anyString())).thenReturn(List.of());
     }

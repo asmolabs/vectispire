@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.services.scanning;
 
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.LEASE_EXHAUSTED_MESSAGE;
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.afterLapse;
@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -37,12 +38,12 @@ public class ScanQueue {
     private static final int ERROR_MAX_LENGTH = 2_000;
 
     private final Scans scans;
-    private final Agents agents;
+    private final AgentClaimLock agents;
     private final Policy policy;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
-    public ScanQueue(Scans scans, Agents agents, Policy policy, Clock clock, TransactionTemplate transactions) {
+    public ScanQueue(Scans scans, AgentClaimLock agents, Policy policy, Clock clock, TransactionTemplate transactions) {
         this.scans = scans;
         this.agents = agents;
         this.policy = policy;
@@ -180,7 +181,7 @@ public class ScanQueue {
         Instant claimedAt = clock.instant();
         // The lock, and it has to come first — see `claimWithin`. Zero rows means the agent was
         // deleted while it polled: nothing to claim for.
-        if (agents.lockForClaim(agentId, claimedAt) == 0) {
+        if (!agents.lockForClaim(agentId, claimedAt)) {
             return Taken.FULL;
         }
         if (scans.countHeld(worker, ScanStatus.SCANNING.wireName(), claimedAt) >= limit) {

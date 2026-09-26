@@ -21,7 +21,7 @@ import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -108,7 +108,7 @@ class BearerAuthenticationFilterTest {
         ApiKeyView key = ApiKeyView.of(keyRow());
         AgentEntity row = new AgentEntity();
         row.setId(UUID.randomUUID());
-        AgentView agent = AgentView.of(row);
+        AgentView agent = com.asmolabs.vectispire.core.agents.internal.AgentViews.of(row);
         Visibility agents = Visibility.everything();
         when(apiKeys.resolve("zsk")).thenReturn(Optional.of(key));
         when(apiKeys.hasScope(key, ApiKeyScope.AGENT)).thenReturn(true);

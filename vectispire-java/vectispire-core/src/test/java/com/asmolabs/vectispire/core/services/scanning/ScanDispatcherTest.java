@@ -23,17 +23,16 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import com.asmolabs.vectispire.core.access.AgentView;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
-import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
@@ -180,7 +179,7 @@ class ScanDispatcherTest {
         AgentEntity agent = agentRow(CredentialsMode.DELEGATED, null);
         agent.setCredentialsMode("something-a-later-version-wrote");
 
-        ScanTask task = dispatcher.claimForAgent(AgentView.of(agent), true).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true).orElseThrow().task();
 
         assertThat(repositoryTarget(task).privateKey()).isNull();
     }
@@ -219,17 +218,17 @@ class ScanDispatcherTest {
         AgentEntity agent = agentRow(CredentialsMode.LOCAL, null);
 
         agent.setMaxConcurrent(4);
-        dispatcher.claimForAgent(AgentView.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 4, List.of());
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
-        dispatcher.claimForAgent(AgentView.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 16, List.of());
 
         agent.setMaxConcurrent(0);
-        dispatcher.claimForAgent(AgentView.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
         verify(queue).claimWithin(agent.getId(), 1, List.of());
     }
 
@@ -525,7 +524,7 @@ class ScanDispatcherTest {
     }
 
     private static AgentView agent(CredentialsMode mode, String sealingPublicKey) {
-        return AgentView.of(agentRow(mode, sealingPublicKey));
+        return com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agentRow(mode, sealingPublicKey));
     }
 
     private static AgentEntity agentRow(CredentialsMode mode, String sealingPublicKey) {
