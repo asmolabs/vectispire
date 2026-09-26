@@ -105,6 +105,41 @@ class ScimUsersRoutesTest extends ApiTestBase {
         assertThat(users.findByUsername("scim-new-admin")).isEmpty();
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(Role.class)
+    @DisplayName("SCIM grants only the scoped roles; one that administers or sees the whole estate is Vectispire's")
+    void onlyScopedRolesAreGranted(Role role) throws Exception {
+        // Only ADMIN and SUPERUSER were refused: the directory's token could make an account a CISO
+        // or an auditor.
+        String name = "scim-" + role.name().toLowerCase(java.util.Locale.ROOT) + "-" + System.nanoTime();
+        int status = mvc.perform(authenticated(post("/scim/v2/Users"), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", name, "roles", List.of(Map.of("value", role.name()))))))
+                .andReturn().getResponse().getStatus();
+
+        boolean scoped = !role.isAdministrative() && !role.hasGlobalSecurityScope();
+        assertThat(status).as("SCIM creating a %s", role).isEqualTo(scoped ? 201 : 400);
+        assertThat(users.findByUsername(name).map(user -> user.getRole()))
+                .isEqualTo(scoped ? java.util.Optional.of(role.name()) : java.util.Optional.empty());
+    }
+
+    @Test
+    @DisplayName("naming the role an account already holds is not a grant, and is accepted")
+    void theSameRoleIsNoGrant() throws Exception {
+        tokenFor("scim-auditor", Role.AUDITOR, false);
+        long id = users.findByUsername("scim-auditor").orElseThrow().getId();
+
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-auditor", "roles", List.of(Map.of("value", "AUDITOR"))))))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(put("/scim/v2/Users/" + id), asAdmin())
+                        .contentType(MediaType.parseMediaType("application/scim+json"))
+                        .content(write(Map.of("userName", "scim-auditor", "roles", List.of(Map.of("value", "CISO"))))))
+                .andExpect(status().isBadRequest());
+        assertThat(users.findById(id).orElseThrow().getRole()).isEqualTo(Role.AUDITOR.name());
+    }
+
     @Test
     @DisplayName("a replacement that names no role leaves the role as it is")
     void anAbsentRoleIsNoDemotion() throws Exception {

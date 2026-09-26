@@ -71,8 +71,11 @@ configuration du fournisseur ; ce qu'il peut faire est donc volontairement born�
 
 - **Les comptes administratifs ne relèvent pas de l'annuaire.** Remplacer, modifier ou supprimer un
   administrateur ou un super-administrateur répond `403` ; ils s'administrent dans Vectispire.
-- **L'annuaire n'accorde que des rôles non administratifs.** Une valeur `roles` à `ADMIN` ou
-  `SUPERUSER` répond `400`.
+- **L'annuaire n'accorde que les rôles bornés — User et Security Champion.** Une valeur `roles` à
+  `ADMIN`, `SUPERUSER`, `CISO` ou `AUDITOR` — un rôle qui administre ou voit tout le parc — répond
+  `400` : ces rôles s'accordent dans Vectispire, par ses administrateurs. Aucun réglage ne l'élargit :
+  un annuaire qui déciderait de ces rôles, c'est un jeton d'annuaire qui détient le parc. Renvoyer le
+  rôle qu'un compte a déjà n'est pas une attribution, et est accepté.
 - **Un remplacement sans `roles` laisse le rôle tel quel** — il ne rétrograde plus en Utilisateur.
 - **`externalId` n'est lié qu'une fois.** Le changer sur un compte qui en a déjà un répond `400` :
   un nouveau sujet, c'est un nouveau compte.

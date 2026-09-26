@@ -55,7 +55,8 @@ import tools.jackson.databind.JsonNode;
  * <ul>
  *   <li>administrative accounts (ADMIN, SUPERUSER) are not the directory's to change: replacing,
  *       patching or deleting one is refused, and they are administered in Vectispire;
- *   <li>the directory grants only non-administrative roles;
+ *   <li>the directory grants only the roles scoped to what they are given — USER and
+ *       SECURITY_CHAMPION — see {@link #grantable};
  *   <li>an absent role leaves the account's role as it is;
  *   <li>{@code externalId} is set once and never rebound;
  *   <li>a role change closes the account's sessions, as a deactivation does.
@@ -331,16 +332,27 @@ public class ScimProvisioningService {
      * @param unchanged what to keep when the document names no role, or one this version does not
      *     know: the account's own role on a replacement, USER on a creation. It used to be USER in
      *     both cases, so a replacement without {@code roles} demoted whoever it named.
-     * @throws IllegalArgumentException for an administrative role, which is granted in Vectispire
+     * <p><b>Not a role that sees the whole estate.</b> Only the administrative roles used to be
+     * refused, so the token held in the identity provider — a third system, with its own operators
+     * — could make any account a CISO, who rewrites the gate policy and approves triage, or an
+     * auditor, who reads every account's actions and every target's posture. A role with a global
+     * security scope is granted in Vectispire, like an administrative one, and by the same people.
+     * Deliberately not widened by a setting: an organisation that wants its directory to decide
+     * those roles is asking the directory's token to hold the estate. Naming the role an account
+     * already holds is not a grant, so a directory that sends it back on every replacement is not
+     * refused.
+     *
+     * @throws IllegalArgumentException for a role with a global security scope, which is granted in
+     *     Vectispire
      */
     private static String grantable(String requested, String unchanged) {
         Optional<Role> role = requested == null ? Optional.empty() : Role.of(requested.trim().toUpperCase(Locale.ROOT));
-        if (role.isEmpty()) {
+        if (role.isEmpty() || role.get().name().equals(unchanged)) {
             return unchanged;
         }
-        if (role.get().isAdministrative()) {
+        if (role.get().isAdministrative() || role.get().hasGlobalSecurityScope()) {
             throw new IllegalArgumentException("SCIM cannot grant the " + role.get().name()
-                    + " role: administrative roles are granted in Vectispire.");
+                    + " role: roles that administer or see the whole estate are granted in Vectispire.");
         }
         return role.get().name();
     }

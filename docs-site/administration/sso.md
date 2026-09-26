@@ -67,8 +67,11 @@ the provider's configuration, so what it may do is deliberately bounded:
 
 - **Administrative accounts are not the directory's to change.** Replacing, patching or deleting an
   administrator or a superuser answers `403`; they are administered in Vectispire.
-- **The directory grants non-administrative roles only.** A `roles` value of `ADMIN` or `SUPERUSER`
-  answers `400`.
+- **The directory grants the scoped roles only — User and Security Champion.** A `roles` value of
+  `ADMIN`, `SUPERUSER`, `CISO` or `AUDITOR` — a role that administers or sees the whole estate —
+  answers `400`: those are granted in Vectispire, by its administrators. There is no setting to
+  widen this: a directory deciding those roles is a directory token holding the estate. Sending
+  back the role an account already holds is not a grant, and is accepted.
 - **A replacement without `roles` leaves the role as it is** — it no longer demotes to User.
 - **`externalId` is bound once.** Changing it on an account that already has one answers `400`: a
   new subject means a new account.
