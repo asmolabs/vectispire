@@ -18,11 +18,12 @@ import org.hibernate.type.SqlTypes;
  * control plane seals the key for this agent alone, so an agent that claims a scan it is not
  * entitled to cannot open it.
  *
- * <p><b>Two public keys, and they are not interchangeable.</b> {@code sealingPublicKey} is
- * announced by the agent at every {@code hello} — it is ephemeral, and refreshing it is the point.
- * {@code signingPublicKey} is written by an administrator and by nothing else: a signature
- * verified against a key the signer announced proves only what the API key already proved. See
- * {@code ResultAttestation}.
+ * <p><b>Two public keys, and one vouches for the other.</b> {@code signingPublicKey} is written by
+ * an administrator and by nothing else: a signature verified against a key the signer announced
+ * proves only what the API key already proved. See {@code ResultAttestation}. {@code
+ * sealingPublicKey} is ephemeral — a restarted agent is a new recipient — and is accepted only
+ * signed with the pinned key, newer than the one it replaces ({@code SealingKeyAttestation},
+ * decision 0031).
  */
 @Entity
 @Table(name = "t_agent")
@@ -78,8 +79,18 @@ public class AgentEntity {
     @Column(name = "contract_version", length = 20)
     private String contractVersion;
 
-    @Column(name = "sealing_public_key", length = 255)
+    /**
+     * Written by {@code AgentRepository.acceptSealingKey} alone, never
+     * by saving the row: an administrator's change to the labels, read before the agent's
+     * announcement and saved after it, would otherwise put back the key the agent just replaced —
+     * one whose private half died with the process that made it.
+     */
+    @Column(name = "sealing_public_key", length = 255, updatable = false)
     private String sealingPublicKey;
+
+    /** When the agent made its accepted sealing pair, in epoch milliseconds. Null with the key. */
+    @Column(name = "sealing_key_generation", updatable = false)
+    private Long sealingKeyGeneration;
 
     /** Base64 Ed25519, pinned by an operator. Null means this agent's results are not attested. */
     @Column(name = "signing_public_key", length = 255)
@@ -217,6 +228,14 @@ public class AgentEntity {
 
     public void setSealingPublicKey(String sealingPublicKey) {
         this.sealingPublicKey = sealingPublicKey;
+    }
+
+    public Long getSealingKeyGeneration() {
+        return sealingKeyGeneration;
+    }
+
+    public void setSealingKeyGeneration(Long sealingKeyGeneration) {
+        this.sealingKeyGeneration = sealingKeyGeneration;
     }
 
     public String getSigningPublicKey() {

@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent/sealing-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["announceSealingKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai-advisor/explain/cve/{cveId}": {
         parameters: {
             query?: never;
@@ -4835,6 +4851,12 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        SealingKeyRequest: {
+            /** Format: int64 */
+            generation?: number;
+            public_key?: string;
+            signature?: string;
+        };
         SecretFinding: {
             description?: string;
             file?: string;
@@ -5703,6 +5725,28 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["RuleSetResponse"];
                 };
+            };
+        };
+    };
+    announceSealingKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SealingKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -149,6 +149,27 @@ public enum AuditOperation {
     AGENT_SIGNING_KEY_PINNED,
 
     /**
+     * An agent's sealing key was accepted: its signature verified against the pinned key, and it is
+     * newer than the one it replaces.
+     *
+     * <p>Written when the key changes — at every start of the agent, since the pair lives as long as
+     * the process — so that "which key were this agent's credentials sealed for, and since when" has
+     * an answer in the log.
+     */
+    AGENT_SEALING_KEY_ACCEPTED,
+
+    /**
+     * A sealing key was refused: its signature did not verify against the pinned key, or it was older
+     * than the one already accepted.
+     *
+     * <p>The agent that holds the pinned key signs every key it announces. An announcement that does
+     * not verify is a misconfigured agent, or a key that the agent did not make; an older one is a
+     * clock put back, or an announcement recorded and sent again. The credential it would have
+     * received is withheld either way, and the entry is what makes the attempt visible.
+     */
+    AGENT_SEALING_KEY_REFUSED,
+
+    /**
      * A repository's security grade was published as a public badge, or that publication revoked.
      *
      * <p>Its own operation rather than a setting change, because it is the one gesture in the

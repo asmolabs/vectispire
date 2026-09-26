@@ -14,10 +14,12 @@ import org.springframework.stereotype.Component;
  * Which peers may speak for somebody else.
  *
  * <p>Two `X-Forwarded-*` headers decide something here: {@code X-Forwarded-For} says who is
- * being rate-limited, and {@code X-Forwarded-Proto} says whether a deployment key may travel to
- * an agent. Both are written by whoever sends the request, so both are worth exactly what the
- * peer that sent them is worth — and that is one question with one answer, which is why it lives
- * in one class rather than being decided twice.
+ * being rate-limited and audited, and {@code X-Forwarded-Proto} whether a cookie is marked secure.
+ * It also decided, until decision 0031, whether a deployment key could travel to an agent in the
+ * clear; a delegated credential now leaves sealed or not at all, whatever the link. Both headers
+ * are written by whoever sends the request, so both are worth exactly what the peer that sent them
+ * is worth — and that is one question with one answer, which is why it lives in one class rather
+ * than being decided twice.
  *
  * <p><b>It was decided twice, and the two halves disagreed.</b> {@link LoginRateLimitFilter}
  * already refused to read {@code X-Forwarded-For} from an untrusted peer, and documented why at
@@ -28,9 +30,7 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Empty means "no proxy in front", and that is the safe reading.</b> With no trusted proxy
  * configured, {@code X-Forwarded-Proto} is ignored entirely and only a genuinely encrypted
- * connection counts as one. A deployment that terminates TLS at a reverse proxy and forgets to
- * declare it will see its agents refused with 412 — loud, immediate, and fixed by one setting —
- * rather than see its deployment keys accepted on a header anybody can send.
+ * connection counts as one.
  */
 @Component
 public class TrustedProxies {
@@ -128,8 +128,7 @@ public class TrustedProxies {
      * <p><b>The connection first, the header only from a peer we run.</b> {@code request.isSecure()}
      * is a fact about the socket and needs no trust. {@code X-Forwarded-Proto} is a claim, and a
      * claim is worth the peer making it — which is why an untrusted peer sending
-     * {@code X-Forwarded-Proto: https} over plain HTTP gets {@code false} here, and its agent gets
-     * a 412 instead of a deployment key in the clear.
+     * {@code X-Forwarded-Proto: https} over plain HTTP gets {@code false} here.
      *
      * <p>Only the first hop is read. The header is a comma-separated list written left to right
      * as the request travels, so the leftmost element describes the client's own leg — the one

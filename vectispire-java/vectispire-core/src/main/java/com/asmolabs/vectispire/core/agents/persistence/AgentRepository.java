@@ -38,11 +38,12 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
     int lockForClaim(@Param("id") UUID id, @Param("at") Instant at);
 
     /**
-     * Records that an agent has just been heard from, and what it announced.
+     * Records that an agent has just been heard from, and what it said about itself.
      *
-     * <p>The sealing key is refreshed on every claim on purpose: it is ephemeral, a restarted
-     * agent is a new recipient, and sealing for the key it announced last week would produce an
-     * envelope it cannot open — which reads as a failed scan, not as a stale key.
+     * <p><b>Not the sealing key</b>, which this statement wrote until decision 0031 — from every
+     * {@code hello}, unsigned, and blank included, so the last announcement to arrive decided what
+     * the control plane sealed for. The key is {@link #acceptSealingKey}'s alone now, and an
+     * announcement that carries none, or one nobody signed, leaves the accepted key where it is.
      */
     @Transactional
     @Modifying(clearAutomatically = true)
@@ -50,8 +51,7 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
             update AgentEntity a
                set a.lastSeenAt = :at, a.hostname = :hostname, a.platform = :platform,
                    a.version = :version, a.scannerEngine = :scannerEngine,
-                   a.capabilities = :capabilities, a.contractVersion = :contractVersion,
-                   a.sealingPublicKey = :sealingPublicKey
+                   a.capabilities = :capabilities, a.contractVersion = :contractVersion
              where a.id = :id""")
     int recordHeartbeat(
             @Param("id") UUID id,
@@ -61,6 +61,28 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
             @Param("version") String version,
             @Param("scannerEngine") String scannerEngine,
             @Param("capabilities") String capabilities,
-            @Param("contractVersion") String contractVersion,
-            @Param("sealingPublicKey") String sealingPublicKey);
+            @Param("contractVersion") String contractVersion);
+
+    /**
+     * Records a sealing key whose signature the caller verified, <b>if it is newer</b> than the one
+     * held.
+     *
+     * <p>A conditional statement, not a read then a save: two processes sharing an agent's key, or a
+     * recorded announcement sent again, would otherwise let whichever wrote last win. The row count
+     * names the outcome — 0 means the agent already holds a newer key (or no longer exists), and the
+     * key offered is not the one to seal for. The same key under the same generation is accepted
+     * again, so an agent repeating its announcement is not refused for being consistent.
+     *
+     * @return 1 when the key is now the agent's, 0 otherwise
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update AgentEntity a
+               set a.sealingPublicKey = :key, a.sealingKeyGeneration = :generation
+             where a.id = :id
+               and (a.sealingKeyGeneration is null
+                    or a.sealingKeyGeneration < :generation
+                    or (a.sealingKeyGeneration = :generation and a.sealingPublicKey = :key))""")
+    int acceptSealingKey(@Param("id") UUID id, @Param("key") String key, @Param("generation") long generation);
 }

@@ -36,6 +36,7 @@ class SecurityEventTypeTest {
         expected.put("TRIAGE_REFUSED", "ZAN-SEC-017");
         expected.put("AUDIT_CHAIN_BROKEN", "ZAN-SEC-018");
         expected.put("SECURITY_SETTING_CHANGED", "ZAN-SEC-019");
+        expected.put("AGENT_SEALING_KEY_REFUSED", "ZAN-SEC-020");
         expected.put("PING_TEST", "ZAN-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -71,6 +72,10 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_UPDATED)).contains(SecurityEventType.AGENT_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SIGNING_KEY_PINNED))
                 .contains(SecurityEventType.AGENT_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_REFUSED))
+                .contains(SecurityEventType.AGENT_SEALING_KEY_REFUSED);
+        // A rotation happens at every start of every agent: routine, not an event for a SOC.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_ACCEPTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.GATE_POLICY_UPDATED))
                 .contains(SecurityEventType.SECURITY_SETTING_CHANGED);
     }

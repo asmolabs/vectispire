@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.agents.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,10 +38,10 @@ class AgentJobPollerTest {
         // The scan was then claimed by an agent that never received it, and sat until the lease
         // lapsed — twenty minutes, and an attempt.
         AgentJobPoller poller = poller();
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
-        DeferredResult<ResponseEntity<Object>> result = poller.claim(agent, true, Duration.ofSeconds(30));
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.empty());
+        DeferredResult<ResponseEntity<Object>> result = poller.claim(agent, Duration.ofSeconds(30));
 
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenAnswer(call -> {
+        when(dispatcher.claimForAgent(any())).thenAnswer(call -> {
             // The deadline fires while the claim is being made.
             result.setResult(ResponseEntity.status(HttpStatus.NO_CONTENT).build());
             return Optional.of(new ScanDispatcher.AgentTask(42L, null));
@@ -56,10 +55,10 @@ class AgentJobPollerTest {
     @DisplayName("a delivered claim is not returned")
     void aDeliveredClaimStays() {
         AgentJobPoller poller = poller();
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
-        DeferredResult<ResponseEntity<Object>> result = poller.claim(agent, true, Duration.ofSeconds(30));
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.empty());
+        DeferredResult<ResponseEntity<Object>> result = poller.claim(agent, Duration.ofSeconds(30));
 
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
         recheck.get().run();
 
         assertThat(result.getResult()).isNotNull();
@@ -76,13 +75,13 @@ class AgentJobPollerTest {
         AgentView limited = com.asmolabs.vectispire.core.agents.internal.AgentViews.of(row);
         AgentJobPoller poller = poller();
 
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
-        ResponseEntity<?> none = (ResponseEntity<?>) poller.claim(limited, true, Duration.ZERO).getResult();
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.empty());
+        ResponseEntity<?> none = (ResponseEntity<?>) poller.claim(limited, Duration.ZERO).getResult();
         assertThat(none.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(none.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
 
-        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
-        ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(limited, true, Duration.ZERO).getResult();
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
+        ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(limited, Duration.ZERO).getResult();
         assertThat(one.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(one.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
     }

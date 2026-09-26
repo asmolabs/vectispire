@@ -78,6 +78,13 @@ public enum SecurityEventType {
     /** A setting that governs security changed: SIEM export, four-eyes, visibility, a gate policy, a credential. */
     SECURITY_SETTING_CHANGED("ZAN-SEC-019", "Security-relevant setting changed", 6, Outcome.SUCCESS),
 
+    /**
+     * An agent's sealing key was refused: its signature did not verify against the key pinned for
+     * the agent, or it was older than the key already accepted. No credential is sealed for it.
+     */
+    AGENT_SEALING_KEY_REFUSED("ZAN-SEC-020", "Agent sealing key refused: signature or generation did not verify", 8,
+            Outcome.FAILURE),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("ZAN-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -156,13 +163,16 @@ public enum SecurityEventType {
             case API_KEY_DELETED -> Optional.of(API_KEY_REVOKED);
             case AGENT_CREATED, AGENT_UPDATED, AGENT_DELETED, AGENT_SIGNING_KEY_PINNED -> Optional.of(AGENT_CHANGED);
             case AGENT_RESULT_REFUSED -> Optional.of(AGENT_RESULT_REFUSED);
+            case AGENT_SEALING_KEY_REFUSED -> Optional.of(AGENT_SEALING_KEY_REFUSED);
             case GATE_POLICY_UPDATED -> Optional.of(SECURITY_SETTING_CHANGED);
             // Listed rather than defaulted: a new operation has to be placed here, on one side or
             // the other, by whoever adds it — a default would decide for them, silently.
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
                     SCAN_TRIGGERED, AI_REVIEW_REQUESTED, REPORT_EXPORTED, TICKET_CREATED, TICKET_LINKED,
                     TICKET_CLOSED, TICKET_SYNCED, CONTROL_DECLARED, TEAM_UPDATED, ACCESS_DENIED,
-                    AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED, RULE_SET_UPLOADED,
+                    AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED,
+                    // Every restart of every agent: the refusal is the event, the rotation is routine.
+                    AGENT_SEALING_KEY_ACCEPTED, RULE_SET_UPLOADED,
                     RULE_SET_ACTIVATED, RULE_SET_DEACTIVATED, POSTURE_DIGEST_SENT,
                     // A name or a description; a project deleted with grants on it names the event
                     // itself, since only its writer knows whether any were revoked.

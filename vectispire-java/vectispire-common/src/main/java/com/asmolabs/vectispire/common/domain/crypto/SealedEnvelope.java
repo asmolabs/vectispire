@@ -31,9 +31,15 @@ import org.bouncycastle.util.Arrays;
  * plane to a remote agent. TLS protects it end to end <em>provided nobody terminates TLS on
  * the way</em> — and most deployments have a reverse proxy. At that point the SSH key is in
  * the clear: in a memory dump, in a debug log, and to whoever administers the proxy. Sealing
- * takes that proxy out of the trust boundary: the agent publishes an ephemeral public key on
- * every claim, the control plane seals for it, and the private half never leaves the agent's
+ * takes that proxy out of the trust boundary: the agent makes an ephemeral pair at every start,
+ * the control plane seals for its public half, and the private half never leaves the agent's
  * process — <b>nothing is written at rest</b>.
+ *
+ * <p><b>Given a key the control plane can trust.</b> The public half crosses the same channel as
+ * the envelope, so the proxy this excludes could also replace it. The control plane therefore
+ * seals only for a key signed with the agent's pinned result-signing key ({@link
+ * SealingKeyAttestation}, decision 0031) — without one, sealing would protect the credential from
+ * everybody but the party it was written against.
  *
  * <p><b>X25519, then HKDF, then AES-256-GCM.</b> The classic sealed box, written against
  * BouncyCastle's lightweight API for the reason given in {@link Digests}: which

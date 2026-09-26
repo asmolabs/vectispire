@@ -380,7 +380,7 @@
                     @if (agent.credentialsMode === 'delegated') {
                         <div class="text-xs" [class.text-muted-color]="agent.sealsCredentials">
                             {{
-                                (agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.in_clear')
+                                (agent.sealsCredentials ? 'agents.sealing.sealed' : 'agents.sealing.withheld')
                                     | translate
                             }}
                         </div>

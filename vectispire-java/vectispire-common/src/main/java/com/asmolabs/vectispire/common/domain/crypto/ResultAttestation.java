@@ -26,11 +26,13 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
  *
  * <h2>Why the key cannot be one the agent announces</h2>
  *
- * <p>{@link SealedEnvelope} works the other way round — the agent publishes an ephemeral public
- * key on every {@code hello} and the control plane seals for it. That is right for
- * confidentiality: the recipient is whoever is running, and a restarted agent is a new recipient.
+ * <p>{@link SealedEnvelope} works the other way round — the agent makes an ephemeral pair at every
+ * start and the control plane seals for its public half. That is right for confidentiality: the
+ * recipient is whoever is running, and a restarted agent is a new recipient. Even there the
+ * announcement alone proves nothing, which is why the sealing key is itself signed with this one
+ * ({@link SealingKeyAttestation}, decision 0031).
  *
- * <p>It would be worthless here. A signature verified against a key the <em>signer announced over
+ * <p>An announced key would be worthless here. A signature verified against a key the <em>signer announced over
  * the same channel</em> proves only that the announcer and the signer are the same party — which
  * the bearer token already proved. Whoever steals the API key announces their own key and signs
  * with it.

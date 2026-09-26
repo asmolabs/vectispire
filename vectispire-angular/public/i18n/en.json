@@ -76,7 +76,7 @@
     "scans": "Scans",
     "sealing": {
       "sealed": "Sealed end to end",
-      "in_clear": "In clear under TLS"
+      "withheld": "No verified sealing key: credentials withheld"
     },
     "seen_at": "Seen {{at}}",
     "signing": {

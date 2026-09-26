@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredEx
 import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
-import com.asmolabs.vectispire.core.scanning.InsecureCredentialTransportException;
+import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import java.util.NoSuchElementException;
@@ -67,7 +67,7 @@ public class ApiExceptionHandler {
      * and sets an environment variable. The same case as a 500 sends them to a stack trace and
      * then to an issue tracker.
      */
-    @ExceptionHandler({MissingEncryptionKeyException.class, InsecureCredentialTransportException.class})
+    @ExceptionHandler({MissingEncryptionKeyException.class, CredentialWithheldException.class})
     ProblemDetail preconditionFailed(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, error.getMessage());
     }

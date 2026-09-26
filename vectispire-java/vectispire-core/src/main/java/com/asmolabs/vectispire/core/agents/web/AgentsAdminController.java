@@ -45,11 +45,11 @@ public class AgentsAdminController {
     }
 
     /**
-     * @param sealsCredentials whether this agent announced what it takes to receive a sealed
-     *     secret. <b>The public key itself is not exposed</b>: it tells an operator nothing, and
-     *     one more opaque value on a screen helps nobody. This boolean does — an operator who
-     *     believes they are sealing while their agent is an older version would have no other
-     *     way to notice, and the deployment key would cross their proxy in the clear
+     * @param sealsCredentials whether this agent holds a sealing key signed with its pinned key —
+     *     that is, whether a delegated credential can be handed to it at all (decision 0031).
+     *     <b>The public key itself is not exposed</b>: it tells an operator nothing, and one more
+     *     opaque value on a screen helps nobody. This boolean does — a delegated agent without it
+     *     is handed no credential, and its scans of private repositories wait in the queue
      * @param signsResults whether a result-signing key is pinned for this agent — that is,
      *     whether a stolen API key would be enough to declare this agent's targets clean. The
      *     public key is not exposed for the same reason the sealing one is not: the operator needs

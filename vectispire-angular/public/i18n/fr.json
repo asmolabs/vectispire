@@ -76,7 +76,7 @@
     "scans": "Analyses",
     "sealing": {
       "sealed": "Scellé de bout en bout",
-      "in_clear": "En clair sous TLS"
+      "withheld": "Aucune clé de scellement vérifiée : identifiants retenus"
     },
     "seen_at": "Vu le {{at}}",
     "signing": {

@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
@@ -44,9 +45,12 @@ public class AgentProtocolService {
         this.clock = clock;
     }
 
+    /**
+     * What a {@code hello} says. It carries no sealing key any more: the one an agent still sends
+     * there, for a control plane older than decision 0031, is unsigned and read by nothing here.
+     */
     public record Announcement(
             String contractVersion,
-            String sealingPublicKey,
             String hostname,
             String platform,
             String version,
@@ -62,6 +66,32 @@ public class AgentProtocolService {
          *     the bound existed would otherwise announce a limit the claim then refuses to honour
          */
         record Accepted(int maxConcurrent) implements Hello {}
+    }
+
+    /**
+     * A sealing key, signed with the agent's pinned result-signing key.
+     *
+     * @param generation when the agent made the pair, in epoch milliseconds; null when absent
+     */
+    public record SealingKeyAnnouncement(String publicKey, Long generation, String signature) {}
+
+    /** What became of a sealing key an agent announced. */
+    public sealed interface SealingKey {
+
+        /** @param rotated false when the agent repeated the key already held */
+        record Accepted(boolean rotated) implements SealingKey {}
+
+        /** Not an X25519 key, or no positive generation: there is nothing to verify. */
+        record Unreadable() implements SealingKey {}
+
+        /** No signing key is pinned for this agent, so no sealing key can be believed. */
+        record NotPinned() implements SealingKey {}
+
+        /** The signature does not verify against the pinned key. Audited. */
+        record NotVerified() implements SealingKey {}
+
+        /** Older than the key already accepted — a clock put back, or an announcement replayed. Audited. */
+        record Stale() implements SealingKey {}
     }
 
     public sealed interface Submission {
@@ -89,22 +119,12 @@ public class AgentProtocolService {
             return new Hello.IncompatibleContract(announced);
         }
 
-        // **Refused when unusable, rather than stored as it stands.** An unreadable value would
-        // raise in the middle of a claim; `null` simply drops this agent back to the earlier
-        // behaviour — a clear key over an encrypted link — which is a degraded mode, not a
-        // failure.
-        String sealingKey = text(announcement.sealingPublicKey());
-        if (sealingKey != null && !SealedEnvelope.isUsablePublicKey(sealingKey)) {
-            throw new IllegalArgumentException("The announced sealing key is not a readable X25519 public key.");
-        }
-
         // **Clipped to the columns, never refused.** This is the agent describing itself — a
         // hostname, a platform string, the version it was built as — and nobody can correct it from
         // this side: a refusal would drop the heartbeat, the agent would read as offline and stop
         // being given work, over a display field. Past the column the database used to refuse the
-        // update instead, with the same outcome and a 500 in the agent's log. The two values that
-        // decide something, the contract version and the sealing key, are checked above and never
-        // clipped.
+        // update instead, with the same outcome and a 500 in the agent's log. The value that decides
+        // something, the contract version, is checked above and never clipped.
         agents.recordHeartbeat(
                 agent.id(),
                 clock.instant(),
@@ -115,10 +135,59 @@ public class AgentProtocolService {
                 BoundedText.clip(text(announcement.capabilities()), BoundedText.TEXT_MAX),
                 // Trimmed, as the compatibility check read it: padding it accepted would otherwise
                 // overflow a column sized for the version itself.
-                announced.trim(),
-                sealingKey);
+                announced.trim());
 
         return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()));
+    }
+
+    /**
+     * An agent's sealing key, accepted only on the word of the key an administrator pinned.
+     *
+     * <p><b>Why the pinned key and nothing else</b> (decision 0031). The sealing key crosses the
+     * channel the sealing exists to distrust — a TLS-terminating proxy may sit on it. Believing an
+     * announcement because it arrived would let that channel choose the key credentials are sealed
+     * for. The result-signing key is the one thing the agent holds that the control plane learned
+     * from somebody else, so it is what vouches. <b>No pinned key, no sealing key</b>: there is no
+     * trust on first use to fall back on, because the pair is remade at every start and a key
+     * trusted on first sight would have to be trusted again, unsigned, at the next.
+     *
+     * <p>The refusals that mean somebody may be trying — a signature that does not verify, a key
+     * older than the one held — are audited, and the entry signals a SIEM event. The row is written
+     * by one conditional statement, which has committed before the entry is recorded.
+     */
+    public SealingKey announceSealingKey(AgentView agent, SealingKeyAnnouncement announcement, RequestActor origin) {
+        String key = text(announcement.publicKey());
+        Long generation = announcement.generation();
+        if (key == null || !SealedEnvelope.isUsablePublicKey(key) || generation == null || generation <= 0) {
+            return new SealingKey.Unreadable();
+        }
+
+        String pinned = agent.signingPublicKey();
+        if (pinned == null || pinned.isBlank()) {
+            return new SealingKey.NotPinned();
+        }
+
+        if (!SealingKeyAttestation.verify(pinned, agent.id(), generation, key, announcement.signature())) {
+            recordSealingKey(AuditOperation.AGENT_SEALING_KEY_REFUSED, agent, origin,
+                    "Sealing key refused for agent \"" + agent.name() + "\": its signature does not verify against "
+                            + "the pinned signing key. No credential is sealed for it.");
+            return new SealingKey.NotVerified();
+        }
+
+        if (agents.acceptSealingKey(agent.id(), key, generation) == 0) {
+            recordSealingKey(AuditOperation.AGENT_SEALING_KEY_REFUSED, agent, origin,
+                    "Sealing key refused for agent \"" + agent.name() + "\": generation " + generation
+                            + " is not newer than the key already accepted. No credential is sealed for it.");
+            return new SealingKey.Stale();
+        }
+
+        boolean rotated = !key.equals(agent.sealingPublicKey());
+        if (rotated) {
+            recordSealingKey(AuditOperation.AGENT_SEALING_KEY_ACCEPTED, agent, origin,
+                    "Sealing key accepted for agent \"" + agent.name() + "\", signed with its pinned key (generation "
+                            + generation + "). Credentials delegated to it are sealed for this key.");
+        }
+        return new SealingKey.Accepted(rotated);
     }
 
     /**
@@ -190,6 +259,16 @@ public class AgentProtocolService {
                 origin.ipAddress(),
                 origin.userAgent()));
         return false;
+    }
+
+    private void recordSealingKey(AuditOperation operation, AgentView agent, RequestActor origin, String description) {
+        audit.record(new AuditLogService.Record(
+                operation,
+                agent.id().toString(),
+                description,
+                agent.name(),
+                origin.ipAddress(),
+                origin.userAgent()));
     }
 
     private static String text(String value) {

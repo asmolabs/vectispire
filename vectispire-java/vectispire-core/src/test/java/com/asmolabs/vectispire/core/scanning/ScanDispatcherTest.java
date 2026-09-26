@@ -76,6 +76,7 @@ class ScanDispatcherTest {
     private SettingsService settings;
     private ScanRuleSets ruleSets;
     private ScanDispatcher dispatcher;
+    private AuditLogService audit;
 
     @BeforeEach
     void wire() {
@@ -86,6 +87,7 @@ class ScanDispatcherTest {
         gitTokens = mock(com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(ScanRuleSets.class);
+        audit = mock(AuditLogService.class);
 
         when(ruleSets.activeHash()).thenReturn(Optional.empty());
         when(settings.isEnabled(any())).thenReturn(false);
@@ -106,7 +108,7 @@ class ScanDispatcherTest {
                 envelopes,
                 new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(),
-                mock(AuditLogService.class),
+                audit,
                 mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""));
@@ -117,7 +119,7 @@ class ScanDispatcherTest {
     void localModeGetsNoKey() {
         queueHolds(repositoryScan());
 
-        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null)).orElseThrow().task();
 
         assertThat(repositoryTarget(task).privateKey()).isNull();
         // Not merely absent from the payload: never read, so it is never decrypted either. This
@@ -132,7 +134,7 @@ class ScanDispatcherTest {
         SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
 
         ScanTask task = dispatcher
-                .claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()), false)
+                .claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))
                 .orElseThrow()
                 .task();
 
@@ -141,36 +143,54 @@ class ScanDispatcherTest {
         assertThat(envelopes.open(recipient, delivered)).contains(PRIVATE_KEY);
     }
 
+    /**
+     * The decision 0031 turned around. This test used to assert the opposite — that a delegated
+     * agent with no sealing key received the key in the clear over an encrypted link. A link that a
+     * proxy terminates is encrypted up to the proxy, and from here an agent whose announcement was
+     * removed on the way looks exactly like an agent that never made one.
+     */
     @Test
-    @DisplayName("sealing removes the encrypted-transport requirement, because the proxy no longer sees the key")
-    void sealingReplacesTheTransportRequirement() {
+    @DisplayName("a delegated agent with no verified sealing key is handed nothing, and the scan goes back")
+    void withoutAVerifiedKeyNothingLeaves() {
         queueHolds(repositoryScan());
 
-        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, envelopes.generateKeyPair().publicKey()), false))
-                .isPresent();
-        verify(queue, never()).requeue(anyLong(), anyString());
-    }
-
-    @Test
-    @DisplayName("an older agent with no sealing key still needs an encrypted link")
-    void unsealedKeyOverAnOpenLinkIsRefused() {
-        queueHolds(repositoryScan());
-
-        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), false))
-                .isInstanceOf(InsecureCredentialTransportException.class);
+        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
+                .isInstanceOf(CredentialWithheldException.class)
+                .hasMessageContaining("no signing key is pinned");
 
         // Put back before refusing: otherwise the scan stays claimed by an agent that received
         // nothing, and waits out the whole lease before anybody can take it.
         verify(queue).requeue(eq(7L), anyString());
+        verify(audit, never()).record(any());
     }
 
     @Test
-    void unsealedKeyOverAnEncryptedLinkIsDelivered() {
+    @DisplayName("a pinned agent that has proved no sealing key is told to announce one, not to pin")
+    void pinnedButNotProvedIsWithheldToo() {
         queueHolds(repositoryScan());
+        AgentEntity row = agentRow(CredentialsMode.DELEGATED, null);
+        row.setSigningPublicKey(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.generate().publicKey());
 
-        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), true).orElseThrow().task();
+        assertThatThrownBy(() -> dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(row)))
+                .isInstanceOf(CredentialWithheldException.class)
+                .hasMessageContaining("announced none that verified");
+        verify(queue).requeue(eq(7L), anyString());
+    }
 
-        assertThat(repositoryTarget(task).privateKey()).isEqualTo(PRIVATE_KEY);
+    @Test
+    @DisplayName("a row with a key and a token has both sealed, not the first alone")
+    void bothCredentialsAreSealed() {
+        repositoryUsesAnHttpsToken();
+        RepositoryEntity both = repositories.findById(1L).orElseThrow();
+        both.setSshKeyId(KEY_ID);
+        queueHolds(repositoryScan());
+        SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
+
+        ScanTask.Target.Repository target = repositoryTarget(
+                dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey())).orElseThrow().task());
+
+        assertThat(envelopes.open(recipient, target.privateKey())).contains(PRIVATE_KEY);
+        assertThat(envelopes.open(recipient, target.https().token())).contains("glpat-secret");
     }
 
     @Test
@@ -180,7 +200,7 @@ class ScanDispatcherTest {
         AgentEntity agent = agentRow(CredentialsMode.DELEGATED, null);
         agent.setCredentialsMode("something-a-later-version-wrote");
 
-        ScanTask task = dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent)).orElseThrow().task();
 
         assertThat(repositoryTarget(task).privateKey()).isNull();
     }
@@ -191,7 +211,7 @@ class ScanDispatcherTest {
         queueHolds(imageScan());
         when(containers.findById(4L)).thenReturn(Optional.of(container()));
 
-        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), false).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)).orElseThrow().task();
 
         assertThat(task.target()).isInstanceOf(ScanTask.Target.Image.class);
         // No refusal either: with nothing to protect, the encrypted-link precaution does not
@@ -203,12 +223,12 @@ class ScanDispatcherTest {
     @DisplayName("the SAST step is on the task only when the setting says so")
     void sastIsDecidedByTheControlPlane() {
         queueHolds(repositoryScan());
-        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true).orElseThrow().task().steps())
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null)).orElseThrow().task().steps())
                 .doesNotContain(ScanTask.Step.SAST);
 
         when(settings.isEnabled(Setting.SAST_ENABLED)).thenReturn(true);
         queueHolds(repositoryScan());
-        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true).orElseThrow().task().steps())
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null)).orElseThrow().task().steps())
                 .contains(ScanTask.Step.SAST);
     }
 
@@ -219,17 +239,17 @@ class ScanDispatcherTest {
         AgentEntity agent = agentRow(CredentialsMode.LOCAL, null);
 
         agent.setMaxConcurrent(4);
-        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
         verify(queue).claimWithin(agent.getId(), 4, List.of());
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
-        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
         verify(queue).claimWithin(agent.getId(), 16, List.of());
 
         agent.setMaxConcurrent(0);
-        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent), true);
+        dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
         verify(queue).claimWithin(agent.getId(), 1, List.of());
     }
 
@@ -239,7 +259,7 @@ class ScanDispatcherTest {
         queueHolds(repositoryScan());
         when(sshKeys.findById(KEY_ID)).thenReturn(Optional.empty());
 
-        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), true)).isEmpty();
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null))).isEmpty();
         verify(queue).fail(anyLong(), anyString(), anyString());
     }
 
@@ -444,7 +464,7 @@ class ScanDispatcherTest {
         queueHolds(repositoryScan());
         SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
 
-        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()), false)
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))
                 .orElseThrow().task();
 
         ScanTask.Target.HttpsCredential https = repositoryTarget(task).https();
@@ -459,20 +479,21 @@ class ScanDispatcherTest {
         repositoryUsesAnHttpsToken();
         queueHolds(repositoryScan());
 
-        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true).orElseThrow().task();
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null)).orElseThrow().task();
 
         assertThat(repositoryTarget(task).https()).isNull();
         verify(gitTokens, never()).findById(any());
     }
 
     @Test
-    @DisplayName("an unsealed token over an open link is refused, like a key")
-    void anUnsealedTokenOverAnOpenLinkIsRefused() {
+    @DisplayName("a token with no verified sealing key to seal it for is withheld, like a key")
+    void anUnsealedTokenIsWithheld() {
         repositoryUsesAnHttpsToken();
         queueHolds(repositoryScan());
 
-        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null), false))
-                .isInstanceOf(InsecureCredentialTransportException.class);
+        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
+                .isInstanceOf(CredentialWithheldException.class);
+        verify(queue).requeue(eq(7L), anyString());
     }
 
     @Test
@@ -491,7 +512,7 @@ class ScanDispatcherTest {
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));
 
-        assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null), true)).isEmpty();
+        assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
         verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("is not allowed"));
     }
 
@@ -506,7 +527,7 @@ class ScanDispatcherTest {
         when(repositories.findById(1L)).thenReturn(Optional.of(ambiguous));
         queueHolds(repositoryScan());
 
-        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null), true)).isEmpty();
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
         verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("Repository URL refused"));
     }
 

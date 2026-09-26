@@ -29,6 +29,7 @@ public record AgentView(
         String capabilities,
         String contractVersion,
         String sealingPublicKey,
+        Long sealingKeyGeneration,
         String signingPublicKey,
         Instant lastSeenAt,
         Instant createdAt) {}

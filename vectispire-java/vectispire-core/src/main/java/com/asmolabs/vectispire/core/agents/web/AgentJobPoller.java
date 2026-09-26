@@ -64,7 +64,7 @@ public class AgentJobPoller {
      * <p>204 rather than an empty object: "is there work?" has to be readable from the status
      * code, with no body to parse.
      */
-    public DeferredResult<ResponseEntity<Object>> claim(AgentView agent, boolean secureTransport, Duration wait) {
+    public DeferredResult<ResponseEntity<Object>> claim(AgentView agent, Duration wait) {
         Duration bounded = wait.isNegative() ? Duration.ZERO : min(wait, MAX_WAIT);
         // The container's own timeout is set past ours, so the deadline that fires is the one
         // that knows what to answer. Letting the container win produces a 503 the agent reads as
@@ -73,21 +73,20 @@ public class AgentJobPoller {
         DeferredResult<ResponseEntity<Object>> result =
                 new DeferredResult<>(bounded.plusSeconds(5).toMillis(), noJob(limit));
 
-        Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent, secureTransport);
+        Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent);
         if (immediate.isPresent() || bounded.isZero()) {
             metrics.agentPolled(immediate.isPresent());
             result.setResult(immediate.map(task -> job(task, limit)).orElseGet(() -> noJob(limit)));
             return result;
         }
 
-        schedule(result, agent, secureTransport, limit, Instant.now().plus(bounded));
+        schedule(result, agent, limit, Instant.now().plus(bounded));
         return result;
     }
 
     private void schedule(
             DeferredResult<ResponseEntity<Object>> result,
             AgentView agent,
-            boolean secureTransport,
             String limit,
             Instant deadline) {
 
@@ -97,7 +96,7 @@ public class AgentJobPoller {
                         return;
                     }
                     try {
-                        Optional<ScanDispatcher.AgentTask> task = dispatcher.claimForAgent(agent, secureTransport);
+                        Optional<ScanDispatcher.AgentTask> task = dispatcher.claimForAgent(agent);
                         if (task.isPresent()) {
                             metrics.agentPolled(true);
                             // **The return value is the delivery receipt.** Between the check above
@@ -112,11 +111,11 @@ public class AgentJobPoller {
                             metrics.agentPolled(false);
                             result.setResult(noJob(limit));
                         } else {
-                            schedule(result, agent, secureTransport, limit, deadline);
+                            schedule(result, agent, limit, deadline);
                         }
                     } catch (RuntimeException failed) {
-                        // Handed to the error handler rather than swallowed: a refused
-                        // credential transport is a 412 the agent can act on, and losing it here
+                        // Handed to the error handler rather than swallowed: a withheld
+                        // credential is a 412 the agent can act on, and losing it here
                         // would turn it into a silent 204 that reads as "no work".
                         result.setErrorResult(failed);
                     }

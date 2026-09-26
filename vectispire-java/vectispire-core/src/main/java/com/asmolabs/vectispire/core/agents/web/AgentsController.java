@@ -7,7 +7,6 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAgentKey;
-import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
@@ -37,9 +36,10 @@ import org.springframework.web.server.ResponseStatusException;
 /**
  * The remote agent protocol.
  *
- * <p>Four routes and one idea: an agent is a worker <b>with no database access</b>. It announces
- * itself, claims a task, gives a sign of life while it works, and hands back its result.
- * Everything it knows of the control plane goes through these four calls.
+ * <p>A handful of routes and one idea: an agent is a worker <b>with no database access</b>. It
+ * announces itself and the key it receives credentials under, claims a task, fetches the rules the
+ * task names, gives a sign of life while it works, and hands back its result. Everything it knows of
+ * the control plane goes through these calls.
  *
  * <p><b>Outside the session rules does not mean open.</b> These routes carry no session because
  * an agent has none: it authenticates with an API key bearing the {@code agent} scope. The check
@@ -55,21 +55,20 @@ public class AgentsController {
     private final AgentJobPoller poller;
     private final RuleSetService ruleSets;
     private final AgentProtocolService protocol;
-    private final TrustedProxies proxies;
 
     public AgentsController(
-            ScanDispatcher dispatcher,
-            AgentJobPoller poller,
-            RuleSetService ruleSets,
-            AgentProtocolService protocol,
-            TrustedProxies proxies) {
+            ScanDispatcher dispatcher, AgentJobPoller poller, RuleSetService ruleSets, AgentProtocolService protocol) {
         this.dispatcher = dispatcher;
         this.poller = poller;
         this.ruleSets = ruleSets;
         this.protocol = protocol;
-        this.proxies = proxies;
     }
 
+    /**
+     * @param sealingPublicKey still sent by every agent, for a control plane older than decision
+     *     0031 that seals for it. <b>Read by nothing here</b>: it is unsigned, and a key the channel
+     *     can rewrite is not one to seal for. The signed announcement is {@code POST /sealing-key}
+     */
     public record HelloRequest(
             @JsonProperty("contract_version") String contractVersion,
             @JsonProperty("sealing_public_key") String sealingPublicKey,
@@ -89,6 +88,63 @@ public class AgentsController {
     public record RuleSetResponse(String contentHash, List<StoredFile> files) {}
 
     /**
+     * @param publicKey base64 of the X25519 SPKI encoding, as the agent generated it at start
+     * @param generation when the agent made the pair, in epoch milliseconds
+     * @param signature base64 Ed25519, by the agent's result-signing key — see {@code
+     *     SealingKeyAttestation} for the exact bytes
+     */
+    public record SealingKeyRequest(@JsonProperty("public_key") String publicKey, Long generation, String signature) {}
+
+    /**
+     * The agent's sealing key, signed with the key an administrator pinned for it.
+     *
+     * <p>A route of its own rather than a field of the hello, because the signature covers the
+     * agent's id and an agent learns its id from the hello's answer. <b>An older control plane
+     * answers 404 here</b>, which the agent reads as "not supported" and carries on: its hello still
+     * carries the unsigned key such a control plane seals for.
+     *
+     * <p>The answers are distinct because each has its own fix: 412 — no signing key is pinned for
+     * this agent, an administrator's to do; 403 — the signature does not verify against the pinned
+     * key, the agent's configuration; 409 — older than the key already accepted, a clock put back.
+     * The two last are audited before the answer.
+     */
+    @PostMapping("/sealing-key")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void announceSealingKey(
+            @RequestBody SealingKeyRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        AgentView agent = authenticate(principal);
+        AgentProtocolService.SealingKey outcome = protocol.announceSealingKey(
+                agent,
+                new AgentProtocolService.SealingKeyAnnouncement(body.publicKey(), body.generation(), body.signature()),
+                RequestActors.unnamed(request));
+
+        switch (outcome) {
+            case AgentProtocolService.SealingKey.Accepted accepted -> {
+                // 204: nothing to say back; the next claim seals for this key.
+            }
+            case AgentProtocolService.SealingKey.Unreadable unreadable -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "A sealing key announcement needs an X25519 public key, a positive generation and a signature.");
+            case AgentProtocolService.SealingKey.NotPinned notPinned -> throw new ResponseStatusException(
+                    HttpStatus.PRECONDITION_FAILED,
+                    "No signing key is pinned for agent \"" + agent.name() + "\", so its sealing key cannot be "
+                            + "verified and no credential will be delegated to it. Pin one from the agents "
+                            + "administration screen and configure its private half as vectispire.agent.signing-key.");
+            case AgentProtocolService.SealingKey.NotVerified notVerified -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "The sealing key's signature does not verify against the signing key pinned for \""
+                            + agent.name() + "\". No credential will be sealed for it.");
+            case AgentProtocolService.SealingKey.Stale stale -> throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This sealing key is older than the one already accepted for \"" + agent.name()
+                            + "\". Check the agent's clock.");
+        }
+    }
+
+    /**
      * An agent's announcement, and <b>an operator's first diagnostic</b>.
      *
      * <p>If this call answers, the URL, the key, the scope and the agent row are all correct —
@@ -99,7 +155,6 @@ public class AgentsController {
         AgentView agent = authenticate(principal);
         AgentProtocolService.Hello answer = protocol.hello(agent, new AgentProtocolService.Announcement(
                 body.contractVersion(),
-                body.sealingPublicKey(),
                 body.hostname(),
                 body.platform(),
                 body.version(),
@@ -147,23 +202,21 @@ public class AgentsController {
     /**
      * Claims a task, or answers 204 when the wait runs out.
      *
-     * <p><b>Whether the link counts as encrypted is not this route's to decide.</b> It used to
-     * read {@code X-Forwarded-Proto} from any peer, which meant an attacker holding an agent key
-     * could ask for the deployment key in the clear by sending one header. {@link TrustedProxies}
-     * now answers that question, and it answers {@code false} unless the connection really is
-     * encrypted or the peer is a proxy the operator declared.
+     * <p><b>Whether the link is encrypted no longer decides anything here.</b> A delegated
+     * credential used to leave in the clear when the connection counted as encrypted; since decision
+     * 0031 it leaves sealed for a key the agent proved, or not at all, and TLS is no substitute for
+     * that — a proxy that terminates it reads what it carries.
      */
     @GetMapping("/jobs")
     public DeferredResult<ResponseEntity<Object>> claimJob(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @RequestParam(required = false, defaultValue = "0") int wait,
-            HttpServletRequest request) {
+            @RequestParam(required = false, defaultValue = "0") int wait) {
 
         AgentView agent = authenticate(principal);
         // **The refusal is not decided here.** It used to be, duplicating the same rule in the
         // dispatcher — and the two copies had already diverged. Only the dispatcher knows what
         // the task actually contains; it raises, and the handler turns that into a 412.
-        return poller.claim(agent, proxies.isSecureTransport(request), Duration.ofSeconds(wait));
+        return poller.claim(agent, Duration.ofSeconds(wait));
     }
 
     /**

@@ -5535,6 +5535,21 @@
         },
         "type" : "object"
       },
+      "SealingKeyRequest" : {
+        "properties" : {
+          "generation" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "public_key" : {
+            "type" : "string"
+          },
+          "signature" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "SecretFinding" : {
         "properties" : {
           "description" : {
@@ -7445,6 +7460,27 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "agents-controller" ]
+      }
+    },
+    "/api/v1/agent/sealing-key" : {
+      "post" : {
+        "operationId" : "announceSealingKey",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SealingKeyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "agents-controller" ]

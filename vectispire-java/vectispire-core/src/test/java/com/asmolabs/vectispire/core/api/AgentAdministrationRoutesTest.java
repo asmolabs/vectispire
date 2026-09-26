@@ -96,7 +96,9 @@ class AgentAdministrationRoutesTest extends ApiTestBase {
                         .header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contract_version\": \"" + AgentContract.VERSION + "\", \"sealing_public_key\": \"not-a-key\"}"))
-                .andExpect(status().isBadRequest());
+                // The hello's sealing key is read by nothing since decision 0031 — not even to
+                // refuse it: an older agent's hello must keep working (AgentSealingKeyRoutesTest).
+                .andExpect(status().isOk());
 
         mvc.perform(post("/api/v1/agent/hello")
                         .header("Authorization", bearer)

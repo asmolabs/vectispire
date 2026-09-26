@@ -196,11 +196,13 @@ public class ScanDispatcher {
      * idle agent, and a fleet of thirty idle agents was enough to starve the pool that serves
      * the interface.
      *
-     * <p><b>The deployment key only leaves if it is protected.</b> An agent in {@link
-     * CredentialsMode#DELEGATED} receives the repository's private key; sending it in the clear
-     * hands it to whoever is listening. The scan is put back in the queue rather than entrusted.
+     * <p><b>The deployment key only leaves sealed, for a key the agent proved.</b> An agent in {@link
+     * CredentialsMode#DELEGATED} receives the repository's private key or HTTPS token; without a
+     * sealing key signed by its pinned key the scan is put back in the queue rather than entrusted.
+     * Whether the link is encrypted no longer enters into it: TLS that a proxy terminates protects
+     * nothing from that proxy, and whether one does cannot be seen from here.
      */
-    public Optional<AgentTask> claimForAgent(AgentView agent, boolean secureTransport) {
+    public Optional<AgentTask> claimForAgent(AgentView agent) {
         // **Within the agent's limit, counted by the database.** The agent stops polling at its
         // limit too, but that is courtesy: two processes sharing a key, or an older agent that
         // never read the setting, would each believe they had room. The count is the one both
@@ -214,39 +216,42 @@ public class ScanDispatcher {
 
         ScanEntity scan = claimed.get();
         try {
-            // **The agent's mode decides; the transport only confirms.** An agent in `local` mode
-            // never has a key to receive, so the question of an encrypted link does not arise
-            // for it at all.
+            // **The agent's mode decides.** An agent in `local` mode never has a key to receive, so
+            // the question of a sealing key does not arise for it at all.
             ScanTask task = buildTask(scan, credentialsMode(agent).deliversCredentials());
 
             String privateKey = privateKeyOf(task);
             ScanTask.Target.HttpsCredential https = httpsOf(task);
             if (privateKey != null || https != null) {
-                boolean sealed = SealedEnvelope.isUsablePublicKey(agent.sealingPublicKey());
-                if (sealed) {
-                    // The token is sealed exactly as the key is (decision 0022); its host and user
-                    // name are not secrets and travel in the clear, so the agent can enforce the
-                    // binding before opening anything.
-                    task = privateKey != null
-                            ? withPrivateKey(task, envelopes.seal(agent.sealingPublicKey(), privateKey))
-                            : withHttps(task, new ScanTask.Target.HttpsCredential(
-                                    https.host(), https.username(), envelopes.seal(agent.sealingPublicKey(), https.token())));
-                    recordCredentialSent(agent, scan, "sealed for the agent's announced key");
-                } else if (!secureTransport) {
+                // **Sealed for the verified key, or not sent at all** (decision 0031). The key on
+                // the view is one the agent signed with its pinned key; nothing else ever reaches
+                // that column. There is no clear fallback, over TLS or otherwise: a credential in
+                // the clear is readable by whatever terminates TLS on the way, and the absence of a
+                // key is exactly what removing the announcement would look like from here.
+                String sealingKey = agent.sealingPublicKey();
+                if (!SealedEnvelope.isUsablePublicKey(sealingKey)) {
                     // Put back in the queue *before* refusing: otherwise the scan stays claimed by
                     // an agent that received nothing, until the lease lapses.
                     queue.requeue(scan.getId(), agent.id().toString());
-                    throw new InsecureCredentialTransportException();
+                    throw new CredentialWithheldException(agent.signingPublicKey() == null
+                            || agent.signingPublicKey().isBlank());
                 }
-                // An older agent announces no sealing key and therefore falls back on the
-                // encrypted-transport requirement, unchanged.
-                if (!sealed) {
-                    recordCredentialSent(agent, scan, "in the clear over an encrypted link");
+                // The token is sealed exactly as the key is (decision 0022); its host and user
+                // name are not secrets and travel in the clear, so the agent can enforce the
+                // binding before opening anything. Each is sealed on its own: the screens refuse a
+                // repository with both, but a row that has both must not see one leave in the clear.
+                if (privateKey != null) {
+                    task = withPrivateKey(task, envelopes.seal(sealingKey, privateKey));
                 }
+                if (https != null) {
+                    task = withHttps(task, new ScanTask.Target.HttpsCredential(
+                            https.host(), https.username(), envelopes.seal(sealingKey, https.token())));
+                }
+                recordCredentialSent(agent, scan, "sealed for the agent's verified sealing key");
             }
 
             return Optional.of(new AgentTask(scan.getId(), task));
-        } catch (InsecureCredentialTransportException refused) {
+        } catch (CredentialWithheldException refused) {
             throw refused;
         } catch (RuntimeException error) {
             queue.fail(scan.getId(), agent.id().toString(), String.valueOf(error.getMessage()));
@@ -257,10 +262,9 @@ public class ScanDispatcher {
     /**
      * Records that a deployment key left the control plane.
      *
-     * <p><b>Written whichever way it left</b>, sealed or in the clear, because the interesting
-     * question afterwards is "which machines have held this repository's key", and a log that
-     * only names the risky path cannot answer it. How it travelled is in the description, which is
-     * where an auditor reading a specific entry looks.
+     * <p>The interesting question afterwards is "which machines have held this repository's key".
+     * Every delivery is sealed since decision 0031; how it travelled stays in the description, which
+     * is where an auditor reading an older entry — some of which say "in the clear" — looks.
      */
     private void recordCredentialSent(AgentView agent, ScanEntity scan, String how) {
         audit.record(AuditLogService.Record.of(

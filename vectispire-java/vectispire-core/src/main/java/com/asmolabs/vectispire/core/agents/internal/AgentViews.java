@@ -32,6 +32,7 @@ public final class AgentViews {
                 agent.getCapabilities(),
                 agent.getContractVersion(),
                 agent.getSealingPublicKey(),
+                agent.getSealingKeyGeneration(),
                 agent.getSigningPublicKey(),
                 agent.getLastSeenAt(),
                 agent.getCreatedAt());
