@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.ai;
+package com.asmolabs.vectispire.core.ai;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;

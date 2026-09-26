@@ -11,11 +11,11 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.UserView;
-import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
 import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import com.asmolabs.vectispire.core.settings.SettingsService;

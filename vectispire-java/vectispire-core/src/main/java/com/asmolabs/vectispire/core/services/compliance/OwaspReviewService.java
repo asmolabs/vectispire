@@ -1,8 +1,9 @@
 package com.asmolabs.vectispire.core.services.compliance;
 
-import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
@@ -10,7 +11,6 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.AiReviewResults;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;

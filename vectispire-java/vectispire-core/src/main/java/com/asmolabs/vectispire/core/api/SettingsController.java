@@ -1,18 +1,18 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.asmolabs.vectispire.core.services.ai.AiReviewService;
-import com.asmolabs.vectispire.core.services.notifications.NotificationService;
-import com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService;
-import com.asmolabs.vectispire.core.services.tickets.TicketService;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.List;
-import java.util.Map;
+import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.services.notifications.NotificationService;
+import com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService;
+import com.asmolabs.vectispire.core.services.tickets.TicketService;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
