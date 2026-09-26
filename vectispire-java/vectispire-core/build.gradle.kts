@@ -142,8 +142,8 @@ dependencies {
     implementation(libs.bucket4j.core)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     /*
-     * **Spring Modulith, in observation mode.** `ModularityObservationTest` asks it what modules it
-     * sees and writes its report and diagrams; nothing fails on what it finds yet, and at runtime it
+     * **Spring Modulith, to verify the module boundaries.** `ModularityTest` fails the build on what it
+     * finds and writes its report and diagrams (decision 0030); at runtime it
      * is inert — no event publication registry (that needs a `spring-modulith-starter-jpa` or `-jdbc`
      * this build does not declare: the outbox is the one answer to "did this effect leave", decision
      * 0025) and no actuator endpoint (`spring-modulith-actuator` is not declared either). The core

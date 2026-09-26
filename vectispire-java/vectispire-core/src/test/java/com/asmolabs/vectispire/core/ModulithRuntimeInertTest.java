@@ -18,7 +18,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  * core starter auto-configures "moments" unless told otherwise — an hourly event on a scheduler of
  * its own, and a Jackson module in the web layer's mapper — and a later Modulith version may add
  * more. Nothing of it was asked for: the build keeps the outbox as the one event registry (decision
- * 0025) and uses Modulith only from {@code ModularityObservationTest}. A bean from Modulith's
+ * 0025) and uses Modulith only from {@code ModularityTest}. A bean from Modulith's
  * packages appearing here means an auto-configuration became active, and it should be decided, not
  * discovered.
  */

@@ -13,7 +13,7 @@ import org.springframework.modulith.Modulithic;
  * {@code persistence} and {@code internal} packages are hidden like any other module's, and they take
  * part in the cycle check. Declaring them open instead would have published the audit log's
  * repository to every domain — the coupling the move to modules exists to take away. The annotation
- * is metadata: it is read by {@code ApplicationModules}, in {@code ModularityObservationTest}, and by
+ * is metadata: it is read by {@code ApplicationModules}, in {@code ModularityTest}, and by
  * nothing at runtime.
  */
 @SpringBootApplication
