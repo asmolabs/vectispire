@@ -110,7 +110,7 @@ class SiemRoutesTest extends ApiTestBase {
                 .andReturn().getResponse().getContentAsString();
         assertThat(refused).doesNotContainIgnoringCase("connection refused");
 
-        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
         String attempted = mvc.perform(authenticated(post("/api/v1/siem/test"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(testJson))
@@ -118,6 +118,81 @@ class SiemRoutesTest extends ApiTestBase {
                 .andReturn().getResponse().getContentAsString();
         // Allowed, the request is actually made — and fails on the closed port, not on the policy.
         assertThat(attempted).isNotEqualTo(refused);
+    }
+
+    @Test
+    @DisplayName("the notifications' private switch no longer opens the internal network to the SIEM export")
+    void theNotificationSwitchDoesNotApplyToTheSiem() throws Exception {
+        // It was the SIEM's switch too, and a security lead may set it — for a channel a security
+        // lead configures and tests.
+        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "false");
+        try {
+            mvc.perform(authenticated(post("/api/v1/siem/test"), asCiso())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"endpoint": "http://127.0.0.1:59999/events"}"""))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Refused by the outbound policy")));
+        } finally {
+            settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "false");
+        }
+    }
+
+    @Test
+    @DisplayName("the test route answers an outcome, never the socket's own words")
+    void theTestAnswersAnOutcomeOnly() throws Exception {
+        // "Connection refused", "Read timed out" and "HTTP 404" tell a closed port from a filtered one
+        // from a listening server: answered to a security lead, a scanner of whatever the policy lets
+        // the export reach.
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
+        com.sun.net.httpserver.HttpServer listening = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+        listening.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+        listening.start();
+        try {
+            String closed = testMessage("http://127.0.0.1:59999/events");
+            String answering = testMessage("http://127.0.0.1:" + listening.getAddress().getPort() + "/events");
+
+            assertThat(closed).isEqualTo(answering).doesNotContainIgnoringCase("refused").doesNotContain("404");
+        } finally {
+            listening.stop(0);
+            settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "false");
+        }
+    }
+
+    @Test
+    @DisplayName("only an administrator may open the internal network to the SIEM export")
+    void onlyAnAdministratorOpensTheSiemToPrivateDestinations() throws Exception {
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "false");
+        try {
+            mvc.perform(authenticated(put("/api/v1/settings"), asCiso())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"siem_allow_private_destination\":\"true\"}"))
+                    .andExpect(status().isForbidden());
+            assertThat(settings.get(Setting.SIEM_ALLOW_PRIVATE_DESTINATION)).isEqualTo("false");
+
+            mvc.perform(authenticated(put("/api/v1/settings"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"siem_allow_private_destination\":\"true\"}"))
+                    .andExpect(status().isOk());
+            assertThat(settings.get(Setting.SIEM_ALLOW_PRIVATE_DESTINATION)).isEqualTo("true");
+        } finally {
+            settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "false");
+        }
+    }
+
+    private String testMessage(String endpoint) throws Exception {
+        return json.readTree(mvc.perform(authenticated(post("/api/v1/siem/test"), asAdmin())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"endpoint\": \"" + endpoint + "\"}"))
+                        .andExpect(jsonPath("$.success").value(false))
+                        .andReturn().getResponse().getContentAsString())
+                .get("message").asText();
     }
 
     @Test
@@ -172,7 +247,7 @@ class SiemRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("the connection test speaks the protocol it is given, and reaches a syslog collector")
     void theTestUsesTheProtocol() throws Exception {
-        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
         try (java.net.DatagramSocket collector =
                 new java.net.DatagramSocket(0, java.net.InetAddress.getLoopbackAddress())) {
             collector.setSoTimeout(3_000);
@@ -201,7 +276,7 @@ class SiemRoutesTest extends ApiTestBase {
                                 {"protocol": "SYSLOG_TCP", "endpoint": "127.0.0.1:59998"}"""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("private or local")));
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.startsWith("Refused by the outbound policy")));
     }
 
     private int saveStatus(String token, String protocol, String endpoint, String authHeader) throws Exception {

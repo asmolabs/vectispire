@@ -93,8 +93,10 @@ limites, elles répondent `413`.
 
 ## Export SIEM
 
-L'export se configure sur son [écran de réglages](../integrations/siem.fr.md), pas par des variables.
-Trois choses autour de lui relèvent du déploiement :
+L'export se configure sur son [écran de réglages](../integrations/siem.fr.md), pas par des variables,
+tout comme la possibilité de joindre un collecteur sur un réseau privé : le réglage **Autoriser une
+destination SIEM privée**, réservé à un administrateur, désactivé par défaut et distinct de celui des
+notifications. Trois choses autour de lui relèvent du déploiement :
 
 | Variable | Défaut | Notes |
 |---|---|---|

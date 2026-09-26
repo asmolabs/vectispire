@@ -18,6 +18,9 @@ ils partent — l'URL du tracker, *Autoriser une URL de tracker privée*, l'URL 
 l'acceptation qui laisse partir le code vers un point d'accès distant — sont donc aussi ceux d'un
 administrateur, et s'affichent en lecture seule pour les autres. Sans cela, un rôle qui ne peut pas
 lire un identifiant pourrait le recueillir en le dirigeant vers son propre hôte.
+*Autoriser une destination SIEM privée* revient à un administrateur pour une raison voisine : l'export
+SIEM est configuré et testé par un CISO, et l'interrupteur qui décide s'il peut joindre le réseau
+interne n'est pas laissé au même rôle.
 
 Le formulaire SIEM fonctionne à l'inverse, parce que le même rôle y règle le point d'arrivée et
 l'en-tête : changer le point d'arrivée **efface l'en-tête enregistré**, sauf si un nouveau est saisi

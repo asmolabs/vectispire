@@ -322,7 +322,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     }
 
     private void exportTo(String endpoint) throws Exception {
-        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
         mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

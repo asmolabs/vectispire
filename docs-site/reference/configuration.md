@@ -92,8 +92,10 @@ Three routes read their body whole before anything looks at it. Past these limit
 
 ## SIEM export
 
-The export is configured on its [settings screen](../integrations/siem.md), not by variables. Three
-things around it are the deployment's:
+The export is configured on its [settings screen](../integrations/siem.md), not by variables, and so
+is whether it may reach a collector on a private network: the administrator-only setting **Allow a
+private SIEM destination**, off by default and separate from the notifications' private-URL switch.
+Three things around it are the deployment's:
 
 | Variable | Default | Notes |
 |---|---|---|

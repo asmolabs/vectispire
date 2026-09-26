@@ -166,6 +166,7 @@ same name; decision records written before that date keep the names they had.
 | No other class in `core` holds an HTTP client | `ArchitectureTest` |
 | A raw socket is opened by the syslog sender alone, to the address the guard pinned | `ArchitectureTest`, `SyslogSenderTest` |
 | A syslog collector is judged by the same address rules as a URL, reserved endpoints included | `OutboundUrlGuardTest`, `SiemRoutesTest` |
+| The SIEM export reaches a private collector only by its own, administrator-only setting, and its test route answers an outcome, never the socket's error | `SiemRoutesTest` |
 | A SIEM event leaves after its transaction commits, is retried, and the relay knows its type | `SiemExportRoutesTest` |
 | Each security event is emitted by the gesture that causes it, and by nothing quieter | `SiemSignalsRoutesTest` |
 | A SIEM signature identifier does not change meaning | `SecurityEventTypeTest` |

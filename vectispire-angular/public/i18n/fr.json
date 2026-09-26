@@ -1896,6 +1896,10 @@
         "label": "Âge maximal des scans bruts (jours)",
         "help": "Purge les sorties brutes et SBOMs des scans antérieurs à cette durée (0 = aucune purge)."
       },
+      "siem_allow_private_destination": {
+        "label": "Autoriser une destination SIEM privée",
+        "help": "Pour un collecteur sur le réseau interne. Désactivé par défaut, et réglé par un administrateur seulement : l'export SIEM est configuré par un responsable sécurité, et une destination privée lui ouvre le réseau interne. La base de données et le démon Docker de Vectispire, ainsi que l'adresse de métadonnées de l'instance, restent refusés dans tous les cas."
+      },
       "sast_enabled": {
         "label": "Activer l'analyse statique du code (Semgrep)",
         "help": "Scanne le code source à chaque analyse pour identifier les faiblesses applicatives et mauvaises pratiques."
@@ -1964,8 +1968,8 @@
     "siem_enable": "Activer la diffusion d'événements",
     "siem_enable_desc": "Transmettre les événements de sécurité au format ArcSight CEF — vulnérabilités activement exploitées, refus de gate, plafonds de connexion et de MFA, décisions de privilèges, de clés et de triage, intégrité du journal d'audit. Chacun part après la validation du changement qui l'a causé, et est retenté si le collecteur est indisponible.",
     "siem_endpoint": "Point d'arrivée du collecteur",
-    "siem_endpoint_hint_syslog": "hôte:port — [adresse]:port en IPv6 — sans schéma : le protocole choisit le transport. RFC 5424, préfixé de sa longueur en TCP et TLS ; TLS vérifie le nom du collecteur contre le magasin de confiance du serveur. Une adresse privée demande « Autoriser une URL de webhook privée ».",
-    "siem_endpoint_hint_webhook": "Une URL http(s), qui reçoit un POST JSON {\"cef\": \"…\"}, redirections refusées. Une adresse privée demande « Autoriser une URL de webhook privée ».",
+    "siem_endpoint_hint_syslog": "hôte:port — [adresse]:port en IPv6 — sans schéma : le protocole choisit le transport. RFC 5424, préfixé de sa longueur en TCP et TLS ; TLS vérifie le nom du collecteur contre le magasin de confiance du serveur. Une adresse privée demande qu'un administrateur active « Autoriser une destination SIEM privée ».",
+    "siem_endpoint_hint_webhook": "Une URL http(s), qui reçoit un POST JSON {\"cef\": \"…\"}, redirections refusées. Une adresse privée demande qu'un administrateur active « Autoriser une destination SIEM privée ».",
     "siem_min_sev": "Sévérité minimale transmise",
     "siem_min_sev_hint": "Bandes CEF : critique 9–10, élevée 7–8, moyenne 4–6. Le test de connexion passe toujours.",
     "siem_protocol": "Protocole / Type de collecteur",

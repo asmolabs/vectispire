@@ -50,10 +50,24 @@ you type it again: a header is issued for one collector.
 
 ### Private collectors
 
-A collector on a private network — the usual case — is refused unless **Allow a private webhook URL**
-is on, as for every outbound destination. The cloud metadata address, the Docker daemon's proxy and
-the database are refused whatever that setting says, for syslog exactly as for the webhook: the
-address a name resolves to is checked once, and the connection is made to that address.
+A collector on a private network — the usual case — is refused unless **Allow a private SIEM
+destination** is on. That setting is the export's own and an **administrator's only**: the export is
+configured and tested by a security lead, and the switch that decides how far it may reach is not in
+the same hands. It is off by default. Until 2026-09 the export followed *Allow a private webhook URL*,
+which a security lead may set; an installation whose collector is private needs an administrator to
+switch the new setting on after upgrading, or events are refused and the outbox reports it.
+
+The cloud metadata address, the Docker daemon's proxy and the database are refused whatever that
+setting says, for syslog exactly as for the webhook: the address a name resolves to is checked once,
+and the connection is made to that address.
+
+### The connection test
+
+The test sends the health-check event over the protocol on the form and answers one of three
+outcomes: **delivered**, **refused by the outbound policy**, or **not delivered** — the collector
+could not be reached or did not accept the event. The socket's own error — a refused connection, a
+timeout, an HTTP status — is written to the server log, not answered: those tell a closed port from a
+listening server, which would make the button a scanner of every network the export may reach.
 
 ## Minimum severity
 

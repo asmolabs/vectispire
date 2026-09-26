@@ -96,6 +96,7 @@ class SettingTest {
         // Each of these, on, sends something somewhere it was not going before.
         assertThat(Setting.AI_REVIEW_ALLOW_REMOTE.defaultValue()).isEqualTo("false");
         assertThat(Setting.NOTIFICATION_ALLOW_PRIVATE_URL.defaultValue()).isEqualTo("false");
+        assertThat(Setting.SIEM_ALLOW_PRIVATE_DESTINATION.defaultValue()).isEqualTo("false");
         assertThat(Setting.SAST_ENABLED.defaultValue()).isEqualTo("false");
         assertThat(Setting.AI_REVIEW_ENABLED.defaultValue()).isEqualTo("false");
     }

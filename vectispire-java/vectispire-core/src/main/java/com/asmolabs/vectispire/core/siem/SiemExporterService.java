@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.SettingType;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -17,6 +18,8 @@ import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,6 +32,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class SiemExporterService {
+
+    private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
 
     /** Binds the stored header to its own column, so a ciphertext moved elsewhere does not decrypt. */
     static final String AUTH_HEADER_CONTEXT = "siem_config:auth_header";
@@ -172,6 +177,12 @@ public class SiemExporterService {
      * <p>Reported rather than thrown: "unreachable" is the answer to the question the button asks.
      * The same guard runs as for a real event, so a refusal here is the refusal the export would
      * get. The header travels with a webhook only.
+     *
+     * <p><b>An outcome, not the error.</b> The route answered the socket's own words — "Connection
+     * refused", "Read timed out", "HTTP 404" — to a security lead, and those tell a closed port from a
+     * filtered one from a listening web server: a scanner of whatever network the policy lets the
+     * export reach. Three outcomes now — delivered, refused by the policy, not delivered — and the
+     * detail goes to the server log, where an administrator reads it.
      */
     public TestResult testConnection(String protocol, String endpoint, String authHeader) {
         if (endpoint == null || endpoint.isBlank()) {
@@ -193,10 +204,22 @@ public class SiemExporterService {
                     .build();
             sender.send(destination, parsed.carriesHeaders() ? authHeader : null, ping);
             return new TestResult(true, "Event delivered over " + parsed.name() + ".", parsed.carriesHeaders() ? 200 : 0);
-        } catch (Exception e) {
-            return new TestResult(false, "Connection error: " + e.getMessage(), 0);
+        } catch (UnsafeUrlException refused) {
+            log.warn("SIEM connection test refused by the outbound policy: {}", refused.getMessage());
+            return new TestResult(false, REFUSED_BY_POLICY, 0);
+        } catch (Exception failed) {
+            log.warn("SIEM connection test over {} failed: {}", parsed.name(), failed.getMessage());
+            return new TestResult(false, NOT_DELIVERED, 0);
         }
     }
+
+    static final String REFUSED_BY_POLICY = "Refused by the outbound policy: this destination is not allowed. A "
+            + "collector on the internal network needs an administrator to enable “Allow a private SIEM "
+            + "destination”; Vectispire's own database, its Docker daemon and the instance metadata endpoint "
+            + "are refused in every case.";
+
+    static final String NOT_DELIVERED = "The event was not delivered: the collector could not be reached, or did "
+            + "not accept it. The cause is in the server log.";
 
     private static SiemProtocol parseProtocol(String protocol) {
         return SiemProtocol.byName(protocol).orElseThrow(() -> new IllegalArgumentException(

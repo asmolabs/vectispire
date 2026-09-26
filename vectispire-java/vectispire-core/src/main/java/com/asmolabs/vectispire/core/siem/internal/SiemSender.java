@@ -31,9 +31,9 @@ import org.springframework.stereotype.Component;
  *       address. <b>No header</b>: a syslog frame has nowhere to carry one.
  * </ul>
  *
- * <p>Both refuse a private destination unless {@code notification_allow_private_url} is on, as every
- * outbound channel does — a collector on an internal network needs that setting — and the metadata
- * endpoint, the Docker proxy and the database under every policy.
+ * <p>Both refuse a private destination unless {@code siem_allow_private_destination} is on — a
+ * collector on an internal network needs that setting, which an administrator alone may set — and the
+ * metadata endpoint, the Docker proxy and the database under every policy.
  */
 @Component
 public class SiemSender {
@@ -92,14 +92,16 @@ public class SiemSender {
     }
 
     /**
-     * Private addresses only when the operator has allowed them, as for every other channel.
+     * Private addresses only when an administrator has allowed them for this channel.
      *
-     * <p>Unconditionally allowed once. With the test route answering the raw error to a security
-     * lead — "Connection refused", "HTTP 404" — that made a scanner of the internal network available
-     * to a role that is not an administrator.
+     * <p>Unconditionally allowed once, then allowed by the notifications' switch — which a security
+     * lead may set, for a channel a security lead configures and tests. Either way, a role that is
+     * not an administrator decided how far the export reaches; with the test route answering the raw
+     * error — "Connection refused", "HTTP 404" — that was a scanner of the internal network. The
+     * switch is the SIEM's own now, and the test route answers only an outcome.
      */
     private OutboundPolicy policy() {
-        return settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
+        return settings.isEnabled(Setting.SIEM_ALLOW_PRIVATE_DESTINATION)
                 ? OutboundPolicy.INTERNAL_ALLOWED
                 : OutboundPolicy.PUBLIC_ONLY;
     }

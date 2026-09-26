@@ -17,6 +17,9 @@ the OpenAI key are set by an administrator only, so the settings that decide the
 the tracker base URL, *Allow a private tracker URL*, the OpenAI URL and the acknowledgement that
 lets code go to a remote endpoint — are an administrator's too, and show read-only to anyone else.
 Otherwise a role that cannot read a credential could collect it by pointing it at its own host.
+*Allow a private SIEM destination* is an administrator's for a neighbouring reason: the SIEM export is
+configured and tested by a CISO, and the switch deciding whether it may reach the internal network
+is not left to the same role.
 
 The SIEM form works the other way round, because the same role sets its endpoint and its header:
 changing the endpoint **drops the stored header** unless a new one is typed with it. A header is

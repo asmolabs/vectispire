@@ -203,7 +203,7 @@ class SiemExportRoutesTest extends ApiTestBase {
     }
 
     private void configure(String protocol, String endpoint, String minSeverity) throws Exception {
-        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        settings.set(Setting.SIEM_ALLOW_PRIVATE_DESTINATION, "true");
         mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

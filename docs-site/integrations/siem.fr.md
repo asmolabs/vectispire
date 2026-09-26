@@ -54,11 +54,26 @@ un collecteur.
 
 ### Collecteurs privés
 
-Un collecteur sur un réseau privé — le cas habituel — est refusé tant que **Autoriser une URL de
-webhook privée** n'est pas activé, comme pour toute destination sortante. L'adresse de métadonnées du
-nuage, le proxy du démon Docker et la base de données sont refusés quel que soit ce réglage, en syslog
-exactement comme en webhook : l'adresse vers laquelle un nom se résout est vérifiée une fois, et la
-connexion est ouverte vers cette adresse-là.
+Un collecteur sur un réseau privé — le cas habituel — est refusé tant que **Autoriser une destination
+SIEM privée** n'est pas activé. Ce réglage est propre à l'export et **réservé à un administrateur** :
+l'export est configuré et testé par un responsable sécurité, et l'interrupteur qui décide jusqu'où il
+peut porter n'est pas entre les mêmes mains. Il est désactivé par défaut. Jusqu'en septembre 2026,
+l'export suivait *Autoriser une URL de webhook privée*, qu'un responsable sécurité peut régler ; une
+installation dont le collecteur est privé doit faire activer le nouveau réglage par un administrateur
+après la mise à jour, sans quoi les événements sont refusés et l'outbox le signale.
+
+L'adresse de métadonnées du nuage, le proxy du démon Docker et la base de données sont refusés quel
+que soit ce réglage, en syslog exactement comme en webhook : l'adresse vers laquelle un nom se résout
+est vérifiée une fois, et la connexion est ouverte vers cette adresse-là.
+
+### Le test de connexion
+
+Le test envoie l'événement de contrôle par le protocole du formulaire et répond l'une de trois
+issues : **délivré**, **refusé par la politique sortante**, ou **non délivré** — le collecteur n'a
+pas pu être joint ou n'a pas accepté l'événement. L'erreur de la socket elle-même — une connexion
+refusée, un délai dépassé, un statut HTTP — est écrite dans le journal du serveur, pas renvoyée :
+elle distingue un port fermé d'un serveur à l'écoute, ce qui ferait du bouton un scanner de chaque
+réseau que l'export peut atteindre.
 
 ## Sévérité minimale
 

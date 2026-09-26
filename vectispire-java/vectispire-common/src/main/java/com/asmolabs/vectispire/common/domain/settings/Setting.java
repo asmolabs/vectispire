@@ -160,6 +160,24 @@ public enum Setting {
                     + "endpoint stays refused in every case.",
             "false"),
 
+    /**
+     * The SIEM export's own switch for a collector on the internal network.
+     *
+     * <p>It borrowed {@link #NOTIFICATION_ALLOW_PRIVATE_URL}, which a security lead may set, for a
+     * channel a security lead configures and tests: between the two, a role that is not an
+     * administrator could point the export at any internal host and port and read, from the test
+     * button, whether something answered there. Its own key, administrator-only (see
+     * {@link #administratorOnly()}), and off by default — an installation whose collector is private
+     * has an administrator switch it on after the upgrade, which the release notes say.
+     */
+    SIEM_ALLOW_PRIVATE_DESTINATION("siem_allow_private_destination", SettingType.BOOLEAN, Section.NOTIFICATIONS,
+            "Allow a private SIEM destination",
+            "For a collector on the internal network. Off by default, and set by an administrator only: the SIEM "
+                    + "export is configured by a security lead, and a private destination opens the internal "
+                    + "network to it. Vectispire's own database and Docker daemon and the instance metadata "
+                    + "endpoint stay refused in every case.",
+            "false"),
+
     LICENSE_BLOCKLIST("license_blocklist", SettingType.TEXT, Section.LICENSES,
             "Forbidden licenses",
             "Comma-separated SPDX identifiers, for example \"GPL-3.0-only,AGPL-3.0-only\". Empty, nothing is "
@@ -530,6 +548,17 @@ public enum Setting {
     }
 
     /**
+     * Whether only an administrator may change this setting.
+     *
+     * <p>A setting that decides where a credential is sent ({@link #directsCredential()}), and the
+     * switch that opens the internal network to the SIEM export — a channel a security lead
+     * configures and tests, and which therefore must not also decide how far it may reach.
+     */
+    public boolean administratorOnly() {
+        return directsCredential().isPresent() || this == SIEM_ALLOW_PRIVATE_DESTINATION;
+    }
+
+    /**
      * Whether changing this setting changes what the deployment protects, and so is forwarded to the
      * SOC as a security-relevant change.
      *
@@ -544,7 +573,7 @@ public enum Setting {
     public boolean governsSecurity() {
         return switch (this) {
             case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
-                    TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
+                    SIEM_ALLOW_PRIVATE_DESTINATION, TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
                     WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
                     AI_REVIEW_OLLAMA_URL -> true;
             case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, RETENTION_KEEP_PER_TARGET,
