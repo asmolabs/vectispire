@@ -3,8 +3,6 @@ package com.asmolabs.vectispire.core;
 import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.services.issues.IssueDecisionService;
-import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -160,16 +158,15 @@ class ArchitectureTest {
     private record KnownCycle(Class<?> origin, Class<?> target, String reason) {}
 
     /**
-     * <b>A list that only shrinks.</b> Two entries on 2026-09-26 — {@code audit} → {@code siem}
-     * left the same day, by the {@code AuditChainBroken} event the SIEM listens to — both between domains whose
-     * classes sit where the future modules would own them (decision 0026); placing a class in the
-     * wrong domain to make a cycle disappear would have hidden it rather than removed it.
-     * {@link #knownCyclesAreStillThere} fails the day one of them goes, so the entry leaves with it.
+     * <b>A list that only shrinks, and has.</b> Two entries on 2026-09-26, both between domains
+     * whose classes sat where the future modules would own them (decision 0026). Both were broken
+     * the same day without moving a class: {@code audit} → {@code siem} by the {@code
+     * AuditChainBroken} event the SIEM listens to, {@code issues} → {@code tickets} by the {@code
+     * TicketReferences} port the tracker implements. The mechanism stays so that a cycle which cannot
+     * be broken in the review that finds it is recorded with its reason rather than hidden by moving a
+     * class to the wrong domain; {@link #knownCyclesAreStillThere} fails the day an entry goes stale.
      */
-    private static final List<KnownCycle> KNOWN_CYCLES = List.of(
-            new KnownCycle(IssueDecisionService.class, TicketService.class,
-                    "attaching a ticket validates the reference against the configured tracker, while the"
-                            + " tracker's webhook and sweep transition issues; the validation belongs to tickets"));
+    private static final List<KnownCycle> KNOWN_CYCLES = List.of();
 
     private static String servicesDomain(String domain) {
         return ROOT + ".core.services." + domain + "..";
