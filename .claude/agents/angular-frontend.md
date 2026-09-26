@@ -59,8 +59,17 @@ plain field. State written from a callback is a signal.
 **Errors are read with `messageOf`.** The server answers RFC 7807: the explanation is in `detail`,
 and `err.error.message` is always empty, so fourteen screens showed the generic fallback.
 
+**Every route has a `title` key** (`titles.*`), translated by `TranslatedTitleStrategy`; the
+i18n check reads `app.routes.ts` and refuses a sentence as a title. **The shell is guarded**
+(`signedIn` on the `''` parent): a new page under it needs no guard of its own for the session, and
+a `returnUrl` is only ever used through `safeReturnUrl` — anything else is an open redirect.
+
+**ESLint is type-aware** (`recommendedTypeChecked`, `no-deprecated`). Do not silence it with `any`;
+and do not trust `eslint --fix` for `no-unnecessary-type-assertion`, which has removed assertions
+the type-checker needed.
+
 **An icon-only button has an accessible name** (`[ariaLabel]="'…' | translate"`): the template lint
-checks native elements, not `<p-button>`.
+checks native elements, not `<p-button>`, so nothing catches the omission: look for it when you add one.
 
 **Translation keys are literal.** `'prefix.' + value | translate` and `` t(`…${x}`) `` are invisible
 to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
