@@ -109,11 +109,16 @@ class ArchitectureTest {
     }
 
     /**
-     * The domains of {@code core.services} that every other domain may use: the two helpers left
-     * without a domain, the deployment's settings, the door out, encryption, the audit writer and
-     * the outbox relay (decision 0026).
+     * The domains of {@code core.services} that every other domain may use: the helper left without
+     * a domain, the deployment's settings, the door out, encryption, the audit writer, the outbox
+     * relay and the PDF pagination four domains' reports share (decision 0026).
+     *
+     * <p>{@code reporting} joined on 2026-09-26, when {@code ReportCursor} left {@code shared}: it is
+     * a capability like {@code outbound} — how a page is laid out, not what it says — and a copy per
+     * domain would be four answers to "did this page overflow", the defect the class exists for.
      */
-    private static final Set<String> FOUNDATION = Set.of("shared", "settings", "outbound", "crypto", "audit", "outbox");
+    private static final Set<String> FOUNDATION =
+            Set.of("shared", "settings", "outbound", "crypto", "audit", "outbox", "reporting");
 
     /**
      * What each domain may use besides itself — and, above the foundation, besides the foundation.
@@ -131,6 +136,7 @@ class ArchitectureTest {
             Map.entry("crypto", Set.of("outbound")),
             Map.entry("audit", Set.of()),
             Map.entry("outbox", Set.of()),
+            Map.entry("reporting", Set.of()),
             Map.entry("access", Set.of()),
             Map.entry("siem", Set.of()),
             Map.entry("rules", Set.of()),
