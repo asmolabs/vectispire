@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.services.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.ScanDispatcher;
@@ -68,17 +69,18 @@ public class AgentJobPoller {
         // The container's own timeout is set past ours, so the deadline that fires is the one
         // that knows what to answer. Letting the container win produces a 503 the agent reads as
         // an outage.
+        String limit = String.valueOf(AgentConcurrency.effective(agent.getMaxConcurrent()));
         DeferredResult<ResponseEntity<Object>> result =
-                new DeferredResult<>(bounded.plusSeconds(5).toMillis(), noJob());
+                new DeferredResult<>(bounded.plusSeconds(5).toMillis(), noJob(limit));
 
         Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent, secureTransport);
         if (immediate.isPresent() || bounded.isZero()) {
             metrics.agentPolled(immediate.isPresent());
-            result.setResult(immediate.<ResponseEntity<Object>>map(ResponseEntity::ok).orElseGet(AgentJobPoller::noJob));
+            result.setResult(immediate.map(task -> job(task, limit)).orElseGet(() -> noJob(limit)));
             return result;
         }
 
-        schedule(result, agent, secureTransport, Instant.now().plus(bounded));
+        schedule(result, agent, secureTransport, limit, Instant.now().plus(bounded));
         return result;
     }
 
@@ -86,6 +88,7 @@ public class AgentJobPoller {
             DeferredResult<ResponseEntity<Object>> result,
             AgentEntity agent,
             boolean secureTransport,
+            String limit,
             Instant deadline) {
 
         scheduler.schedule(
@@ -102,14 +105,14 @@ public class AgentJobPoller {
                             // then claimed by an agent that never received it, and sat there until
                             // the lease lapsed. False means nobody will read this answer — so the
                             // scan goes straight back to the queue.
-                            if (!result.setResult(ResponseEntity.ok(task.get()))) {
+                            if (!result.setResult(job(task.get(), limit))) {
                                 dispatcher.returnUndelivered(task.get().scanId(), agent);
                             }
                         } else if (Instant.now().isAfter(deadline)) {
                             metrics.agentPolled(false);
-                            result.setResult(noJob());
+                            result.setResult(noJob(limit));
                         } else {
-                            schedule(result, agent, secureTransport, deadline);
+                            schedule(result, agent, secureTransport, limit, deadline);
                         }
                     } catch (RuntimeException failed) {
                         // Handed to the error handler rather than swallowed: a refused
@@ -121,8 +124,16 @@ public class AgentJobPoller {
                 Instant.now().plus(POLL_INTERVAL));
     }
 
-    private static ResponseEntity<Object> noJob() {
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    /**
+     * Every answer names the limit this claim was held to, the 204 included — see {@link
+     * AgentConcurrency#HEADER} for why the empty answer is the one that needs it most.
+     */
+    private static ResponseEntity<Object> job(ScanDispatcher.AgentTask task, String limit) {
+        return ResponseEntity.ok().header(AgentConcurrency.HEADER, limit).body(task);
+    }
+
+    private static ResponseEntity<Object> noJob(String limit) {
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).header(AgentConcurrency.HEADER, limit).build();
     }
 
     private static Duration min(Duration left, Duration right) {

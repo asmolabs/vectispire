@@ -322,6 +322,18 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
             @Param("containerIds") java.util.Collection<Long> containerIds,
             Limit limit);
 
+    /**
+     * The scans a worker holds <b>and is still renewing</b>: its lease has not lapsed.
+     *
+     * <p>The complement of {@link #findLapsed}, condition for condition — a null lease counts as
+     * lapsed in both, so a scan is never held and reclaimable at the same instant, nor neither.
+     */
+    @Query("""
+            select count(s.id) from ScanEntity s
+             where s.status = :status and s.claimedBy = :worker
+               and s.leaseExpiresAt is not null and s.leaseExpiresAt >= :asOf""")
+    long countHeld(@Param("worker") String worker, @Param("status") String status, @Param("asOf") Instant asOf);
+
     long countByStatusAndClaimedBy(String status, String claimedBy);
 
     @Query("""

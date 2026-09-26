@@ -206,6 +206,27 @@ class ScanDispatcherTest {
     }
 
     @Test
+    @DisplayName("an agent's claim is held to its limit as the queue applies it, never to the raw column")
+    void anAgentClaimsWithinItsEffectiveLimit() {
+        queueHolds(imageScan());
+        AgentEntity agent = agent(CredentialsMode.LOCAL, null);
+
+        agent.setMaxConcurrent(4);
+        dispatcher.claimForAgent(agent, true);
+        verify(queue).claimWithin(agent.getId(), 4, List.of());
+
+        // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
+        // paused agent.
+        agent.setMaxConcurrent(50);
+        dispatcher.claimForAgent(agent, true);
+        verify(queue).claimWithin(agent.getId(), 16, List.of());
+
+        agent.setMaxConcurrent(0);
+        dispatcher.claimForAgent(agent, true);
+        verify(queue).claimWithin(agent.getId(), 1, List.of());
+    }
+
+    @Test
     @DisplayName("a deleted SSH key fails the scan rather than cloning anonymously")
     void aMissingKeyFailsTheScan() {
         queueHolds(repositoryScan());
@@ -368,6 +389,7 @@ class ScanDispatcherTest {
 
     private void queueHolds(ScanEntity scan) {
         when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of(scan));
+        when(queue.claimWithin(any(), anyInt(), any())).thenReturn(Optional.of(scan));
     }
 
     private static ScanTask.Target.Repository repositoryTarget(ScanTask task) {

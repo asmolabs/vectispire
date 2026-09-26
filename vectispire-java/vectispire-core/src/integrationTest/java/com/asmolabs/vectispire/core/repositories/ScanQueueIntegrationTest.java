@@ -2,15 +2,20 @@ package com.asmolabs.vectispire.core.repositories;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentKind;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CountDownLatch;
@@ -72,9 +77,24 @@ class ScanQueueIntegrationTest {
     @Autowired
     private TransactionTemplate transactions;
 
+    @Autowired
+    private Agents agents;
+
     @BeforeEach
     void emptyQueue() {
         scans.deleteAll();
+        agents.deleteAll();
+    }
+
+    /** A remote agent's row: the claim takes it as its lock, so it has to exist. */
+    private UUID agent(String name) {
+        AgentEntity agent = new AgentEntity();
+        agent.setName(name);
+        agent.setKind(AgentKind.REMOTE.wireName());
+        agent.setCredentialsMode(CredentialsMode.LOCAL.wireName());
+        agent.setEnabled(true);
+        agent.setCreatedAt(Instant.now());
+        return agents.save(agent).getId();
     }
 
     private void enqueue(int count, String requiredLabel) {
@@ -181,6 +201,102 @@ class ScanQueueIntegrationTest {
 
         assertThat(queue.claim(0, "worker", List.of())).isEmpty();
         assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("concurrent polls of one agent never take it past its limit")
+    void concurrentPollsRespectTheLimit() throws Exception {
+        // Eight polls of one agent at once, round after round. Most interleavings are also turned
+        // away by the conditional take — the polls mostly read the same oldest candidate — so this
+        // is the broad check, and `theCountWaitsForAConcurrentTake` is the one that forces the
+        // interleaving only the lock on the agent's row stops.
+        //
+        // Rounds, for the same reason as above: a round is a poll, and asserting after several is
+        // what shows a full agent stays full rather than being topped up by a later race.
+        enqueue(20, null);
+        UUID edge = agent("edge");
+        UUID other = agent("other");
+        int limit = 2;
+        int polls = 8;
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(polls)) {
+            for (int round = 0; round < 5; round++) {
+                CyclicBarrier together = new CyclicBarrier(polls);
+                List<Callable<Optional<ScanEntity>>> claims = IntStream.range(0, polls)
+                        .mapToObj(poll -> (Callable<Optional<ScanEntity>>) () -> {
+                            together.await(10, TimeUnit.SECONDS);
+                            return queue.claimWithin(edge, limit, List.of());
+                        })
+                        .toList();
+                for (Future<Optional<ScanEntity>> claim : pool.invokeAll(claims)) {
+                    claim.get();
+                }
+                assertThat(scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), edge.toString()))
+                        .as("scans held by an agent whose limit is %d, after round %d", limit, round)
+                        .isEqualTo(limit);
+            }
+        }
+
+        // The limit is the agent's, not the queue's: another agent still finds work.
+        assertThat(queue.claimWithin(other, 1, List.of())).isPresent();
+    }
+
+    @Test
+    @DisplayName("a poll counts after a concurrent take of the same agent has committed, not before")
+    void theCountWaitsForAConcurrentTake() throws Exception {
+        // The interleaving the barrage above rarely produces, forced: another poll of the same
+        // agent holds its row and has taken a *different* scan — one requeued behind the oldest,
+        // say — without committing yet. Counting now would see the agent idle and take the oldest,
+        // and the agent would hold two under a limit of one. The claim must wait on the row, then
+        // count the take it was waiting for.
+        enqueue(2, null);
+        UUID edge = agent("edge");
+        List<ScanEntity> queued = scans.findClaimableUnlabelled(ScanStatus.PENDING.wireName(), org.springframework.data.domain.Limit.of(2));
+        long newest = queued.get(1).getId();
+        CountDownLatch holding = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> competitor = pool.submit(() -> transactions.execute(status -> {
+                Instant now = Instant.now();
+                agents.lockForClaim(edge, now);
+                boolean took = scans.take(newest, ScanStatus.PENDING.wireName(), ScanStatus.SCANNING.wireName(),
+                        edge.toString(), now, now.plusSeconds(600)) == 1;
+                holding.countDown();
+                try {
+                    // Uncommitted while the claim below counts, reads its candidate and reaches
+                    // the agent's row.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                return took;
+            }));
+            assertThat(holding.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<Optional<ScanEntity>> claim = pool.submit(() -> queue.claimWithin(edge, 1, List.of()));
+
+            assertThat(competitor.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(claim.get(30, TimeUnit.SECONDS)).as("a claim past a limit of one").isEmpty();
+        }
+
+        assertThat(scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), edge.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a lapsed lease no longer holds a slot, a live one does")
+    void aLapsedLeaseDoesNotCount() {
+        enqueue(3, null);
+        UUID edge = agent("edge");
+
+        long held = queue.claimWithin(edge, 1, List.of()).orElseThrow().getId();
+        assertThat(queue.claimWithin(edge, 1, List.of())).as("a live lease fills a limit of one").isEmpty();
+
+        // The agent died mid-scan: its lease runs out before any reclaim has put the row back.
+        // Counting it would keep the restarted agent idle until somebody else's timer fired.
+        ScanEntity stored = scans.findById(held).orElseThrow();
+        stored.setLeaseExpiresAt(Instant.now().minusSeconds(60));
+        scans.save(stored);
+
+        assertThat(queue.claimWithin(edge, 1, List.of())).isPresent();
     }
 
     /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */

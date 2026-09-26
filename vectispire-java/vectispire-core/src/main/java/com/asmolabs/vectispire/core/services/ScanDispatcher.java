@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.services;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -191,7 +192,8 @@ public class ScanDispatcher {
     }
 
     /**
-     * Hands one task to a remote agent, or nothing when the queue has none for it.
+     * Hands one task to a remote agent, or nothing when the queue has none for it or the agent
+     * already runs as many scans as its {@code max_concurrent} allows.
      *
      * <p><b>Single-shot, unlike the NestJS version</b>, which slept in a loop until its deadline.
      * The waiting belongs to the API layer, where an asynchronous request can hold the
@@ -204,12 +206,18 @@ public class ScanDispatcher {
      * hands it to whoever is listening. The scan is put back in the queue rather than entrusted.
      */
     public Optional<AgentTask> claimForAgent(AgentEntity agent, boolean secureTransport) {
-        List<ScanEntity> claimed = queue.claim(1, agent.getId().toString(), AgentLabels.parse(agent.getLabels()));
+        // **Within the agent's limit, counted by the database.** The agent stops polling at its
+        // limit too, but that is courtesy: two processes sharing a key, or an older agent that
+        // never read the setting, would each believe they had room. The count is the one both
+        // cannot get wrong, and a lowered limit therefore applies to the next claim while the
+        // scans already running finish.
+        Optional<ScanEntity> claimed = queue.claimWithin(
+                agent.getId(), AgentConcurrency.effective(agent.getMaxConcurrent()), AgentLabels.parse(agent.getLabels()));
         if (claimed.isEmpty()) {
             return Optional.empty();
         }
 
-        ScanEntity scan = claimed.getFirst();
+        ScanEntity scan = claimed.get();
         try {
             // **The agent's mode decides; the transport only confirms.** An agent in `local` mode
             // never has a key to receive, so the question of an encrypted link does not arise

@@ -23,6 +23,22 @@ public interface Agents extends JpaRepository<AgentEntity, UUID> {
     List<AgentEntity> findByEnabledTrue();
 
     /**
+     * Takes the agent's row for the rest of the transaction, and records that it was heard from.
+     *
+     * <p><b>A write because a write is what every engine serializes</b> — see {@code
+     * ScanQueue.claimWithin}. {@code select … for update} would do on PostgreSQL and MySQL and
+     * nothing on SQLite, where it is not even syntax, and a read there pins a snapshot whose later
+     * upgrade to a write is refused at once with {@code SQLITE_BUSY} instead of waiting. The
+     * column written is the one a claim makes true anyway.
+     *
+     * @return 0 when the agent no longer exists
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update AgentEntity a set a.lastSeenAt = :at where a.id = :id")
+    int lockForClaim(@Param("id") UUID id, @Param("at") Instant at);
+
+    /**
      * Records that an agent has just been heard from, and what it announced.
      *
      * <p>The sealing key is refreshed on every claim on purpose: it is ephemeral, a restarted

@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.services.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.ScanDispatcher;
@@ -63,6 +64,25 @@ class AgentJobPollerTest {
 
         assertThat(result.getResult()).isNotNull();
         verify(dispatcher, never()).returnUndelivered(any(Long.class), any());
+    }
+
+    @Test
+    @DisplayName("every answer names the limit the claim was held to, the empty one included")
+    void everyAnswerCarriesTheLimit() {
+        // The 204 is the answer an agent waiting at its limit receives: if it did not carry the
+        // new value, a raised limit would reach the agent only at its next restart.
+        agent.setMaxConcurrent(3);
+        AgentJobPoller poller = poller();
+
+        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.empty());
+        ResponseEntity<?> none = (ResponseEntity<?>) poller.claim(agent, true, Duration.ZERO).getResult();
+        assertThat(none.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(none.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
+
+        when(dispatcher.claimForAgent(any(), anyBoolean())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
+        ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(agent, true, Duration.ZERO).getResult();
+        assertThat(one.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(one.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
     }
 
     private AgentJobPoller poller() {
