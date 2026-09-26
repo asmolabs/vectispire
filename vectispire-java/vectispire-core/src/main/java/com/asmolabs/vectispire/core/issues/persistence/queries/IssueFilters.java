@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.issues;
+package com.asmolabs.vectispire.core.issues.persistence.queries;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;

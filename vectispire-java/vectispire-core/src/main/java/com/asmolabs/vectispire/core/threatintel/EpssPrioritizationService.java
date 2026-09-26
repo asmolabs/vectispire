@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssPrio
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
-import com.asmolabs.vectispire.core.issues.IssueFilters;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;

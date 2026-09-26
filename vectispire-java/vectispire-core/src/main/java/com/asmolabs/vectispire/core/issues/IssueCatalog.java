@@ -2,10 +2,11 @@ package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.issues.internal.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;

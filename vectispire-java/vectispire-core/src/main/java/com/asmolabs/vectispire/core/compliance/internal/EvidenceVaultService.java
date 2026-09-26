@@ -18,7 +18,7 @@ import com.asmolabs.vectispire.core.exports.CycloneDxGeneratorService;
 import com.asmolabs.vectispire.core.exports.VexGeneratorService;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
-import com.asmolabs.vectispire.core.issues.IssueFilters;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

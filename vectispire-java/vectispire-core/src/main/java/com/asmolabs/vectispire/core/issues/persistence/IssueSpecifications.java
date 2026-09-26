@@ -1,9 +1,8 @@
-package com.asmolabs.vectispire.core.issues.internal;
+package com.asmolabs.vectispire.core.issues.persistence;
 
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.issues.IssueFilters;
-import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import jakarta.persistence.criteria.Predicate;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,8 +14,9 @@ import org.springframework.data.jpa.domain.Specification;
  * {@link IssueFilters} as the predicate every query over the issues applies — the one translation.
  *
  * <p>It was {@code IssueFilters.toSpecification()}, with the criteria. The criteria are what other
- * modules hand the backlog; the predicate names the entity, so it stays inside the module — here and
- * not in {@code persistence}, which may not reach up to the criteria (decision 0029). Authorization lives here too — the visibility is a criterion like the
+ * modules hand the backlog; the predicate names the entity, and stays beside the repository that
+ * runs it (decision 0029) — in {@code persistence}, where a change to it is a change to the query
+ * layer and runs the engine campaign on push. Authorization lives here too — the visibility is a criterion like the
  * others — so a query that took the filters cannot forget it.
  */
 public final class IssueSpecifications {
