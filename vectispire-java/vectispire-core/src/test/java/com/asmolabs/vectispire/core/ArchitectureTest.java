@@ -103,7 +103,8 @@ class ArchitectureTest {
                 // controllers reached repositories directly when this line still allowed it; they
                 // were moved behind services on 2026-09-24, under a ratchet that shrank to nothing.
                 .whereLayer("repositories").mayOnlyBeAccessedByLayers("services")
-                .whereLayer("persistence").mayOnlyBeAccessedByLayers("repositories", "services", "api")
+                // Not `api` either, since 2026-09-26: see apiNeverTouchesPersistence below.
+                .whereLayer("persistence").mayOnlyBeAccessedByLayers("repositories", "services")
                 .whereLayer("scanning").mayOnlyBeAccessedByLayers("services", "api")
                 // No optional layers and no empty-should escape any more: every layer is
                 // populated, so an empty one is now a package that was renamed or deleted — and
@@ -277,6 +278,21 @@ class ArchitectureTest {
         ArchRuleDefinition.classes()
                 .that().resideInAPackage(ROOT + ".core.services..")
                 .should(useOnlyAllowedDomains)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("nothing of the persistence layer reaches the api layer, not even for one call")
+    void apiNeverTouchesPersistence() {
+        // `SchemaNameCollisionTest` keeps entities out of responses; this keeps them out of `api`
+        // altogether. Twenty-five classes of `api` named a persistence type when this was added,
+        // the principal among them: it carried the account's password hash and TOTP secret to every route, and a
+        // controller could hand a row back to a service that saved whatever had been done to it.
+        // Services answer with records named `…View` now. No exception list and no freeze: a
+        // controller that needs a row needs a service method instead.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAPackage(ROOT + ".core.api..")
+                .should().dependOnClassesThat().resideInAPackage(ROOT + ".core.persistence..")
                 .check(classes);
     }
 
