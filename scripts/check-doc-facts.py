@@ -119,8 +119,14 @@ def deployable_engines() -> list[str]:
 
 
 def migration_vendors() -> list[str]:
+    """The engines there is SQL for — one directory each, and `common` is not one of them.
+
+    ADR 0027 added `common`, read by every engine. Counted as a directory like the others it would
+    have raised the engine ceiling below from three to four, and "four engines are supported" — the
+    exact claim this file was written against — would have passed again.
+    """
     directory = ROOT / "vectispire-java/vectispire-core/src/main/resources/db/migration"
-    return sorted(d.name for d in directory.iterdir() if d.is_dir())
+    return sorted(d.name for d in directory.iterdir() if d.is_dir() and d.name != "common")
 
 
 def adr_numbers() -> list[str]:
