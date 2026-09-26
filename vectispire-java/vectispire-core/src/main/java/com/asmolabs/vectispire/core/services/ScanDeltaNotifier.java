@@ -5,10 +5,14 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
 import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +37,7 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
     private final TargetNaming names;
     private final TeamTargets teamTargets;
     private final TeamWebhooks teamWebhooks;
+    private final GitRepositories repositories;
 
     public ScanDeltaNotifier(
             NotificationService notifications,
@@ -40,13 +45,15 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
             OutboxService outbox,
             TargetNaming names,
             TeamTargets teamTargets,
-            TeamWebhooks teamWebhooks) {
+            TeamWebhooks teamWebhooks,
+            GitRepositories repositories) {
         this.notifications = notifications;
         this.channels = channels;
         this.outbox = outbox;
         this.names = names;
         this.teamTargets = teamTargets;
         this.teamWebhooks = teamWebhooks;
+        this.repositories = repositories;
     }
 
     /**
@@ -94,6 +101,11 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
      * channel are asked separately because most teams have the first and not the second: queueing
      * a message for a team with no webhook would create a row whose only future is to be
      * abandoned by the relay.
+     *
+     * <p><b>A team owns a repository through its project too</b> (decision 0023). A team granted
+     * a project sees the repositories filed in it; were it told only about the repositories it was
+     * granted one by one, it would read findings on screen that its channel was never sent — and
+     * nothing would say why. The project is read at the moment of the scan, as visibility reads it.
      */
     private List<Long> teamsToTell(ScanEntity scan) {
         String kind = scan.getContainerId() == null ? TeamRules.KIND_REPOSITORY : TeamRules.KIND_CONTAINER;
@@ -102,7 +114,13 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
             return List.of();
         }
 
-        List<Long> owners = teamTargets.findByTarget(kind, targetId).stream()
+        List<TeamTargetEntity> claims = new ArrayList<>(teamTargets.findByTarget(kind, targetId));
+        if (TeamRules.KIND_REPOSITORY.equals(kind)) {
+            repositories.findById(targetId)
+                    .map(RepositoryEntity::getProjectId)
+                    .ifPresent(projectId -> claims.addAll(teamTargets.findByTarget(TeamRules.KIND_PROJECT, projectId)));
+        }
+        List<Long> owners = claims.stream()
                 .map(row -> row.getId().teamId())
                 .distinct()
                 .toList();
