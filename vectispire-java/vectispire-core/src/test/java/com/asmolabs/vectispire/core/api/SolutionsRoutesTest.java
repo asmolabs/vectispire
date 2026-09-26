@@ -301,6 +301,10 @@ class SolutionsRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(get("/api/v1/users/" + reader + "/targets"), asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+        // The detach is explicit rather than left to the key's `set null`, which this fixture
+        // enforces too — so the entry's count is what shows the service did it.
+        assertThat(audit.recent(20)).anySatisfy(entry -> assertThat(entry.getDescription())
+                .contains("Project deleted: Doomed (1 repository(ies) returned to no project, 1 grant(s) revoked)"));
     }
 
     @Test
