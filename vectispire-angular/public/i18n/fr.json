@@ -937,7 +937,9 @@
     "triaged_hint": "Désactivé par défaut — une exemption argumentée est ce à quoi sert le triage.",
     "triaged_toggle": "Compter les constats qui ont été triés",
     "unexamined": "Cibles non examinées :",
-    "version_label": "version {{n}}"
+    "version_label": "version {{n}}",
+    "aria_edit": "Modifier la dérogation de {{name}}",
+    "aria_remove": "Retirer la dérogation de {{name}}"
   },
   "gate_verdicts": {
     "title": "Registre des verdicts",
@@ -2196,7 +2198,9 @@
     "webhook_write_only": "Le champ s'ouvre vide même quand un canal est configuré : l'URL n'est jamais renvoyée, car la lire suffit pour publier dans ce canal.",
     "webhook_empty_removes": "L'enregistrer vide supprime le canal.",
     "delete_header": "Supprimer cette équipe ?",
-    "delete_consequence": "et ses accès disparaissent ensemble : ses {{members}} membre(s) perdent immédiatement les {{targets}} cible(s) qu'elle possédait, sauf si autre chose les leur accorde."
+    "delete_consequence": "et ses accès disparaissent ensemble : ses {{members}} membre(s) perdent immédiatement les {{targets}} cible(s) qu'elle possédait, sauf si autre chose les leur accorde.",
+    "aria_rename": "Renommer {{name}}",
+    "aria_delete": "Supprimer {{name}}"
   },
   "tiers": {
     "label": "Niveau de criticité métier",
@@ -2258,7 +2262,9 @@
     "password": "Mot de passe",
     "sign_out": "Déconnexion",
     "switch_dark": "Passer au thème sombre",
-    "switch_light": "Passer au thème clair"
+    "switch_light": "Passer au thème clair",
+    "toggle_menu": "Afficher ou masquer le menu",
+    "more": "Plus d'actions"
   },
   "users": {
     "access_for": "Visibilité de",

@@ -61,6 +61,7 @@
 
         <p-button
             [icon]="loading() ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'"
+            [ariaLabel]="'common.refresh' | translate"
             severity="secondary"
             [outlined]="true"
             (onClick)="selectedRepoId() && loadGraph(selectedRepoId()!)"

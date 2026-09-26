@@ -9,6 +9,7 @@
             severity="secondary"
             [outlined]="true"
             [loading]="loading()"
+            [ariaLabel]="'common.refresh' | translate"
             (onClick)="reload()"
         />
         <p-button [label]="'agents.declare_btn' | translate" icon="pi pi-plus" (onClick)="openForm()" />

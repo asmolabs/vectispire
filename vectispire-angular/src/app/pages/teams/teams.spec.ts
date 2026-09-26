@@ -90,6 +90,19 @@ describe('the teams screen', () => {
         ]);
     });
 
+    it("names each row's icon buttons after the team, for a screen reader", () => {
+        settleBoot();
+        fixture.detectChanges();
+
+        // The pencil and the bin carried no text at all: a screen reader announced "button" twice
+        // per row, and nothing said which team either would act on.
+        const names = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')].map((button) =>
+            button.getAttribute('aria-label')
+        );
+        expect(names).toContain('Rename platform');
+        expect(names).toContain('Delete platform');
+    });
+
     it('survives a users payload with no array in it', () => {
         // A server one version behind, or a proxy answering something else. Without the guard
         // this throws inside a computed signal, where the error handler never sees it.

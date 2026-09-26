@@ -70,8 +70,20 @@
                         [text]="true"
                         (onClick)="openAccess(team)"
                     />
-                    <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="openRename(team)" />
-                    <p-button icon="pi pi-trash" severity="danger" [text]="true" (onClick)="confirmDelete(team)" />
+                    <p-button
+                        icon="pi pi-pencil"
+                        severity="secondary"
+                        [text]="true"
+                        [ariaLabel]="'teams.aria_rename' | translate: { name: team.name }"
+                        (onClick)="openRename(team)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [ariaLabel]="'teams.aria_delete' | translate: { name: team.name }"
+                        (onClick)="confirmDelete(team)"
+                    />
                 </td>
             </tr>
         </ng-template>

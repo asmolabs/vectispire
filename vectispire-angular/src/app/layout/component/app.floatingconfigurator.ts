@@ -4,10 +4,11 @@ import { StyleClassModule } from '@openng/optimus-ui/styleclass';
 import { AppConfigurator } from './app.configurator';
 import { LayoutService } from '@/app/layout/service/layout.service';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
 
 @Component({
     selector: 'app-floating-configurator',
-    imports: [CommonModule, ButtonModule, StyleClassModule, AppConfigurator],
+    imports: [CommonModule, ButtonModule, StyleClassModule, AppConfigurator, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <div class="flex gap-4 top-8 right-8" [ngClass]="{ fixed: float() }">
@@ -16,11 +17,13 @@ import { CommonModule } from '@angular/common';
                 (onClick)="toggleDarkMode()"
                 [rounded]="true"
                 [icon]="isDarkTheme() ? 'pi pi-moon' : 'pi pi-sun'"
+                [ariaLabel]="isDarkTheme() ? ('topbar.switch_light' | translate) : ('topbar.switch_dark' | translate)"
                 severity="secondary"
             />
             <div class="relative">
                 <p-button
                     icon="pi pi-palette"
+                    [ariaLabel]="'topbar.appearance' | translate"
                     pStyleClass="@next"
                     enterFromClass="hidden"
                     enterActiveClass="animate-scalein"

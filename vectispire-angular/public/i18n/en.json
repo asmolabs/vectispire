@@ -937,7 +937,9 @@
     "triaged_hint": "Off by default — an argued exemption is what triage is for.",
     "triaged_toggle": "Count findings that were triaged",
     "unexamined": "Unexamined targets:",
-    "version_label": "version {{n}}"
+    "version_label": "version {{n}}",
+    "aria_edit": "Edit the override for {{name}}",
+    "aria_remove": "Remove the override for {{name}}"
   },
   "gate_verdicts": {
     "title": "Verdict register",
@@ -2086,7 +2088,9 @@
     "webhook_write_only": "The field starts empty even when a channel is set: the URL is never sent back, because reading it is enough to post in that channel.",
     "webhook_empty_removes": "Saving it empty removes the channel.",
     "delete_header": "Delete this team?",
-    "delete_consequence": "and its access go together: its {{members}} member(s) immediately lose the {{targets}} target(s) it owned, unless something else grants them."
+    "delete_consequence": "and its access go together: its {{members}} member(s) immediately lose the {{targets}} target(s) it owned, unless something else grants them.",
+    "aria_rename": "Rename {{name}}",
+    "aria_delete": "Delete {{name}}"
   },
   "tiers": {
     "label": "Business Criticality Tier",
@@ -2148,7 +2152,9 @@
     "password": "Password",
     "sign_out": "Sign out",
     "switch_dark": "Switch to dark theme",
-    "switch_light": "Switch to light theme"
+    "switch_light": "Switch to light theme",
+    "toggle_menu": "Show or hide the menu",
+    "more": "More actions"
   },
   "users": {
     "access_for": "Visibility of",

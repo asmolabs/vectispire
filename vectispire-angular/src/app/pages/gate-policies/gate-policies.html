@@ -166,8 +166,26 @@
                 <td>{{ policy.fail_on_uncovered_languages ? ('gate_policies.fails_short' | translate) : '—' }}</td>
                 <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
                 <td class="text-right whitespace-nowrap">
-                    <p-button icon="pi pi-pencil" severity="secondary" [text]="true" (onClick)="editOverride(policy)" />
-                    <p-button icon="pi pi-trash" severity="danger" [text]="true" (onClick)="remove(policy)" />
+                    <p-button
+                        icon="pi pi-pencil"
+                        severity="secondary"
+                        [text]="true"
+                        [ariaLabel]="
+                            'gate_policies.aria_edit'
+                                | translate: { name: policy.target_name ?? policy.kind + ' #' + policy.target_id }
+                        "
+                        (onClick)="editOverride(policy)"
+                    />
+                    <p-button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        [text]="true"
+                        [ariaLabel]="
+                            'gate_policies.aria_remove'
+                                | translate: { name: policy.target_name ?? policy.kind + ' #' + policy.target_id }
+                        "
+                        (onClick)="remove(policy)"
+                    />
                 </td>
             </tr>
         </ng-template>

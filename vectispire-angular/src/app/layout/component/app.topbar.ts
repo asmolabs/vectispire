@@ -17,7 +17,11 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
     changeDetection: ChangeDetectionStrategy.Eager,
     template: ` <div class="layout-topbar">
         <div class="layout-topbar-logo-container">
-            <button class="layout-menu-button layout-topbar-action" (click)="layoutService.onMenuToggle()">
+            <button
+                class="layout-menu-button layout-topbar-action"
+                [attr.aria-label]="'topbar.toggle_menu' | translate"
+                (click)="layoutService.onMenuToggle()"
+            >
                 <i class="pi pi-bars"></i>
             </button>
             <a class="layout-topbar-logo" routerLink="/dashboard">
@@ -99,6 +103,7 @@ import { TranslatePipe } from '@/app/core/i18n/translate.pipe';
                 leaveToClass="hidden"
                 leaveActiveClass="animate-fadeout"
                 [hideOnOutsideClick]="true"
+                [attr.aria-label]="'topbar.more' | translate"
             >
                 <i class="pi pi-ellipsis-v"></i>
             </button>
