@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
@@ -280,7 +281,12 @@ public class SettingsAdministrationService {
                         .reduce((a, b) -> a + "; " + b)
                         .orElse(""));
 
-        audit.record(actor.entry(AuditOperation.SETTING_UPDATED, applied.keys(), applied.description()));
+        AuditLogService.Record entry = actor.entry(AuditOperation.SETTING_UPDATED, applied.keys(), applied.description());
+        // Forwarded when one of the settings saved decides what the deployment protects — see
+        // Setting#governsSecurity. The SLA windows and the retention periods stay out of a SOC's feed.
+        audit.record(changes.stream().anyMatch(change -> change.setting().governsSecurity())
+                ? entry.signalling(SecurityEventType.SECURITY_SETTING_CHANGED)
+                : entry);
         return applied;
     }
 
@@ -296,7 +302,8 @@ public class SettingsAdministrationService {
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
                 Setting.TICKET_TOKEN.key(),
-                token.isBlank() ? "Tracker token cleared." : "Tracker token stored."));
+                token.isBlank() ? "Tracker token cleared." : "Tracker token stored.")
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
     }
 
     /**
@@ -314,7 +321,8 @@ public class SettingsAdministrationService {
                 Setting.WEBHOOK_SIGNING_SECRET.key(),
                 secret.isBlank()
                         ? "Webhook signing secret cleared — messages are sent unsigned."
-                        : "Webhook signing secret stored — messages are signed."));
+                        : "Webhook signing secret stored — messages are signed.")
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
     }
 
     /**
@@ -329,7 +337,8 @@ public class SettingsAdministrationService {
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED,
                 Setting.AI_REVIEW_OPENAI_KEY.key(),
-                key.isBlank() ? "AI provider API key cleared." : "AI provider API key stored."));
+                key.isBlank() ? "AI provider API key cleared." : "AI provider API key stored.")
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
     }
 
     /**
@@ -346,7 +355,8 @@ public class SettingsAdministrationService {
                 Setting.TICKET_WEBHOOK_SECRET.key(),
                 secret.isBlank()
                         ? "Inbound webhook secret cleared — the webhook route accepts anonymous callers again."
-                        : "Inbound webhook secret stored — the webhook route authenticates its caller."));
+                        : "Inbound webhook secret stored — the webhook route authenticates its caller.")
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
     }
 
     /**

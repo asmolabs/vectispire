@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Totp;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Clock;
@@ -172,7 +173,8 @@ public class TotpService {
                             "Emergency backup recovery code used by: " + user.getUsername(),
                             user.getUsername(),
                             null,
-                            null));
+                            null,
+                            SecurityEventType.MFA_BACKUP_CODE_USED));
                     return true;
                 }
             }

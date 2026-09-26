@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.siem.CefEvent;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
@@ -67,6 +69,7 @@ public class GateService {
     private final Containers containers;
     private final Scans scans;
     private final RuleCoverageService ruleCoverage;
+    private final SiemEvents siem;
     private final Clock clock;
 
     public GateService(
@@ -77,6 +80,7 @@ public class GateService {
             Containers containers,
             Scans scans,
             RuleCoverageService ruleCoverage,
+            SiemEvents siem,
             Clock clock) {
         this.issues = issues;
         this.policies = policies;
@@ -85,6 +89,7 @@ public class GateService {
         this.repositories = repositories;
         this.containers = containers;
         this.scans = scans;
+        this.siem = siem;
         this.clock = clock;
     }
 
@@ -148,6 +153,20 @@ public class GateService {
     public Decision evaluateAndRecord(ScanTarget target, RequestedPolicy requested, Caller caller) {
         Decision decision = evaluate(target, requested);
         record(target, decision, caller);
+        if (!decision.verdict().passed()) {
+            // After the verdict's own write, in a transaction of its own, never at the expense of
+            // the answer: a pipeline waits on this verdict, and a SOC hearing of the refusal a
+            // second late costs nothing. A gate refusal leaves no audit entry — the verdict
+            // register is its record — so it is published here rather than signalled.
+            siem.publish(CefEvent.builder(SecurityEventType.SECURITY_GATE_FAILED)
+                    .message(decision.verdict().violations().size() + " violation(s) against the "
+                            + decision.policy().source().name().toLowerCase(java.util.Locale.ROOT) + " policy")
+                    .user(caller.principal())
+                    .sourceIp(caller.ipAddress())
+                    .action("GATE_EVALUATED")
+                    .target(PolicyScope.of(target).kind() + " " + PolicyScope.of(target).id())
+                    .build());
+        }
         return decision;
     }
 

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api.security;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.services.AuditLogService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -138,7 +139,9 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
                             + ". Further credentialed requests from it are answered 429 until the window refills.",
                     null,
                     client,
-                    request.getHeader(HttpHeaders.USER_AGENT)));
+                    request.getHeader(HttpHeaders.USER_AGENT),
+                    // ACCESS_DENIED is also every ordinary 403; this one is the ceiling.
+                    SecurityEventType.BEARER_TOKEN_THROTTLED));
         }
     }
 

@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.asmolabs.vectispire.core.persistence.LoginAttemptEntity;
@@ -128,10 +129,13 @@ public class AuthService {
             return new LoginResult(
                     new Outcome.Blocked(throttle.retryAfter()),
                     AuditLogService.Record.of(
-                            AuditOperation.LOGIN_BLOCKED,
-                            request.username(),
-                            "Attempt refused by the throttle (" + throttle.retryAfter().toSeconds() + "s to wait)",
-                            request.username()));
+                                    AuditOperation.LOGIN_BLOCKED,
+                                    request.username(),
+                                    "Attempt refused by the throttle (" + throttle.retryAfter().toSeconds() + "s to wait)",
+                                    request.username())
+                            // The ceiling, and not "password sign-in is off", which shares the
+                            // operation: only the writer can tell the two apart.
+                            .signalling(SecurityEventType.SIGN_IN_THROTTLED));
         }
 
         // **One key derivation whatever the name, so the answer's timing says nothing.** The hash

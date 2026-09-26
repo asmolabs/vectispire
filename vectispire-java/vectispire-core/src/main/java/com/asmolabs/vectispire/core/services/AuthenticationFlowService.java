@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.persistence.MfaChallengeEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
@@ -143,7 +144,10 @@ public class AuthenticationFlowService {
                 result.audit().description(),
                 result.audit().userId(),
                 attempt.ipAddress(),
-                attempt.userAgent()));
+                attempt.userAgent(),
+                // Carried across: rebuilt without it, the throttle's entry reached the log and the
+                // SOC never heard of it.
+                result.audit().signal()));
 
         return switch (result.outcome()) {
             case AuthService.Outcome.Blocked blocked -> new SignIn.Throttled(blocked.retryAfter());
@@ -212,6 +216,10 @@ public class AuthenticationFlowService {
 
         if (!totp.verify(user, code)) {
             auth.recordSecondFactorFailure(user.getId());
+            // The account-wide ceiling, asked right after counting this failure: the challenge
+            // below dies after its own few tries, the account locks after more across challenges,
+            // and either one is the moment a guessing attempt stops — which is what a SOC wants.
+            boolean accountLocked = !auth.secondFactorLockout(user.getId()).isZero();
             // **The challenge dies on the last try, and that is the control.** Leaving it alive
             // after a wrong code is what turns a six-digit secret into a five-minute exhaustive
             // search: the attacker keeps the same token and keeps going. Counting on the
@@ -230,16 +238,18 @@ public class AuthenticationFlowService {
                 mfaChallenges.deleteById(challengeKey);
             }
 
-            audit.record(new AuditLogService.Record(
+            AuditLogService.Record failure = new AuditLogService.Record(
                     AuditOperation.LOGIN_FAILURE,
                     user.getUsername(),
-                    exhausted
-                            ? "MFA challenge destroyed after " + MAX_MFA_ATTEMPTS
-                                    + " invalid verification codes"
-                            : "Invalid MFA verification code attempt",
+                    (exhausted
+                                    ? "MFA challenge destroyed after " + MAX_MFA_ATTEMPTS
+                                            + " invalid verification codes"
+                                    : "Invalid MFA verification code attempt")
+                            + (accountLocked ? "; second factor locked for this account" : ""),
                     user.getUsername(),
                     ipAddress,
-                    userAgent));
+                    userAgent);
+            audit.record(exhausted || accountLocked ? failure.signalling(SecurityEventType.MFA_FAILURE_CEILING) : failure);
             return new Verification.WrongCode();
         }
 

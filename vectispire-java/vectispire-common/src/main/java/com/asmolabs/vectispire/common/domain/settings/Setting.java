@@ -529,6 +529,35 @@ public enum Setting {
         };
     }
 
+    /**
+     * Whether changing this setting changes what the deployment protects, and so is forwarded to the
+     * SOC as a security-relevant change.
+     *
+     * <p>Who sees what, whether a dismissal needs a second person, where a credential may be sent,
+     * whether a private or remote host may be reached, and the credentials themselves. Not the
+     * retention periods, the SLA windows or the enrichment switches: they change what is measured,
+     * and a SOC flooded with them would learn to ignore the channel.
+     *
+     * <p><b>A switch with no default</b>, so a setting added to this enum does not compile until
+     * whoever adds it has answered the question — a default would answer "no" for them, silently.
+     */
+    public boolean governsSecurity() {
+        return switch (this) {
+            case TARGET_VISIBILITY, FOUR_EYES_APPROVAL_REQUIRED, NOTIFICATION_ALLOW_PRIVATE_URL,
+                    TICKET_ALLOW_PRIVATE_URL, TICKET_BASE_URL, TICKET_TOKEN, TICKET_WEBHOOK_SECRET,
+                    WEBHOOK_SIGNING_SECRET, AI_REVIEW_ALLOW_REMOTE, AI_REVIEW_OPENAI_URL, AI_REVIEW_OPENAI_KEY,
+                    AI_REVIEW_OLLAMA_URL -> true;
+            case ENRICHMENT_ENABLED, EOL_ENABLED, EOL_WARN_DAYS, SAST_ENABLED, RETENTION_KEEP_PER_TARGET,
+                    RETENTION_MAX_AGE_DAYS, EVIDENCE_RETENTION_DAYS, WEBHOOK_URL, TEAMS_ENABLED, TEAMS_WEBHOOK_URL,
+                    SLACK_WEBHOOK_URL, DISCORD_WEBHOOK_URL, MAIL_RECIPIENTS, DIGEST_ENABLED,
+                    NOTIFICATION_MIN_SEVERITY, NOTIFY_ON_KEV, LICENSE_BLOCKLIST, TICKET_PROVIDER, TICKET_PROJECT,
+                    TICKET_USER, TICKET_ISSUE_TYPE, TICKET_LABELS, AI_REVIEW_ENABLED, AI_REVIEW_PROVIDER,
+                    AI_REVIEW_MODEL, AI_REVIEW_TIMEOUT_SECONDS, AI_REVIEW_RISK_ACKNOWLEDGED_BY,
+                    AI_REVIEW_RISK_ACKNOWLEDGED_AT, COMPLIANCE_FRESHNESS_DAYS, ISMS_SCOPE_STATEMENT,
+                    ISMS_SCOPE_ASSETS, SLA_CRITICAL_DAYS, SLA_HIGH_DAYS, SLA_MEDIUM_DAYS, SLA_LOW_DAYS -> false;
+        };
+    }
+
     /** Whether this is a credential: encrypted at rest, written by its own route, never returned. */
     public boolean isEncrypted() {
         return sensitivity == Sensitivity.ENCRYPTED;

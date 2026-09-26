@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
@@ -111,7 +112,7 @@ public class VexIngestorService {
         Importer importer = new Importer(caller, canApprove(caller));
         IngestionResult result = transactions.execute(status -> ingestAuto(root, importer));
 
-        audit.record(new AuditLogService.Record(
+        AuditLogService.Record entry = new AuditLogService.Record(
                 AuditOperation.ISSUE_TRIAGED,
                 result.triagedIssues() + " issues",
                 "VEX import: " + result.triagedIssues() + " issue(s) triaged not affected"
@@ -122,7 +123,12 @@ public class VexIngestorService {
                         + " — per-issue transitions are in each issue's triage history",
                 caller.actor(),
                 caller.ipAddress(),
-                caller.userAgent()));
+                caller.userAgent());
+        // Settled by an importer who may approve: findings dismissed by a document, in bulk. Queued
+        // for approval, the import is a request and says nothing a SOC needs to hear yet.
+        audit.record(importer.canApprove() && result.triagedIssues() > 0
+                ? entry.signalling(SecurityEventType.TRIAGE_SETTLED)
+                : entry);
         return result;
     }
 

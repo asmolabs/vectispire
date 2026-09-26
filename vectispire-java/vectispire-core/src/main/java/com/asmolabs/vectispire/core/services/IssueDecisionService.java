@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.siem.TriageSignals;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -108,19 +109,20 @@ public class IssueDecisionService {
         String actor = caller.actor();
         boolean canApprove = canApprove(caller);
         // Checked before the write, and 404 rather than 403.
-        RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility());
+        String previous = RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility())
+                .getTriageStatus();
         IssueEntity issue = triage.triage(id, decision.toRequest(actor), canApprove);
 
         // A triage can dismiss a finding: that is a security decision, and it belongs in the
         // audit trail as much as a role change does.
-        audit.record(new AuditLogService.Record(
+        audit.record(signalled(new AuditLogService.Record(
                 AuditOperation.ISSUE_TRIAGED,
                 String.valueOf(id),
                 "Triage \"" + issue.getTriageStatus() + "\""
                         + (issue.getTriageJustification() == null ? "" : " (" + issue.getTriageJustification() + ")"),
                 actor,
                 caller.ipAddress(),
-                caller.userAgent()));
+                caller.userAgent()), List.of(String.valueOf(previous)), issue.getTriageStatus()));
 
         return IssueView.of(issue);
     }
@@ -157,8 +159,10 @@ public class IssueDecisionService {
 
         String actor = caller.actor();
         boolean canApprove = canApprove(caller);
+        List<String> previous = new java.util.ArrayList<>(ids.size());
         for (Long id : ids) {
-            RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility());
+            previous.add(String.valueOf(
+                    RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility()).getTriageStatus()));
         }
 
         List<IssueEntity> triaged = triage.triageAll(ids, decision.toRequest(actor), canApprove);
@@ -168,7 +172,7 @@ public class IssueDecisionService {
         // lost is not traceability: each issue carries its own recorded transition in the triage
         // history, which is the document a compliance reader is handed. This entry says a bulk
         // decision happened, by whom, and how wide it was — which is what the audit log is for.
-        audit.record(new AuditLogService.Record(
+        audit.record(signalled(new AuditLogService.Record(
                 AuditOperation.ISSUE_TRIAGED,
                 ids.size() + " issues",
                 "Bulk triage \"" + decision.status() + "\" on " + ids.size() + " issues"
@@ -176,7 +180,7 @@ public class IssueDecisionService {
                         + " — per-issue transitions are in each issue's triage history",
                 actor,
                 caller.ipAddress(),
-                caller.userAgent()));
+                caller.userAgent()), previous, triaged.isEmpty() ? null : triaged.getFirst().getTriageStatus()));
 
         return triaged.stream().map(IssueView::of).toList();
     }
@@ -238,6 +242,15 @@ public class IssueDecisionService {
                 caller.userAgent()));
 
         return IssueView.of(issues.findById(id).orElseThrow());
+    }
+
+    /**
+     * The entry, naming the SOC event the decision stands for when it stands for one: a finding
+     * settled, a four-eyes request approved or sent back. {@code ISSUE_TRIAGED} alone cannot say —
+     * it is also a ticket attached, or an issue put under review.
+     */
+    private static AuditLogService.Record signalled(AuditLogService.Record entry, List<String> previous, String result) {
+        return TriageSignals.of(previous, result).map(entry::signalling).orElse(entry);
     }
 
     /**
