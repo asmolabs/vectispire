@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.agents.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

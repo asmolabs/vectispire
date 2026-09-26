@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.agents;
+package com.asmolabs.vectispire.core.agents;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;

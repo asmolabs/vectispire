@@ -83,7 +83,7 @@ class ArchitectureTest {
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
             // through anything but the layered packages.
-            "siem", "rules", "ai", "threatintel", "tickets");
+            "siem", "rules", "ai", "threatintel", "tickets", "agents");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -242,7 +242,10 @@ class ArchitectureTest {
             Map.entry("issues", Set.of("access")),
             Map.entry("tickets", Set.of("access", "issues")),
             Map.entry("scanning", Set.of("access", "inventory", "issues", "rules")),
-            Map.entry("agents", Set.of("access", "scanning")),
+            // `rules` since agents became a module and took its controllers: a remote agent fetches the
+            // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
+            // above the foundation.
+            Map.entry("agents", Set.of("access", "rules", "scanning")),
             Map.entry("targets", Set.of("access", "scanning")),
             Map.entry("threatintel", Set.of("scanning", "siem")),
             Map.entry("gate", Set.of("issues", "rules", "siem")),

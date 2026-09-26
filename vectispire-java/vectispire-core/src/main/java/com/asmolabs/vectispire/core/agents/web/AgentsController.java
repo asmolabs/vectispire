@@ -1,15 +1,16 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.core.agents.AgentProtocolService;
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.api.security.TrustedProxies;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.access.AgentView;
-import com.asmolabs.vectispire.core.services.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.agents.web.AgentJobPoller;
 import java.lang.reflect.Field;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

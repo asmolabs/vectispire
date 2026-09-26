@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.services.access.AgentView;
@@ -7,9 +7,9 @@ import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.async.DeferredResult;
