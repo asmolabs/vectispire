@@ -165,7 +165,8 @@ public final class ResultAttestation {
         return new byte[] {(byte) Digests.SEPARATOR};
     }
 
-    private static Optional<byte[]> decode(String base64, int expectedLength) {
+    /** Package-private: {@link SealingKeyAttestation} reads the same keys, and one parser is one set of rules. */
+    static Optional<byte[]> decode(String base64, int expectedLength) {
         if (base64 == null || base64.isBlank()) {
             return Optional.empty();
         }
