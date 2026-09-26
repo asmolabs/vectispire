@@ -43,9 +43,9 @@ l'ensemble de la codebase ([décision 0007](decisions/0007-none-is-not-an-empty-
 ```mermaid
 flowchart TB
     subgraph proc["Plan de contrôle Vectispire (Spring Boot)"]
-        API["API HTTP<br/>vectispire-core/api/"]
-        SVC["Services<br/>vectispire-core/services/"]
-        REPO["Repositories<br/>vectispire-core/repositories/"]
+        API["API HTTP<br/>core/‹module›/web/, core/api/"]
+        SVC["Services<br/>core/‹module›/, core/services/"]
+        REPO["Repositories<br/>core/‹module›/persistence/, core/repositories/"]
         SCHED["Planificateur<br/>SchedulerService — tick périodique"]
     end
 
@@ -71,27 +71,43 @@ flowchart TB
 **Deux artefacts, une seule API.** Un backend Spring Boot et un frontend Angular ; le navigateur
 dialogue avec la même API HTTP que les pipelines CI et les agents distants.
 
-### Les couches et la règle d'isolation
+### Les modules, et les couches à l'intérieur
+
+Le plan de contrôle passe d'un découpage en paquets par couche à des **modules verticaux, un par
+domaine** ([décision 0028](decisions/0028-vertical-modules.md)). Dix-neuf domaines ont migré — le socle
+(`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) et `access`, `agents`, `ai`,
+`compliance`, `exports`, `gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`,
+`threatintel`, `tickets`. Chacun est un paquet à lui :
 
 ```
-api/ ──► services/ ──► repositories/ ──► persistence/ ──► base de données
-           │                                  │
-           └──────────────┬───────────────────┘
-                          ▼
-                       domain/          (pur, ne dépend de rien)
+core/<module>/               son API : les services que les autres modules appellent, leurs vues, ses événements
+core/<module>/web/           ses contrôleurs
+core/<module>/internal/      ce dont l'API est faite
+core/<module>/persistence/   ses entités et ses repositories
+```
+
+`issues`, `scanning`, `targets`, les racines de composition de `platform` et `shared` sont encore
+découpés par couche, sous `core/api/`, `core/services/`, `core/repositories/` et `core/persistence/` —
+l'étape suivante les déplace. Dans les deux cas, les mêmes couches tiennent :
+
+```
+web/, api/ ──► racine du module + internal/, services/ ──► persistence/, repositories/ ──► base de données
+                          │                                          │
+                          └────────────────────┬─────────────────────┘
+                                               ▼
+                                            domain/          (pur, ne dépend de rien)
 ```
 
 Une règle stricte garantit la testabilité : **une couche ne connaît que la couche située
-immédiatement en dessous.**
-
-À l'intérieur de `services/`, les classes sont regroupées par domaine — `issues`, `scanning`,
-`access`, `compliance` et vingt autres — et les domaines dépendent les uns des autres dans un seul
-sens, au-dessus d'un socle (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) que
-tous peuvent utiliser. `ArchitectureTest` refuse un cycle entre domaines et une dépendance que le
-tableau n'autorise pas ; le tableau est dans la
-[décision 0026](decisions/0026-services-are-grouped-by-domain.md). Spring Modulith est dans le build
-en mode observation seulement — ce qu'il voit, et pourquoi il ne peut encore rien imposer, c'est le
-[05](05-modularity.md).
+immédiatement en dessous.** Un contrôleur appelle l'API de son module, jamais son paquet `internal`
+ni `persistence` ; un module n'en atteint un autre que par la racine de celui-ci, ou par la seule
+interface nommée que la migration a déclarée (les marqueurs de route et le principal d'`access`). Les
+domaines dépendent les uns des autres dans un seul sens, au-dessus du socle que tous peuvent utiliser.
+`ArchitectureTest` refuse un cycle entre domaines, une dépendance que le tableau n'autorise pas, et un
+accès aux internes d'un autre module ; le tableau est dans la
+[décision 0026](decisions/0026-services-are-grouped-by-domain.md), avec les arêtes que les modules ont
+révélées dans la 0028. Spring Modulith est dans le build en mode observation seulement — ce qu'il voit,
+et ce qu'il signale encore, c'est le [05](05-modularity.md).
 
 ## Le déroulement d'un scan
 

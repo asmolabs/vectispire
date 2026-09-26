@@ -42,9 +42,9 @@ codebase ([decision 0007](decisions/0007-none-is-not-an-empty-list.md)).
 ```mermaid
 flowchart TB
     subgraph proc["Vectispire control plane (Spring Boot)"]
-        API["HTTP API<br/>vectispire-core/api/"]
-        SVC["Services<br/>vectispire-core/services/"]
-        REPO["Repositories<br/>vectispire-core/repositories/"]
+        API["HTTP API<br/>core/‹module›/web/, core/api/"]
+        SVC["Services<br/>core/‹module›/, core/services/"]
+        REPO["Repositories<br/>core/‹module›/persistence/, core/repositories/"]
         SCHED["Scheduler<br/>SchedulerService — periodic tick"]
     end
 
@@ -70,25 +70,42 @@ flowchart TB
 **Two artifacts, one API.** A Spring Boot backend and an Angular front end; the browser now talks to
 the same HTTP API that a CI pipeline or a remote agent talks to.
 
-### The layers, and the rule that holds them
+### Modules, and the layers inside them
+
+The control plane is moving from packages by layer to **vertical modules, one per domain**
+([decision 0028](decisions/0028-vertical-modules.md)). Nineteen domains have moved — the foundation
+(`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) and `access`, `agents`, `ai`,
+`compliance`, `exports`, `gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`,
+`threatintel`, `tickets`. Each is a package of its own:
 
 ```
-api/ ──► services/ ──► repositories/ ──► persistence/ ──► database
-           │                                  │
-           └──────────────┬───────────────────┘
-                          ▼
-                       domain/          (pure, depends on nothing)
+core/<module>/               its API: the services other modules call, their views, its events
+core/<module>/web/           its controllers
+core/<module>/internal/      how the API is built
+core/<module>/persistence/   its entities and its repositories
+```
+
+`issues`, `scanning`, `targets`, the `platform` composition roots and `shared` are still packaged by
+layer, under `core/api/`, `core/services/`, `core/repositories/` and `core/persistence/` — the next
+step moves them. Either way, the same layers hold:
+
+```
+web/, api/ ──► module root + internal/, services/ ──► persistence/, repositories/ ──► database
+                          │                                      │
+                          └──────────────────┬───────────────────┘
+                                             ▼
+                                          domain/          (pure, depends on nothing)
 ```
 
 One rule, and it is what makes the whole thing testable: **a layer only knows the one below it.**
-
-Inside `services/`, the classes are grouped by domain — `issues`, `scanning`, `access`,
-`compliance` and twenty more — and the domains depend on each other in one direction, over a
-foundation (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) every domain may use.
-`ArchitectureTest` refuses a cycle between domains and a dependency the table does not allow; the
-table is in [decision 0026](decisions/0026-services-are-grouped-by-domain.md). Spring Modulith is in
-the build in observation mode only — what it sees, and why it cannot enforce anything yet, is
-[05](05-modularity.md).
+A controller calls its module's API, never its `internal` or `persistence` package; a module reaches
+another only through that module's root, or the one named interface the migration declared
+(`access`'s route markers and principal). The domains depend on each other in one direction, over
+the foundation every domain may use. `ArchitectureTest` refuses a cycle between domains, a dependency
+the table does not allow, and a reach into another module's internals; the table is in [decision
+0026](decisions/0026-services-are-grouped-by-domain.md), with the edges the modules surfaced in
+0028. Spring Modulith is in the build in observation mode only — what it sees, and what it still
+reports, is [05](05-modularity.md).
 
 ## The path of a scan
 

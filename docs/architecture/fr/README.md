@@ -13,7 +13,7 @@ ainsi, et ce qui casse si vous le modifiez sans le savoir.
 | [02 — Modèle de données](02-data-model.md) | Qu'est-ce qui est stocké, et pourquoi une *finding* n'est-elle pas une *issue* ? |
 | [03 — Sécurité](03-security.md) | Quelles sont les frontières de confiance, qui les protège, et que reste-t-il à traiter ? |
 | [04 — Exécution et déploiement](04-runtime-and-deployment.md) | Une instance, plusieurs, agents distants : qu'est-ce qui est autorisé et refusé ? |
-| [05 — La modularité vue par Spring Modulith](05-modularity.md) | Quels modules Modulith détecte-t-il aujourd'hui, que rejetterait sa vérification, et que change l'étape suivante ? |
+| [05 — La modularité vue par Spring Modulith](05-modularity.md) | Quels modules Modulith détecte-t-il depuis que les domaines sont des modules, que rejetterait encore sa vérification, et que change l'étape 5 ? |
 | [Registre des décisions d'architecture (ADR)](decisions/README.md) | Une page par décision structurelle, avec l'alternative rejetée. |
 
 Trois autres corpus vivent à côté de ces chapitres, et se rejoignent depuis cette page plutôt que

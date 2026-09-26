@@ -7,7 +7,9 @@
 > (`KNOWN_CYCLES` est vide), déplacé `ReportCursor` dans un domaine de fondation `reporting` et fait
 > de la suppression d'une cible un événement que chaque domaine propriétaire purge ; l'étape 2 a
 > ajouté Modulith en mode observation. Le tableau ci-dessous est la référence telle
-> qu'`ArchitectureTest` l'impose désormais, avec `reporting` dans la fondation.
+> qu'`ArchitectureTest` l'impose désormais, avec `reporting` dans la fondation. Les étapes 3 et 4 ont
+> fait de dix-neuf domaines des modules verticaux et ajouté six arêtes que le découpage par couche
+> cachait — voir la [0028](0028-vertical-modules.md), qui prolonge cette décision sans la remplacer.
 
 ## Contexte
 

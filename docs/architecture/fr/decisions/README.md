@@ -31,6 +31,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0025](0025-siem-events-leave-through-the-outbox.md) | Les événements SIEM partent par l'outbox, après validation, et leur catalogue est un contrat | acceptée |
 | [0026](0026-services-are-grouped-by-domain.md) | Les services sont regroupés par domaine, et les domaines dépendent dans un seul sens | acceptée |
 | [0027](0027-common-migrations-with-type-placeholders.md) | Migrations communes avec des placeholders de type ; répertoires par moteur pour les divergences de structure | acceptée |
+| [0028](0028-vertical-modules.md) | Les domaines deviennent des modules verticaux, et le socle est partagé | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

@@ -6,7 +6,9 @@
 > day, step 1 of the migration to Spring Modulith broke both recorded cycles (`KNOWN_CYCLES` is
 > empty), moved `ReportCursor` into a `reporting` foundation domain and made target deletion an
 > event each owning domain purges; step 2 added Modulith in observation mode. The table below is
-> the reference as `ArchitectureTest` now enforces it, with `reporting` in the foundation.
+> the reference as `ArchitectureTest` now enforces it, with `reporting` in the foundation. Steps 3 and 4
+> made nineteen of the domains vertical modules and added six edges the layered packaging had hidden —
+> see [0028](0028-vertical-modules.md), which builds on this record without superseding it.
 
 ## Context
 
