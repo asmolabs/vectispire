@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
+import com.asmolabs.vectispire.core.services.inventory.ComponentInventory;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.util.ArrayList;

@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Collections;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.inventory;
 
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta.ChangeType;

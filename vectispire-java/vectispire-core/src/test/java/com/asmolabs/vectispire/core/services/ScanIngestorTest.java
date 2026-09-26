@@ -14,6 +14,8 @@ import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFin
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
+import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
+import com.asmolabs.vectispire.core.services.inventory.ComponentInventory;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

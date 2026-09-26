@@ -17,6 +17,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.inventory.LicenseGovernanceService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;

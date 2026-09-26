@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.asmolabs.vectispire.core.services.SbomDiffService;
+import com.asmolabs.vectispire.core.services.inventory.SbomDiffService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

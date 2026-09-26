@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueTickets;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.LicenseGovernanceService;
+import com.asmolabs.vectispire.core.services.inventory.LicenseGovernanceService;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;

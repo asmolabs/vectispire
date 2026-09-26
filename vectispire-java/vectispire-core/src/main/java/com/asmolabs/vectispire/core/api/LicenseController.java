@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.LicenseGovernanceService;
+import com.asmolabs.vectispire.core.services.inventory.LicenseGovernanceService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

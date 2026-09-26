@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
+import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
