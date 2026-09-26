@@ -76,9 +76,37 @@ corrigé), comme tout autre chiffre de risque.
 - **Supprimer une solution** est refusé tant qu'elle contient un projet : supprimez ou videz d'abord
   ses projets, chacun étant une décision auditée à part.
 
+## L'écran
+
+**Solutions et projets**, dans le menu à côté des dépôts, dessine l'arbre pour tout compte : chaque
+solution, ses projets, les dépôts rangés dans chacun, puis **Sans projet** en dernier — affiché même
+vide. Chaque solution, chaque projet et le groupe « sans projet » portent leur nombre de dépôts et une
+étiquette par sévérité qui a des constats ouverts (« 2 Critique », « 1 Élevée »), ou « Aucun constat
+ouvert ». Un nœud que vous ne voyez qu'en partie porte **Visible en partie : N dépôts que vous
+pouvez voir**. Le nom d'un dépôt ouvre les constats de ce dépôt.
+
+Les administrateurs disposent en plus de :
+
+| Action | Où | Ce que l'écran dit d'abord |
+|---|---|---|
+| **Nouvelle solution** | en haut de la page | — |
+| **Nouveau projet** | sur une solution | — |
+| Renommer ou décrire (crayon) | sur une solution ou un projet | — |
+| Supprimer (corbeille) | sur une solution ou un projet | pour un projet : ses dépôts reviennent à « sans projet » et toute attribution qui le nomme est révoquée ; pour une solution : refusé tant qu'elle contient des projets, avec la raison donnée par le serveur |
+| **Ranger dans un projet** | sur un dépôt de « Sans projet » | qui le voit désormais : tout compte et toute équipe titulaires d'une attribution sur le projet |
+| Déplacer (deux flèches) | sur un dépôt rangé | qui cesse de le voir et qui le voit désormais |
+| Retirer du projet (croix) | sur un dépôt rangé | qui cesse de le voir |
+
+Le projet de destination se choisit dans une liste groupée par solution. Les noms sont limités à
+100 caractères et les descriptions à 255, dans le formulaire comme sur le serveur. Les autres comptes
+voient le même arbre sans aucune de ces actions ; le serveur les refuserait de toute façon.
+
+La liste des dépôts indique sur chaque dépôt le projet où il est rangé — un lien vers ce projet dans
+l'arbre — ou « — » s'il n'est dans aucun.
+
 ## Par l'API
 
-L'écran correspondant est en cours de réalisation ; en attendant, les routes sont :
+Les mêmes opérations, pour les scripts :
 
 | Route | Qui | Effet |
 |---|---|---|

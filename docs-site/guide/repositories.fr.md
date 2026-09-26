@@ -73,6 +73,13 @@ plutôt que seulement de ce qu'on y a trouvé :
 La même CVE critique n'est pas le même problème dans un chemin de paiement et dans un outil
 interne jetable. Sans niveau, le backlog affirme qu'ils sont identiques.
 
+## Projet {#project}
+
+Chaque dépôt indique le projet où il est rangé, avec un lien vers ce projet dans
+[Solutions et projets](../administration/solutions-and-projects.md), ou « — » s'il n'est dans
+aucun. Le rangement se fait depuis cet écran, par un administrateur — et il change des accès : une
+attribution sur un projet couvre les dépôts qui y sont rangés.
+
 ## La pastille README
 
 Chaque dépôt peut exposer une pastille dynamique pour son propre README, montrant la note de

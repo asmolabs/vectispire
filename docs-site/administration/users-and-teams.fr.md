@@ -78,7 +78,9 @@ nommant un projet inexistant est refusée. Supprimer un projet révoque toute at
 nomme.
 
 Les listes d'attributions d'un compte et d'une équipe montrent chaque cible par son nom — un projet
-sous la forme `Solution / Projet` — et une cible supprimée depuis comme « deleted target ».
+sous la forme `Solution / Projet` — et une cible supprimée depuis comme « deleted target ». Les
+fenêtres d'accès des écrans **Utilisateurs** et **Équipes** proposent chaque projet, sous la forme
+*Projet — Solution / Projet*, à côté des dépôts et des images.
 
 ## Cibles sans étiquette
 

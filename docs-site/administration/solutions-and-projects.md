@@ -73,9 +73,37 @@ fixed), like every other figure of risk.
 - **Deleting a solution** is refused while it still holds a project: delete or empty its projects
   first, each one an audited decision of its own.
 
+## The screen
+
+**Solutions & projects**, in the sidebar next to **Repositories**, draws the tree for every account:
+each solution, its projects, the repositories filed in each, then **No project** last — shown even
+when it is empty. Every solution, project and the "no project" group carries its repository count
+and one tag per severity that has open issues ("2 Critical", "1 High"), or "No open issues". A node
+you see only in part carries **Partially visible: N repositories you can see**. A repository name
+opens the issues of that repository.
+
+Administrators also get:
+
+| Action | Where | What the screen says first |
+|---|---|---|
+| **New solution** | top of the page | — |
+| **New project** | on a solution | — |
+| Rename or describe (pencil) | on a solution or a project | — |
+| Delete (bin) | on a solution or a project | for a project: its repositories return to "no project" and every grant naming it is revoked; for a solution: refused while it holds projects, with the server's reason shown |
+| **File into project** | on a repository under "No project" | who gains sight of it: every account and team granted the project |
+| Move (two arrows) | on a filed repository | who loses and who gains sight of it |
+| Remove from project (cross) | on a filed repository | who loses sight of it |
+
+The destination project is chosen from a list grouped by solution. Names are limited to 100
+characters and descriptions to 255, in the form as on the server. Other accounts see the same tree
+without any of these actions; the server would refuse them anyway.
+
+**Repositories** shows, on each repository, the project it is filed in — a link to that project in
+the tree — or "—" when it is in none.
+
 ## Through the API
 
-The screen for this is being built; until it ships, the routes are:
+The same operations, for scripts:
 
 | Route | Who | Does |
 |---|---|---|

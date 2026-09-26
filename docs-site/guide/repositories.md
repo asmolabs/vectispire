@@ -72,6 +72,13 @@ only for what was found in it:
 The same critical CVE is a different problem in a payment path than in an internal
 scratch tool. Without a tier, the backlog says they are the same.
 
+## Project
+
+Each repository shows the project it is filed in, linking to that project in
+[Solutions and projects](../administration/solutions-and-projects.md), or "—" when it is in none.
+Filing is done from that screen, by an administrator — and it is an access change: a grant on a
+project covers the repositories filed in it.
+
 ## The README badge
 
 Each repository can expose a dynamic badge for its own README, showing the security

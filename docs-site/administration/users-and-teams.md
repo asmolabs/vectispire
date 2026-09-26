@@ -75,7 +75,9 @@ There is no grant on a solution: grant each of its projects. A grant naming a pr
 exist is refused. Deleting a project revokes every grant naming it.
 
 The grant lists of an account and of a team show each target by name — a project as
-`Solution / Project` — and a target that has since been deleted as "deleted target".
+`Solution / Project` — and a target that has since been deleted as "deleted target". The access
+dialogs on **Users** and **Teams** offer every project, as *Project — Solution / Project*, next to
+the repositories and images.
 
 ## Unlabelled targets
 
