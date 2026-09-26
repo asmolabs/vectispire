@@ -45,6 +45,11 @@ import java.util.SequencedMap;
  *       the other.
  * </ul>
  *
+ * <p><b>A value here is as frozen as an applied migration.</b> Flyway does not replay what it has
+ * applied, so changing one changes the columns of new installations only, and the two populations
+ * diverge without an error. A type change is first a vendor migration altering the existing
+ * columns, then an edit of this table.
+ *
  * <p>The vendor ids are Spring Boot's {@code DatabaseDriver} ids — the same ones its
  * {@code {vendor}} location placeholder resolves to — so the directory Flyway reads and the types
  * it substitutes are chosen by one question asked of one data source.
