@@ -138,7 +138,7 @@ public record CefEvent(
             return put("suser", username);
         }
 
-        /** {@code src}: the client address, already resolved against the trusted proxies. */
+        /** {@code src}: the client address, as the audit entry or the caller recorded it. */
         public Builder sourceIp(String ip) {
             return put("src", ip);
         }

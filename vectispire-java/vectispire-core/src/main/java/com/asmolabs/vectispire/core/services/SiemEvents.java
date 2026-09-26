@@ -40,7 +40,11 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>{@link #recorded} — <b>the one hook</b>. Every audit entry passes here after its own
  *       transaction commits; the entries that signal an event, by their operation or because their
  *       writer named one, become an event. Actor, address, target and action come from the entry,
- *       which already resolved the client address against the trusted proxies.
+ *       so the event says what the audit log says. <b>The address is only as good as the entry's</b>:
+ *       sign-in, MFA, the bearer ceiling and the gate resolve it through {@code TrustedProxies};
+ *       entries written through {@code RequestActors} still record the servlet's peer address, which
+ *       behind a load balancer is the balancer — a defect of the audit trail, and of this feed until
+ *       it is fixed there.
  *   <li>{@link #enqueue} and {@link #publish} — for the few events with no audit entry behind them:
  *       a KEV reclassification, a gate refusal, a broken audit chain.
  * </ul>
