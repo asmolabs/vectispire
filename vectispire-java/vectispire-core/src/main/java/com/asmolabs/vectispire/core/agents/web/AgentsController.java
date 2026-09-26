@@ -140,7 +140,7 @@ public class AgentsController {
             case AgentProtocolService.SealingKey.Stale stale -> throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This sealing key is older than the one already accepted for \"" + agent.name()
-                            + "\". Check the agent's clock.");
+                            + "\". Check the agent's clock, or have an administrator reset its sealing key.");
         }
     }
 

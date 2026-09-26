@@ -72,6 +72,8 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_UPDATED)).contains(SecurityEventType.AGENT_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SIGNING_KEY_PINNED))
                 .contains(SecurityEventType.AGENT_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_RESET))
+                .contains(SecurityEventType.AGENT_CHANGED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_REFUSED))
                 .contains(SecurityEventType.AGENT_SEALING_KEY_REFUSED);
         // A rotation happens at every start of every agent: routine, not an event for a SOC.

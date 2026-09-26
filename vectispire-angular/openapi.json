@@ -7279,6 +7279,26 @@
         "tags" : [ "agents-admin-controller" ]
       }
     },
+    "/api/v1/admin/agents/{id}/sealing-key" : {
+      "delete" : {
+        "operationId" : "resetSealingKey",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "agents-admin-controller" ]
+      }
+    },
     "/api/v1/admin/agents/{id}/signing-key" : {
       "put" : {
         "operationId" : "pinSigningKey",

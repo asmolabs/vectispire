@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -344,6 +345,73 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
                 .andExpect(status().isPreconditionFailed())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no signing key is pinned")));
         assertThat(audited(AuditOperation.AGENT_CREDENTIAL_SENT)).isZero();
+    }
+
+    /**
+     * The way back from what rotation forwards cannot fix — here, an agent whose clock was put back,
+     * so that every key it makes now reads as older than the one held.
+     */
+    @Test
+    @DisplayName("an administrator's reset forgets the key, is audited and signalled, and withholds credentials")
+    void anAdministratorResetsTheKey() throws Exception {
+        exportSiemEvents();
+        Enrolled agent = delegatedAgent(true);
+        announceSigned(agent, envelopes.generateKeyPair(), 5_000L).andExpect(status().isNoContent());
+        SealedEnvelope.KeyPair afterClockWentBack = envelopes.generateKeyPair();
+        announceSigned(agent, afterClockWentBack, 4_000L).andExpect(status().isConflict());
+        outbox.deleteAll();
+
+        mvc.perform(authenticated(delete("/api/v1/admin/agents/" + agent.id() + "/sealing-key"), asAdmin()))
+                .andExpect(status().isNoContent());
+
+        assertThat(row(agent).getSealingPublicKey()).isNull();
+        assertThat(row(agent).getSealingKeyGeneration()).isNull();
+        assertThat(audited(AuditOperation.AGENT_SEALING_KEY_RESET)).isEqualTo(1);
+        assertThat(queuedSiemTypes()).contains("AGENT_CHANGED");
+
+        pendingScanWithDeployKey();
+        poll(agent).andExpect(status().isPreconditionFailed());
+
+        announceSigned(agent, afterClockWentBack, 4_000L).andExpect(status().isNoContent());
+        assertThat(row(agent).getSealingPublicKey()).isEqualTo(afterClockWentBack.publicKey());
+    }
+
+    @Test
+    @DisplayName("only an administrator resets a sealing key: not a reader, not the agent, and not an unknown agent")
+    void onlyAnAdministratorResets() throws Exception {
+        Enrolled agent = delegatedAgent(true);
+        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
+
+        mvc.perform(authenticated(delete("/api/v1/admin/agents/" + agent.id() + "/sealing-key"), asReader()))
+                .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/admin/agents/" + agent.id() + "/sealing-key")
+                        .header("Authorization", "Bearer " + agent.token()))
+                .andExpect(status().isForbidden());
+        mvc.perform(authenticated(delete("/api/v1/admin/agents/" + UUID.randomUUID() + "/sealing-key"), asAdmin()))
+                .andExpect(status().isNotFound());
+
+        assertThat(row(agent).getSealingPublicKey()).isEqualTo(pair.publicKey());
+        assertThat(audited(AuditOperation.AGENT_SEALING_KEY_RESET)).isZero();
+    }
+
+    @Test
+    @DisplayName("pinning a new signing key forgets the sealing key the old one vouched for")
+    void aNewSigningKeyForgetsTheSealingKey() throws Exception {
+        Enrolled agent = delegatedAgent(true);
+        SealedEnvelope.KeyPair pair = envelopes.generateKeyPair();
+        announceSigned(agent, pair, 1_000L).andExpect(status().isNoContent());
+
+        String replacement = pin(agent.id());
+
+        assertThat(row(agent).getSealingPublicKey()).isNull();
+        // The old signing key vouches for nothing any more, even for a newer key.
+        announceSigned(agent, envelopes.generateKeyPair(), 2_000L).andExpect(status().isForbidden());
+        Enrolled repinned = new Enrolled(agent.id(), agent.token(), replacement);
+        announceSigned(repinned, pair, 1_000L).andExpect(status().isNoContent());
+        assertThat(auditEntries.findAll())
+                .anyMatch(entry -> AuditOperation.AGENT_SIGNING_KEY_PINNED.wireName().equals(entry.getOperationType())
+                        && entry.getDescription().contains("sealing key is forgotten"));
     }
 
     private long pendingScanWithDeployKey() throws Exception {

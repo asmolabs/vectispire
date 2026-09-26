@@ -85,4 +85,18 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
                     or a.sealingKeyGeneration < :generation
                     or (a.sealingKeyGeneration = :generation and a.sealingPublicKey = :key))""")
     int acceptSealingKey(@Param("id") UUID id, @Param("key") String key, @Param("generation") long generation);
+
+    /**
+     * Forgets the agent's sealing key and its generation: an administrator's reset, or a signing key
+     * pinned anew, which no longer vouches for the key the old one signed.
+     *
+     * <p>Until the agent announces a key signed with its pinned key again, it is handed no delegated
+     * credential — never a clear one.
+     *
+     * @return 0 when the agent no longer exists
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update AgentEntity a set a.sealingPublicKey = null, a.sealingKeyGeneration = null where a.id = :id")
+    int forgetSealingKey(@Param("id") UUID id);
 }

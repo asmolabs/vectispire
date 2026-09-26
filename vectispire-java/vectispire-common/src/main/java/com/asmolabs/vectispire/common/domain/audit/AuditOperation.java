@@ -170,6 +170,17 @@ public enum AuditOperation {
     AGENT_SEALING_KEY_REFUSED,
 
     /**
+     * An administrator made the control plane forget an agent's sealing key — deliberately, or by
+     * pinning its signing key anew.
+     *
+     * <p>The one way back from a key that can no longer be replaced forwards: an agent whose clock was
+     * put back, a host suspected of having leaked the key. It withholds every delegated credential
+     * until the agent proves a new key, and it is a change of trust like pinning, so it is recorded
+     * as one.
+     */
+    AGENT_SEALING_KEY_RESET,
+
+    /**
      * A repository's security grade was published as a public badge, or that publication revoked.
      *
      * <p>Its own operation rather than a setting change, because it is the one gesture in the

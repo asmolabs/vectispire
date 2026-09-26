@@ -85,6 +85,21 @@ class AgentSealingKeyIntegrationTest {
     }
 
     @Test
+    @DisplayName("a reset forgets key and generation, after which an older key is taken again")
+    void aResetStartsOver() {
+        UUID id = agent();
+        agents.acceptSealingKey(id, envelopes.generateKeyPair().publicKey(), NOW);
+
+        assertThat(agents.forgetSealingKey(id)).isOne();
+        AgentEntity forgotten = agents.findById(id).orElseThrow();
+        assertThat(forgotten.getSealingPublicKey()).isNull();
+        assertThat(forgotten.getSealingKeyGeneration()).isNull();
+
+        assertThat(agents.acceptSealingKey(id, envelopes.generateKeyPair().publicKey(), NOW - 60_000)).isOne();
+        assertThat(agents.forgetSealingKey(UUID.randomUUID())).isZero();
+    }
+
+    @Test
     @DisplayName("a heartbeat leaves the key alone, and saving the row does not write it")
     void nothingElseWritesIt() {
         UUID id = agent();

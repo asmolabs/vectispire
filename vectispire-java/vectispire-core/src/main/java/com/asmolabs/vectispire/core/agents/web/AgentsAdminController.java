@@ -269,6 +269,23 @@ public class AgentsAdminController {
         return new PinnedSigningKey(pinned.id(), pinned.signsResults(), pinned.privateKey());
     }
 
+    /**
+     * Forgets an agent's sealing key — see {@link AgentAdministrationService#resetSealingKey}.
+     *
+     * <p>No request body and no way to <em>set</em> a key here: the control plane learns a sealing
+     * key from the agent, signed with its pinned key, and from nobody else. An administrator can only
+     * take one away.
+     */
+    @DeleteMapping("/{id}/sealing-key")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetSealingKey(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        administration.resetSealingKey(id, RequestActors.of(principal, request));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remove(

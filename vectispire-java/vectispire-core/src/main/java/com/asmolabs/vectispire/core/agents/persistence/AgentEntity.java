@@ -80,7 +80,7 @@ public class AgentEntity {
     private String contractVersion;
 
     /**
-     * Written by {@code AgentRepository.acceptSealingKey} alone, never
+     * Written by {@code AgentRepository.acceptSealingKey} and {@code forgetSealingKey} alone, never
      * by saving the row: an administrator's change to the labels, read before the agent's
      * announcement and saved after it, would otherwise put back the key the agent just replaced —
      * one whose private half died with the process that made it.

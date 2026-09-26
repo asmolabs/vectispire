@@ -62,6 +62,9 @@ public class AgentAdministrationService {
 
     private static final int MAX_LABELS_LENGTH = 255;
 
+    private static final String SEALING_KEY_FORGOTTEN =
+            " Its sealing key is forgotten until it announces one signed with the key now pinned.";
+
     private final AgentRepository agents;
     private final AgentKeys keys;
     private final ScanCatalog scans;
@@ -398,8 +401,10 @@ public class AgentAdministrationService {
      * agent protocol</b>: a key the agent announced would prove nothing its API key had not
      * already proved. See {@link ResultAttestation}.
      *
-     * <p>Removing a pinned key takes the agent back to being trusted on its bearer token alone.
-     * Audited as loudly as pinning one, because it is the half somebody would do quietly.
+     * <p>Removing a pinned key takes the agent back to being trusted on its bearer token alone for
+     * its results, and stops every delegated credential to it (decision 0031). Audited as loudly as
+     * pinning one, because it is the half somebody would do quietly. Either way the sealing key the
+     * previous key vouched for is forgotten.
      *
      * @param publicKey base64 Ed25519, {@code "generate"} to have a pair made here, or null/blank
      *     to stop requiring signed results
@@ -409,11 +414,11 @@ public class AgentAdministrationService {
         String supplied = publicKey == null ? "" : publicKey.trim();
 
         if (supplied.isEmpty()) {
-            agent.setSigningPublicKey(null);
-            agents.save(agent);
+            pin(agent, null);
             recordSigningKey(actor, id,
                     "Result-signing key removed for agent " + agent.getName()
-                            + ": its results are accepted on its API key alone.");
+                            + ": its results are accepted on its API key alone, and it is handed no delegated "
+                            + "credential until a key is pinned again." + SEALING_KEY_FORGOTTEN);
             return new PinnedKey(id, false, null);
         }
 
@@ -422,10 +427,9 @@ public class AgentAdministrationService {
         // a message pointing at the agent.
         if ("generate".equals(supplied)) {
             ResultAttestation.KeyPair pair = ResultAttestation.generate();
-            agent.setSigningPublicKey(pair.publicKey());
-            agents.save(agent);
+            pin(agent, pair.publicKey());
             recordSigningKey(actor, id,
-                    "Result-signing key generated and pinned for agent " + agent.getName() + ".");
+                    "Result-signing key generated and pinned for agent " + agent.getName() + "." + SEALING_KEY_FORGOTTEN);
             return new PinnedKey(id, true, pair.privateKey());
         }
 
@@ -437,11 +441,51 @@ public class AgentAdministrationService {
                             + "to have one made here instead.");
         }
 
-        agent.setSigningPublicKey(supplied);
-        agents.save(agent);
+        pin(agent, supplied);
         recordSigningKey(actor, id,
-                "Result-signing key pinned for agent " + agent.getName() + ".");
+                "Result-signing key pinned for agent " + agent.getName() + "." + SEALING_KEY_FORGOTTEN);
         return new PinnedKey(id, true, null);
+    }
+
+    /**
+     * Makes the control plane forget an agent's sealing key, deliberately.
+     *
+     * <p>The key only ever moves forwards on its own: a newer generation, signed with the pinned key
+     * (decision 0031). This is the way back, for what forwards cannot fix — an agent host whose clock
+     * was put back and whose new keys all read as older, or one suspected of having leaked its key.
+     * The agent is handed no delegated credential until it proves a new key, which it does at its
+     * next start, or at its next claim once it has seen a credential withheld.
+     *
+     * <p>Audited like a pinned key, because it is the same kind of act: a change to what the control
+     * plane believes about the agent.
+     */
+    public void resetSealingKey(UUID id, RequestActor actor) {
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        agents.forgetSealingKey(id);
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_SEALING_KEY_RESET,
+                id.toString(),
+                "Sealing key reset for agent " + agent.getName()
+                        + ": no delegated credential is handed to it until it announces a new key signed with its "
+                        + "pinned signing key.",
+                actor.username(),
+                actor.ipAddress(),
+                actor.userAgent()));
+    }
+
+    /**
+     * Writes the signing key and forgets the sealing key, together.
+     *
+     * <p><b>The sealing key goes with the signing key that vouched for it.</b> A key signed by a key
+     * the operator has just replaced — lost, leaked, or simply rotated — is no longer vouched for by
+     * anything pinned, and the credentials sealed for it would be sealed on the old key's word.
+     */
+    private void pin(AgentEntity agent, String signingPublicKey) {
+        transactions.executeWithoutResult(status -> {
+            agent.setSigningPublicKey(signingPublicKey);
+            agents.save(agent);
+            agents.forgetSealingKey(agent.getId());
+        });
     }
 
     public void remove(UUID id, RequestActor actor) {

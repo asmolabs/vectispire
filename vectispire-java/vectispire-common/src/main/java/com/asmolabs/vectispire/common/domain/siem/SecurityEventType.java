@@ -60,7 +60,10 @@ public enum SecurityEventType {
     /** An integration API key was revoked. */
     API_KEY_REVOKED("ZAN-SEC-013", "API key revoked", 4, Outcome.SUCCESS),
 
-    /** A remote agent was declared, enabled, disabled, deleted, or its signing key pinned or removed. */
+    /**
+     * A remote agent was declared, enabled, disabled, deleted, its signing key pinned or removed, or
+     * its sealing key reset.
+     */
     AGENT_CHANGED("ZAN-SEC-014", "Agent declared or its credentials changed", 6, Outcome.SUCCESS),
 
     /** An agent's result was refused because its attestation did not verify. */
@@ -161,7 +164,8 @@ public enum SecurityEventType {
             case TEAM_ACCESS_CHANGED, PROJECT_REPOSITORIES_CHANGED -> Optional.of(ACCESS_GRANT_CHANGED);
             case API_KEY_CREATED -> Optional.of(API_KEY_ISSUED);
             case API_KEY_DELETED -> Optional.of(API_KEY_REVOKED);
-            case AGENT_CREATED, AGENT_UPDATED, AGENT_DELETED, AGENT_SIGNING_KEY_PINNED -> Optional.of(AGENT_CHANGED);
+            case AGENT_CREATED, AGENT_UPDATED, AGENT_DELETED, AGENT_SIGNING_KEY_PINNED, AGENT_SEALING_KEY_RESET ->
+                    Optional.of(AGENT_CHANGED);
             case AGENT_RESULT_REFUSED -> Optional.of(AGENT_RESULT_REFUSED);
             case AGENT_SEALING_KEY_REFUSED -> Optional.of(AGENT_SEALING_KEY_REFUSED);
             case GATE_POLICY_UPDATED -> Optional.of(SECURITY_SETTING_CHANGED);
