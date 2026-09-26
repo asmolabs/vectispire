@@ -6,7 +6,16 @@ import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.CompositeArchRule;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
+import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -92,6 +101,107 @@ class ArchitectureTest {
                 // populated, so an empty one is now a package that was renamed or deleted — and
                 // this rule going quiet is exactly how that would go unnoticed.
                 .check(classes);
+    }
+
+    /**
+     * The domains of {@code core.services} that every other domain may use: helpers, the door out,
+     * encryption, the audit writer and the outbox relay (decision 0026).
+     */
+    private static final Set<String> FOUNDATION = Set.of("shared", "outbound", "crypto", "audit", "outbox");
+
+    /**
+     * What each domain may use besides itself — and, above the foundation, besides the foundation.
+     *
+     * <p>This is the table of decision 0026, and it is the code as it stood when the flat package
+     * was split: every line is a dependency that existed. Adding one is a decision to take in the
+     * review that needs it, not a line to append until the build is green — the flat package is
+     * what "append until green" produced. {@code platform} is absent on purpose: it holds the
+     * composition roots, may use any domain, and nothing may use it.
+     */
+    private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
+            Map.entry("shared", Set.of()),
+            Map.entry("outbound", Set.of()),
+            Map.entry("crypto", Set.of("outbound")),
+            Map.entry("audit", Set.of()),
+            Map.entry("outbox", Set.of()),
+            Map.entry("access", Set.of()),
+            Map.entry("siem", Set.of()),
+            Map.entry("rules", Set.of()),
+            Map.entry("inventory", Set.of()),
+            Map.entry("ai", Set.of()),
+            Map.entry("tickets", Set.of()),
+            Map.entry("issues", Set.of("tickets")),
+            Map.entry("scanning", Set.of("issues", "inventory", "rules")),
+            Map.entry("agents", Set.of("scanning")),
+            Map.entry("targets", Set.of("access", "scanning")),
+            Map.entry("threatintel", Set.of("scanning", "siem")),
+            Map.entry("gate", Set.of("issues", "rules", "siem")),
+            Map.entry("notifications", Set.of("issues", "scanning")),
+            Map.entry("exports", Set.of("gate", "issues")),
+            Map.entry("posture", Set.of("gate", "inventory", "issues", "notifications")),
+            Map.entry("compliance",
+                    Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "siem")));
+
+    private static final String PLATFORM = "platform";
+
+    private static String servicesDomain(String domain) {
+        return ROOT + ".core.services." + domain + "..";
+    }
+
+    @Test
+    @DisplayName("every service lives in a known domain")
+    void everyServiceLivesInAKnownDomain() {
+        // Without this the table below could be bypassed by a class dropped back into the flat
+        // package, or into a new sub-package nobody listed: the dependency rule only constrains the
+        // domains it names.
+        Stream<String> domains = Stream.concat(MAY_USE.keySet().stream(), Stream.of(PLATFORM));
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(ROOT + ".core.services..")
+                .should().resideInAnyPackage(domains.map(ArchitectureTest::servicesDomain).toArray(String[]::new))
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("the service domains form no cycle")
+    void serviceDomainsFormNoCycle() {
+        // A cycle between two domains makes them one domain with two names: neither can be read,
+        // tested or changed without the other. The flat package hid three (decision 0026); none is
+        // tolerated here, so there is no exception list to grow.
+        SlicesRuleDefinition.slices()
+                .matching(ROOT + ".core.services.(*)..")
+                .should().beFreeOfCycles()
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a service domain uses only the domains it is allowed")
+    void serviceDomainsDependOnlyWhereAllowed() {
+        // Acyclic is not enough: a new dependency pointing the wrong way can be acyclic today and
+        // close a cycle with the next one. The table fixes the direction.
+        Set<String> all = new TreeSet<>(MAY_USE.keySet());
+        all.add(PLATFORM);
+        List<ArchRule> rules = new ArrayList<>();
+        MAY_USE.forEach((domain, allowed) -> {
+            Set<String> forbidden = new TreeSet<>(all);
+            forbidden.remove(domain);
+            forbidden.removeAll(allowed);
+            if (!FOUNDATION.contains(domain)) {
+                forbidden.removeAll(FOUNDATION);
+            }
+            List<String> uses = new ArrayList<>();
+            if (!FOUNDATION.contains(domain)) {
+                uses.add("the foundation");
+            }
+            uses.addAll(new TreeSet<>(allowed));
+            rules.add(ArchRuleDefinition.noClasses()
+                    .that().resideInAPackage(servicesDomain(domain))
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage(forbidden.stream().map(ArchitectureTest::servicesDomain).toArray(String[]::new))
+                    .as(uses.isEmpty()
+                            ? "services." + domain + " uses no other domain"
+                            : "services." + domain + " uses only " + String.join(", ", uses)));
+        });
+        CompositeArchRule.of(rules).check(classes);
     }
 
     @Test
