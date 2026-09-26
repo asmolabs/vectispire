@@ -213,7 +213,7 @@ two or three columns:
 
 - [`DashboardController:211`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/posture/web/DashboardController.java) — every issue, mapped to `BacklogTrend.Lifespan(firstSeenAt, resolvedAt)`
 - `DashboardController:237` — the same shape on the dashboard root
-- [`ComplianceService:250`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/compliance/ComplianceService.java) and `:379` — mapped to `MttrCalculator.ResolvedIssue(severity, firstSeenAt, resolvedAt)`
+- [`ComplianceService:250`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/compliance/ComplianceService.java) and `:379` — mapped to `MttrCalculator.ResolvedIssue(severity, firstSeenAt, resolvedAt)`
 
 **The need is legitimate; the read is not.** The trends comment is right that the curve needs every
 issue's lifespan — *"an issue resolved inside the window has to be counted as open on the days

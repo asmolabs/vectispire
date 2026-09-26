@@ -46,7 +46,7 @@ it is why this pass exists.
 
 | # | Finding | Severity | Evidence |
 |:--:|---|:--:|---|
-| **N1** | `/api/v1/compliance/summary` issues **nine count queries per target** inside its per-target loop, plus a full audit-table scan for the chain verification. On a hundred targets that is ~900 round trips for one page. | 🟠 **High** | [ComplianceService.java:175](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/compliance/ComplianceService.java) |
+| **N1** | `/api/v1/compliance/summary` issues **nine count queries per target** inside its per-target loop, plus a full audit-table scan for the chain verification. On a hundred targets that is ~900 round trips for one page. | 🟠 **High** | [ComplianceService.java:175](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/compliance/ComplianceService.java) |
 
 This one deserves its wording carefully, because the project already knows the rule. `TriageEvents.findForIssues` carries this comment:
 

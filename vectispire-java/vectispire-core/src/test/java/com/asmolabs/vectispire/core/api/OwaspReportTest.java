@@ -11,14 +11,14 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
-import com.asmolabs.vectispire.core.persistence.AiReviewResultEntity;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.compliance.OwaspReviewService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -53,7 +53,7 @@ class OwaspReportTest extends ApiTestBase {
     private Issues issues;
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.AiReviewResults results;
+    private com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults results;
 
     private AiReviewService models;
     private OwaspReviewService service;

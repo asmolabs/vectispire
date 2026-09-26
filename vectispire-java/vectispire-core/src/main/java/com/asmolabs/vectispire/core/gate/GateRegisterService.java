@@ -30,6 +30,15 @@ public class GateRegisterService {
     }
 
     /**
+     * The register newest first, at most {@code limit} rows, whoever may see them: section 09 of the
+     * evidence bundle filters by its reader's allowance itself, and says when the cap cut it short.
+     * Like the two lookups below, it exists because the register is this module's table.
+     */
+    public List<GateVerdictView> newest(int limit) {
+        return verdicts.findAllByOrderByDecidedAtDesc(Limit.of(limit)).stream().map(GateVerdictView::of).toList();
+    }
+
+    /**
      * The last verdict recorded for a repository at or after {@code from} and, when {@code until} is
      * not null, before it — the answer the gate gave about the backlog one scan left.
      *

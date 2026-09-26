@@ -47,7 +47,7 @@ travail de remédiation**, et c'est la raison d'être de cette passe.
 
 | # | Constat | Sévérité | Preuve |
 |:--:|---|:--:|---|
-| **N1** | `/api/v1/compliance/summary` émet **neuf requêtes de comptage par cible** dans sa boucle par cible, plus un balayage complet de la table d'audit pour la vérification de chaîne. Sur cent cibles, cela fait ~900 allers-retours pour une page. | 🟠 **Élevée** | [ComplianceService.java:175](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/compliance/ComplianceService.java) |
+| **N1** | `/api/v1/compliance/summary` émet **neuf requêtes de comptage par cible** dans sa boucle par cible, plus un balayage complet de la table d'audit pour la vérification de chaîne. Sur cent cibles, cela fait ~900 allers-retours pour une page. | 🟠 **Élevée** | [ComplianceService.java:175](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/compliance/ComplianceService.java) |
 
 Celui-ci mérite une formulation précise, car le projet connaît déjà la règle. `TriageEvents.findForIssues` porte ce commentaire :
 

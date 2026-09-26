@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceControl;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
-import com.asmolabs.vectispire.core.services.compliance.ComplianceReportPdf;
+import com.asmolabs.vectispire.core.compliance.internal.ComplianceReportPdf;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory.Decision;
 import com.asmolabs.vectispire.core.services.issues.TriageHistory.ObservedIssue;
