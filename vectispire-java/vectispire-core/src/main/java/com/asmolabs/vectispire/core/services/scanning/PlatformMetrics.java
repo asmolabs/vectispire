@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.repositories.Agents;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import io.micrometer.core.instrument.Counter;
@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ public class PlatformMetrics {
 
     private final MeterRegistry registry;
     private final ScanQueue queue;
-    private final Outbox outbox;
+    private final OutboxService outbox;
     private final Agents agents;
     private final Clock clock;
 
@@ -84,7 +85,7 @@ public class PlatformMetrics {
     private final AtomicReference<Double> lastOutbox = new AtomicReference<>(0.0);
     private final AtomicReference<Double> lastAgents = new AtomicReference<>(0.0);
 
-    public PlatformMetrics(MeterRegistry registry, ScanQueue queue, Outbox outbox, Agents agents, Clock clock) {
+    public PlatformMetrics(MeterRegistry registry, ScanQueue queue, OutboxService outbox, Agents agents, Clock clock) {
         this.registry = registry;
         this.queue = queue;
         this.outbox = outbox;
@@ -161,11 +162,15 @@ public class PlatformMetrics {
         }
     }
 
+    /**
+     * Every message not sent, abandoned ones included — through the relay's own count, not its
+     * repository, which this class read until the outbox became a module and hid it (decision 0029).
+     */
     private long pendingMessages() {
         long pending = 0;
-        for (Object[] row : outbox.countByStatus()) {
-            if (!"SENT".equalsIgnoreCase(String.valueOf(row[0]))) {
-                pending += ((Number) row[1]).longValue();
+        for (Map.Entry<String, Long> count : outbox.counts().entrySet()) {
+            if (!"SENT".equalsIgnoreCase(String.valueOf(count.getKey()))) {
+                pending += count.getValue();
             }
         }
         return pending;
