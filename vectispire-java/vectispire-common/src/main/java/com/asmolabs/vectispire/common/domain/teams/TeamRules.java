@@ -23,12 +23,23 @@ public final class TeamRules {
     public static final int MAX_NAME_LENGTH = 100;
     public static final int MAX_DESCRIPTION_LENGTH = 255;
 
-    /** The two kinds that exist. Anything else grants nothing, so it is refused on the way in. */
+    /** The kinds that exist. Anything else grants nothing, so it is refused on the way in. */
     public static final String KIND_REPOSITORY = "repository";
 
     public static final String KIND_CONTAINER = "container";
 
-    private static final Set<String> KINDS = Set.of(KIND_REPOSITORY, KIND_CONTAINER);
+    /**
+     * A project, which grants its repositories <em>as they are at each request</em> (decision
+     * 0023): a repository filed into it later is granted with nothing re-granted.
+     *
+     * <p>There is no solution kind, deliberately — one level of inheritance is what an auditor can
+     * follow, and a solution-wide grant is the list of its project grants. Nor is a project a kind
+     * an API key may be restricted to: a key's restriction is checked against the target it names,
+     * and a restriction that grows when somebody files a repository is not a restriction.
+     */
+    public static final String KIND_PROJECT = "project";
+
+    private static final Set<String> KINDS = Set.of(KIND_REPOSITORY, KIND_CONTAINER, KIND_PROJECT);
 
     /**
      * The name, trimmed, or a refusal.
@@ -65,7 +76,7 @@ public final class TeamRules {
     }
 
     /**
-     * One of the two kinds, lowercased, or a refusal.
+     * One of the kinds, lowercased, or a refusal.
      *
      * <p><b>Refused rather than stored and ignored.</b> A kind this version does not recognise
      * resolves to no target at all, so the assignment would appear on the screen and grant
@@ -76,7 +87,8 @@ public final class TeamRules {
         String normalized = kind == null ? "" : kind.trim().toLowerCase(Locale.ROOT);
         if (!KINDS.contains(normalized)) {
             throw new IllegalArgumentException(
-                    "Unknown target kind \"" + kind + "\". Expected: " + KIND_REPOSITORY + ", " + KIND_CONTAINER + ".");
+                    "Unknown target kind \"" + kind + "\". Expected: " + KIND_REPOSITORY + ", " + KIND_CONTAINER
+                            + ", " + KIND_PROJECT + ".");
         }
         return normalized;
     }

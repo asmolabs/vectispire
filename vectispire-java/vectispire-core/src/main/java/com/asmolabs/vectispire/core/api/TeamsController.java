@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.RequestActor;
+import com.asmolabs.vectispire.core.services.TargetNaming;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService;
 import com.asmolabs.vectispire.core.services.TeamAdministrationService.TeamView;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,6 +59,10 @@ public class TeamsController {
      */
     public record WebhookRequest(String url) {}
 
+    /**
+     * A grant as the screen sends it: {@code repository}, {@code container} or {@code project}.
+     * What comes back is a {@code TargetGrant}, which adds the target's name.
+     */
     public record TeamTargetAssignment(String kind, Long id) {}
 
     @GetMapping
@@ -119,12 +124,12 @@ public class TeamsController {
     }
 
     @GetMapping("/{id}/targets")
-    public List<TeamTargetAssignment> targets(@PathVariable long id) {
-        return teams.targets(id).stream().map(TeamsController::assignmentOf).toList();
+    public List<TargetNaming.TargetGrant> targets(@PathVariable long id) {
+        return teams.targets(id);
     }
 
     @PutMapping("/{id}/targets")
-    public List<TeamTargetAssignment> setTargets(
+    public List<TargetNaming.TargetGrant> setTargets(
             @PathVariable long id,
             @RequestBody List<TeamTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -137,9 +142,7 @@ public class TeamsController {
                         ? null
                         : new TeamAdministrationService.TargetAssignment(assignment.kind(), assignment.id()))
                 .toList();
-        return teams.replaceTargets(id, requested, actor(principal, request)).stream()
-                .map(TeamsController::assignmentOf)
-                .toList();
+        return teams.replaceTargets(id, requested, actor(principal, request));
     }
 
     /**
@@ -168,9 +171,5 @@ public class TeamsController {
                 view.memberCount(),
                 view.targetCount(),
                 view.notified());
-    }
-
-    private static TeamTargetAssignment assignmentOf(TeamAdministrationService.TargetAssignment assignment) {
-        return new TeamTargetAssignment(assignment.kind(), assignment.id());
     }
 }

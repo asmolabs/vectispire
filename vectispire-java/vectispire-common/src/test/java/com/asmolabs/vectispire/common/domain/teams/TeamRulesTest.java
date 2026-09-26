@@ -59,6 +59,11 @@ class TeamRulesTest {
     void unknownKindsAreRefused() {
         assertThat(TeamRules.validateTargetKind("Repository")).isEqualTo("repository");
         assertThat(TeamRules.validateTargetKind(" container ")).isEqualTo("container");
+        assertThat(TeamRules.validateTargetKind("Project")).isEqualTo("project");
+
+        // No grant on a solution (decision 0023): refused like any kind that grants nothing.
+        assertThatThrownBy(() -> TeamRules.validateTargetKind("solution"))
+                .isInstanceOf(IllegalArgumentException.class);
 
         // Stored, it would resolve to no target at all: an assignment the screen displays and
         // that grants nothing. An error message is the kinder failure.

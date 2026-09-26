@@ -79,8 +79,11 @@ class AccountInputRoutesTest extends ApiTestBase {
                 result.getResponse().getContentAsString(),
                 new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
         assertThat(answered)
-                .as("the kind lowercased, the duplicate collapsed, the unusable entries gone")
-                .containsExactly(Map.of("kind", "repository", "id", 7), Map.of("kind", "container", "id", 3));
+                .as("the kind lowercased, the duplicate collapsed, the unusable entries gone — and each "
+                        + "named, here as deleted since neither target was ever created")
+                .containsExactly(
+                        Map.of("kind", "repository", "id", 7, "name", "deleted target"),
+                        Map.of("kind", "container", "id", 3, "name", "deleted target"));
         assertThat(assignments.findByUserId(id)).hasSize(2);
     }
 

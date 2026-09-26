@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.AccountAdministrationService;
 import com.asmolabs.vectispire.core.services.AccountAdministrationService.AccountView;
+import com.asmolabs.vectispire.core.services.TargetNaming;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;
@@ -53,7 +54,13 @@ public class UsersController {
 
     public record UserListing(List<UserAdminSummary> users, Long currentUserId) {}
 
-    /** @param kind {@code repository} or {@code container} */
+    /**
+     * A grant as the screen sends it.
+     *
+     * @param kind {@code repository}, {@code container} or {@code project}. What comes back is a
+     *     {@code TargetGrant}, which adds the target's name: a project is in no list the screen
+     *     already holds, so it could not label one
+     */
     public record UserTargetAssignment(String kind, Long id) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
@@ -107,15 +114,13 @@ public class UsersController {
 
     /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
     @GetMapping("/{id}/targets")
-    public List<UserTargetAssignment> targets(@PathVariable long id) {
-        return accounts.targets(id).stream()
-                .map(assignment -> new UserTargetAssignment(assignment.kind(), assignment.id()))
-                .toList();
+    public List<TargetNaming.TargetGrant> targets(@PathVariable long id) {
+        return accounts.targets(id);
     }
 
     /** Replaces the set wholesale, so that removing a target is something the screen can do. */
     @PutMapping("/{id}/targets")
-    public List<UserTargetAssignment> setTargets(
+    public List<TargetNaming.TargetGrant> setTargets(
             @PathVariable long id,
             @RequestBody List<UserTargetAssignment> body,
             @AuthenticationPrincipal VectispirePrincipal principal,
@@ -130,9 +135,7 @@ public class UsersController {
                 .toList();
         // What was stored, not what was sent: the two differ by every entry the service skipped or
         // normalized, and a screen showing the request would show assignments that do not exist.
-        return accounts.replaceTargets(id, requested, RequestActors.of(principal, request)).stream()
-                .map(assignment -> new UserTargetAssignment(assignment.kind(), assignment.id()))
-                .toList();
+        return accounts.replaceTargets(id, requested, RequestActors.of(principal, request));
     }
 
     @DeleteMapping("/{id}")

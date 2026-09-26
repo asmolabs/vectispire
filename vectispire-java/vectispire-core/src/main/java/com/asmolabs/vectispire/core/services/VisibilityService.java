@@ -4,12 +4,14 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
 import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.persistence.UserTargetEntity;
+import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamMembers;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.UserTargets;
@@ -48,27 +50,65 @@ import org.springframework.transaction.annotation.Transactional;
  *       answer different questions — who is this, and what is this key for. A narrow key held by
  *       a broad account must stay narrow.
  * </ul>
+ *
+ * <h2>A grant on a project is resolved here, and nowhere else</h2>
+ *
+ * <p>A grant may name a project (decision 0023). It is turned into the project's repositories
+ * <b>at each request</b>, before anything is queried, so what leaves this class is still a set of
+ * {@link ScanTarget}s: every query that narrows by visibility narrows a project's repositories
+ * without knowing projects exist, and a refusal is still a 404. The cost is one query per request
+ * for an account holding a project grant — the alternative, copying the project's repositories
+ * into repository grants when the grant is made, is a snapshot, and a repository filed into the
+ * project afterwards would stay invisible to exactly the people the project was granted to.
  */
 @Service
 public class VisibilityService {
-
-    private static final String KIND_REPOSITORY = "repository";
-    private static final String KIND_CONTAINER = "container";
 
     private final SettingsService settings;
     private final UserTargets assignments;
     private final TeamMembers memberships;
     private final TeamTargets teamTargets;
+    private final GitRepositories repositories;
 
     public VisibilityService(
             SettingsService settings,
             UserTargets assignments,
             TeamMembers memberships,
-            TeamTargets teamTargets) {
+            TeamTargets teamTargets,
+            GitRepositories repositories) {
         this.settings = settings;
         this.assignments = assignments;
         this.memberships = memberships;
         this.teamTargets = teamTargets;
+        this.repositories = repositories;
+    }
+
+    /**
+     * What a caller may see, and which projects it was granted as such.
+     *
+     * <p>The second half is for the one reader that needs to know a grant named a project rather
+     * than its repositories: the solutions tree, where a granted project appears even while it
+     * holds no repository — a project somebody was given and cannot find is a support ticket.
+     *
+     * @param grantedProjects empty when the visibility is everything (there is nothing to add),
+     *     and empty when the credential carries a restriction: a key narrowed to one repository
+     *     reveals no project through its account's grants
+     */
+    public record Allowance(Visibility visibility, Set<Long> grantedProjects) {
+
+        public Allowance {
+            grantedProjects = Set.copyOf(grantedProjects);
+        }
+    }
+
+    /** {@link #of(UserEntity, Visibility)}, with the projects granted as such beside it. */
+    @Transactional(readOnly = true)
+    public Allowance allowance(UserEntity user, Visibility restriction) {
+        Allowance account = resolve(user);
+        Visibility visibility = account.visibility().and(restriction);
+        return new Allowance(
+                visibility,
+                restriction instanceof Visibility.Everything ? account.grantedProjects() : Set.of());
     }
 
     public VisibilityMode mode() {
@@ -105,22 +145,27 @@ public class VisibilityService {
     }
 
     private Visibility accountVisibility(UserEntity user) {
+        return resolve(user).visibility();
+    }
+
+    private Allowance resolve(UserEntity user) {
         if (user == null) {
             // No account, no visibility. Reached only if a route forgot its marker, and the safe
             // answer to "who is this" being unanswerable is "nothing".
-            return Visibility.only(List.of());
+            return new Allowance(Visibility.only(List.of()), Set.of());
         }
         if (mode() == VisibilityMode.EVERYONE || hasGlobalScope(user)) {
-            return Visibility.everything();
+            return new Allowance(Visibility.everything(), Set.of());
         }
 
         // A set, not a list: a repository owned by two of the account's teams, or by a team and
         // directly, would otherwise be counted twice — harmless for `permits` and wrong for
         // anybody who reads the size of what a query was narrowed to.
         Set<ScanTarget> visible = new LinkedHashSet<>();
+        Set<Long> projects = new LinkedHashSet<>();
 
         for (UserTargetEntity row : assignments.findByUserId(user.getId())) {
-            targetOf(row.getId().targetKind(), row.getId().targetId()).ifPresent(visible::add);
+            collect(row.getId().targetKind(), row.getId().targetId(), visible, projects);
         }
 
         List<Long> teams = memberships.findByUserId(user.getId()).stream()
@@ -132,11 +177,29 @@ public class VisibilityService {
         // gets, so it is not left to the driver.
         if (!teams.isEmpty()) {
             for (TeamTargetEntity row : teamTargets.findByTeamIdIn(teams)) {
-                targetOf(row.getId().targetKind(), row.getId().targetId()).ifPresent(visible::add);
+                collect(row.getId().targetKind(), row.getId().targetId(), visible, projects);
             }
         }
 
-        return Visibility.only(new ArrayList<>(visible));
+        // The same guard, for the same reason, and it matters more here: `project_id in ()`
+        // matching every row would hand an account with no project grant every repository that
+        // has been filed anywhere. One query for all the granted projects, whether they came
+        // directly or through teams — the union rule, applied before anything is read.
+        if (!projects.isEmpty()) {
+            for (Long repositoryId : repositories.findIdsByProjectIdIn(projects)) {
+                visible.add(new ScanTarget.Repository(repositoryId));
+            }
+        }
+
+        return new Allowance(Visibility.only(new ArrayList<>(visible)), projects);
+    }
+
+    private static void collect(String kind, Long id, Set<ScanTarget> visible, Set<Long> projects) {
+        if (TeamRules.KIND_PROJECT.equals(kind)) {
+            projects.add(id);
+        } else {
+            targetOf(kind, id).ifPresent(visible::add);
+        }
     }
 
     private static boolean hasGlobalScope(UserEntity user) {
@@ -144,10 +207,10 @@ public class VisibilityService {
     }
 
     private static Optional<ScanTarget> targetOf(String kind, Long id) {
-        if (KIND_REPOSITORY.equals(kind)) {
+        if (TeamRules.KIND_REPOSITORY.equals(kind)) {
             return Optional.of(new ScanTarget.Repository(id));
         }
-        if (KIND_CONTAINER.equals(kind)) {
+        if (TeamRules.KIND_CONTAINER.equals(kind)) {
             return Optional.of(new ScanTarget.Container(id));
         }
         return Optional.empty();

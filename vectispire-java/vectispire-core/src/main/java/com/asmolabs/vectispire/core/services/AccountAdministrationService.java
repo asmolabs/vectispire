@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
-import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -47,6 +46,8 @@ public class AccountAdministrationService {
     private final AccountAdminService accounts;
     private final AuditLogService audit;
     private final Clock clock;
+    private final GrantTargets grantTargets;
+    private final TargetNaming naming;
 
     public AccountAdministrationService(
             Users users,
@@ -54,20 +55,24 @@ public class AccountAdministrationService {
             UserTargets assignments,
             AccountAdminService accounts,
             AuditLogService audit,
-            Clock clock) {
+            Clock clock,
+            GrantTargets grantTargets,
+            TargetNaming naming) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;
         this.accounts = accounts;
         this.audit = audit;
         this.clock = clock;
+        this.grantTargets = grantTargets;
+        this.naming = naming;
     }
 
     /** An account and how many live sessions it holds. */
     public record AccountView(UserEntity user, long activeSessions) {}
 
-    /** @param kind {@code repository} or {@code container} */
-    public record TargetAssignment(String kind, Long id) {}
+    /** @param kind {@code repository}, {@code container} or {@code project} */
+    public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
 
     public record NewAccount(String username, String password, String role, String email, String displayName) {}
 
@@ -203,12 +208,17 @@ public class AccountAdministrationService {
         return new AccountView(user, revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
     }
 
-    /** The targets this account may see. Empty means it sees nothing, in restricted mode. */
-    public List<TargetAssignment> targets(long id) {
+    /**
+     * The targets this account may see, each named. Empty means it sees nothing, in restricted mode.
+     *
+     * <p>A project grant is listed as the project, not as its repositories: the grant is what an
+     * administrator made and can revoke, and what it resolves to changes as repositories are filed.
+     */
+    public List<TargetNaming.TargetGrant> targets(long id) {
         requireAccount(id);
-        return assignments.findByUserId(id).stream()
+        return naming.named(assignments.findByUserId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList();
+                .toList());
     }
 
     /**
@@ -219,14 +229,15 @@ public class AccountAdministrationService {
      * revocation that silently does nothing.
      *
      * <p><b>Read as the team path reads it.</b> A null entry, or one with no id, is skipped; the kind
-     * is validated against the two that exist and lowercased. The body used to reach the table as
-     * sent: {@code [null]} or a missing id was a 500 from the insert, and an unknown kind was
-     * stored — an assignment the screen showed and that granted nothing.
+     * is validated against those that exist and lowercased, and a project must exist. The body used
+     * to reach the table as sent: {@code [null]} or a missing id was a 500 from the insert, and an
+     * unknown kind was stored — an assignment the screen showed and that granted nothing.
      *
      * @param requested as sent, possibly null or holding nulls
      * @return the assignments as stored, which is what the screen must show — not what it sent
      */
-    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> requested, RequestActor actor) {
+    public List<TargetNaming.TargetGrant> replaceTargets(
+            long id, List<TargetAssignment> requested, RequestActor actor) {
         UserEntity user = requireAccount(id);
 
         // A set, because the pair is the table's primary key: the same target sent twice is one
@@ -236,7 +247,7 @@ public class AccountAdministrationService {
             if (assignment == null || assignment.id() == null) {
                 continue;
             }
-            unique.add(new TargetAssignment(TeamRules.validateTargetKind(assignment.kind()), assignment.id()));
+            unique.add(new TargetAssignment(grantTargets.validate(assignment.kind(), assignment.id()), assignment.id()));
         }
         List<TargetAssignment> wanted = List.copyOf(unique);
 
@@ -249,7 +260,7 @@ public class AccountAdministrationService {
         record(actor, id,
                 "Visible targets of " + user.getUsername() + ": "
                         + (wanted.isEmpty() ? "none" : wanted.size() + " assigned"));
-        return wanted;
+        return naming.named(wanted);
     }
 
     /** @param actingAccountId as for {@link #update}: refuses deleting one's own account */

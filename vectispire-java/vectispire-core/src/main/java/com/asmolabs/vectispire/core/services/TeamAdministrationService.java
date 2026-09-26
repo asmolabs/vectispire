@@ -60,6 +60,8 @@ public class TeamAdministrationService {
     private final SettingsService settings;
     private final AuditLogService audit;
     private final Clock clock;
+    private final GrantTargets grantTargets;
+    private final TargetNaming naming;
 
     public TeamAdministrationService(
             Teams teams,
@@ -70,7 +72,9 @@ public class TeamAdministrationService {
             OutboundUrlGuard outbound,
             SettingsService settings,
             AuditLogService audit,
-            Clock clock) {
+            Clock clock,
+            GrantTargets grantTargets,
+            TargetNaming naming) {
         this.teams = teams;
         this.memberships = memberships;
         this.targets = targets;
@@ -80,6 +84,8 @@ public class TeamAdministrationService {
         this.settings = settings;
         this.audit = audit;
         this.clock = clock;
+        this.grantTargets = grantTargets;
+        this.naming = naming;
     }
 
     /**
@@ -90,7 +96,8 @@ public class TeamAdministrationService {
      */
     public record TeamView(TeamEntity team, int memberCount, int targetCount, boolean notified) {}
 
-    public record TargetAssignment(String kind, Long id) {}
+    /** @param kind {@code repository}, {@code container} or {@code project} */
+    public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
 
     public List<TeamView> list() {
         // Counted in two queries rather than in one per team: the screen shows every team, and a
@@ -222,30 +229,32 @@ public class TeamAdministrationService {
         return wanted;
     }
 
-    public List<TargetAssignment> targets(long id) {
+    /** What the team owns, each target named — a project grant included, which no selector lists. */
+    public List<TargetNaming.TargetGrant> targets(long id) {
         requireTeam(id);
-        return targets.findByTeamId(id).stream()
+        return naming.named(targets.findByTeamId(id).stream()
                 .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
-                .toList();
+                .toList());
     }
 
     /**
      * Replaces the targets wholesale.
      *
      * @param requested as sent; a null entry, or one with no id, is skipped
-     * @return the assignments as stored
+     * @return the assignments as stored, named
      */
-    public List<TargetAssignment> replaceTargets(long id, List<TargetAssignment> requested, RequestActor actor) {
+    public List<TargetNaming.TargetGrant> replaceTargets(
+            long id, List<TargetAssignment> requested, RequestActor actor) {
         TeamEntity team = requireTeam(id);
         List<TargetAssignment> wanted = new ArrayList<>();
         for (TargetAssignment assignment : requested) {
             if (assignment == null || assignment.id() == null) {
                 continue;
             }
-            // The kind is validated against the two that exist. An unrecognised kind stored here
-            // would resolve to nothing forever — an assignment the screen shows and that grants
-            // nothing, which is the most confusing possible outcome.
-            wanted.add(new TargetAssignment(TeamRules.validateTargetKind(assignment.kind()), assignment.id()));
+            // The kind is validated against those that exist, and a project against the table. An
+            // unrecognised kind stored here would resolve to nothing forever — an assignment the
+            // screen shows and that grants nothing, which is the most confusing possible outcome.
+            wanted.add(new TargetAssignment(grantTargets.validate(assignment.kind(), assignment.id()), assignment.id()));
         }
 
         targets.deleteByTeamId(id);
@@ -254,7 +263,7 @@ public class TeamAdministrationService {
 
         record(actor, id, AuditOperation.TEAM_ACCESS_CHANGED,
                 "Targets of " + team.getName() + ": " + wanted.size());
-        return wanted;
+        return naming.named(wanted);
     }
 
     /**
