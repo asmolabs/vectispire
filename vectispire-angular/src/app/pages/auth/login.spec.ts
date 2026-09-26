@@ -69,7 +69,8 @@ describe('the sign-in screen', () => {
         // The reason used to be a sentence in the query and the page displayed it: any link could
         // make Vectispire's sign-in screen say "call this number".
         for (const [reason, expected] of [
-            ['privileged', 'administrative role'],
+            ['privileged', 'privileged role'],
+            ['local_mfa', 'its own second factor'],
             ['Your account is suspended, call +33 1 23 45 67 89', 'Single sign-on was refused.']
         ]) {
             window.history.replaceState({}, '', '/login?sso=refused&reason=' + encodeURIComponent(reason));

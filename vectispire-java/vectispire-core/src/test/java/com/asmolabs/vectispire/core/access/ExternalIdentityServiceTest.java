@@ -138,7 +138,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
 
         assertThatThrownBy(() -> identities.resolve("sub-evil", ISSUER, "admin"))
                 .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
-                .hasMessageContaining("administrative role")
+                .hasMessageContaining("privileged role")
                 // A code for the login screen, which shows its own words: the sentence used to
                 // travel in the redirect and be displayed verbatim.
                 .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
@@ -148,6 +148,41 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         ExternalIdentityService trusting =
                 new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(), true);
         assertThat(trusting.resolve("sub-admin", ISSUER, "admin").keycloakId()).isEqualTo("sub-admin");
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(Role.class)
+    @DisplayName("every role but a plain account's is held back from a claim")
+    void everyPrivilegedRoleIsHeldBack(Role role) {
+        // Only ADMIN and SUPERUSER were: a CISO, an auditor or a security champion was bound to
+        // whoever registered the name first.
+        UserEntity account = account("someone", role);
+
+        if (role == Role.USER) {
+            assertThat(identities.resolve("sub-1", ISSUER, "someone").keycloakId()).isEqualTo("sub-1");
+            return;
+        }
+        assertThatThrownBy(() -> identities.resolve("sub-1", ISSUER, "someone"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.PRIVILEGED);
+        assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
+    }
+
+    @Test
+    @DisplayName("an account with a local second factor is never bound on a claim, whatever the setting")
+    void aLocalSecondFactorIsNotTradedForAClaim() {
+        UserEntity account = account("carol");
+        account.setMfaEnabled(true);
+        users.save(account);
+        ExternalIdentityService trusting =
+                new ExternalIdentityService(users, java.util.Optional.empty(), java.util.Optional.empty(), true);
+
+        assertThatThrownBy(() -> trusting.resolve("sub-carol", ISSUER, "carol"))
+                .isInstanceOf(ExternalIdentityService.SignInRefusedException.class)
+                .extracting(e -> ((ExternalIdentityService.SignInRefusedException) e).refusal())
+                .isEqualTo(ExternalIdentityService.Refusal.LOCAL_MFA);
+        assertThat(users.findById(account.getId()).orElseThrow().getKeycloakId()).isNull();
     }
 
     @Test

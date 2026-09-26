@@ -103,6 +103,8 @@ export class Login {
                 return this.i18n.t('auth.sso_refused_no_identity');
             case 'mfa_required':
                 return this.i18n.t('auth.sso_refused_mfa_required');
+            case 'local_mfa':
+                return this.i18n.t('auth.sso_refused_local_mfa');
             default:
                 return this.i18n.t('auth.error_sso_refused');
         }

@@ -73,7 +73,9 @@ public class ExternalIdentityService {
         UNVERIFIED_EMAIL,
         DEACTIVATED,
         NO_IDENTITY,
-        MFA_REQUIRED;
+        MFA_REQUIRED,
+        /** The account protects itself with a local second factor, which a claim would bypass. */
+        LOCAL_MFA;
 
         public String wireName() {
             return name().toLowerCase(Locale.ROOT);
@@ -120,10 +122,16 @@ public class ExternalIdentityService {
      *   <li><b>The name must be the account's, accent for accent.</b> The lookup follows the
      *       database's collation, and MySQL's default opens {@code admin} for {@code ádmin}: a
      *       different identity, registered to look the same. Only case is forgiven.
-     *   <li><b>No privileged account on a claim.</b> An administrative or governing account is not
+     *   <li><b>No privileged account on a claim.</b> An account whose role administers, governs,
+     *       sees the whole estate's security or approves triage — see {@link #privileged} — is not
      *       bound by name unless the operator allows it — {@code vectispire.oidc.link-privileged-accounts},
      *       for a realm where nobody chooses their own username. Otherwise it is linked through
      *       SCIM, which sets the subject from the provider itself.
+     *   <li><b>No account with a local second factor on a claim, whatever the setting.</b> A single
+     *       sign-on skips the local TOTP — the provider owns the second factor — so binding such an
+     *       account by name would trade the factor its owner enrolled for a claim somebody else may
+     *       have written. Its owner signs in with the password and code, or has it linked through
+     *       provisioning.
      * </ul>
      *
      * @param subject the provider's {@code sub}, stable for the life of the account
@@ -161,19 +169,40 @@ public class ExternalIdentityService {
                     "This account is already linked to a different identity. An administrator has to unlink it.");
         }
 
-        boolean privileged = Role.of(account.getRole())
-                .map(role -> role.isAdministrative() || role.governsPlatform())
-                .orElse(true);
-        if (privileged && !linkPrivileged) {
+        if (Boolean.TRUE.equals(account.getMfaEnabled())) {
+            log.warn("Single sign-on refused: \"{}\" has a local second factor and is not bound on a claim ({}).",
+                    name, issuer);
+            throw new SignInRefusedException(Refusal.LOCAL_MFA, "This account is protected by its own second factor, "
+                    + "so it is not linked by name. Sign in with its password and code, or ask for it to be linked "
+                    + "through provisioning.");
+        }
+        if (Role.of(account.getRole()).map(ExternalIdentityService::privileged).orElse(true) && !linkPrivileged) {
             log.warn("Single sign-on refused: \"{}\" holds a privileged role and is not bound on a claim ({}).",
                     name, issuer);
-            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account holds an administrative role, so it is not linked by name. "
+            throw new SignInRefusedException(Refusal.PRIVILEGED, "This account holds a privileged role, so it is not linked by name. "
                     + "Sign in with its password, or ask for it to be linked through provisioning.");
         }
 
         UserEntity allowed = active(account);
         allowed.setKeycloakId(subject);
         return users.save(allowed);
+    }
+
+    /**
+     * Whether a role is too much to hand over on a claim.
+     *
+     * <p><b>Not only the administrative ones.</b> Only an administrator or the governor used to be
+     * held back, so a CISO — who rewrites the gate policy and approves triage — an auditor — who
+     * reads every account's actions and the whole estate's posture — or a security champion — whose
+     * dismissals settle rather than queue — was bound to whoever claimed the name. Everything but a
+     * plain account is privileged here.
+     */
+    static boolean privileged(Role role) {
+        return role.isAdministrative()
+                || role.governsPlatform()
+                || role.hasGlobalSecurityScope()
+                || role.canWriteGovernance()
+                || role.canApproveTriage();
     }
 
     private static String nameToMatch(Claimed claimed) {

@@ -56,7 +56,7 @@ Dès qu'un compte existe, les deux sont ignorés.
 |---|---|---|
 | `VECTISPIRE_OIDC_ISSUER` | *aucun* | Active l'[authentification unique](../administration/sso.md). |
 | `VECTISPIRE_PASSWORD_LOGIN` | `true` | `false` délègue entièrement l'authentification. **Ignoré, bruyamment, sans émetteur posé** — cela ne laisserait aucune entrée. |
-| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Permet de lier un compte SUPERUSER ou ADMIN à sa première connexion par son nom. Seulement pour un realm où personne ne choisit son nom. |
+| `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS` | `false` | Permet de lier un compte privilégié (tout rôle sauf USER) à sa première connexion par son nom ; jamais un compte doté d'un second facteur local. Seulement pour un realm où personne ne choisit son nom. |
 | `VECTISPIRE_OIDC_REQUIRE_MFA` | `false` | Refuse une connexion SSO dont le jeton n'atteste aucun second facteur. Une connexion fédérée saute le TOTP local : le second facteur relève du fournisseur. |
 | `VECTISPIRE_OIDC_MFA_AMR` | `mfa,otp,hwk,fido` | Les valeurs `amr` (RFC 8176) qui valent second facteur. |
 | `VECTISPIRE_OIDC_MFA_ACR` | *aucun* | Les niveaux `acr` qui en valent un, quand le fournisseur signale le MFA ainsi. |

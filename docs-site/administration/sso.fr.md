@@ -28,18 +28,25 @@ Un nom d'utilisateur n'est pas stable sur la vie d'une personne : on se marie, o
 d'équipe, un import RH vous renomme. Le sujet, lui, l'est.
 
 Cette première liaison fait confiance à une revendication, et une revendication est ce que le realm
-laisse chacun écrire. Elle obéit donc à trois règles :
+laisse chacun écrire. Elle obéit donc à quatre règles :
 
 - **Le nom doit être celui du compte, accent compris.** Seule la casse est pardonnée. La collation
   par défaut de MySQL trouve `admin` pour `ádmin` ; c'est une autre identité, et elle est refusée.
 - **Une adresse e-mail ne sert que si le fournisseur l'a vérifiée** (`email_verified`), et seulement
   quand aucun `preferred_username` n'est venu.
-- **Un compte administratif (SUPERUSER, ADMIN) n'est pas lié par son nom.** Dans un realm ouvert à
-  l'inscription, n'importe qui peut s'enregistrer comme `admin`. Liez ces comptes par
+- **Un compte privilégié n'est pas lié par son nom** — tout rôle sauf USER : SUPERUSER, ADMIN, CISO,
+  AUDITOR et SECURITY_CHAMPION, puisque chacun administre, gouverne, lit la sécurité de tout le parc
+  ou approuve le triage. Dans un realm ouvert à l'inscription, n'importe qui peut s'enregistrer
+  comme `admin`. Liez ces comptes par
   [SCIM](#provisioning-from-the-directory-scim), qui prend le sujet chez le fournisseur, ou — pour un
   realm où personne ne choisit son nom — autorisez-le avec
   `VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS=true`. Le Keycloak du profil compose `sso` se connecte en
   `admin` : son `.env.oidc.example` le règle.
+- **Un compte doté d'un second facteur local n'est jamais lié par son nom**, quel que soit le
+  réglage ci-dessus. Une connexion unique contourne le TOTP local — le fournisseur possède le second
+  facteur — et le lier sur une revendication échangerait le facteur que son titulaire a enrôlé contre
+  un nom que quelqu'un d'autre a pu écrire. Son titulaire se connecte avec mot de passe et code, ou
+  le fait lier par SCIM.
 
 ## Les groupes deviennent des équipes, et en sortir les retire
 

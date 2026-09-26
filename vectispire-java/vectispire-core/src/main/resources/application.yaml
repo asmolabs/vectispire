@@ -175,10 +175,12 @@ vectispire:
 
   oidc:
     password-login: ${VECTISPIRE_PASSWORD_LOGIN:true}
-    # **Whether an administrative account may be linked on its first sign-on by its username.**
-    # Off: a username is a claim, and in a realm with self-registration anyone can claim `admin`.
-    # Turn it on only for a realm where nobody chooses their own username; otherwise link those
-    # accounts through SCIM, which takes the subject from the provider.
+    # **Whether a privileged account may be linked on its first sign-on by its username** — any role
+    # but USER: an administrator, the governor, a CISO, an auditor or a security champion. Off: a
+    # username is a claim, and in a realm with self-registration anyone can claim `admin`. Turn it on
+    # only for a realm where nobody chooses their own username; otherwise link those accounts through
+    # SCIM, which takes the subject from the provider. An account with a local second factor is never
+    # linked on a claim, whatever this says.
     link-privileged-accounts: ${VECTISPIRE_OIDC_LINK_PRIVILEGED_ACCOUNTS:false}
     # **A single sign-on skips the local TOTP: the provider owns the second factor.** Every
     # federated sign-in records what the provider stated (RFC 8176 `amr`, or an `acr` level named
