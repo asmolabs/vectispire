@@ -71,9 +71,23 @@ import org.springframework.web.bind.annotation.RestController;
 @DisplayName("the OpenAPI schema names")
 class SchemaNameCollisionTest {
 
-    private static final String API_PACKAGE = "com.asmolabs.vectispire.core.api";
+    /**
+     * The whole control plane, not {@code core.api}: a vertical module keeps its controllers in
+     * {@code core.<module>.web} (decision 0028), and a scan rooted at {@code core.api} would have
+     * stopped seeing each of them the day it moved — the walk would still find something, so the
+     * emptiness guard below would not have noticed.
+     */
+    private static final String CONTROL_PLANE = "com.asmolabs.vectispire.core";
 
-    private static final String PERSISTENCE_PACKAGE = "com.asmolabs.vectispire.core.persistence";
+    /**
+     * A persistence class: in {@code core.persistence}, where the step-5 domains' entities still
+     * are, or in a module's own {@code persistence} package.
+     */
+    private static boolean isPersistence(Class<?> type) {
+        String name = type.getPackageName();
+        return name.equals(CONTROL_PLANE + ".persistence")
+                || (name.startsWith(CONTROL_PLANE + ".") && name.endsWith(".persistence"));
+    }
 
     /**
      * The collisions that still exist. <b>Empty, and it is meant to stay that way.</b>
@@ -138,7 +152,7 @@ class SchemaNameCollisionTest {
     @DisplayName("reach no JPA entity")
     void noEntityCrossesARoute() {
         List<String> entities = reachable(new TreeMap<>()).stream()
-                .filter(type -> type.getPackageName().equals(PERSISTENCE_PACKAGE))
+                .filter(SchemaNameCollisionTest::isPersistence)
                 .map(Class::getName)
                 .sorted()
                 .toList();
@@ -172,7 +186,7 @@ class SchemaNameCollisionTest {
         scanner.addIncludeFilter(new AnnotationTypeFilter(RestController.class));
 
         List<Class<?>> found = new ArrayList<>();
-        for (BeanDefinition definition : scanner.findCandidateComponents(API_PACKAGE)) {
+        for (BeanDefinition definition : scanner.findCandidateComponents(CONTROL_PLANE)) {
             try {
                 found.add(Class.forName(definition.getBeanClassName()));
             } catch (ClassNotFoundException impossible) {

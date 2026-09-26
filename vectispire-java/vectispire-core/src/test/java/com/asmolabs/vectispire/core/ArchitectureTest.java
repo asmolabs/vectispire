@@ -13,6 +13,8 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.lang.syntax.ArchRuleDefinition;
+import com.tngtech.archunit.library.dependencies.SliceAssignment;
+import com.tngtech.archunit.library.dependencies.SliceIdentifier;
 import com.tngtech.archunit.library.dependencies.SliceRule;
 import com.tngtech.archunit.library.dependencies.SlicesRuleDefinition;
 import java.util.List;
@@ -23,6 +25,7 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.modulith.NamedInterface;
 
 /**
  * The layer rule, checked.
@@ -35,6 +38,16 @@ import org.junit.jupiter.api.Test;
  * <p>It exists because an architecture rule written in a document is not a rule: it is true
  * the day it is written and false six months later. The NestJS tree learned that, and its
  * {@code architecture.spec.ts} is this file's direct ancestor.
+ *
+ * <h2>Two packagings at once, one set of layers</h2>
+ *
+ * The control plane is moving from packages by layer to vertical modules (decision 0028). A domain
+ * that has moved is {@code core.<domain>}: its API at the root, its controllers in {@code web}, its
+ * implementation in {@code internal}, its entities and repositories in {@code persistence}. The
+ * domains that have not — {@link #MODULES} does not name them — are still spread over {@code
+ * core.api}, {@code core.services.<domain>}, {@code core.repositories} and {@code core.persistence}.
+ * Every rule below reads both: the layers are the same six whichever packaging a class is in, and a
+ * domain is the same domain whether it is {@code core.services.issues} or {@code core.audit}.
  *
  * <h2>Why {@code common.domain} is pure</h2>
  *
@@ -56,6 +69,21 @@ class ArchitectureTest {
 
     private static final String ROOT = "com.asmolabs.vectispire";
 
+    private static final String CORE = ROOT + ".core";
+
+    /**
+     * The domains that are vertical modules — {@code core.<domain>} with {@code web}, {@code
+     * internal} and {@code persistence} beneath it (decision 0028). The foundation moved first (step
+     * 3 of the migration to Spring Modulith), then the leaf and middle domains (step 4). {@code
+     * issues}, {@code scanning}, {@code targets}, {@code platform} and {@code shared} are step 5's
+     * and still live in the layered packages.
+     */
+    private static final List<String> MODULES = List.of();
+
+    /** The top-level packages of the layered packaging, which step 5 empties. */
+    private static final Set<String> LAYERED_PACKAGES =
+            Set.of("api", "config", "persistence", "repositories", "services");
+
     private static JavaClasses classes;
 
     @BeforeAll
@@ -63,6 +91,13 @@ class ArchitectureTest {
         classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages(ROOT);
+    }
+
+    /** {@code layered}, and the packages each module keeps for the same layer, {@code suffixes} under its root. */
+    private static String[] layer(String layered, String... suffixes) {
+        Stream<String> modules = MODULES.stream()
+                .flatMap(module -> Stream.of(suffixes).map(suffix -> CORE + "." + module + suffix));
+        return Stream.concat(Stream.of(layered), modules).toArray(String[]::new);
     }
 
     @Test
@@ -78,6 +113,14 @@ class ArchitectureTest {
                         .anyMatch(c -> c.getPackageName().startsWith(ROOT + ".common.domain")))
                 .as("the domain package must be on the classpath and populated")
                 .isTrue();
+        // And every module listed must hold classes in each of the places the rules below read: a
+        // module whose name is misspelt here would otherwise be a module no rule applies to.
+        for (String module : MODULES) {
+            org.assertj.core.api.Assertions
+                    .assertThat(classes.stream().anyMatch(c -> c.getPackageName().equals(CORE + "." + module)))
+                    .as("module %s has no class at its root: its name in MODULES or its package is wrong", module)
+                    .isTrue();
+        }
     }
 
     @Test
@@ -87,10 +130,15 @@ class ArchitectureTest {
                 .consideringOnlyDependenciesInAnyPackage(ROOT + "..")
                 .layer("domain").definedBy(ROOT + ".common.domain..")
                 .layer("scanning").definedBy(ROOT + ".common.scanning..")
-                .layer("persistence").definedBy(ROOT + ".core.persistence..")
-                .layer("repositories").definedBy(ROOT + ".core.repositories..")
-                .layer("services").definedBy(ROOT + ".core.services..")
-                .layer("api").definedBy(ROOT + ".core.api..")
+                // A module keeps its entities and its repositories together in `persistence`; they
+                // form one layer here, below its services, and `entitiesReachNoRepository` keeps the
+                // order between the two that `core.persistence` and `core.repositories` still show.
+                .layer("persistence").definedBy(layer(CORE + ".persistence..", ".persistence.."))
+                .layer("repositories").definedBy(CORE + ".repositories..")
+                // A module's root is its API and `internal` its implementation: both are the service
+                // layer, which the layered packaging calls `services`.
+                .layer("services").definedBy(layer(CORE + ".services..", "", ".internal.."))
+                .layer("api").definedBy(layer(CORE + ".api..", ".web.."))
 
                 // Read downwards: who is allowed to see me.
                 .whereLayer("api").mayNotBeAccessedByAnyLayer()
@@ -108,10 +156,45 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    @Test
+    @DisplayName("every package of the control plane is a module's, or one of the layered packaging's")
+    void everyClassHasAPlace() {
+        // The layer rule constrains the packages it names and nothing else: a class dropped into
+        // `core.audit.helpers`, or into a new top-level `core.reports`, would belong to no layer and
+        // be checked by nothing. So the places are closed: a module's four, or the five layered
+        // packages step 5 empties.
+        ArchCondition<JavaClass> haveAPlace = new ArchCondition<>("sit in a module's root, web, internal or "
+                + "persistence package, or in a package of the layered packaging") {
+            @Override
+            public void check(JavaClass type, ConditionEvents events) {
+                String rest = type.getPackageName().substring(CORE.length() + 1);
+                String top = rest.contains(".") ? rest.substring(0, rest.indexOf('.')) : rest;
+                if (LAYERED_PACKAGES.contains(top)) {
+                    return;
+                }
+                if (MODULES.contains(top)) {
+                    String below = rest.substring(top.length());
+                    if (below.isEmpty() || Stream.of(".web", ".internal", ".persistence")
+                            .anyMatch(place -> below.equals(place) || below.startsWith(place + "."))) {
+                        return;
+                    }
+                }
+                events.add(SimpleConditionEvent.violated(type, type.getName() + " is in no module place and no "
+                        + "layered package: " + type.getPackageName()));
+            }
+        };
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().resideOutsideOfPackage(CORE)
+                .should(haveAPlace)
+                .check(classes);
+    }
+
     /**
-     * The domains of {@code core.services} that every other domain may use: the helper left without
-     * a domain, the deployment's settings, the door out, encryption, the audit writer, the outbox
-     * relay and the PDF pagination four domains' reports share (decision 0026).
+     * The domains every other domain may use: the helper left without a domain, the deployment's
+     * settings, the door out, encryption, the audit writer, the outbox relay and the PDF pagination
+     * four domains' reports share (decision 0026). Declared to Spring Modulith as its shared modules,
+     * on {@link VectispireApplication}, for the same reason (decision 0028).
      *
      * <p>{@code reporting} joined on 2026-09-26, when {@code ReportCursor} left {@code shared}: it is
      * a capability like {@code outbound} — how a page is laid out, not what it says — and a copy per
@@ -128,6 +211,12 @@ class ArchitectureTest {
      * review that needs it, not a line to append until the build is green — the flat package is
      * what "append until green" produced. {@code platform} is absent on purpose: it holds the
      * composition roots, may use any domain, and nothing may use it.
+     *
+     * <p><b>A module is read whole</b> — its controllers and its entities as well as its services —
+     * which the layered packaging never allowed: a service reaching another domain's repository, or a
+     * controller calling another domain's service, belonged to no domain and was checked by nothing.
+     * The edges that surfaced when a domain became a module are in this table with the reason each
+     * exists (decision 0028).
      */
     private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
             Map.entry("shared", Set.of()),
@@ -158,6 +247,15 @@ class ArchitectureTest {
     private static final String PLATFORM = "platform";
 
     /**
+     * What any module's controllers may use beyond their own module's table row: {@code access}, which
+     * authenticates the caller and resolves what they may see. Every route needs the principal and its
+     * marker, and every route naming a target resolves a {@code Visibility}; a table row per module
+     * repeating it would be noise. It cannot close a cycle: {@code access} uses nothing above the
+     * foundation.
+     */
+    private static final String EVERY_ROUTE_USES = "access";
+
+    /**
      * A dependency that points against the table and closes a cycle, kept because breaking it is
      * more than a package move — each says why, and what would remove it.
      */
@@ -174,20 +272,52 @@ class ArchitectureTest {
      */
     private static final List<KnownCycle> KNOWN_CYCLES = List.of();
 
-    private static String servicesDomain(String domain) {
-        return ROOT + ".core.services." + domain + "..";
+    /** The domains still in {@code core.services}: every known domain but those that became modules. */
+    private static Stream<String> layeredDomains() {
+        return Stream.concat(MAY_USE.keySet().stream(), Stream.of(PLATFORM)).filter(domain -> !MODULES.contains(domain));
     }
 
-    /** The domain a class belongs to, or empty outside {@code core.services}. */
+    /**
+     * The domain a class belongs to, or empty outside any: {@code core.services.<domain>} for a
+     * domain still packaged by layer, {@code core.<module>} and everything beneath it for a module.
+     * {@code core.api}, {@code core.repositories} and {@code core.persistence} belong to no domain —
+     * step 5 is where their classes find one.
+     */
     private static Optional<String> domainOf(JavaClass type) {
-        String prefix = ROOT + ".core.services.";
         String name = type.getPackageName();
-        if (!name.startsWith(prefix)) {
-            return Optional.empty();
+        String services = CORE + ".services.";
+        if (name.startsWith(services)) {
+            String rest = name.substring(services.length());
+            int dot = rest.indexOf('.');
+            return Optional.of(dot < 0 ? rest : rest.substring(0, dot));
         }
-        String rest = name.substring(prefix.length());
-        int dot = rest.indexOf('.');
-        return Optional.of(dot < 0 ? rest : rest.substring(0, dot));
+        return MODULES.stream()
+                .filter(module -> name.equals(CORE + "." + module) || name.startsWith(CORE + "." + module + "."))
+                .findFirst();
+    }
+
+    /** A module's root package: its API, what another module may call. */
+    private static boolean isModuleRoot(JavaClass type, String module) {
+        return type.getPackageName().equals(CORE + "." + module);
+    }
+
+    private static boolean isWeb(JavaClass type) {
+        return MODULES.stream().anyMatch(module -> type.getPackageName().equals(CORE + "." + module + ".web")
+                || type.getPackageName().startsWith(CORE + "." + module + ".web."));
+    }
+
+    /**
+     * Exposed beyond the module root through Spring Modulith's own declaration: a package whose
+     * {@code package-info} carries {@link NamedInterface}, or a type that does. Read from the
+     * annotation rather than listed here, so this rule and step 6's {@code verify()} cannot disagree
+     * about what a module publishes.
+     */
+    private static boolean isNamedInterface(JavaClass type) {
+        JavaClass top = type;
+        while (top.getEnclosingClass().isPresent()) {
+            top = top.getEnclosingClass().get();
+        }
+        return top.isAnnotatedWith(NamedInterface.class) || type.getPackage().isAnnotatedWith(NamedInterface.class);
     }
 
     /** The class itself, its nested classes and its lambdas' holders — what a source file owns. */
@@ -210,22 +340,34 @@ class ArchitectureTest {
     void everyServiceLivesInAKnownDomain() {
         // Without this the table below could be bypassed by a class dropped back into the flat
         // package, or into a new sub-package nobody listed: the dependency rule only constrains the
-        // domains it names.
-        Stream<String> domains = Stream.concat(MAY_USE.keySet().stream(), Stream.of(PLATFORM));
+        // domains it names. A domain that became a module is no longer listed here, so its services
+        // cannot drift back into `core.services`.
         ArchRuleDefinition.classes()
-                .that().resideInAPackage(ROOT + ".core.services..")
-                .should().resideInAnyPackage(domains.map(ArchitectureTest::servicesDomain).toArray(String[]::new))
+                .that().resideInAPackage(CORE + ".services..")
+                .should().resideInAnyPackage(layeredDomains().map(domain -> CORE + ".services." + domain + "..")
+                        .toArray(String[]::new))
                 .check(classes);
     }
 
     @Test
-    @DisplayName("the service domains form no cycle but the ones recorded")
-    void serviceDomainsFormNoCycle() {
+    @DisplayName("the domains form no cycle but the ones recorded")
+    void domainsFormNoCycle() {
         // A cycle between two domains makes them one domain with two names: neither can be read,
-        // tested or changed without the other.
-        SliceRule rule = SlicesRuleDefinition.slices()
-                .matching(ROOT + ".core.services.(*)..")
-                .should().beFreeOfCycles();
+        // tested or changed without the other. Sliced by domain rather than by package, so that a
+        // module and a domain still in `core.services` are compared as what they are — the slice
+        // `..core.services.(*)..` would have stopped seeing each domain as it moved out.
+        SliceAssignment byDomain = new SliceAssignment() {
+            @Override
+            public SliceIdentifier getIdentifierOf(JavaClass type) {
+                return domainOf(type).map(SliceIdentifier::of).orElse(SliceIdentifier.ignore());
+            }
+
+            @Override
+            public String getDescription() {
+                return "the domains, modules and core.services alike";
+            }
+        };
+        SliceRule rule = SlicesRuleDefinition.slices().assignedFrom(byDomain).should().beFreeOfCycles();
         for (KnownCycle known : KNOWN_CYCLES) {
             rule = rule.ignoreDependency(
                     DescribedPredicate.describe(known.origin().getSimpleName(), type -> ownedBy(type, known.origin())),
@@ -250,33 +392,99 @@ class ArchitectureTest {
     }
 
     @Test
-    @DisplayName("a service domain uses only the domains it is allowed")
-    void serviceDomainsDependOnlyWhereAllowed() {
+    @DisplayName("a domain uses only the domains it is allowed")
+    void domainsDependOnlyWhereAllowed() {
         // Acyclic is not enough: a new dependency pointing the wrong way can be acyclic today and
         // close a cycle with the next one. The table fixes the direction.
         ArchCondition<JavaClass> useOnlyAllowedDomains =
-                new ArchCondition<>("use only the domains decision 0026 allows") {
+                new ArchCondition<>("use only the domains decisions 0026 and 0028 allow") {
                     @Override
                     public void check(JavaClass type, ConditionEvents events) {
-                        // A class outside any domain is the previous rule's to report.
+                        // A class outside any domain is the residence rules' to report.
                         String from = domainOf(type).orElse(PLATFORM);
                         if (from.equals(PLATFORM)) {
                             return;
                         }
+                        boolean web = isWeb(type);
                         for (Dependency dependency : type.getDirectDependenciesFromSelf()) {
                             Optional<String> to = domainOf(dependency.getTargetClass());
                             if (to.isEmpty() || to.get().equals(from) || mayUse(from, to.get())
+                                    || (web && to.get().equals(EVERY_ROUTE_USES))
                                     || isKnownCycle(dependency)) {
                                 continue;
                             }
                             events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
-                                    + " — services." + from + " may not use services." + to.get()));
+                                    + " — " + from + " may not use " + to.get()));
                         }
                     }
                 };
         ArchRuleDefinition.classes()
-                .that().resideInAPackage(ROOT + ".core.services..")
+                .that().resideInAnyPackage(Stream.concat(Stream.of(CORE + ".services.."),
+                                MODULES.stream().map(module -> CORE + "." + module + ".."))
+                        .toArray(String[]::new))
                 .should(useOnlyAllowedDomains)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a module reaches another module through its API, never through its internals")
+    void modulesMeetAtTheirApi() {
+        // What Spring Modulith's `verify()` will enforce at step 6, enforced now between the modules
+        // that exist: another module's root package, or what it publishes as a named interface — never
+        // its `internal`, `persistence` or `web`. A module reading another's repository is the coupling
+        // the layered packaging hid, and the one a module boundary exists to show. The step-5 domains
+        // are not held to it yet: `core.services`, `core.api` and the layered repositories reach into
+        // modules, and each such edge is written down in decision 0028 as step 5's to resolve.
+        ArchCondition<JavaClass> meetAtTheApi = new ArchCondition<>("use another module only through its root "
+                + "package or a named interface") {
+            @Override
+            public void check(JavaClass type, ConditionEvents events) {
+                String from = domainOf(type).orElseThrow();
+                for (Dependency dependency : type.getDirectDependenciesFromSelf()) {
+                    JavaClass target = dependency.getTargetClass();
+                    Optional<String> to = domainOf(target).filter(MODULES::contains);
+                    if (to.isEmpty() || to.get().equals(from) || isModuleRoot(target, to.get())
+                            || isNamedInterface(target)) {
+                        continue;
+                    }
+                    events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()
+                            + " — " + target.getPackageName() + " is internal to " + to.get()));
+                }
+            }
+        };
+        if (MODULES.isEmpty()) {
+            return;
+        }
+        ArchRuleDefinition.classes()
+                .that().resideInAnyPackage(MODULES.stream().map(module -> CORE + "." + module + "..").toArray(String[]::new))
+                .should(meetAtTheApi)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a module's controllers call its API, not its internals")
+    void controllersCallTheirModuleApi() {
+        // `internal` is what the API is built from. A controller reaching into it makes the class it
+        // reaches part of the module's surface without saying so; if a route needs it, it belongs at
+        // the root. Persistence is `webNeverTouchesPersistence`'s.
+        for (String module : MODULES) {
+            ArchRuleDefinition.noClasses()
+                    .that().resideInAPackage(CORE + "." + module + ".web..")
+                    .should().dependOnClassesThat().resideInAPackage(CORE + "." + module + ".internal..")
+                    .allowEmptyShould(true)
+                    .check(classes);
+        }
+    }
+
+    @Test
+    @DisplayName("an entity reaches no repository")
+    void entitiesReachNoRepository() {
+        // The order `core.persistence` → `core.repositories` gave for free, kept inside a module's
+        // single `persistence` package: an entity describes a table, a repository reads it.
+        ArchRuleDefinition.noClasses()
+                .that().areAnnotatedWith("jakarta.persistence.Entity")
+                .or().areAnnotatedWith("jakarta.persistence.Embeddable")
+                .should().dependOnClassesThat().areAssignableTo("org.springframework.data.repository.Repository")
                 .check(classes);
     }
 
@@ -288,10 +496,13 @@ class ArchitectureTest {
         // the principal among them: it carried the account's password hash and TOTP secret to every route, and a
         // controller could hand a row back to a service that saved whatever had been done to it.
         // Services answer with records named `…View` now. No exception list and no freeze: a
-        // controller that needs a row needs a service method instead.
+        // controller that needs a row needs a service method instead. Every module's `web` is held
+        // to it, against every module's `persistence` as well as `core.persistence` — and against
+        // the repositories a module keeps beside its entities, which the layer rule alone would let
+        // a controller name as a type.
         ArchRuleDefinition.noClasses()
-                .that().resideInAPackage(ROOT + ".core.api..")
-                .should().dependOnClassesThat().resideInAPackage(ROOT + ".core.persistence..")
+                .that().resideInAnyPackage(layer(CORE + ".api..", ".web.."))
+                .should().dependOnClassesThat().resideInAnyPackage(CORE + ".persistence..", CORE + ".*.persistence..")
                 .check(classes);
     }
 
@@ -302,7 +513,7 @@ class ArchitectureTest {
         // transaction boundary, which is the other half of "a controller maps HTTP". Three
         // controllers held a `TransactionTemplate` or `@Transactional` before the move.
         ArchRuleDefinition.noClasses()
-                .that().resideInAPackage(ROOT + ".core.api..")
+                .that().resideInAnyPackage(layer(CORE + ".api..", ".web.."))
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName("org.springframework.transaction.support.TransactionTemplate")
                 .orShould().dependOnClassesThat()
@@ -310,20 +521,23 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /** Where the filter chain lives: {@code core.api.security} until {@code access} took it with it (decision 0028). */
+    private static final String SECURITY_WEB = CORE + ".api.security..";
+
     @Test
     @DisplayName("no controller writes the audit log: the service that performs an action records it")
     void controllersWriteNoAuditEntry() {
         // An entry written by the route is an entry the next caller of the same service does not
         // write — a second route, a scheduled job — and whether it is written before or after the
         // commit becomes each controller's own guess. Ten controllers still held `AuditLogService`
-        // when this was added. `api.security` is left out on purpose: the filter chain audits what
-        // happens before any controller runs — a refused bearer token, a denied route, a
+        // when this was added. The security web layer is left out on purpose: the filter chain
+        // audits what happens before any controller runs — a refused bearer token, a denied route, a
         // single-sign-on callback — events that belong to no service method the entry could move to.
         // Named by class literal, not by string: the class moved package once, and a string naming
         // where it used to be would have left this rule checking nothing.
         ArchRuleDefinition.noClasses()
-                .that().resideInAPackage(ROOT + ".core.api..")
-                .and().resideOutsideOfPackage(ROOT + ".core.api.security..")
+                .that().resideInAnyPackage(layer(CORE + ".api..", ".web.."))
+                .and().resideOutsideOfPackage(SECURITY_WEB)
                 .should().dependOnClassesThat()
                 .haveFullyQualifiedName(AuditLogService.class.getName())
                 .orShould().dependOnClassesThat()
@@ -359,8 +573,14 @@ class ArchitectureTest {
     @Test
     @DisplayName("only the repositories speak SQL")
     void onlyRepositoriesReachTheDatabase() {
+        // A module's repositories sit in its `persistence` package, which is therefore the one place
+        // of a module left out; its root, `internal` and `web` are held to the rule like
+        // `core.services` and `core.api`.
         ArchRuleDefinition.noClasses()
-                .that().resideInAnyPackage(ROOT + ".core.services..", ROOT + ".core.api..")
+                .that().resideInAnyPackage(Stream.concat(
+                                Stream.of(layer(CORE + ".services..", "", ".internal..")),
+                                Stream.of(layer(CORE + ".api..", ".web..")))
+                        .toArray(String[]::new))
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("java.sql..", "javax.sql..", "org.hibernate..")
                 .check(classes);
@@ -414,7 +634,7 @@ class ArchitectureTest {
     void persistenceHasNoWebOrService() {
         // Dependency injection is not an entity's business, and neither is HTTP.
         ArchRuleDefinition.noClasses()
-                .that().resideInAPackage(ROOT + ".core.persistence..")
+                .that().resideInAnyPackage(layer(CORE + ".persistence..", ".persistence.."))
                 .should().dependOnClassesThat()
                 .resideInAnyPackage("org.springframework.web..", "jakarta.servlet..")
                 .check(classes);

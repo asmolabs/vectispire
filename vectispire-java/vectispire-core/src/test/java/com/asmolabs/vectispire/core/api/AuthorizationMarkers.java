@@ -9,11 +9,16 @@ import com.asmolabs.vectispire.core.api.security.RequiresPlatformGovernor;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.lang.annotation.Annotation;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
@@ -124,6 +129,33 @@ final class AuthorizationMarkers {
         return "@(?:[\\w.]+\\.)?(?:"
                 + SCOPE_GUARDS.stream().map(Class::getSimpleName).collect(Collectors.joining("|"))
                 + ")\\b";
+    }
+
+    /** The control plane's sources, relative to the module directory where Gradle runs a test. */
+    private static final Path CORE_SOURCES = Path.of("src/main/java/com/asmolabs/vectispire/core");
+
+    /**
+     * Every controller source the textual lints read: under {@code core/api/}, which holds the
+     * controllers of the domains still packaged by layer, and under {@code core/<module>/web/}, where
+     * a vertical module keeps its own (decision 0028).
+     *
+     * <p><b>One walk for both lints, and it follows the modules.</b> Both used to walk
+     * {@code core/api} alone; the first controller moved into a module would have left both rules
+     * reading around it, green, while a route there served whatever it liked.
+     */
+    static List<Path> controllerSources() {
+        try (Stream<Path> files = Files.walk(CORE_SOURCES)) {
+            return files.filter(file -> file.getFileName().toString().endsWith("Controller.java"))
+                    .filter(file -> {
+                        Path relative = CORE_SOURCES.relativize(file);
+                        return relative.getName(0).toString().equals("api")
+                                || (relative.getNameCount() > 2 && relative.getName(1).toString().equals("web"));
+                    })
+                    .sorted()
+                    .toList();
+        } catch (IOException unreadable) {
+            throw new UncheckedIOException(unreadable);
+        }
     }
 
     private AuthorizationMarkers() {}

@@ -465,11 +465,14 @@ jobs:
           #   core/repositories/ JPQL, native queries, Specifications, locking — the query layer;
           #                      `ArchitectureTest` keeps SQL out of every other package
           #   core/persistence/  entity mappings, which `SchemaParityIntegrationTest` checks
+          #   core/<module>/persistence/  the same two, for a domain that became a module and took
+          #                      its entities and repositories with it (decision 0028); matching
+          #                      `/core/persistence/` alone would stop seeing each one as it moved
           #   core/config/       the datasource and per-engine setup (SQLite's WAL, foreign keys,
           #                      the migration type placeholders)
           #   src/integrationTest/  the campaign itself
           #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
-          ENGINE_PATHS='src/main/resources/db/migration/|/core/repositories/|/core/persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile'
+          ENGINE_PATHS='src/main/resources/db/migration/|/core/repositories/|/core/([a-z]+/)?persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile'
           changed=$(git diff --name-only "$BASE" HEAD | grep -E "$ENGINE_PATHS" || true)
           if [ -n "$changed" ]; then
             echo "des fichiers sensibles au moteur ont changé — la campagne est exécutée :"

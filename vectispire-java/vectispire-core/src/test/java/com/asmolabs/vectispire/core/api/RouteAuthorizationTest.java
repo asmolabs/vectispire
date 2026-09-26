@@ -459,8 +459,14 @@ class RouteAuthorizationTest extends ApiTestBase {
         return patterns == null ? Set.of() : patterns.getPatternValues();
     }
 
+    /**
+     * Every handler of the control plane, wherever its controller lives: {@code core.api} for the
+     * domains still packaged by layer, {@code core.<module>.web} for a vertical module (decision
+     * 0028). Matching {@code core.api} alone would have exempted every controller the moment it moved
+     * into a module — silently, since a handler this skips is a handler it never reports.
+     */
     private static boolean isOurs(HandlerMethod handler) {
-        return handler.getBeanType().getPackageName().startsWith("com.asmolabs.vectispire.core.api");
+        return handler.getBeanType().getPackageName().startsWith("com.asmolabs.vectispire.core.");
     }
 
     /** Method first, then the class: a method's own marker is the one that applies. */

@@ -13,7 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -41,8 +40,6 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("every route that names a target resolves an allowance")
 class RouteScopingTest {
-
-    private static final Path CONTROLLERS = Path.of("src/main/java/com/asmolabs/vectispire/core/api");
 
     private static final Pattern MAPPING = Pattern.compile("@(?:Get|Post|Put|Delete|Patch)Mapping");
     // An access modifier is required, so `@ResponseStatus(HttpStatus.CREATED)` between the
@@ -110,42 +107,40 @@ class RouteScopingTest {
         List<String> staleExemptions = new ArrayList<>();
         int mappingsSeen = 0;
 
-        try (Stream<Path> files = Files.walk(CONTROLLERS)) {
-            for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Controller.java")).toList()) {
-                String name = file.getFileName().toString().replace(".java", "");
-                // The controller-level exemptions are the same list, not a copy of it: a
-                // controller that serves nothing target-scoped has no target-scoped routes.
-                if (AuthorizationCoverageTest.NOT_TARGET_SCOPED.contains(name)) {
+        for (Path file : AuthorizationMarkers.controllerSources()) {
+            String name = file.getFileName().toString().replace(".java", "");
+            // The controller-level exemptions are the same list, not a copy of it: a
+            // controller that serves nothing target-scoped has no target-scoped routes.
+            if (AuthorizationCoverageTest.NOT_TARGET_SCOPED.contains(name)) {
+                continue;
+            }
+            String source = Files.readString(file, StandardCharsets.UTF_8);
+
+            // A class-level role guard settles every route it covers.
+            String head = source.substring(0, Math.max(0, source.indexOf("public class")));
+            if (ROLE_GUARD.matcher(head).find()) {
+                continue;
+            }
+
+            // Counted before the guards filter anything: this is what the self-check below
+            // is actually about.
+            Matcher every = MAPPING.matcher(source);
+            while (every.find()) {
+                mappingsSeen++;
+            }
+
+            Set<String> trustedHelpers = helpersThatResolveAnAllowance(source);
+
+            for (Route route : routesOf(name, source)) {
+                routes.add(route);
+                boolean scoped = isScoped(route, trustedHelpers);
+                if (scoped && NAMES_NO_TARGET.containsKey(route.id())) {
+                    staleExemptions.add(route.id());
+                }
+                if (scoped || NAMES_NO_TARGET.containsKey(route.id())) {
                     continue;
                 }
-                String source = Files.readString(file, StandardCharsets.UTF_8);
-
-                // A class-level role guard settles every route it covers.
-                String head = source.substring(0, Math.max(0, source.indexOf("public class")));
-                if (ROLE_GUARD.matcher(head).find()) {
-                    continue;
-                }
-
-                // Counted before the guards filter anything: this is what the self-check below
-                // is actually about.
-                Matcher every = MAPPING.matcher(source);
-                while (every.find()) {
-                    mappingsSeen++;
-                }
-
-                Set<String> trustedHelpers = helpersThatResolveAnAllowance(source);
-
-                for (Route route : routesOf(name, source)) {
-                    routes.add(route);
-                    boolean scoped = isScoped(route, trustedHelpers);
-                    if (scoped && NAMES_NO_TARGET.containsKey(route.id())) {
-                        staleExemptions.add(route.id());
-                    }
-                    if (scoped || NAMES_NO_TARGET.containsKey(route.id())) {
-                        continue;
-                    }
-                    unscoped.add(route.id());
-                }
+                unscoped.add(route.id());
             }
         }
 

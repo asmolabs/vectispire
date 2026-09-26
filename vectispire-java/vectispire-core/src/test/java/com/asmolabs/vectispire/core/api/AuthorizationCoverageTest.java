@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -52,9 +51,6 @@ class AuthorizationCoverageTest {
                         com.asmolabs.vectispire.core.api.security.RequiresAccount.class,
                         com.asmolabs.vectispire.core.api.security.OpenToAnonymous.class);
     }
-
-    private static final Path CONTROLLERS = Path.of(
-            "src/main/java/com/asmolabs/vectispire/core/api");
 
     private static final Pattern SCOPE_GUARD = Pattern.compile(AuthorizationMarkers.scopeGuardPattern());
 
@@ -99,27 +95,26 @@ class AuthorizationCoverageTest {
         List<String> inspected = new ArrayList<>();
 
         // **Walked, not listed.** `Files.list` stops at the top directory, and the SCIM
-        // controllers under `api/scim/` were never read.
-        try (Stream<Path> files = Files.walk(CONTROLLERS)) {
-            for (Path file : files.filter(p -> p.getFileName().toString().endsWith("Controller.java")).toList()) {
-                String name = file.getFileName().toString().replace(".java", "");
-                inspected.add(name);
-                if (NOT_TARGET_SCOPED.contains(name)) {
-                    continue;
-                }
+        // controllers under `api/scim/` were never read. The walk covers the modules' `web/`
+        // packages too — see `AuthorizationMarkers.controllerSources`.
+        for (Path file : AuthorizationMarkers.controllerSources()) {
+            String name = file.getFileName().toString().replace(".java", "");
+            inspected.add(name);
+            if (NOT_TARGET_SCOPED.contains(name)) {
+                continue;
+            }
 
-                String source = Files.readString(file, StandardCharsets.UTF_8);
+            String source = Files.readString(file, StandardCharsets.UTF_8);
 
-                // A role that sees everything by construction is an allowance, stated differently.
-                // Only those: `@RequiresWriteAccount` names who may call, and admits the two
-                // roles with a restricted scope — see `AuthorizationMarkers.SCOPE_GUARDS`.
-                boolean guardedByRole = SCOPE_GUARD.matcher(source).find();
-                boolean resolvesAllowance = source.contains("VisibilityService")
-                        || source.contains("Visibilities.");
+            // A role that sees everything by construction is an allowance, stated differently.
+            // Only those: `@RequiresWriteAccount` names who may call, and admits the two
+            // roles with a restricted scope — see `AuthorizationMarkers.SCOPE_GUARDS`.
+            boolean guardedByRole = SCOPE_GUARD.matcher(source).find();
+            boolean resolvesAllowance = source.contains("VisibilityService")
+                    || source.contains("Visibilities.");
 
-                if (!guardedByRole && !resolvesAllowance) {
-                    offenders.add(name);
-                }
+            if (!guardedByRole && !resolvesAllowance) {
+                offenders.add(name);
             }
         }
 

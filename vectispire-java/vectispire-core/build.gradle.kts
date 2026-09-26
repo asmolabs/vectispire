@@ -484,12 +484,14 @@ tasks.named<Test>("test") {
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     classDirectories.setFrom(
         files(classDirectories.files.map {
+            // Every package of the control plane but `config` and the application class, by
+            // exclusion rather than by list: the domains are moving out of `services`, `api`,
+            // `persistence` and `repositories` into modules of their own (decision 0028), and a list
+            // of the layered packages would have dropped each module from the measure as it moved —
+            // the figure rising or falling for a reason that has nothing to do with the tests.
             fileTree(it) {
-                include(
-                    "com/asmolabs/vectispire/core/services/**",
-                    "com/asmolabs/vectispire/core/api/**",
-                    "com/asmolabs/vectispire/core/persistence/**",
-                    "com/asmolabs/vectispire/core/repositories/**")
+                include("com/asmolabs/vectispire/core/*/**")
+                exclude("com/asmolabs/vectispire/core/config/**")
             }
         })
     )
