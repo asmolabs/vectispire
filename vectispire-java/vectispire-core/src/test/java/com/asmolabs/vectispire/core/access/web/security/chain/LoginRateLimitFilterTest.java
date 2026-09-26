@@ -206,6 +206,26 @@ class LoginRateLimitFilterTest {
         verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"/api/v1/auth/mfa/disable", "/api/v1/auth/change-password"})
+    @DisplayName("the signed-in routes that verify a code or a password are limited per address too")
+    void signedInProofsAreLimited(String path) throws Exception {
+        // Not anonymous, and a way to the same secrets all the same: a session left open would
+        // otherwise spend the account's budget as fast as it can send.
+        when(request.getRequestURI()).thenReturn(path);
+        when(request.getMethod()).thenReturn("POST");
+        when(request.getRemoteAddr()).thenReturn("192.0.2.11");
+
+        for (int i = 0; i < 10; i++) {
+            filter.doFilterInternal(request, response, chain);
+        }
+
+        reset(chain);
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain, never()).doFilter(request, response);
+    }
+
     @Test
     @DisplayName("a spelling the dispatcher routes to /login is limited like /login")
     void anEncodedPathIsStillLimited() throws Exception {

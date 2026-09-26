@@ -46,7 +46,8 @@ class AuthServiceTest {
         users = mock(UserRepository.class);
         sessions = mock(SessionRepository.class);
         attempts = mock(LoginAttemptRepository.class);
-        service = new AuthService(users, sessions, attempts, Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new AuthService(users, sessions, attempts, Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC),
+                org.springframework.transaction.support.TransactionOperations.withoutTransaction());
 
         recorded.clear();
         when(attempts.findByCounterKeyAndOccurredAtAfter(anyString(), any())).thenReturn(List.of());
@@ -93,10 +94,11 @@ class AuthServiceTest {
         service.login(request("alice", "wrong"));
         service.login(request("nobody", "wrong"));
 
-        // An account that exists is counted by its id; a name that opens nothing, by the name.
+        // An account that exists is counted by its id and by the name typed; a name that opens
+        // nothing, by the name alone — the counter the two share is what makes them alike.
         assertThat(recorded).extracting(LoginAttemptEntity::getCounterKey)
                 .containsExactlyInAnyOrder(
-                        LoginThrottle.accountKey(1L), LoginThrottle.clientKey("10.0.0.1"),
+                        LoginThrottle.accountKey(1L), LoginThrottle.userKey("alice"), LoginThrottle.clientKey("10.0.0.1"),
                         LoginThrottle.userKey("nobody"), LoginThrottle.clientKey("10.0.0.1"));
     }
 
@@ -110,6 +112,22 @@ class AuthServiceTest {
                 .thenReturn(fiveRecentAttempts());
 
         assertThat(service.login(request("ÀLICE", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+    }
+
+    @Test
+    @DisplayName("an unknown name meets the same folded counter as an account, so the lockout tells nothing")
+    void theLockoutIsNoExistenceOracle() {
+        // "Àlice" opens no account here — on PostgreSQL, or wherever the collation keeps the accent.
+        // Five failures against "alice" used to leave "Àlice" its own budget when the account did
+        // not exist and none when it did: the lockout answered what the uniform 401 refuses to.
+        when(users.findByUsername("Àlice")).thenReturn(Optional.empty());
+        when(attempts.findByCounterKeyAndOccurredAtAfter(org.mockito.ArgumentMatchers.eq(LoginThrottle.userKey("alice")), any()))
+                .thenReturn(fiveRecentAttempts());
+
+        assertThat(LoginThrottle.userKey("Àlice")).isEqualTo(LoginThrottle.userKey("alice"));
+        assertThat(service.login(request("Àlice", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
+        // And for the account that exists, the same counter decides too.
+        assertThat(service.login(request("alice", PASSWORD)).outcome()).isInstanceOf(AuthService.Outcome.Blocked.class);
     }
 
     @Test

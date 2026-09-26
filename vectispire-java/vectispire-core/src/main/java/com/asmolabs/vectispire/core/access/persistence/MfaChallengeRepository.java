@@ -34,6 +34,18 @@ public interface MfaChallengeRepository extends JpaRepository<MfaChallengeEntity
     @Query("delete from MfaChallengeEntity c where c.expiresAt < :now")
     int deleteExpired(@Param("now") Instant now);
 
+    /**
+     * Destroys one challenge.
+     *
+     * <p>One statement rather than {@code deleteById}, which reads the row before removing it:
+     * codes presented together all end here, and on SQLite a transaction that reads and then writes
+     * is refused outright when another writer committed in between.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("delete from MfaChallengeEntity c where c.tokenHash = :tokenHash")
+    int discard(@Param("tokenHash") String tokenHash);
+
     /** How many are live, for the cap that stops a flood of abandoned sign-ins growing the table. */
     long countByExpiresAtAfter(Instant now);
 }

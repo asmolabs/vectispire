@@ -119,7 +119,7 @@ changera pas de sens.
 | `ZAN-SEC-003` | Security gate refused a build | 7 | un verdict de gate CI est un échec |
 | `ZAN-SEC-005` | Finding settled by triage | 5 | un constat est déclaré non affecté ou corrigé sans passer par l'approbation, à la main ou par import VEX |
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | un code de secours est consommé |
-| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | le limiteur de connexion par mot de passe refuse une tentative |
+| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | le limiteur de connexion par mot de passe refuse une tentative — à la connexion, ou quand un compte connecté change son mot de passe |
 | `ZAN-SEC-008` | MFA failure ceiling reached | 7 | un défi de second facteur est détruit après trop de codes faux, ou le second facteur du compte se verrouille |
 | `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | une adresse épuise son quota de jetons refusés — porteur ou `X-API-Key` (une fois par fenêtre) |
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | un compte est créé, supprimé, change de rôle, d'activation, de mot de passe, de second facteur ou de cibles visibles — depuis l'écran ou par SCIM |

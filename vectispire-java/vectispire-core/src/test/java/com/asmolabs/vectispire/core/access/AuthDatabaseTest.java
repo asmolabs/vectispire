@@ -118,11 +118,13 @@ class AuthDatabaseTest extends VectispireContextTest {
                     .isInstanceOf(AuthService.Outcome.Invalid.class);
         }
 
-        // Each failure writes two rows — one per counter — and the sixth attempt is refused
-        // before the password is judged at all.
-        assertThat(attempts.findAll()).hasSize(2 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        // Each failure writes three rows — the account, the typed name folded, the address — and
+        // the sixth attempt is refused before the password is judged at all, leaving no row of
+        // its own: being refused does not extend the lockout.
+        assertThat(attempts.findAll()).hasSize(3 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
         assertThat(auth.login(request("alice", PASSWORD)).outcome())
                 .isInstanceOf(AuthService.Outcome.Blocked.class);
+        assertThat(attempts.findAll()).hasSize(3 * LoginThrottle.MAX_ATTEMPTS_PER_USER);
     }
 
     @Test

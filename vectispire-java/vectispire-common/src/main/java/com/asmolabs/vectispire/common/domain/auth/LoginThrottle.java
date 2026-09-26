@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.auth;
 
+import java.text.Normalizer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -100,13 +101,20 @@ public final class LoginThrottle {
     }
 
     /**
-     * The key under which a user's failures are counted.
+     * The key under which the failures against a typed name are counted — for an account that
+     * exists as well as for one that does not.
      *
-     * <p>Normalized, or "Alice", "alice" and "alice  " are three counters and the threshold is
-     * worth three times as much to anyone bothering to vary the case.
+     * <p>Folded, or "Alice", "alice" and "alice  " are three counters and the threshold is worth
+     * three times as much to anyone bothering to vary the case. <b>Accents are folded too</b>
+     * (compatibility decomposition, marks dropped, lower-cased in the root locale), and the key is
+     * counted for existing accounts beside {@link #accountKey}: the database's collation decides
+     * which spellings open an account — case on MySQL and not on PostgreSQL, accents on MySQL — so
+     * a counter keyed on the account alone locked "Àlice" when the account existed and not when it
+     * did not, and the lockout answered the question the uniform 401 refuses to.
      */
     public static String userKey(String username) {
-        return "login:user:" + username.trim().toLowerCase(Locale.ROOT);
+        String folded = Normalizer.normalize(username.trim(), Normalizer.Form.NFKD).replaceAll("\\p{M}", "");
+        return "login:user:" + folded.toLowerCase(Locale.ROOT);
     }
 
     /**

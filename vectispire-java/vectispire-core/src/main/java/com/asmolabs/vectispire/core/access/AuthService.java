@@ -15,13 +15,24 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Authentication assembled: throttle, verification, session.
@@ -45,17 +56,132 @@ public class AuthService {
     private final Sessions.Policy policy;
     private final Clock clock;
 
+    /** Each step of a {@link #reserve reservation} commits on its own — see there. */
+    private final TransactionOperations separately;
+
+    @Autowired
     public AuthService(
             UserRepository users,
             SessionRepository sessions,
             LoginAttemptRepository attempts,
             Sessions.Policy policy,
-            Clock clock) {
+            Clock clock,
+            PlatformTransactionManager transactions) {
+        this(users, sessions, attempts, policy, clock, requiresNew(transactions));
+    }
+
+    /** With the boundary supplied — {@link TransactionOperations#withoutTransaction()} for a unit test. */
+    public AuthService(
+            UserRepository users,
+            SessionRepository sessions,
+            LoginAttemptRepository attempts,
+            Sessions.Policy policy,
+            Clock clock,
+            TransactionOperations separately) {
         this.users = users;
         this.sessions = sessions;
         this.attempts = attempts;
         this.policy = policy;
         this.clock = clock;
+        this.separately = separately;
+    }
+
+    private static TransactionTemplate requiresNew(PlatformTransactionManager transactions) {
+        TransactionTemplate template = new TransactionTemplate(transactions);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
+    }
+
+    /**
+     * An attempt counted before it is checked.
+     *
+     * <p><b>Why a failure is written before the verification it may turn out to be.</b> The
+     * counters used to be read, then the secret verified, then a failure written: two attempts
+     * arriving together both read four failures, both were admitted, and a ceiling of five let
+     * through as many guesses as the attacker could send at once — an Argon2 derivation or a TOTP
+     * check is a long window. Now each attempt writes its row and commits, <em>then</em> counts:
+     * whichever commits k-th sees the k-1 before it, so at most the ceiling are admitted however
+     * many arrive together. A refused attempt takes its row back, so being refused does not extend
+     * the lockout; an admitted one keeps it as its failure, and a success clears the counter.
+     *
+     * <p><b>The cost, accepted:</b> attempts that arrive together may all be refused, each counting
+     * the others' rows before they are taken back — MySQL showed a burst of sixteen refused whole.
+     * The ceiling is never exceeded; a burst against one account is refused more readily than a
+     * sequence, which is the right way round for a throttle.
+     *
+     * @param rows this attempt's own rows, which a success or a refusal removes
+     * @param retryAfter zero when admitted
+     */
+    public record Reservation(Set<UUID> rows, Duration retryAfter) {
+
+        public boolean admitted() {
+            return retryAfter.isZero();
+        }
+    }
+
+    /**
+     * Writes one failure per counter, commits, then decides against each ceiling — the strictest
+     * wins. See {@link Reservation}.
+     *
+     * <p>In transactions of its own, whatever the caller holds: a row still uncommitted when a
+     * concurrent attempt counts is a row that attempt does not see, which is the race itself.
+     */
+    public Reservation reserve(Map<String, Integer> ceilings) {
+        Instant now = clock.instant();
+        List<LoginAttemptEntity> mine = separately.execute(status -> {
+            List<LoginAttemptEntity> written = new ArrayList<>();
+            ceilings.keySet().forEach(key -> written.add(attempts.save(attempt(key, now))));
+            return written;
+        });
+        Set<UUID> own = mine.stream().map(LoginAttemptEntity::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Duration wait = Duration.ZERO;
+        for (Map.Entry<String, Integer> ceiling : ceilings.entrySet()) {
+            List<Instant> others = separately.execute(status -> attempts
+                    .findByCounterKeyAndOccurredAtAfter(ceiling.getKey(), now.minus(LoginThrottle.WINDOW)).stream()
+                    .filter(row -> row.getId() == null || !own.contains(row.getId()))
+                    .map(LoginAttemptEntity::getOccurredAt)
+                    .toList());
+            Duration retryAfter = LoginThrottle.decide(others, ceiling.getValue(), now).retryAfter();
+            if (retryAfter.compareTo(wait) > 0) {
+                wait = retryAfter;
+            }
+        }
+
+        Reservation reservation = new Reservation(own, wait);
+        if (!reservation.admitted()) {
+            release(reservation);
+        }
+        return reservation;
+    }
+
+    /** Takes a reservation's rows back — a refused attempt, or one whose outcome is not a failure. */
+    public void release(Reservation reservation) {
+        if (!reservation.rows().isEmpty()) {
+            separately.executeWithoutResult(status -> attempts.deleteByIdIn(reservation.rows()));
+        }
+    }
+
+    /**
+     * A second-factor attempt, against the account's budget of wrong codes — see
+     * {@link LoginThrottle#MAX_SECOND_FACTOR_FAILURES}.
+     */
+    public Reservation reserveSecondFactor(long accountId) {
+        return reserve(Map.of(LoginThrottle.secondFactorKey(accountId), LoginThrottle.MAX_SECOND_FACTOR_FAILURES));
+    }
+
+    /**
+     * A password presented by a signed-in account — changing its own — against the budget of the
+     * sign-in form. A session is not a licence to guess the password behind it: a workstation left
+     * unlocked would otherwise be a password oracle with no ceiling.
+     */
+    public Reservation reservePassword(long accountId) {
+        return reserve(Map.of(LoginThrottle.accountKey(accountId), LoginThrottle.MAX_ATTEMPTS_PER_USER));
+    }
+
+    /** A right password: the account's counter starts again, as a sign-in's does. */
+    public void clearPasswordFailures(long accountId) {
+        attempts.deleteByCounterKey(LoginThrottle.accountKey(accountId));
     }
 
     /**
@@ -109,23 +235,31 @@ public class AuthService {
      */
     public record LoginResult(Outcome outcome, AuditLogService.Record audit) {}
 
-    @Transactional
+    /**
+     * Not {@code @Transactional}, deliberately: the attempt is {@link #reserve reserved} in
+     * transactions of its own before the password is verified, and every write after it — the
+     * session, a rehash, clearing the counters — is a repository call that commits by itself.
+     */
     public LoginResult login(LoginRequest request) {
         Instant now = clock.instant();
-        Instant since = now.minus(LoginThrottle.WINDOW);
         // Looked up before the throttle, which costs a query and no hashing. The account is
         // what the counter protects, and the username the caller typed is not the account: the
         // lookup follows the database's collation, which on MySQL ignores case and accents, so
         // "Alice", "alice" and "Àlice" were three counters opening one account — five tries each.
+        // The folded name is counted as well, for an existing account and an unknown one alike,
+        // and the stricter of the two decides: which counters an attempt meets must not depend on
+        // whether the account exists — see LoginThrottle#userKey.
         Optional<UserEntity> user = users.findByUsername(request.username());
-        String userKey = user.map(found -> LoginThrottle.accountKey(found.getId()))
-                .orElseGet(() -> LoginThrottle.userKey(request.username()));
+        String nameKey = LoginThrottle.userKey(request.username());
         String clientKey = LoginThrottle.clientKey(String.valueOf(request.ipAddress()));
+        Map<String, Integer> ceilings = new LinkedHashMap<>();
+        user.ifPresent(found -> ceilings.put(LoginThrottle.accountKey(found.getId()), LoginThrottle.MAX_ATTEMPTS_PER_USER));
+        ceilings.put(nameKey, LoginThrottle.MAX_ATTEMPTS_PER_USER);
+        ceilings.put(clientKey, LoginThrottle.MAX_ATTEMPTS_PER_CLIENT);
 
-        LoginThrottle.Decision throttle = LoginThrottle.decide(
-                new LoginThrottle.Attempts(occurrences(userKey, since), occurrences(clientKey, since)), now);
+        Reservation throttle = reserve(ceilings);
 
-        if (!throttle.allowed()) {
+        if (!throttle.admitted()) {
             // Refused before any hashing: that is the point of checking first.
             return new LoginResult(
                     new Outcome.Blocked(throttle.retryAfter()),
@@ -152,8 +286,7 @@ public class AuthService {
         boolean authenticated = active.isPresent() && matches;
 
         if (!authenticated) {
-            recordFailure(userKey, now);
-            recordFailure(clientKey, now);
+            // The reservation's rows stay: they are this failure.
             return new LoginResult(
                     new Outcome.Invalid(),
                     AuditLogService.Record.of(
@@ -166,8 +299,7 @@ public class AuthService {
                             request.username()));
         }
 
-        attempts.deleteByCounterKey(userKey);
-        attempts.deleteByCounterKey(clientKey);
+        ceilings.keySet().forEach(attempts::deleteByCounterKey);
 
         UserEntity found = user.orElseThrow();
         rehashIfStale(found, request.password());
@@ -319,11 +451,6 @@ public class AuthService {
                 .retryAfter();
     }
 
-    @Transactional
-    public void recordSecondFactorFailure(Long accountId) {
-        recordFailure(LoginThrottle.secondFactorKey(accountId), clock.instant());
-    }
-
     /** Only a right code clears it — never a right password, which is the whole point. */
     @Transactional
     public void clearSecondFactorFailures(Long accountId) {
@@ -348,11 +475,11 @@ public class AuthService {
                 .toList();
     }
 
-    private void recordFailure(String counterKey, Instant now) {
+    private static LoginAttemptEntity attempt(String counterKey, Instant now) {
         LoginAttemptEntity attempt = new LoginAttemptEntity();
         attempt.setCounterKey(counterKey);
         attempt.setOccurredAt(now);
-        attempts.save(attempt);
+        return attempt;
     }
 
     private static String clip(String value) {

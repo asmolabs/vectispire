@@ -19,6 +19,18 @@ public interface LoginAttemptRepository extends JpaRepository<LoginAttemptEntity
     int deleteByCounterKey(@Param("counterKey") String counterKey);
 
     /**
+     * Takes back the rows an attempt reserved — see {@code AuthService.Reservation}.
+     *
+     * <p>One statement rather than {@code deleteAllById}, which reads each row before removing it:
+     * on SQLite a transaction that reads and then writes is refused outright when another writer
+     * committed in between, and concurrent attempts are exactly when this runs.
+     */
+    @Transactional
+    @Modifying
+    @Query("delete from LoginAttemptEntity a where a.id in :ids")
+    int deleteByIdIn(@Param("ids") java.util.Collection<UUID> ids);
+
+    /**
      * Drops what has left the window.
      *
      * <p>Without it the table grows for every failed login ever made, and the throttle's own

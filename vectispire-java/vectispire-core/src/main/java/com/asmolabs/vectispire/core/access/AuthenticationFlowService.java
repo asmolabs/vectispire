@@ -196,46 +196,56 @@ public class AuthenticationFlowService {
         String challengeKey = Sessions.hashOf(mfaToken);
         MfaChallengeEntity challenge = mfaChallenges.findById(challengeKey).orElse(null);
         if (challenge == null || clock.instant().isAfter(challenge.getExpiresAt())) {
-            mfaChallenges.deleteById(challengeKey);
+            mfaChallenges.discard(challengeKey);
             return new Verification.ChallengeInvalid();
         }
 
-        Optional<UserEntity> account = users.findById(challenge.getUserId());
+        // **A deactivated account is refused here too.** The password step checked it; the code
+        // may arrive minutes later, after an administrator deactivated the account — which is
+        // exactly when a session must not be issued. Refused like a missing account, and the
+        // challenge goes with it.
+        Optional<UserEntity> account = users.findById(challenge.getUserId()).filter(UserEntity::getIsActive);
         if (account.isEmpty()) {
+            mfaChallenges.discard(challengeKey);
             return new Verification.AccountMissing();
         }
         UserEntity user = account.get();
 
-        Duration locked = auth.secondFactorLockout(user.getId());
-        if (!locked.isZero()) {
+        // **Counted before the code is checked, on the challenge and on the account.** Both used to
+        // be read, then the code verified, then the failure written: codes sent together all read
+        // "under the ceiling" and were all checked. The challenge's count is incremented by the
+        // database first and read back, so the fourth presentation of a token is refused whatever
+        // the timing; the account's budget is reserved the same way — see AuthService.Reservation.
+        mfaChallenges.countAttempt(challengeKey);
+        int presented = mfaChallenges.findById(challengeKey)
+                .map(MfaChallengeEntity::getAttempts)
+                .orElse(MAX_MFA_ATTEMPTS + 1);
+        if (presented > MAX_MFA_ATTEMPTS) {
+            mfaChallenges.discard(challengeKey);
+            return new Verification.ChallengeInvalid();
+        }
+        AuthService.Reservation attempt = auth.reserveSecondFactor(user.getId());
+        if (!attempt.admitted()) {
             // The challenge goes too: it would otherwise outlive the lockout and resume the
             // search where it stopped.
-            mfaChallenges.deleteById(challengeKey);
-            return new Verification.Throttled(locked);
+            mfaChallenges.discard(challengeKey);
+            return new Verification.Throttled(attempt.retryAfter());
         }
 
         if (!totp.verify(user, code)) {
-            auth.recordSecondFactorFailure(user.getId());
-            // The account-wide ceiling, asked right after counting this failure: the challenge
-            // below dies after its own few tries, the account locks after more across challenges,
-            // and either one is the moment a guessing attempt stops — which is what a SOC wants.
+            // The reservation stays: it is this failure. The account-wide ceiling is asked right
+            // after: the challenge dies after its own few tries, the account locks after more
+            // across challenges, and either one is the moment a guessing attempt stops — which is
+            // what a SOC wants.
             boolean accountLocked = !auth.secondFactorLockout(user.getId()).isZero();
             // **The challenge dies on the last try, and that is the control.** Leaving it alive
             // after a wrong code is what turns a six-digit secret into a five-minute exhaustive
             // search: the attacker keeps the same token and keeps going. Counting on the
             // challenge rather than the account also means a wrong guess cannot be used to lock
             // a legitimate user out — the worst it costs them is re-entering their password.
-            // Incremented by the database, not read-then-written here: two wrong codes racing
-            // would otherwise each read the same count and the challenge would absorb one guess
-            // more than it is allowed.
-            mfaChallenges.countAttempt(challengeKey);
-            boolean exhausted = mfaChallenges
-                            .findById(challengeKey)
-                            .map(MfaChallengeEntity::getAttempts)
-                            .orElse(MAX_MFA_ATTEMPTS)
-                    >= MAX_MFA_ATTEMPTS;
+            boolean exhausted = presented >= MAX_MFA_ATTEMPTS;
             if (exhausted) {
-                mfaChallenges.deleteById(challengeKey);
+                mfaChallenges.discard(challengeKey);
             }
 
             AuditLogService.Record failure = new AuditLogService.Record(
@@ -253,7 +263,7 @@ public class AuthenticationFlowService {
             return new Verification.WrongCode();
         }
 
-        mfaChallenges.deleteById(challengeKey);
+        mfaChallenges.discard(challengeKey);
         auth.clearSecondFactorFailures(user.getId());
         AuthService.IssuedSession session =
                 auth.openSessionForUser(user, challenge.getUserAgent(), challenge.getIpAddress());
@@ -353,10 +363,15 @@ public class AuthenticationFlowService {
         return "single sign-on";
     }
 
-    public enum PasswordChange {
-        CHANGED,
+    /** What changing one's own password came to. */
+    public sealed interface PasswordChange {
+        record Changed() implements PasswordChange {}
+
         /** The proof of identity failed — not a malformed field, which is refused by exception. */
-        CURRENT_PASSWORD_WRONG
+        record CurrentPasswordWrong() implements PasswordChange {}
+
+        /** The account has spent its password attempts for this window, here or at the sign-in form. */
+        record Throttled(Duration retryAfter) implements PasswordChange {}
     }
 
     /**
@@ -374,6 +389,11 @@ public class AuthenticationFlowService {
      * <p>The hash is read here, from the account's row, rather than carried in by the caller: the
      * principal holds a {@link UserView}, which has no password to compare against — deliberately.
      *
+     * <p><b>A wrong current password counts, and is recorded.</b> It spends the account's sign-in
+     * budget ({@link AuthService#reservePassword}), and a locked account answers {@code Throttled}
+     * here as it does at the sign-in form: an open session was otherwise a way to guess the
+     * password behind it at whatever rate the server sustained, with nothing in the audit trail.
+     *
      * @throws IllegalArgumentException when the new password breaks a rule, with the rule's text
      * @throws java.util.NoSuchElementException when the account is gone — the bearer filter found it
      *     active at the start of this request, so only a deletion racing it lands here
@@ -387,9 +407,31 @@ public class AuthenticationFlowService {
             String userAgent) {
 
         UserEntity user = users.findById(account.id()).orElseThrow();
-        if (!PasswordHasher.verify(currentPassword, user.getPassword())) {
-            return PasswordChange.CURRENT_PASSWORD_WRONG;
+        AuthService.Reservation attempt = auth.reservePassword(user.getId());
+        if (!attempt.admitted()) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_BLOCKED,
+                    String.valueOf(user.getId()),
+                    "Password change refused by the throttle (" + attempt.retryAfter().toSeconds() + "s to wait)",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent,
+                    SecurityEventType.SIGN_IN_THROTTLED));
+            return new PasswordChange.Throttled(attempt.retryAfter());
         }
+        if (!PasswordHasher.verify(currentPassword, user.getPassword())) {
+            // The reservation stays: it is this failure.
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_FAILURE,
+                    String.valueOf(user.getId()),
+                    "Password change refused: the current password was wrong",
+                    user.getUsername(),
+                    ipAddress,
+                    userAgent));
+            return new PasswordChange.CurrentPasswordWrong();
+        }
+        // The password was right: whatever the new one turns out to be, this was not a guess.
+        auth.clearPasswordFailures(user.getId());
         AccountRules.validatePassword(newPassword).ifPresent(message -> {
             throw new IllegalArgumentException(message);
         });
@@ -407,6 +449,6 @@ public class AuthenticationFlowService {
                 user.getUsername(),
                 ipAddress,
                 userAgent));
-        return PasswordChange.CHANGED;
+        return new PasswordChange.Changed();
     }
 }

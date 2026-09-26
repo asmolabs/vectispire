@@ -116,13 +116,14 @@ public class TotpService {
         // **The same budget as the sign-in challenge.** Disabling asks for a code, and it had no
         // ceiling: a session left open on somebody's desk could try codes here without limit and,
         // at a million possibilities, eventually disarm the factor. Wrong codes count against the
-        // account exactly as they do at sign-in, and a lockout there is a lockout here.
-        java.time.Duration locked = auth.secondFactorLockout(user.getId());
-        if (!locked.isZero()) {
-            throw new SecondFactorLockedException(locked);
+        // account exactly as they do at sign-in, and a lockout there is a lockout here. Reserved
+        // before the code is checked, so codes sent together cannot all read "under the ceiling".
+        AuthService.Reservation attempt = auth.reserveSecondFactor(user.getId());
+        if (!attempt.admitted()) {
+            throw new SecondFactorLockedException(attempt.retryAfter());
         }
         if (!verify(user, code)) {
-            auth.recordSecondFactorFailure(user.getId());
+            // The reservation stays: it is this failure.
             throw new IllegalArgumentException("Invalid code or backup code. MFA could not be disabled.");
         }
         auth.clearSecondFactorFailures(user.getId());

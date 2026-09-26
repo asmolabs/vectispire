@@ -70,7 +70,13 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
     private static final Set<String> LIMITED_PATHS = Set.of(
             "/api/v1/auth/login",
             "/api/v1/auth/mfa/verify",
-            "/api/v1/auth/session/exchange");
+            "/api/v1/auth/session/exchange",
+            // Not anonymous, and limited all the same: it verifies a second-factor code, so a
+            // session left open is a door to the same six digits. The account's budget bounds the
+            // guesses; this bounds how fast one address can spend it.
+            "/api/v1/auth/mfa/disable",
+            // The same for a password: a session is not a licence to guess the one behind it.
+            "/api/v1/auth/change-password");
 
     private static final int MAX_IP_ENTRIES = 10_000;
 

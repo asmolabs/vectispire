@@ -110,7 +110,7 @@ change meaning.
 | `ZAN-SEC-003` | Security gate refused a build | 7 | a CI gate verdict fails |
 | `ZAN-SEC-005` | Finding settled by triage | 5 | a finding is marked not affected or fixed without going through approval, by hand or by VEX import |
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | an emergency recovery code is spent |
-| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | the password throttle refuses an attempt |
+| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | the password throttle refuses an attempt — at sign-in, or when a signed-in account changes its password |
 | `ZAN-SEC-008` | MFA failure ceiling reached | 7 | a second-factor challenge is destroyed after too many wrong codes, or the account's second factor locks |
 | `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens — bearer or `X-API-Key` (once per window) |
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | an account is created, deleted, changes role, activation, password, second factor or visible targets — from the screen or SCIM |

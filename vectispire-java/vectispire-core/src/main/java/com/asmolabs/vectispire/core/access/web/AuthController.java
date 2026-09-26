@@ -294,12 +294,14 @@ public class AuthController {
                 request.getRemoteAddr(),
                 request.getHeader("User-Agent"));
 
-        if (outcome == AuthenticationFlowService.PasswordChange.CURRENT_PASSWORD_WRONG) {
+        return switch (outcome) {
             // 401 and not 400: what is missing is proof of identity, not a well-formed field,
             // and the screen has to be able to tell the two apart.
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect.");
-        }
-        return Map.of("mustChangePassword", false);
+            case AuthenticationFlowService.PasswordChange.CurrentPasswordWrong ignored ->
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Current password is incorrect.");
+            case AuthenticationFlowService.PasswordChange.Throttled throttled -> throw throttled(throttled.retryAfter());
+            case AuthenticationFlowService.PasswordChange.Changed ignored -> Map.of("mustChangePassword", false);
+        };
     }
 
     @RequiresAccount
