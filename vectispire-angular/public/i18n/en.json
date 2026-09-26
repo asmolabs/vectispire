@@ -26,11 +26,14 @@
     "aria_delete": "Delete {{name}}",
     "aria_disable": "Disable {{name}}",
     "aria_reenable": "Re-enable {{name}}",
+    "aria_concurrency": "Change how many scans {{name}} runs at once",
     "aria_require_signatures": "Require signed results from {{name}}",
     "aria_stop_requiring_signatures": "Stop requiring signed results from {{name}}",
     "assigned_agent": "Assigned Agent",
     "branch": "Branch",
     "concurrent_label": "Concurrent scans",
+    "concurrent_hint": "Between 1 and 16. Each scan runs its scanner containers on the agent's machine, one after the other: allow about one CPU core and 2 GB of memory per scan, and 3 GB of free disk. A lowered limit applies to the next claim — running scans finish.",
+    "concurrent_title": "Concurrent scans — {{name}}",
     "copy_token_btn": "Copy Token",
     "credentials": "Credentials",
     "credentials_modes": {
@@ -67,6 +70,7 @@
     "pending_subtitle": "Scheduled or on-demand scans waiting for an available compatible agent.",
     "pending_title": "Scan Queue (Workload Remaining)",
     "position": "Position",
+    "running_of_max": "{{running}} running, {{max}} allowed at once",
     "running_subtitle": "Scan tasks currently assigned and progressing on execution agents.",
     "running_title": "Active Running Scans",
     "scans": "Scans",
@@ -101,7 +105,9 @@
     "error_name_required": "Name is required.",
     "error_declare": "Could not declare the agent.",
     "error_signing_key": "Could not change the result-signing key.",
-    "error_delete": "Could not delete the agent."
+    "error_delete": "Could not delete the agent.",
+    "error_concurrency": "Could not change the number of concurrent scans.",
+    "error_concurrency_range": "Concurrent scans must be a whole number between 1 and 16."
   },
   "ai": {
     "exposure_mentioned": "Look here first: a code check produced a finding that mentions this component. It is a place to look, not proof of a call: this correlation matches text, it does not follow the call graph.",

@@ -780,7 +780,6 @@ export type AgentSummary = Refine<
         description: string | null;
         /** What this agent can reach, comma-separated. `null`: no labelled target. */
         labels: string | null;
-        maxConcurrent: number | null;
         hostname: string | null;
         platform: string | null;
         version: string | null;

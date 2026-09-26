@@ -116,7 +116,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "enabled", "online", "runningScans", "sealsCredentials", "signsResults" ],
+        "required" : [ "enabled", "maxConcurrent", "online", "runningScans", "sealsCredentials", "signsResults" ],
         "type" : "object"
       },
       "AgentUpdateRequest" : {

@@ -26,11 +26,14 @@
     "aria_delete": "Supprimer {{name}}",
     "aria_disable": "Désactiver {{name}}",
     "aria_reenable": "Réactiver {{name}}",
+    "aria_concurrency": "Modifier le nombre d'analyses que {{name}} mène en parallèle",
     "aria_require_signatures": "Exiger des résultats signés de {{name}}",
     "aria_stop_requiring_signatures": "Ne plus exiger de résultats signés de {{name}}",
     "assigned_agent": "Agent assigné",
     "branch": "Branche",
     "concurrent_label": "Analyses simultanées",
+    "concurrent_hint": "Entre 1 et 16. Chaque analyse lance ses conteneurs de scanners sur la machine de l'agent, l'un après l'autre : comptez environ un cœur CPU et 2 Go de mémoire par analyse, et 3 Go de disque libre. Une limite abaissée s'applique à la prochaine prise en charge — les analyses en cours se terminent.",
+    "concurrent_title": "Analyses simultanées — {{name}}",
     "copy_token_btn": "Copier le jeton",
     "credentials": "Identifiants",
     "credentials_modes": {
@@ -67,6 +70,7 @@
     "pending_subtitle": "Analyses planifiées ou demandées en attente d'un agent disponible.",
     "pending_title": "File d'attente des analyses (Reste à faire)",
     "position": "Position",
+    "running_of_max": "{{running}} en cours, {{max}} autorisées en parallèle",
     "running_subtitle": "Tâches actuellement prises en charge et traitées par les agents.",
     "running_title": "Analyses en cours d'exécution",
     "scans": "Analyses",
@@ -101,7 +105,9 @@
     "error_name_required": "Le nom est obligatoire.",
     "error_declare": "Impossible de déclarer l'agent.",
     "error_signing_key": "Impossible de modifier la clé de signature des résultats.",
-    "error_delete": "Impossible de supprimer l'agent."
+    "error_delete": "Impossible de supprimer l'agent.",
+    "error_concurrency": "Impossible de modifier le nombre d'analyses simultanées.",
+    "error_concurrency_range": "Le nombre d'analyses simultanées doit être un entier entre 1 et 16."
   },
   "ai": {
     "exposure_mentioned": "À regarder en premier : un contrôle de code a produit un constat qui mentionne ce composant. C'est un endroit où regarder, pas une preuve d'appel : cette corrélation rapproche des textes, elle ne suit pas le graphe d'appels.",

@@ -391,8 +391,23 @@
                         {{ (agent.signsResults ? 'agents.signing.attested' : 'agents.signing.unsigned') | translate }}
                     </div>
                 </td>
-                <td class="text-right font-medium">{{ agent.runningScans }}</td>
+                <td
+                    class="text-right font-medium whitespace-nowrap"
+                    [title]="
+                        'agents.running_of_max' | translate: { running: agent.runningScans, max: agent.maxConcurrent }
+                    "
+                >
+                    {{ agent.runningScans }} / {{ agent.maxConcurrent }}
+                </td>
                 <td class="text-right whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-sliders-h"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'agents.aria_concurrency' | translate: { name: agent.name }"
+                        [disabled]="busy() === agent.id"
+                        (onClick)="openConcurrency(agent)"
+                    />
                     <p-button
                         [icon]="agent.signsResults ? 'pi pi-lock' : 'pi pi-lock-open'"
                         [text]="true"
@@ -488,10 +503,14 @@
             <p-inputnumber
                 inputId="concurrent"
                 [(ngModel)]="form.maxConcurrent"
-                [min]="1"
-                [max]="16"
+                [min]="concurrencyBounds.min"
+                [max]="concurrencyBounds.max"
+                [showButtons]="true"
+                [useGrouping]="false"
+                ariaDescribedBy="concurrent-hint"
                 styleClass="w-full"
             />
+            <small id="concurrent-hint" class="text-muted-color">{{ 'agents.concurrent_hint' | translate }}</small>
         </div>
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
@@ -500,6 +519,35 @@
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
         <p-button [label]="'common.create' | translate" [loading]="saving()" (onClick)="save()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'agents.concurrent_title' | translate: { name: concurrencyAgent()?.name ?? '' }"
+    [(visible)]="concurrencyVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    <div class="flex flex-col gap-2">
+        <label for="concurrent-edit" class="font-medium">{{ 'agents.concurrent_label' | translate }}</label>
+        <p-inputnumber
+            inputId="concurrent-edit"
+            [(ngModel)]="concurrencyValue"
+            [min]="concurrencyBounds.min"
+            [max]="concurrencyBounds.max"
+            [showButtons]="true"
+            [useGrouping]="false"
+            ariaDescribedBy="concurrent-edit-hint"
+            styleClass="w-full"
+        />
+        <small id="concurrent-edit-hint" class="text-muted-color">{{ 'agents.concurrent_hint' | translate }}</small>
+        @if (concurrencyError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="concurrencyVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveConcurrency()" />
     </ng-template>
 </p-dialog>
 

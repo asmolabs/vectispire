@@ -49,6 +49,16 @@ export class AgentsApi {
         return this.http.put<PinnedSigningKey>(`/api/v1/admin/agents/${id}/signing-key`, { public_key: publicKey });
     }
 
+    /**
+     * How many scans this agent may run at once, 1 to 16 — refused with a 400 outside that.
+     *
+     * Applies to the agent's next claim: scans already running are left to finish, even when the
+     * new limit is below how many it holds.
+     */
+    setAgentMaxConcurrent(id: string, maxConcurrent: number): Observable<{ id: string }> {
+        return this.http.patch<{ id: string }>(`/api/v1/admin/agents/${id}`, { max_concurrent: maxConcurrent });
+    }
+
     setAgentEnabled(id: string, enabled: boolean): Observable<{ id: string; enabled: boolean }> {
         return this.http.patch<{ id: string; enabled: boolean }>(`/api/v1/admin/agents/${id}`, { enabled });
     }

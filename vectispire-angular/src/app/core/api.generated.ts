@@ -2823,7 +2823,7 @@ export interface components {
             /** Format: date-time */
             lastSeenAt?: string;
             /** Format: int32 */
-            maxConcurrent?: number;
+            maxConcurrent: number;
             name?: string;
             online: boolean;
             platform?: string;

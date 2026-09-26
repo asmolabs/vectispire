@@ -67,7 +67,7 @@ public class AgentsAdminController {
             String labels,
             boolean sealsCredentials,
             boolean signsResults,
-            Integer maxConcurrent,
+            int maxConcurrent,
             String hostname,
             String platform,
             String version,

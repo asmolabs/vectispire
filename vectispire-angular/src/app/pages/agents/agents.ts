@@ -83,6 +83,18 @@ export class Agents implements OnInit {
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
     /**
+     * The bound the control plane enforces, repeated here so the input cannot offer what the
+     * server will refuse. The server stays the authority — a value typed past the spinner still
+     * gets its 400 — this only saves the round trip.
+     */
+    readonly concurrencyBounds = { min: 1, max: 16 } as const;
+
+    readonly concurrencyVisible = signal(false);
+    readonly concurrencyAgent = signal<AgentSummary | null>(null);
+    readonly concurrencyError = signal<string | null>(null);
+    concurrencyValue = 1;
+
+    /**
      * **Only counts while there is something to wait for.**
      *
      * This screen queried the server every five seconds unconditionally — 720 requests an hour per
@@ -181,6 +193,10 @@ export class Agents implements OnInit {
             this.formError.set(this.i18n.t('agents.error_name_required'));
             return;
         }
+        if (!this.withinBounds(this.form.maxConcurrent)) {
+            this.formError.set(this.i18n.t('agents.error_concurrency_range'));
+            return;
+        }
         this.saving.set(true);
         this.formError.set(null);
         this.agentsApi
@@ -204,6 +220,43 @@ export class Agents implements OnInit {
                     this.formError.set(messageOf(response, this.i18n.t('agents.error_declare')));
                 }
             });
+    }
+
+    openConcurrency(agent: AgentSummary): void {
+        this.concurrencyAgent.set(agent);
+        this.concurrencyValue = agent.maxConcurrent;
+        this.concurrencyError.set(null);
+        this.concurrencyVisible.set(true);
+    }
+
+    saveConcurrency(): void {
+        const agent = this.concurrencyAgent();
+        if (!agent) return;
+        if (!this.withinBounds(this.concurrencyValue)) {
+            this.concurrencyError.set(this.i18n.t('agents.error_concurrency_range'));
+            return;
+        }
+        this.saving.set(true);
+        this.agentsApi.setAgentMaxConcurrent(agent.id, this.concurrencyValue).subscribe({
+            next: () => {
+                this.saving.set(false);
+                this.concurrencyVisible.set(false);
+                this.reload();
+            },
+            error: (response) => {
+                this.saving.set(false);
+                this.concurrencyError.set(messageOf(response, this.i18n.t('agents.error_concurrency')));
+            }
+        });
+    }
+
+    private withinBounds(value: number | null | undefined): boolean {
+        return (
+            typeof value === 'number' &&
+            Number.isInteger(value) &&
+            value >= this.concurrencyBounds.min &&
+            value <= this.concurrencyBounds.max
+        );
     }
 
     dismissSecret(): void {
