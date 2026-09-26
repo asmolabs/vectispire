@@ -14,7 +14,6 @@ import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -323,13 +322,20 @@ public final class ContainerRunner {
             // immediately, on output that does not exist yet — which reads as a scanner that
             // printed nothing, and therefore as "analysed, found nothing". The daemon retains
             // the logs, so collecting them afterwards loses none and races on nothing.
-            StreamCollector output = new StreamCollector();
+            StreamCollector output = new StreamCollector(limits.outputBytes(), STDERR_BYTES);
             docker.logContainerCmd(container.getId())
                     .withStdOut(true)
                     .withStdErr(true)
                     .withTailAll()
                     .exec(output)
                     .awaitCompletion();
+            if (output.overflowed()) {
+                // Failed, not truncated: a truncated report is not a smaller report, and a JSON cut
+                // short would be refused by the parser anyway, with a less useful message.
+                throw ScannerFailureException.of(request.label(), "Scanner \"" + request.label()
+                        + "\" wrote more than " + limits.outputBytes()
+                        + " bytes of output; it was stopped and its output discarded.");
+            }
 
             return new ContainerResult(output.stdout(), output.stderr(), exitCode);
         } catch (InterruptedException interrupted) {
@@ -402,6 +408,9 @@ public final class ContainerRunner {
 
     public record ContainerResult(String stdout, String stderr, int exitCode) {}
 
+    /** How much of a scanner's error stream is kept: failures quote its first 2,000 characters. */
+    static final long STDERR_BYTES = 1024 * 1024;
+
     /**
      * Reads a scanner's JSON output, or explains why it is unusable.
      *
@@ -431,18 +440,50 @@ public final class ContainerRunner {
      * <p>The Docker protocol multiplexes them over one connection and tags each frame; keeping
      * the tag is what stops the scanner's warnings from being interleaved into the JSON.
      */
-    private static final class StreamCollector extends ResultCallback.Adapter<Frame> {
+    static final class StreamCollector extends ResultCallback.Adapter<Frame> {
 
-        private final OutputStream out = new java.io.ByteArrayOutputStream();
-        private final OutputStream err = new java.io.ByteArrayOutputStream();
+        private final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        private final java.io.ByteArrayOutputStream err = new java.io.ByteArrayOutputStream();
+        private final long stdoutLimit;
+        private final long stderrLimit;
+        private volatile boolean overflowed;
+
+        /**
+         * @param stdoutLimit past this, the collection stops and {@link #overflowed()} says so
+         * @param stderrLimit past this, the rest of the error stream is dropped: only its beginning
+         *     is ever shown, and a scanner failing noisily is not a scanner failing twice
+         */
+        StreamCollector(long stdoutLimit, long stderrLimit) {
+            this.stdoutLimit = stdoutLimit;
+            this.stderrLimit = stderrLimit;
+        }
 
         @Override
         public void onNext(Frame frame) {
-            try {
-                (frame.getStreamType() == StreamType.STDERR ? err : out).write(frame.getPayload());
-            } catch (IOException impossible) {
-                throw new IllegalStateException("in-memory write failed", impossible);
+            byte[] payload = frame.getPayload();
+            if (frame.getStreamType() == StreamType.STDERR) {
+                int room = (int) Math.max(0, Math.min(payload.length, stderrLimit - err.size()));
+                err.write(payload, 0, room);
+                return;
             }
+            if (overflowed) {
+                return;
+            }
+            if (out.size() + (long) payload.length > stdoutLimit) {
+                overflowed = true;
+                try {
+                    // Stops the daemon's stream: reading the rest only to discard it is the cost this avoids.
+                    close();
+                } catch (IOException alreadyClosing) {
+                    // The stream is going away either way.
+                }
+                return;
+            }
+            out.write(payload, 0, payload.length);
+        }
+
+        boolean overflowed() {
+            return overflowed;
         }
 
         String stdout() {

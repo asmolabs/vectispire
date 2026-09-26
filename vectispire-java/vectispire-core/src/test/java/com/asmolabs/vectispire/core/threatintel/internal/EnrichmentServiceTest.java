@@ -86,6 +86,8 @@ class EnrichmentServiceTest {
     void anOutageDoesNotFailTheScan() {
         when(outbound.get(anyString(), any(), anyString()))
                 .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
+        when(outbound.get(anyString(), any(), anyString(), any(), org.mockito.ArgumentMatchers.anyLong()))
+                .thenThrow(new OutboundJson.OutboundFailureException("connection refused"));
 
         ScanIngestor.Enrichment found = service.enrich(List.of("CVE-2024-1")).orElseThrow();
 
@@ -117,7 +119,9 @@ class EnrichmentServiceTest {
     }
 
     private void kevReturns(String body) {
-        when(outbound.get(contains("known_exploited"), eq(OutboundPolicy.PUBLIC_ONLY), anyString()))
+        // With a ceiling of its own: the catalogue is larger than an ordinary answer.
+        when(outbound.get(contains("known_exploited"), eq(OutboundPolicy.PUBLIC_ONLY), anyString(), any(),
+                        org.mockito.ArgumentMatchers.longThat(ceiling -> ceiling > 4L * 1024 * 1024)))
                 .thenReturn(Optional.of(parse(body)));
     }
 

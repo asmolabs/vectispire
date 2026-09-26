@@ -158,6 +158,94 @@ class PinnedHttpSenderTest {
     }
 
     @Test
+    @DisplayName("an answer past the ceiling fails the call instead of filling the heap")
+    void anOversizedAnswerIsRefused() throws IOException {
+        // Streamed without a length, as a hostile or broken server would: nothing to pre-size from.
+        // The first request asks for a quarter of a gigabyte; the second, six megabytes.
+        java.util.concurrent.atomic.AtomicLong servedToTheFirst = new java.util.concurrent.atomic.AtomicLong();
+        java.util.concurrent.atomic.AtomicInteger requests = new java.util.concurrent.atomic.AtomicInteger();
+        HttpServer large = streaming(exchange -> {
+            boolean first = requests.incrementAndGet() == 1;
+            long total = first ? 256L * 1024 * 1024 : 6L * 1024 * 1024;
+            byte[] chunk = new byte[64 * 1024];
+            java.util.Arrays.fill(chunk, (byte) 'x');
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                for (long written = 0; written < total; written += chunk.length) {
+                    out.write(chunk);
+                    if (first) {
+                        servedToTheFirst.addAndGet(chunk.length);
+                    }
+                }
+            } catch (IOException clientWentAway) {
+                // Expected for the first: the sender stops reading at the ceiling.
+            }
+        });
+        try {
+            OutboundUrlGuard.Destination destination = loopback(large, "/large");
+
+            assertThatThrownBy(() -> new PinnedHttpSender()
+                            .send(destination, Map.of(), null, Duration.ofSeconds(5), "tracker"))
+                    .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                    .hasMessageContaining("larger than " + PinnedHttpSender.DEFAULT_MAX_BODY_BYTES);
+            // Refused at the ceiling, not after reading the rest: the connection closed while the
+            // server still had most of its quarter gigabyte to send (socket buffers hold a few MB).
+            assertThat(servedToTheFirst.get()).isLessThan(64L * 1024 * 1024);
+            // A caller reading a catalogue names a ceiling of its own, and gets the whole answer.
+            PinnedHttpSender.Response whole = new PinnedHttpSender().send(PinnedHttpSender.Method.GET,
+                    destination, Map.of(), null, Duration.ofSeconds(5), "catalogue", 8L * 1024 * 1024);
+            assertThat(whole.body()).hasSize(6 * 1024 * 1024);
+        } finally {
+            large.stop(0);
+        }
+    }
+
+    @Test
+    @DisplayName("an answer trickled just inside the read timeout is abandoned at the deadline")
+    void aTrickledAnswerIsAbandoned() throws IOException {
+        // Each byte arrives well within the one-second read timeout, so no read ever times out;
+        // without a deadline on the whole exchange this call never returns.
+        HttpServer trickle = streaming(exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                for (int i = 0; i < 600; i++) {
+                    out.write('.');
+                    out.flush();
+                    Thread.sleep(100);
+                }
+            } catch (IOException | InterruptedException clientWentAway) {
+                // Expected: the sender closes the connection at the deadline.
+            }
+        });
+        try {
+            OutboundUrlGuard.Destination destination = loopback(trickle, "/slow");
+
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(15), () ->
+                    assertThatThrownBy(() -> new PinnedHttpSender()
+                                    .send(destination, Map.of(), null, Duration.ofSeconds(1), "model server"))
+                            .isInstanceOf(OutboundJson.OutboundFailureException.class)
+                            .hasMessageContaining("no complete answer within 2 s"));
+        } finally {
+            trickle.stop(0);
+        }
+    }
+
+    private static HttpServer streaming(com.sun.net.httpserver.HttpHandler handler) throws IOException {
+        HttpServer streaming = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        streaming.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
+        streaming.createContext("/", handler);
+        streaming.start();
+        return streaming;
+    }
+
+    private static OutboundUrlGuard.Destination loopback(HttpServer server, String path) {
+        return new OutboundUrlGuard.Destination(
+                "http://" + UNRESOLVABLE_HOST + ":" + server.getAddress().getPort() + path,
+                UNRESOLVABLE_HOST,
+                List.of(InetAddress.getLoopbackAddress()));
+    }
+
+    @Test
     @DisplayName("a destination with no checked address is refused, not sent unpinned")
     void nothingToPinMeansNothingIsSent() {
         // The guard tolerates a name it could not resolve, because for "is this public?" the

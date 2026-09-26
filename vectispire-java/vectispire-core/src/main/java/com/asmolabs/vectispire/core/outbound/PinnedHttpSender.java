@@ -2,27 +2,32 @@ package com.asmolabs.vectispire.core.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPatch;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpPut;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
@@ -66,6 +71,28 @@ public class PinnedHttpSender {
     public record Response(int status, String body) {}
 
     /**
+     * What an answer may weigh when the caller names no ceiling of its own: 4 MiB.
+     *
+     * <p><b>The body is read by whoever answers.</b> It was read whole — {@code EntityUtils.toString}
+     * with no maximum, into a buffer pre-sized from the {@code Content-Length} the server declared —
+     * so a webhook receiver, a tracker or a model server, or anybody an administrator was persuaded to
+     * point a setting at, could answer with gigabytes and exhaust the control plane's heap. Every answer
+     * read here is a small JSON document — a ticket, a model's review, an EPSS score, an end-of-life
+     * index — well under one megabyte; four leaves room for the largest without leaving room for harm.
+     * A caller reading a catalogue passes its own ceiling.
+     */
+    public static final long DEFAULT_MAX_BODY_BYTES = 4L * 1024 * 1024;
+
+    /**
+     * How much longer than its read timeout a whole exchange may last.
+     *
+     * <p>The timeout bounds each read, not the exchange: a server sending one byte just inside it,
+     * again and again, held the calling thread — a relay worker, a request thread — for as long as it
+     * liked. Twice the timeout covers a slow connect followed by a slow answer.
+     */
+    static final int DEADLINE_IN_TIMEOUTS = 2;
+
+    /**
      * The verbs a caller here has a use for.
      *
      * <p><b>Why more than GET and POST.</b> The sender used to infer the verb from the body — none
@@ -95,7 +122,7 @@ public class PinnedHttpSender {
     }
 
     /**
-     * Sends with an explicit verb.
+     * Sends with an explicit verb, reading at most {@link #DEFAULT_MAX_BODY_BYTES} of the answer.
      *
      * @param body {@code null} for none; ignored for a GET, which carries none
      */
@@ -106,6 +133,24 @@ public class PinnedHttpSender {
             String body,
             Duration timeout,
             String label) {
+        return send(method, destination, headers, body, timeout, label, DEFAULT_MAX_BODY_BYTES);
+    }
+
+    /**
+     * Sends with an explicit verb and a ceiling on the answer.
+     *
+     * @param maxBodyBytes an answer longer than this fails the call, and is not read further
+     * @throws OutboundJson.OutboundFailureException on anything that is not an answer, on an answer
+     *     past the ceiling, and on an exchange that outlasts {@value #DEADLINE_IN_TIMEOUTS} timeouts
+     */
+    public Response send(
+            Method method,
+            OutboundUrlGuard.Destination destination,
+            Map<String, String> headers,
+            String body,
+            Duration timeout,
+            String label,
+            long maxBodyBytes) {
 
         if (destination.addresses().isEmpty()) {
             // **Refused rather than sent unpinned.** The guard tolerates a name it could not
@@ -119,7 +164,7 @@ public class PinnedHttpSender {
                             + "to send to.");
         }
 
-        ClassicHttpRequest request = switch (method) {
+        HttpUriRequestBase request = switch (method) {
             case GET -> new HttpGet(destination.url());
             case POST -> new HttpPost(destination.url());
             case PUT -> new HttpPut(destination.url());
@@ -130,13 +175,17 @@ public class PinnedHttpSender {
             request.setEntity(new StringEntity(body, ContentType.APPLICATION_JSON));
         }
 
+        Duration deadline = timeout.multipliedBy(DEADLINE_IN_TIMEOUTS);
+        AtomicBoolean pastDeadline = new AtomicBoolean();
+        // Cancelling the request closes its connection, which ends a read blocked on it. Run on the
+        // scheduler's own thread: it only closes a socket.
+        CompletableFuture<Void> abort = CompletableFuture.runAsync(() -> {
+            pastDeadline.set(true);
+            request.cancel();
+        }, CompletableFuture.delayedExecutor(deadline.toMillis(), TimeUnit.MILLISECONDS, Runnable::run));
         try (CloseableHttpClient client = pinnedTo(destination, timeout)) {
-            return client.execute(request, response -> {
-                String payload = response.getEntity() == null
-                        ? ""
-                        : EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-                return new Response(response.getCode(), payload);
-            });
+            return client.execute(request, response -> new Response(
+                    response.getCode(), bounded(response.getEntity(), maxBodyBytes, request::cancel, label)));
         } catch (UnknownHostException pinRefused) {
             // The resolver below throws this for a host it was not pinned to, which is what a
             // redirect chased despite the setting, or a rewritten URI, would look like from here.
@@ -145,7 +194,44 @@ public class PinnedHttpSender {
                             + ").",
                     pinRefused);
         } catch (IOException unreachable) {
+            if (pastDeadline.get()) {
+                throw new OutboundJson.OutboundFailureException(
+                        label + ": no complete answer within " + deadline.toSeconds() + " s; the request was abandoned.",
+                        unreachable);
+            }
             throw new OutboundJson.OutboundFailureException(label + ": " + unreachable.getMessage(), unreachable);
+        } finally {
+            abort.cancel(false);
+        }
+    }
+
+    /**
+     * The body as text, read up to {@code maxBytes} and no further.
+     *
+     * <p>Nothing is sized from what the server declares: a {@code Content-Length} is a claim, and the
+     * buffer grows with what actually arrives. Decompressed bytes are what is counted, so a small
+     * compressed answer that inflates past the ceiling is refused like a large one.
+     */
+    private static String bounded(HttpEntity entity, long maxBytes, Runnable abort, String label) throws IOException {
+        if (entity == null) {
+            return "";
+        }
+        try (InputStream in = entity.getContent()) {
+            if (in == null) {
+                return "";
+            }
+            byte[] bytes = in.readNBytes((int) Math.min(Integer.MAX_VALUE - 16, maxBytes + 1));
+            if (bytes.length > maxBytes) {
+                // Aborted before the stream is closed: closing a response stream drains it so that
+                // the connection can be reused — reading the rest of the answer after all, which a
+                // test measured at the full quarter gigabyte a server offered.
+                abort.run();
+                throw new OutboundJson.OutboundFailureException(
+                        label + ": the answer is larger than " + maxBytes + " bytes and was not read further.");
+            }
+            ContentType type = ContentType.parseLenient(entity.getContentType());
+            Charset charset = type != null && type.getCharset() != null ? type.getCharset() : StandardCharsets.UTF_8;
+            return new String(bytes, charset);
         }
     }
 

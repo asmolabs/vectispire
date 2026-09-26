@@ -146,6 +146,7 @@ same name; decision records written before that date keep the names they had.
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |
+| An outbound answer is read up to a ceiling and within a deadline, and a scanner's output up to a ceiling; past either the call or the step fails | `PinnedHttpSenderTest`, `ContainerOutputLimitTest` |
 | A deleted audit entry the chain cannot see is caught by the mirror | `AuditMirrorTest` |
 | Password sign-in cannot be closed when it is the only way in | `SignInMethodPolicyTest` |
 | A team grants what it owns, and an account in no team sees nothing | `TeamVisibilityTest` |

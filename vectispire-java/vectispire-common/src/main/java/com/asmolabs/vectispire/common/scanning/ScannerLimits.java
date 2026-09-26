@@ -18,14 +18,35 @@ import java.time.Duration;
  * @param memory a container that exceeds this dies; the host does not
  * @param pids what turns a fork bomb into a dead container
  * @param cpus how many cores a scanner may use, in nano-CPU units as the daemon counts them
+ * @param outputBytes how much of a scanner's standard output is kept; a scanner that writes more
+ *     fails its step rather than filling the heap of the process reading it
  */
-public record ScannerLimits(long memory, long pids, Duration timeout, long nanoCpus) {
+public record ScannerLimits(long memory, long pids, Duration timeout, long nanoCpus, long outputBytes) {
 
     /** One CPU, in the units {@code HostConfig.withNanoCPUs} expects. */
     private static final long ONE_CPU = 1_000_000_000L;
 
+    /**
+     * 256 MiB of standard output.
+     *
+     * <p><b>The output was kept whole, and the scanner writing it reads a repository or an image
+     * somebody else wrote.</b> Checkov and Semgrep print what the files they read make them print;
+     * a scanner tricked into writing without end filled the worker's heap — in the built-in worker,
+     * the control plane's. The largest legitimate outputs are the SBOMs and the matcher's reports:
+     * 2.4 MB for a Keycloak image, 7.1 MB for a 3.8 GB Playwright image measured on 26 September
+     * 2026, and a matcher report carries a record per match on top. 256 MiB is thirty-five times the
+     * largest of those and still a bound; the JSON is parsed into a tree afterwards, which costs a
+     * multiple of it.
+     */
+    public static final long DEFAULT_OUTPUT_BYTES = 256L * 1024 * 1024;
+
     public static final ScannerLimits DEFAULT = new ScannerLimits(
-            2048L * 1024 * 1024, 512, Duration.ofMinutes(15), defaultCpus());
+            2048L * 1024 * 1024, 512, Duration.ofMinutes(15), defaultCpus(), DEFAULT_OUTPUT_BYTES);
+
+    /** The limits with the default ceiling on output. */
+    public ScannerLimits(long memory, long pids, Duration timeout, long nanoCpus) {
+        this(memory, pids, timeout, nanoCpus, DEFAULT_OUTPUT_BYTES);
+    }
 
     /**
      * Every core but one, of however many the machine that will run the container has.

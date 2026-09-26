@@ -40,6 +40,7 @@ public class EnrichmentService implements ScanIngestor.Enricher {
 
     /** The KEV catalog changes at most once a day; re-reading it per scan would be waste. */
     private static final Duration KEV_CACHE_TTL = Duration.ofHours(24);
+    private static final long KEV_MAX_BYTES = 32L * 1024 * 1024;
 
     private final SettingsService settings;
     private final OutboundJson outbound;
@@ -107,7 +108,10 @@ public class EnrichmentService implements ScanIngestor.Enricher {
         }
 
         try {
-            Optional<JsonNode> payload = outbound.get(Catalogs.KEV_CATALOG_URL, OutboundPolicy.PUBLIC_ONLY, "KEV catalog");
+            // Past the ordinary ceiling on purpose: the catalogue is a megabyte and a half and grows
+            // with every entry CISA adds; 32 MiB is a decade of growth, not an open door.
+            Optional<JsonNode> payload = outbound.get(
+                    Catalogs.KEV_CATALOG_URL, OutboundPolicy.PUBLIC_ONLY, "KEV catalog", Map.of(), KEV_MAX_BYTES);
             Set<String> catalog = payload.map(Catalogs::parseKev).orElseGet(Set::of);
             // An empty catalog is never legitimate — it holds well over a thousand entries.
             // Caching it would mark every vulnerability as unexploited for twenty-four hours,

@@ -66,16 +66,28 @@ public class OutboundJson {
      */
     public Optional<JsonNode> get(
             String url, OutboundPolicy policy, String label, Map<String, String> headers) {
+        return get(url, policy, label, headers, PinnedHttpSender.DEFAULT_MAX_BODY_BYTES);
+    }
+
+    /**
+     * The same, for a document larger than an ordinary answer — a catalogue.
+     *
+     * @param maxBodyBytes the ceiling on the answer; see {@link PinnedHttpSender#DEFAULT_MAX_BODY_BYTES}
+     */
+    public Optional<JsonNode> get(
+            String url, OutboundPolicy policy, String label, Map<String, String> headers, long maxBodyBytes) {
         Map<String, String> all = new java.util.LinkedHashMap<>(headers);
         // Accept last: a caller cannot quietly turn this into a request for something else.
         all.put("Accept", "application/json");
 
         PinnedHttpSender.Response response = sender.send(
+                PinnedHttpSender.Method.GET,
                 guard.validateAndResolve(url, policy, label),
                 Map.copyOf(all),
                 null,
                 TIMEOUT,
-                label);
+                label,
+                maxBodyBytes);
 
         if (response.status() == 404) {
             return Optional.empty();
