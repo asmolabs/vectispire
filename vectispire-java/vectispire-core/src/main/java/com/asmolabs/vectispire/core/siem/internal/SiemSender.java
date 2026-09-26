@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.siem;
+package com.asmolabs.vectispire.core.siem.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;

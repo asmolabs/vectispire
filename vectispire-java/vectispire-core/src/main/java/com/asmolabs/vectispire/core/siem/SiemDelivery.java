@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.siem;
+package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
@@ -6,8 +6,9 @@ import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.outbox.OutboxHandler;
-import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.internal.SiemSender;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;

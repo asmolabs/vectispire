@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.siem;
+package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
@@ -11,8 +11,9 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
-import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.internal.SiemSender;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Optional;

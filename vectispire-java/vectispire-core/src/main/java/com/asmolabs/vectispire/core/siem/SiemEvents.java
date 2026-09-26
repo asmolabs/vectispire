@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.siem;
+package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -6,8 +6,8 @@ import com.asmolabs.vectispire.common.domain.siem.SiemSeverityFilter;
 import com.asmolabs.vectispire.core.audit.AuditChainBroken;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
-import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;

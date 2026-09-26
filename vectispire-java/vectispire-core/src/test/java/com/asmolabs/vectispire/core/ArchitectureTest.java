@@ -80,7 +80,10 @@ class ArchitectureTest {
      */
     private static final List<String> MODULES = List.of(
             // Step 3: the foundation.
-            "settings", "outbound", "crypto", "audit", "outbox", "reporting");
+            "settings", "outbound", "crypto", "audit", "outbox", "reporting",
+            // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
+            // through anything but the layered packages.
+            "siem");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =

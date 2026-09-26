@@ -1,10 +1,11 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.siem.web;
 
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.siem.SiemConfigView;
-import com.asmolabs.vectispire.core.services.siem.SiemExporterService;
+import com.asmolabs.vectispire.core.siem.SiemConfigView;
+import com.asmolabs.vectispire.core.siem.SiemExporterService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

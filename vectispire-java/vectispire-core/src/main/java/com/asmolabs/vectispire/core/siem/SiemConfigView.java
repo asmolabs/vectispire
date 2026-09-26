@@ -1,6 +1,6 @@
-package com.asmolabs.vectispire.core.services.siem;
+package com.asmolabs.vectispire.core.siem;
 
-import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
 import java.time.Instant;
 
 /**

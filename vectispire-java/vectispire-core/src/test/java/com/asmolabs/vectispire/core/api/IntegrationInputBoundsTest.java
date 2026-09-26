@@ -7,10 +7,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.core.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.RuleSets;
-import com.asmolabs.vectispire.core.repositories.SiemConfigs;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
