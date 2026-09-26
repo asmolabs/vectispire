@@ -4951,6 +4951,7 @@ export interface components {
         SiemTestRequest: {
             authHeader?: string;
             endpoint?: string;
+            protocol?: string;
         };
         Sighting: {
             branch?: string;

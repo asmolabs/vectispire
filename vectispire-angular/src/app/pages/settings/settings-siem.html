@@ -46,6 +46,7 @@
                         <option value="MEDIUM">{{ 'settings.siem_sev_medium' | translate }}</option>
                         <option value="LOW">{{ 'settings.siem_sev_all' | translate }}</option>
                     </select>
+                    <small class="text-muted-color">{{ 'settings.siem_min_sev_hint' | translate }}</small>
                 </div>
             </div>
 
@@ -55,30 +56,41 @@
                     pInputText
                     id="siem-endpoint"
                     [(ngModel)]="siemForm.endpoint"
-                    placeholder="https://siem-collector.internal.corp/api/v1/cef-receiver"
+                    [placeholder]="endpointPlaceholder()"
                 />
-                <small class="text-muted-color">{{ 'settings.siem_endpoint_hint' | translate }}</small>
+                @if (isWebhook()) {
+                    <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_webhook' | translate }}</small>
+                } @else {
+                    <small class="text-muted-color">{{ 'settings.siem_endpoint_hint_syslog' | translate }}</small>
+                }
             </div>
 
-            <div class="flex flex-col gap-2">
-                <label for="siem-auth" class="font-medium">
-                    {{ 'settings.siem_auth' | translate }}
-                    <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
-                    @if (siemConfig()?.hasAuthHeader) {
-                        <span class="text-green-600 text-sm font-normal"
-                            >— {{ 'settings.siem_auth_saved' | translate }}</span
-                        >
-                    }
-                </label>
-                <input
-                    pInputText
-                    id="siem-auth"
-                    type="password"
-                    [(ngModel)]="siemForm.authHeader"
-                    [placeholder]="'settings.siem_auth_placeholder' | translate"
-                    autocomplete="off"
-                />
-            </div>
+            <!--
+                Webhook only: a syslog frame has nowhere to carry a header, and the server refuses
+                one sent with a syslog protocol rather than storing a credential it can never use.
+            -->
+            @if (isWebhook()) {
+                <div class="flex flex-col gap-2">
+                    <label for="siem-auth" class="font-medium">
+                        {{ 'settings.siem_auth' | translate }}
+                        <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span>
+                        @if (siemConfig()?.hasAuthHeader) {
+                            <span class="text-green-600 text-sm font-normal"
+                                >— {{ 'settings.siem_auth_saved' | translate }}</span
+                            >
+                        }
+                    </label>
+                    <input
+                        pInputText
+                        id="siem-auth"
+                        type="password"
+                        [(ngModel)]="siemForm.authHeader"
+                        [placeholder]="'settings.siem_auth_placeholder' | translate"
+                        autocomplete="off"
+                    />
+                    <small class="text-muted-color">{{ 'settings.siem_auth_hint' | translate }}</small>
+                </div>
+            }
 
             @if (siemTestResult(); as res) {
                 <p-message [severity]="res.success ? 'success' : 'error'" [closable]="true" styleClass="w-full">

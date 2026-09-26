@@ -62,6 +62,27 @@ export class SettingsSiem {
         this.state.register(() => this.load(), inject(DestroyRef));
     }
 
+    /** The authorization header travels with a webhook only; the syslog protocols have nowhere to put it. */
+    isWebhook(): boolean {
+        return this.siemForm.protocol === 'WEBHOOK';
+    }
+
+    /**
+     * The endpoint each protocol reads: a URL for the webhook, host:port for syslog — 6514 is the
+     * registered port for syslog over TLS, 514 for UDP and TCP.
+     */
+    endpointPlaceholder(): string {
+        switch (this.siemForm.protocol) {
+            case 'SYSLOG_TLS':
+                return 'siem-collector.internal.corp:6514';
+            case 'SYSLOG_UDP':
+            case 'SYSLOG_TCP':
+                return 'siem-collector.internal.corp:514';
+            default:
+                return 'https://siem-collector.internal.corp/api/v1/cef-receiver';
+        }
+    }
+
     saveSiemConfig(): void {
         this.savingSiem.set(true);
         this.state.error.set(null);
@@ -70,7 +91,9 @@ export class SettingsSiem {
                 enabled: this.siemForm.enabled,
                 protocol: this.siemForm.protocol,
                 endpoint: this.siemForm.endpoint.trim(),
-                authHeader: this.siemForm.authHeader.trim() || undefined,
+                // Not sent for syslog even if typed before the protocol changed: the server refuses
+                // a header it could never use, and the field is hidden anyway.
+                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined,
                 minSeverity: this.siemForm.minSeverity
             })
             .subscribe({
@@ -99,8 +122,11 @@ export class SettingsSiem {
         this.siemTestResult.set(null);
         this.integrationsApi
             .testSiemConnection({
+                // The protocol on screen, saved or not: the test used to speak HTTP whatever was
+                // selected, and a working syslog collector was reported unreachable.
+                protocol: this.siemForm.protocol,
                 endpoint: this.siemForm.endpoint.trim(),
-                authHeader: this.siemForm.authHeader.trim() || undefined
+                authHeader: (this.isWebhook() && this.siemForm.authHeader.trim()) || undefined
             })
             .subscribe({
                 next: (res) => {

@@ -30,7 +30,11 @@ export class IntegrationsApi {
         return this.http.put<SiemConfig>('/api/v1/siem/config', payload);
     }
 
-    testSiemConnection(payload: { endpoint: string; authHeader?: string }): Observable<SiemTestResult> {
+    testSiemConnection(payload: {
+        protocol?: string;
+        endpoint: string;
+        authHeader?: string;
+    }): Observable<SiemTestResult> {
         return this.http.post<SiemTestResult>('/api/v1/siem/test', payload);
     }
 
