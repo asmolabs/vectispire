@@ -21,16 +21,17 @@ export const GOVERNANCE_READER_ROLES: readonly string[] = ['SUPERUSER', 'ADMIN',
  */
 export const TRIAGE_APPROVER_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION'];
 /**
+ * The role that governs the platform — the one that can lift a rule, and which for that reason
+ * cannot act under it. See {@link TRIAGE_APPROVER_ROLES}.
+ */
+export const PLATFORM_GOVERNOR_ROLES: readonly string[] = ['SUPERUSER'];
+/**
  * The roles that may **do** something — record a triage decision, open a ticket, run a review.
  *
  * Mirrors `@RequiresWriteAccount`. Deliberately wide: triaging is ordinary work, so an ordinary
- * user belongs here. Only `AUDITOR`, whose whole purpose is to look, sits outside.
+ * user belongs here. `AUDITOR`, whose whole purpose is to look, sits outside — and so does
+ * `SUPERUSER`, which governs the platform without acting on it (see `canCauseEffects`).
  */
-/**
- * The role that governs the platform — the one that can lift a rule, and which for that reason
- * cannot act under it. See [[TRIAGE_APPROVER_ROLES]].
- */
-export const PLATFORM_GOVERNOR_ROLES: readonly string[] = ['SUPERUSER'];
 export const EFFECT_CAUSING_ROLES: readonly string[] = ['ADMIN', 'CISO', 'SECURITY_CHAMPION', 'USER'];
 import { AuthenticatedUser } from './api.models';
 

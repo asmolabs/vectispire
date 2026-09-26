@@ -178,8 +178,8 @@ export class ApiKeys {
     }
 
     dismissSecret(): void {
-        // Cleared from the model at the same time as from the screen: keeping it in memory for
-        // laisserait la valeur accessible dans l'onglet ouvert.
+        // Cleared from the model at the same time as from the screen: keeping it in memory would
+        // leave the value reachable in the open tab.
         this.issuedSecret.set(null);
         this.secretVisible.set(false);
     }

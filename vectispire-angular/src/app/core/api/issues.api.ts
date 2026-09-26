@@ -75,7 +75,7 @@ export class IssuesApi {
         return this.http.get<ExceptionsRegister>('/api/v1/exceptions', { params });
     }
 
-    /** La revue rend le registre entier : les compteurs bougent avec la ligne. */
+    /** The review answers with the whole register: the counters move with the row. */
     reviewException(issueId: number, outcome: ReviewOutcome, comment: string | null, newExpiry: string | null) {
         return this.http.post<ExceptionsRegister>(`/api/v1/exceptions/${issueId}/reviews`, {
             outcome,
