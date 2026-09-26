@@ -142,16 +142,18 @@ dependencies {
     implementation(libs.bucket4j.core)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
     /*
-     * **Spring Modulith, to verify the module boundaries.** `ModularityTest` fails the build on what it
-     * finds and writes its report and diagrams (decision 0030); at runtime it
-     * is inert — no event publication registry (that needs a `spring-modulith-starter-jpa` or `-jdbc`
-     * this build does not declare: the outbox is the one answer to "did this effect leave", decision
-     * 0025) and no actuator endpoint (`spring-modulith-actuator` is not declared either). The core
-     * starter is on the main classpath because the module annotations (`@ApplicationModule`,
-     * `@NamedInterface`) will live in production code from step 3 of the migration on.
+     * **Spring Modulith's annotations, and nothing else of it** (decision 0030). Production code
+     * declares the modules — `@Modulithic`, `@ApplicationModule`, `@NamedInterface` — and
+     * `ModularityTest` verifies them, so the verification, the documenter and ArchUnit are test
+     * dependencies (the test starter, below). The core starter used to be here: it put its runtime
+     * model, its "moments" and ArchUnit in the production jar for a build that runs none of them, and
+     * needed two auto-configuration exclusions to keep the moments off. No event publication registry
+     * either (a `spring-modulith-starter-jpa` or `-jdbc`: the outbox is the one answer to "did this
+     * effect leave", decision 0025), and no actuator endpoint. `ModulithRuntimeInertTest` fails if
+     * the production classpath gains more of Modulith than these annotations.
      */
     implementation(platform(libs.spring.modulith.bom))
-    implementation(libs.spring.modulith.starter.core)
+    implementation(libs.spring.modulith.api)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.flyway.mysql)
@@ -272,6 +274,12 @@ tasks.named<Test>("test") {
     // hors du module. Sans la déclaration, changer ce fichier laisse la tâche « à jour ».
     inputs.file(rootProject.file("../vectispire-angular/src/app/core/session.store.ts"))
         .withPropertyName("frontendSessionStore")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // `ModulithRuntimeInertTest` reads the production classpath from the lockfile: a dependency moved
+    // back to `implementation` changes the lockfile and no source, and the task has to notice.
+    inputs.file("gradle.lockfile")
+        .withPropertyName("resolvedDependencies")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 
     // `MigrationLayoutTest` holds the campaign's probe migration to the rules of a common one, and

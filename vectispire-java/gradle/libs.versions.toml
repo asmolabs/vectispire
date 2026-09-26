@@ -24,7 +24,7 @@ bucket4j = "8.10.1"
 springdoc = "3.1.1"
 # Jib builds the container images from the build itself — no Dockerfile, no daemon.
 jib = "3.5.4"
-# **Observation only, for now** (decision 0026, migration plan of 2026-09-26). The 2.1 line is the
+# **The module boundaries' verification, and its annotations** (decision 0030). The 2.1 line is the
 # one built against Spring Boot 4.1; the Spring Boot BOM does not manage Modulith, so its own BOM
 # below is the one authority for every `spring-modulith-*` version. Apache-2.0, like the rest.
 springModulith = "2.1.1"
@@ -61,7 +61,9 @@ jgit-ssh = { module = "org.eclipse.jgit:org.eclipse.jgit.ssh.apache", version.re
 bucket4j-core = { module = "com.bucket4j:bucket4j-core", version.ref = "bucket4j" }
 springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
 spring-modulith-bom = { module = "org.springframework.modulith:spring-modulith-bom", version.ref = "springModulith" }
-spring-modulith-starter-core = { module = "org.springframework.modulith:spring-modulith-starter-core" }
+# The annotations alone — `@Modulithic`, `@ApplicationModule`, `@NamedInterface` — which is all
+# production code uses and all it ships; the verification and the documenter are the test starter's.
+spring-modulith-api = { module = "org.springframework.modulith:spring-modulith-api" }
 spring-modulith-starter-test = { module = "org.springframework.modulith:spring-modulith-starter-test" }
 
 [plugins]

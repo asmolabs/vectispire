@@ -39,18 +39,6 @@ spring:
     # Flyway would refuse every existing installation if their checksums moved.
     locations: classpath:db/migration/common,classpath:db/migration/{vendor}
 
-  autoconfigure:
-    # **Spring Modulith is here to be asked questions, not to run.** Its core starter brings
-    # "moments", switched on by default: a scheduler publishing an HourHasPassed event every hour,
-    # and a module added to the Jackson 3 mapper the web layer uses. Nothing here listens to either,
-    # and a periodic event nobody asked for is a second clock beside the maintenance tick. Excluded
-    # by name so that neither exists; `ModulithRuntimeInertTest` fails if either comes back. The
-    # third auto-configuration of the starter stays: it refuses to start when an
-    # `ApplicationModuleInitializer` exists without Modulith's runtime artifact, and there is none.
-    exclude:
-      - org.springframework.modulith.moments.autoconfigure.MomentsAutoConfiguration
-      - org.springframework.modulith.moments.autoconfigure.MomentsJacksonAutoConfiguration
-
 server:
   # The API and the agent protocol share it. Long polling holds a request open, which is why
   # the read timeout below is generous and the connection count is not.
