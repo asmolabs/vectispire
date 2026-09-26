@@ -2,22 +2,21 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
-import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.PolicyLookup;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.ResolvedPolicy;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.Scope;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The sweep that opens tickets.
@@ -51,14 +49,14 @@ public class TicketSweepService {
     private static final String SCOPE_CONTAINER = "container";
 
     private final Issues issues;
-    private final GatePolicies policies;
+    private final ActiveGatePolicies policies;
     private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
 
     public TicketSweepService(
             Issues issues,
-            GatePolicies policies,
+            ActiveGatePolicies policies,
             TargetNaming names,
             TicketService tickets,
             AuditLogService audit) {
@@ -194,12 +192,9 @@ public class TicketSweepService {
         return SCOPE_GLOBAL + ":0";
     }
 
+    /** Keyed as {@link #scopeOf} spells an issue's scope — {@code gate} owns the store and its reading. */
     private Map<String, StoredPolicy> activePolicies() {
-        Map<String, StoredPolicy> byScope = new HashMap<>();
-        policies.findByIsActiveTrue().forEach(policy -> byScope.put(
-                policy.getTargetKind() + ":" + (policy.getTargetId() == null ? 0 : policy.getTargetId()),
-                IssueViews.storedPolicy(policy)));
-        return byScope;
+        return policies.byScope();
     }
 
 }

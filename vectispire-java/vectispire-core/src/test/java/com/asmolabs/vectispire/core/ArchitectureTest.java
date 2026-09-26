@@ -244,7 +244,11 @@ class ArchitectureTest {
             Map.entry("inventory", Set.of()),
             Map.entry("ai", Set.of("access")),
             Map.entry("issues", Set.of("access")),
-            Map.entry("tickets", Set.of("access", "issues")),
+            // `gate` since step 5 gave the stored policies to gate: the sweep opens a ticket only for an
+            // issue the policy of its scope would fail on, so it evaluates the gate, and asks `gate`
+            // for the policies in force instead of reading their table from below it. `gate` uses
+            // nothing that uses `tickets` (the tracker implements `issues`' `TicketReferences`).
+            Map.entry("tickets", Set.of("access", "gate", "issues")),
             Map.entry("scanning", Set.of("access", "inventory", "issues", "rules")),
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing

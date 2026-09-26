@@ -1,14 +1,13 @@
 package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
-import com.asmolabs.vectispire.core.services.issues.IssueViews;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import java.time.Instant;
 
 /**
  * A stored version of a gate policy as the layers above the services hold it: the row's properties
  * under their own names, and {@link #policy} — the rule those columns amount to, read by {@link
- * IssueViews#storedPolicy} exactly as the verdict reads it.
+ * ActiveGatePolicies#storedPolicy} exactly as the verdict reads it.
  *
  * <p>Not {@code GatePolicyView}: that is the policies route's response record, and the published
  * schema is named after it.
@@ -46,6 +45,6 @@ public record StoredGatePolicyView(
                 row.getNote(),
                 row.getCreatedBy(),
                 row.getCreatedAt(),
-                IssueViews.storedPolicy(row).policy());
+                ActiveGatePolicies.storedPolicy(row).policy());
     }
 }

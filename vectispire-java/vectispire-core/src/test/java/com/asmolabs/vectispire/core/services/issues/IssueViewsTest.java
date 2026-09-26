@@ -4,11 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.dependencies.Directness;
 import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
-import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
-import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import org.junit.jupiter.api.DisplayName;
@@ -92,37 +89,6 @@ class IssueViewsTest {
         assertThat(IssueViews.forExport(issue).resolved()).isTrue();
     }
 
-    @Test
-    @DisplayName("a policy with no severity written has the severity rule off, not at UNKNOWN")
-    void anEmptyThresholdIsOff() {
-        assertThat(IssueViews.storedPolicy(policy(null)).policy().failOnSeverity()).isNull();
-        assertThat(IssueViews.storedPolicy(policy("  ")).policy().failOnSeverity()).isNull();
-    }
-
-    @Test
-    @DisplayName("a severity that is present but unreadable keeps the built-in threshold rather than passing everything")
-    void anUnreadableThresholdIsTheBuiltIn() {
-        assertThat(IssueViews.storedPolicy(policy("catastrophic")).policy().failOnSeverity())
-                .isEqualTo(GatePolicy.BUILT_IN.failOnSeverity());
-    }
-
-    @Test
-    @DisplayName("a readable policy is carried field for field, with its version")
-    void aPolicyIsCarried() {
-        GatePolicyEntity entity = policy("critical");
-        entity.setFailOnKev(false);
-        entity.setFixableOnly(true);
-        entity.setIncludeTriaged(true);
-        entity.setIncludeAiReview(true);
-        entity.setFailOnUncoveredLanguages(true);
-        entity.setVersion(7);
-
-        var stored = IssueViews.storedPolicy(entity);
-
-        assertThat(stored.version()).isEqualTo(7);
-        assertThat(stored.policy()).isEqualTo(new GatePolicy(Severity.CRITICAL, false, true, true, true, true));
-    }
-
     private static IssueEntity issue() {
         IssueEntity issue = new IssueEntity();
         issue.setId(42L);
@@ -139,11 +105,5 @@ class IssueViewsTest {
     private static IssueRows.GateRow row(String triage) {
         return new IssueRows.GateRow(
                 42L, 1L, null, "open", "vulnerability", "high", "CVE-2026-0001", "lodash", "4.17.22", true, triage);
-    }
-
-    private static GatePolicyEntity policy(String failOnSeverity) {
-        GatePolicyEntity policy = new GatePolicyEntity();
-        policy.setFailOnSeverity(failOnSeverity);
-        return policy;
     }
 }

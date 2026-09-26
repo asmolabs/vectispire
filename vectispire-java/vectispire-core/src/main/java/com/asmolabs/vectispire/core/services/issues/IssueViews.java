@@ -1,19 +1,16 @@
 package com.asmolabs.vectispire.core.services.issues;
 
 import com.asmolabs.vectispire.common.domain.dependencies.Directness;
-import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
 import com.asmolabs.vectispire.common.domain.exports.ExportableIssue.FixState;
+import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
-import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
-import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
-import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets.TicketableIssue;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 
 /**
  * Turning a stored row into the narrow shape a domain rule reads.
@@ -80,40 +77,6 @@ public final class IssueViews {
                 issue.getLink(),
                 issue.getDescription(),
                 issue.getFingerprint());
-    }
-
-    /** A stored gate policy, with the version the API reports back to a pipeline. */
-    public static StoredPolicy storedPolicy(GatePolicyEntity policy) {
-        return new StoredPolicy(
-                new GatePolicy(
-                        thresholdOf(policy.getFailOnSeverity()),
-                        policy.getFailOnKev(),
-                        policy.getFixableOnly(),
-                        policy.getIncludeTriaged(),
-                        policy.getIncludeAiReview(),
-                        policy.getFailOnUncoveredLanguages()),
-                policy.getVersion());
-    }
-
-    /**
-     * <b>An empty column stays {@code null}, and {@code null} is not {@code UNKNOWN}.</b>
-     *
-     * <p>No severity written means the severity rule is off — blocking on KEV alone is a
-     * policy somebody will want. {@code Severity.of} answers {@code UNKNOWN} for a missing
-     * value, and {@code UNKNOWN} ranks below every real severity: {@code isAtLeast(UNKNOWN)}
-     * holds for every issue, so the policy that switched the rule <em>off</em> would have
-     * failed every build instead, and the verdict would have named a threshold nobody set.
-     *
-     * <p>A value that is present and unreadable is the other case and keeps the safe reading:
-     * the rule stays on, at the built-in threshold. A row written by a later version, or by
-     * hand, must not turn into a gate that passes everything.
-     */
-    private static Severity thresholdOf(String stored) {
-        if (stored == null || stored.isBlank()) {
-            return null;
-        }
-        Severity severity = Severity.of(stored);
-        return severity == Severity.UNKNOWN ? GatePolicy.BUILT_IN.failOnSeverity() : severity;
     }
 
     /**

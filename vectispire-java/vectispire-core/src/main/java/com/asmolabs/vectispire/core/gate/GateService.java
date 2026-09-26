@@ -5,11 +5,11 @@ import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;
-import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.PolicyLookup;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.ResolvedPolicy;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.Scope;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
+import com.asmolabs.vectispire.common.domain.gate.PolicyResolution;
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
@@ -18,24 +18,22 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -68,6 +66,9 @@ public class GateService {
 
     private final Issues issues;
     private final GatePolicies policies;
+
+    /** The reading the ticket sweep shares; built over the same repository, so it holds no state of its own. */
+    private final ActiveGatePolicies activePolicies;
     private final GateVerdicts verdicts;
     private final GitRepositories repositories;
     private final Containers containers;
@@ -88,6 +89,7 @@ public class GateService {
             Clock clock) {
         this.issues = issues;
         this.policies = policies;
+        this.activePolicies = new ActiveGatePolicies(policies);
         this.verdicts = verdicts;
         this.ruleCoverage = ruleCoverage;
         this.repositories = repositories;
@@ -300,7 +302,7 @@ public class GateService {
         stored.setVersion(policies.highestVersion(scope.kind(), scope.id()) + 1);
         stored.setIsActive(true);
         // Null, not "unknown": an absent threshold is the severity rule switched off, and
-        // `IssueViews.storedPolicy` reads it back that way.
+        // `ActiveGatePolicies.storedPolicy` reads it back that way.
         stored.setFailOnSeverity(policy.failOnSeverity() == null ? null : policy.failOnSeverity().wireName());
         stored.setFailOnKev(policy.failOnKev());
         stored.setFixableOnly(policy.fixableOnly());
@@ -408,13 +410,7 @@ public class GateService {
     }
 
     private Map<String, StoredPolicy> activePolicies() {
-        Map<String, StoredPolicy> byScope = new HashMap<>();
-        for (GatePolicyEntity policy : policies.findByIsActiveTrue()) {
-            byScope.put(
-                    policy.getTargetKind() + ":" + (policy.getTargetId() == null ? 0 : policy.getTargetId()),
-                    IssueViews.storedPolicy(policy));
-        }
-        return byScope;
+        return activePolicies.byScope();
     }
 
     private static Optional<ScanTarget> targetOf(IssueEntity issue) {

@@ -14,9 +14,9 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
-import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.util.List;
@@ -44,7 +44,8 @@ class TicketSweepServiceTest {
         TargetNaming naming = mock(TargetNaming.class);
         when(naming.all()).thenReturn(new TargetNaming.Names(Map.of(), Map.of()));
 
-        sweep = new TicketSweepService(issues, policies, naming, tickets, audit);
+        sweep = new TicketSweepService(
+                issues, new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit);
 
         when(tickets.isEnabled()).thenReturn(true);
         when(policies.findByIsActiveTrue()).thenReturn(List.of());
