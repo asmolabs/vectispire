@@ -61,7 +61,7 @@ describe('the HTTPS tokens screen', () => {
         fixture.componentInstance.openForm();
         fixture.detectChanges();
 
-        const input = document.querySelector('#git-token-secret') as HTMLInputElement | null;
+        const input = document.querySelector<HTMLInputElement>('#git-token-secret');
         expect(input).not.toBeNull();
         expect(input!.type).toBe('password');
     });

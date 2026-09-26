@@ -19,9 +19,17 @@ module.exports = tseslint.config(
     },
     {
         files: ['**/*.ts'],
-        extends: [eslint.configs.recommended, ...tseslint.configs.recommended, ...angular.configs.tsRecommended],
+        // **Type-aware**, because the defect it exists for is invisible without types. Fourteen
+        // screens read `err.error.message` in an RxJS error callback — `any`, so every access
+        // type-checked, and the server's RFC 7807 answer carries its sentence in `detail`: the
+        // explanation never reached the screen. `no-unsafe-member-access` refuses the guess and
+        // leaves `messageOf`, which knows the shape. `no-deprecated` is here because the build does
+        // not say when Angular deprecates what we call.
+        extends: [eslint.configs.recommended, ...tseslint.configs.recommendedTypeChecked, ...angular.configs.tsRecommended],
+        languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: __dirname } },
         processor: angular.processInlineTemplates,
         rules: {
+            '@typescript-eslint/no-deprecated': 'error',
             // The prefixes the code actually carries, and the one `angular.json` declares for new
             // ones. The old file demanded `p`, which no selector here has ever used.
             '@angular-eslint/component-selector': ['error', { type: 'element', prefix: ['app', 'zs', 'vs'], style: 'kebab-case' }],
@@ -33,6 +41,19 @@ module.exports = tseslint.config(
             // to OnPush means converting its state to signals and checking it in the browser — one
             // component at a time, not by silencing the pin. Switch this back on when none is left.
             '@angular-eslint/prefer-on-push-component-change-detection': 'off'
+        }
+    },
+    {
+        // Specs handle `any` by nature — `request.body`, `componentInstance` internals, JSON fixtures —
+        // and switching these three on there reported 241 findings of which none was a defect: the
+        // assertion that follows is the check. Everything else in the typed set still applies.
+        files: ['**/*.spec.ts'],
+        rules: {
+            '@typescript-eslint/no-unsafe-member-access': 'off',
+            '@typescript-eslint/no-unsafe-call': 'off',
+            '@typescript-eslint/no-unsafe-assignment': 'off',
+            // `expect(router.navigate).toHaveBeenCalled…` hands a spy to an assertion, never calls it.
+            '@typescript-eslint/unbound-method': 'off'
         }
     },
     {

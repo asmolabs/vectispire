@@ -83,7 +83,7 @@ export class Settings {
 
     selectTab(tab: SettingsTab): void {
         this.activeTab.set(tab);
-        this.router.navigate([], {
+        void this.router.navigate([], {
             relativeTo: this.route,
             queryParams: { tab: tab === 'general' ? null : tab },
             queryParamsHandling: 'merge'

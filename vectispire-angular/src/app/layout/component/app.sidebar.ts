@@ -20,7 +20,7 @@ export class AppSidebar implements OnInit, OnDestroy {
 
     router = inject(Router);
 
-    el = inject(ElementRef);
+    el = inject<ElementRef<HTMLElement>>(ElementRef);
 
     private outsideClickListener: ((event: MouseEvent) => void) | null = null;
 
@@ -53,7 +53,7 @@ export class AppSidebar implements OnInit, OnDestroy {
                 takeUntil(this.destroy$)
             )
             .subscribe((event) => {
-                const navEvent = event as NavigationEnd;
+                const navEvent = event;
                 this.onRouteChange(navEvent.urlAfterRedirects);
             });
 
@@ -107,8 +107,8 @@ export class AppSidebar implements OnInit, OnDestroy {
         const sidebarEl = this.el.nativeElement;
 
         return !(
-            sidebarEl?.isSameNode(event.target as Node) ||
-            sidebarEl?.contains(event.target as Node) ||
+            sidebarEl.isSameNode(event.target as Node) ||
+            sidebarEl.contains(event.target as Node) ||
             topbarButtonEl?.isSameNode(event.target as Node) ||
             topbarButtonEl?.contains(event.target as Node)
         );

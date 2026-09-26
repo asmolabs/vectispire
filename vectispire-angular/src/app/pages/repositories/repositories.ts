@@ -323,7 +323,7 @@ export class Repositories {
         this.error.set(null);
 
         const requests = repos.map((r) => this.scansApi.triggerRepositoryScan(r.id));
-        import('rxjs').then(({ forkJoin }) => {
+        void import('rxjs').then(({ forkJoin }) => {
             forkJoin(requests).subscribe({
                 next: (results) => {
                     this.scanningAll.set(false);
@@ -510,7 +510,7 @@ export class Repositories {
     }
 
     copySnippet(code: string): void {
-        navigator.clipboard.writeText(code).then(() => {
+        void navigator.clipboard.writeText(code).then(() => {
             this.cicdCopied.set(true);
             setTimeout(() => this.cicdCopied.set(false), 3000);
         });
@@ -629,7 +629,7 @@ export VECTISPIRE_API_KEY="<YOUR_API_KEY>"
             return;
         }
         const markdown = `[![Vectispire Security](${window.location.origin}${url})](${window.location.origin}/repositories)`;
-        navigator.clipboard.writeText(markdown).then(() => {
+        void navigator.clipboard.writeText(markdown).then(() => {
             this.copied.set(true);
             setTimeout(() => this.copied.set(false), 3000);
         });

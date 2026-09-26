@@ -61,7 +61,7 @@ describe('la grille OWASP', () => {
         // A "0" beside a category nothing looks at is the figure this whole grid exists not to
         // write.
         const cells = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
-        expect([...cells].map((cell: HTMLElement) => cell.textContent!.trim())).toEqual(['—', '3', '—', '—']);
+        expect([...cells].map((cell: HTMLElement) => cell.textContent.trim())).toEqual(['—', '3', '—', '—']);
     });
 
     it("garde l'ordre du serveur, qui est celui du standard", () => {

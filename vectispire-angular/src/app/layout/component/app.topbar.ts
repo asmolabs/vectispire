@@ -208,6 +208,6 @@ export class AppTopbar {
 
     toggleLanguage() {
         const next = this.i18n.currentLang() === 'en' ? 'fr' : 'en';
-        this.i18n.setLanguage(next);
+        void this.i18n.setLanguage(next);
     }
 }

@@ -116,7 +116,7 @@ export class SettingsTicketing {
 
     copyWebhookUrl(provider: string): void {
         const url = this.getWebhookUrl(provider);
-        navigator.clipboard.writeText(url).then(() => {
+        void navigator.clipboard.writeText(url).then(() => {
             this.webhookCopied.set(provider);
             setTimeout(() => this.webhookCopied.set(null), 3000);
         });

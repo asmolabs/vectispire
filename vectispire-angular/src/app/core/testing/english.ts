@@ -13,7 +13,7 @@ import { I18nService, TranslationTree } from '../i18n/i18n.service';
  */
 export function useEnglish(): void {
     const i18n = TestBed.inject(I18nService);
-    i18n.translations.set(merge(english as TranslationTree, i18n.translations()));
+    i18n.translations.set(merge(english, i18n.translations()));
 }
 
 function merge(base: TranslationTree, over: TranslationTree): TranslationTree {

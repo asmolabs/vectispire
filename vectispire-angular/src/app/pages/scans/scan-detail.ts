@@ -117,7 +117,9 @@ export class ScanDetailPage {
             next: (detail) => this.scan.set(detail),
             error: (response) =>
                 this.error.set(
-                    response?.status === 404 ? this.i18n.t('scans.error_not_found') : this.i18n.t('scans.error_load')
+                    (response as { status?: number } | null)?.status === 404
+                        ? this.i18n.t('scans.error_not_found')
+                        : this.i18n.t('scans.error_load')
                 )
         });
     }

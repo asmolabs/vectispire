@@ -588,7 +588,7 @@ export class Issues {
 
     copyText(text: string): void {
         if (navigator?.clipboard) {
-            navigator.clipboard.writeText(text);
+            void navigator.clipboard.writeText(text);
         }
     }
 }

@@ -313,7 +313,7 @@ export class AttackSurface implements OnInit, OnDestroy {
         this.scanSuccess.set(null);
 
         const requests = repos.map((r) => this.scansApi.triggerRepositoryScan(r.id));
-        import('rxjs').then(({ forkJoin }) => {
+        void import('rxjs').then(({ forkJoin }) => {
             forkJoin(requests).subscribe({
                 next: (results) => {
                     this.scanningRepo.set(false);
@@ -335,7 +335,7 @@ export class AttackSurface implements OnInit, OnDestroy {
             attempts++;
             this.loadData();
             if (this.selectedRepoId()) {
-                this.onSelectRepo(this.selectedRepoId()!);
+                this.onSelectRepo(this.selectedRepoId());
             }
             const currentCount = this.repoOverview()?.endpoints?.length ?? 0;
             const globalCount = this.globalData()?.totalEndpoints ?? 0;

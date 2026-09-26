@@ -44,7 +44,7 @@ type Schemas = components['schemas'];
  * whole file is about.
  */
 export function asSchema<K extends keyof Schemas, T>(name: K, fixture: T): T {
-    const problems = check(name as string, fixture, name as string);
+    const problems = check(name, fixture, name);
     if (problems.length > 0) {
         throw new Error(
             `The fixture does not match the schema "${String(name)}" the control plane publishes:\n` +
@@ -136,7 +136,7 @@ function vocabulary(schemaName: string, value: unknown, path: string): string[] 
     }
     const holder = value as Record<string, unknown>;
     return Object.entries(closed)
-        .filter(([key]) => typeof holder[key] === 'string' && !closed[key].includes(holder[key] as string))
+        .filter(([key]) => typeof holder[key] === 'string' && !closed[key].includes(holder[key]))
         .map(
             ([key, allowed]) =>
                 `${path}.${key}: the server sends one of ${allowed.map((one) => JSON.stringify(one)).join(', ')},` +

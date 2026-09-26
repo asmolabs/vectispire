@@ -21,6 +21,7 @@ describe('the claims the client makes about shapes the document under-describes'
         type Renamed = Refine<Schema<'TeamSummary'>, { nom: string }>;
 
         expect(true satisfies boolean).toBe(true);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the reference keeps the type alive
         return undefined as unknown as Renamed | undefined;
     });
 
@@ -30,6 +31,7 @@ describe('the claims the client makes about shapes the document under-describes'
         type Retyped = Refine<Schema<'TeamSummary'>, { name: number }>;
 
         expect(true satisfies boolean).toBe(true);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- the reference keeps the type alive
         return undefined as unknown as Retyped | undefined;
     });
 

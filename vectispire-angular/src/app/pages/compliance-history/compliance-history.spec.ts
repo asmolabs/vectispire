@@ -89,10 +89,10 @@ describe('compliance progress', () => {
         // A "0" against the first month would read as "we did not move" where the true sentence is
         // "there is nothing to compare with".
         const changes = fixture.nativeElement.querySelectorAll('tbody tr td:nth-child(3)');
-        expect([...changes].map((c: HTMLElement) => c.textContent!.trim())).toEqual(['—', '0']);
+        expect([...changes].map((c: HTMLElement) => c.textContent.trim())).toEqual(['—', '0']);
     });
 
-    it('scales the bar against one hundred and not against the series maximum', async () => {
+    it('scales the bar against one hundred and not against the series maximum', () => {
         // A scale that adjusts itself would make a two-point gain look like a leap.
         const component = fixture.componentInstance;
         expect(component.height(step('2026-08', 50, 'STEADY') as never)).toBe(50);

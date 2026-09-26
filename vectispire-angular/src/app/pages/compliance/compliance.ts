@@ -368,7 +368,7 @@ export class Compliance {
         this.importError.set(null);
 
         try {
-            const parsed = JSON.parse(this.importJson());
+            const parsed: unknown = JSON.parse(this.importJson());
             this.documentsApi.ingestVex(parsed).subscribe({
                 next: (res) => {
                     this.importing.set(false);

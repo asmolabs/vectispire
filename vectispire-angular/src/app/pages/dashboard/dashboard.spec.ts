@@ -252,7 +252,9 @@ describe('the failing targets table', () => {
         http.expectOne((call) => call.url === '/api/v1/dashboard').flush(failing('severity'));
         fixture.detectChanges();
 
-        const links = Array.from(fixture.nativeElement.querySelectorAll('a[href^="/issues"]')) as HTMLAnchorElement[];
+        const links = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLAnchorElement>('a[href^="/issues"]')
+        );
         const severityLinks = links.filter((link) => link.getAttribute('href')!.includes('severity='));
         expect(severityLinks.length).toBeGreaterThan(0);
         for (const link of severityLinks) {

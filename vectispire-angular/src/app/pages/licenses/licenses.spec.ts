@@ -251,7 +251,7 @@ describe('the licence inventory screen', () => {
         expect(page.policyError()).toContain('Forbidden.');
     });
 
-    it('does not offer the edit to an account that governs nothing', async () => {
+    it('does not offer the edit to an account that governs nothing', () => {
         TestBed.inject(SessionStore).open('a-token', {
             username: 'reader',
             displayName: null,
