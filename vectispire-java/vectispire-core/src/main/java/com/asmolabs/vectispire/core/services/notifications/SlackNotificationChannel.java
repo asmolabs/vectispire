@@ -1,8 +1,8 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.notifications;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
-import com.asmolabs.vectispire.common.domain.notifications.DiscordEmbed;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
+import com.asmolabs.vectispire.common.domain.notifications.SlackBlockKit;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
@@ -13,20 +13,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Delivers formatted Rich Embed notifications to Discord Webhooks.
+ * Delivers formatted Block Kit notifications to Slack Incoming Webhooks.
  */
 @Service
-public class DiscordNotificationChannel implements NotificationChannel {
+public class SlackNotificationChannel implements NotificationChannel {
 
-    private static final Logger log = LoggerFactory.getLogger(DiscordNotificationChannel.class);
+    private static final Logger log = LoggerFactory.getLogger(SlackNotificationChannel.class);
 
-    public static final String TYPE = "scan_delta_discord";
+    public static final String TYPE = "scan_delta_slack";
 
     private final SettingsService settings;
     private final OutboundPost post;
     private final ExportProperties deployment;
 
-    public DiscordNotificationChannel(SettingsService settings, OutboundPost post, ExportProperties deployment) {
+    public SlackNotificationChannel(SettingsService settings, OutboundPost post, ExportProperties deployment) {
         this.settings = settings;
         this.post = post;
         this.deployment = deployment;
@@ -50,14 +50,14 @@ public class DiscordNotificationChannel implements NotificationChannel {
 
         post.postJson(
                 url(),
-                DiscordEmbed.of(payload, deployment.publicUrl().orElse(null)),
+                SlackBlockKit.of(payload, deployment.publicUrl().orElse(null)),
                 policy,
-                "Discord webhook URL");
+                "Slack webhook URL");
 
-        log.info("Discord notified for scan {}, message {}.", payload.scanId(), payload.messageId());
+        log.info("Slack notified for scan {}, message {}.", payload.scanId(), payload.messageId());
     }
 
     private String url() {
-        return settings.get(Setting.DISCORD_WEBHOOK_URL).trim();
+        return settings.get(Setting.SLACK_WEBHOOK_URL).trim();
     }
 }
