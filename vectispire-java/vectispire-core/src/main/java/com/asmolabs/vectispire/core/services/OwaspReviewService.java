@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.AiReviewResults;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
