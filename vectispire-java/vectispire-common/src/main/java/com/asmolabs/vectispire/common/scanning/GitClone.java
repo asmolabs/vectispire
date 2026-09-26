@@ -427,6 +427,27 @@ public final class GitClone {
         return all.toString();
     }
 
+    /**
+     * Makes sure the file exists, <b>whoever gets there first</b>.
+     *
+     * <p>It used to check, then create. One scan at a time, that was the same thing; with an
+     * agent running several, two clones on a fresh machine both saw no file, and the second
+     * {@code createFile} failed its whole scan with "the known-hosts file could not be
+     * prepared" — over a file that was, by then, sitting right there. Creating and accepting
+     * "already exists" has no window. Writing the host lines is JGit's, behind its own lock
+     * file.
+     */
+    static void prepareKnownHosts(Path knownHosts) {
+        try {
+            Files.createDirectories(knownHosts.getParent());
+            Files.createFile(knownHosts);
+        } catch (java.nio.file.FileAlreadyExistsException present) {
+            // The outcome we wanted, whoever created it.
+        } catch (IOException e) {
+            throw new CloneFailureException("The known-hosts file could not be prepared: " + e.getMessage(), "");
+        }
+    }
+
     /** Accepts anything and remembers nothing. */
     private static final class TrustEveryHostDatabase implements ServerKeyDatabase {
 
@@ -454,14 +475,7 @@ public final class GitClone {
         private final org.eclipse.jgit.internal.transport.sshd.OpenSshServerKeyDatabase delegate;
 
         AcceptNewDatabase(Path knownHosts) {
-            try {
-                Files.createDirectories(knownHosts.getParent());
-                if (!Files.exists(knownHosts)) {
-                    Files.createFile(knownHosts);
-                }
-            } catch (IOException e) {
-                throw new CloneFailureException("The known-hosts file could not be prepared: " + e.getMessage(), "");
-            }
+            prepareKnownHosts(knownHosts);
             this.delegate = new org.eclipse.jgit.internal.transport.sshd.OpenSshServerKeyDatabase(
                     true, List.of(knownHosts));
         }
