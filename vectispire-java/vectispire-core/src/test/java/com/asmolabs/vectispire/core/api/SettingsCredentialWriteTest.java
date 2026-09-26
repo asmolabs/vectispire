@@ -65,7 +65,8 @@ class SettingsCredentialWriteTest {
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(3L);
         controller = new SettingsController(
                 new com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService(
-                        settings, aiReview, users, mock(TicketService.class), mock(NotificationService.class),
+                        settings, aiReview, new com.asmolabs.vectispire.core.access.TriageApprovers(users),
+                        mock(TicketService.class), mock(NotificationService.class),
                         mock(AuditLogService.class)),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 

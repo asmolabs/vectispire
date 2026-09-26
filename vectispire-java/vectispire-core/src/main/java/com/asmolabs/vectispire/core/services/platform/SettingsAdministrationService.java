@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.UserView;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.TriageApprovers;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -17,7 +17,6 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -57,15 +56,10 @@ public class SettingsAdministrationService {
      */
     static final int MAX_SECRET_LENGTH = 8_192;
 
-    private static final List<String> APPROVER_ROLES = Arrays.stream(Role.values())
-            .filter(Role::canApproveTriage)
-            .map(Enum::name)
-            .toList();
-
     private final SettingsService settings;
     private final AiReviewService aiReview;
-    /** Read for one question only: is anybody left to approve? */
-    private final Users users;
+    /** Asked one question only: is anybody left to approve? */
+    private final TriageApprovers approvers;
     private final TicketService tickets;
     private final NotificationService notifications;
     private final AuditLogService audit;
@@ -73,13 +67,13 @@ public class SettingsAdministrationService {
     public SettingsAdministrationService(
             SettingsService settings,
             AiReviewService aiReview,
-            Users users,
+            TriageApprovers approvers,
             TicketService tickets,
             NotificationService notifications,
             AuditLogService audit) {
         this.settings = settings;
         this.aiReview = aiReview;
-        this.users = users;
+        this.approvers = approvers;
         this.tickets = tickets;
         this.notifications = notifications;
         this.audit = audit;
@@ -442,14 +436,9 @@ public class SettingsAdministrationService {
         return writer.flatMap(u -> Role.of(u.role())).map(Role::governsPlatform).orElse(false);
     }
 
-    /**
-     * Is anyone left to approve?
-     *
-     * <p>Counted in the database rather than deduced from a role: the question is about
-     * <em>active</em> accounts, and an estate may perfectly well declare a role nobody holds.
-     */
+    /** Is anyone left to approve? {@code access} counts, in the database, the active accounts that may. */
     private boolean noApproverExists() {
-        return users.countActiveAdministratorsExcluding(APPROVER_ROLES, -1L) == 0;
+        return !approvers.anyActive();
     }
 
     private static boolean isTruthy(String value) {
