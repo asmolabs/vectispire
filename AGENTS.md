@@ -80,13 +80,17 @@ not mean portability was checked** — a service that hands an existing query ne
 touches none of the engine paths, and a renamed response field touches no front-end file. Those are the nightly's, and a
 release should not go out on a nightly that has not been green.
 
-A **`v*` tag** runs the `release` job: `./gradlew build`, then the jar signed with Sigstore
-keyless. It **verifies the signature it just made** before publishing anything, with the same
-command a consumer runs — a signature nobody has checked is a signature that does not work. The
-certificate identity is
+A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
+`./gradlew build`, builds the interface, the jar and both images as archives, and hands them over
+with their checksums — holding **no permission but reading the repository**, since it executes every
+plugin and package the tree depends on. `publish` checks out nothing and builds nothing: it verifies
+the checksums, signs with Sigstore keyless, and **verifies the signature it just made** before
+publishing anything, with the same command a consumer runs — a signature nobody has checked is a
+signature that does not work. The certificate identity is
 `https://github.com/asmolabs/vectispire/.github/workflows/release.yml@refs/tags/<tag>` with issuer
-`https://token.actions.githubusercontent.com`, and the job needs `permissions: id-token: write` or
-`cosign` fails at publication time rather than before it. Both halves of that identity are
+`https://token.actions.githubusercontent.com` — it names the workflow file, not the job — and
+`publish` needs `permissions: id-token: write` or `cosign` fails at publication time rather than
+before it. Both halves of that identity are
 forge-bound: **renaming the workflow file, the repository, or the owner invalidates every
 signature a consumer has learned to verify**, which is why the repository was renamed before the
 first tag and not after.
