@@ -1,9 +1,9 @@
 package com.asmolabs.vectispire.core.siem.web;
 
-import com.asmolabs.vectispire.core.api.RequestActors;
-import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
-import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
+import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.siem.SiemConfigView;
 import com.asmolabs.vectispire.core.siem.SiemExporterService;
 import jakarta.servlet.http.HttpServletRequest;

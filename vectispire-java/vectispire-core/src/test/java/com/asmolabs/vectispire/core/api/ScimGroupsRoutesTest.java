@@ -12,12 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
+import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
+import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
-import com.asmolabs.vectispire.core.persistence.TeamEntity;
-import com.asmolabs.vectispire.core.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.repositories.TeamMembers;
-import com.asmolabs.vectispire.core.repositories.Teams;
-import com.asmolabs.vectispire.core.repositories.Users;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;

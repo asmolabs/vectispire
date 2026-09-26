@@ -5,8 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.repositories.UserTargets;
-import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserTargets;
+import com.asmolabs.vectispire.core.access.persistence.Users;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

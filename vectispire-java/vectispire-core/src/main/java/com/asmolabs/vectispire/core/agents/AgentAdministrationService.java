@@ -4,25 +4,22 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
-import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.core.access.AgentKeys;
+import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Agents;
-import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.scanning.WorkerProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -66,7 +63,7 @@ public class AgentAdministrationService {
     private static final int MAX_LABELS_LENGTH = 255;
 
     private final Agents agents;
-    private final ApiKeysRepository keys;
+    private final AgentKeys keys;
     private final Scans scans;
     private final GitRepositories gitRepositories;
     private final Containers containers;
@@ -77,7 +74,7 @@ public class AgentAdministrationService {
 
     public AgentAdministrationService(
             Agents agents,
-            ApiKeysRepository keys,
+            AgentKeys keys,
             Scans scans,
             GitRepositories gitRepositories,
             Containers containers,
@@ -320,16 +317,9 @@ public class AgentAdministrationService {
         // back is a row that can never authenticate — but the audit entry is written outside,
         // for the reason given on the class.
         AgentEntity saved = transactions.execute(status -> {
-            ApiKeyEntity key = new ApiKeyEntity();
-            key.setName(KEY_NAME_PREFIX + name);
-            key.setKeyHash(PasswordHasher.hash(issued.fullKey()));
-            key.setPrefix(issued.prefix());
-            // The only scope: an agent has no business reading the backlog or exporting anything.
-            key.setScopes(ApiKeyScope.AGENT.wireName());
-            key.setCreatedAt(at);
             // Saved before the agent, because the agent points at it: the identifier is generated
             // by the insert, so reading it any earlier reads null.
-            ApiKeyEntity savedKey = keys.save(key);
+            java.util.UUID savedKey = keys.issue(KEY_NAME_PREFIX + name, issued, at);
 
             AgentEntity agent = new AgentEntity();
             agent.setName(name);
@@ -341,7 +331,7 @@ public class AgentAdministrationService {
             agent.setLabels(labels);
             agent.setEnabled(true);
             agent.setMaxConcurrent(maxConcurrent);
-            agent.setApiKeyId(savedKey.getId());
+            agent.setApiKeyId(savedKey);
             agent.setCreatedAt(at);
 
             return agents.save(agent);
@@ -473,7 +463,7 @@ public class AgentAdministrationService {
             // The key goes with it: keeping it would leave an open door to the protocol with no
             // agent behind it.
             if (agent.getApiKeyId() != null) {
-                keys.deleteById(agent.getApiKeyId());
+                keys.revoke(agent.getApiKeyId());
             }
         });
         record(actor, id, "Agent deleted: " + agent.getName());

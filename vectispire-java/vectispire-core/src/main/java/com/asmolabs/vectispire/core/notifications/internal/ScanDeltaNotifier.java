@@ -4,17 +4,14 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
+import com.asmolabs.vectispire.core.access.TeamChannels;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.TeamTargets;
-import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
@@ -41,8 +38,7 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
     private final List<NotificationChannel> channels;
     private final OutboxService outbox;
     private final TargetNaming names;
-    private final TeamTargets teamTargets;
-    private final TeamWebhooks teamWebhooks;
+    private final TeamChannels teams;
     private final GitRepositories repositories;
 
     public ScanDeltaNotifier(
@@ -50,15 +46,13 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
             List<NotificationChannel> channels,
             OutboxService outbox,
             TargetNaming names,
-            TeamTargets teamTargets,
-            TeamWebhooks teamWebhooks,
+            TeamChannels teams,
             GitRepositories repositories) {
         this.notifications = notifications;
         this.channels = channels;
         this.outbox = outbox;
         this.names = names;
-        this.teamTargets = teamTargets;
-        this.teamWebhooks = teamWebhooks;
+        this.teams = teams;
         this.repositories = repositories;
     }
 
@@ -120,22 +114,17 @@ public class ScanDeltaNotifier implements ScanIngestor.NotificationSink {
             return List.of();
         }
 
-        List<TeamTargetEntity> claims = new ArrayList<>(teamTargets.findByTarget(kind, targetId));
+        List<Long> claims = new ArrayList<>(teams.teamsGranted(kind, targetId));
         if (TeamRules.KIND_REPOSITORY.equals(kind)) {
             repositories.findById(targetId)
                     .map(RepositoryEntity::getProjectId)
-                    .ifPresent(projectId -> claims.addAll(teamTargets.findByTarget(TeamRules.KIND_PROJECT, projectId)));
+                    .ifPresent(projectId -> claims.addAll(teams.teamsGranted(TeamRules.KIND_PROJECT, projectId)));
         }
-        List<Long> owners = claims.stream()
-                .map(row -> row.getId().teamId())
-                .distinct()
-                .toList();
+        List<Long> owners = claims.stream().distinct().toList();
         if (owners.isEmpty()) {
             return List.of();
         }
-        return teamWebhooks.findByTeamIdIn(owners).stream()
-                .map(TeamWebhookEntity::getTeamId)
-                .toList();
+        return teams.withChannel(owners);
     }
 
     private static List<NotifiableIssue> notifiable(List<IssueEntity> issues) {

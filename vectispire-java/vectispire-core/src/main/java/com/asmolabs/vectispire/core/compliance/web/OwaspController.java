@@ -1,12 +1,12 @@
 package com.asmolabs.vectispire.core.compliance.web;
 
 import com.asmolabs.vectispire.common.domain.aireview.OwaspMarkdown;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.compliance.AiReviewResultView;
 import com.asmolabs.vectispire.core.compliance.OwaspReportService;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.List;

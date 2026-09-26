@@ -14,12 +14,12 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.UserView;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,7 +51,7 @@ class AiEndpointAcknowledgementTest {
         aiReview = mock(AiReviewService.class);
         controller = new SettingsController(
                 new com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService(
-                        settings, aiReview, mock(com.asmolabs.vectispire.core.repositories.Users.class),
+                        settings, aiReview, mock(com.asmolabs.vectispire.core.access.persistence.Users.class),
                         mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class)),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 

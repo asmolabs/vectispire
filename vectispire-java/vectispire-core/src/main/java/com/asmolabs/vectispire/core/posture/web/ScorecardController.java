@@ -3,14 +3,14 @@ package com.asmolabs.vectispire.core.posture.web;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.api.RequestActors;
-import com.asmolabs.vectispire.core.api.Visibilities;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.web.security.Visibilities;
 import com.asmolabs.vectispire.core.posture.ScorecardBadgeService;
 import com.asmolabs.vectispire.core.posture.SecurityScorecardService;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -109,7 +109,7 @@ public class ScorecardController {
     @ApiResponse(responseCode = "200", description = "Dynamic SVG vector badge")
     @ApiResponse(responseCode = "404", description = "No badge is published under this token")
     @GetMapping(value = "/badges/{token}.svg", produces = "image/svg+xml")
-    @com.asmolabs.vectispire.core.api.security.OpenToAnonymous
+    @com.asmolabs.vectispire.core.access.web.security.OpenToAnonymous
     public ResponseEntity<String> getPublishedBadge(
             @Parameter(description = "Badge token", required = true) @PathVariable("token") String token) {
 

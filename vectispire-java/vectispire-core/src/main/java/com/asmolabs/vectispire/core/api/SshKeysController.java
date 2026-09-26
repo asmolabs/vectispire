@@ -1,7 +1,8 @@
 package com.asmolabs.vectispire.core.api;
 
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.targets.SshKeyAdministrationService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;

@@ -144,7 +144,7 @@ corpus opérationnel tient à 0–2 % sur les trois documents réconciliés ; `G
 | Limitation de débit (`LoginRateLimitFilter`, Bucket4j) | ✅ Token-bucket en amont d'Argon2id ; `X-Forwarded-For` honoré uniquement derrière un proxy de confiance configuré ; LRU bornée élaguée à l'insertion |
 | Argon2id, MFA TOTP | ✅ MFA joignable et tentatives plafonnées (3 par défi, détruit au dernier échec) ; les deux vérifiés par mutation |
 | SCIM 2.0 | ✅ `/scim/v2/Users` et `/scim/v2/Groups`, `@RequiresAdministrator`, `application/scim+json` |
-| Synchronisation de groupes OIDC | ✅ Claim `groups` associé à l'appartenance d'équipe ([OidcConfiguration.java:164](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/OidcConfiguration.java)) |
+| Synchronisation de groupes OIDC | ✅ Claim `groups` associé à l'appartenance d'équipe ([OidcConfiguration.java:164](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/OidcConfiguration.java)) |
 | AES-256-GCM au repos, KMS Vault | ✅ Contexte lié à la ligne ; `kms-type=vault` refuse désormais de démarrer sans point de terminaison joignable |
 | Bac à sable des scanners | ✅ `cap_drop: ALL`, `no-new-privileges`, `network: none` par défaut, épinglé par digest, **rootfs en lecture seule** avec tmpfs `noexec`, aucune socket Docker |
 | Isolation de l'agent | ✅ Imposée par le graphe de modules, réaffirmée par `AgentIsolationTest` |

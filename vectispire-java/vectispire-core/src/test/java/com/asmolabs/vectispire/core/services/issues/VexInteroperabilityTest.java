@@ -124,11 +124,11 @@ class VexInteroperabilityTest extends VectispireContextTest {
 
     /** The import takes decisions in its caller's name; these tests are about the format, not who. */
     private static IssueDecisionService.Caller ciso() {
-        com.asmolabs.vectispire.core.persistence.UserEntity user = new com.asmolabs.vectispire.core.persistence.UserEntity();
+        com.asmolabs.vectispire.core.access.persistence.UserEntity user = new com.asmolabs.vectispire.core.access.persistence.UserEntity();
         user.setUsername("ciso");
         user.setRole(com.asmolabs.vectispire.common.domain.users.Role.CISO.name());
         return new IssueDecisionService.Caller(
-                java.util.Optional.of(com.asmolabs.vectispire.core.services.access.UserView.of(user)),
+                java.util.Optional.of(com.asmolabs.vectispire.core.access.UserView.of(user)),
                 com.asmolabs.vectispire.common.domain.access.Visibility.everything(),
                 "192.0.2.1",
                 "test");

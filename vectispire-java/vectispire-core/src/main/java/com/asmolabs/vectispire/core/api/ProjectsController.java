@@ -1,11 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService.ProjectView;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;

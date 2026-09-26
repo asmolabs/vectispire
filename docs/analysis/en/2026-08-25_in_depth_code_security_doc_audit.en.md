@@ -76,8 +76,8 @@ The defect was never the missing mechanism; it was that the mechanism's absence 
 
 | # | Finding | Severity | Evidence |
 |:--:|---|:--:|---|
-| **F1** | `POST /api/v1/auth/mfa/verify` is annotated `@OpenToAnonymous` but is **not** `permitAll`-ed in the filter chain, so `anyRequest().authenticated()` answers **401** to the anonymous caller that the MFA flow requires. Any account with MFA enabled cannot complete sign-in. | 🔴 **Critical** | [AuthController.java:171](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) vs [SecurityConfiguration.java:154](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/SecurityConfiguration.java) |
-| **F2** | The login rate limiter keys its buckets on an unvalidated `X-Forwarded-For` header, and its eviction runs **only on the rejection path**. A single client rotating that header both bypasses the limit entirely and grows an unbounded `ConcurrentHashMap`. | 🟠 **High** | [LoginRateLimitFilter.java:70](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/LoginRateLimitFilter.java) |
+| **F1** | `POST /api/v1/auth/mfa/verify` is annotated `@OpenToAnonymous` but is **not** `permitAll`-ed in the filter chain, so `anyRequest().authenticated()` answers **401** to the anonymous caller that the MFA flow requires. Any account with MFA enabled cannot complete sign-in. | 🔴 **Critical** | [AuthController.java:171](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/AuthController.java) vs [SecurityConfiguration.java:154](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/SecurityConfiguration.java) |
+| **F2** | The login rate limiter keys its buckets on an unvalidated `X-Forwarded-For` header, and its eviction runs **only on the rejection path**. A single client rotating that header both bypasses the limit entirely and grows an unbounded `ConcurrentHashMap`. | 🟠 **High** | [LoginRateLimitFilter.java:70](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/LoginRateLimitFilter.java) |
 | **F3** | Documentation link integrity: 53 broken relative links, concentrated on `docs/architecture/decisions/` paths that moved into `en/` and `fr/` subtrees. | 🟠 **High** | Mechanically verified across all 210 relative Markdown links |
 
 ---
@@ -129,9 +129,9 @@ The French content that exists is genuine translation, not machine filler ([`ROT
 
 ### 3.1 F1 — MFA verification is unreachable (🔴 Critical)
 
-[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/AuthController.java) is annotated `@OpenToAnonymous` and is called by the SPA at `api.service.ts:524` — since 2026-09-24 in [`core/api/auth.api.ts`](../../../vectispire-angular/src/app/core/api/auth.api.ts), when the single client was split by domain — with no bearer token — correctly, since the token is exactly what the call is trying to obtain.
+[`AuthController.verifyMfa`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/AuthController.java) is annotated `@OpenToAnonymous` and is called by the SPA at `api.service.ts:524` — since 2026-09-24 in [`core/api/auth.api.ts`](../../../vectispire-angular/src/app/core/api/auth.api.ts), when the single client was split by domain — with no bearer token — correctly, since the token is exactly what the call is trying to obtain.
 
-But the filter chain in [`SecurityConfiguration.apiSecurity`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/SecurityConfiguration.java) `permitAll`s `/api/v1/auth/login`, `/auth/methods` and `/auth/session/exchange` — **and not `/auth/mfa/verify`**. It therefore falls through to `anyRequest().authenticated()`, and Spring Security's `authenticated()` rejects the anonymous authentication token. The endpoint answers **401 before the controller is ever entered**.
+But the filter chain in [`SecurityConfiguration.apiSecurity`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/SecurityConfiguration.java) `permitAll`s `/api/v1/auth/login`, `/auth/methods` and `/auth/session/exchange` — **and not `/auth/mfa/verify`**. It therefore falls through to `anyRequest().authenticated()`, and Spring Security's `authenticated()` rejects the anonymous authentication token. The endpoint answers **401 before the controller is ever entered**.
 
 **Consequence:** every account with `mfaEnabled` is locked out. Step 1 returns an `mfa_token`; step 2 cannot be called.
 
@@ -143,7 +143,7 @@ Note also that the suite's own comment says *"The three below are the ways in"* 
 
 ### 3.2 F2 — The login rate limiter is bypassable and unbounded (🟠 High)
 
-[`LoginRateLimitFilter`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/LoginRateLimitFilter.java) is well-placed — registered before `UsernamePasswordAuthenticationFilter`, so it fires ahead of any Argon2id derivation, which is the correct design for CPU-exhaustion defence. Three defects in the implementation:
+[`LoginRateLimitFilter`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/LoginRateLimitFilter.java) is well-placed — registered before `UsernamePasswordAuthenticationFilter`, so it fires ahead of any Argon2id derivation, which is the correct design for CPU-exhaustion defence. Three defects in the implementation:
 
 1. **Spoofable key.** `resolveClientIp` returns the first element of `X-Forwarded-For` whenever the header is present, with no trusted-proxy check. An attacker sets `X-Forwarded-For: <random>` per request and receives a fresh 10-token bucket every time. The rate limit is a no-op against anyone who has read the source — which, for an Apache-2.0 project, is everyone.
 2. **Eviction that never runs.** `evictOldBucketsIfNecessary()` is called **only inside the `!probe.isConsumed()` branch**. In the attack above no request is ever rejected, so eviction is never reached and `buckets` grows without bound — turning the anti-DoS control into a memory-exhaustion vector.

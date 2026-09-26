@@ -50,7 +50,7 @@ class TeamVisibilityTest extends ApiTestBase {
     private SettingsService settings;
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.TeamWebhooks webhooks;
+    private com.asmolabs.vectispire.core.access.persistence.TeamWebhooks webhooks;
 
     @Test
     @DisplayName("a member sees what the team owns, and nothing else")

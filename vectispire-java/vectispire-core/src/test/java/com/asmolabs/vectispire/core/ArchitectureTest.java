@@ -84,7 +84,7 @@ class ArchitectureTest {
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
             // through anything but the layered packages.
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
-            "inventory", "posture", "compliance");
+            "inventory", "posture", "compliance", "access");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -257,7 +257,11 @@ class ArchitectureTest {
             // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
             // read had closed a cycle; `access` uses nothing above the foundation.
             Map.entry("gate", Set.of("access", "issues", "rules", "siem")),
-            Map.entry("notifications", Set.of("issues", "scanning")),
+            // `access` since access became a module: a scan's delta is routed to the teams granted its
+            // target that have a channel, and a team message is posted to that channel — both tables
+            // access writes, which routing read through their repositories (now `TeamChannels`).
+            // `access` uses nothing above the foundation.
+            Map.entry("notifications", Set.of("access", "issues", "scanning")),
             // `scanning` since exports became a module and took its controllers: a document is made
             // for a scan, and its route first refuses a scan the caller may not see
             // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.
@@ -543,8 +547,8 @@ class ArchitectureTest {
                 .check(classes);
     }
 
-    /** Where the filter chain lives: {@code core.api.security} until {@code access} took it with it (decision 0028). */
-    private static final String SECURITY_WEB = CORE + ".api.security..";
+    /** Where the filter chain lives: {@code access} took it with it from {@code core.api.security} (decision 0028). */
+    private static final String SECURITY_WEB = CORE + ".access.web.security..";
 
     @Test
     @DisplayName("no controller writes the audit log: the service that performs an action records it")

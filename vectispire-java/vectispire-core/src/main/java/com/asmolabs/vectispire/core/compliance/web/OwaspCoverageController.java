@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.compliance.web;
 
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Declaration;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspCoverage;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.compliance.OwaspCoverageService;
 import com.asmolabs.vectispire.core.compliance.StatementOfApplicabilityService;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;

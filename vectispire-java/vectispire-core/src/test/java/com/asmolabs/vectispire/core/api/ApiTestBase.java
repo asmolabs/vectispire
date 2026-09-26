@@ -4,10 +4,10 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.persistence.SessionEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.UserSessions;
-import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.UserSessions;
+import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -82,7 +82,7 @@ abstract class ApiTestBase extends VectispireContextTest {
      * this is the shape of flakiness that gets a suite ignored rather than fixed.
      */
     @Autowired
-    private com.asmolabs.vectispire.core.api.security.LoginRateLimitFilter rateLimit;
+    private com.asmolabs.vectispire.core.access.web.security.chain.LoginRateLimitFilter rateLimit;
 
     /**
      * The same reasoning, for the ceiling on refused bearer tokens.
@@ -94,14 +94,14 @@ abstract class ApiTestBase extends VectispireContextTest {
      * then.
      */
     @Autowired
-    private com.asmolabs.vectispire.core.api.security.BearerRateLimitFilter bearerRateLimit;
+    private com.asmolabs.vectispire.core.access.web.security.chain.BearerRateLimitFilter bearerRateLimit;
 
     /**
      * The webhook's ceiling and its refusal ledger, for the same reason: both count per address,
      * and every test's deliveries come from the one MockMvc gives them.
      */
     @Autowired
-    private com.asmolabs.vectispire.core.api.security.WebhookRateLimitFilter webhookRateLimit;
+    private com.asmolabs.vectispire.core.access.web.security.chain.WebhookRateLimitFilter webhookRateLimit;
 
     @Autowired
     private com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals webhookRefusals;

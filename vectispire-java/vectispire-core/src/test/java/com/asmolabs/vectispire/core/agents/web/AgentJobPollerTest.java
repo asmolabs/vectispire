@@ -10,8 +10,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.asmolabs.vectispire.core.services.scanning.PlatformMetrics;
 import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
 import java.time.Duration;

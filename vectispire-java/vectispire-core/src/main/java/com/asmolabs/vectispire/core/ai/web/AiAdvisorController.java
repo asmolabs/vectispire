@@ -1,12 +1,12 @@
 package com.asmolabs.vectispire.core.ai.web;
 
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiAdvisorService;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
 import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
-import com.asmolabs.vectispire.core.api.security.PasswordChangeRequiredException;
+import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.scanning.InsecureCredentialTransportException;
@@ -72,14 +72,14 @@ public class ApiExceptionHandler {
     }
 
     /** A key or an agent credential on a route that did not invite it (decision 0024). */
-    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.CredentialNotAcceptedException.class)
-    ProblemDetail credentialNotAccepted(com.asmolabs.vectispire.core.api.security.CredentialNotAcceptedException error) {
+    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException.class)
+    ProblemDetail credentialNotAccepted(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
     }
 
-    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.ApiKeyRateLimitedException.class)
+    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException.class)
     org.springframework.http.ResponseEntity<ProblemDetail> apiKeyRateLimited(
-            com.asmolabs.vectispire.core.api.security.ApiKeyRateLimitedException error) {
+            com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException error) {
         return org.springframework.http.ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(Math.max(1, error.retryAfter().toSeconds())))
                 .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage()));
@@ -116,10 +116,10 @@ public class ApiExceptionHandler {
 
     /**
      * A body past its route's ceiling, found while it was being read — see
-     * {@link com.asmolabs.vectispire.core.api.security.RequestBodyLimitFilter}. A declared length
+     * {@link com.asmolabs.vectispire.core.access.web.security.chain.RequestBodyLimitFilter}. A declared length
      * over the ceiling is refused by the filter itself, before this point.
      */
-    @ExceptionHandler(com.asmolabs.vectispire.core.api.security.RequestBodyLimitFilter.RequestBodyTooLargeException.class)
+    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.chain.RequestBodyLimitFilter.RequestBodyTooLargeException.class)
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }

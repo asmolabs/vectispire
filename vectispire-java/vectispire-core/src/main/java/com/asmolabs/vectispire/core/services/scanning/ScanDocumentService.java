@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import org.springframework.stereotype.Service;
 
 /**

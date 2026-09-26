@@ -5,8 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.web.AuthController;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.time.Instant;
@@ -174,7 +175,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
     }
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.UserSessions sessionStore;
+    private com.asmolabs.vectispire.core.access.persistence.UserSessions sessionStore;
 
     @Test
     @DisplayName("the password step opens no session for an account that owes a code")

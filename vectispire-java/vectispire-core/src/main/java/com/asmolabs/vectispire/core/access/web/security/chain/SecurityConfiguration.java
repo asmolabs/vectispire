@@ -1,0 +1,310 @@
+package com.asmolabs.vectispire.core.access.web.security.chain;
+
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import jakarta.servlet.DispatcherType;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.RegexRequestMatcher;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+/**
+ * The access rules.
+ *
+ * <p><b>What this replaces.</b> In Reflex, every event handler on a state class was
+ * individually addressable over a websocket: a check placed when the page mounted protected the
+ * rendering, not the handlers. Hence the decorator on <em>every</em> method touching the
+ * database, and the four wrapper variants needed to cover plain functions, coroutines and both
+ * kinds of generator. That problem is gone — an HTTP route has one entry point — but the rule
+ * it carried is not: <b>authorization applies at the entry point, never at the rendering</b>.
+ *
+ * <p><b>Stateless, and that is not a detail.</b> Vectispire's session lives in a table, shared by
+ * every instance, so a servlet session would be a second notion of "logged in" — one that does
+ * not survive a restart and does not cross instances, and that would silently take precedence.
+ */
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfiguration implements WebMvcConfigurer {
+
+    private final BearerAuthenticationFilter bearer;
+    private final LoginRateLimitFilter rateLimit;
+    private final BearerRateLimitFilter bearerRateLimit;
+    private final WebhookRateLimitFilter webhookRateLimit;
+    private final RequestBodyLimitFilter bodyLimit;
+    private final PasswordChangeInterceptor passwordChange;
+    private final CredentialConfinement credentialConfinement;
+    private final AuditLogService audit;
+
+    /** @see #apiSecurity — default closed, and the reason is written there. */
+    private final boolean anonymousApiDocs;
+
+    public SecurityConfiguration(
+            BearerAuthenticationFilter bearer,
+            LoginRateLimitFilter rateLimit,
+            BearerRateLimitFilter bearerRateLimit,
+            WebhookRateLimitFilter webhookRateLimit,
+            RequestBodyLimitFilter bodyLimit,
+            PasswordChangeInterceptor passwordChange,
+            CredentialConfinement credentialConfinement,
+            AuditLogService audit,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${vectispire.security.anonymous-api-docs:false}") boolean anonymousApiDocs) {
+        this.bearer = bearer;
+        this.rateLimit = rateLimit;
+        this.bearerRateLimit = bearerRateLimit;
+        this.webhookRateLimit = webhookRateLimit;
+        this.bodyLimit = bodyLimit;
+        this.passwordChange = passwordChange;
+        this.credentialConfinement = credentialConfinement;
+        this.audit = audit;
+        this.anonymousApiDocs = anonymousApiDocs;
+    }
+
+    /**
+     * The three paths springdoc serves.
+     *
+     * <p>Matched on the prefix rather than by pattern because it is consulted from a predicate,
+     * and because springdoc appends group names and a trailing config path that a literal list
+     * would miss — `/v3/api-docs/swagger-config` being the one that leaves the UI blank when it
+     * is the only one refused.
+     */
+    private static boolean isApiDocumentation(String path) {
+        return path != null
+                && (path.startsWith("/v3/api-docs")
+                        || path.startsWith("/swagger-ui")
+                        || path.equals("/swagger-ui.html"));
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(passwordChange);
+        registry.addInterceptor(credentialConfinement);
+    }
+
+    /**
+     * The content security policy, in one place because it is one sentence.
+     *
+     * <p><b>What it is for.</b> Everything Vectispire displays — a finding's message, a package
+     * name, a CVE description, a commit author — comes from the analyzers and the advisory
+     * feeds, which is to say from data an attacker influences. This header is what decides
+     * whether a string that got through the rendering runs with the analyst's session or sits
+     * there inert. It is the last line, not the first: it does not excuse an unescaped
+     * interpolation, it survives one.
+     *
+     * <p><b>Read the relaxations, not the restrictions.</b> `default-src 'self'` already covers
+     * scripts, styles, images, fonts and XHR; the directives repeating it are named anyway so
+     * that narrowing one later is an edit rather than an addition. Everything below that is a
+     * hole, and each one carries what would happen without it:
+     *
+     * <ul>
+     *   <li>{@code object-src 'none'} and {@code base-uri 'self'} are not covered by
+     *       {@code default-src} at all. A {@code <base>} tag injected into the document
+     *       silently re-points every relative URL on the page — including the API calls — at
+     *       somebody else's host, and no other directive says a word about it.
+     *   <li>{@code frame-ancestors 'none'} is the modern half of {@code X-Frame-Options}, kept
+     *       alongside it because a proxy or a browser may honour one and not the other.
+     *   <li>{@code form-action 'self'} stops an injected form from posting the session
+     *       elsewhere. There is one real form flow — the OIDC redirect — and it is same-origin.
+     * </ul>
+     *
+     * <p><b>{@code style-src} carries {@code 'unsafe-inline'}, and that was measured rather than
+     * assumed.</b> Without it the production bundle loads and runs, and renders completely
+     * unstyled: Angular emits component styles as {@code <style>} elements at runtime and
+     * PrimeNG sets style attributes on elements it positions, and the console fills with
+     * "Applying inline style violates ... style-src 'self'" — several dozen on the sign-in page
+     * alone. Neither a nonce nor a hash list fixes it, because the browser applies neither to
+     * <em>style attributes</em>; closing this properly is a change to the interface, not to this
+     * header.
+     *
+     * <p>What that costs is worth naming rather than waving at: an injected {@code <style>} can
+     * still redress the page — cover a button, fake a dialog, and leak the shape of the DOM
+     * through selectors. What it cannot do is execute, because {@code script-src} keeps no
+     * {@code 'unsafe-inline'} and no {@code 'unsafe-eval'} — and that is the half that turns a
+     * displayed string into a session. A policy relaxed on styles still stops the attack this
+     * header exists for; one relaxed on scripts would not.
+     *
+     * <p><b>No {@code 'unsafe-eval'}, and the Angular build does not need it</b> — that is a
+     * property of the production configuration, which compiles templates ahead of time. A
+     * development build does eval, which is one more reason the measurement was taken against
+     * the bundle that ships.
+     *
+     * <p><b>HSTS stays absent, deliberately.</b> Vectispire is routinely reached over plain HTTP on
+     * an internal address; a Strict-Transport-Security header seen once makes that origin
+     * permanently unreachable in that browser. It belongs to the proxy terminating TLS, which is
+     * the component that knows it has TLS.
+     */
+    private static final String CONTENT_SECURITY_POLICY = String.join("; ",
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data:",
+            "font-src 'self'",
+            "connect-src 'self'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'");
+
+    @Bean
+    SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
+        return http
+                // On every response, static files included: the document that carries the
+                // injected string is `index.html`, so a policy applied only to `/api` would
+                // guard the JSON and leave the page it is rendered into unprotected.
+                .headers(headers -> headers.contentSecurityPolicy(
+                        policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY)))
+                // No CSRF token: this API is consumed by a client that sends a bearer token, and
+                // a bearer token is not attached by a browser to a cross-site request. Enabling
+                // it would only break the agent protocol, which has no page to read a token from.
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(rateLimit, UsernamePasswordAuthenticationFilter.class)
+                // The anonymous tracker webhook, limited per address before any secret is decrypted
+                // or any refusal audited; and the three raw bodies, bounded before a converter reads
+                // them whole. In the chain rather than only as servlet filters so that the HTTP
+                // suite, which assembles this chain, exercises them.
+                .addFilterBefore(webhookRateLimit, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(bodyLimit, UsernamePasswordAuthenticationFilter.class)
+                // **Before the resolution it is counting, and that is why it is a separate
+                // filter.** It has to see the request on the way in, to refuse an address that
+                // has already spent its allowance, and on the way out, to know whether the token
+                // resolved into anything. Merging it into the resolver would put the ceiling
+                // inside the thing being measured.
+                .addFilterBefore(bearerRateLimit, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(handling -> handling
+                        // 401 with no body and no `WWW-Authenticate` challenge: a browser
+                        // prompting for basic credentials over a token API helps nobody.
+                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        .accessDeniedHandler(auditingDeniedHandler()))
+                .authorizeHttpRequests(requests -> requests
+                        // **The error dispatch is not a request.** When a handler throws, the
+                        // container re-dispatches to `/error`, and that dispatch goes through
+                        // this chain again — with the security context already cleared. Without
+                        // this line every unmapped failure came back as 401 and an empty body:
+                        // the client reads "sign in", signs in, fails again, and the real 500 is
+                        // never seen by anybody. Found by starting the application and asking it
+                        // to do something it refuses.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/api/v1/auth/login").permitAll()
+                        // Both are pre-authentication by construction: one says which buttons
+                        // the login screen should offer, the other trades a one-time cookie the
+                        // browser just received for the session it stands for. Neither can
+                        // require the session it is on the way to producing.
+                        .requestMatchers("/api/v1/auth/methods").permitAll()
+                        .requestMatchers("/api/v1/auth/session/exchange").permitAll()
+                        // **The second half of the password exchange, and it was missing.** The
+                        // handler has always carried `@OpenToAnonymous` — it is called with the
+                        // `mfa_token` login step 1 just returned and no bearer, because the
+                        // bearer is precisely what it is on the way to issuing. Without this
+                        // line the request fell through to `anyRequest().authenticated()` and
+                        // came back 401 before the controller was entered, which locked out
+                        // every account that had enabled MFA.
+                        //
+                        // `RouteAuthorizationTest` was green throughout: it enumerates the
+                        // annotations, and the annotation was right. What it did not do was send
+                        // an anonymous request through this chain. It does now — see
+                        // `anOpenRouteIsReallyReachableWithoutCredentials`.
+                        .requestMatchers("/api/v1/auth/mfa/verify").permitAll()
+                        // The agent protocol authenticates by API key, resolved by the filter
+                        // above; the controller refuses when no agent came out of it.
+                        .requestMatchers("/api/v1/agent/**").permitAll()
+                        .requestMatchers("/api/v1/tickets/webhook/**").permitAll()
+                        .requestMatchers("/actuator/health/**").permitAll()
+                        // **A complete endpoint catalogue, and who may read it is now a
+                        // decision.** `springdoc` is off by default, so nothing is served at
+                        // all until somebody turns it on — but when they did, this line handed
+                        // the whole map of the API to anonymous callers with no way to say
+                        // otherwise. For a control plane whose job is to inventory other
+                        // people's attack surface, publishing its own unauthenticated is a
+                        // choice that should be made rather than inherited.
+                        //
+                        // Default closed: the documentation is served to an authenticated
+                        // caller, which is who needs it. Set
+                        // `vectispire.security.anonymous-api-docs=true` for a public demo or a
+                        // deployment already behind a gateway that authenticates.
+                        //
+                        // A predicate rather than a pattern list, so the setting is read where
+                        // the decision is taken: two chains built from one flag would be two
+                        // places for the rule to drift apart.
+                        .requestMatchers(request -> anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
+                        .permitAll()
+                        // **And the closed case has to be stated, not left to fall through.**
+                        // The SPA deep-link rule below matches any dotless GET outside `/api`,
+                        // `/actuator` and `/scim` — which `/v3/api-docs` and
+                        // `/v3/api-docs/swagger-config` both are. Without this line the
+                        // documentation stayed open no matter what the setting said, and the
+                        // setting looked like it worked because `/swagger-ui.html` has a dot in
+                        // it and was refused. Found by asserting the refusal rather than
+                        // assuming it.
+                        .requestMatchers(request -> !anonymousApiDocs && isApiDocumentation(request.getRequestURI()))
+                        .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/crypto/public-key.pub").permitAll()
+                        // **A badge somebody published, named by a token and not by an id.** The
+                        // route this replaces took the repository's sequential id, so walking
+                        // 1..N returned every repository's security grade to an anonymous caller
+                        // — the one route in the product that served business data outside the
+                        // visibility model. A token names what an operator chose to publish.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/scorecards/badges/*.svg").permitAll()
+                        // **The interface itself is not behind the token.** When the jar
+                        // bundles the Angular build, these are the files that *ask* for a
+                        // token; requiring one to fetch them means the sign-in screen answers
+                        // 401 and nobody can ever sign in. Nothing here is a secret — it is
+                        // the same bundle any visitor of a public deployment downloads — and
+                        // every API call it then makes is authenticated as before.
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico",
+                                "/*.js", "/*.css", "/*.webmanifest", "/assets/**", "/fonts/**",
+                                "/media/**", "/i18n/**")
+                        .permitAll()
+                        // **The SPA's deep links, on the request and on the forward.**
+                        // `SpaForwarding` sends `/security` to index.html — but the chain runs
+                        // first, and `anyRequest().authenticated()` would refuse the request
+                        // before any forwarding happened. Both passes therefore need a rule.
+                        //
+                        // The pattern mirrors that class exactly: a GET whose path is not under
+                        // `/api` or `/actuator` and contains no dot. The negative lookahead is
+                        // what keeps an unmapped API path a 404 the caller can act on instead
+                        // of an HTML page, and the missing dot keeps a lost `.js` a 404 rather
+                        // than a document the browser reports as a syntax error.
+                        .requestMatchers(RegexRequestMatcher.regexMatcher(
+                                HttpMethod.GET, "^/(?!api/|actuator/|scim/)[^.]*$"))
+                        .permitAll()
+                        .dispatcherTypeMatchers(DispatcherType.FORWARD).permitAll()
+                        .anyRequest().authenticated())
+                .build();
+    }
+
+    /**
+     * A refusal is audited, and that is the point of overriding the default handler.
+     *
+     * <p>An authorization refusal used to be an application log line, so sweeping every endpoint
+     * left no trace an operator would ever look at.
+     */
+    private AccessDeniedHandler auditingDeniedHandler() {
+        return (request, response, denied) -> {
+            String who = SecurityContextHolder.getContext().getAuthentication() instanceof VectispirePrincipal principal
+                    ? principal.getName()
+                    : null;
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.ACCESS_DENIED,
+                    request.getRequestURI(),
+                    "Access denied: " + denied.getMessage(),
+                    who,
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent")));
+            response.sendError(HttpStatus.FORBIDDEN.value());
+        };
+    }
+}

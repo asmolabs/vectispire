@@ -6,10 +6,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.persistence.MfaChallengeEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.repositories.MfaChallenges;
-import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.access.persistence.MfaChallengeEntity;
+import com.asmolabs.vectispire.core.access.persistence.MfaChallenges;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.web.AuthController;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.time.Instant;

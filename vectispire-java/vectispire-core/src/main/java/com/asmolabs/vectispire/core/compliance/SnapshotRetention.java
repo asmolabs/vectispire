@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.compliance;
 
+import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
-import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import java.time.Instant;
 import org.springframework.stereotype.Component;
 

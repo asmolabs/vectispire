@@ -1,10 +1,10 @@
 package com.asmolabs.vectispire.core.exports.web;
 
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.exports.AttestationService;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

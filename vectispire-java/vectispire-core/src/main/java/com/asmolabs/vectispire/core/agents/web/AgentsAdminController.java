@@ -1,11 +1,11 @@
 package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.core.access.AgentView;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentAdministrationService;
-import com.asmolabs.vectispire.core.api.RequestActors;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.access.AgentView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;

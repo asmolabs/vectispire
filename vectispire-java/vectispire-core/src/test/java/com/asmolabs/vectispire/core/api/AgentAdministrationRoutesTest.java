@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
 import com.asmolabs.vectispire.core.repositories.Agents;
-import com.asmolabs.vectispire.core.repositories.ApiKeysRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;

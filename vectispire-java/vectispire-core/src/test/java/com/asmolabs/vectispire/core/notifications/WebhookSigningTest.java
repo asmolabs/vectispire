@@ -15,10 +15,12 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.WebhookSignature;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.access.TeamChannels;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
-import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
@@ -59,7 +61,7 @@ class WebhookSigningTest {
         post = mock(OutboundPost.class);
         encryption = mock(EncryptionService.class);
         service = new NotificationService(
-                settings, post, mock(TeamWebhooks.class), encryption, Clock.fixed(AT, ZoneOffset.UTC));
+                settings, post, new TeamChannels(mock(TeamTargets.class), mock(TeamWebhooks.class)), encryption, Clock.fixed(AT, ZoneOffset.UTC));
 
         when(settings.get(Setting.WEBHOOK_URL)).thenReturn(GLOBAL);
         when(settings.get(Setting.NOTIFICATION_MIN_SEVERITY)).thenReturn("high");

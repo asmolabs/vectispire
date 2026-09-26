@@ -1,15 +1,15 @@
 package com.asmolabs.vectispire.core.config;
 
+import com.asmolabs.vectispire.common.domain.auth.Sessions;
+import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
+import com.asmolabs.vectispire.core.access.persistence.UserSessions;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.asmolabs.vectispire.common.domain.auth.Sessions;
-import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
-import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
-import com.asmolabs.vectispire.core.repositories.UserSessions;
 import java.time.Clock;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;

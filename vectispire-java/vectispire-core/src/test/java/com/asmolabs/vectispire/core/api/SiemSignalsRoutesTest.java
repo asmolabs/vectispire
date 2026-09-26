@@ -15,14 +15,14 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.UserView;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.persistence.Users;
 import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.platform.MaintenanceJobs;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
@@ -74,7 +74,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     private MaintenanceJobs jobs;
 
     @Autowired
-    private com.asmolabs.vectispire.core.services.access.TotpService totp;
+    private com.asmolabs.vectispire.core.access.TotpService totp;
 
     @Test
     @DisplayName("the sign-in ceiling: an account's sixth wrong password")

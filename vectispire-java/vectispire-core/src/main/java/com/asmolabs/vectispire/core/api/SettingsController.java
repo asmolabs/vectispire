@@ -1,11 +1,12 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
+import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.tickets.TicketService;

@@ -7,13 +7,12 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationSelection;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.access.TeamChannels;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
-import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
-import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.util.List;
@@ -39,14 +38,14 @@ public class NotificationService implements NotificationChannel {
 
     private final SettingsService settings;
     private final OutboundPost post;
-    private final TeamWebhooks teamWebhooks;
+    private final TeamChannels teamWebhooks;
     private final EncryptionService encryption;
     private final Clock clock;
 
     public NotificationService(
             SettingsService settings,
             OutboundPost post,
-            TeamWebhooks teamWebhooks,
+            TeamChannels teamWebhooks,
             EncryptionService encryption,
             Clock clock) {
         this.settings = settings;
@@ -113,7 +112,7 @@ public class NotificationService implements NotificationChannel {
      * missing wire: the channels are configured, the screen says so, and no message exists.
      */
     public boolean isEnabled() {
-        return !webhookUrl().isEmpty() || teamWebhooks.count() > 0;
+        return !webhookUrl().isEmpty() || teamWebhooks.anyTeamHasOne();
     }
 
     public Severity minSeverity() {
@@ -230,8 +229,7 @@ public class NotificationService implements NotificationChannel {
             return global;
         }
         return teamWebhooks
-                .findById(teamId)
-                .map(TeamWebhookEntity::getUrl)
+                .webhookUrl(teamId)
                 .filter(url -> !url.isBlank())
                 .orElseThrow(() -> new GoneDestinationException(
                         "team " + teamId + " no longer has a webhook — deleted, or its channel was cleared"));

@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.gate;
 
+import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
-import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import java.time.Instant;
 import org.springframework.stereotype.Component;
 

@@ -14,9 +14,11 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.core.access.TeamChannels;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,7 +46,7 @@ class NotificationServiceTest {
         service = new NotificationService(
                 settings,
                 post,
-                teamWebhooks,
+                new TeamChannels(mock(TeamTargets.class), teamWebhooks),
                 mock(EncryptionService.class),
                 Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 

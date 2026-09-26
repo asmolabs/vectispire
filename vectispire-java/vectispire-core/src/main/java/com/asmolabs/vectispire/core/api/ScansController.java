@@ -2,14 +2,14 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.services.scanning.ScanQueryService;
 import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

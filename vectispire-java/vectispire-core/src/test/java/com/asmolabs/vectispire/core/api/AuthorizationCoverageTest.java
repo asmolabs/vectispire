@@ -45,11 +45,11 @@ class AuthorizationCoverageTest {
         // Pinned so that the derivation cannot quietly turn permissive: a parse that fell back to
         // "every marker" would make both scoping lints pass on anything.
         assertThat(AuthorizationMarkers.SCOPE_GUARDS)
-                .contains(com.asmolabs.vectispire.core.api.security.RequiresSecurityLead.class,
-                        com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead.class)
-                .doesNotContain(com.asmolabs.vectispire.core.api.security.RequiresWriteAccount.class,
-                        com.asmolabs.vectispire.core.api.security.RequiresAccount.class,
-                        com.asmolabs.vectispire.core.api.security.OpenToAnonymous.class);
+                .contains(com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead.class,
+                        com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead.class)
+                .doesNotContain(com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount.class,
+                        com.asmolabs.vectispire.core.access.web.security.RequiresAccount.class,
+                        com.asmolabs.vectispire.core.access.web.security.OpenToAnonymous.class);
     }
 
     private static final Pattern SCOPE_GUARD = Pattern.compile(AuthorizationMarkers.scopeGuardPattern());

@@ -38,7 +38,7 @@ class AuthRoutesTest extends ApiTestBase {
     }
 
     @Autowired
-    private com.asmolabs.vectispire.core.api.security.LoginRateLimitFilter addressLimiter;
+    private com.asmolabs.vectispire.core.access.web.security.chain.LoginRateLimitFilter addressLimiter;
 
     @Test
     @DisplayName("the per-client counter is the caller's address: a fresh client_id each time buys nothing")

@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.compliance.web;
 
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceHistory;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

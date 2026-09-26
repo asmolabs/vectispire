@@ -11,12 +11,12 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.UserView;
+import com.asmolabs.vectispire.core.access.persistence.UserEntity;
+import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,7 +50,7 @@ class SettingsCredentialWriteTest {
     private SettingsService settings;
     private SettingsController controller;
     private VectispirePrincipal principal;
-    private com.asmolabs.vectispire.core.repositories.Users users;
+    private com.asmolabs.vectispire.core.access.persistence.Users users;
 
     static Stream<Setting> credentials() {
         return Arrays.stream(Setting.values()).filter(Setting::isEncrypted);
@@ -60,7 +60,7 @@ class SettingsCredentialWriteTest {
     void wire() {
         settings = mock(SettingsService.class);
         AiReviewService aiReview = mock(AiReviewService.class);
-        users = mock(com.asmolabs.vectispire.core.repositories.Users.class);
+        users = mock(com.asmolabs.vectispire.core.access.persistence.Users.class);
         // By default approvers exist: the opposite is the subject of a case of its own.
         when(users.countActiveAdministratorsExcluding(any(), any(Long.class))).thenReturn(3L);
         controller = new SettingsController(

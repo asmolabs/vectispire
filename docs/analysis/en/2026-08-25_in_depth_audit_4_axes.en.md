@@ -149,7 +149,7 @@ on a structural divergence.
 | Rate limiting (`LoginRateLimitFilter`, Bucket4j) | ✅ Token-bucket ahead of Argon2id; `X-Forwarded-For` honoured only behind a configured trusted proxy; bounded LRU pruned on insertion |
 | Argon2id, TOTP MFA | ✅ MFA reachable and attempt-capped (3 per challenge, destroyed on last failure); both mutation-verified |
 | SCIM 2.0 | ✅ `/scim/v2/Users` and `/scim/v2/Groups`, `@RequiresAdministrator`, `application/scim+json` |
-| OIDC group sync | ✅ `groups` claim mapped to team membership ([OidcConfiguration.java:164](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/security/OidcConfiguration.java)) |
+| OIDC group sync | ✅ `groups` claim mapped to team membership ([OidcConfiguration.java:164](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/access/web/security/chain/OidcConfiguration.java)) |
 | AES-256-GCM at rest, Vault KMS | ✅ Context bound to the row; `kms-type=vault` now refuses to start without a reachable endpoint |
 | Scanner sandboxing | ✅ `cap_drop: ALL`, `no-new-privileges`, `network: none` by default, digest-pinned, **read-only rootfs** with `noexec` tmpfs, no Docker socket |
 | Agent isolation | ✅ Enforced by the module graph, re-asserted by `AgentIsolationTest` |

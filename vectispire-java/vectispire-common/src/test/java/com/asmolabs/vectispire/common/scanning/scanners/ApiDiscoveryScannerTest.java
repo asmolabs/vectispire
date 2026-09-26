@@ -76,8 +76,8 @@ class ApiDiscoveryScannerTest {
         String springController = """
                 package com.example.api;
                 import org.springframework.web.bind.annotation.*;
-                import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-                import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
+                import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+                import com.asmolabs.vectispire.core.access.web.security.OpenToAnonymous;
 
                 @RestController
                 @RequestMapping("/api/v1/repositories")

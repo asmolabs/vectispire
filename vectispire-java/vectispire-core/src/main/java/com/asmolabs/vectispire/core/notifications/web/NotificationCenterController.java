@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.notifications.web;
 
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
+import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.notifications.NotificationTestService;
 import com.asmolabs.vectispire.core.notifications.NotificationTestService.NotificationChannelStatus;
 import com.asmolabs.vectispire.core.notifications.NotificationTestService.NotificationTestResult;
