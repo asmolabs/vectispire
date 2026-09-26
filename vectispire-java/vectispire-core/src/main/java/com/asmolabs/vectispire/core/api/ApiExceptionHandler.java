@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
 import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
 import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredException;
+import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.scanning.InsecureCredentialTransportException;
@@ -115,11 +116,11 @@ public class ApiExceptionHandler {
     }
 
     /**
-     * A body past its route's ceiling, found while it was being read — see
-     * {@link com.asmolabs.vectispire.core.access.web.security.chain.RequestBodyLimitFilter}. A declared length
-     * over the ceiling is refused by the filter itself, before this point.
+     * A body past its route's ceiling, found while it was being read — by {@code access}'s
+     * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
+     * itself, before this point.
      */
-    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.chain.RequestBodyLimitFilter.RequestBodyTooLargeException.class)
+    @ExceptionHandler(RequestBodyTooLargeException.class)
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }

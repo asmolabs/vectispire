@@ -44,7 +44,7 @@ class RequestBodyLimitFilterTest {
 
         assertThatThrownBy(() -> filter.doFilter(chunked, new MockHttpServletResponse(),
                         (req, res) -> req.getInputStream().readAllBytes()))
-                .isInstanceOf(RequestBodyLimitFilter.RequestBodyTooLargeException.class);
+                .isInstanceOf(com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException.class);
     }
 
     @Test

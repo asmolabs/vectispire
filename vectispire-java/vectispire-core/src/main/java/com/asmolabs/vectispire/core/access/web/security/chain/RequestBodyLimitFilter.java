@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -98,20 +99,6 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             return Optional.of(agentResult.toBytes());
         }
         return Optional.empty();
-    }
-
-    /** A body past its route's ceiling, found while it was being read. */
-    public static final class RequestBodyTooLargeException extends RuntimeException {
-        private final long ceiling;
-
-        RequestBodyTooLargeException(long ceiling) {
-            super("The request body is larger than the " + ceiling + " bytes this route accepts.");
-            this.ceiling = ceiling;
-        }
-
-        public long ceiling() {
-            return ceiling;
-        }
     }
 
     /** The request, with an input stream that counts. */
