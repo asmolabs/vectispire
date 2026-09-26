@@ -1,5 +1,9 @@
 package com.asmolabs.vectispire.core.repositories;
 
+import com.asmolabs.vectispire.common.domain.targets.OrphanedTargetRows;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
+import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
@@ -366,7 +370,37 @@ public interface Scans extends JpaRepository<ScanEntity, Long> {
                 or (s.repoId is not null and s.repoId not in (select r.id from RepositoryEntity r))""")
     List<Long> findOrphanedIds();
 
-    @Modifying
+    /**
+     * The scans a purge takes: every one of a deleted target, or every one whose target is gone.
+     *
+     * <p>One answer for every domain purging what hangs off them — components, AI reviews, findings
+     * — so that two listeners of the same purge cannot disagree about which scans it concerns.
+     */
+    default List<Long> findIdsPurgedBy(TargetPurge purge) {
+        return switch (purge) {
+            case TargetDeleted deleted -> switch (deleted.target()) {
+                case ScanTarget.Repository repository -> findIdsByRepoId(repository.id());
+                case ScanTarget.Container container -> findIdsByContainerId(container.id());
+            };
+            case OrphanedTargetRows ignored -> findOrphanedIds();
+        };
+    }
+
+    /**
+     * Deletes in one statement, <b>after flushing what the persistence context still holds</b>.
+     *
+     * <p>The purge before it removes the components, AI reviews and findings through Spring Data's derived deletes, which load
+     * each row and queue its removal until the next flush. Executed straight away, this statement
+     * took the parents first, the schema's cascade took the children with them, and the queued
+     * removals then found nothing at commit: an optimistic-locking failure, and a target that could
+     * not be deleted once anybody had triaged one of its findings. Found by {@code
+     * TargetDeletionTest} on 2026-09-26; the deletion service had carried it since it was written.
+     *
+     * <p>{@code @Transactional} was missing too, against the rule in {@code package-info}: its one
+     * caller always held a transaction, which is exactly how the omission survives review.
+     */
+    @Transactional
+    @Modifying(flushAutomatically = true)
     @Query("delete from ScanEntity s where s.id in :ids")
     void deleteByIdIn(@Param("ids") Collection<Long> ids);
 

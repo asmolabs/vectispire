@@ -1,34 +1,33 @@
 package com.asmolabs.vectispire.core.services.targets;
 
-import com.asmolabs.vectispire.common.domain.teams.TeamRules;
-import com.asmolabs.vectispire.core.repositories.AiReviewResults;
-import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.common.domain.targets.OrphanedTargetRows;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
+import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
 import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.GatePolicies;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.core.repositories.IssueTickets;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.repositories.TeamTargets;
-import com.asmolabs.vectispire.core.repositories.TriageEvents;
-import com.asmolabs.vectispire.core.repositories.UserTargets;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Atomic target deletion and orphan cleanup on every supported engine (PostgreSQL, MySQL) and on
- * the SQLite test fixture.
+ * Deleting a target, atomically with every row that names it, on both deployable engines and on the
+ * SQLite fixture.
  *
- * <p>Because MySQL and SQLite do not enable cascading deletion automatically on inline foreign
- * keys, deleting a container or repository must explicitly purge all attached issues, findings, components,
- * scans, triage events, tickets and gate policy overrides so that no stale findings or broken visibility
- * records remain in the system.
+ * <p><b>This class deletes the target and announces it; each domain purges its own rows.</b> It used
+ * to issue every delete itself — grants, gate policies, issues, triage events, ticket links,
+ * findings, components, AI reviews, scans — which made the owner of repositories the one class that
+ * knew seven other domains' tables. The order those purges run in, children before parents, is
+ * {@link TargetPurge.Phase}'s.
+ *
+ * <p><b>Published inside the transaction, heard inside it.</b> The listeners are synchronous and
+ * declare {@code MANDATORY}: the purge and the deletion commit together or not at all. An
+ * after-commit listener would leave a window — and, on any failure, a permanent state — in which the
+ * target is gone and its issues, grants and scans remain.
  */
 @Service
 public class TargetDeletionService {
@@ -37,94 +36,26 @@ public class TargetDeletionService {
 
     private final GitRepositories repositories;
     private final Containers containers;
-    private final Issues issues;
-    private final Scans scans;
-    private final Findings findings;
-    private final Components components;
-    private final AiReviewResults aiReviewResults;
-    private final TriageEvents triageEvents;
-    private final IssueTickets issueTickets;
-    private final GatePolicies gatePolicies;
-    private final UserTargets userTargets;
-    private final TeamTargets teamTargets;
+    private final ApplicationEventPublisher events;
 
-    public TargetDeletionService(
-            GitRepositories repositories,
-            Containers containers,
-            Issues issues,
-            Scans scans,
-            Findings findings,
-            Components components,
-            AiReviewResults aiReviewResults,
-            TriageEvents triageEvents,
-            IssueTickets issueTickets,
-            GatePolicies gatePolicies,
-            UserTargets userTargets,
-            TeamTargets teamTargets) {
+    public TargetDeletionService(GitRepositories repositories, Containers containers, ApplicationEventPublisher events) {
         this.repositories = repositories;
         this.containers = containers;
-        this.issues = issues;
-        this.scans = scans;
-        this.findings = findings;
-        this.components = components;
-        this.aiReviewResults = aiReviewResults;
-        this.triageEvents = triageEvents;
-        this.issueTickets = issueTickets;
-        this.gatePolicies = gatePolicies;
-        this.userTargets = userTargets;
-        this.teamTargets = teamTargets;
+        this.events = events;
     }
 
     @Transactional
     public void deleteContainer(long containerId) {
-        userTargets.deleteByTarget(TeamRules.KIND_CONTAINER, containerId);
-        teamTargets.deleteByTarget(TeamRules.KIND_CONTAINER, containerId);
-        gatePolicies.deleteByTarget(TeamRules.KIND_CONTAINER, containerId);
-
-        List<Long> issueIds = issues.findIdsByContainerId(containerId);
-        if (!issueIds.isEmpty()) {
-            triageEvents.deleteByIssueIdIn(issueIds);
-            issueTickets.deleteByIssueIdIn(issueIds);
-            findings.deleteByIssueIdIn(issueIds);
-            issues.deleteByIdIn(issueIds);
-        }
-
-        List<Long> scanIds = scans.findIdsByContainerId(containerId);
-        if (!scanIds.isEmpty()) {
-            findings.deleteByScanIdIn(scanIds);
-            components.deleteByScanIdIn(scanIds);
-            aiReviewResults.deleteByScanIdIn(scanIds);
-            scans.deleteByIdIn(scanIds);
-        }
-
+        events.publishEvent(new TargetDeleted(new ScanTarget.Container(containerId)));
         containers.deleteById(containerId);
-        log.info("Container {} deleted along with {} issues and {} scans.", containerId, issueIds.size(), scanIds.size());
+        log.info("Container {} deleted.", containerId);
     }
 
     @Transactional
     public void deleteRepository(long repoId) {
-        userTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, repoId);
-        teamTargets.deleteByTarget(TeamRules.KIND_REPOSITORY, repoId);
-        gatePolicies.deleteByTarget(TeamRules.KIND_REPOSITORY, repoId);
-
-        List<Long> issueIds = issues.findIdsByRepoId(repoId);
-        if (!issueIds.isEmpty()) {
-            triageEvents.deleteByIssueIdIn(issueIds);
-            issueTickets.deleteByIssueIdIn(issueIds);
-            findings.deleteByIssueIdIn(issueIds);
-            issues.deleteByIdIn(issueIds);
-        }
-
-        List<Long> scanIds = scans.findIdsByRepoId(repoId);
-        if (!scanIds.isEmpty()) {
-            findings.deleteByScanIdIn(scanIds);
-            components.deleteByScanIdIn(scanIds);
-            aiReviewResults.deleteByScanIdIn(scanIds);
-            scans.deleteByIdIn(scanIds);
-        }
-
+        events.publishEvent(new TargetDeleted(new ScanTarget.Repository(repoId)));
         repositories.deleteById(repoId);
-        log.info("Repository {} deleted along with {} issues and {} scans.", repoId, issueIds.size(), scanIds.size());
+        log.info("Repository {} deleted.", repoId);
     }
 
     /**
@@ -134,22 +65,6 @@ public class TargetDeletionService {
     @Transactional
     @EventListener(ApplicationReadyEvent.class)
     public void purgeOrphanedTargetData() {
-        List<Long> orphanedIssues = issues.findOrphanedIds();
-        if (!orphanedIssues.isEmpty()) {
-            triageEvents.deleteByIssueIdIn(orphanedIssues);
-            issueTickets.deleteByIssueIdIn(orphanedIssues);
-            findings.deleteByIssueIdIn(orphanedIssues);
-            issues.deleteByIdIn(orphanedIssues);
-            log.info("Cleaned up {} orphaned issues from deleted targets.", orphanedIssues.size());
-        }
-
-        List<Long> orphanedScans = scans.findOrphanedIds();
-        if (!orphanedScans.isEmpty()) {
-            findings.deleteByScanIdIn(orphanedScans);
-            components.deleteByScanIdIn(orphanedScans);
-            aiReviewResults.deleteByScanIdIn(orphanedScans);
-            scans.deleteByIdIn(orphanedScans);
-            log.info("Cleaned up {} orphaned scans from deleted targets.", orphanedScans.size());
-        }
+        events.publishEvent(new OrphanedTargetRows());
     }
 }

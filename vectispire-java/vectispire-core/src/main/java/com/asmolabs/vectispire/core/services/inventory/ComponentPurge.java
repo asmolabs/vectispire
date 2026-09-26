@@ -1,0 +1,40 @@
+package com.asmolabs.vectispire.core.services.inventory;
+
+import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
+import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.repositories.Scans;
+import java.util.List;
+import org.springframework.context.event.EventListener;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The components a purged target's scans inventoried, before the scans.
+ *
+ * <p>The API endpoints and contracts are left to the schema's cascade from the scan and the
+ * repository, as they always were. Synchronous and in the deleting transaction, like every {@link
+ * TargetPurge} listener.
+ */
+@Component
+class ComponentPurge {
+
+    private final Scans scans;
+    private final Components components;
+
+    ComponentPurge(Scans scans, Components components) {
+        this.scans = scans;
+        this.components = components;
+    }
+
+    @EventListener
+    @Order(TargetPurge.Phase.SCAN_CHILDREN)
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void purge(TargetPurge purge) {
+        List<Long> scanIds = scans.findIdsPurgedBy(purge);
+        if (!scanIds.isEmpty()) {
+            components.deleteByScanIdIn(scanIds);
+        }
+    }
+}
