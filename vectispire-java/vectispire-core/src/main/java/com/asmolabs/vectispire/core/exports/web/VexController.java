@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.exports.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
@@ -7,11 +7,11 @@ import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.issues.IssueDecisionService;
-import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
-import com.asmolabs.vectispire.core.services.exports.VexGeneratorService;
-import com.asmolabs.vectispire.core.services.issues.VexIngestorService;
+import com.asmolabs.vectispire.core.exports.VexGeneratorService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import com.asmolabs.vectispire.core.services.issues.IssueDecisionService;
+import com.asmolabs.vectispire.core.services.issues.VexIngestorService;
+import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;

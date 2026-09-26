@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.exports;
+package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;

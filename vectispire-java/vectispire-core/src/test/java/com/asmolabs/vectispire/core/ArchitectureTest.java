@@ -83,7 +83,7 @@ class ArchitectureTest {
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             // Step 4: the leaf and middle domains, in an order where none reaches a module still to come
             // through anything but the layered packages.
-            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications");
+            "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -250,7 +250,10 @@ class ArchitectureTest {
             Map.entry("threatintel", Set.of("scanning", "siem")),
             Map.entry("gate", Set.of("issues", "rules", "siem")),
             Map.entry("notifications", Set.of("issues", "scanning")),
-            Map.entry("exports", Set.of("gate", "issues")),
+            // `scanning` since exports became a module and took its controllers: a document is made
+            // for a scan, and its route first refuses a scan the caller may not see
+            // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.
+            Map.entry("exports", Set.of("gate", "issues", "scanning")),
             Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications")),
             Map.entry("compliance",
                     Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules")));

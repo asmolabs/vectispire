@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.exports;
+package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.exports.SarifLog;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.exports.internal.PostureReport;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.gate.GateService;

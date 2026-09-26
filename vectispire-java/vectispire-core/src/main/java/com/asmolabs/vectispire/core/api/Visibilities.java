@@ -13,12 +13,16 @@ import com.asmolabs.vectispire.core.services.access.RowVisibility;
  * read controller source for {@code Visibilities.} to decide that a route resolves an allowance.
  * Renaming the call would mean widening those lints, and a lint widened to follow a rename is how
  * one ends up matching something that is not a check at all.
+ *
+ * <p><b>Public since the controllers started leaving {@code core.api}</b> for their modules' {@code
+ * web} packages (decision 0028): package-private, it could only be called by the controllers that
+ * had not moved.
  */
-final class Visibilities {
+public final class Visibilities {
 
     private Visibilities() {}
 
-    static void requireVisible(ScanTarget target, Visibility visibility) {
+    public static void requireVisible(ScanTarget target, Visibility visibility) {
         RowVisibility.requireVisible(target, visibility);
     }
 }

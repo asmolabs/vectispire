@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.exports;
+package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;

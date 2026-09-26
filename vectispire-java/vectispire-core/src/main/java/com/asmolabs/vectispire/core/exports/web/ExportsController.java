@@ -1,14 +1,15 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.exports.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
+import com.asmolabs.vectispire.core.api.Visibilities;
 import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.exports.ExportQueryService;
+import com.asmolabs.vectispire.core.exports.ExportQueryService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
