@@ -1,11 +1,10 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.outbox.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
-import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;

@@ -1,19 +1,19 @@
-package com.asmolabs.vectispire.core.persistence;
+package com.asmolabs.vectispire.core.outbox.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import org.springframework.data.domain.Persistable;
-import jakarta.persistence.Transient;
-import jakarta.persistence.PostPersist;
 import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.Instant;
 import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.domain.Persistable;
 
 /**
  * A message to send, written in the same transaction as the change that caused it.

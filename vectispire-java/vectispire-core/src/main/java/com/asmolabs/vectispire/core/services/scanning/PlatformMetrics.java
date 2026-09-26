@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
+import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
 import com.asmolabs.vectispire.core.repositories.Agents;
-import com.asmolabs.vectispire.core.repositories.Outbox;
 import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;

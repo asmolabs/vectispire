@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbox;
+package com.asmolabs.vectispire.core.outbox;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 

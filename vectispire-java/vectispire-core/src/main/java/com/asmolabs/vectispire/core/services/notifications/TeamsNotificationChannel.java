@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.TeamsCard;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
+import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import org.slf4j.Logger;

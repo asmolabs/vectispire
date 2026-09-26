@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.outbox.persistence;
 
-import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

@@ -6,15 +6,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.services.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
-import com.asmolabs.vectispire.core.services.tickets.TicketSweepService;
-import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import com.asmolabs.vectispire.core.services.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.services.scanning.SchedulerService;
 import com.asmolabs.vectispire.core.services.targets.TargetDeletionService;
+import com.asmolabs.vectispire.core.services.tickets.TicketSweepService;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

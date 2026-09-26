@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbox;
+package com.asmolabs.vectispire.core.outbox;
 
 /**
  * A destination that no longer exists.

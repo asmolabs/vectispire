@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbox;
+package com.asmolabs.vectispire.core.outbox;
 
 import java.util.UUID;
 

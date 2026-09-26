@@ -1,9 +1,9 @@
-package com.asmolabs.vectispire.core.services.outbox;
+package com.asmolabs.vectispire.core.outbox;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
-import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
-import com.asmolabs.vectispire.core.repositories.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

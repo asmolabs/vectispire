@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbox;
+package com.asmolabs.vectispire.core.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,8 +18,8 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.Detail;
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
-import com.asmolabs.vectispire.core.repositories.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
@@ -291,8 +291,8 @@ class OutboxServiceTest {
         return manager;
     }
 
-    private com.asmolabs.vectispire.core.persistence.OutboxMessageEntity queued(String type) {
-        var message = new com.asmolabs.vectispire.core.persistence.OutboxMessageEntity();
+    private com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity queued(String type) {
+        var message = new com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity();
         message.setId(java.util.UUID.randomUUID());
         message.setMessageType(type);
         message.setPayload("{\"scan_id\":34,\"message_id\":\"msg-1\"}");
