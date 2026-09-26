@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.agents.web;
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.AgentMetrics;
-import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
+import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;

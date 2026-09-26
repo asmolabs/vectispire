@@ -4,10 +4,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;

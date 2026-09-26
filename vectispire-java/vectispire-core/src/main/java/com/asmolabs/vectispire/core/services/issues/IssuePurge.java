@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.services.issues;
 
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
-import com.asmolabs.vectispire.core.services.scanning.PurgedScans;
+import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;

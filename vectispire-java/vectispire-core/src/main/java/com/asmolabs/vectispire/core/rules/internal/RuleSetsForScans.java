@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.rules.internal;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.vectispire.core.services.scanning.ScanRuleSets;
+import com.asmolabs.vectispire.core.scanning.ScanRuleSets;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;

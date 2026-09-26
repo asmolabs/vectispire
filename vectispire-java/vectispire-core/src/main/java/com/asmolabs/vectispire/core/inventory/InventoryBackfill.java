@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
-import com.asmolabs.vectispire.core.services.scanning.ScanView;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;

@@ -4,12 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.scanning.ObservedFindings;
+import com.asmolabs.vectispire.core.scanning.ObservedFindings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;

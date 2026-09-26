@@ -64,7 +64,7 @@ class ModularityObservationTest {
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
-            "targets");
+            "targets", "scanning");
 
     /**
      * What {@code verify()} reported before step 3, taken on 2026-09-26 (step 2): five layer modules and

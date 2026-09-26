@@ -1,0 +1,404 @@
+package com.asmolabs.vectispire.core.scanning;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.asmolabs.vectispire.common.domain.agents.AgentKind;
+import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
+import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.persistence.Engine;
+import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.testcontainers.containers.JdbcDatabaseContainer;
+
+/**
+ * Claiming from the queue, against a real engine, from several threads at once.
+ *
+ * <p><b>This is the test the whole four-engine campaign exists for.</b> A claim that hands the
+ * same scan to two workers is invisible in a unit test with a mock, invisible on a single
+ * thread, and invisible on the one engine the developer happens to run. It shows up as two
+ * agents cloning the same repository and reporting the same findings twice.
+ *
+ * <p>It also pins the property that is easy to lose while making the first one hold:
+ * <b>everything queued must eventually be claimed</b>. A claim that never double-serves because
+ * it serves almost nothing passes the first assertion and starves the queue.
+ */
+@SpringBootTest(classes = VectispireApplication.class)
+@DisplayName("claiming from the scan queue")
+class ScanQueueIntegrationTest {
+
+    private static final Engine ENGINE = Engine.selected();
+    private static final Optional<JdbcDatabaseContainer<?>> CONTAINER = ENGINE.container();
+
+    @BeforeAll
+    static void start() {
+        CONTAINER.ifPresent(JdbcDatabaseContainer::start);
+    }
+
+    @AfterAll
+    static void stop() {
+        CONTAINER.ifPresent(JdbcDatabaseContainer::stop);
+    }
+
+    @DynamicPropertySource
+    static void datasource(DynamicPropertyRegistry registry) {
+        Engine.configure(ENGINE, CONTAINER, registry);
+    }
+
+    @Autowired
+    private ScanQueue queue;
+
+    @Autowired
+    private Scans scans;
+
+    @Autowired
+    private TransactionTemplate transactions;
+
+    @Autowired
+    private Agents agents;
+
+    @BeforeEach
+    void emptyQueue() {
+        scans.deleteAll();
+        agents.deleteAll();
+    }
+
+    /** A remote agent's row: the claim takes it as its lock, so it has to exist. */
+    private UUID agent(String name) {
+        AgentEntity agent = new AgentEntity();
+        agent.setName(name);
+        agent.setKind(AgentKind.REMOTE.wireName());
+        agent.setCredentialsMode(CredentialsMode.LOCAL.wireName());
+        agent.setEnabled(true);
+        agent.setCreatedAt(Instant.now());
+        return agents.save(agent).getId();
+    }
+
+    private void enqueue(int count, String requiredLabel) {
+        List<ScanEntity> pending = IntStream.range(0, count)
+                .mapToObj(i -> {
+                    ScanEntity scan = new ScanEntity();
+                    scan.setBranch("main");
+                    scan.setStatus(ScanStatus.PENDING.wireName());
+                    scan.setCreatedAt(Instant.parse("2026-08-13T10:00:00Z").plusSeconds(i));
+                    scan.setFindingsCount(0);
+                    scan.setNewIssuesCount(0);
+                    scan.setResolvedIssuesCount(0);
+                    scan.setAttempts(0);
+                    scan.setRequiredAgentLabel(requiredLabel);
+                    return scan;
+                })
+                .toList();
+        scans.saveAll(pending);
+    }
+
+    @Test
+    @DisplayName("no scan is ever handed to two workers, and the queue still drains")
+    void neverServesTheSameScanTwice() throws Exception {
+        // Two agents cloning the same repository and reporting the same findings twice is what
+        // the first assertion prevents. It cannot be seen on one thread, and it cannot be seen
+        // with a mock.
+        //
+        // **Rounds, not one burst, and that is not the test being lenient.** Agents poll; a
+        // round is a poll. One burst would also be a weaker test — it exercises the race once,
+        // where this exercises it until the queue is empty. And on MySQL one burst genuinely
+        // cannot drain it: skipped rows count against the `LIMIT` there, so a claimant whose
+        // candidates are all locked comes back with nothing while rows remain. That is the
+        // defect the retry loop exists for, and asserting "one burst serves everything" would
+        // be asserting a property no engine owes us.
+        enqueue(20, null);
+
+        int workers = 8;
+        List<Long> served = new ArrayList<>();
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(workers)) {
+            for (int round = 0; round < 20 && served.size() < 20; round++) {
+                List<Callable<List<Long>>> claims = IntStream.range(0, workers)
+                        .mapToObj(worker -> (Callable<List<Long>>) () ->
+                                queue.claim(5, "worker-" + worker, List.of()).stream()
+                                        .map(ScanEntity::getId)
+                                        .toList())
+                        .toList();
+
+                for (Future<List<Long>> claim : pool.invokeAll(claims)) {
+                    served.addAll(claim.get());
+                }
+            }
+        }
+
+        assertThat(served).as("a scan served twice is a repository scanned twice").doesNotHaveDuplicates();
+        // The property that is easy to lose while securing the first: a claim that never
+        // double-serves because it serves almost nothing passes the assertion above and starves
+        // the queue forever.
+        assertThat(served).as("everything queued must eventually be claimed").hasSize(20);
+        assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isZero();
+    }
+
+    @Test
+    @DisplayName("an agent only takes what it is entitled to, and the filter is inside the lock")
+    void respectsTheRoutingLabel() {
+        enqueue(3, "production");
+        enqueue(2, null);
+
+        // No label: only the unrouted work. An agent with no label does not match everything —
+        // the reverse reading is the seductive one, and it makes the requirement inoperative at
+        // the first agent registered without thinking about it.
+        assertThat(queue.claim(10, "plain", List.of())).hasSize(2);
+        assertThat(queue.claim(10, "prod", List.of("production"))).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("a claim marks what it took, in the same commit")
+    void marksWhatItTook() {
+        enqueue(2, null);
+
+        List<ScanEntity> claimed = queue.claim(2, "worker", List.of());
+
+        assertThat(claimed).allSatisfy(scan -> {
+            assertThat(scan.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+            assertThat(scan.getClaimedBy()).isEqualTo("worker");
+            assertThat(scan.getLeaseExpiresAt()).isNotNull();
+            assertThat(scan.getAttempts()).isEqualTo(1);
+        });
+        assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isZero();
+    }
+
+    @Test
+    @DisplayName("an empty queue costs one round, not twelve")
+    void stopsEarlyOnAnEmptyQueue() {
+        // The retry loop exists for an engine that counts skipped rows against its limit. It
+        // must not turn an idle poll into twelve queries.
+        assertThat(queue.claim(5, "worker", List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("claiming zero is not a query")
+    void zeroIsNoQuery() {
+        enqueue(1, null);
+
+        assertThat(queue.claim(0, "worker", List.of())).isEmpty();
+        assertThat(scans.countByStatus(ScanStatus.PENDING.wireName())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("concurrent polls of one agent never take it past its limit")
+    void concurrentPollsRespectTheLimit() throws Exception {
+        // Eight polls of one agent at once, round after round. Most interleavings are also turned
+        // away by the conditional take — the polls mostly read the same oldest candidate — so this
+        // is the broad check, and `theCountWaitsForAConcurrentTake` is the one that forces the
+        // interleaving only the lock on the agent's row stops.
+        //
+        // Rounds, for the same reason as above: a round is a poll, and asserting after several is
+        // what shows a full agent stays full rather than being topped up by a later race.
+        enqueue(20, null);
+        UUID edge = agent("edge");
+        UUID other = agent("other");
+        int limit = 2;
+        int polls = 8;
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(polls)) {
+            for (int round = 0; round < 5; round++) {
+                CyclicBarrier together = new CyclicBarrier(polls);
+                List<Callable<Optional<ScanEntity>>> claims = IntStream.range(0, polls)
+                        .mapToObj(poll -> (Callable<Optional<ScanEntity>>) () -> {
+                            together.await(10, TimeUnit.SECONDS);
+                            return queue.claimWithin(edge, limit, List.of());
+                        })
+                        .toList();
+                for (Future<Optional<ScanEntity>> claim : pool.invokeAll(claims)) {
+                    claim.get();
+                }
+                assertThat(scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), edge.toString()))
+                        .as("scans held by an agent whose limit is %d, after round %d", limit, round)
+                        .isEqualTo(limit);
+            }
+        }
+
+        // The limit is the agent's, not the queue's: another agent still finds work.
+        assertThat(queue.claimWithin(other, 1, List.of())).isPresent();
+    }
+
+    @Test
+    @DisplayName("a poll counts after a concurrent take of the same agent has committed, not before")
+    void theCountWaitsForAConcurrentTake() throws Exception {
+        // The interleaving the barrage above rarely produces, forced: another poll of the same
+        // agent holds its row and has taken a *different* scan — one requeued behind the oldest,
+        // say — without committing yet. Counting now would see the agent idle and take the oldest,
+        // and the agent would hold two under a limit of one. The claim must wait on the row, then
+        // count the take it was waiting for.
+        enqueue(2, null);
+        UUID edge = agent("edge");
+        List<ScanEntity> queued = scans.findClaimableUnlabelled(ScanStatus.PENDING.wireName(), org.springframework.data.domain.Limit.of(2));
+        long newest = queued.get(1).getId();
+        CountDownLatch holding = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> competitor = pool.submit(() -> transactions.execute(status -> {
+                Instant now = Instant.now();
+                agents.lockForClaim(edge, now);
+                boolean took = scans.take(newest, ScanStatus.PENDING.wireName(), ScanStatus.SCANNING.wireName(),
+                        edge.toString(), now, now.plusSeconds(600)) == 1;
+                holding.countDown();
+                try {
+                    // Uncommitted while the claim below counts, reads its candidate and reaches
+                    // the agent's row.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                return took;
+            }));
+            assertThat(holding.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<Optional<ScanEntity>> claim = pool.submit(() -> queue.claimWithin(edge, 1, List.of()));
+
+            assertThat(competitor.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(claim.get(30, TimeUnit.SECONDS)).as("a claim past a limit of one").isEmpty();
+        }
+
+        assertThat(scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), edge.toString())).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("a lapsed lease no longer holds a slot, a live one does")
+    void aLapsedLeaseDoesNotCount() {
+        enqueue(3, null);
+        UUID edge = agent("edge");
+
+        long held = queue.claimWithin(edge, 1, List.of()).orElseThrow().getId();
+        assertThat(queue.claimWithin(edge, 1, List.of())).as("a live lease fills a limit of one").isEmpty();
+
+        // The agent died mid-scan: its lease runs out before any reclaim has put the row back.
+        // Counting it would keep the restarted agent idle until somebody else's timer fired.
+        ScanEntity stored = scans.findById(held).orElseThrow();
+        stored.setLeaseExpiresAt(Instant.now().minusSeconds(60));
+        scans.save(stored);
+
+        assertThat(queue.claimWithin(edge, 1, List.of())).isPresent();
+    }
+
+    /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */
+    private long claimedThenLapsed(String worker) {
+        enqueue(1, null);
+        ScanEntity scan = queue.claim(1, worker, List.of()).getFirst();
+        ScanEntity stored = scans.findById(scan.getId()).orElseThrow();
+        stored.setLeaseExpiresAt(Instant.now().minusSeconds(60));
+        scans.save(stored);
+        return scan.getId();
+    }
+
+    @Test
+    @DisplayName("a deposed worker cannot fail the scan its successor now holds")
+    void aDeposedWorkerCannotFailItsSuccessor() {
+        // The release named the row by id alone: the first worker, whose lease had lapsed, marked
+        // the successor's scan FAILED and dropped the successor's lease with it.
+        long id = claimedThenLapsed("worker-a");
+        assertThat(queue.reclaimLapsedLeases().requeued()).containsExactly(id);
+        assertThat(queue.claim(1, "worker-b", List.of())).extracting(ScanEntity::getId).containsExactly(id);
+
+        assertThat(queue.fail(id, "worker-a", "runner crashed")).isFalse();
+        assertThat(queue.requeue(id, "worker-a")).isFalse();
+
+        ScanEntity after = scans.findById(id).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+        assertThat(after.getClaimedBy()).isEqualTo("worker-b");
+        assertThat(after.getLeaseExpiresAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("a renewal landing between the reclaim's read and its update wins")
+    void aRenewalBeatsAStaleReclaim() throws Exception {
+        // The reclaim reads the lapsed scans, then releases them. A renewal committed in between
+        // must survive: the release is conditioned on the lease still being lapsed, and without
+        // that condition a worker renewing on time was deposed anyway.
+        long id = claimedThenLapsed("worker-a");
+        CountDownLatch renewed = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> renewal = pool.submit(() -> transactions.execute(status -> {
+                boolean ok = queue.renewLease(id, "worker-a");
+                renewed.countDown();
+                try {
+                    // Uncommitted while the reclaim reads the old, lapsed lease and then blocks on
+                    // the row this transaction holds.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                return ok;
+            }));
+            assertThat(renewed.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<ScanQueue.Reclaimed> reclaim = pool.submit(() -> queue.reclaimLapsedLeases());
+
+            assertThat(renewal.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(reclaim.get(30, TimeUnit.SECONDS).requeued()).isEmpty();
+        }
+
+        ScanEntity after = scans.findById(id).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+        assertThat(after.getClaimedBy()).isEqualTo("worker-a");
+    }
+
+    @Test
+    @DisplayName("a reclaim racing the final write waits for it, then changes nothing")
+    void theWriteFencesTheReclaim() throws Exception {
+        // The ownership check was a plain read: a reclaim and a new take could commit between it
+        // and the final save, which then merged stale results over the successor's claim. The
+        // check is now an update, whose row lock the write keeps until it commits.
+        long id = claimedThenLapsed("worker-a");
+        CountDownLatch held = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            Future<Boolean> write = pool.submit(() -> transactions.execute(status -> {
+                if (!queue.holdForWrite(id, "worker-a")) {
+                    return false;
+                }
+                held.countDown();
+                try {
+                    // Long enough for the reclaim below to reach the row and block on it.
+                    Thread.sleep(1_500);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                ScanEntity scan = scans.findById(id).orElseThrow();
+                scan.setStatus(ScanStatus.COMPLETED.wireName());
+                scan.setClaimedBy(null);
+                scan.setLeaseExpiresAt(null);
+                scans.save(scan);
+                return true;
+            }));
+            assertThat(held.await(10, TimeUnit.SECONDS)).isTrue();
+            Future<ScanQueue.Reclaimed> reclaim = pool.submit(() -> queue.reclaimLapsedLeases());
+
+            assertThat(write.get(30, TimeUnit.SECONDS)).isTrue();
+            assertThat(reclaim.get(30, TimeUnit.SECONDS).requeued()).isEmpty();
+        }
+
+        assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(ScanStatus.COMPLETED.wireName());
+    }
+}

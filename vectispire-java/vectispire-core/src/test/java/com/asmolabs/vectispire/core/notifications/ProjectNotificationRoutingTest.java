@@ -16,7 +16,7 @@ import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
 import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.issues.ScanDelta;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;

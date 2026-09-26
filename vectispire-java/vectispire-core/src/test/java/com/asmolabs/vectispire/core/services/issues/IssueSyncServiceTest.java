@@ -10,12 +10,12 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.scanning.ObservedFindings;
+import com.asmolabs.vectispire.core.scanning.ObservedFindings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

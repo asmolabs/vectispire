@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.agents.internal;
 
 import com.asmolabs.vectispire.core.agents.persistence.Agents;
-import com.asmolabs.vectispire.core.services.scanning.AgentClaimLock;
+import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Component;

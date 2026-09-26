@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.exports.CycloneDxGeneratorService;
-import com.asmolabs.vectispire.core.services.scanning.ScanDocumentService;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

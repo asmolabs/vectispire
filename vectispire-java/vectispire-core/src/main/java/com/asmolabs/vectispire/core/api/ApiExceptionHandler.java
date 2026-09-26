@@ -9,8 +9,8 @@ import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredEx
 import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
-import com.asmolabs.vectispire.core.services.scanning.InsecureCredentialTransportException;
-import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
+import com.asmolabs.vectispire.core.scanning.InsecureCredentialTransportException;
+import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;

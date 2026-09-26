@@ -38,7 +38,7 @@ class BacklogTargetTest extends ApiTestBase {
     private com.asmolabs.vectispire.core.repositories.Issues issues;
 
     @Autowired
-    private com.asmolabs.vectispire.core.repositories.Scans scans;
+    private com.asmolabs.vectispire.core.scanning.persistence.Scans scans;
 
     @Test
     @DisplayName("is named, for a repository and for an image alike")
@@ -96,7 +96,7 @@ class BacklogTargetTest extends ApiTestBase {
     @DisplayName("the dashboard's recent scans name their target too, not just its id")
     void recentScansAreNamed() throws Exception {
         long container = seedContainer();
-        com.asmolabs.vectispire.core.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.persistence.ScanEntity();
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
         scan.setContainerId(container);
         scan.setBranch("-");
         scan.setStatus("completed");
@@ -115,7 +115,7 @@ class BacklogTargetTest extends ApiTestBase {
     @DisplayName("a repository scan carries the branch it ran on, an image scan does not")
     void aRepositoryScanNamesItsBranch() throws Exception {
         long repository = seedRepository("https://github.com/org/project.git");
-        com.asmolabs.vectispire.core.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.persistence.ScanEntity();
+        com.asmolabs.vectispire.core.scanning.persistence.ScanEntity scan = new com.asmolabs.vectispire.core.scanning.persistence.ScanEntity();
         scan.setRepoId(repository);
         scan.setBranch("release/2.4");
         scan.setStatus("completed");

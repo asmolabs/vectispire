@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
-import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
+import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;

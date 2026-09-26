@@ -1,16 +1,13 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
@@ -46,7 +43,6 @@ public class ThreatIntelFeedService {
     private final ThreatIntels intelRepo;
     private final ThreatIntelSyncs syncRepo;
     private final Issues issuesRepo;
-    private final Findings findingsRepo;
     private final SiemEvents siemEvents;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
@@ -55,14 +51,12 @@ public class ThreatIntelFeedService {
             ThreatIntels intelRepo,
             ThreatIntelSyncs syncRepo,
             Issues issuesRepo,
-            Findings findingsRepo,
             SiemEvents siemEvents,
             AuditLogService audit,
             TransactionTemplate transactions) {
         this.intelRepo = intelRepo;
         this.syncRepo = syncRepo;
         this.issuesRepo = issuesRepo;
-        this.findingsRepo = findingsRepo;
         this.siemEvents = siemEvents;
         this.audit = audit;
         this.transactions = transactions;

@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.services.issues;
 
-import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
+import com.asmolabs.vectispire.core.scanning.ScanIngestor;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;

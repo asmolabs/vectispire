@@ -86,7 +86,7 @@ class ArchitectureTest {
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
             // Step 5: the core domains, bottom-up — each only once what it uses was a module.
-            "targets");
+            "targets", "scanning");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =

@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.services.scanning.ObservedFinding;
+import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

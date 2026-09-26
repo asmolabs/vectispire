@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.scanning.ObservedFinding;
+import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;

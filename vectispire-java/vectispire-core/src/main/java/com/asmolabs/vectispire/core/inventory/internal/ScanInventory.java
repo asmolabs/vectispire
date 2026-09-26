@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.inventory.ComponentInventory;
-import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
+import com.asmolabs.vectispire.core.scanning.ScanIngestor;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Optional;

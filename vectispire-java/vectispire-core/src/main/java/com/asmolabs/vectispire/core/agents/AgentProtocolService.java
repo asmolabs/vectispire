@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.persistence.Agents;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.scanning.ScanDispatcher;
+import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Clock;

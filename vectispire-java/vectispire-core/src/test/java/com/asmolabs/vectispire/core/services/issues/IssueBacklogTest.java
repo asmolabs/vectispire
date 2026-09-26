@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.services.scanning.ScanIngestor;
+import com.asmolabs.vectispire.core.scanning.ScanIngestor;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

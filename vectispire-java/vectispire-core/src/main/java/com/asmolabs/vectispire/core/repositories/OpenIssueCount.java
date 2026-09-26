@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.repositories;
 
+import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
+
 /**
  * How many issues in a given state one target carries.
  *

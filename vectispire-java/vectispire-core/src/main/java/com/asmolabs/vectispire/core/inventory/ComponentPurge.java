@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.services.scanning.PurgedScans;
+import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
 import org.springframework.context.event.EventListener;
