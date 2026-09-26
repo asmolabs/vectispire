@@ -107,6 +107,27 @@ class BearerRateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("counts a refused key sent in X-API-Key, as the authentication filter reads one there")
+    void theAliasHeaderCounts() throws Exception {
+        // The authentication filter reads `X-API-Key` when there is no `Authorization`, and this
+        // filter counted only the latter: the alias was a way to try keys with no ceiling.
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("203.0.113.9");
+        when(request.getHeader("Authorization")).thenReturn(null);
+        when(request.getHeader("X-API-Key")).thenReturn("zsk-guess");
+        when(request.getRequestURI()).thenReturn("/api/v1/issues");
+
+        for (int attempt = 0; attempt < CAPACITY; attempt++) {
+            filter.doFilterInternal(request, response, refusing());
+        }
+        FilterChain blocked = refusing();
+        filter.doFilterInternal(request, response, blocked);
+
+        verify(blocked, never()).doFilter(any(), any());
+        verify(response).setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
     @DisplayName("never counts a request that carried no credentials at all")
     void anonymousNeverCounts() throws Exception {
         HttpServletRequest anonymous = mock(HttpServletRequest.class);

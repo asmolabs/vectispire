@@ -160,9 +160,18 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
         return bucket.estimateAbilityToConsume(1).getNanosToWaitForRefill() / 1_000_000_000L;
     }
 
+    /**
+     * A bearer token, or an API key in {@code X-API-Key} when there is no {@code Authorization} —
+     * the alias the authentication filter reads in exactly that case. Counting the first alone
+     * left the second an unthrottled way to try keys.
+     */
     private static boolean carriesBearer(HttpServletRequest request) {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        return header != null && header.regionMatches(true, 0, "bearer ", 0, 7);
+        if (header == null) {
+            String key = request.getHeader(BearerAuthenticationFilter.API_KEY_HEADER);
+            return key != null && !key.isBlank();
+        }
+        return header.regionMatches(true, 0, "bearer ", 0, 7);
     }
 
     private Bucket newBucket() {

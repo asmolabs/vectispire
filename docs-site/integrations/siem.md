@@ -112,7 +112,7 @@ change meaning.
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | an emergency recovery code is spent |
 | `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | the password throttle refuses an attempt |
 | `ZAN-SEC-008` | MFA failure ceiling reached | 7 | a second-factor challenge is destroyed after too many wrong codes, or the account's second factor locks |
-| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens (once per window) |
+| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens — bearer or `X-API-Key` (once per window) |
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | an account is created, deleted, changes role, activation, password, second factor or visible targets — from the screen or SCIM |
 | `ZAN-SEC-011` | Team access grant changed | 6 | a team's members or targets change |
 | `ZAN-SEC-012` | API key issued | 5 | an integration key is issued |

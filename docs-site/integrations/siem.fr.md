@@ -121,7 +121,7 @@ changera pas de sens.
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | un code de secours est consommé |
 | `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | le limiteur de connexion par mot de passe refuse une tentative |
 | `ZAN-SEC-008` | MFA failure ceiling reached | 7 | un défi de second facteur est détruit après trop de codes faux, ou le second facteur du compte se verrouille |
-| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | une adresse épuise son quota de jetons refusés (une fois par fenêtre) |
+| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | une adresse épuise son quota de jetons refusés — porteur ou `X-API-Key` (une fois par fenêtre) |
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | un compte est créé, supprimé, change de rôle, d'activation, de mot de passe, de second facteur ou de cibles visibles — depuis l'écran ou par SCIM |
 | `ZAN-SEC-011` | Team access grant changed | 6 | les membres ou les cibles d'une équipe changent |
 | `ZAN-SEC-012` | API key issued | 5 | une clé d'intégration est émise |
