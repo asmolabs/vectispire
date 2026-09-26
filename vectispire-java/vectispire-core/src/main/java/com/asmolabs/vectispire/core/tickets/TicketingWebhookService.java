@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.text.LogText;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -160,7 +161,10 @@ public class TicketingWebhookService {
 
         Optional<IssueView> matchingIssue = issues.withTicket(event.ticketRef());
         if (matchingIssue.isEmpty()) {
-            log.info("Received webhook for ticket {} from {} but no corresponding Vectispire issue found.", event.ticketRef(), provider);
+            // Through LogText: the key is the tracker's, and a line break in it would write a second,
+            // forged entry into this log.
+            log.info("Received webhook for ticket {} from {} but no corresponding Vectispire issue found.",
+                    LogText.of(event.ticketRef()), provider);
             return new Outcome.NoMatchingIssue(event.ticketRef());
         }
 
