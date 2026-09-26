@@ -83,7 +83,8 @@ public class ExceptionsRegisterController {
      * revisited every quarter or opened by nobody since.
      *
      * <p>A security lead, like granting the exception: withdrawing one puts an issue back in front
-     * of a gate, and confirming one is a statement about risk somebody has to own.
+     * of a gate, and confirming one is a statement about risk somebody has to own. The marker admits
+     * the platform governor, who takes no triage decision: the service refuses that role.
      */
     @Operation(summary = "Review an exception", description = "Confirm, extend or revoke one exception, and record that it was looked at.")
     @ApiResponse(responseCode = "200", description = "Review recorded")
@@ -100,7 +101,7 @@ public class ExceptionsRegisterController {
                 issueId,
                 body.outcome(),
                 body.comment(),
-                principal.user().map(user -> user.username()).orElse(null),
+                principal.user(),
                 body.newExpiry(),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }

@@ -1,10 +1,14 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import java.time.Instant;
+import java.util.Optional;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -33,7 +37,9 @@ public class ExceptionReviewService {
     }
 
     /**
-     * @param actor who reviewed; null for a caller that is not an account
+     * @param reviewer who reviewed; empty for a caller that is not an account, which may not review
+     * @throws AccessDeniedException for a reviewer whose role may not approve a triage decision —
+     *     the platform governor among them
      * @throws java.util.NoSuchElementException for a hidden or absent issue, in the same words
      * @throws IllegalArgumentException when the issue carries no exception, or an extension names
      *     no date — see {@link IssueTriageService#review}
@@ -42,9 +48,24 @@ public class ExceptionReviewService {
             long issueId,
             IssueTriageService.ReviewOutcome outcome,
             String comment,
-            String actor,
+            Optional<UserView> reviewer,
             Instant newExpiry,
             Visibility allowed) {
+
+        // **A review is a triage decision, and only an approver takes one.** Confirming an
+        // exception keeps an issue out of the gate; extending it does so for longer. The route's
+        // marker admits the platform governor, whose role decides the rules and takes no decision
+        // under them — the same refusal the VEX import makes. Checked first, before the issue is
+        // read, so the answer does not depend on the body or on what exists. Four-eyes asks nothing
+        // more here: it requires that a settled decision be an approver's, which this is.
+        Optional<Role> role = reviewer.flatMap(user -> Role.of(user.role()));
+        if (!role.map(Role::canApproveTriage).orElse(false)) {
+            throw new AccessDeniedException(role.map(Role::governsPlatform).orElse(false)
+                    ? "Reviewing an exception is a triage decision, and the platform governor takes none: "
+                            + "it decides the rules the others act under."
+                    : "Reviewing an exception is a triage decision, which this role may not approve.");
+        }
+        String actor = reviewer.map(UserView::username).orElse(null);
 
         // 404 rather than 403, like everywhere else here: a restricted reader must not learn that
         // an issue exists by being refused it.
