@@ -2,6 +2,12 @@
 
 **Date:** 2026-09-26 · **Status:** accepted · **Decider:** Laurent Boucher
 
+> **See also** [05 — Modularity as Spring Modulith sees it](../05-modularity.md). Later the same
+> day, step 1 of the migration to Spring Modulith broke both recorded cycles (`KNOWN_CYCLES` is
+> empty), moved `ReportCursor` into a `reporting` foundation domain and made target deletion an
+> event each owning domain purges; step 2 added Modulith in observation mode. The table below is
+> the reference as `ArchitectureTest` now enforces it, with `reporting` in the foundation.
+
 ## Context
 
 `core/services` held about 155 classes in one flat package. Everything could call everything, and

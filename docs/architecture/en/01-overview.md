@@ -83,10 +83,12 @@ api/ ──► services/ ──► repositories/ ──► persistence/ ──�
 One rule, and it is what makes the whole thing testable: **a layer only knows the one below it.**
 
 Inside `services/`, the classes are grouped by domain — `issues`, `scanning`, `access`,
-`compliance` and nineteen more — and the domains depend on each other in one direction, over a
-foundation (`settings`, `outbound`, `crypto`, `audit`, `outbox`) every domain may use. `ArchitectureTest`
-refuses a cycle between domains and a dependency the table does not allow; the table, and why it is
-not Spring Modulith, are in [decision 0026](decisions/0026-services-are-grouped-by-domain.md).
+`compliance` and twenty more — and the domains depend on each other in one direction, over a
+foundation (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) every domain may use.
+`ArchitectureTest` refuses a cycle between domains and a dependency the table does not allow; the
+table is in [decision 0026](decisions/0026-services-are-grouped-by-domain.md). Spring Modulith is in
+the build in observation mode only — what it sees, and why it cannot enforce anything yet, is
+[05](05-modularity.md).
 
 ## The path of a scan
 

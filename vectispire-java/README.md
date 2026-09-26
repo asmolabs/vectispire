@@ -42,15 +42,23 @@ enforces them with ArchUnit. That is a genuine step down: an ArchUnit rule can b
 the same commit that violates it; a missing dependency cannot.
 
 **Inside `services`, domains.** The service layer is split into sub-packages by domain —
-`services.issues`, `services.scanning`, `services.access` and so on, twenty-three in all — over a
-foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, and a
-`shared` of two classes meant to empty). Each domain is drawn as the module it would become. The domains
-form no cycle and depend in the directions [decision
-0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md) tabulates; a new
-service goes into the domain whose row matches what it needs, and a row that has to change changes
-in the same review, with its reason. Upwards, a lower domain declares a port and a higher one
-implements it (`ScanIngestor.Enricher`, `AuditLogService.Listener`, `OutboxHandler`); an effect
-that must survive the commit leaves through the outbox.
+`services.issues`, `services.scanning`, `services.access` and so on, twenty-four in all — over a
+foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
+and a `shared` of one class meant to empty). Each domain is drawn as the module it would become. The
+domains form no cycle — none recorded either, since both exceptions were broken — and depend in the
+directions [decision 0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md)
+tabulates; a new service goes into the domain whose row matches what it needs, and a row that has to
+change changes in the same review, with its reason. Upwards, a lower domain declares a port and a
+higher one implements it (`ScanIngestor.Enricher`, `AuditLogService.Listener`, `TicketReferences`,
+`OutboxHandler`). **An effect across domains inside a transaction is a synchronous event**: target
+deletion publishes `TargetDeleted` in its transaction, and each owning domain purges its own rows in
+a listener that requires that transaction, in the order `TargetPurge.Phase` fixes. An effect that must
+survive the commit leaves through the outbox.
+
+**Spring Modulith is present, in observation mode.** `ModularityObservationTest` writes what it sees
+into `build/modulith-docs/` and fails on nothing: packaged by layer, the code shows it five layer
+modules rather than the domains ([05](../docs/architecture/en/05-modularity.md)). At runtime it is
+inert, which `ModulithRuntimeInertTest` checks.
 
 ## What is checked, and where
 
@@ -62,6 +70,8 @@ that must survive the commit leaves through the outbox.
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only `repositories` speaks SQL | `ArchitectureTest` |
 | Every service lives in a domain, the domains form no cycle, and each uses only what decision 0026 allows | `ArchitectureTest` |
+| Deleting a target takes every row that names it and nobody else's, children before parents, atomically | `TargetDeletionTest`, `TargetPurgeOrderTest`, `TargetDeletionIntegrationTest` (MySQL, PostgreSQL) |
+| Spring Modulith contributes nothing at runtime, and what it sees is written down without enforcing it | `ModulithRuntimeInertTest`, `ModularityObservationTest` |
 | No class of `api` names a persistence type — the principal included; services answer with `…View` records | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
@@ -237,6 +247,7 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | `max_concurrent` was stored, shown and sent to every agent, and nothing applied it: the claim took a scan whatever the agent held, and the agent ran one at a time. The count and the take now commit behind the agent's row — without that lock, two polls reading different candidates both count below the limit | `ScanQueue.claimWithin` |
 | The agent's stop raised a flag and returned; the JVM halts when its shutdown hooks do, so the scan its javadoc promised would finish was cut off mid-run | `AgentRunner.stop` |
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |
+| A repository or image with any triage history could not be deleted: the purge queued its child rows' removal, the bulk delete of the issues ran first, the cascade took the children, and the commit failed on rows already gone. No test had ever deleted a target carrying history | `Issues.deleteByIdIn`, `Scans.deleteByIdIn`, `TargetDeletionTest` |
 | `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
 
 ### Shapes chosen deliberately
