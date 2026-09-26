@@ -13,6 +13,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.crypto.SigningKeyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;

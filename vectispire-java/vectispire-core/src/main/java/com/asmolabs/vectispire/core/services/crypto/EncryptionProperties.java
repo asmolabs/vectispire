@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.crypto;
 
 import java.util.Arrays;
 import java.util.List;

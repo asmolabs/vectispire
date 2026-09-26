@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbound.PinnedHttpSender;

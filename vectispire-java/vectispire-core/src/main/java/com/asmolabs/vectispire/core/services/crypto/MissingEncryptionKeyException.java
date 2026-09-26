@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.crypto;
 
 /**
  * Raised at encryption time, never at startup.

@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;

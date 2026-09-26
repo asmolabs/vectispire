@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
 import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
 import com.asmolabs.vectispire.core.api.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.services.InsecureCredentialTransportException;
-import com.asmolabs.vectispire.core.services.MissingEncryptionKeyException;
+import com.asmolabs.vectispire.core.services.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.services.AttestationService;
 import com.asmolabs.vectispire.core.services.ScanTriggerService;
 import com.asmolabs.vectispire.core.services.SolutionAdministrationService;

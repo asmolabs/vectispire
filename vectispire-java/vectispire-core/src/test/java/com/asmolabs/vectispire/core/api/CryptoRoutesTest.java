@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.services.SigningKeyService;
+import com.asmolabs.vectispire.core.services.crypto.SigningKeyService;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;

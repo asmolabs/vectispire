@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;

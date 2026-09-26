@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Duration;
 import java.time.Clock;

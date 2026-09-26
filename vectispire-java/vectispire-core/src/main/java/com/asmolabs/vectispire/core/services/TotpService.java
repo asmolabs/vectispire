@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
+import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
