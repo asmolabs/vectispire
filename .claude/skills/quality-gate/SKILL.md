@@ -95,6 +95,7 @@ mutant once ran for fifteen minutes, the run was killed, and the source stayed m
   requires.
 - The repository is public: a commit fixing a vulnerability says what is fixed, not how to exploit
   the unfixed version.
+- **Wait for every check run on the commit, not the workflow's status.** The `main` ruleset requires `e2e`, which can still be running when `gh run list` already reports the `ci.yml` run completed; a push then is refused. Poll `gh api repos/asmolabs/vectispire/commits/<sha>/check-runs` until none is pending and none failed.
 - Push `develop`. **`main` only moves by fast-forward to a commit whose `ci.yml` run is green**
   (`gh run list --commit <sha> --workflow ci.yml`), and it requires linear history. Merging a pull
   request that changes `.github/workflows/` needs the `workflow` scope the `gh` token lacks:
