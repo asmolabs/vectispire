@@ -3,13 +3,13 @@ package com.asmolabs.vectispire.core.services.scanning;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules.Schedulable;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.CronExpressions;
-import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
-import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.targets.RepositoryView;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -45,22 +45,19 @@ public class SchedulerService {
 
     private static final Logger log = LoggerFactory.getLogger(SchedulerService.class);
 
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final TargetCatalog targets;
     private final Scans scans;
     private final LeaderElection election;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     public SchedulerService(
-            GitRepositories repositories,
-            Containers containers,
+            TargetCatalog targets,
             Scans scans,
             LeaderElection election,
             TransactionTemplate transactions,
             Clock clock) {
-        this.repositories = repositories;
-        this.containers = containers;
+        this.targets = targets;
         this.scans = scans;
         this.election = election;
         this.transactions = transactions;
@@ -84,16 +81,16 @@ public class SchedulerService {
 
         int queued = 0;
 
-        for (RepositoryEntity repository : repositories.findAll()) {
-            if (Schedules.isDue(schedulable(repository.getScanCron(), repository.getScanIntervalMinutes(),
-                    repository.getLastScheduledScanAt()), at)) {
+        for (RepositoryView repository : targets.repositories()) {
+            if (Schedules.isDue(schedulable(repository.scanCron(), repository.scanIntervalMinutes(),
+                    repository.lastScheduledScanAt()), at)) {
                 queued += queueRepository(repository, at);
             }
         }
 
-        for (ContainerEntity container : containers.findAll()) {
-            if (Schedules.isDue(schedulable(container.getScanCron(), container.getScanIntervalMinutes(),
-                    container.getLastScheduledScanAt()), at)) {
+        for (ContainerView container : targets.containers()) {
+            if (Schedules.isDue(schedulable(container.scanCron(), container.scanIntervalMinutes(),
+                    container.lastScheduledScanAt()), at)) {
                 queued += queueContainer(container, at);
             }
         }
@@ -104,34 +101,34 @@ public class SchedulerService {
         return queued;
     }
 
-    private int queueRepository(RepositoryEntity repository, Instant at) {
+    private int queueRepository(RepositoryView repository, Instant at) {
         return queue(
-                "repository " + repository.getId(),
-                () -> repositories.stampScheduled(repository.getId(), at),
-                () -> scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.getId()),
+                "repository " + repository.id(),
+                () -> targets.stampScheduled(new ScanTarget.Repository(repository.id()), at),
+                () -> scans.countByStatusAndRepoId(ScanStatus.PENDING.wireName(), repository.id()),
                 () -> {
                     ScanEntity scan = newScan(at);
-                    scan.setRepoId(repository.getId());
-                    scan.setBranch(repository.getBranch());
-                    scan.setSubPath(repository.getSubPath());
-                    scan.setRequiredAgentLabel(repository.getRequiredAgentLabel());
+                    scan.setRepoId(repository.id());
+                    scan.setBranch(repository.branch());
+                    scan.setSubPath(repository.subPath());
+                    scan.setRequiredAgentLabel(repository.requiredAgentLabel());
                     return scan;
                 });
     }
 
-    private int queueContainer(ContainerEntity container, Instant at) {
+    private int queueContainer(ContainerView container, Instant at) {
         return queue(
-                "container " + container.getId(),
-                () -> containers.stampScheduled(container.getId(), at),
-                () -> scans.countByStatusAndContainerId(ScanStatus.PENDING.wireName(), container.getId()),
+                "container " + container.id(),
+                () -> targets.stampScheduled(new ScanTarget.Container(container.id()), at),
+                () -> scans.countByStatusAndContainerId(ScanStatus.PENDING.wireName(), container.id()),
                 () -> {
                     ScanEntity scan = newScan(at);
-                    scan.setContainerId(container.getId());
+                    scan.setContainerId(container.id());
                     // "n/a" rather than empty: the column is mandatory, an image has no branch,
                     // and this is what the manual trigger already writes — a scheduled scan must
                     // be indistinguishable from a manual one downstream.
                     scan.setBranch("n/a");
-                    scan.setRequiredAgentLabel(container.getRequiredAgentLabel());
+                    scan.setRequiredAgentLabel(container.requiredAgentLabel());
                     return scan;
                 });
     }

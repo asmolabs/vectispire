@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -53,7 +54,7 @@ class SchedulerServiceTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         scheduler = new SchedulerService(
-                repositories, containers, scans, election, new TransactionTemplate(manager),
+                new TargetCatalog(repositories, containers), scans, election, new TransactionTemplate(manager),
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         queued.clear();

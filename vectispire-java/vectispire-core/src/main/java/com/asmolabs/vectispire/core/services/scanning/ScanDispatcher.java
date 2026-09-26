@@ -18,14 +18,10 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
-import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
-import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.CloneCredentials;
+import com.asmolabs.vectispire.core.targets.ContainerView;
+import com.asmolabs.vectispire.core.targets.RepositoryView;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.EnumSet;
@@ -69,10 +65,8 @@ public class ScanDispatcher {
         thread.setDaemon(true);
         return thread;
     });
-    private final GitRepositories repositories;
-    private final Containers containers;
-    private final SshKeys sshKeys;
-    private final GitTokens gitTokens;
+    private final TargetCatalog targets;
+    private final CloneCredentials credentials;
     private final GitHostAllowlist allowedHosts;
     private final ScanIngestor ingestor;
     private final EncryptionService encryption;
@@ -114,10 +108,8 @@ public class ScanDispatcher {
 
     public ScanDispatcher(
             ScanQueue queue,
-            GitRepositories repositories,
-            Containers containers,
-            SshKeys sshKeys,
-            GitTokens gitTokens,
+            TargetCatalog targets,
+            CloneCredentials credentials,
             ScanIngestor ingestor,
             EncryptionService encryption,
             SettingsService settings,
@@ -130,10 +122,8 @@ public class ScanDispatcher {
             TransactionTemplate transactions,
             GitHostAllowlist allowedHosts) {
         this.queue = queue;
-        this.repositories = repositories;
-        this.containers = containers;
-        this.sshKeys = sshKeys;
-        this.gitTokens = gitTokens;
+        this.targets = targets;
+        this.credentials = credentials;
         this.ingestor = ingestor;
         this.encryption = encryption;
         this.settings = settings;
@@ -486,52 +476,52 @@ public class ScanDispatcher {
             return buildImageTask(scan);
         }
 
-        RepositoryEntity repository = repositories
-                .findById(scan.getRepoId())
+        RepositoryView repository = targets
+                .repository(scan.getRepoId())
                 .orElseThrow(() -> new IllegalStateException("Repository " + scan.getRepoId() + " no longer exists."));
         // Again here, not only when the URL was entered: a list tightened after a repository was
         // registered has to stop its scans too, and this is the one place every executor's task
         // is built — the worker's and every agent's.
-        if (!allowedHosts.permits(repository.getUrl())) {
-            throw new IllegalStateException(allowedHosts.refusal(RepositoryUrl.redact(repository.getUrl())));
+        if (!allowedHosts.permits(repository.url())) {
+            throw new IllegalStateException(allowedHosts.refusal(RepositoryUrl.redact(repository.url())));
         }
 
         ScanTask.Target.HttpsCredential https = null;
-        if (repository.getHttpsTokenId() != null && deliverCredentials) {
-            GitTokenEntity token = gitTokens
-                    .findById(repository.getHttpsTokenId())
+        if (repository.httpsTokenId() != null && deliverCredentials) {
+            CloneCredentials.StoredGitToken token = credentials
+                    .gitToken(repository.httpsTokenId())
                     .orElseThrow(() -> new IllegalStateException(
-                            "The HTTPS token of repository " + RepositoryUrl.redact(repository.getUrl()) + " has been deleted."));
+                            "The HTTPS token of repository " + RepositoryUrl.redact(repository.url()) + " has been deleted."));
             SecretCipher.Decrypted secret =
-                    encryption.inspect(token.getToken(), SecretCipher.gitTokenContext(token.getId().toString()));
+                    encryption.inspect(token.ciphertext(), SecretCipher.gitTokenContext(token.id().toString()));
             if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
                 throw new IllegalStateException(
-                        "The HTTPS token \"" + token.getName() + "\" cannot be decrypted by any configured encryption key.");
+                        "The HTTPS token \"" + token.name() + "\" cannot be decrypted by any configured encryption key.");
             }
-            https = new ScanTask.Target.HttpsCredential(token.getHost(), token.getUsername(), secret.plainText());
+            https = new ScanTask.Target.HttpsCredential(token.host(), token.username(), secret.plainText());
         }
 
         String privateKey = null;
-        if (repository.getSshKeyId() != null && deliverCredentials) {
-            SshKeyEntity key = sshKeys
-                    .findById(repository.getSshKeyId())
+        if (repository.sshKeyId() != null && deliverCredentials) {
+            CloneCredentials.StoredSshKey key = credentials
+                    .sshKey(repository.sshKeyId())
                     .orElseThrow(() -> new IllegalStateException(
-                            "The SSH key of repository " + RepositoryUrl.redact(repository.getUrl()) + " has been deleted."));
+                            "The SSH key of repository " + RepositoryUrl.redact(repository.url()) + " has been deleted."));
             SecretCipher.Decrypted secret =
-                    encryption.inspect(key.getPrivateKey(), SecretCipher.privateKeyContext(key.getId().toString()));
+                    encryption.inspect(key.ciphertext(), SecretCipher.privateKeyContext(key.id().toString()));
             if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
                 // Said explicitly: without this, the failure would look like a refusal from the
                 // git server, and the operator would go looking at the provider.
                 throw new IllegalStateException(
-                        "The SSH key \"" + key.getName() + "\" cannot be decrypted by any configured encryption key.");
+                        "The SSH key \"" + key.name() + "\" cannot be decrypted by any configured encryption key.");
             }
             privateKey = secret.plainText();
         }
 
         String branch = scan.getBranch() == null || scan.getBranch().isBlank()
-                ? repository.getBranch()
+                ? repository.branch()
                 : scan.getBranch();
-        String subPath = repository.getSubPath() == null ? "" : repository.getSubPath();
+        String subPath = repository.subPath() == null ? "" : repository.subPath();
 
         Set<ScanTask.Step> steps = EnumSet.of(ScanTask.Step.DEPENDENCIES, ScanTask.Step.SECRETS, ScanTask.Step.IAC);
         // **Read here and put on the task**, never read by the worker: a remote agent has no
@@ -543,7 +533,7 @@ public class ScanDispatcher {
         }
 
         return new ScanTask(
-                new ScanTask.Target.Repository(repository.getUrl(), branch, subPath, privateKey, https),
+                new ScanTask.Target.Repository(repository.url(), branch, subPath, privateKey, https),
                 // **Set by the control plane, never read by the executor.** That is what makes
                 // every executor identical: an agent asking for "the active set" itself would
                 // scan with whatever it found at the moment it asked, and two agents could
@@ -564,13 +554,13 @@ public class ScanDispatcher {
         if (scan.getContainerId() == null) {
             throw new IllegalStateException("Scan " + scan.getId() + " names neither a repository nor a container.");
         }
-        ContainerEntity container = containers
-                .findById(scan.getContainerId())
+        ContainerView container = targets
+                .container(scan.getContainerId())
                 .orElseThrow(() -> new IllegalStateException("Container " + scan.getContainerId() + " no longer exists."));
 
         return new ScanTask(
                 new ScanTask.Target.Image(
-                        new ImageReference(container.getRegistry(), container.getImageName(), container.getTag()),
+                        new ImageReference(container.registry(), container.imageName(), container.tag()),
                         // Read from the control plane's configuration and not from the agent: it
                         // is a decision about *what we want to scan* — the image that runs in
                         // production — and not about the machine that executes it.

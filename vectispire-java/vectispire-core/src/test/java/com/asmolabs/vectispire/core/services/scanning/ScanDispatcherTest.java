@@ -29,6 +29,8 @@ import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.targets.CloneCredentials;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -92,10 +94,8 @@ class ScanDispatcherTest {
 
         dispatcher = new ScanDispatcher(
                 queue,
-                repositories,
-                containers,
-                sshKeys,
-                gitTokens,
+                new TargetCatalog(repositories, containers),
+                new CloneCredentials(gitTokens, sshKeys),
                 mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                 settings,
@@ -301,7 +301,7 @@ class ScanDispatcherTest {
         ScanRunner runner = mock(ScanRunner.class);
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, gitTokens, mock(ScanIngestor.class),
+                        queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -338,7 +338,7 @@ class ScanDispatcherTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, gitTokens, ingestor,
+                        queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -377,7 +377,7 @@ class ScanDispatcherTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         new ScanDispatcher(
-                        queue, repositories, containers, sshKeys, gitTokens, ingestor,
+                        queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                         settings, ruleSets, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
@@ -481,7 +481,7 @@ class ScanDispatcherTest {
         PlatformTransactionManager transactions = mock(PlatformTransactionManager.class);
         when(transactions.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
         ScanDispatcher restricted = new ScanDispatcher(
-                queue, repositories, containers, sshKeys, gitTokens, mock(ScanIngestor.class),
+                queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                 settings, ruleSets, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),

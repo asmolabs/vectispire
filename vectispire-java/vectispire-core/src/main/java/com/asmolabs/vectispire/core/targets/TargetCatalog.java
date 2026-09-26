@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.targets;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -19,10 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
  * entity's property names; the reader's code changes from {@code getName()} to {@code name()}, and
  * nothing else. The module that owns the rows is the only one that sees them (decision 0029).
  *
- * <p><b>Two writes, each one column another module decides.</b> Whether a target is in the certified
- * scope is {@code compliance}'s decision, and a repository's badge token is {@code posture}'s: the
- * columns live on the target's row, and are written here, by the owner, on the deciding module's
- * behalf. Visibility stays the caller's to apply, as it was.
+ * <p><b>Three writes, each one column another module decides.</b> Whether a target is in the
+ * certified scope is {@code compliance}'s decision, a repository's badge token {@code posture}'s, and
+ * when the scheduler last considered a target {@code scanning}'s: the columns live on the target's
+ * row, and are written here, by the owner, on the deciding module's behalf. Visibility stays the
+ * caller's to apply, as it was.
  */
 @Service
 public class TargetCatalog {
@@ -75,6 +77,22 @@ public class TargetCatalog {
             case ScanTarget.Repository repository -> repositories.existsById(repository.id());
             case ScanTarget.Container container -> containers.existsById(container.id());
         };
+    }
+
+    /**
+     * Records that the scheduler considered the target at {@code at} — {@code scanning}'s tick, on the
+     * target's row, in the tick's transaction.
+     *
+     * <p>A targeted update rather than a save of a row read at the top of the tick, which would write
+     * back whatever an operator changed on the settings screen in between (see {@code
+     * GitRepositories.stampScheduled}).
+     */
+    @Transactional
+    public void stampScheduled(ScanTarget target, Instant at) {
+        switch (target) {
+            case ScanTarget.Repository repository -> repositories.stampScheduled(repository.id(), at);
+            case ScanTarget.Container container -> containers.stampScheduled(container.id(), at);
+        }
     }
 
     /**
