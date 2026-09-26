@@ -11,15 +11,25 @@ import java.util.Optional;
  * was a free {@code varchar(16)}, so anything was stored — a typo, or a string that overflowed it
  * and came back as a 500 — and nothing could tell a configured protocol from garbage.
  *
- * <p><b>What is stored is not yet what is spoken.</b> The exporter sends every event as an HTTP
- * POST, whatever this says; the three syslog values are accepted because the screen offers them,
- * and honouring them is a feature of its own, not something validation can supply.
+ * <p><b>What is stored is what is spoken.</b> It was not: every event went out as an HTTP POST
+ * whatever this said, and the three syslog values were accepted only because the screen offered
+ * them. Each value now names a transport — see {@link SiemEndpoint} for the endpoint each reads,
+ * and {@link SyslogMessage} for the framing of the three syslog ones.
  */
 public enum SiemProtocol {
     WEBHOOK,
     SYSLOG_UDP,
     SYSLOG_TCP,
     SYSLOG_TLS;
+
+    /**
+     * Whether a configured header travels with each event. Only an HTTP request has headers; a
+     * syslog frame has nowhere to put one, and pretending otherwise would let a screen collect a
+     * credential that is never used.
+     */
+    public boolean carriesHeaders() {
+        return this == WEBHOOK;
+    }
 
     /** The protocol a submitted value names, case aside, or empty when it names none. */
     public static Optional<SiemProtocol> byName(String value) {

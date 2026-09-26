@@ -142,7 +142,34 @@ public final class OutboundUrlGuard {
      * whole of DNS rebinding.
      */
     public Destination validateAndResolve(String url, OutboundPolicy policy, String label) {
-        Checked checked = check(url, policy, label);
+        return pinned(check(url, policy, label), label);
+    }
+
+    /**
+     * The same verdict for a destination that is not a URL: a syslog collector's host and port.
+     *
+     * <p><b>Not a second classifier, and that is the point.</b> A syslog socket reaches exactly the
+     * places an HTTP request does — the metadata endpoint, the Docker proxy, the database — and a
+     * TCP frame sent to {@code docker-proxy:2375} is a request the daemon will try to parse. So the
+     * host goes through the same resolution, the same address rules and the same reserved endpoints
+     * as a URL, and comes back with the addresses to connect to, so that nothing resolves it twice.
+     *
+     * @param host a name or an address literal, without brackets
+     * @return a destination whose {@code url} is {@code host:port}, IPv6 bracketed, for messages
+     */
+    public Destination validateAndResolveEndpoint(String host, int port, OutboundPolicy policy, String label) {
+        String hostname = host == null ? "" : host.trim().replaceAll("^\\[|]$", "");
+        if (hostname.isEmpty()) {
+            throw new UnsafeUrlException(label + ": missing host.");
+        }
+        if (port < 1 || port > 65_535) {
+            throw new UnsafeUrlException(label + ": the port must be between 1 and 65535.");
+        }
+        String written = (hostname.contains(":") ? "[" + hostname + "]" : hostname) + ":" + port;
+        return pinned(checkHost(written, hostname, port, policy, label), label);
+    }
+
+    private Destination pinned(Checked checked, String label) {
         List<InetAddress> addresses = new ArrayList<>();
         for (byte[] address : checked.addresses()) {
             try {
@@ -186,7 +213,11 @@ public final class OutboundUrlGuard {
         if (hostname.isEmpty()) {
             throw new UnsafeUrlException(label + ": missing host.");
         }
+        return checkHost(candidate, hostname, portOf(parsed, scheme), policy, label);
+    }
 
+    /** Resolution, the policy on every address, and the reserved endpoints: what a URL and a bare endpoint share. */
+    private Checked checkHost(String candidate, String hostname, int port, OutboundPolicy policy, String label) {
         List<byte[]> addresses = resolver.resolve(hostname);
 
         if (policy == OutboundPolicy.INTERNAL_REQUIRED && addresses.isEmpty()) {
@@ -201,7 +232,7 @@ public final class OutboundUrlGuard {
         for (byte[] address : addresses) {
             check(address, policy, label);
         }
-        refuseReserved(hostname, portOf(parsed, scheme), addresses, label);
+        refuseReserved(hostname, port, addresses, label);
         return new Checked(candidate, hostname, addresses);
     }
 

@@ -255,4 +255,83 @@ class OutboundUrlGuardTest {
                     .isEqualTo("http://h/");
         }
     }
+
+    @Nested
+    @DisplayName("a bare host and port — a syslog collector — judged by the same rules as a URL")
+    class Endpoints {
+
+        private final OutboundUrlGuard guard = new OutboundUrlGuard(
+                hostname -> List.of(InetAddress.ofLiteral(switch (hostname) {
+                            case "docker-proxy" -> "172.18.0.3";
+                            case "db" -> "172.18.0.4";
+                            // A public-looking name that answers with loopback: the rebinding shape.
+                            case "collector.rebind.example" -> "127.0.0.1";
+                            case "collector.example.com" -> "93.184.216.34";
+                            default -> hostname;
+                        }).getAddress()),
+                List.of(
+                        OutboundUrlGuard.ReservedEndpoint.of("tcp://docker-proxy:2375", 2375, "the Docker daemon").orElseThrow(),
+                        OutboundUrlGuard.ReservedEndpoint.of("jdbc:mysql://db/vectispire", 3306, "the database").orElseThrow()));
+
+        @Test
+        @DisplayName("a public collector passes, with the address it was checked at")
+        void acceptsAPublicCollector() {
+            OutboundUrlGuard.Destination destination =
+                    guard.validateAndResolveEndpoint("collector.example.com", 6514, OutboundPolicy.PUBLIC_ONLY, "SIEM");
+
+            assertThat(destination.host()).isEqualTo("collector.example.com");
+            assertThat(destination.url()).isEqualTo("collector.example.com:6514");
+            assertThat(destination.addresses()).extracting(InetAddress::getHostAddress).containsExactly("93.184.216.34");
+        }
+
+        @ParameterizedTest(name = "refuses {0} when a public destination is expected")
+        @ValueSource(strings = {"127.0.0.1", "10.0.0.5", "::1", "collector.rebind.example"})
+        void refusesPrivateUnderPublicOnly(String host) {
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, 514, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("private or local");
+        }
+
+        @ParameterizedTest(name = "refuses the metadata address {0} even when private ones are allowed")
+        @ValueSource(strings = {"169.254.169.254", "fe80::1"})
+        void refusesLinkLocalUnderEveryPolicy(String host) {
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, 514, OutboundPolicy.INTERNAL_ALLOWED, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("link-local");
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {"docker-proxy:2375", "172.18.0.3:2375", "db:3306", "172.18.0.4:3306"})
+        void refusesTheDaemonAndTheDatabase(String endpoint) {
+            // A TCP syslog frame sent to the Docker proxy is a request the daemon tries to parse:
+            // the reservation holds for sockets exactly as it does for URLs.
+            String host = endpoint.substring(0, endpoint.indexOf(':'));
+            int port = Integer.parseInt(endpoint.substring(endpoint.indexOf(':') + 1));
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(host, port, OutboundPolicy.INTERNAL_ALLOWED, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class)
+                    .hasMessageContaining("no setting may send requests to");
+        }
+
+        @Test
+        @DisplayName("loopback is reachable only when private destinations were allowed")
+        void loopbackFollowsThePolicy() {
+            assertThat(guard.validateAndResolveEndpoint("127.0.0.1", 5514, OutboundPolicy.INTERNAL_ALLOWED, "SIEM")
+                            .addresses())
+                    .extracting(InetAddress::getHostAddress)
+                    .containsExactly("127.0.0.1");
+        }
+
+        @Test
+        @DisplayName("an IPv6 literal is written back bracketed, and a bad port is refused")
+        void shape() {
+            assertThat(guardResolving("2606:4700::1111")
+                            .validateAndResolveEndpoint("[2606:4700::1111]", 6514, OutboundPolicy.PUBLIC_ONLY, "SIEM")
+                            .url())
+                    .isEqualTo("[2606:4700::1111]:6514");
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint("collector.example.com", 0, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class);
+            assertThatThrownBy(() -> guard.validateAndResolveEndpoint(" ", 514, OutboundPolicy.PUBLIC_ONLY, "SIEM"))
+                    .isInstanceOf(UnsafeUrlException.class);
+        }
+    }
 }

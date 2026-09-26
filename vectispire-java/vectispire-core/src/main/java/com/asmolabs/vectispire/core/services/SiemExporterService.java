@@ -44,18 +44,21 @@ public class SiemExporterService {
     private final EncryptionService encryption;
     private final SettingsService settings;
     private final AuditLogService audit;
+    private final ProductVersion version;
 
     public SiemExporterService(
             SiemConfigs repository,
             OutboundPost outbound,
             EncryptionService encryption,
             SettingsService settings,
-            AuditLogService audit) {
+            AuditLogService audit,
+            ProductVersion version) {
         this.repository = repository;
         this.outbound = outbound;
         this.encryption = encryption;
         this.settings = settings;
         this.audit = audit;
+        this.version = version;
     }
 
     public Optional<SiemConfigEntity> getConfig() {
@@ -155,7 +158,7 @@ public class SiemExporterService {
                 return;
             }
             try {
-                sendPayload(config.getEndpoint(), storedAuthHeader(config), event.toCefString());
+                sendPayload(config.getEndpoint(), storedAuthHeader(config), event.toCefString(version.get()));
             } catch (Exception e) {
                 log.warn("Failed to export SIEM security event: {}", e.getMessage());
             }
@@ -170,7 +173,7 @@ public class SiemExporterService {
             CefEvent testEvent = CefEvent.builder(SecurityEventType.PING_TEST)
                     .message("Vectispire SIEM Health Check Ping")
                     .build();
-            sendPayload(endpoint, authHeader, testEvent.toCefString());
+            sendPayload(endpoint, authHeader, testEvent.toCefString(version.get()));
             return new TestResult(true, "Event delivered successfully", 200);
         } catch (Exception e) {
             return new TestResult(false, "Connection error: " + e.getMessage(), 0);
