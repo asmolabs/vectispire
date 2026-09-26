@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { SessionStore } from './session.store';
+import { signInPage } from './auth.guard';
 
 /**
  * What a page needs, named after the server marker it mirrors.
@@ -27,12 +28,12 @@ export type Need = 'administrator' | 'security-lead' | 'governance-read';
  * they may go instead of being dropped onto a bare page.
  */
 export function requires(need: Need): CanActivateFn {
-    return (route) => {
+    return (route, state) => {
         const session = inject(SessionStore);
         const router = inject(Router);
 
         if (!session.isAuthenticated()) {
-            return router.createUrlTree(['/login']);
+            return signInPage(router, state?.url);
         }
         if (allows(session, need)) {
             return true;

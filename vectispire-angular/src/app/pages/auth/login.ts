@@ -5,9 +5,10 @@ import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { PasswordModule } from '@openng/optimus-ui/password';
-import type { SignInMethods } from '../../core/api.models';
+import type { AuthenticatedUser, SignInMethods } from '../../core/api.models';
 import { AuthApi } from '@/app/core/api/auth.api';
 import { SessionStore } from '@/app/core/session.store';
+import { safeReturnUrl } from '@/app/core/auth.guard';
 import { I18nService } from '@/app/core/i18n/i18n.service';
 
 /**
@@ -51,6 +52,13 @@ export class Login {
 
     /** Null until the server has said which ways in this deployment accepts. */
     readonly methods = signal<SignInMethods | null>(null);
+
+    /**
+     * The page the guard turned away, read once and only if it is one of this application's paths
+     * (`safeReturnUrl`): the parameter comes from a URL anybody can write, and following it blindly
+     * would make this page an open redirect.
+     */
+    private readonly returnUrl = safeReturnUrl(new URLSearchParams(window.location.search).get('returnUrl'));
 
     constructor() {
         this.authApi.signInMethods().subscribe({
@@ -114,9 +122,7 @@ export class Login {
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
                     this.loading.set(false);
-                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard'], {
-                        replaceUrl: true
-                    });
+                    this.enter(response.user, true);
                 }
             },
             error: () => {
@@ -124,6 +130,18 @@ export class Login {
                 this.error.set(this.i18n.t('auth.error_sso_incomplete'));
             }
         });
+    }
+
+    /**
+     * Where a session that has just opened goes.
+     *
+     * <p>A provisioned account changes its password first, whatever it had asked for: letting it
+     * reach anything else would empty the flag of its meaning (the shell's guard refuses it too).
+     * Otherwise the page the guard turned away, and the dashboard when there was none.
+     */
+    private enter(user: AuthenticatedUser, replaceUrl = false): void {
+        const target = user.mustChangePassword ? '/change-password' : (this.returnUrl ?? '/dashboard');
+        void this.router.navigateByUrl(target, { replaceUrl });
     }
 
     /**
@@ -153,7 +171,7 @@ export class Login {
             next: (response) => {
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
-                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
+                    this.enter(response.user);
                 }
             },
             error: (response: unknown) => {
@@ -184,9 +202,7 @@ export class Login {
 
                 if (response.token && response.user) {
                     this.session.open(response.token, response.user);
-                    // Un compte de provisionnement va d'abord changer son mot de passe : le
-                    // laisser atteindre le reste viderait le drapeau de son sens.
-                    void this.router.navigate([response.user.mustChangePassword ? '/change-password' : '/dashboard']);
+                    this.enter(response.user);
                 }
             },
             error: (response: { status: number; error?: { retryAfterSeconds?: number } }) => {

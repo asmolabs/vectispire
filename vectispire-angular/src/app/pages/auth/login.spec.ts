@@ -55,7 +55,7 @@ describe('the sign-in screen', () => {
         useEnglish();
         fixture = TestBed.createComponent(Login);
         http = TestBed.inject(HttpTestingController);
-        navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+        navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
         fixture.detectChanges();
 
         http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({
@@ -157,7 +157,7 @@ describe('the sign-in screen', () => {
         expect(verify.request.body).toEqual({ mfa_token: 'challenge-1', code: '123456' });
         verify.flush(asSchema('LoginResponse', { mfa_required: false, token: 't', user: USER }));
 
-        expect(navigate).toHaveBeenCalledWith(['/dashboard']);
+        expect(navigate).toHaveBeenCalledWith('/dashboard', { replaceUrl: false });
     });
 
     it("shows the server's explanation for a refused second factor, read from `detail`", () => {
@@ -186,7 +186,7 @@ describe('the sign-in screen', () => {
         );
 
         // Letting it reach the dashboard would empty the flag of its meaning.
-        expect(navigate).toHaveBeenCalledWith(['/change-password']);
+        expect(navigate).toHaveBeenCalledWith('/change-password', { replaceUrl: false });
     });
 
     it('sends no client id: the throttle keys on the address the server resolves', () => {
@@ -196,5 +196,45 @@ describe('the sign-in screen', () => {
         // A client-chosen id was a counter the caller could reset on every attempt.
         expect(call.request.body).toEqual({ username: expect.any(String), password: expect.any(String) });
         call.flush({}, { status: 401, statusText: 'Unauthorized' });
+    });
+
+    /** Signs in on a page opened at `/login?returnUrl=…`, and returns where it went. */
+    function signInReturningTo(returnUrl: string, user: object = USER): unknown {
+        window.history.replaceState({}, '', '/login?returnUrl=' + encodeURIComponent(returnUrl));
+        try {
+            const page = TestBed.createComponent(Login);
+            page.detectChanges();
+            http.expectOne((call) => call.url === '/api/v1/auth/methods').flush({ configured: false, password: true });
+            page.componentInstance.username = 'admin';
+            page.componentInstance.password = 'whatever';
+            page.componentInstance.submit();
+            http.expectOne((call) => call.url === '/api/v1/auth/login').flush(
+                asSchema('LoginResponse', { mfa_required: false, token: 't', user })
+            );
+            return navigate.mock.lastCall?.[0];
+        } finally {
+            window.history.replaceState({}, '', '/');
+        }
+    }
+
+    it('returns to the page the guard turned away, filter included', () => {
+        // A link handed out with its filter — the figure's `is_kev` — used to land on the dashboard.
+        expect(signInReturningTo('/issues?is_kev=true')).toBe('/issues?is_kev=true');
+    });
+
+    it('refuses to return anywhere that is not a page of this application', () => {
+        // The parameter is in a URL anybody can write: following it would be an open redirect.
+        for (const elsewhere of [
+            '//evil.example/x',
+            '/\\evil.example',
+            'https://evil.example',
+            'javascript:alert(1)'
+        ]) {
+            expect(signInReturningTo(elsewhere), elsewhere).toBe('/dashboard');
+        }
+    });
+
+    it('sends a provisioned account to change its password even when it was going elsewhere', () => {
+        expect(signInReturningTo('/issues', { ...USER, mustChangePassword: true })).toBe('/change-password');
     });
 });

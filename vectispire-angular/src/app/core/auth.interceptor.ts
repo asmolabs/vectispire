@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { SessionStore } from './session.store';
+import { signInPage } from './auth.guard';
 
 /** The calls where a 401 is not a verdict about the session. */
 const NOT_A_SESSION_VERDICT = [
@@ -40,8 +41,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
             if (error.status === 401 && aboutTheSession) {
                 session.close();
                 // `replaceUrl`: the page that failed must not stay in the history, or the
-                // back button lands on an empty screen.
-                void router.navigate(['/login'], { replaceUrl: true });
+                // back button lands on an empty screen. The page is remembered, so that signing in
+                // again after an expired session returns to it rather than to the dashboard.
+                void router.navigateByUrl(signInPage(router, router.url), { replaceUrl: true });
             }
             return throwError(() => error);
         })

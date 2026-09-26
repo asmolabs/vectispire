@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AppLayout } from './app/layout/component/app.layout';
 import { requires } from './app/core/role.guard';
+import { hasSession, signedIn } from './app/core/auth.guard';
 
 /**
  * Three paths changed with the interface's translation: `/depots`, `/securite` and `/qualite`
@@ -18,11 +19,19 @@ import { requires } from './app/core/role.guard';
  * **Every route names its tab title as a translation key** (`titles.*`), resolved by
  * `TranslatedTitleStrategy`; `check-i18n-keys.mjs` reads this file for them, and refuses a title
  * that is a sentence rather than a key.
+ *
+ * **The shell is guarded as a whole** (`signedIn`, on the parent, for every child): the session
+ * lives in memory, so a reload arrives signed out and must reach the sign-in page before the shell
+ * fires a single call — remembering the page — and an account still carrying `mustChangePassword`
+ * goes nowhere but the change form. The role guards below come after it and answer a different
+ * question.
  */
 export const appRoutes: Routes = [
     {
         path: '',
         component: AppLayout,
+        canActivate: [signedIn],
+        canActivateChild: [signedIn],
         children: [
             { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
             {
@@ -237,6 +246,7 @@ export const appRoutes: Routes = [
     {
         path: 'change-password',
         title: 'titles.change_password',
+        canActivate: [hasSession],
         loadComponent: () => import('./app/pages/auth/change-password').then((m) => m.ChangePassword)
     },
     {
