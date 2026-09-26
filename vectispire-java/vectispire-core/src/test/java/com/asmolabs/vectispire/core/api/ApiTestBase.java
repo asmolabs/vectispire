@@ -104,7 +104,7 @@ abstract class ApiTestBase extends VectispireContextTest {
     private com.asmolabs.vectispire.core.api.security.WebhookRateLimitFilter webhookRateLimit;
 
     @Autowired
-    private com.asmolabs.vectispire.core.services.tickets.WebhookRefusals webhookRefusals;
+    private com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals webhookRefusals;
 
     @BeforeEach
     void buildMockMvc() {

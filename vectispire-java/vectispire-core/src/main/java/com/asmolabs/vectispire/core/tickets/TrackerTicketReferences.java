@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;

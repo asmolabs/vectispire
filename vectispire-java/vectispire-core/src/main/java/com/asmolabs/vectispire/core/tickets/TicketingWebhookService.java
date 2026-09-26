@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
@@ -11,10 +11,11 @@ import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.WebhookDeliveryEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.WebhookDeliveries;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
+import com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals;
+import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveries;
+import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;

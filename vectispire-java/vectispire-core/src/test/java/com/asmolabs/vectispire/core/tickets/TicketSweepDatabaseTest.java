@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

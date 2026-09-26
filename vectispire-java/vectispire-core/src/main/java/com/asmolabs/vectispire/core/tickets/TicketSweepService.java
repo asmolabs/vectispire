@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.PolicyGate;

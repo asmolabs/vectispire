@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -7,10 +7,10 @@ import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
-import com.asmolabs.vectispire.core.repositories.IssueTickets;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;

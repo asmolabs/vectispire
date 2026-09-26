@@ -1,9 +1,10 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.tickets.web;
 
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.OpenToAnonymous;
-import com.asmolabs.vectispire.core.services.tickets.TicketingWebhookService;
+import com.asmolabs.vectispire.core.tickets.TicketingWebhookService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

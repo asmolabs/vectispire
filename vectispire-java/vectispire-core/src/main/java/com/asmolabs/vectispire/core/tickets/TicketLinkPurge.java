@@ -1,8 +1,8 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
-import com.asmolabs.vectispire.core.repositories.IssueTickets;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;

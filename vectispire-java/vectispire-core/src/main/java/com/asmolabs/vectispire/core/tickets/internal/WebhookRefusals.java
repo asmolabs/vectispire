@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.tickets;
+package com.asmolabs.vectispire.core.tickets.internal;
 
 import java.time.Clock;
 import java.time.Duration;
