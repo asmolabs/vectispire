@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.agent;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -36,6 +38,19 @@ public class AgentProtocol {
 
     /** A received task: what the runner expects, plus the identifier to report against. */
     public record AssignedTask(long scanId, ScanTask task) {}
+
+    /**
+     * The answer to a claim: a task or none, and the limit the control plane held it to.
+     *
+     * @param maxConcurrent empty when the control plane sent none — an older one, which never
+     *     applied a limit either. The agent then keeps what its hello said
+     */
+    public record Claim(Optional<AssignedTask> task, OptionalInt maxConcurrent) {
+
+        public static Claim nothing() {
+            return new Claim(Optional.empty(), OptionalInt.empty());
+        }
+    }
 
     /** What the agent says about itself. Purely informational, except the contract. */
     public record Description(String hostname, String platform, String version, String scannerEngine) {}
@@ -138,12 +153,12 @@ public class AgentProtocol {
     }
 
     /**
-     * Claims a task, or empty.
+     * Claims a task, or none — and reads the agent's current limit off the answer either way.
      *
      * <p>204 rather than an empty object: "is there work?" is read from the status code. The long
      * wait is the server's, so the agent does not poll in a tight loop.
      */
-    public Optional<AssignedTask> claim(Duration wait) {
+    public Claim claim(Duration wait) {
         AgentHttp.Response response = http.call(
                 "/api/v1/agent/jobs?wait=" + wait.toSeconds(),
                 "GET",
@@ -152,8 +167,9 @@ public class AgentProtocol {
                 // would time out every poll just before its answer.
                 wait.plusSeconds(30));
 
+        OptionalInt limit = AgentConcurrency.parse(response.header(AgentConcurrency.HEADER).orElse(null));
         if (response.status() == 204) {
-            return Optional.empty();
+            return new Claim(Optional.empty(), limit);
         }
         refuseIfUnauthorized(response);
         if (response.status() == 412) {
@@ -165,7 +181,7 @@ public class AgentProtocol {
         }
         refuseIfFailed(response, "Claim refused");
 
-        return Optional.of(unseal(read(response.body(), AssignedTask.class)));
+        return new Claim(Optional.of(unseal(read(response.body(), AssignedTask.class))), limit);
     }
 
     /**

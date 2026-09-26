@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,7 @@ class AgentLoopTest {
     @BeforeEach
     void wire() {
         protocol = mock(AgentProtocol.class);
-        when(protocol.claim(any())).thenReturn(Optional.empty());
+        when(protocol.claim(any())).thenReturn(AgentProtocol.Claim.nothing());
         when(protocol.heartbeat(anyLong())).thenReturn(true);
         when(protocol.submit(anyLong(), any())).thenReturn(true);
     }
@@ -77,6 +78,20 @@ class AgentLoopTest {
     }
 
     @Test
+    @DisplayName("a refused key on a claim stops the agent instead of being retried as a hiccup")
+    void aRefusedKeyIsNotAFailedClaim() {
+        // Caught as a failed claim, a revoked key was retried every ten seconds for ever, and the
+        // agent's log said "could not claim" — a network problem, to whoever read it.
+        when(protocol.claim(any())).thenThrow(new AgentProtocol.UnauthorizedException("API key refused."));
+        loop = loopWith(task -> artifacts());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(loop::runOnce)
+                .isInstanceOf(AgentProtocol.UnauthorizedException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(loop::serve)
+                .isInstanceOf(AgentProtocol.UnauthorizedException.class);
+    }
+
+    @Test
     @DisplayName("a lease taken over during the run discards the result")
     void aStolenLeaseDiscardsTheResult() {
         assigned();
@@ -98,12 +113,16 @@ class AgentLoopTest {
     }
 
     private void assigned() {
-        when(protocol.claim(any())).thenReturn(Optional.of(new AgentProtocol.AssignedTask(
-                7L,
+        when(protocol.claim(any())).thenReturn(new AgentProtocol.Claim(Optional.of(task(7L)), OptionalInt.empty()));
+    }
+
+    private static AgentProtocol.AssignedTask task(long scanId) {
+        return new AgentProtocol.AssignedTask(
+                scanId,
                 new ScanTask(
                         new ScanTask.Target.Repository("git@example.invalid:team/service.git", "main", "", null),
                         null,
-                        Set.of(ScanTask.Step.DEPENDENCIES)))));
+                        Set.of(ScanTask.Step.DEPENDENCIES)));
     }
 
     private AgentLoop loopWith(Function<ScanTask, ScanArtifacts> execute) {

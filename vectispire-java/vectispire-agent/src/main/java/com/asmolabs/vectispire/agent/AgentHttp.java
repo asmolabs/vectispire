@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -47,8 +48,21 @@ public class AgentHttp {
     /**
      * @param body the parsed answer, or a null node. A 204 has none, and parsing it would raise
      *     where there is nothing to read
+     * @param headers the answer's headers. Kept because the claim's 204 carries something after
+     *     all: the agent's current limit, in the one answer that has no body to put it in
      */
-    public record Response(int status, JsonNode body) {
+    public record Response(int status, JsonNode body, HttpHeaders headers) {
+
+        private static final HttpHeaders NONE = HttpHeaders.of(java.util.Map.of(), (name, value) -> true);
+
+        public Response(int status, JsonNode body) {
+            this(status, body, NONE);
+        }
+
+        /** Case-insensitive, as HTTP header names are. */
+        public java.util.Optional<String> header(String name) {
+            return headers.firstValue(name);
+        }
 
         /** The server's message when it gives one, otherwise the caller's own wording. */
         public String messageOr(String fallback) {
@@ -85,7 +99,7 @@ public class AgentHttp {
         HttpRequest request = builder.method(method, publisher).build();
         try {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return new Response(response.statusCode(), parse(response.body()));
+            return new Response(response.statusCode(), parse(response.body()), response.headers());
         } catch (IOException unreachable) {
             throw new IllegalStateException("The control plane is unreachable: " + unreachable.getMessage(), unreachable);
         } catch (InterruptedException interrupted) {

@@ -84,7 +84,22 @@ class AgentProtocolTest {
     void anEmptyQueueIsAStatusCode() {
         answers(204, "");
 
-        assertThat(protocol.claim(Duration.ofSeconds(1))).isEmpty();
+        assertThat(protocol.claim(Duration.ofSeconds(1)).task()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the limit is read off every answer to a claim, the empty one included, and absent stays absent")
+    void theLimitTravelsOnTheClaim() {
+        // The 204 is what an agent at its limit receives. Without the header there, a raised
+        // limit would reach it only at its next restart.
+        when(http.call(anyString(), anyString(), any(), any())).thenReturn(new AgentHttp.Response(
+                204, JSON.nullNode(), java.net.http.HttpHeaders.of(
+                        java.util.Map.of("x-vectispire-max-concurrent", java.util.List.of("4")), (name, value) -> true)));
+        assertThat(protocol.claim(Duration.ofSeconds(1)).maxConcurrent()).hasValue(4);
+
+        // An older control plane sends none: the agent keeps what its hello said.
+        answers(204, "");
+        assertThat(protocol.claim(Duration.ofSeconds(1)).maxConcurrent()).isEmpty();
     }
 
     @Test
@@ -93,7 +108,7 @@ class AgentProtocolTest {
         String sealed = envelopes.seal(keyPair.publicKey(), PRIVATE_KEY);
         answers(200, JSON.writeValueAsString(assignedWith(sealed)));
 
-        ScanTask task = protocol.claim(Duration.ofSeconds(1)).orElseThrow().task();
+        ScanTask task = protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
 
         assertThat(((ScanTask.Target.Repository) task.target()).privateKey()).isEqualTo(PRIVATE_KEY);
     }
@@ -129,7 +144,7 @@ class AgentProtocolTest {
         AgentProtocol unsealed = new AgentProtocol(http, JSON, null);
         answers(200, JSON.writeValueAsString(assignedWith(PRIVATE_KEY)));
 
-        ScanTask task = unsealed.claim(Duration.ofSeconds(1)).orElseThrow().task();
+        ScanTask task = unsealed.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
 
         assertThat(((ScanTask.Target.Repository) task.target()).privateKey()).isEqualTo(PRIVATE_KEY);
     }
@@ -199,7 +214,7 @@ class AgentProtocolTest {
     void aSealedTokenIsOpened() throws Exception {
         answers(200, JSON.writeValueAsString(assignedWithToken(envelopes.seal(keyPair.publicKey(), "glpat-secret"))));
 
-        ScanTask task = protocol.claim(Duration.ofSeconds(1)).orElseThrow().task();
+        ScanTask task = protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task();
 
         assertThat(((ScanTask.Target.Repository) task.target()).https().token()).isEqualTo("glpat-secret");
     }

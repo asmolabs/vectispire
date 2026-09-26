@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.agent;
 
+import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
@@ -13,6 +14,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +46,12 @@ public class AgentRunner implements ApplicationRunner {
     private final Clock clock;
     private final String version;
     private final AtomicBoolean stopping = new AtomicBoolean();
+
+    /** The loop once it exists, for {@link #stop} to reach from the shutdown hook's thread. */
+    private volatile AgentLoop current;
+
+    /** Counted down when the loop has returned — every scan it started handed back. */
+    private final CountDownLatch finished = new CountDownLatch(1);
 
     public AgentRunner(
             AgentProperties properties, ObjectMapper json, Clock clock, ObjectProvider<BuildProperties> build) {
@@ -136,48 +144,50 @@ public class AgentRunner implements ApplicationRunner {
                 GitClone.WithoutKey.HOST_SSH,
                 clock);
 
-        AgentLoop loop = new AgentLoop(protocol, runner::run, properties);
+        AgentLoop loop = new AgentLoop(protocol, runner::run, properties, identity.maxConcurrent());
+        log.info("Up to {} scan(s) at once, as set on this agent's row.", AgentConcurrency.effective(identity.maxConcurrent()));
+        current = loop;
+        if (stopping.get()) {
+            // Stopped between the hello and here: `stop()` found no loop to tell.
+            loop.stop();
+        }
         try {
-            while (!stopping.get()) {
-                try {
-                    loop.runOnce();
-                } catch (AgentProtocol.UnauthorizedException | AgentProtocol.ContractMismatchException fatal) {
-                    // Neither is transitory: one is a wrong or revoked key, the other a version
-                    // gap. Looping on either would fill a log with a symptom and never name the
-                    // cause.
-                    throw fatal;
-                } catch (RuntimeException transitory) {
-                    // Everything else is assumed transitory: a control plane restarting, a
-                    // network hiccup. Looping is the right behaviour; going quiet is not.
-                    log.warn("Agent turn failed: {}", transitory.getMessage());
-                    sleep();
-                }
-            }
+            // Transitory failures are handled inside — a failed claim waits and retries. What
+            // comes out is a refused key or a contract gap: neither is fixed by looping, and
+            // looping would fill a log with a symptom and never name the cause.
+            loop.serve();
         } finally {
             loop.close();
+            finished.countDown();
         }
         log.info("Agent stopped.");
     }
 
     /**
-     * <b>The scan in progress runs to the end.</b>
+     * <b>The scans in progress run to the end</b>, and this waits for them.
      *
-     * <p>Killing it would leave a lease running until it lapses, and the work already done would
-     * be lost for nothing.
+     * <p>Killing them would leave their leases running until they lapse, and the work already done
+     * would be lost for nothing — see {@link AgentLoop#stop}. <b>The wait is what makes that true.</b>
+     * The loop runs on the thread that started the application, and the JVM halts as soon as its
+     * shutdown hooks return: a stop that only raised a flag let the process exit mid-scan, the
+     * opposite of what this used to promise. The bound on the wait is the orchestrator's grace
+     * period, which is where an operator decides how long a scan may take to finish.
      */
     @jakarta.annotation.PreDestroy
     public void stop() {
         if (stopping.compareAndSet(false, true)) {
-            log.info("Shutdown requested: stopping after the current scan.");
+            log.info("Shutdown requested: no new scans; waiting for the running ones to be handed back.");
         }
-    }
-
-    private void sleep() {
+        AgentLoop loop = current;
+        if (loop == null) {
+            // Never got as far as looping — refused at start, or still announcing. Nothing runs.
+            return;
+        }
+        loop.stop();
         try {
-            Thread.sleep(properties.retryDelay().toMillis());
+            finished.await();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
-            stopping.set(true);
         }
     }
 

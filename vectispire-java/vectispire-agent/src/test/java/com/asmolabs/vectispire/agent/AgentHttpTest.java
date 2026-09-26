@@ -193,6 +193,22 @@ class AgentHttpTest {
                 .isEqualTo("fallback");
     }
 
+    @Test
+    @DisplayName("hands on the headers of a bodiless answer — the claim's 204 carries the agent's limit")
+    void keeps_the_headers_of_a_204() {
+        server.createContext("/agent/jobs", exchange -> {
+            record(exchange);
+            exchange.getResponseHeaders().add("X-Vectispire-Max-Concurrent", "3");
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+        });
+
+        AgentHttp.Response response = client.call("/agent/jobs", "GET", null, Duration.ofSeconds(5));
+
+        assertThat(response.status()).isEqualTo(204);
+        assertThat(response.header("x-vectispire-max-concurrent")).as("names are case-insensitive").hasValue("3");
+    }
+
     private void respondWith(String path, int status, String contentType, String body) {
         server.createContext(path, exchange -> {
             record(exchange);
