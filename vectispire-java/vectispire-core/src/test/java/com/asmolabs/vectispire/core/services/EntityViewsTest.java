@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.SolutionEntity;
 import com.asmolabs.vectispire.core.services.inventory.ApiContractView;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.tickets.IssueTicketView;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.lang.reflect.Method;

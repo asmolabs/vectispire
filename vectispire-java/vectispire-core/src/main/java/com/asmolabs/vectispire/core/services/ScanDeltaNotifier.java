@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;

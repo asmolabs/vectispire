@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.HistoryQueryService;
-import com.asmolabs.vectispire.core.services.TriageHistory;
+import com.asmolabs.vectispire.core.services.issues.HistoryQueryService;
+import com.asmolabs.vectispire.core.services.issues.TriageHistory;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import org.springframework.http.ContentDisposition;

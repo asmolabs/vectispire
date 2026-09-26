@@ -16,6 +16,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.services.inventory.ComponentInventory;
+import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

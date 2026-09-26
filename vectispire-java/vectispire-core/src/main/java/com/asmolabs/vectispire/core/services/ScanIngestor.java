@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.services.inventory.ComponentInventory;
+import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
 import java.util.ArrayList;

@@ -26,6 +26,7 @@ import com.asmolabs.vectispire.core.repositories.ScanQueue;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import jakarta.annotation.PreDestroy;

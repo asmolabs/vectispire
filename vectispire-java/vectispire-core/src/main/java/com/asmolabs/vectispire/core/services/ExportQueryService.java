@@ -13,6 +13,8 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueViews;
+import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.services.shared.BrandingProperties;
 import com.asmolabs.vectispire.core.services.shared.ExportProperties;
 import com.asmolabs.vectispire.core.services.shared.ProductVersion;

@@ -22,6 +22,7 @@ import com.asmolabs.vectispire.core.repositories.Solutions;
 import com.asmolabs.vectispire.core.repositories.TeamTargets;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.repositories.Teams;
+import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;

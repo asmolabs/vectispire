@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.services;
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
+import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
+import com.asmolabs.vectispire.core.services.issues.TicketSweepService;
 import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
