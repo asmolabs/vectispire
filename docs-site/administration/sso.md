@@ -87,7 +87,11 @@ states no second factor is then refused, with a message that says why. The value
 VECTISPIRE_OIDC_ISSUER=https://keycloak.internal/realms/company
 ```
 
-Plus the client credentials your provider issues.
+Plus the client credentials your provider issues. With the shipped composition, the issuer, the
+client id and the display name go in `.env.oidc`, and the **client secret in `.env`**
+(`VECTISPIRE_OIDC_CLIENT_SECRET`): `.env.oidc` becomes the container's environment, which
+`docker inspect` shows to every client of the daemon, while `.env`'s secret reaches the container as a
+file under `/run/secrets/`.
 
 ### What the compliance report says about it
 

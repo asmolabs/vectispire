@@ -54,10 +54,15 @@ docker compose --profile with-agent up -d
 ```
 
 !!! info "What the composition keeps apart"
-    - **Secrets arrive as files.** `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `ENCRYPTION_KEY` and
-      `VECTISPIRE_BOOTSTRAP_PASSWORD` are still read from `.env`, but Compose hands them to the
-      containers as files under `/run/secrets/`, not as environment: a container's environment is
-      what `docker inspect` returns to anything that can talk to the daemon.
+    - **Secrets arrive as files.** `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `ENCRYPTION_KEY`,
+      `VECTISPIRE_BOOTSTRAP_PASSWORD`, `VECTISPIRE_SIGNING_KEY` and `VECTISPIRE_OIDC_CLIENT_SECRET`
+      are still read from `.env`, but Compose hands them to the containers as files under
+      `/run/secrets/`, not as environment: a container's environment is what `docker inspect`
+      returns to anything that can talk to the daemon. The last two are optional and stay declared
+      in `.env` when unused — empty, and no file is mounted; a `.env` without them stops
+      `docker compose up` with a message naming the variable. **Upgrading:** add both lines, and
+      move the OIDC client secret out of `.env.oidc`, whose values still reach the container as
+      environment.
     - **The database answers the control plane only.** It sits on an internal network with the
       control plane alone and publishes no port — a port bound to `127.0.0.1` is still reachable
       from every other container on the host. For a SQL session:

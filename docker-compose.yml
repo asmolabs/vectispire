@@ -17,6 +17,13 @@
 # away from every other client of the daemon. The `secrets:` below are copied into
 # `/run/secrets/` at start and appear in no inspect; the key is read through `ENCRYPTION_KEY_FILE`,
 # the passwords through `spring.config.import: optional:configtree:/run/secrets/`.
+#
+# The document signing key and the OIDC client secret go the same way, as files named after the
+# property they set (`vectispire.signing.key`, `vectispire.oidc.client-secret`). Both are optional,
+# so both are declared in `.env` even when unused — empty then, and Compose mounts nothing. A `.env`
+# that does not declare them stops `docker compose up` with a message naming the variable, rather
+# than dropping a signing key an installation was using and generating another: a replaced key makes
+# every document already signed unverifiable.
 
 # Interpolated like every other value, so a missing secret still stops `docker compose up` before
 # anything starts — the `secrets:` entries alone would hand an empty file to the container.
@@ -25,6 +32,9 @@ x-required:
   - ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD — no default is provided on purpose}
   - ${ENCRYPTION_KEY:?generate one with `openssl rand -base64 32`}
   - ${VECTISPIRE_BOOTSTRAP_PASSWORD:?set the first administrator password}
+  # `?` without `:` — declared, possibly empty. Empty means unused, and no file is mounted.
+  - ${VECTISPIRE_SIGNING_KEY?declare VECTISPIRE_SIGNING_KEY in .env, empty when unused — it now reaches the container as a file}
+  - ${VECTISPIRE_OIDC_CLIENT_SECRET?declare VECTISPIRE_OIDC_CLIENT_SECRET in .env, empty without SSO — it no longer goes in .env.oidc}
 
 services:
   # --- Database (MySQL) -----------------------------------------------------------------
@@ -152,7 +162,8 @@ services:
     # — an empty string included — and discovery would then fail on an empty issuer, at start-up, on
     # an installation that never asked for SSO. An optional `env_file` does not have that defect:
     # absent, no variable is set and the feature stays absent rather than present and refusing. Copy
-    # `.env.oidc.example` to switch it on.
+    # `.env.oidc.example` to switch it on. The client secret is not among them: it is a credential,
+    # and it arrives as a file like the others (`secrets:` below).
     env_file:
       - path: .env.oidc
         required: false
@@ -166,9 +177,6 @@ services:
       # is missing or empty; the config tree would start without it. Its file is therefore *not*
       # named `ENCRYPTION_KEY`: that name would set the variable as well, and setting both is refused.
       ENCRYPTION_KEY_FILE: /run/secrets/encryption_key
-      # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first use
-      # and stored encrypted under ENCRYPTION_KEY. Set it when several instances sign.
-      VECTISPIRE_SIGNING_KEY: ${VECTISPIRE_SIGNING_KEY:-}
       VECTISPIRE_BOOTSTRAP_USERNAME: ${VECTISPIRE_BOOTSTRAP_USERNAME:-admin}
       VECTISPIRE_EMBEDDED_WORKER: ${VECTISPIRE_EMBEDDED_WORKER:-true}
       # Empty means "nothing in front of us", so X-Forwarded-For is ignored and the peer address
@@ -203,6 +211,14 @@ services:
         target: encryption_key
       - source: bootstrap_password
         target: VECTISPIRE_BOOTSTRAP_PASSWORD
+      # Optional: the document signing key (PEM, PKCS#8, P-256). Unset, one is generated on first
+      # use and stored encrypted under ENCRYPTION_KEY. Set it when several instances sign. The file
+      # is named after the property, which the config tree reads as it is.
+      - source: signing_key
+        target: vectispire.signing.key
+      # Optional: the OIDC client's secret, for the provider configured in `.env.oidc`.
+      - source: oidc_client_secret
+        target: vectispire.oidc.client-secret
     volumes:
       # Read-only, and only what git needs: the deploy keys the operator already uses.
       - ${HOME}/.ssh:/home/vectispire/.ssh:ro
@@ -367,6 +383,11 @@ secrets:
     environment: ENCRYPTION_KEY
   bootstrap_password:
     environment: VECTISPIRE_BOOTSTRAP_PASSWORD
+  # Empty in `.env` means no file, and the application reads no value.
+  signing_key:
+    environment: VECTISPIRE_SIGNING_KEY
+  oidc_client_secret:
+    environment: VECTISPIRE_OIDC_CLIENT_SECRET
 
 volumes:
   vectispire_mysql_data:

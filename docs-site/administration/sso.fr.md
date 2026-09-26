@@ -91,7 +91,11 @@ refusée, avec un message qui dit pourquoi. Les valeurs qui comptent sont `VECTI
 VECTISPIRE_OIDC_ISSUER=https://keycloak.internal/realms/company
 ```
 
-Plus les identifiants client que votre fournisseur émet.
+Plus les identifiants client que votre fournisseur émet. Avec la composition livrée, l'issuer,
+l'identifiant du client et le nom affiché vont dans `.env.oidc`, et le **secret du client dans
+`.env`** (`VECTISPIRE_OIDC_CLIENT_SECRET`) : `.env.oidc` devient l'environnement du conteneur, que
+`docker inspect` montre à tout client du démon, tandis que le secret de `.env` arrive dans le
+conteneur en fichier sous `/run/secrets/`.
 
 ### Ce que le rapport de conformité en dit
 

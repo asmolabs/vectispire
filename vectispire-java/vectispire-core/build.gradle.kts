@@ -287,6 +287,12 @@ tasks.named<Test>("test") {
     inputs.dir("src/integrationTest/resources/db/migration-test")
         .withPropertyName("probeMigrations")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // `SecretFilesTest` reads the shipped composition and its OIDC example, outside every module:
+    // putting the signing key back into the environment changes no source, and the task has to notice.
+    inputs.files(rootProject.file("../docker-compose.yml"), rootProject.file("../.env.oidc.example"))
+        .withPropertyName("shippedComposition")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.register("integrationTestAll") {
