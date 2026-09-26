@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.RemediationDistributionService;
-import com.asmolabs.vectispire.core.services.SecurityDebtService;
+import com.asmolabs.vectispire.core.services.posture.RemediationDistributionService;
+import com.asmolabs.vectispire.core.services.posture.SecurityDebtService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

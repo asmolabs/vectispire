@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.posture;
 
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;

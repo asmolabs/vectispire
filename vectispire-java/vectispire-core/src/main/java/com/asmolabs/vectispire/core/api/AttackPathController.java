@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.asmolabs.vectispire.core.services.AttackPathService;
+import com.asmolabs.vectispire.core.services.posture.AttackPathService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

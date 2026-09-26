@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.posture;
 
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPath;
