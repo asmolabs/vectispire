@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.D
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.repositories.Outbox;
+import com.asmolabs.vectispire.core.services.NotificationService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;

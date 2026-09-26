@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.outbox;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
@@ -25,7 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * The relay that drains the outbox: scan notifications, and SIEM events.
  *
- * <p>Apart from {@link NotificationService} on purpose: that one owns <b>what to say</b>, this
+ * <p>Apart from {@code NotificationService} on purpose: that one owns <b>what to say</b>, this
  * one owns <b>when a message gets another chance</b>. The same holds for the SIEM export: {@code
  * SiemEvents} decides what is queued and {@code SiemDelivery} how it is sent; the claim, the
  * backoff and the abandonment are this class's, once, for every message type.

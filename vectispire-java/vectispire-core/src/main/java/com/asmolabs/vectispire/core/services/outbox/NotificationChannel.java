@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.outbox;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 
@@ -19,6 +19,11 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
  * <p>Every implementation <b>throws on failure</b>, like the webhook always did — the relay is
  * what turns an exception back into "not fatal, retry later", and a swallowed failure is a
  * failure never retried.
+ *
+ * <p><b>Declared beside the relay, implemented in {@code notifications}.</b> The relay dispatches
+ * a notification row to the channel whose {@link #type} it carries, so this is the relay's
+ * contract; kept with the channels, it made the outbox depend on the domain that enqueues into it
+ * (decision 0026).
  */
 public interface NotificationChannel {
 

@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.siem.SiemSeverityFilter;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
+import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;

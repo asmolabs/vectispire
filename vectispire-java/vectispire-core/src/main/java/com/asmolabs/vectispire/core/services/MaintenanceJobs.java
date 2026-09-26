@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.services.outbox.OutboxService;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
