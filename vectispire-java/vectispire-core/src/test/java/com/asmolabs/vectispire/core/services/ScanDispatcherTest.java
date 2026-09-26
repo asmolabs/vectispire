@@ -34,6 +34,7 @@ import com.asmolabs.vectispire.core.repositories.SshKeys;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.services.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Duration;
 import java.util.List;

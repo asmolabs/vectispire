@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.core.services.rules.RuleSetService;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.List;

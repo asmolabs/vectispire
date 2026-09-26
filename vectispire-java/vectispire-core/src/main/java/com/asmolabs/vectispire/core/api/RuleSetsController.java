@@ -1,15 +1,15 @@
 package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
-import com.asmolabs.vectispire.core.services.RuleCatalogueFetcher;
+import com.asmolabs.vectispire.core.services.rules.RuleCatalogueFetcher;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.SemgrepRuleSetEntity;
-import com.asmolabs.vectispire.core.services.RuleSetAdministrationService;
-import com.asmolabs.vectispire.core.services.RuleSetAdministrationService.RuleSetListing;
+import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService;
+import com.asmolabs.vectispire.core.services.rules.RuleSetAdministrationService.RuleSetListing;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
-import com.asmolabs.vectispire.core.services.RuleCoverageService;
+import com.asmolabs.vectispire.core.services.rules.RuleCoverageService;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 
