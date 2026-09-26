@@ -56,7 +56,7 @@ class OutboxServiceTest {
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         service = new OutboxService(
-                messages, List.of(notifications), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC),
+                messages, List.of(notifications), List.of(), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC),
                 new TransactionTemplate(manager));
 
         when(messages.save(any())).thenAnswer(call -> call.getArgument(0));
@@ -222,7 +222,7 @@ class OutboxServiceTest {
         NotificationChannel teams = mock(NotificationChannel.class);
         when(teams.type()).thenReturn("scan_delta_teams");
         OutboxService routed = new OutboxService(
-                messages, List.of(notifications, teams), new ObjectMapper(),
+                messages, List.of(notifications, teams), List.of(), new ObjectMapper(),
                 Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
 
         when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(queued("scan_delta_teams")));
@@ -245,6 +245,42 @@ class OutboxServiceTest {
         // The message stays pending and the failure is recorded. A skipped row would sit in the
         // table for ever, counted as neither sent nor failed.
         assertThat(service.relay(10).sent()).isZero();
+    }
+
+    @Test
+    @DisplayName("a SIEM row goes to its handler, as stored, and to no notification channel")
+    void aHandlerTypeIsRoutedToItsHandler() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10).sent()).isEqualTo(1);
+
+        // The payload is handed over as the text that was stored: a SIEM event is not a
+        // NotificationPayload, and parsing it as one would produce a notification of zeroes.
+        verify(siem).deliver(row.getId(), row.getPayload());
+        verify(notifications, never()).deliver(any(), any());
+    }
+
+    @Test
+    @DisplayName("a handler whose destination is gone has its row abandoned at once, not retried")
+    void aGoneHandlerDestinationIsAbandoned() {
+        OutboxHandler siem = mock(OutboxHandler.class);
+        when(siem.type()).thenReturn("siem_event");
+        doThrow(new NotificationService.GoneDestinationException("the SIEM export was switched off"))
+                .when(siem).deliver(any(), any());
+        OutboxService routed = new OutboxService(
+                messages, List.of(notifications), List.of(siem), new ObjectMapper(),
+                Clock.fixed(NOW, ZoneOffset.UTC), new TransactionTemplate(transactionManager()));
+        OutboxMessageEntity row = queued("siem_event");
+        when(messages.findDue(anyString(), any(), any())).thenReturn(List.of(row));
+
+        assertThat(routed.relay(10)).isEqualTo(new OutboxService.RelayResult(0, 0, 1));
+        verify(messages).recordAttempt(eq(row.getId()), eq(1), eq("the SIEM export was switched off"), eq("failed"), isNull());
     }
 
     private PlatformTransactionManager transactionManager() {

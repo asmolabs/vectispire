@@ -44,7 +44,7 @@ public class ThreatIntelFeedService {
     private final ThreatIntelSyncs syncRepo;
     private final Issues issuesRepo;
     private final Findings findingsRepo;
-    private final SiemExporterService siemExporter;
+    private final SiemEvents siemEvents;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
 
@@ -53,14 +53,14 @@ public class ThreatIntelFeedService {
             ThreatIntelSyncs syncRepo,
             Issues issuesRepo,
             Findings findingsRepo,
-            SiemExporterService siemExporter,
+            SiemEvents siemEvents,
             AuditLogService audit,
             TransactionTemplate transactions) {
         this.intelRepo = intelRepo;
         this.syncRepo = syncRepo;
         this.issuesRepo = issuesRepo;
         this.findingsRepo = findingsRepo;
-        this.siemExporter = siemExporter;
+        this.siemEvents = siemEvents;
         this.audit = audit;
         this.transactions = transactions;
     }
@@ -167,13 +167,16 @@ public class ThreatIntelFeedService {
 
                     if (becameKev) {
                         log.warn("CVE {} newly reclassified as actively exploited CISA KEV! Notifying SOC/SIEM.", issue.getIdentifier());
-                        CefEvent cef = CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
-                                .message("Vulnerability " + issue.getIdentifier() + " promoted to CISA Known Exploited Vulnerability (KEV)")
-                                .extension("cve", issue.getIdentifier())
-                                .extension("cs1", issue.getPackageName())
-                                .extension("cs1Label", "PackageName")
-                                .build();
-                        siemExporter.exportEvent(cef);
+                        // Queued in this transaction, sent after it commits: a reclassification
+                        // that rolls back announces nothing, and no collector holds this sync's
+                        // locks while it answers.
+                        siemEvents.enqueue(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
+                                .message("Vulnerability " + issue.getIdentifier()
+                                        + " promoted to CISA Known Exploited Vulnerability (KEV)")
+                                .target(targetOf(issue))
+                                .identifier(issue.getIdentifier())
+                                .component(issue.getPackageName())
+                                .build());
                     }
                 }
             }
@@ -194,6 +197,14 @@ public class ThreatIntelFeedService {
         syncRepo.save(sync);
 
         return new ThreatIntelSyncStatus(now, catalog.size(), kevCount, "SYNCED", updatedIssuesCount);
+    }
+
+    /** The target a finding belongs to, as the CEF target field names it: {@code repository 12}, {@code container 3}. */
+    private static String targetOf(IssueEntity issue) {
+        if (issue.getRepoId() != null) {
+            return "repository " + issue.getRepoId();
+        }
+        return issue.getContainerId() == null ? null : "container " + issue.getContainerId();
     }
 
     public Optional<ThreatIntelRecord> lookupCve(String cveId) {

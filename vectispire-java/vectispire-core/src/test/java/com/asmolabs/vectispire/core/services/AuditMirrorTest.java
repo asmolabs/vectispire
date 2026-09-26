@@ -53,7 +53,7 @@ class AuditMirrorTest {
         rows.clear();
         mirrorFile = scratch.resolve("nested").resolve("audit.ndjson");
         entries = auditLogOver(rows);
-        service = new AuditLogService(entries, new FileAuditMirror(mirrorFile, json), Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new AuditLogService(entries, new FileAuditMirror(mirrorFile, json), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of());
     }
 
     /**
@@ -145,7 +145,7 @@ class AuditMirrorTest {
     @DisplayName("no mirror configured is a state, not a clean bill of health")
     void aDisabledMirrorSaysSo() {
         AuditLogService withoutMirror = new AuditLogService(
-                auditLogOver(rows), new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC));
+                auditLogOver(rows), new AuditMirror.Disabled(), Clock.fixed(NOW, ZoneOffset.UTC), java.util.List.of());
         withoutMirror.record(AuditLogService.Record.of(AuditOperation.LOGIN_SUCCESS, "alice", "in", "alice"));
 
         assertThat(withoutMirror.verifyAgainstMirror())

@@ -138,6 +138,82 @@ class SiemRoutesTest extends ApiTestBase {
         assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID).orElseThrow().getAuthHeader()).startsWith("v2:");
     }
 
+    @Test
+    @DisplayName("an endpoint is read for its protocol at the save, not discovered at the first event")
+    void theEndpointMatchesTheProtocol() throws Exception {
+        String token = asAdmin();
+        // A URL under a syslog protocol, and host:port under the webhook: both stored before, and
+        // both failed every delivery for four hours before the outbox gave up.
+        assertThat(saveStatus(token, "SYSLOG_TLS", "https://collector.example.com/cef", null)).isEqualTo(400);
+        assertThat(saveStatus(token, "SYSLOG_TCP", "syslog+tls://collector.example.com:6514", null)).isEqualTo(400);
+        assertThat(saveStatus(token, "SYSLOG_UDP", "collector.example.com", null)).isEqualTo(400);
+        assertThat(saveStatus(token, "WEBHOOK", "collector.example.com:514", null)).isEqualTo(400);
+        assertThat(saveStatus(token, "SYSLOG_TLS", "", null)).isEqualTo(400);
+
+        assertThat(saveStatus(token, "SYSLOG_TLS", "collector.example.com:6514", null)).isEqualTo(200);
+        assertThat(saveStatus(token, "SYSLOG_UDP", "[2001:db8::1]:514", null)).isEqualTo(200);
+    }
+
+    @Test
+    @DisplayName("the authorization header is refused for a syslog protocol, which cannot carry it")
+    void theHeaderIsWebhookOnly() throws Exception {
+        String response = mvc.perform(authenticated(put("/api/v1/siem/config"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled": true, "protocol": "SYSLOG_TCP", "endpoint": "collector.example.com:514",
+                                 "authHeader": "Bearer never-sent", "minSeverity": "HIGH"}"""))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(response).contains("webhook protocol only");
+        assertThat(configs.findById(SiemConfigEntity.SINGLETON_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("the connection test speaks the protocol it is given, and reaches a syslog collector")
+    void theTestUsesTheProtocol() throws Exception {
+        settings.set(Setting.NOTIFICATION_ALLOW_PRIVATE_URL, "true");
+        try (java.net.DatagramSocket collector =
+                new java.net.DatagramSocket(0, java.net.InetAddress.getLoopbackAddress())) {
+            collector.setSoTimeout(3_000);
+
+            mvc.perform(authenticated(post("/api/v1/siem/test"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"protocol": "SYSLOG_UDP", "endpoint": "127.0.0.1:%d"}"""
+                                    .formatted(collector.getLocalPort())))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+
+            java.net.DatagramPacket packet = new java.net.DatagramPacket(new byte[8_192], 8_192);
+            collector.receive(packet);
+            assertThat(new String(packet.getData(), 0, packet.getLength(), java.nio.charset.StandardCharsets.UTF_8))
+                    .contains(" ZAN-SEC-999 - CEF:0|Vectispire|ASPM|");
+        }
+    }
+
+    @Test
+    @DisplayName("a syslog test to loopback is refused unless private destinations are allowed")
+    void aSyslogTestFollowsThePrivatePolicy() throws Exception {
+        mvc.perform(authenticated(post("/api/v1/siem/test"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"protocol": "SYSLOG_TCP", "endpoint": "127.0.0.1:59998"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("private or local")));
+    }
+
+    private int saveStatus(String token, String protocol, String endpoint, String authHeader) throws Exception {
+        String header = authHeader == null ? "" : ", \"authHeader\": \"" + authHeader + "\"";
+        return mvc.perform(authenticated(put("/api/v1/siem/config"), token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"enabled": true, "protocol": "%s", "endpoint": "%s", "minSeverity": "HIGH"%s}"""
+                                .formatted(protocol, endpoint, header)))
+                .andReturn().getResponse().getStatus();
+    }
+
     private void save(String authHeader) throws Exception {
         save(authHeader, "https://siem.example.com/e", asAdmin());
     }

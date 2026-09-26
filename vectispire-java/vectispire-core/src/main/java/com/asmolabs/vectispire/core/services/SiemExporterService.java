@@ -2,29 +2,26 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
-import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
-import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.settings.SettingType;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SiemProtocol;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.SiemConfigEntity;
 import com.asmolabs.vectispire.core.repositories.SiemConfigs;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
- * Dispatches security events to external SIEM & SOC aggregators in ArcSight CEF v0.1 format.
+ * The SIEM export's configuration and its connection test.
  *
- * <p>Uses {@link OutboundPost} to respect the strict outbound door and SSRF protection rules.
+ * <p>Events themselves do not pass here: they are queued by {@link SiemEvents} in the transaction
+ * that caused them and sent by {@link SiemDelivery} after it commits. This class used to send them
+ * — from an {@code @Async} method in a codebase with no {@code @EnableAsync}, so synchronously and
+ * inside the caller's transaction, and always over HTTP whatever the protocol said.
  */
 @Service
 public class SiemExporterService {
@@ -38,27 +35,20 @@ public class SiemExporterService {
     /** Encrypted, 1,500 ASCII characters become at most 2,043: see V32 and {@link #requireUsableHeader}. */
     private static final int MAX_AUTH_HEADER_LENGTH = 1_500;
 
-    private static final Logger log = LoggerFactory.getLogger(SiemExporterService.class);
     private final SiemConfigs repository;
-    private final OutboundPost outbound;
+    private final SiemSender sender;
     private final EncryptionService encryption;
-    private final SettingsService settings;
     private final AuditLogService audit;
-    private final ProductVersion version;
 
     public SiemExporterService(
             SiemConfigs repository,
-            OutboundPost outbound,
+            SiemSender sender,
             EncryptionService encryption,
-            SettingsService settings,
-            AuditLogService audit,
-            ProductVersion version) {
+            AuditLogService audit) {
         this.repository = repository;
-        this.outbound = outbound;
+        this.sender = sender;
         this.encryption = encryption;
-        this.settings = settings;
         this.audit = audit;
-        this.version = version;
     }
 
     public Optional<SiemConfigEntity> getConfig() {
@@ -76,10 +66,7 @@ public class SiemExporterService {
         // past it was refused by the database at the write, as a 500.
         SiemProtocol parsedProtocol = protocol == null || protocol.isBlank()
                 ? SiemProtocol.WEBHOOK
-                : SiemProtocol.byName(protocol).orElseThrow(() -> new IllegalArgumentException(
-                        "Unknown SIEM protocol \"" + protocol.trim() + "\". Expected one of: "
-                                + String.join(", ", Arrays.stream(SiemProtocol.values()).map(Enum::name).toList())
-                                + "."));
+                : parseProtocol(protocol);
         Severity threshold = minSeverity == null || minSeverity.isBlank()
                 ? Severity.HIGH
                 : SettingType.THRESHOLDS.stream()
@@ -89,7 +76,24 @@ public class SiemExporterService {
                                 "Unknown minimum severity \"" + minSeverity.trim()
                                         + "\". Expected one of: CRITICAL, HIGH, MEDIUM, LOW."));
         BoundedText.within(endpoint == null ? null : endpoint.trim(), MAX_ENDPOINT_LENGTH, "The endpoint");
+        // **Read for its protocol at the save, not discovered at the first event.** A syslog
+        // endpoint typed as a URL, or a URL saved under a syslog protocol, used to be stored and then
+        // fail every delivery for four hours before the outbox gave up. An enabled export with no
+        // endpoint is refused too: it would have queued nothing and said so to nobody.
+        boolean hasEndpoint = endpoint != null && !endpoint.isBlank();
+        if (hasEndpoint) {
+            SiemEndpoint.parse(parsedProtocol, endpoint);
+        } else if (enabled) {
+            throw new IllegalArgumentException("An enabled SIEM export needs an endpoint.");
+        }
         if (authHeader != null && !authHeader.isBlank()) {
+            if (!parsedProtocol.carriesHeaders()) {
+                // Refused rather than stored: a credential kept for a transport that cannot send it
+                // is a secret at rest with no purpose, and the screen would claim it was in use.
+                throw new IllegalArgumentException(
+                        "The authorization header applies to the webhook protocol only: a syslog frame has "
+                                + "nowhere to carry it.");
+            }
             requireUsableHeader(authHeader.trim());
         }
 
@@ -128,10 +132,15 @@ public class SiemExporterService {
         entity.setUpdatedAt(Instant.now());
         SiemConfigEntity saved = repository.save(entity);
 
+        // Signalled, and sent to the collector configured by this very save when it is on: a SOC
+        // should hear about the export being repointed — and, when it is switched off, the silence
+        // that follows is itself the signal, which is why nothing tries to send "switched off".
         audit.record(actor.entry(
-                AuditOperation.SETTING_UPDATED,
-                String.valueOf(saved.getId()),
-                "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol() + ")"));
+                        AuditOperation.SETTING_UPDATED,
+                        String.valueOf(saved.getId()),
+                        "SIEM configuration updated (enabled=" + saved.isEnabled() + ", protocol=" + saved.getProtocol()
+                                + ", minimum severity=" + saved.getMinSeverity() + ")")
+                .signalling(SecurityEventType.SECURITY_SETTING_CHANGED));
         return saved;
     }
 
@@ -151,61 +160,44 @@ public class SiemExporterService {
         }
     }
 
-    @Async
-    public void exportEvent(CefEvent event) {
-        getConfig().ifPresent(config -> {
-            if (!config.isEnabled() || config.getEndpoint() == null || config.getEndpoint().isBlank()) {
-                return;
-            }
-            try {
-                sendPayload(config.getEndpoint(), storedAuthHeader(config), event.toCefString(version.get()));
-            } catch (Exception e) {
-                log.warn("Failed to export SIEM security event: {}", e.getMessage());
-            }
-        });
-    }
-
-    public TestResult testConnection(String endpoint, String authHeader) {
+    /**
+     * Sends the health-check event, synchronously, over the protocol given — or the stored one when
+     * none is — so the button tests the transport the export will actually use. It tested HTTP
+     * whatever the protocol said, and a working syslog collector was reported unreachable.
+     *
+     * <p>Reported rather than thrown: "unreachable" is the answer to the question the button asks.
+     * The same guard runs as for a real event, so a refusal here is the refusal the export would
+     * get. The header travels with a webhook only.
+     */
+    public TestResult testConnection(String protocol, String endpoint, String authHeader) {
         if (endpoint == null || endpoint.isBlank()) {
-            return new TestResult(false, "Endpoint URL is required", 0);
+            return new TestResult(false, "An endpoint is required.", 0);
+        }
+        SiemProtocol parsed;
+        SiemEndpoint destination;
+        try {
+            parsed = protocol == null || protocol.isBlank()
+                    ? getConfig().flatMap(config -> SiemProtocol.byName(config.getProtocol())).orElse(SiemProtocol.WEBHOOK)
+                    : parseProtocol(protocol);
+            destination = SiemEndpoint.parse(parsed, endpoint);
+        } catch (IllegalArgumentException refused) {
+            return new TestResult(false, refused.getMessage(), 0);
         }
         try {
-            CefEvent testEvent = CefEvent.builder(SecurityEventType.PING_TEST)
-                    .message("Vectispire SIEM Health Check Ping")
+            CefEvent ping = CefEvent.builder(SecurityEventType.PING_TEST)
+                    .message("Vectispire SIEM health check")
                     .build();
-            sendPayload(endpoint, authHeader, testEvent.toCefString(version.get()));
-            return new TestResult(true, "Event delivered successfully", 200);
+            sender.send(destination, parsed.carriesHeaders() ? authHeader : null, ping);
+            return new TestResult(true, "Event delivered over " + parsed.name() + ".", parsed.carriesHeaders() ? 200 : 0);
         } catch (Exception e) {
             return new TestResult(false, "Connection error: " + e.getMessage(), 0);
         }
     }
 
-    /** Tolerates a header stored before it was encrypted, with a warning — see {@code readSecret}. */
-    private String storedAuthHeader(SiemConfigEntity config) {
-        return encryption.readSecret(config.getAuthHeader(), AUTH_HEADER_CONTEXT, "The SIEM authorization header");
-    }
-
-    /**
-     * Private addresses only when the operator has allowed them, as for every other channel.
-     *
-     * <p>This one allowed them unconditionally. With the test route answering the raw error to a
-     * security lead — "Connection refused", "HTTP 404" — that made a scanner of the internal
-     * network available to a role that is not an administrator. The metadata endpoint stays
-     * refused under both policies.
-     */
-    private OutboundPolicy policy() {
-        return settings.isEnabled(Setting.NOTIFICATION_ALLOW_PRIVATE_URL)
-                ? OutboundPolicy.INTERNAL_ALLOWED
-                : OutboundPolicy.PUBLIC_ONLY;
-    }
-
-    private void sendPayload(String endpoint, String authHeader, String cefString) {
-        Map<String, String> headers = new HashMap<>();
-        if (authHeader != null && !authHeader.isBlank()) {
-            headers.put("Authorization", authHeader);
-        }
-        Map<String, String> payload = Map.of("cef", cefString);
-        outbound.postForResponse(endpoint, payload, policy(), "SIEM export", headers);
+    private static SiemProtocol parseProtocol(String protocol) {
+        return SiemProtocol.byName(protocol).orElseThrow(() -> new IllegalArgumentException(
+                "Unknown SIEM protocol \"" + protocol.trim() + "\". Expected one of: "
+                        + String.join(", ", Arrays.stream(SiemProtocol.values()).map(Enum::name).toList()) + "."));
     }
 
     public record TestResult(boolean success, String message, int statusCode) {}

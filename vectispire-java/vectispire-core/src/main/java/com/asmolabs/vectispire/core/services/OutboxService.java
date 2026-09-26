@@ -23,10 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The relay that drains the notification queue.
+ * The relay that drains the outbox: scan notifications, and SIEM events.
  *
  * <p>Apart from {@link NotificationService} on purpose: that one owns <b>what to say</b>, this
- * one owns <b>when a message gets another chance</b>.
+ * one owns <b>when a message gets another chance</b>. The same holds for the SIEM export: {@code
+ * SiemEvents} decides what is queued and {@code SiemDelivery} how it is sent; the claim, the
+ * backoff and the abandonment are this class's, once, for every message type.
  *
  * <p><b>{@link #enqueue} opens no transaction of its own, and that is the whole point</b>: the
  * message has to become durable at the same instant as the state it describes, or the crash it
@@ -48,6 +50,9 @@ public class OutboxService {
     /** Every destination this deployment can reach, injected rather than enumerated here. */
     private final List<NotificationChannel> channels;
 
+    /** The message types that are not scan notifications — the SIEM export. See {@link OutboxHandler}. */
+    private final List<OutboxHandler> handlers;
+
     private final ObjectMapper json;
     private final Clock clock;
 
@@ -61,11 +66,13 @@ public class OutboxService {
     public OutboxService(
             Outbox messages,
             List<NotificationChannel> channels,
+            List<OutboxHandler> handlers,
             ObjectMapper json,
             Clock clock,
             TransactionTemplate transactions) {
         this.messages = messages;
         this.channels = channels;
+        this.handlers = handlers;
         this.json = json;
         this.clock = clock;
         this.transactions = transactions;
@@ -144,7 +151,7 @@ public class OutboxService {
             }
             int attempts = message.getAttempts() + 1;
             try {
-                channelFor(message).deliver(payloadOf(message), message.getTeamId());
+                deliver(message);
             } catch (NotificationService.GoneDestinationException gone) {
                 // **Abandoned at once, not retried twelve times.** Nothing about waiting brings
                 // back a team somebody deleted, and twelve attempts would fill the log with an
@@ -197,7 +204,7 @@ public class OutboxService {
      */
     private void abandon(OutboxMessageEntity message, int attempts, Instant at, RuntimeException reason) {
         messages.recordAttempt(message.getId(), attempts, reason.getMessage(), STATUS_FAILED, null);
-        log.error("Notification {} abandoned: {}", message.getId(), reason.getMessage());
+        log.error("Outbox message {} abandoned: {}", message.getId(), reason.getMessage());
     }
 
     /** @return whether the message was abandoned for good */
@@ -210,16 +217,32 @@ public class OutboxService {
                 message.getId(), attempts, reason, abandonedNow ? STATUS_FAILED : STATUS_PENDING, next.orElse(null));
 
         if (abandonedNow) {
-            log.error("Notification {} abandoned after {} attempts: {}", message.getId(), attempts, reason);
+            log.error("Outbox message {} abandoned after {} attempts: {}", message.getId(), attempts, reason);
         } else {
             log.warn(
-                    "Notification {} failed (attempt {}/{}), retrying at {}.",
+                    "Outbox message {} failed (attempt {}/{}), retrying at {}.",
                     message.getId(),
                     attempts,
                     OutboxRetry.MAX_ATTEMPTS,
                     next.map(Instant::toString).orElse("never"));
         }
         return abandonedNow;
+    }
+
+    /**
+     * Hands a row to whoever delivers its type: a handler for the SIEM export, a channel for a scan
+     * notification. A type neither knows is an error, retried and eventually abandoned with its
+     * reason — never a silent skip.
+     */
+    private void deliver(OutboxMessageEntity message) throws JsonProcessingException {
+        Optional<OutboxHandler> handler = handlers.stream()
+                .filter(candidate -> candidate.type().equals(message.getMessageType()))
+                .findFirst();
+        if (handler.isPresent()) {
+            handler.get().deliver(message.getId(), message.getPayload());
+            return;
+        }
+        channelFor(message).deliver(payloadOf(message), message.getTeamId());
     }
 
     private void markSent(UUID id, int attempts, Instant at) {
@@ -246,10 +269,12 @@ public class OutboxService {
     /**
      * The destination a row is for.
      *
-     * <p><b>The three types share one payload shape and differ only in where they go.</b> That
-     * conflates "what this message is" with "where it is bound", and the alternative — a second
+     * <p><b>The notification types share one payload shape and differ only in where they go.</b>
+     * That conflates "what this message is" with "where it is bound", and the alternative — a second
      * column — would mean recreating the table on SQLite for a distinction the routing column
-     * already carries. Written down because the next message shape will have to choose again.
+     * already carries. The next message shape did have to choose again: the SIEM event is not a
+     * notification, and it arrives through {@link OutboxHandler}, which reads its own payload,
+     * rather than by bending this one.
      */
     private NotificationChannel channelFor(OutboxMessageEntity message) {
         return channels.stream()

@@ -130,7 +130,10 @@ class IntegrationInputBoundsTest extends ApiTestBase {
         assertThat(siemSave(ciso, with(valid, "authHeader", "Bearer " + "a".repeat(1_500)))).isEqualTo(400);
         assertThat(siem.findAll()).as("a refusal writes nothing").isEmpty();
 
-        assertThat(siemSave(ciso, with(valid, "protocol", "syslog_tls", "minSeverity", "medium"))).isEqualTo(200);
+        // A syslog protocol reads a host:port, not the webhook's URL: the endpoint moves with it.
+        assertThat(siemSave(ciso, with(valid, "protocol", "syslog_tls", "minSeverity", "medium"))).isEqualTo(400);
+        assertThat(siemSave(ciso, with(valid, "protocol", "syslog_tls", "endpoint", "siem.example.com:6514",
+                "minSeverity", "medium"))).isEqualTo(200);
         assertThat(siem.findAll()).singleElement().satisfies(config -> {
             assertThat(config.getProtocol()).isEqualTo("SYSLOG_TLS");
             assertThat(config.getMinSeverity()).isEqualTo("MEDIUM");

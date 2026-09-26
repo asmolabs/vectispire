@@ -43,7 +43,11 @@ public class SiemController {
             String minSeverity,
             String updatedAt) {}
 
-    public record SiemTestRequest(String endpoint, String authHeader) {}
+    /**
+     * @param protocol the transport to test; absent, the stored one — so the button tests what the
+     *     export will use, including a protocol changed on screen and not yet saved
+     */
+    public record SiemTestRequest(String protocol, String endpoint, String authHeader) {}
 
     @GetMapping("/config")
     public SiemConfigResponse getConfig() {
@@ -73,7 +77,7 @@ public class SiemController {
     @RequiresSecurityLead
     @PostMapping("/test")
     public SiemExporterService.TestResult testConnection(@RequestBody SiemTestRequest request) {
-        return exporterService.testConnection(request.endpoint(), request.authHeader());
+        return exporterService.testConnection(request.protocol(), request.endpoint(), request.authHeader());
     }
 
     private SiemConfigResponse toResponse(SiemConfigEntity entity) {

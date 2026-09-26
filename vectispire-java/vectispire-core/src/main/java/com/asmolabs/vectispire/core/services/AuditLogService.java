@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.repositories.AuditLog;
 import java.time.Clock;
@@ -14,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Writing and verifying the audit log.
@@ -51,15 +54,36 @@ public class AuditLogService {
      */
     private final AtomicLong lastIssued = new AtomicLong(Long.MIN_VALUE);
 
-    public AuditLogService(AuditLog entries, AuditMirror mirror, Clock clock) {
+    /** Told of every entry once it is committed — the SIEM export's hook. See {@link Listener}. */
+    private final List<Listener> listeners;
+
+    public AuditLogService(AuditLog entries, AuditMirror mirror, Clock clock, List<Listener> listeners) {
         this.entries = entries;
         this.mirror = mirror;
         this.clock = clock;
+        this.listeners = List.copyOf(listeners);
+    }
+
+    /**
+     * Something that acts on an entry once it exists.
+     *
+     * <p><b>After the entry's commit, never before.</b> Called from the audit transaction's
+     * after-commit callback, so a listener acts on entries that are in the table and on nothing an
+     * error rolled back — and <b>a listener that fails cannot cost the entry</b>: it is already
+     * committed when the listener runs, and its exception is caught and logged here. The obvious
+     * alternative, doing the listener's writes inside the audit transaction, would have let a
+     * failure there mark that transaction rollback-only and take the entry with it.
+     */
+    public interface Listener {
+        void recorded(Record entry, Instant at);
     }
 
     /**
      * @param userId the username, not the numeric identifier: an entry must stay readable after
      *     the account is deleted
+     * @param signal the security event this entry stands for, when its writer says so; {@code null}
+     *     leaves it to {@link SecurityEventType#signalledBy}, which answers only for operations that
+     *     are unambiguous. Not stored — the column set, and so the hash chain, is unchanged
      */
     public record Record(
             AuditOperation operation,
@@ -67,10 +91,32 @@ public class AuditLogService {
             String description,
             String userId,
             String ipAddress,
-            String userAgent) {
+            String userAgent,
+            SecurityEventType signal) {
+
+        public Record(
+                AuditOperation operation,
+                String resourceId,
+                String description,
+                String userId,
+                String ipAddress,
+                String userAgent) {
+            this(operation, resourceId, description, userId, ipAddress, userAgent, null);
+        }
 
         public static Record of(AuditOperation operation, String resourceId, String description, String userId) {
             return new Record(operation, resourceId, description, userId, null, null);
+        }
+
+        /**
+         * The same entry, naming the security event it stands for.
+         *
+         * <p>For the operations too broad to signal on their own — a {@code LOGIN_BLOCKED} is the
+         * throttle and also "password sign-in is off"; a {@code SETTING_UPDATED} is the four-eyes
+         * switch and also a branch name. The writer knows which it is; the operation does not.
+         */
+        public Record signalling(SecurityEventType event) {
+            return new Record(operation, resourceId, description, userId, ipAddress, userAgent, event);
         }
     }
 
@@ -114,6 +160,17 @@ public class AuditLogService {
             if (!mirror.append(mirrored(row))) {
                 log.error("Audit entry {} is in the table but not in the mirror", row.getId());
             }
+
+            afterCommit(new Record(
+                    entry.operation(),
+                    // The caller's, not the column's: the column holds String.valueOf, so an absent
+                    // resource is the four letters "null" there, which a SOC would read as a name.
+                    entry.resourceId(),
+                    row.getDescription(),
+                    row.getUserId(),
+                    row.getIpAddress(),
+                    row.getUserAgent(),
+                    entry.signal()), row.getTimestamp());
         } catch (RuntimeException failed) {
             // See the class note: never at the expense of the action being described. Logged at
             // error level, because a log that stops recording in silence is worse than one that
@@ -271,6 +328,40 @@ public class AuditLogService {
             entries.updateHashes(UUID.fromString(entry.id()), entry.entry().previousHash(), entry.entryHash());
         }
         return rebuilt.size();
+    }
+
+    /**
+     * Tells the listeners once this transaction has committed, or at once when there is none — a
+     * unit test calling this class directly.
+     *
+     * <p>What they receive is the entry as stored: the description truncated to its column, the
+     * blank address and user agent as null. An event forwarded to a SOC then says what the audit log
+     * says, and not what the caller happened to pass.
+     */
+    private void afterCommit(Record stored, Instant at) {
+        if (listeners.isEmpty()) {
+            return;
+        }
+        Runnable notify = () -> listeners.forEach(listener -> {
+            try {
+                listener.recorded(stored, at);
+            } catch (RuntimeException failed) {
+                // Spring hands an after-commit exception to whoever committed: the audited action.
+                // The entry is committed already; a listener's failure is logged and stops there.
+                log.error("Audit listener {} failed on {}: {}",
+                        listener.getClass().getSimpleName(), stored.operation(), failed.getMessage(), failed);
+            }
+        });
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notify.run();
+                }
+            });
+        } else {
+            notify.run();
+        }
     }
 
     private Instant monotonicNow() {
