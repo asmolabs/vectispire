@@ -27,10 +27,18 @@ export class SettingsState {
     readonly saving = signal(false);
     readonly saved = signal(false);
 
-    /** What changed since loading. Drives the button, and sends only the delta. */
-    private original: Record<string, string> = {};
+    /**
+     * What changed since loading. Drives the button, and sends only the delta.
+     *
+     * A signal because `dirty` reads it: as a plain field the computed tracked `values` alone, and
+     * stayed right only because `reload` happened to write `values` first.
+     */
+    private readonly original = signal<Record<string, string>>({});
 
-    readonly dirty = computed(() => Object.entries(this.values()).some(([key, value]) => this.original[key] !== value));
+    readonly dirty = computed(() => {
+        const original = this.original();
+        return Object.entries(this.values()).some(([key, value]) => original[key] !== value);
+    });
 
     readonly sections = computed(() => {
         const groups = new Map<string, SettingDefinition[]>();
@@ -78,7 +86,7 @@ export class SettingsState {
         // ever touched, and the screen could no longer say which ones stayed at their
         // default.
         const changed = Object.fromEntries(
-            Object.entries(this.values()).filter(([key, value]) => this.original[key] !== value)
+            Object.entries(this.values()).filter(([key, value]) => this.original()[key] !== value)
         );
         if (Object.keys(changed).length === 0) return;
 
@@ -107,7 +115,7 @@ export class SettingsState {
                 this.catalog.set(settings);
                 const values = Object.fromEntries(settings.map((setting) => [setting.key, setting.value]));
                 this.values.set(values);
-                this.original = { ...values };
+                this.original.set({ ...values });
             },
             error: () => this.error.set(this.i18n.t('settings.error_load'))
         });
