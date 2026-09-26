@@ -58,6 +58,42 @@ class SigningKeyServiceTest extends VectispireContextTest {
     }
 
     @Test
+    @DisplayName("two instances starting together sign with one key: the second never overwrites the first")
+    void twoInstancesAgreeOnOneKey() throws Exception {
+        // Forced interleaving: the second instance reads "no key" first, then waits while the first
+        // generates, stores and starts signing, and only then generates and stores its own. The
+        // store was a merge — the second key replaced the first under a running instance, whose
+        // signatures then matched nothing stored.
+        java.util.concurrent.CountDownLatch secondHasLooked = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch firstIsSigning = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicBoolean looked = new java.util.concurrent.atomic.AtomicBoolean();
+        SettingsService slowToStore = org.mockito.Mockito.mock(SettingsService.class,
+                org.mockito.Mockito.withSettings().defaultAnswer(org.mockito.AdditionalAnswers.delegatesTo(settingsService)));
+        when(slowToStore.internalValue(SigningKeyService.STORED_KEY)).thenAnswer(call -> {
+            java.util.Optional<String> seen = settingsService.internalValue(SigningKeyService.STORED_KEY);
+            if (looked.compareAndSet(false, true)) {
+                secondHasLooked.countDown();
+                assertThat(firstIsSigning.await(30, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            }
+            return seen;
+        });
+        SigningKeyService second = new SigningKeyService("", slowToStore, encryption);
+        java.util.concurrent.CompletableFuture<String> secondKey =
+                java.util.concurrent.CompletableFuture.supplyAsync(second::getKeyId);
+
+        assertThat(secondHasLooked.await(30, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        SigningKeyService first = new SigningKeyService("", settingsService, encryption);
+        String signature = first.sign(PAYLOAD);
+        firstIsSigning.countDown();
+
+        assertThat(secondKey.get(30, java.util.concurrent.TimeUnit.SECONDS)).isEqualTo(first.getKeyId());
+        SigningKeyService afterRestart = new SigningKeyService("", settingsService, encryption);
+        assertThat(afterRestart.getKeyId()).as("the stored key is the one the first instance signs with")
+                .isEqualTo(first.getKeyId());
+        assertThat(afterRestart.verify(PAYLOAD, signature)).isTrue();
+    }
+
+    @Test
     @DisplayName("with a configured key, the published half is derived from it and verifies what it signs")
     void aConfiguredKeyPublishesItsOwnHalf() {
         KeyPair pair = CosignSigner.generateKeyPair();

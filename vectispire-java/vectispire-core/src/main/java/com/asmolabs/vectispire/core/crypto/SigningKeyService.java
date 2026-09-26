@@ -160,16 +160,21 @@ public class SigningKeyService {
         KeyPair generated = CosignSigner.generateKeyPair();
         // Throws MissingEncryptionKeyException without ENCRYPTION_KEY: a key that cannot be kept is
         // a key whose signatures die with this process.
-        settings.storeInternal(STORED_KEY, encryption.encrypt(CosignSigner.toPem(generated.getPrivate()), CONTEXT));
+        boolean inserted = settings.storeInternalIfAbsent(
+                STORED_KEY, encryption.encrypt(CosignSigner.toPem(generated.getPrivate()), CONTEXT));
 
-        // **Read back, and use what is stored.** Two instances starting together could each
-        // generate a key; whichever row survives is the one both must sign with. The window is the
-        // first signature on a fresh deployment — which is why a multi-instance deployment sets
-        // vectispire.signing.key instead.
+        // **Read back, and use what is stored.** Two instances starting together can each generate
+        // a key; the first insert wins, the second is refused and never overwrites it, and both
+        // sign with the row that won. A multi-instance deployment can still set
+        // vectispire.signing.key and avoid the question.
         String kept = settings.internalValue(STORED_KEY).orElseThrow().trim();
         KeyMaterial key = KeyMaterial.of(CosignSigner.parsePrivateKey(decrypt(kept)));
-        log.info("Generated the document signing key {} and stored it encrypted. Keep ENCRYPTION_KEY: without it, "
-                + "this key cannot be read back and nothing can be signed.", key.keyId());
+        if (inserted) {
+            log.info("Generated the document signing key {} and stored it encrypted. Keep ENCRYPTION_KEY: without it, "
+                    + "this key cannot be read back and nothing can be signed.", key.keyId());
+        } else {
+            log.info("Another instance stored the document signing key {} first; signing with it.", key.keyId());
+        }
         return key;
     }
 

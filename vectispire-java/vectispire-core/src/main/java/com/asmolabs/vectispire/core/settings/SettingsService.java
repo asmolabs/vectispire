@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -104,15 +105,28 @@ public class SettingsService {
     }
 
     /**
-     * Stores such a row and flushes it at once: the caller reads it back to find out which of two
-     * instances starting together won, and a row still in the persistence context would answer that
-     * question with its own write.
+     * Stores such a row unless one exists, and says whether it did.
+     *
+     * <p><b>Insert-if-absent, never overwrite.</b> This was a merge, and a merge overwrites: two
+     * instances starting together each generated a signing key, each wrote it and each read back
+     * its own — the second write replaced the first after the first instance had already started
+     * signing with it, so its signatures verified against nothing stored. The insert now fails for
+     * whoever comes second, and the caller reads back the row that won.
+     *
+     * @return false when the key already had a row, which is left as it was
      */
-    public void storeInternal(String key, String value) {
-        SettingEntity row = new SettingEntity();
-        row.setKey(key);
-        row.setValue(value);
-        settings.saveAndFlush(row);
+    public boolean storeInternalIfAbsent(String key, String value) {
+        try {
+            return settings.insert(key, value) == 1;
+        } catch (DataAccessException refused) {
+            // Decided by what is there, not by the exception's type: SQLite's dialect reports the
+            // primary key as a generic JPA failure, the two engines as an integrity violation. A
+            // refusal with no row behind it is some other failure, and is not swallowed.
+            if (settings.existsById(key)) {
+                return false;
+            }
+            throw refused;
+        }
     }
 
     /**
