@@ -130,10 +130,13 @@ class ArchitectureTest {
                 .as("the domain package must be on the classpath and populated")
                 .isTrue();
         // And every module listed must hold classes in each of the places the rules below read: a
-        // module whose name is misspelt here would otherwise be a module no rule applies to.
+        // module whose name is misspelt here would otherwise be a module no rule applies to. Its
+        // `package-info` does not count: since step 6 every module root has one, and a root holding
+        // nothing else is a module that moved away.
         for (String module : MODULES) {
             org.assertj.core.api.Assertions
-                    .assertThat(classes.stream().anyMatch(c -> c.getPackageName().equals(CORE + "." + module)))
+                    .assertThat(classes.stream().anyMatch(c -> c.getPackageName().equals(CORE + "." + module)
+                            && !c.getSimpleName().equals("package-info")))
                     .as("module %s has no class at its root: its name in MODULES or its package is wrong", module)
                     .isTrue();
         }

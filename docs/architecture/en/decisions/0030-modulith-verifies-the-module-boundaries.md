@@ -77,10 +77,10 @@ every `web` package.
 | `domainIsPure`, `onlyRepositoriesReachTheDatabase` | kept | libraries, not modules |
 | `onlyTheOutboundDoorSpeaksHttpOutwards`, `onlySyslogSenderOpensSockets` | kept | one class allowed a library |
 | `everyRepositoryWriteIsTransactional`, `caseIsFoldedWithoutTheHostLocale` | kept | conventions on methods |
-| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | kept | the kept rules read them; `ModularityTest.detectsModules` holds the same list against Modulith's model |
+| `findsSomethingToCheck`, `MODULES`, `OUTSIDE_MODULES = {config}` | kept | the kept rules read them; `ModularityTest.detectsModules` holds the same list against Modulith's model. A module's root must hold a class besides its `package-info`, which every root now has |
 | — | **new**: `accessForRoutesOnly` | the one line of the table a module's list cannot express |
 
-Every kept or moved rule but the `findsSomethingToCheck` sanity check was mutation-checked against a violation built for it, and each retired
+Every kept or moved rule was mutation-checked against a violation built for it, and each retired
 rule's violation — a reach into another module's `persistence` or `internal`, a cycle, a module a list
 lacks, a named interface a list lacks, `platform` or `config` used by a module — fails `verify()`.
 
