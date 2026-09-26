@@ -10,9 +10,9 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.TeamChannels;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
@@ -46,18 +46,18 @@ class TeamNotificationRoutingTest {
 
     private SettingsService settings;
     private OutboundPost post;
-    private TeamWebhooks webhooks;
+    private TeamWebhookRepository webhooks;
     private NotificationService service;
 
     @BeforeEach
     void wire() {
         settings = mock(SettingsService.class);
         post = mock(OutboundPost.class);
-        webhooks = mock(TeamWebhooks.class);
+        webhooks = mock(TeamWebhookRepository.class);
         service = new NotificationService(
                 settings,
                 post,
-                new TeamChannels(mock(TeamTargets.class), webhooks),
+                new TeamChannels(mock(TeamTargetRepository.class), webhooks),
                 mock(EncryptionService.class),
                 Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 

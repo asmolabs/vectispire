@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Who is in which team. */
-public interface TeamMembers extends JpaRepository<TeamMemberEntity, TeamMemberEntity.Id> {
+public interface TeamMemberRepository extends JpaRepository<TeamMemberEntity, TeamMemberEntity.Id> {
 
     @Query("select m from TeamMemberEntity m where m.id.teamId = :teamId")
     List<TeamMemberEntity> findByTeamId(@Param("teamId") Long teamId);
@@ -16,7 +16,7 @@ public interface TeamMembers extends JpaRepository<TeamMemberEntity, TeamMemberE
     @Query("select m from TeamMemberEntity m where m.id.userId = :userId")
     List<TeamMemberEntity> findByUserId(@Param("userId") Long userId);
 
-    /** Replaced wholesale, for the reason given on {@link UserTargets#deleteByUserId}. */
+    /** Replaced wholesale, for the reason given on {@link UserTargetRepository#deleteByUserId}. */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("delete from TeamMemberEntity m where m.id.teamId = :teamId")

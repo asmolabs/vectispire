@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.access;
 
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,16 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
  * id)}, which no foreign key can follow into three tables, so nothing cascades: whoever deletes a
  * repository, an image or a project has to revoke what names it, or the row stays on the grant
  * screens — and, should an engine hand the identifier out again, grants a target nobody chose (see
- * {@link UserTargets#deleteByTarget}). The deleting module used to write both grant tables itself
+ * {@link UserTargetRepository#deleteByTarget}). The deleting module used to write both grant tables itself
  * (a step-5 finding of decision 0028); it now asks here.
  */
 @Service
 public class TargetGrants {
 
-    private final UserTargets userTargets;
-    private final TeamTargets teamTargets;
+    private final UserTargetRepository userTargets;
+    private final TeamTargetRepository teamTargets;
 
-    public TargetGrants(UserTargets userTargets, TeamTargets teamTargets) {
+    public TargetGrants(UserTargetRepository userTargets, TeamTargetRepository teamTargets) {
         this.userTargets = userTargets;
         this.teamTargets = teamTargets;
     }

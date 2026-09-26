@@ -8,15 +8,15 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.ScanDelta;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -48,13 +48,13 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
     private TransactionTemplate transactions;
 
     @Autowired
-    private Teams teams;
+    private TeamRepository teams;
 
     @Autowired
-    private TeamTargets teamTargets;
+    private TeamTargetRepository teamTargets;
 
     @Autowired
-    private TeamWebhooks teamWebhooks;
+    private TeamWebhookRepository teamWebhooks;
 
     @Autowired
     private Solutions solutions;
@@ -66,7 +66,7 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
     private GitRepositories repositories;
 
     @Autowired
-    private Outbox outbox;
+    private OutboxMessageRepository outbox;
 
     @Test
     @DisplayName("a scan of a repository filed in the team's project is queued for the team's channel")

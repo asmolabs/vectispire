@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
  * already the domain's rule class and two types of the same simple name in one method do not
  * compile.
  */
-public interface ApiKeysRepository extends JpaRepository<ApiKeyEntity, UUID> {
+public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
 
     /**
      * The candidates a presented key could be.

@@ -7,9 +7,9 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeEntity;
-import com.asmolabs.vectispire.core.access.persistence.MfaChallenges;
+import com.asmolabs.vectispire.core.access.persistence.MfaChallengeRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.web.AuthController;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
@@ -45,10 +45,10 @@ class MfaChallengeIsSharedTest extends ApiTestBase {
     private static final String PASSWORD = "correct horse battery staple";
 
     @Autowired
-    private Users userStore;
+    private UserRepository userStore;
 
     @Autowired
-    private MfaChallenges challenges;
+    private MfaChallengeRepository challenges;
 
     @Autowired
     private Clock testClock;

@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.agents.internal;
 
 import com.asmolabs.vectispire.core.access.AgentDirectory;
 import com.asmolabs.vectispire.core.access.AgentView;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RegisteredAgents implements AgentDirectory {
 
-    private final Agents agents;
+    private final AgentRepository agents;
 
-    public RegisteredAgents(Agents agents) {
+    public RegisteredAgents(AgentRepository agents) {
         this.agents = agents;
     }
 

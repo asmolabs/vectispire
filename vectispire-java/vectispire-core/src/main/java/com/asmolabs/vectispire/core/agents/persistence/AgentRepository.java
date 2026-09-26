@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** The workers allowed to run scans, remote and built-in alike. */
-public interface Agents extends JpaRepository<AgentEntity, UUID> {
+public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
 
     Optional<AgentEntity> findByApiKeyId(UUID apiKeyId);
 

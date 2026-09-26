@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -46,7 +46,7 @@ class AttachTicketRoutesTest extends ApiTestBase {
     private Issues issues;
 
     @Autowired
-    private AuditLog auditLogs;
+    private AuditLogRepository auditLogs;
 
     @Test
     @DisplayName("writes the reference the webhook will look up, and returns it")

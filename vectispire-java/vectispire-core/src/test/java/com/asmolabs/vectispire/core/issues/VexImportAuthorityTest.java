@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
@@ -66,7 +66,7 @@ class VexImportAuthorityTest extends VectispireContextTest {
     private Issues issues;
 
     @Autowired
-    private AuditLog audit;
+    private AuditLogRepository audit;
 
     @Autowired
     private SettingsService settings;

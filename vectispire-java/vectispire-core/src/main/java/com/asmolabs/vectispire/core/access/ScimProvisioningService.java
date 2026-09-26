@@ -7,10 +7,10 @@ import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
@@ -72,18 +72,18 @@ public class ScimProvisioningService {
     /** The width of {@code display_name}, {@code email} and {@code keycloak_id}. */
     private static final int IDENTITY_COLUMN = 255;
 
-    private final Users users;
-    private final Teams teams;
-    private final TeamMembers members;
+    private final UserRepository users;
+    private final TeamRepository teams;
+    private final TeamMemberRepository members;
     private final AuthService auth;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     public ScimProvisioningService(
-            Users users,
-            Teams teams,
-            TeamMembers members,
+            UserRepository users,
+            TeamRepository teams,
+            TeamMemberRepository members,
             AuthService auth,
             AuditLogService audit,
             TransactionTemplate transactions,

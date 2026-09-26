@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
@@ -57,7 +57,7 @@ class SiemExportRoutesTest extends ApiTestBase {
     private SiemEvents events;
 
     @Autowired
-    private Outbox outbox;
+    private OutboxMessageRepository outbox;
 
     @Autowired
     private SettingsService settings;

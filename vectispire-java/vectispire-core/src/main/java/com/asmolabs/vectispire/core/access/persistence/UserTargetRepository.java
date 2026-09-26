@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Which targets each account may see, when the deployment restricts visibility. */
-public interface UserTargets extends JpaRepository<UserTargetEntity, UserTargetEntity.Id> {
+public interface UserTargetRepository extends JpaRepository<UserTargetEntity, UserTargetEntity.Id> {
 
     @Query("select t from UserTargetEntity t where t.id.userId = :userId")
     List<UserTargetEntity> findByUserId(@Param("userId") Long userId);

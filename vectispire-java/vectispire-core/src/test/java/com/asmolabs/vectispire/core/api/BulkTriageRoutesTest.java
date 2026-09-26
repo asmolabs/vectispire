@@ -52,7 +52,7 @@ class BulkTriageRoutesTest extends ApiTestBase {
     private SettingsService settings;
 
     @Autowired
-    private com.asmolabs.vectispire.core.access.persistence.Users users;
+    private com.asmolabs.vectispire.core.access.persistence.UserRepository users;
 
     @Test
     @DisplayName("one decision reaches every issue, and each one records its own transition")

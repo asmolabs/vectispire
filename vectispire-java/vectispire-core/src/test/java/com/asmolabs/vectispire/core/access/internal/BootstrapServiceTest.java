@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.settings.FirstInstallDefaults;
 import java.time.Clock;
 import java.time.Instant;
@@ -27,12 +27,12 @@ class BootstrapServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T08:00:00Z");
     private static final String STRONG_PASSWORD = "correct horse battery staple";
 
-    private Users users;
+    private UserRepository users;
     private FirstInstallDefaults firstInstallDefaults;
 
     @BeforeEach
     void wire() {
-        users = mock(Users.class);
+        users = mock(UserRepository.class);
         firstInstallDefaults = mock(FirstInstallDefaults.class);
         when(users.save(any())).thenAnswer(call -> call.getArgument(0));
     }

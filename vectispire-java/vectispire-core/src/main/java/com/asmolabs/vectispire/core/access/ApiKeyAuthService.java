@@ -6,9 +6,9 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -34,12 +34,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ApiKeyAuthService {
 
-    private final ApiKeysRepository keys;
+    private final ApiKeyRepository keys;
     private final AgentDirectory agents;
     private final Clock clock;
-    private final Users users;
+    private final UserRepository users;
 
-    public ApiKeyAuthService(ApiKeysRepository keys, AgentDirectory agents, Clock clock, Users users) {
+    public ApiKeyAuthService(ApiKeyRepository keys, AgentDirectory agents, Clock clock, UserRepository users) {
         this.keys = keys;
         this.agents = agents;
         this.clock = clock;

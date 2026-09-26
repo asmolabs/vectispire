@@ -54,7 +54,7 @@ class AiEndpointAcknowledgementTest {
                 new com.asmolabs.vectispire.core.platform.SettingsAdministrationService(
                         settings, aiReview,
                         new com.asmolabs.vectispire.core.access.TriageApprovers(
-                                mock(com.asmolabs.vectispire.core.access.persistence.Users.class)),
+                                mock(com.asmolabs.vectispire.core.access.persistence.UserRepository.class)),
                         mock(TicketService.class), mock(NotificationService.class), mock(AuditLogService.class)),
                 mock(TicketService.class), aiReview, mock(NotificationService.class));
 

@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.auth.Totp;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import java.time.Clock;
@@ -25,13 +25,13 @@ public class TotpService {
     private static final String TOTP_CONTEXT = "user:totp_secret";
     private static final String BACKUP_CONTEXT = "user:backup_codes";
 
-    private final Users users;
+    private final UserRepository users;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
     private final AuthService auth;
 
-    public TotpService(Users users, EncryptionService encryption, AuditLogService audit, Clock clock, AuthService auth) {
+    public TotpService(UserRepository users, EncryptionService encryption, AuditLogService audit, Clock clock, AuthService auth) {
         this.users = users;
         this.encryption = encryption;
         this.audit = audit;

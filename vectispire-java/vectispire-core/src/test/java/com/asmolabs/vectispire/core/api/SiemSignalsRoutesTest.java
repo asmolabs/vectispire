@@ -17,11 +17,11 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.maintenance.internal.MaintenanceJobs;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -53,13 +53,13 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     private static final String PASSWORD = "correct horse battery staple";
 
     @Autowired
-    private Outbox outbox;
+    private OutboxMessageRepository outbox;
 
     @Autowired
     private SettingsService settings;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
     private GitRepositories repositories;

@@ -2,10 +2,10 @@ package com.asmolabs.vectispire.core.access.internal;
 
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -37,11 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccountAdminService {
 
-    private final Users users;
-    private final UserSessions sessions;
-    private final UserTargets assignments;
+    private final UserRepository users;
+    private final SessionRepository sessions;
+    private final UserTargetRepository assignments;
 
-    public AccountAdminService(Users users, UserSessions sessions, UserTargets assignments) {
+    public AccountAdminService(UserRepository users, SessionRepository sessions, UserTargetRepository assignments) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;

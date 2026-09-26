@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Clock;
 import java.time.Instant;
@@ -28,13 +28,13 @@ class AuditLogServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
 
     private final List<AuditLogEntity> stored = new ArrayList<>();
-    private AuditLog entries;
+    private AuditLogRepository entries;
     private AuditLogService service;
 
     @BeforeEach
     void wire() {
         stored.clear();
-        entries = mock(AuditLog.class);
+        entries = mock(AuditLogRepository.class);
         // No mirror here on purpose: this suite is about the chain the table carries. The
         // second copy has its own suite, and mixing the two would make a chain failure and a
         // mirror failure look alike.

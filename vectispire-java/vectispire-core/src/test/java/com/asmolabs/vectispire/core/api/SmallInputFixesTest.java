@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import java.time.Instant;
@@ -27,7 +27,7 @@ import org.springframework.http.MediaType;
 class SmallInputFixesTest extends ApiTestBase {
 
     @Autowired
-    private AuditLog auditLog;
+    private AuditLogRepository auditLog;
 
     @Autowired
     private Issues issues;

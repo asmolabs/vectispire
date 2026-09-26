@@ -19,7 +19,7 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.D
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
@@ -42,13 +42,13 @@ class OutboxServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T14:00:00Z");
     private static final UUID ID = UUID.fromString("00000000-0000-0000-0000-00000000000f");
 
-    private Outbox messages;
+    private OutboxMessageRepository messages;
     private NotificationService notifications;
     private OutboxService service;
 
     @BeforeEach
     void wire() {
-        messages = mock(Outbox.class);
+        messages = mock(OutboxMessageRepository.class);
         notifications = mock(NotificationService.class);
         // The relay routes on the outbox type, so the mock has to answer the one it was queued
         // under — otherwise every row looks like a message no channel handles.

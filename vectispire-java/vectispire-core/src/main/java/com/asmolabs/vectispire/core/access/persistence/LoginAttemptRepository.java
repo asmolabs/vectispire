@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface LoginAttempts extends JpaRepository<LoginAttemptEntity, UUID> {
+public interface LoginAttemptRepository extends JpaRepository<LoginAttemptEntity, UUID> {
     List<LoginAttemptEntity> findByCounterKeyAndOccurredAtAfter(String counterKey, Instant after);
 
     /** Clears a counter after a success: five mistypes then a correct password is not an attack. */

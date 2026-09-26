@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.web.AuthController;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
@@ -38,7 +38,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
     private static final String PASSWORD = "correct horse battery staple";
 
     @Autowired
-    private Users userStore;
+    private UserRepository userStore;
 
     @Autowired
     private Clock testClock;
@@ -175,7 +175,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
     }
 
     @Autowired
-    private com.asmolabs.vectispire.core.access.persistence.UserSessions sessionStore;
+    private com.asmolabs.vectispire.core.access.persistence.SessionRepository sessionStore;
 
     @Test
     @DisplayName("the password step opens no session for an account that owes a code")

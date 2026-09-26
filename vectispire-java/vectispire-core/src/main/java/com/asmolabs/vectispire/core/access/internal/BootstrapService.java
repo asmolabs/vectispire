@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.settings.FirstInstallDefaults;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,13 +44,13 @@ public class BootstrapService {
 
     private static final Logger log = LoggerFactory.getLogger(BootstrapService.class);
 
-    private final Users users;
+    private final UserRepository users;
     private final BootstrapProperties properties;
     private final FirstInstallDefaults firstInstallDefaults;
     private final Clock clock;
 
     public BootstrapService(
-            Users users,
+            UserRepository users,
             BootstrapProperties properties,
             FirstInstallDefaults firstInstallDefaults,
             Clock clock) {

@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +30,7 @@ import org.springframework.http.MediaType;
 class ScimUsersRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Test
     @DisplayName("a PATCH setting active to false deactivates the account and closes its sessions")

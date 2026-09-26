@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.access.AgentKeys;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.internal.AgentViews;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
@@ -62,7 +62,7 @@ public class AgentAdministrationService {
 
     private static final int MAX_LABELS_LENGTH = 255;
 
-    private final Agents agents;
+    private final AgentRepository agents;
     private final AgentKeys keys;
     private final ScanCatalog scans;
     private final TargetCatalog targets;
@@ -72,7 +72,7 @@ public class AgentAdministrationService {
     private final Clock clock;
 
     public AgentAdministrationService(
-            Agents agents,
+            AgentRepository agents,
             AgentKeys keys,
             ScanCatalog scans,
             TargetCatalog targets,

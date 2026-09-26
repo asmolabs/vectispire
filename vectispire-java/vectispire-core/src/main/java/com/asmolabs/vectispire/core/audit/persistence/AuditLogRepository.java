@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface AuditLog extends JpaRepository<AuditLogEntity, UUID> {
+public interface AuditLogRepository extends JpaRepository<AuditLogEntity, UUID> {
     /**
      * The whole log in chain order.
      *

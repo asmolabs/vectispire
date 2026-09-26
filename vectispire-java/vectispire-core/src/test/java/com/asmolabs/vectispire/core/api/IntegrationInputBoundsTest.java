@@ -5,8 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
@@ -45,10 +45,10 @@ class IntegrationInputBoundsTest extends ApiTestBase {
     private SiemConfigs siem;
 
     @Autowired
-    private Teams teams;
+    private TeamRepository teams;
 
     @Autowired
-    private TeamWebhooks webhooks;
+    private TeamWebhookRepository webhooks;
 
     @Test
     @DisplayName("an HTTPS token's name, username or token past its ceiling is a 400")

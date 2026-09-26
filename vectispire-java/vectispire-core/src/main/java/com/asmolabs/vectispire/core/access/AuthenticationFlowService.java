@@ -6,10 +6,10 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeEntity;
-import com.asmolabs.vectispire.core.access.persistence.MfaChallenges;
+import com.asmolabs.vectispire.core.access.persistence.MfaChallengeRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Duration;
@@ -65,9 +65,9 @@ public class AuthenticationFlowService {
     private final AuthService auth;
     private final AuditLogService audit;
     private final TotpService totp;
-    private final Users users;
-    private final UserSessions sessions;
-    private final MfaChallenges mfaChallenges;
+    private final UserRepository users;
+    private final SessionRepository sessions;
+    private final MfaChallengeRepository mfaChallenges;
     private final Clock clock;
 
     public AuthenticationFlowService(
@@ -76,9 +76,9 @@ public class AuthenticationFlowService {
             AuthService auth,
             AuditLogService audit,
             TotpService totp,
-            Users users,
-            UserSessions sessions,
-            MfaChallenges mfaChallenges,
+            UserRepository users,
+            SessionRepository sessions,
+            MfaChallengeRepository mfaChallenges,
             Clock clock) {
         this.providers = providers;
         this.methods = methods;

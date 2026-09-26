@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.settings;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.settings.persistence.Settings;
+import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -26,9 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SettingsService {
 
-    private final Settings settings;
+    private final SettingRepository settings;
 
-    public SettingsService(Settings settings) {
+    public SettingsService(SettingRepository settings) {
         this.settings = settings;
     }
 

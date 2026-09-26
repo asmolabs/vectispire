@@ -1,9 +1,9 @@
 package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
-import com.asmolabs.vectispire.core.access.persistence.LoginAttempts;
-import com.asmolabs.vectispire.core.access.persistence.MfaChallenges;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
+import com.asmolabs.vectispire.core.access.persistence.MfaChallengeRepository;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import java.time.Clock;
 import java.time.Duration;
 import org.slf4j.Logger;
@@ -38,15 +38,15 @@ public class SessionCleanupService {
      */
     private static final Duration ATTEMPT_RETENTION = LoginThrottle.WINDOW.multipliedBy(2);
 
-    private final UserSessions sessions;
-    private final LoginAttempts attempts;
-    private final MfaChallenges challenges;
+    private final SessionRepository sessions;
+    private final LoginAttemptRepository attempts;
+    private final MfaChallengeRepository challenges;
     private final Clock clock;
 
     public SessionCleanupService(
-            UserSessions sessions,
-            LoginAttempts attempts,
-            MfaChallenges challenges,
+            SessionRepository sessions,
+            LoginAttemptRepository attempts,
+            MfaChallengeRepository challenges,
             Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;

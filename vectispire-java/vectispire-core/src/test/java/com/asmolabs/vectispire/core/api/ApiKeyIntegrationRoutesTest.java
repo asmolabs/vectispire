@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.Containers;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -32,7 +32,7 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
     private GitRepositories repositories;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
     private Containers containers;

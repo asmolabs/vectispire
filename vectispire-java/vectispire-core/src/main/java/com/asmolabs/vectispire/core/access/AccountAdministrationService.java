@@ -8,10 +8,10 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.internal.AccountAdminService;
 import com.asmolabs.vectispire.core.access.internal.GrantTargets;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
@@ -44,9 +44,9 @@ public class AccountAdministrationService {
     /** The width of {@code email} and {@code display_name}. */
     private static final int BOUNDED_COLUMN = 255;
 
-    private final Users users;
-    private final UserSessions sessions;
-    private final UserTargets assignments;
+    private final UserRepository users;
+    private final SessionRepository sessions;
+    private final UserTargetRepository assignments;
     private final AccountAdminService accounts;
     private final AuditLogService audit;
     private final Clock clock;
@@ -54,9 +54,9 @@ public class AccountAdministrationService {
     private final GrantableTargets targets;
 
     public AccountAdministrationService(
-            Users users,
-            UserSessions sessions,
-            UserTargets assignments,
+            UserRepository users,
+            SessionRepository sessions,
+            UserTargetRepository assignments,
             AccountAdminService accounts,
             AuditLogService audit,
             Clock clock,

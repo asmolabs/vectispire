@@ -9,13 +9,13 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.internal.GrantTargets;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -56,11 +56,11 @@ public class TeamAdministrationService {
     /** The width of {@code t_team_webhook.url}. */
     private static final int MAX_WEBHOOK_URL_LENGTH = 500;
 
-    private final Teams teams;
-    private final TeamMembers memberships;
-    private final TeamTargets targets;
-    private final TeamWebhooks webhooks;
-    private final Users users;
+    private final TeamRepository teams;
+    private final TeamMemberRepository memberships;
+    private final TeamTargetRepository targets;
+    private final TeamWebhookRepository webhooks;
+    private final UserRepository users;
     private final OutboundUrlGuard outbound;
     private final SettingsService settings;
     private final AuditLogService audit;
@@ -69,11 +69,11 @@ public class TeamAdministrationService {
     private final GrantableTargets grantable;
 
     public TeamAdministrationService(
-            Teams teams,
-            TeamMembers memberships,
-            TeamTargets targets,
-            TeamWebhooks webhooks,
-            Users users,
+            TeamRepository teams,
+            TeamMemberRepository memberships,
+            TeamTargetRepository targets,
+            TeamWebhookRepository webhooks,
+            UserRepository users,
             OutboundUrlGuard outbound,
             SettingsService settings,
             AuditLogService audit,

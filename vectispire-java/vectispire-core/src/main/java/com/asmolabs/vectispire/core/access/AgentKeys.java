@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -20,9 +20,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AgentKeys {
 
-    private final ApiKeysRepository keys;
+    private final ApiKeyRepository keys;
 
-    public AgentKeys(ApiKeysRepository keys) {
+    public AgentKeys(ApiKeyRepository keys) {
         this.keys = keys;
     }
 

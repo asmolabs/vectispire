@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.outbox;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,7 +46,7 @@ public class OutboxService {
     private static final String STATUS_SENT = "sent";
     private static final String STATUS_FAILED = "failed";
 
-    private final Outbox messages;
+    private final OutboxMessageRepository messages;
     /** Every destination this deployment can reach, injected rather than enumerated here. */
     private final List<NotificationChannel> channels;
 
@@ -64,7 +64,7 @@ public class OutboxService {
     private final TransactionTemplate transactions;
 
     public OutboxService(
-            Outbox messages,
+            OutboxMessageRepository messages,
             List<NotificationChannel> channels,
             List<OutboxHandler> handlers,
             ObjectMapper json,

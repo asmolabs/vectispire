@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -81,7 +81,7 @@ class ScanQueueIntegrationTest {
     private TransactionTemplate transactions;
 
     @Autowired
-    private Agents agents;
+    private AgentRepository agents;
 
     @BeforeEach
     void emptyQueue() {

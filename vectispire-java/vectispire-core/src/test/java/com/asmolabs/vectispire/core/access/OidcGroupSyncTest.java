@@ -9,10 +9,10 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -33,16 +33,16 @@ import org.mockito.ArgumentCaptor;
 @DisplayName("la synchronisation des groupes OIDC")
 class OidcGroupSyncTest {
 
-    private Teams teams;
-    private TeamMembers teamMembers;
+    private TeamRepository teams;
+    private TeamMemberRepository teamMembers;
     private ExternalIdentityService service;
     private UserEntity user;
 
     @BeforeEach
     void setUp() {
-        teams = mock(Teams.class);
-        teamMembers = mock(TeamMembers.class);
-        service = new ExternalIdentityService(mock(Users.class), Optional.of(teams), Optional.of(teamMembers), false);
+        teams = mock(TeamRepository.class);
+        teamMembers = mock(TeamMemberRepository.class);
+        service = new ExternalIdentityService(mock(UserRepository.class), Optional.of(teams), Optional.of(teamMembers), false);
 
         user = new UserEntity();
         user.setId(10L);

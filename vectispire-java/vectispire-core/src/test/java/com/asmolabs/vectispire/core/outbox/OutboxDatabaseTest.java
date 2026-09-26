@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
+import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import java.time.Instant;
 import java.util.Map;
@@ -32,7 +32,7 @@ class OutboxDatabaseTest extends VectispireContextTest {
     private OutboxService outbox;
 
     @Autowired
-    private Outbox messages;
+    private OutboxMessageRepository messages;
 
     @Autowired
     private TransactionTemplate transactions;

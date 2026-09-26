@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Which targets each team owns. */
-public interface TeamTargets extends JpaRepository<TeamTargetEntity, TeamTargetEntity.Id> {
+public interface TeamTargetRepository extends JpaRepository<TeamTargetEntity, TeamTargetEntity.Id> {
 
     @Query("select t from TeamTargetEntity t where t.id.teamId = :teamId")
     List<TeamTargetEntity> findByTeamId(@Param("teamId") Long teamId);
@@ -45,7 +45,7 @@ public interface TeamTargets extends JpaRepository<TeamTargetEntity, TeamTargetE
      * Every team's claim on one target, dropped.
      *
      * <p>For target deletion: there is no foreign key to cascade through, so the rows would
-     * otherwise outlive the repository they name. See {@link UserTargets#deleteByTarget} for why
+     * otherwise outlive the repository they name. See {@link UserTargetRepository#deleteByTarget} for why
      * that is an access-control matter and not housekeeping — SQLite reuses a freed
      * {@code rowid}, so a stale row can come to name a different target.
      */

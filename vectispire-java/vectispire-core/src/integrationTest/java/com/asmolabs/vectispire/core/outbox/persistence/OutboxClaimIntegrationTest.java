@@ -60,7 +60,7 @@ class OutboxClaimIntegrationTest {
     }
 
     @Autowired
-    private Outbox messages;
+    private OutboxMessageRepository messages;
 
     @BeforeEach
     void emptyOutbox() {

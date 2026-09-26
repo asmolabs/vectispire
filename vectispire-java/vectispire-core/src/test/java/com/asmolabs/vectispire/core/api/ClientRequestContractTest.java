@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -45,7 +45,7 @@ class ClientRequestContractTest extends ApiTestBase {
     private Issues issues;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Test
     @DisplayName("a repository keeps the agent label it was created with")

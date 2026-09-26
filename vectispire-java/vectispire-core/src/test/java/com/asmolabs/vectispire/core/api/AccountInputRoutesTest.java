@@ -5,8 +5,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +29,10 @@ import org.springframework.test.web.servlet.MvcResult;
 class AccountInputRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
-    private UserTargets assignments;
+    private UserTargetRepository assignments;
 
     @Test
     @DisplayName("an e-mail or display name past its column is a 400, and no account is created")

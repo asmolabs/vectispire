@@ -6,8 +6,8 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
@@ -61,10 +61,10 @@ abstract class ApiTestBase extends VectispireContextTest {
     protected ObjectMapper json;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
-    private UserSessions sessions;
+    private SessionRepository sessions;
 
     @Autowired
     private Clock clock;

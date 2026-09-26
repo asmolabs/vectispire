@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +34,7 @@ class AgentResultAttestationTest extends ApiTestBase {
     private static final String ARTIFACTS = "{}";
 
     @Autowired
-    private AuditLog auditEntries;
+    private AuditLogRepository auditEntries;
 
     /** @param token the agent's API key, shown once at creation like a real one */
     private record Enrolled(String id, String token) {}

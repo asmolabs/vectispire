@@ -3,10 +3,10 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -29,12 +29,12 @@ public class ExternalIdentityService {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalIdentityService.class);
 
-    private final Users users;
-    private final Optional<Teams> teams;
-    private final Optional<TeamMembers> teamMembers;
+    private final UserRepository users;
+    private final Optional<TeamRepository> teams;
+    private final Optional<TeamMemberRepository> teamMembers;
     private final boolean linkPrivileged;
 
-    public ExternalIdentityService(Users users) {
+    public ExternalIdentityService(UserRepository users) {
         this(users, Optional.empty(), Optional.empty(), false);
     }
 
@@ -44,9 +44,9 @@ public class ExternalIdentityService {
      */
     @Autowired
     public ExternalIdentityService(
-            Users users,
-            Optional<Teams> teams,
-            Optional<TeamMembers> teamMembers,
+            UserRepository users,
+            Optional<TeamRepository> teams,
+            Optional<TeamMemberRepository> teamMembers,
             @Value("${vectispire.oidc.link-privileged-accounts:false}") boolean linkPrivileged) {
         this.users = users;
         this.teams = teams;
@@ -219,8 +219,8 @@ public class ExternalIdentityService {
             return;
         }
 
-        Teams teamsRepo = teams.get();
-        TeamMembers membersRepo = teamMembers.get();
+        TeamRepository teamsRepo = teams.get();
+        TeamMemberRepository membersRepo = teamMembers.get();
 
         // The teams the claim names and that exist here. A group with no matching team is not an
         // error: an organisation's directory is wider than what this tool tracks.

@@ -14,12 +14,12 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.Collection;
 import java.util.List;
@@ -44,9 +44,9 @@ class VisibilityServiceTest {
     private static final long TEAM = 3L;
 
     private final SettingsService settings = mock(SettingsService.class);
-    private final UserTargets assignments = mock(UserTargets.class);
-    private final TeamMembers memberships = mock(TeamMembers.class);
-    private final TeamTargets teamTargets = mock(TeamTargets.class);
+    private final UserTargetRepository assignments = mock(UserTargetRepository.class);
+    private final TeamMemberRepository memberships = mock(TeamMemberRepository.class);
+    private final TeamTargetRepository teamTargets = mock(TeamTargetRepository.class);
     private final GrantableTargets repositories = mock(GrantableTargets.class);
 
     private final VisibilityService service =

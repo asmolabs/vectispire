@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.access;
 
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -18,10 +18,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class TeamChannels {
 
-    private final TeamTargets grants;
-    private final TeamWebhooks webhooks;
+    private final TeamTargetRepository grants;
+    private final TeamWebhookRepository webhooks;
 
-    public TeamChannels(TeamTargets grants, TeamWebhooks webhooks) {
+    public TeamChannels(TeamTargetRepository grants, TeamWebhookRepository webhooks) {
         this.grants = grants;
         this.webhooks = webhooks;
     }

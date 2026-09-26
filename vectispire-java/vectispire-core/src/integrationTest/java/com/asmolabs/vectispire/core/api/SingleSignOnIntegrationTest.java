@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import java.io.IOException;
 import java.net.CookieManager;
@@ -165,7 +165,7 @@ class SingleSignOnIntegrationTest {
     private int port;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @BeforeEach
     void anAdministratorHasPreparedTheAccount() {

@@ -14,10 +14,10 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamMemberEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
-import com.asmolabs.vectispire.core.access.persistence.Users;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -44,16 +44,16 @@ class ScimGroupsRoutesTest extends ApiTestBase {
     private static final MediaType SCIM = MediaType.parseMediaType("application/scim+json");
 
     @Autowired
-    private Teams teams;
+    private TeamRepository teams;
 
     @Autowired
-    private TeamMembers members;
+    private TeamMemberRepository members;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
-    private AuditLog auditLogs;
+    private AuditLogRepository auditLogs;
 
     @Test
     @DisplayName("list and read a group with its members, and answer 404 for one that is not there")

@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /** Where each team wants to be told. */
-public interface TeamWebhooks extends JpaRepository<TeamWebhookEntity, Long> {
+public interface TeamWebhookRepository extends JpaRepository<TeamWebhookEntity, Long> {
 
     /**
      * The teams among these that have a channel.

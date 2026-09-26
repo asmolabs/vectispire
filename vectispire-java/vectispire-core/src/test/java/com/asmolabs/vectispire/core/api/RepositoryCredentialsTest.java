@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.util.Map;
@@ -32,7 +32,7 @@ class RepositoryCredentialsTest extends ApiTestBase {
     private GitRepositories repositories;
 
     @Autowired
-    private AuditLog auditLogs;
+    private AuditLogRepository auditLogs;
 
     /**
      * A row from before decision 0022, when a token in the URL was the only way to clone a private

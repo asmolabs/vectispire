@@ -9,12 +9,12 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
@@ -100,14 +100,14 @@ final class TargetRowsFixture {
         user.setIsActive(true);
         user.setCreatedAt(AT);
         user.setUpdatedAt(AT);
-        long userId = beans.getBean(Users.class).save(user).getId();
-        beans.getBean(UserTargets.class).save(new UserTargetEntity(userId, named.kind(), named.id()));
+        long userId = beans.getBean(UserRepository.class).save(user).getId();
+        beans.getBean(UserTargetRepository.class).save(new UserTargetEntity(userId, named.kind(), named.id()));
 
         TeamEntity team = new TeamEntity();
         team.setName("team-" + suffix);
         team.setCreatedAt(AT);
-        long teamId = beans.getBean(Teams.class).save(team).getId();
-        beans.getBean(TeamTargets.class).save(new TeamTargetEntity(teamId, named.kind(), named.id()));
+        long teamId = beans.getBean(TeamRepository.class).save(team).getId();
+        beans.getBean(TeamTargetRepository.class).save(new TeamTargetEntity(teamId, named.kind(), named.id()));
 
         GatePolicyEntity policy = new GatePolicyEntity();
         policy.setTargetKind(named.kind());

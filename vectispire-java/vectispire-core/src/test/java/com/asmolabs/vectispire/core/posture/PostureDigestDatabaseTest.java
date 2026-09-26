@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -38,7 +38,7 @@ class PostureDigestDatabaseTest extends VectispireContextTest {
     private SettingsService settings;
 
     @Autowired
-    private AuditLog auditLog;
+    private AuditLogRepository auditLog;
 
     @Autowired
     private GitRepositories repositories;

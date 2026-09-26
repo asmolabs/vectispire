@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.settings.persistence.Settings;
+import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,12 +21,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("reading a setting, present or not")
 class SettingsServiceTest {
 
-    private Settings rows;
+    private SettingRepository rows;
     private SettingsService service;
 
     @BeforeEach
     void wire() {
-        rows = mock(Settings.class);
+        rows = mock(SettingRepository.class);
         service = new SettingsService(rows);
         when(rows.findById(anyString())).thenReturn(Optional.empty());
     }

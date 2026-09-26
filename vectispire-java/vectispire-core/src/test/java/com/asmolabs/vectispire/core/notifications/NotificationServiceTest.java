@@ -15,8 +15,8 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.NotifiableIssue;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.TeamChannels;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
-import com.asmolabs.vectispire.core.access.persistence.TeamWebhooks;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -33,7 +33,7 @@ class NotificationServiceTest {
 
     private SettingsService settings;
     private OutboundPost post;
-    private TeamWebhooks teamWebhooks;
+    private TeamWebhookRepository teamWebhooks;
     private NotificationService service;
 
     @BeforeEach
@@ -42,11 +42,11 @@ class NotificationServiceTest {
         post = mock(OutboundPost.class);
         // No team channel in this suite: it is about what to say and to whom by default. The
         // routing has its own.
-        teamWebhooks = mock(TeamWebhooks.class);
+        teamWebhooks = mock(TeamWebhookRepository.class);
         service = new NotificationService(
                 settings,
                 post,
-                new TeamChannels(mock(TeamTargets.class), teamWebhooks),
+                new TeamChannels(mock(TeamTargetRepository.class), teamWebhooks),
                 mock(EncryptionService.class),
                 Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC));
 

@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * message from outside any persistence context that loaded it, and a dirty check there would
  * rewrite a payload it never meant to touch.
  */
-public interface Outbox extends JpaRepository<OutboxMessageEntity, UUID> {
+public interface OutboxMessageRepository extends JpaRepository<OutboxMessageEntity, UUID> {
 
     /**
      * The messages due now, oldest first.

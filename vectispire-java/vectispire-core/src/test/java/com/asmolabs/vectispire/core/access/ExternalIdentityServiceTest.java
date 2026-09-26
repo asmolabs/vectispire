@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,7 +28,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
     private ExternalIdentityService identities;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @BeforeEach
     void emptyDirectory() {
@@ -160,7 +160,7 @@ class ExternalIdentityServiceTest extends VectispireContextTest {
         alice.setUsername("alice");
         alice.setRole(Role.USER.name());
         alice.setIsActive(true);
-        Users accentBlind = org.mockito.Mockito.mock(Users.class);
+        UserRepository accentBlind = org.mockito.Mockito.mock(UserRepository.class);
         org.mockito.Mockito.when(accentBlind.findByKeycloakId("sub-1")).thenReturn(java.util.Optional.empty());
         org.mockito.Mockito.when(accentBlind.findByUsername("álice")).thenReturn(java.util.Optional.of(alice));
 

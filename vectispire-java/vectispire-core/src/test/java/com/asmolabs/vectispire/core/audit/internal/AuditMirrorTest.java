@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
@@ -46,7 +46,7 @@ class AuditMirrorTest {
     private final List<AuditLogEntity> rows = new ArrayList<>();
 
     private Path mirrorFile;
-    private AuditLog entries;
+    private AuditLogRepository entries;
     private AuditLogService service;
 
     @BeforeEach
@@ -62,8 +62,8 @@ class AuditMirrorTest {
      * it: the identifier is assigned on save because the column is generated, and a fake that
      * left it null would test a row shape production never produces.
      */
-    private static AuditLog auditLogOver(List<AuditLogEntity> rows) {
-        AuditLog repository = mock(AuditLog.class);
+    private static AuditLogRepository auditLogOver(List<AuditLogEntity> rows) {
+        AuditLogRepository repository = mock(AuditLogRepository.class);
         when(repository.save(any())).thenAnswer(call -> {
             AuditLogEntity row = call.getArgument(0);
             row.setId(UUID.randomUUID());

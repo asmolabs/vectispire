@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.settings.persistence.Settings;
+import com.asmolabs.vectispire.core.settings.persistence.SettingRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -34,7 +34,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
     private static final byte[] PAYLOAD = "{\"status\":\"passed\"}".getBytes(StandardCharsets.UTF_8);
 
     @Autowired
-    private Settings settings;
+    private SettingRepository settings;
 
     @Autowired
     private SettingsService settingsService;

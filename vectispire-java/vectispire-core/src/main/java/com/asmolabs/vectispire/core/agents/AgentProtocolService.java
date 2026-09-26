@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
@@ -29,14 +29,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class AgentProtocolService {
 
-    private final Agents agents;
+    private final AgentRepository agents;
     private final ScanDispatcher dispatcher;
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final Clock clock;
 
     public AgentProtocolService(
-            Agents agents, ScanDispatcher dispatcher, AuditLogService audit, ObjectMapper json, Clock clock) {
+            AgentRepository agents, ScanDispatcher dispatcher, AuditLogService audit, ObjectMapper json, Clock clock) {
         this.agents = agents;
         this.dispatcher = dispatcher;
         this.audit = audit;

@@ -8,10 +8,10 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.core.access.AuthService;
 import com.asmolabs.vectispire.core.access.ScimProvisioningService;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
-import com.asmolabs.vectispire.core.access.persistence.Teams;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
+import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimUserDto;
@@ -33,7 +33,7 @@ import tools.jackson.databind.node.BooleanNode;
 @DisplayName("SCIM Users Controller")
 class ScimUsersControllerTest {
 
-    private Users users;
+    private UserRepository users;
     private AuthService auth;
     private AuditLogService audit;
     private Clock clock;
@@ -42,12 +42,12 @@ class ScimUsersControllerTest {
 
     @BeforeEach
     void setUp() {
-        users = mock(Users.class);
+        users = mock(UserRepository.class);
         auth = mock(AuthService.class);
         audit = mock(AuditLogService.class);
         clock = Clock.fixed(Instant.parse("2026-08-22T10:00:00Z"), ZoneOffset.UTC);
         controller = new ScimUsersController(new ScimProvisioningService(
-                users, mock(Teams.class), mock(TeamMembers.class), auth, audit,
+                users, mock(TeamRepository.class), mock(TeamMemberRepository.class), auth, audit,
                 mock(org.springframework.transaction.support.TransactionTemplate.class), clock));
         request = mock(HttpServletRequest.class);
     }

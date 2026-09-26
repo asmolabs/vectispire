@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -31,7 +31,7 @@ class TotpServiceTest extends VectispireContextTest {
     private TotpService totp;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
     private Clock clock;

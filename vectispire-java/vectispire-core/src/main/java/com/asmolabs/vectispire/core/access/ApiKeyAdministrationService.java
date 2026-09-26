@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import java.time.Clock;
@@ -28,11 +28,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class ApiKeyAdministrationService {
 
-    private final ApiKeysRepository keys;
+    private final ApiKeyRepository keys;
     private final GrantableTargets targets;
     private final AuditLogService audit;
     private final Clock clock;
-    private final Users users;
+    private final UserRepository users;
     private final VisibilityService visibility;
 
     /**
@@ -42,11 +42,11 @@ public class ApiKeyAdministrationService {
     private static final int MAX_NAME_LENGTH = 100;
 
     public ApiKeyAdministrationService(
-            ApiKeysRepository keys,
+            ApiKeyRepository keys,
             GrantableTargets targets,
             AuditLogService audit,
             Clock clock,
-            Users users,
+            UserRepository users,
             VisibilityService visibility) {
         this.keys = keys;
         this.targets = targets;

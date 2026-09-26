@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarations;
 import java.time.Clock;
 import java.util.List;
@@ -43,7 +43,7 @@ class ControlDeclarationTest extends VectispireContextTest {
     private ControlDeclarations declarations;
 
     @Autowired
-    private AuditLog auditLog;
+    private AuditLogRepository auditLog;
 
     @Autowired
     private Clock clock;

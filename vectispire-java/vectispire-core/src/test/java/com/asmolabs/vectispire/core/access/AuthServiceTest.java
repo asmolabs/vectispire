@@ -13,11 +13,11 @@ import com.asmolabs.vectispire.common.domain.auth.LoginThrottle;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
-import com.asmolabs.vectispire.core.access.persistence.LoginAttempts;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -34,18 +34,18 @@ class AuthServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
     private static final String PASSWORD = "correct horse battery staple";
 
-    private Users users;
-    private UserSessions sessions;
-    private LoginAttempts attempts;
+    private UserRepository users;
+    private SessionRepository sessions;
+    private LoginAttemptRepository attempts;
     private AuthService service;
 
     private final List<LoginAttemptEntity> recorded = new ArrayList<>();
 
     @BeforeEach
     void wire() {
-        users = mock(Users.class);
-        sessions = mock(UserSessions.class);
-        attempts = mock(LoginAttempts.class);
+        users = mock(UserRepository.class);
+        sessions = mock(SessionRepository.class);
+        attempts = mock(LoginAttemptRepository.class);
         service = new AuthService(users, sessions, attempts, Sessions.Policy.DEFAULT, Clock.fixed(NOW, ZoneOffset.UTC));
 
         recorded.clear();

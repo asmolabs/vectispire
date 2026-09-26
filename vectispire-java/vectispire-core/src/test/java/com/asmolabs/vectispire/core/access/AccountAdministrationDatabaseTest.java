@@ -8,10 +8,10 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
@@ -36,13 +36,13 @@ class AccountAdministrationDatabaseTest extends VectispireContextTest {
     private AccountAdministrationService accounts;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
-    private UserSessions sessions;
+    private SessionRepository sessions;
 
     @Autowired
-    private AuditLog audit;
+    private AuditLogRepository audit;
 
     @Autowired
     private Clock clock;

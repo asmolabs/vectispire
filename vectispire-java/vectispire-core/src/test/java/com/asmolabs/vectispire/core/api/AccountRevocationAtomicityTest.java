@@ -10,8 +10,8 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,10 +46,10 @@ class AccountRevocationAtomicityTest extends ApiTestBase {
     private static final String NEW_PASSWORD = "new-password-nobody-should-get";
 
     @MockitoSpyBean
-    private UserSessions sessions;
+    private SessionRepository sessions;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
     private Clock clock;

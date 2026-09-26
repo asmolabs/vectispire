@@ -6,11 +6,11 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.persistence.LoginAttemptEntity;
-import com.asmolabs.vectispire.core.access.persistence.LoginAttempts;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,16 +39,16 @@ public class AuthService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
-    private final Users users;
-    private final UserSessions sessions;
-    private final LoginAttempts attempts;
+    private final UserRepository users;
+    private final SessionRepository sessions;
+    private final LoginAttemptRepository attempts;
     private final Sessions.Policy policy;
     private final Clock clock;
 
     public AuthService(
-            Users users,
-            UserSessions sessions,
-            LoginAttempts attempts,
+            UserRepository users,
+            SessionRepository sessions,
+            LoginAttemptRepository attempts,
             Sessions.Policy policy,
             Clock clock) {
         this.users = users;

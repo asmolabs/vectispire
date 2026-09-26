@@ -6,11 +6,11 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
-import com.asmolabs.vectispire.core.access.persistence.TeamMembers;
+import com.asmolabs.vectispire.core.access.persistence.TeamMemberRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
+import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
+import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -62,16 +62,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class VisibilityService {
 
     private final SettingsService settings;
-    private final UserTargets assignments;
-    private final TeamMembers memberships;
-    private final TeamTargets teamTargets;
+    private final UserTargetRepository assignments;
+    private final TeamMemberRepository memberships;
+    private final TeamTargetRepository teamTargets;
     private final GrantableTargets targets;
 
     public VisibilityService(
             SettingsService settings,
-            UserTargets assignments,
-            TeamMembers memberships,
-            TeamTargets teamTargets,
+            UserTargetRepository assignments,
+            TeamMemberRepository memberships,
+            TeamTargetRepository teamTargets,
             GrantableTargets targets) {
         this.settings = settings;
         this.assignments = assignments;

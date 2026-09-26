@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +28,7 @@ class AuditLogDatabaseTest extends VectispireContextTest {
     private AuditLogService audit;
 
     @Autowired
-    private AuditLog entries;
+    private AuditLogRepository entries;
 
     @Autowired
     private TransactionTemplate transactions;

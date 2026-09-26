@@ -5,9 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.UUID;
@@ -29,10 +29,10 @@ import org.springframework.http.MediaType;
 class AgentInputBoundsTest extends ApiTestBase {
 
     @Autowired
-    private Agents agents;
+    private AgentRepository agents;
 
     @Autowired
-    private ApiKeysRepository keys;
+    private ApiKeyRepository keys;
 
     @Test
     @DisplayName("a name that would overflow its key's column is a 400, and one that fits is declared")

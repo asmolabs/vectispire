@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -27,14 +27,14 @@ class ApiKeyAuthServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T10:00:00Z");
 
-    private ApiKeysRepository keys;
+    private ApiKeyRepository keys;
     private ApiKeyAuthService service;
     private ApiKeys.IssuedKey issued;
 
     @BeforeEach
     void wire() {
-        keys = mock(ApiKeysRepository.class);
-        service = new ApiKeyAuthService(keys, mock(AgentDirectory.class), Clock.fixed(NOW, ZoneOffset.UTC), mock(com.asmolabs.vectispire.core.access.persistence.Users.class));
+        keys = mock(ApiKeyRepository.class);
+        service = new ApiKeyAuthService(keys, mock(AgentDirectory.class), Clock.fixed(NOW, ZoneOffset.UTC), mock(com.asmolabs.vectispire.core.access.persistence.UserRepository.class));
         issued = ApiKeys.generate();
         when(keys.findByPrefix(anyString())).thenReturn(List.of());
     }

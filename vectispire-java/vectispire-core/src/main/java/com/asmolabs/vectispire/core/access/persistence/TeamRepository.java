@@ -4,7 +4,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /** The teams. */
-public interface Teams extends JpaRepository<TeamEntity, Long> {
+public interface TeamRepository extends JpaRepository<TeamEntity, Long> {
 
     /**
      * <b>Case-insensitively</b>, because the uniqueness an administrator perceives is not the

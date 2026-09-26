@@ -7,10 +7,10 @@ import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.access.persistence.LoginAttempts;
+import com.asmolabs.vectispire.core.access.persistence.LoginAttemptRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
-import com.asmolabs.vectispire.core.access.persistence.Users;
+import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
+import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -33,13 +33,13 @@ class AuthDatabaseTest extends VectispireContextTest {
     private AuthService auth;
 
     @Autowired
-    private Users users;
+    private UserRepository users;
 
     @Autowired
-    private UserSessions sessions;
+    private SessionRepository sessions;
 
     @Autowired
-    private LoginAttempts attempts;
+    private LoginAttemptRepository attempts;
 
     @BeforeEach
     void seedAccount() {

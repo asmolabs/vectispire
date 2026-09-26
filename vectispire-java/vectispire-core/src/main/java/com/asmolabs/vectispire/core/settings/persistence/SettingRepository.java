@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Settings extends JpaRepository<SettingEntity, String> {
+public interface SettingRepository extends JpaRepository<SettingEntity, String> {
     /**
      * Writes a value onto an existing row, and says whether there was one.
      *

@@ -9,8 +9,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
-import com.asmolabs.vectispire.core.access.persistence.ApiKeysRepository;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -30,10 +30,10 @@ import org.springframework.http.MediaType;
 class AgentAdministrationRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Agents agents;
+    private AgentRepository agents;
 
     @Autowired
-    private ApiKeysRepository keys;
+    private ApiKeyRepository keys;
 
     @Test
     @DisplayName("declare, relabel, disable and delete an agent, taking its key with it")

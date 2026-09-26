@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.audit;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,11 +25,11 @@ public class AuditLogQueryService {
 
     private static final int MAX_PAGE_SIZE = 200;
 
-    private final AuditLog entries;
+    private final AuditLogRepository entries;
     private final AuditLogService log;
     private final ApplicationEventPublisher events;
 
-    public AuditLogQueryService(AuditLog entries, AuditLogService log, ApplicationEventPublisher events) {
+    public AuditLogQueryService(AuditLogRepository entries, AuditLogService log, ApplicationEventPublisher events) {
         this.entries = entries;
         this.log = log;
         this.events = events;

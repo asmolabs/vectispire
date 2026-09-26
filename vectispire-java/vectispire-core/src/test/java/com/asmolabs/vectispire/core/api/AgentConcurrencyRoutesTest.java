@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
@@ -41,7 +41,7 @@ import org.springframework.test.web.servlet.ResultActions;
 class AgentConcurrencyRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Agents agents;
+    private AgentRepository agents;
 
     @Autowired
     private Scans scans;

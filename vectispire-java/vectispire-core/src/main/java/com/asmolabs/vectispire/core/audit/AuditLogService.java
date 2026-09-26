@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditChain;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
-import com.asmolabs.vectispire.core.audit.persistence.AuditLog;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Clock;
 import java.time.Instant;
@@ -34,7 +34,7 @@ public class AuditLogService {
     /** The column's width. Truncated here so an over-long description costs its tail, not the entry. */
     private static final int DESCRIPTION_MAX_LENGTH = 255;
 
-    private final AuditLog entries;
+    private final AuditLogRepository entries;
     private final AuditMirror mirror;
     private final Clock clock;
 
@@ -51,14 +51,14 @@ public class AuditLogService {
      *
      * <p>Per instance, and that is a known limit: two instances writing in the same millisecond
      * legitimately fork, and verification breaks the tie on the identifier. See {@code
-     * AuditLog#findAllByOrderByTimestampAscIdAsc}.
+     * AuditLogRepository#findAllByOrderByTimestampAscIdAsc}.
      */
     private final AtomicLong lastIssued = new AtomicLong(Long.MIN_VALUE);
 
     /** Told of every entry once it is committed — the SIEM export's hook. See {@link Listener}. */
     private final List<Listener> listeners;
 
-    public AuditLogService(AuditLog entries, AuditMirror mirror, Clock clock, List<Listener> listeners) {
+    public AuditLogService(AuditLogRepository entries, AuditMirror mirror, Clock clock, List<Listener> listeners) {
         this.entries = entries;
         this.mirror = mirror;
         this.clock = clock;

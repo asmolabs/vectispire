@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.agents;
 
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -24,7 +24,7 @@ public class AgentMetrics {
     private static final Logger log = LoggerFactory.getLogger(AgentMetrics.class);
 
     private final MeterRegistry registry;
-    private final Agents agents;
+    private final AgentRepository agents;
 
     /**
      * The last count read, reported while the database is briefly unreachable — for the reason
@@ -33,7 +33,7 @@ public class AgentMetrics {
      */
     private final AtomicReference<Double> lastEnabled = new AtomicReference<>(0.0);
 
-    public AgentMetrics(MeterRegistry registry, Agents agents) {
+    public AgentMetrics(MeterRegistry registry, AgentRepository agents) {
         this.registry = registry;
         this.agents = agents;
     }

@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Sign-ins waiting for their verification code. Looked up by the hash of the challenge token. */
-public interface MfaChallenges extends JpaRepository<MfaChallengeEntity, String> {
+public interface MfaChallengeRepository extends JpaRepository<MfaChallengeEntity, String> {
 
     /**
      * Counts one wrong code, and says how many there have now been.

@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.agents.internal;
 
-import com.asmolabs.vectispire.core.agents.persistence.Agents;
+import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
 import java.time.Instant;
 import java.util.UUID;
@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * The queue's {@link AgentClaimLock}: the update on the agent's row that {@code Agents.lockForClaim}
+ * The queue's {@link AgentClaimLock}: the update on the agent's row that {@code AgentRepository.lockForClaim}
  * documents.
  *
  * <p>{@code MANDATORY}, because a lock taken in a transaction of its own is released at once and
@@ -18,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class AgentRowLock implements AgentClaimLock {
 
-    private final Agents agents;
+    private final AgentRepository agents;
 
-    public AgentRowLock(Agents agents) {
+    public AgentRowLock(AgentRepository agents) {
         this.agents = agents;
     }
 
