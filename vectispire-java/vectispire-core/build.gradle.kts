@@ -259,6 +259,12 @@ tasks.named<Test>("test") {
     inputs.file(rootProject.file("../vectispire-angular/src/app/core/session.store.ts"))
         .withPropertyName("frontendSessionStore")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+
+    // `MigrationLayoutTest` holds the campaign's probe migration to the rules of a common one, and
+    // the probe sits in the integration sources, which the unit task does not otherwise read.
+    inputs.dir("src/integrationTest/resources/db/migration-test")
+        .withPropertyName("probeMigrations")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 tasks.register("integrationTestAll") {
