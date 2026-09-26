@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.threatintel;
 
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle;
 import com.asmolabs.vectispire.common.domain.eol.LifeCycle.Candidate;

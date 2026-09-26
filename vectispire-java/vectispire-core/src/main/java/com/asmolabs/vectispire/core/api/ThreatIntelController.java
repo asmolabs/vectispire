@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.services.threatintel.ThreatIntelFeedService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
