@@ -23,6 +23,14 @@ install needs neither the agent nor any agent configuration.
     `/var/run/docker.sock`, and on Linux that usually means the `docker` group. Without it
     every scan fails at the first container.
 
+    The daemon named by `DOCKER_HOST` and every host of the JDBC URL are **reserved**: no
+    webhook, AI server or SIEM collector may be pointed at them, whatever the policy. So the
+    control plane **refuses to start** when it cannot read those hosts — a `DOCKER_HOST` that is
+    not `unix://`, `npipe://`, `tcp://`, `http://` or `https://`, or a JDBC URL whose hosts are
+    not in the string (`jdbc:mysql+srv://`). Multi-host and replication URLs, MySQL's
+    `address=(host=…)` form and host names with underscores are read; for MySQL the X protocol
+    port 33060 is reserved beside the classic one.
+
 !!! danger "One host means one blast radius"
     With the built-in worker on — the default — the process that can create containers is the
     process that holds `ENCRYPTION_KEY`, and daemon access is root on that host. The proxy

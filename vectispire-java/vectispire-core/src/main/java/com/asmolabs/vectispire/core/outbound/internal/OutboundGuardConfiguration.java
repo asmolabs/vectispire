@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.outbound.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.common.domain.net.ReservedEndpoints;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import java.util.ArrayList;
@@ -27,16 +28,23 @@ public class OutboundGuardConfiguration {
      */
     @Bean
     public OutboundUrlGuard outboundUrlGuard(@Value("${spring.datasource.url:}") String datasourceUrl) {
-        List<OutboundUrlGuard.ReservedEndpoint> reserved = new ArrayList<>();
         // Null when no daemon is found — a control plane with the worker off and no socket, which is
         // how the CI smoke test starts it, and how it failed to start: the image stopped on a
         // NullPointerException here, which no unit test saw because every test machine has Docker.
-        String docker = Objects.requireNonNullElse(ContainerRunner.resolveDockerHost(), "");
-        OutboundUrlGuard.ReservedEndpoint.of(docker, docker.startsWith("https") ? 2376 : 2375, "the Docker daemon")
-                .ifPresent(reserved::add);
-        OutboundUrlGuard.ReservedEndpoint.of(
-                        datasourceUrl, datasourceUrl.contains(":postgresql:") ? 5432 : 3306, "the database")
-                .ifPresent(reserved::add);
+        return guard(Objects.requireNonNullElse(ContainerRunner.resolveDockerHost(), ""), datasourceUrl);
+    }
+
+    /**
+     * The guard for this daemon and this database — or no application at all.
+     *
+     * <p>An address {@link ReservedEndpoints} cannot read throws, and the context does not start. It
+     * used to yield no reservation, in silence, and the guard then let a webhook reach the daemon or
+     * the database of every deployment whose address {@code java.net.URI} happened not to parse.
+     */
+    public static OutboundUrlGuard guard(String dockerHost, String datasourceUrl) {
+        List<OutboundUrlGuard.ReservedEndpoint> reserved = new ArrayList<>();
+        reserved.addAll(ReservedEndpoints.ofDockerHost(dockerHost));
+        reserved.addAll(ReservedEndpoints.ofDatasource(datasourceUrl));
         return new OutboundUrlGuard(reserved);
     }
 

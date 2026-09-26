@@ -181,9 +181,10 @@ class OutboundUrlGuardTest {
                             case "db" -> "172.18.0.4";
                             default -> hostname.matches("[0-9.]+") ? hostname : "172.18.0.9";
                         }).getAddress()),
-                List.of(
-                        OutboundUrlGuard.ReservedEndpoint.of("tcp://docker-proxy:2375", 2375, "the Docker daemon").orElseThrow(),
-                        OutboundUrlGuard.ReservedEndpoint.of("jdbc:mysql://db/vectispire", 3306, "the database").orElseThrow()));
+                java.util.stream.Stream.concat(
+                                ReservedEndpoints.ofDockerHost("tcp://docker-proxy:2375").stream(),
+                                ReservedEndpoints.ofDatasource("jdbc:mysql://db/vectispire").stream())
+                        .toList());
 
         @ParameterizedTest(name = "refuses {0}")
         @ValueSource(strings = {
@@ -218,10 +219,73 @@ class OutboundUrlGuardTest {
         @Test
         @DisplayName("a Unix socket or a file database reserves nothing, having no address")
         void socketsReserveNothing() {
-            assertThat(OutboundUrlGuard.ReservedEndpoint.of("unix:///var/run/docker.sock", 2375, "d")).isEmpty();
-            assertThat(OutboundUrlGuard.ReservedEndpoint.of("jdbc:sqlite:/tmp/v.db", 3306, "db")).isEmpty();
-            assertThat(OutboundUrlGuard.ReservedEndpoint.of("jdbc:postgresql://pg:6543/v", 5432, "db").orElseThrow().port())
-                    .isEqualTo(6543);
+            assertThat(ReservedEndpoints.ofDockerHost("unix:///var/run/docker.sock")).isEmpty();
+            assertThat(ReservedEndpoints.ofDockerHost("npipe:////./pipe/docker_engine")).isEmpty();
+            assertThat(ReservedEndpoints.ofDockerHost("")).isEmpty();
+            assertThat(ReservedEndpoints.ofDatasource("jdbc:sqlite:/tmp/v.db")).isEmpty();
+            assertThat(ReservedEndpoints.ofDatasource("jdbc:h2:mem:vectispire")).isEmpty();
+        }
+
+        @ParameterizedTest(name = "{0} reserves {1}")
+        @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+            // An underscore is legal in a container name and not in a java.net.URI host: the
+            // reservation silently vanished.
+            "tcp://docker_proxy:2375|docker_proxy:2375",
+            "tcp://docker-proxy|docker-proxy:2375 docker-proxy:2376",
+            "https://daemon.internal:2376/|daemon.internal:2376",
+            "tcp://[fd00::5]:2375|fd00::5:2375"
+        })
+        void theDaemonIsReadWhateverItsName(String dockerHost, String expected) {
+            assertThat(ReservedEndpoints.ofDockerHost(dockerHost))
+                    .extracting(endpoint -> endpoint.host() + ":" + endpoint.port())
+                    .containsExactly(expected.split(" "));
+        }
+
+        @ParameterizedTest(name = "{0} reserves {1}")
+        @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+            "jdbc:postgresql://pg:6543/v|pg:6543",
+            "jdbc:postgresql://pg_primary,pg_standby:5433/v?targetServerType=primary|pg_primary:5432 pg_standby:5433",
+            "jdbc:postgresql://[fd00::7]/v|fd00::7:5432",
+            "jdbc:postgresql:vectispire|localhost:5432",
+            // Every host, and the X protocol's port beside the classic one.
+            "jdbc:mysql://db/vectispire|db:3306 db:33060",
+            "jdbc:mysql://user:secret@db_1:3307/vectispire|db_1:3307 db_1:33060",
+            "jdbc:mysql://db-a:3306,db-b:3307/vectispire|db-a:3306 db-a:33060 db-b:3307 db-b:33060",
+            "jdbc:mysql:replication://primary,replica/vectispire|primary:3306 primary:33060 replica:3306 replica:33060",
+            "jdbc:mysql:loadbalance://lb-a,lb-b/vectispire|lb-a:3306 lb-a:33060 lb-b:3306 lb-b:33060",
+            "jdbc:mysql://address=(host=db_x)(port=3310)(type=source)/vectispire|db_x:3310 db_x:33060",
+            "jdbc:mysql://(host=db-kv,port=3311,user=v)/vectispire|db-kv:3311 db-kv:33060",
+            "jdbc:mysql:///vectispire|localhost:3306 localhost:33060",
+            "jdbc:mariadb:sequential://maria-a,maria-b:3307/vectispire|maria-a:3306 maria-b:3307"
+        })
+        void everyDatabaseHostIsRead(String datasource, String expected) {
+            assertThat(ReservedEndpoints.ofDatasource(datasource))
+                    .extracting(endpoint -> endpoint.host() + ":" + endpoint.port())
+                    .containsExactly(expected.split(" "));
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {
+            "jdbc:mysql+srv://_mysql._tcp.example.com/vectispire",
+            "jdbc:oracle:thin:@db:1521/v",
+            "jdbc:mysql:vectispire",
+            "jdbc:postgresql://pg:notaport/v",
+            "postgresql://pg/v"
+        })
+        void aDatasourceWhoseHostsCannotBeReadIsRefused(String datasource) {
+            // Refused rather than reserving nothing: the application then does not start, which is
+            // where an operator reads the reason.
+            assertThatThrownBy(() -> ReservedEndpoints.ofDatasource(datasource))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("refuses to start")
+                    .hasMessageNotContaining("secret");
+        }
+
+        @ParameterizedTest(name = "refuses {0}")
+        @ValueSource(strings = {"ssh://admin@docker-host", "tcp://", "tcp://:2375", "docker-proxy:2375"})
+        void aDaemonWhoseHostCannotBeReadIsRefused(String dockerHost) {
+            assertThatThrownBy(() -> ReservedEndpoints.ofDockerHost(dockerHost))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -269,9 +333,10 @@ class OutboundUrlGuardTest {
                             case "collector.example.com" -> "93.184.216.34";
                             default -> hostname;
                         }).getAddress()),
-                List.of(
-                        OutboundUrlGuard.ReservedEndpoint.of("tcp://docker-proxy:2375", 2375, "the Docker daemon").orElseThrow(),
-                        OutboundUrlGuard.ReservedEndpoint.of("jdbc:mysql://db/vectispire", 3306, "the database").orElseThrow()));
+                java.util.stream.Stream.concat(
+                                ReservedEndpoints.ofDockerHost("tcp://docker-proxy:2375").stream(),
+                                ReservedEndpoints.ofDatasource("jdbc:mysql://db/vectispire").stream())
+                        .toList());
 
         @Test
         @DisplayName("a public collector passes, with the address it was checked at")

@@ -72,34 +72,12 @@ public final class OutboundUrlGuard {
      * from a settings screen. The port is part of the match so that the same loopback address can
      * still serve an Ollama on another port.
      *
+     * <p>Read from the Docker host and the datasource URL by {@link ReservedEndpoints}, which refuses
+     * what it cannot read rather than reserving nothing.
+     *
      * @param what how the refusal names it to whoever set the URL
      */
-    public record ReservedEndpoint(String host, int port, String what) {
-
-        /**
-         * The endpoint a connection string names, if it names one over the network.
-         *
-         * <p>Empty for a Unix socket, a file database, or anything unreadable: there is then no
-         * address an HTTP request could reach.
-         *
-         * @param defaultPort used when the string carries none
-         */
-        public static Optional<ReservedEndpoint> of(String connection, int defaultPort, String what) {
-            if (connection == null || connection.isBlank()) {
-                return Optional.empty();
-            }
-            try {
-                URI uri = new URI(connection.trim().replaceFirst("^jdbc:", ""));
-                if (uri.getHost() == null) {
-                    return Optional.empty();
-                }
-                String host = uri.getHost().replaceAll("^\\[|]$", "");
-                return Optional.of(new ReservedEndpoint(host, uri.getPort() > 0 ? uri.getPort() : defaultPort, what));
-            } catch (Exception unreadable) {
-                return Optional.empty();
-            }
-        }
-    }
+    public record ReservedEndpoint(String host, int port, String what) {}
 
     private final HostResolver resolver;
     private final List<ReservedEndpoint> reserved;

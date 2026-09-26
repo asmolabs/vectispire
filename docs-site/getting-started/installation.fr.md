@@ -23,6 +23,15 @@ installation sur une seule machine n'a besoin ni de l'agent ni d'aucune configur
     `/var/run/docker.sock`, et sous Linux cela signifie généralement le groupe `docker`. Sans
     cela, chaque scan échoue au premier conteneur.
 
+    Le démon désigné par `DOCKER_HOST` et chaque hôte de l'URL JDBC sont **réservés** : aucun
+    webhook, serveur d'IA ou collecteur SIEM ne peut les viser, quelle que soit la politique. Le
+    plan de contrôle **refuse donc de démarrer** s'il ne sait pas lire ces hôtes — un
+    `DOCKER_HOST` qui n'est ni `unix://`, ni `npipe://`, ni `tcp://`, `http://` ou `https://`, ou
+    une URL JDBC dont les hôtes ne figurent pas dans la chaîne (`jdbc:mysql+srv://`). Les URL à
+    plusieurs hôtes ou de réplication, la forme MySQL `address=(host=…)` et les noms d'hôte avec
+    un tiret bas sont lus ; pour MySQL, le port 33060 du protocole X est réservé à côté du port
+    classique.
+
 !!! danger "Un seul hôte, un seul rayon d'impact"
     Avec le worker intégré actif — le défaut — le processus qui peut créer des conteneurs est
     celui qui détient `ENCRYPTION_KEY`, et l'accès au démon vaut root sur cet hôte. Le proxy

@@ -135,6 +135,7 @@ same name; decision records written before that date keep the names they had.
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
 | A stored gate policy is what the verdict applies, and an empty threshold means the rule is off | `GatePoliciesRoutesTest` |
 | The metadata endpoint is refused however it is spelled | `OutboundUrlGuardTest` |
+| The Docker daemon and every host of the datasource URL are reserved destinations, and an address whose hosts cannot be read stops the start instead of reserving nothing | `OutboundUrlGuardTest`, `OutboundGuardWiringTest` |
 | No file of a scanned repository can pin a worker in the API discovery: its patterns read within a budget per character, and the discovery within a deadline | `AnalysisBudgetTest`, `ApiDiscoveryScannerTest` |
 | A ciphertext moved to another row does not decrypt | `SecretCipherTest` |
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
