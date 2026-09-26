@@ -325,17 +325,31 @@ public class AuthenticationFlowService {
 
         record AccountMissing() implements Handoff {}
 
-        record Exchanged(SessionView session, UserView user) implements Handoff {}
+        /** @param issued a session of its own, not the hand-off's — which no longer exists */
+        record Exchanged(AuthService.IssuedSession issued, UserView user) implements Handoff {}
     }
 
+    /**
+     * Trades a hand-off token for a session, <b>once</b>.
+     *
+     * <p>The token is the session the sign-on minted, and it was returned as it was: the cookie
+     * stayed exchangeable for its whole lifetime, by whoever held it — clearing it in the response
+     * asked the browser to forget it, and nothing else did. The hand-off session is consumed and a
+     * new one issued, so a second presentation finds nothing.
+     */
     public Handoff exchange(String token) {
         Optional<SessionView> session = auth.resolve("Bearer " + token);
         if (session.isEmpty()) {
             return new Handoff.Expired();
         }
-        return users.findById(session.get().userId())
-                .<Handoff>map(user -> new Handoff.Exchanged(session.get(), UserView.of(user)))
-                .orElseGet(Handoff.AccountMissing::new);
+        Optional<UserEntity> user = users.findById(session.get().userId()).filter(UserEntity::getIsActive);
+        if (user.isEmpty()) {
+            auth.revoke(session.get());
+            return new Handoff.AccountMissing();
+        }
+        return auth.exchangeOnce(session.get())
+                .<Handoff>map(issued -> new Handoff.Exchanged(issued, UserView.of(user.get())))
+                .orElseGet(Handoff.Expired::new);
     }
 
     /**

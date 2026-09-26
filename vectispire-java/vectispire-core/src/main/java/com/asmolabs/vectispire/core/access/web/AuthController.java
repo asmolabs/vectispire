@@ -238,8 +238,12 @@ public class AuthController {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "This sign-on has expired.");
             case Handoff.AccountMissing ignored ->
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found.");
-            case Handoff.Exchanged exchanged ->
-                new LoginResponse(token, exchanged.session().expiresAt(), summaryOf(exchanged.user()), false, null);
+            case Handoff.Exchanged exchanged -> new LoginResponse(
+                    exchanged.issued().token(),
+                    exchanged.issued().session().expiresAt(),
+                    summaryOf(exchanged.user()),
+                    false,
+                    null);
         };
     }
 

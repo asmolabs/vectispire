@@ -51,4 +51,13 @@ public interface SessionRepository extends JpaRepository<SessionEntity, String> 
              where s.expiresAt > :asOf
              group by s.userId""")
     List<Object[]> countActiveByUser(@Param("asOf") Instant asOf);
+
+    /**
+     * Deletes one session and says whether it was still there — the arbiter of a single use: of
+     * two callers consuming the same row, one deletes it and the other deletes nothing.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("delete from SessionEntity s where s.tokenHash = :tokenHash")
+    int consume(@Param("tokenHash") String tokenHash);
 }

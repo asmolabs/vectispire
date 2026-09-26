@@ -388,6 +388,25 @@ public class AuthService {
     }
 
     /**
+     * Trades a session for a fresh one of the same account, once.
+     *
+     * <p>The single sign-on hand-off: the cookie the provider's redirect left carries a session
+     * token, and the exchange used to hand that same token back — as many times as the cookie was
+     * presented, for its whole lifetime. Now the hand-off session is deleted and a new one opened;
+     * the delete's row count decides, so of two exchanges of one cookie only one gets a session.
+     *
+     * @return empty when the session was already consumed
+     */
+    @Transactional
+    public Optional<IssuedSession> exchangeOnce(SessionView handoff) {
+        if (sessions.consume(handoff.tokenHash()) != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(openSession(handoff.userId(),
+                new LoginRequest(null, null, handoff.userAgent(), handoff.ipAddress()), clock.instant()));
+    }
+
+    /**
      * Closes every session of an account.
      *
      * <p>Called after a password change: leaving open the sessions of a password that has just
