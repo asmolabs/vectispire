@@ -140,6 +140,17 @@ dependencies {
     implementation(libs.pdfbox)
     implementation(libs.bucket4j.core)
     implementation(libs.springdoc.openapi.starter.webmvc.ui)
+    /*
+     * **Spring Modulith, in observation mode.** `ModularityObservationTest` asks it what modules it
+     * sees and writes its report and diagrams; nothing fails on what it finds yet, and at runtime it
+     * is inert — no event publication registry (that needs a `spring-modulith-starter-jpa` or `-jdbc`
+     * this build does not declare: the outbox is the one answer to "did this effect leave", decision
+     * 0025) and no actuator endpoint (`spring-modulith-actuator` is not declared either). The core
+     * starter is on the main classpath because the module annotations (`@ApplicationModule`,
+     * `@NamedInterface`) will live in production code from step 3 of the migration on.
+     */
+    implementation(platform(libs.spring.modulith.bom))
+    implementation(libs.spring.modulith.starter.core)
     implementation(libs.flyway.core)
     implementation(libs.flyway.database.postgresql)
     implementation(libs.flyway.mysql)
@@ -157,6 +168,8 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
+    testImplementation(platform(libs.spring.modulith.bom))
+    testImplementation(libs.spring.modulith.starter.test)
     // SQLite on the unit-test classpath, not only at runtime: it is the one engine that needs
     // no daemon, so the migrations can be executed for real in a plain unit test. PostgreSQL
     // and MySQL are the integration campaign's business.
