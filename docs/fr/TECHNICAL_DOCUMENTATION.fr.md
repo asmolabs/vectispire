@@ -396,8 +396,9 @@ défensive — une réponse qui ne se parse pas donne une liste vide et ne lève
 | `EncryptionService` | AES-GCM au repos, avec le contexte lié à la ligne, et rotation multi-clés. |
 | `SettingsService` · `BootstrapService` | Réglages clé/valeur, et création du compte au premier démarrage. |
 
-Cinq repositories seulement — `Scan`, `Issue`, `Target`, `AuditLog`, `Session` — chacun une fine
-enveloppe autour des requêtes dont ses appelants ont réellement besoin. Il n'y a pas de repository
+Un repository par entité lue pour elle-même, dans le `persistence` de son module et nommé
+d'après l'entité — `ScanRepository`, `IssueRepository`, `AuditLogRepository`, `SessionRepository`… —
+chacun une fine enveloppe autour des requêtes dont ses appelants ont réellement besoin. Il n'y a pas de repository
 de base générique. Un service n'écrit aucun SQL, et un repository ne porte aucune règle métier ;
 `ArchitectureTest` impose les deux.
 

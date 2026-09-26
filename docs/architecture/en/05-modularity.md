@@ -88,8 +88,8 @@ foundation module's list to what it uses. And six modules use `access` for their
 **The couplings neither Modulith nor ArchUnit can count are strings**: JPQL queries that name another
 module's entity. `CrossModuleQueriesTest` reads every repository query, resolves the entities, tables and
 classes it names to their module, and fails on one its list does not carry. It finds eleven — the orphan
-sweeps of `Issues` and `Scans` (`targets`' tables), the inventory's five joins to the scans that saw each
-component, `AiReviewResults.latestForRepository` (the scans), and `Scans.findWithSbomButNoComponents`,
+sweeps of `IssueRepository` and `ScanRepository` (`targets`' tables), the inventory's five joins to the scans that saw each
+component, `AiReviewResultRepository.latestForRepository` (the scans), and `ScanRepository.findWithSbomButNoComponents`,
 which reads `inventory` from `scanning`, against the modules' direction, and says so. Each is one
 statement over two tables, cheaper than two queries and a set difference; the last is the one to move.
 

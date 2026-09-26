@@ -146,6 +146,16 @@ Spring Data does not add it. Without it the method works whenever a caller happe
 transaction open and fails when none does, which is how the omission survives review — fifteen derived
 deletes had survived it until `ArchitectureTest.everyRepositoryWriteIsTransactional` made it a rule.
 
+**A repository is named `<Entity>Repository`** — the entity's name without `Entity`, singular:
+`IssueEntity` → `IssueRepository`, `SessionEntity` → `SessionRepository`, `RepositoryEntity` →
+`GitRepositoryRepository`. It lives in its module's `persistence`, and nothing else in the control
+plane ends in `Repository` — a service called `…Repository` passes for one in review
+(`ArchitectureTest.repositoriesAreNamedAndPlacedAsRepositories`). The field keeps the collection's
+name (`private final IssueRepository issues`). A custom fragment is found by *its own* name plus
+`Impl` (`IssueAggregateQueries` → `IssueAggregateQueriesImpl`); renaming the repository does not
+touch it, renaming the fragment means renaming both halves. The plural names (`Issues`, `Scans`,
+`Settings`…) are gone since 2026-09-26; decision records older than that keep them as history.
+
 **`@Transactional` on a method the same class calls is not a transaction.** The proxy is
 bypassed. Use `TransactionTemplate` where a boundary is opened from inside a class — that is
 why `ScanDispatcher` and `OutboxService` do.

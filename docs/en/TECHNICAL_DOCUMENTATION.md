@@ -390,8 +390,9 @@ parse yields an empty list and never raises.
 | `EncryptionService` | AES-GCM at rest, with the context bound to the row, and multi-key rotation. |
 | `SettingsService` · `BootstrapService` | Key/value settings, and first-run account creation. |
 
-Five repositories only — `Scan`, `Issue`, `Target`, `AuditLog`, `Session` — each a thin
-wrapper around the queries its callers actually need. There is no generic base repository.
+One repository per entity that is read on its own, in its module's `persistence` and named
+after the entity — `ScanRepository`, `IssueRepository`, `AuditLogRepository`, `SessionRepository`… —
+each a thin wrapper around the queries its callers actually need. There is no generic base repository.
 A service writes no SQL, and a repository holds no business rule;
 `ArchitectureTest` enforces both.
 

@@ -93,9 +93,9 @@ module, ne peut exprimer : `ArchitectureTest.accessForRoutesOnly` en tient leurs
 **Les couplages que ni Modulith ni ArchUnit ne peuvent compter sont des chaînes** : des requêtes JPQL qui
 nomment l'entité d'un autre module. `CrossModuleQueriesTest` lit chaque requête de dépôt, rattache les
 entités, tables et classes qu'elle nomme à leur module, et échoue sur une référence que sa liste ne porte
-pas. Il en trouve onze — les balayages d'orphelins d'`Issues` et de `Scans` (les tables de `targets`),
+pas. Il en trouve onze — les balayages d'orphelins d'`IssueRepository` et de `ScanRepository` (les tables de `targets`),
 les cinq jointures de l'inventaire aux scans qui ont vu chaque composant,
-`AiReviewResults.latestForRepository` (les scans), et `Scans.findWithSbomButNoComponents`, qui lit
+`AiReviewResultRepository.latestForRepository` (les scans), et `ScanRepository.findWithSbomButNoComponents`, qui lit
 `inventory` depuis `scanning`, à contresens des modules, et le dit. Chacune est une instruction sur deux
 tables, moins chère que deux requêtes et une différence d'ensembles ; la dernière est celle à déplacer.
 

@@ -454,6 +454,38 @@ class ArchitectureTest {
                 .check(classes);
     }
 
+    /** Spring Data's root interface, by name: the rules above read it the same way. */
+    private static final String SPRING_DATA_REPOSITORY = "org.springframework.data.repository.Repository";
+
+    @Test
+    @DisplayName("a repository is named <Entity>Repository, lives in its module's persistence, and nothing else takes the name")
+    void repositoriesAreNamedAndPlacedAsRepositories() {
+        // Until 2026-09-26 the repositories were named after the table read as a collection — `Issues`,
+        // `Scans`, `Outbox`, `Settings` — beside one `ApiKeysRepository`. A plural noun reads as a domain
+        // collection or an English word ("Issues a key", "Scans holding an SBOM"), so a search for who
+        // touches the database found prose, and a reader of `settings.findById` could not tell a
+        // repository from the `settings` module's API. The name is now the entity's without its suffix,
+        // singular, then `Repository` (`SessionEntity` → `SessionRepository`), and the rule holds both
+        // directions: a Spring Data interface named otherwise, or sitting outside a module's
+        // `persistence` where `onlyRepositoriesReachTheDatabase` and `apiNeverTouchesPersistence` expect
+        // it, fails; and so does a service or a helper named `…Repository`, which would pass for a
+        // repository in review and in every search. The bare noun is left out on purpose: a nested
+        // `Repository` record (`TriageHistory.Repository`) is a git repository, the target kind.
+        ArchRuleDefinition.classes()
+                .that().areInterfaces()
+                .and().resideInAPackage(CORE + "..")
+                .and().areAssignableTo(SPRING_DATA_REPOSITORY)
+                .should().resideInAnyPackage(layer(".persistence.."))
+                .andShould().haveSimpleNameEndingWith("Repository")
+                .check(classes);
+        ArchRuleDefinition.classes()
+                .that().resideInAPackage(CORE + "..")
+                .and().haveNameMatching(".*[.$][A-Za-z0-9_]+Repository")
+                .should().beInterfaces()
+                .andShould().beAssignableTo(SPRING_DATA_REPOSITORY)
+                .check(classes);
+    }
+
     @Test
     @DisplayName("case is folded without the host's locale")
     void caseIsFoldedWithoutTheHostLocale() {

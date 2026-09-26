@@ -91,6 +91,24 @@ naming another module's entity is invisible to both, and `CrossModuleQueriesTest
 there are. Production carries Modulith's annotations and nothing else, which `ModulithRuntimeInertTest`
 checks.
 
+### Naming a repository
+
+**A Spring Data repository is its entity's name without `Entity`, singular, then `Repository`**:
+`IssueEntity` → `IssueRepository`, `SessionEntity` → `SessionRepository`, `OutboxMessageEntity` →
+`OutboxMessageRepository`, `SemgrepRuleSetEntity` → `SemgrepRuleSetRepository`. The rule is applied
+even where it reads twice — `RepositoryEntity`, a Git repository, is read by `GitRepositoryRepository`,
+because `RepositoryRepository` says nothing. It sits in its module's `persistence`, and nothing else in
+the control plane ends in `Repository`: a service named `…Repository` would pass for one in review and
+in every search (a nested `Repository` record, the target kind, is the one exception). The fields that
+hold one keep the collection's name — `private final IssueRepository issues` — which reads as what it
+holds. A custom fragment keeps its own name (`IssueAggregateQueries`, `FindingGraphQueries`): Spring
+Data finds its implementation as the *fragment's* name plus `Impl`, whatever the repository is called.
+
+Until 2026-09-26 the repositories were named after the table as a collection — `Issues`, `Scans`,
+`Outbox`, `Settings` — which a search could not tell from the English word or from the module of the
+same name; decision records written before that date keep the names they had.
+`ArchitectureTest.repositoriesAreNamedAndPlacedAsRepositories` holds the convention both ways.
+
 ## What is checked, and where
 
 | Guarantee | Enforced by |
@@ -101,6 +119,7 @@ checks.
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
 | Only a module's `persistence` speaks SQL | `ArchitectureTest` |
 | Every repository write — `@Modifying` or a derived `deleteBy…` — carries `@Transactional` | `ArchitectureTest` |
+| A repository is named `<Entity>Repository` and sits in its module's `persistence`; nothing else takes the suffix | `ArchitectureTest` |
 | The modules form no cycle; a module reaches another only through its root or a named interface, and uses only what its `package-info` lists; nothing uses `platform` or `config` | `ModularityTest` (Spring Modulith's `verify()`) |
 | Every module but `platform` declares its list, and each list is exactly what the module uses — the edges between foundation modules included, which `verify()` allows wholesale | `ModularityTest` |
 | The six modules that use `access` for their routes use it nowhere else | `ArchitectureTest` |
@@ -279,15 +298,15 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | The dispatcher consulted the transport and not the agent's `credentialsMode`, so an agent declared `local` received every repository's decrypted deployment key | `ScanDispatcher` |
 | A malformed notification threshold fell back to `UNKNOWN`, which ranks last — the threshold silently let everything through | `NotificationService` |
 | The quality screen's "rule count" was the length of its own top-8 list, so it always said 8 | `QualityQueryService` |
-| The backlog grouping took a column name as a string parameter | `Issues` |
+| The backlog grouping took a column name as a string parameter | `IssueRepository` |
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | No remote agent could hand back a result: `ScanArtifacts` is a record of `Optional`s, neither mapper registered Jackson 2's `jdk8` module, and every test of the protocol mocked the transport or sent `{}` | `AgentWireFormatTest`, `AgentResultWireTest` |
 | Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open. The convention lived in `core.repositories`' package-info; when step 5 emptied the package it became a rule, which found fifteen derived `deleteBy…` methods in five modules without it | `ArchitectureTest.everyRepositoryWriteIsTransactional` |
-| A write that must arbitrate — claiming a scan, taking the leader lease, superseding a rule set — is a conditional statement whose row count names the winner, never a `save`, which reads then writes and lets whoever wrote last win | `ScanQueue`, `LeaderElection`, `RuleSets` |
+| A write that must arbitrate — claiming a scan, taking the leader lease, superseding a rule set — is a conditional statement whose row count names the winner, never a `save`, which reads then writes and lets whoever wrote last win | `ScanQueue`, `LeaderElection`, `SemgrepRuleSetRepository` |
 | `max_concurrent` was stored, shown and sent to every agent, and nothing applied it: the claim took a scan whatever the agent held, and the agent ran one at a time. The count and the take now commit behind the agent's row — without that lock, two polls reading different candidates both count below the limit | `ScanQueue.claimWithin` |
 | The agent's stop raised a flag and returned; the JVM halts when its shutdown hooks do, so the scan its javadoc promised would finish was cut off mid-run | `AgentRunner.stop` |
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |
-| A repository or image with any triage history could not be deleted: the purge queued its child rows' removal, the bulk delete of the issues ran first, the cascade took the children, and the commit failed on rows already gone. No test had ever deleted a target carrying history | `Issues.deleteByIdIn`, `Scans.deleteByIdIn`, `TargetDeletionTest` |
+| A repository or image with any triage history could not be deleted: the purge queued its child rows' removal, the bulk delete of the issues ran first, the cascade took the children, and the commit failed on rows already gone. No test had ever deleted a target carrying history | `IssueRepository.deleteByIdIn`, `ScanRepository.deleteByIdIn`, `TargetDeletionTest` |
 | `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
 
 ### Shapes chosen deliberately

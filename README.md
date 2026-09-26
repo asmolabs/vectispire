@@ -486,11 +486,12 @@ vectispire-java/
 ├── vectispire-common/        # Shared with the agent
 │   ├── domain/               # Pure rules: fingerprint, gate, exports, schedule, payloads
 │   └── scanning/             # Runs the scanners — no database
-├── vectispire-core/          # The control plane
-│   ├── persistence/          # JPA entities; the schema lives in db/migration/
-│   ├── repositories/         # Data access, no business rules — the only layer that speaks SQL
-│   ├── services/             # Orchestration: ingestion, issues, notifications, tickets
-│   └── api/                  # HTTP controllers
+├── vectispire-core/          # The control plane: one vertical module per domain
+│   ├── <module>/             # Its API: services, views, events, ports (access, targets, scanning, issues…)
+│   │   ├── web/              # Its HTTP controllers
+│   │   ├── internal/         # What only its services use: port implementations, periodic tasks
+│   │   └── persistence/      # JPA entities and <Entity>Repository interfaces — the only place that speaks SQL
+│   └── config/               # Datasource and per-engine setup; the schema lives in db/migration/
 └── vectispire-agent/         # The remote worker. Does NOT depend on vectispire-core.
 vectispire-angular/src/app/   # Angular: 17 page areas, Sakai layout over Optimus UI
 docs/architecture/            # ADR
@@ -501,8 +502,12 @@ JDBC driver is on its classpath, so it cannot hold a database connection — whi
 `ENCRYPTION_KEY` for, and that key decrypts every deployment key Vectispire stores. The violation
 fails to compile rather than failing review.
 
-The import direction is enforced by `ArchitectureTest`:
-`domain ← scanning ← persistence ← repositories ← services ← api`. The domain layer knows
+The import direction is enforced by `ArchitectureTest`, inside every module:
+`domain ← scanning ← persistence ← services ← api` — a module's `persistence` holds its entities and
+its repositories, its root and `internal` are the services, its `web` the api. Between modules,
+Spring Modulith's `verify()` holds each module to the list its `package-info` declares
+([decision 0030](docs/architecture/en/decisions/0030-modulith-verifies-the-module-boundaries.md)).
+The domain layer knows
 nothing of Hibernate or HTTP, which is what makes the rules that matter — a fingerprint, a
 gate verdict, a due date — testable without a database.
 

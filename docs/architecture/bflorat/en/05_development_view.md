@@ -21,12 +21,18 @@
 ## 2. Architectural Constraints & Automated Validation
 
 ### 2.1 Layer Coupling Rules (ArchUnit)
-Layer isolation is strictly enforced by ArchUnit in `ArchitectureTest`:
+Layer isolation is strictly enforced by ArchUnit in `ArchitectureTest`, inside every vertical module
+of `vectispire-core` (decisions 0028, 0029):
 ```
-domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  ◄──  services  ◄──  api
+domain  ◄──  scanning  ◄──  persistence  ◄──  services  ◄──  api
 ```
+A module's `persistence` package holds its entities and its repositories, its root and `internal` are
+its services, its `web` its controllers; the packages by layer (`core.repositories` and the others)
+are gone. Between modules, Spring Modulith's `verify()` is the authority (decision 0030).
 - **Rule 1**: Domain layer must never import Spring framework classes.
 - **Rule 2**: Services must not execute raw SQL queries.
+- **Rule 2b**: A Spring Data repository is named `<Entity>Repository` and lives in its module's
+  `persistence`; nothing else ends in `Repository`.
 - **Rule 3**: `vectispire-agent` module must never include JDBC dependencies on its classpath.
 
 ---

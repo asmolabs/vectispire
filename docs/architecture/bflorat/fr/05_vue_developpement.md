@@ -22,12 +22,17 @@
 
 ### 2.1 Couplage Inter-Couches (ArchUnit)
 L'isolation des couches d'architecture est vérifiée automatiquement par ArchUnit dans
-`ArchitectureTest` :
+`ArchitectureTest`, à l'intérieur de chaque module vertical de `vectispire-core` (décisions 0028, 0029) :
 ```
-domain  ◄──  scanning  ◄──  persistence  ◄──  repositories  ◄──  services  ◄──  api
+domain  ◄──  scanning  ◄──  persistence  ◄──  services  ◄──  api
 ```
+Le paquet `persistence` d'un module porte ses entités et ses repositories, sa racine et `internal` ses
+services, son `web` ses contrôleurs ; les paquets par couche (`core.repositories` et les autres) ont
+disparu. Entre modules, c'est le `verify()` de Spring Modulith qui fait autorité (décision 0030).
 - **Règle 1** : Une couche de domaine ne doit jamais importer de classes Spring.
 - **Règle 2** : Un service ne doit pas exécuter de SQL brut.
+- **Règle 2b** : Un repository Spring Data se nomme `<Entité>Repository` et vit dans le `persistence`
+  de son module ; rien d'autre ne se termine par `Repository`.
 - **Règle 3** : Le module `vectispire-agent` ne doit jamais inclure de dépendances JDBC sur son
   classpath.
 
