@@ -69,6 +69,20 @@ Révoquez une clé quand le pipeline qui l'utilisait est retiré, quand quelqu'u
 lire s'en va, ou quand vous n'êtes pas sûr. La révocation est immédiate, et chaque usage figure
 dans le [journal d'audit](audit-log.md).
 
+Deux gestes révoquent des clés d'eux-mêmes :
+
+- **Un administrateur qui réinitialise le mot de passe d'un compte révoque toutes les clés que ce
+  compte a émises**, comme il ferme ses sessions. Une réinitialisation sert à exclure quelqu'un qui
+  détenait le compte ; une clé émise entre-temps continuerait sinon d'agir pour lui. L'entrée d'audit
+  de la réinitialisation dit combien de clés sont parties. Émettez-en de nouvelles ensuite.
+- **Supprimer un dépôt ou un conteneur révoque les clés restreintes à cette cible**, avec les droits
+  qui la nomment — une clé ne survit jamais à sa cible, même à une restauration qui renumérote.
+
+Émettre une clé ne redemande pas le mot de passe. Seul un administrateur en émet, chaque émission
+figure au journal d'audit et part vers le SIEM, et un compte qui se connecte par authentification
+unique peut n'avoir aucun mot de passe local à fournir — une étape de ré-authentification
+fermerait l'écran à ces administrateurs plutôt que de le protéger.
+
 ## En CI
 
 ```yaml

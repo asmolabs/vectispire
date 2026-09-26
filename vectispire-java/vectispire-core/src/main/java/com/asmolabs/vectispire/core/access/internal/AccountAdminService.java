@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.internal;
 
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
@@ -40,11 +41,14 @@ public class AccountAdminService {
     private final UserRepository users;
     private final SessionRepository sessions;
     private final UserTargetRepository assignments;
+    private final ApiKeyRepository keys;
 
-    public AccountAdminService(UserRepository users, SessionRepository sessions, UserTargetRepository assignments) {
+    public AccountAdminService(
+            UserRepository users, SessionRepository sessions, UserTargetRepository assignments, ApiKeyRepository keys) {
         this.users = users;
         this.sessions = sessions;
         this.assignments = assignments;
+        this.keys = keys;
     }
 
     /**
@@ -61,6 +65,18 @@ public class AccountAdminService {
             sessions.deleteByUserId(saved.getId());
         }
         return saved;
+    }
+
+    /**
+     * Saves an account, closes its sessions and revokes the integration keys it issued — together
+     * or not at all, for the reason {@link #save} gives.
+     *
+     * @return how many keys were revoked, for the audit entry
+     */
+    @Transactional
+    public int saveRevokingEverything(UserEntity user) {
+        UserEntity saved = save(user, true);
+        return keys.revokeOwnedBy(saved.getId());
     }
 
     /**

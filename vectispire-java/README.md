@@ -142,7 +142,7 @@ same name; decision records written before that date keep the names they had.
 | Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
 | A migration version lives in `common` once or in every engine's directory, and a common one names no engine | `MigrationLayoutTest` |
 | Each type placeholder is what the engine declares and keeps (`datetime(6)`, identity never reused) | `MigrationPlaceholdersIntegrationTest` |
-| An expired session, a reset password and a role change all close the sessions | `AccountAdministrationService` |
+| An expired session, a reset password and a role change all close the sessions; a reset also revokes the account's integration keys | `AccountAdministrationService`, `ApiKeyIntegrationRoutesTest` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
 | An outbound request reaches the address that was validated | `PinnedHttpSenderTest` |

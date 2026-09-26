@@ -128,6 +128,27 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("an administrator's password reset revokes the account's keys, and nobody else's")
+    void aResetTakesTheKeysWithIt() throws Exception {
+        // The incident-response gesture: the sessions closed, and a key minted with the stolen
+        // credentials used to keep working for its account.
+        String ownerName = "compromised-" + System.nanoTime();
+        String owned = issue(tokenFor(ownerName, Role.ADMIN, false), Map.of("name", "minted", "scopes", List.of("read")));
+        String bystander = issue(asAdmin(), Map.of("name", "unrelated", "scopes", List.of("read")));
+        mvc.perform(authenticated(get("/api/v1/issues"), owned)).andExpect(status().isOk());
+        long ownerId = users.findByUsername(ownerName).orElseThrow().getId();
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .patch("/api/v1/users/" + ownerId), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("password", "a reset passphrase nobody knows"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(authenticated(get("/api/v1/issues"), owned)).andExpect(status().isUnauthorized());
+        mvc.perform(authenticated(get("/api/v1/issues"), bystander)).andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("is also read from X-API-Key, where a session token is not")
     void theAliasHeaderCarriesKeysOnly() throws Exception {
         String session = asAdmin();

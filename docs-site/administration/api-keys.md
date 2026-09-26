@@ -67,6 +67,20 @@ Revoke a key when the pipeline that used it is retired, when someone who could r
 leaves, or when you are not sure. Revocation is immediate, and every use is in the
 [audit log](audit-log.md).
 
+Two gestures revoke keys on their own:
+
+- **An administrator resetting an account's password revokes every key that account issued**, as it
+  closes its sessions. A reset is what one does to shut out somebody who had the account; a key
+  they minted meanwhile would otherwise keep acting for it. The audit entry of the reset says how
+  many keys went. Issue new ones afterwards.
+- **Deleting a repository or a container revokes the keys restricted to it**, with the grants that
+  name it — a key never outlives its target, even through a restore that renumbers.
+
+Issuing a key does not ask for the password again. Only an administrator issues one, each issuance
+is in the audit log and forwarded to the SIEM, and an account signing in through single sign-on
+may have no local password to give — a re-authentication step would lock those administrators out
+of the screen rather than protect it.
+
 ## In CI
 
 ```yaml

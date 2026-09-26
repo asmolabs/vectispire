@@ -33,4 +33,25 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
     @Modifying(clearAutomatically = true)
     @Query("update ApiKeyEntity k set k.lastUsedAt = :at where k.id = :id")
     int markUsed(@Param("id") UUID id, @Param("at") Instant at);
+
+    /**
+     * Revokes every integration key an account issued for itself — see
+     * {@code AccountAdministrationService#update} for when.
+     *
+     * <p>An agent's key has no owner and is not touched: it belongs to the agent, and is revoked
+     * with it.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ApiKeyEntity k where k.ownerUserId = :owner")
+    int revokeOwnedBy(@Param("owner") long owner);
+
+    /**
+     * Revokes the integration keys restricted to one target, with the target — see
+     * {@code TargetGrants#revokeAll}.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from ApiKeyEntity k where k.targetKind = :kind and k.targetId = :targetId and k.ownerUserId is not null")
+    int revokeRestrictedTo(@Param("kind") String kind, @Param("targetId") long targetId);
 }

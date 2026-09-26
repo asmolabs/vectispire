@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import org.springframework.stereotype.Service;
@@ -21,23 +22,35 @@ public class TargetGrants {
 
     private final UserTargetRepository userTargets;
     private final TeamTargetRepository teamTargets;
+    private final ApiKeyRepository keys;
 
-    public TargetGrants(UserTargetRepository userTargets, TeamTargetRepository teamTargets) {
+    public TargetGrants(UserTargetRepository userTargets, TeamTargetRepository teamTargets, ApiKeyRepository keys) {
         this.userTargets = userTargets;
         this.teamTargets = teamTargets;
+        this.keys = keys;
     }
 
     /**
-     * Revokes every grant naming the target and says how many went.
+     * Revokes every grant naming the target and says how many went — and the integration keys
+     * restricted to it, which are a grant of the same shape.
      *
      * <p>{@code MANDATORY}: the revocation belongs to the deletion that causes it. Committed on its
      * own, a deletion that then rolled back would leave its target standing and its grants gone.
+     *
+     * <p><b>The keys too.</b> A key restricted to a repository names it as {@code (kind, id)} like a
+     * grant, and was left behind by the deletion: useless while the identifier stays unused — the
+     * supported engines never reuse one — and pointed at somebody else's target the day a restore
+     * renumbers. Here rather than in a listener of {@code TargetDeleted}: {@code access} sits below
+     * {@code targets}, so the publisher calls it before the first phase, as it calls for the grants.
+     * An agent's key is not revoked: it belongs to its agent.
      *
      * @param kind as the grant tables store it — {@code TeamRules.KIND_REPOSITORY}, {@code
      *     KIND_CONTAINER} or {@code KIND_PROJECT}
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public int revokeAll(String kind, long targetId) {
-        return userTargets.deleteByTarget(kind, targetId) + teamTargets.deleteByTarget(kind, targetId);
+        return userTargets.deleteByTarget(kind, targetId)
+                + teamTargets.deleteByTarget(kind, targetId)
+                + keys.revokeRestrictedTo(kind, targetId);
     }
 }

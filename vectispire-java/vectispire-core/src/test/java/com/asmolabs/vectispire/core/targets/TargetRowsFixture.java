@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
+import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamTargetRepository;
@@ -102,6 +104,16 @@ final class TargetRowsFixture {
         user.setUpdatedAt(AT);
         long userId = beans.getBean(UserRepository.class).save(user).getId();
         beans.getBean(UserTargetRepository.class).save(new UserTargetEntity(userId, named.kind(), named.id()));
+        // A pipeline key restricted to the target: a grant of the same shape, revoked with it.
+        ApiKeyEntity key = new ApiKeyEntity();
+        key.setName("pipeline-" + suffix);
+        key.setKeyHash("not a real hash");
+        key.setScopes("read");
+        key.setCreatedAt(AT);
+        key.setOwnerUserId(userId);
+        key.setTargetKind(named.kind());
+        key.setTargetId(named.id());
+        beans.getBean(ApiKeyRepository.class).save(key);
 
         TeamEntity team = new TeamEntity();
         team.setName("team-" + suffix);
@@ -230,6 +242,7 @@ final class TargetRowsFixture {
         Map<String, Integer> rows = new LinkedHashMap<>();
         rows.put("t_user_target", count("t_user_target where target_kind = ? and target_id = ?", named.kind(), id));
         rows.put("t_team_target", count("t_team_target where target_kind = ? and target_id = ?", named.kind(), id));
+        rows.put("t_api_key", count("t_api_key where target_kind = ? and target_id = ?", named.kind(), id));
         rows.put("t_gate_policy", count("t_gate_policy where target_kind = ? and target_id = ?", named.kind(), id));
         rows.put("t_scan", count("t_scan where " + column + " = ?", id));
         rows.put("t_issue", count("t_issue where " + column + " = ?", id));

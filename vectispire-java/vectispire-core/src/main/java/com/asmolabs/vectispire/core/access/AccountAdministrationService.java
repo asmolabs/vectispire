@@ -204,7 +204,19 @@ public class AccountAdministrationService {
         // session that the change was meant to close still open — the very outcome the
         // paragraph above describes as the defect being fixed.
         boolean revoke = !isActive || password != null || !role.equals(previousRole);
-        accounts.save(user, revoke);
+        // **A reset takes the account's integration keys too.** A key acts for its account, so
+        // one issued by whoever held the stolen credentials outlived the reset that was meant to
+        // shut them out: the sessions closed, the pipeline key they minted kept working. Only on a
+        // reset — deactivating already stops every key of the account, and a role change moves
+        // what they may do with it.
+        if (password != null) {
+            int revokedKeys = accounts.saveRevokingEverything(user);
+            if (revokedKeys > 0) {
+                changes.add(revokedKeys + " API key" + (revokedKeys == 1 ? "" : "s") + " revoked");
+            }
+        } else {
+            accounts.save(user, revoke);
+        }
 
         if (!changes.isEmpty()) {
             record(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
