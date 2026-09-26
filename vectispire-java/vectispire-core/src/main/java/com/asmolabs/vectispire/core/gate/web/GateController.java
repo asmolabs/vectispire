@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
+import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.Visibilities;
@@ -108,6 +109,11 @@ public class GateController {
      */
     @Operation(summary = "Evaluate security quality gate", description = "Evaluates current target vulnerabilities against active or requested gate policy. Returns exit verdict and violations.")
     @ApiResponse(responseCode = "200", description = "Gate verdict evaluated")
+    // **A verdict is written, not only answered** — it joins the register the evidence bundle and
+    // the process figures read. The auditor, who changes nothing, and the governor, who acts under
+    // no rule, write none. A pipeline's key acts for its owner, so a key owned by either is refused
+    // here too.
+    @RequiresWriteAccount
     @AcceptsApiKey(ApiKeyScope.SCAN)
     @PostMapping("/gate")
     public GateResponse evaluate(

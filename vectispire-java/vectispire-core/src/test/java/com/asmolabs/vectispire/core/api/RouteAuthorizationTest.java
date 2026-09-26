@@ -339,43 +339,96 @@ class RouteAuthorizationTest extends ApiTestBase {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isForbidden());
     }
 
+    /**
+     * The writing routes an auditor may call, each with the reason.
+     *
+     * <p>Every one acts on the caller's own account or session — never on the estate, a target or
+     * the deployment. A route that changes anything else does not belong here, and this list growing
+     * whenever the test goes red is exactly how the role would become a lie again: <b>adding to it
+     * should feel like an argument, because it is one.</b> Keyed {@code METHOD pattern}.
+     */
+    private static final java.util.Map<String, String> AN_AUDITOR_MAY_CALL = java.util.Map.ofEntries(
+            java.util.Map.entry("DELETE /api/v1/auth/session", "ends the caller's own session"),
+            java.util.Map.entry("POST /api/v1/auth/change-password", "the caller's own password"),
+            java.util.Map.entry("POST /api/v1/auth/mfa/setup", "enrols the caller's own second factor"),
+            java.util.Map.entry("POST /api/v1/auth/mfa/enable", "enables the caller's own second factor"),
+            java.util.Map.entry("POST /api/v1/auth/mfa/disable", "the caller's own second factor"),
+            java.util.Map.entry("POST /api/v1/crypto/verify", "checks a signature against the instance's public key: a computation, nothing is written"));
+
     @Test
-    @DisplayName("an auditor changes nothing, and an ordinary account still reads none of it")
+    @DisplayName("an auditor changes nothing: every writing route refuses it, but those about its own account")
     void anAuditorMayNotWrite() throws Exception {
-        // **The half that makes the role worth having.** A reader that could also write would be a
-        // CISO with a different name; the split between the two markers is the whole point, and a
-        // class-level marker quietly re-applied to a writing method would undo it silently.
-        mvc.perform(authenticated(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                .delete("/api/v1/gate/policies/repository/1"),
-                        asAuditor()))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .status().isForbidden());
-
-        mvc.perform(authenticated(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                .post("/api/v1/threat-intel/sync"),
-                        asAuditor()))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .status().isForbidden());
-
-        // **The six routes that made the role a lie.** `AUDITOR` is documented — in its own
-        // javadoc, in the security view, in the guide — as changing nothing anywhere. Those six
-        // carried only `@RequiresAccount`, so it could settle an anomaly, open a ticket at a
-        // customer's, and send a target's list of findings to a model host.
-        for (var route : java.util.List.of(
-                "/api/v1/issues/1/triage", "/api/v1/issues/triage",
-                "/api/v1/issues/1/tickets", "/api/v1/repositories/1/owasp-review",
-                "/api/v1/ai-advisor/explain/issue/1", "/api/v1/ai-advisor/explain/cve/CVE-2021-44228")) {
-            mvc.perform(authenticated(
-                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                    .post(route)
-                                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                                    .content("{}"),
-                            asAuditor()))
-                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                            .status().isForbidden());
+        // **Derived from every non-GET route, not listed.** The hand-written list here named eight
+        // routes; `POST /api/v1/gate` was not among them, carried `@RequiresAccount`, and let the
+        // role that "changes nothing, anywhere" write verdicts into the register the evidence bundle
+        // reads. A list of the writing routes is written by whoever forgot one.
+        List<String> admitted = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        List<String> staleExemptions = new ArrayList<>();
+        int probed = 0;
+        for (var mapping : mappings.getHandlerMethods().entrySet()) {
+            HandlerMethod handler = mapping.getValue();
+            if (!isOurs(handler)
+                    || carries(handler, OpenToAnonymous.class)
+                    || carries(handler, RequiresAgentKey.class)) {
+                // No account session is what reaches these: anonymous ways in, and the agent protocol.
+                continue;
+            }
+            for (var requestMethod : mapping.getKey().getMethodsCondition().getMethods()) {
+                if (requestMethod == org.springframework.web.bind.annotation.RequestMethod.GET
+                        || requestMethod == org.springframework.web.bind.annotation.RequestMethod.HEAD
+                        || requestMethod == org.springframework.web.bind.annotation.RequestMethod.OPTIONS) {
+                    continue;
+                }
+                for (String pattern : patternsOf(mapping.getKey())) {
+                    String key = requestMethod.name() + " " + pattern;
+                    seen.add(key);
+                    if (AN_AUDITOR_MAY_CALL.containsKey(key)) {
+                        if (!markerAdmits(handler, Role.AUDITOR)) {
+                            staleExemptions.add(key);
+                        }
+                        continue;
+                    }
+                    probed++;
+                    // A marker that leaves the auditor out refuses it before the handler runs — but
+                    // after the arguments bind, so a probe's `{}` can answer 400 first. The marker is
+                    // the refusal, and method security itself is proven by the probes above. One
+                    // that admits the auditor must be refused by what is behind it, over HTTP.
+                    if (!markerAdmits(handler, Role.AUDITOR)) {
+                        continue;
+                    }
+                    // A fresh session each time: a route that ended the session would otherwise turn
+                    // every later refusal into a 401 and hide a 200 behind it.
+                    int status = mvc.perform(authenticated(
+                                    org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                            .request(HttpMethod.valueOf(requestMethod.name()), pattern.replaceAll("\\{[^}]+}", "1"))
+                                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                                            .content("{}"),
+                                    asAuditor()))
+                            .andReturn().getResponse().getStatus();
+                    if (status != 403) {
+                        admitted.add(key + " answered " + status);
+                    }
+                }
+            }
         }
+
+        assertThat(probed)
+                .as("no writing route was probed: the mapping walk is wrong, and a rule that checks "
+                        + "nothing passes forever")
+                .isGreaterThan(40);
+        assertThat(seen)
+                .as("an exemption naming no writing route exempts nothing and hides that it does")
+                .containsAll(AN_AUDITOR_MAY_CALL.keySet());
+        assertThat(staleExemptions)
+                .as("exempted routes whose marker refuses the auditor anyway: remove the exemption")
+                .isEmpty();
+        assertThat(admitted)
+                .as("an auditor sees the whole estate and changes none of it; these writing routes "
+                        + "admitted one. Give them @RequiresWriteAccount (or a narrower marker) — or, "
+                        + "if the route acts on the caller's own account only, add it to "
+                        + "AN_AUDITOR_MAY_CALL with the reason")
+                .isEmpty();
 
         // Widening the read marker must not have widened it to everybody: USER is still out.
         mvc.perform(authenticated(
@@ -467,6 +520,24 @@ class RouteAuthorizationTest extends ApiTestBase {
      */
     private static boolean isOurs(HandlerMethod handler) {
         return handler.getBeanType().getPackageName().startsWith("com.asmolabs.vectispire.core.");
+    }
+
+    /** Whether the marker that applies to this handler — the method's, else the class's — names the role. */
+    private static boolean markerAdmits(HandlerMethod handler, Role role) {
+        Annotation marker = MARKERS.stream()
+                .<Annotation>map(type -> handler.getMethod().getAnnotation(type))
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .or(() -> MARKERS.stream()
+                        .<Annotation>map(type -> handler.getBeanType().getAnnotation(type))
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst())
+                .orElseThrow(() -> new AssertionError("unmarked handler " + handler));
+        PreAuthorize expression = marker.annotationType().getAnnotation(PreAuthorize.class);
+        // `@RequiresAccount` is `isAuthenticated()`: every role.
+        return expression == null
+                || !expression.value().contains("hasAnyRole")
+                || expression.value().contains("'" + role.name() + "'");
     }
 
     /** Method first, then the class: a method's own marker is the one that applies. */

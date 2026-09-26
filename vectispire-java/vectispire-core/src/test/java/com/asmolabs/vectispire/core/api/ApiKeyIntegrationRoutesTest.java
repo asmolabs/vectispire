@@ -108,6 +108,26 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a pipeline's key records a gate verdict with its owner's role, and the governor's records none")
+    void theGateIsAWriteForTheKeysOwner() throws Exception {
+        long target = repository("gate-owner");
+        String body = write(Map.of("repository_id", target));
+
+        String pipeline = issue(asAdmin(), Map.of("name", "pipeline", "scopes", List.of("scan")));
+        mvc.perform(authenticated(post("/api/v1/gate"), pipeline)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+
+        // The verdict joins the register: a key acts for its account, and the governor's account
+        // acts under no rule — so neither does a key it issued for itself.
+        String governors = issue(tokenFor("governor-" + System.nanoTime(), Role.SUPERUSER, false),
+                Map.of("name", "governor-pipeline", "scopes", List.of("scan")));
+        mvc.perform(authenticated(post("/api/v1/gate"), governors)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("is also read from X-API-Key, where a session token is not")
     void theAliasHeaderCarriesKeysOnly() throws Exception {
         String session = asAdmin();
