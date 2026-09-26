@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.platform;
 
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;

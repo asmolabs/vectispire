@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.platform;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.services.access.SessionCleanupService;

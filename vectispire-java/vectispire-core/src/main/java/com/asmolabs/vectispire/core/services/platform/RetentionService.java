@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.platform;
 
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy.Candidate;

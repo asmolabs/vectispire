@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.platform;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;

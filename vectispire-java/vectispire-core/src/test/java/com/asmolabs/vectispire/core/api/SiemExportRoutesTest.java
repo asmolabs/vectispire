@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.repositories.Outbox;
-import com.asmolabs.vectispire.core.services.MaintenanceJobs;
+import com.asmolabs.vectispire.core.services.platform.MaintenanceJobs;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import com.asmolabs.vectispire.core.services.siem.SiemEvents;
 import java.io.InputStream;
