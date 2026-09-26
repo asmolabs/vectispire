@@ -1,10 +1,10 @@
 package com.asmolabs.vectispire.core.services.platform;
 
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
+import com.asmolabs.vectispire.core.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.services.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.services.compliance.ComplianceHistoryService;
-import com.asmolabs.vectispire.core.services.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.services.posture.PostureDigestService;
 import com.asmolabs.vectispire.core.services.scanning.SchedulerService;

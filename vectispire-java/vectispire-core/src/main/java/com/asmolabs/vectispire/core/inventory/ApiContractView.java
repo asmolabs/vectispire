@@ -1,6 +1,6 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
-import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
 import java.time.Instant;
 
 /**

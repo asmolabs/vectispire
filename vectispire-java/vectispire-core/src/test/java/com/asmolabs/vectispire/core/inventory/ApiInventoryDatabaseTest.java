@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -7,10 +7,10 @@ import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.ApiContracts;
-import com.asmolabs.vectispire.core.repositories.ApiEndpoints;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Instant;

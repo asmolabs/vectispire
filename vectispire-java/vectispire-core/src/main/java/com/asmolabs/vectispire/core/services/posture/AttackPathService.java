@@ -1,28 +1,28 @@
 package com.asmolabs.vectispire.core.services.posture;
 
-import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPath;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathEdge;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNode;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
-import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
+import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
+import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.inventory.ApiInventoryService;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

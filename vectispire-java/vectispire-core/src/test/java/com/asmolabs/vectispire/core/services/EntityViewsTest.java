@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.audit.AuditEntryView;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
-import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
+import com.asmolabs.vectispire.core.inventory.ApiContractView;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.services.inventory.ApiContractView;
 import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.targets.SolutionAdministrationService;
 import com.asmolabs.vectispire.core.tickets.IssueTicketView;

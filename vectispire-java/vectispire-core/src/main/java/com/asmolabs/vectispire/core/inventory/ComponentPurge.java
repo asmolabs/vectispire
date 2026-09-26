@@ -1,7 +1,7 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
-import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.List;
 import org.springframework.context.event.EventListener;

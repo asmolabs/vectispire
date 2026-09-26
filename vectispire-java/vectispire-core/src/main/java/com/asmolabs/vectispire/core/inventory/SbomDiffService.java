@@ -1,13 +1,13 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta.ChangeType;
 import com.asmolabs.vectispire.common.domain.sbom.CveDelta;
 import com.asmolabs.vectispire.common.domain.sbom.SbomDiffReport;
-import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,10 +21,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.data.domain.Limit;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

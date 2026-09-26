@@ -15,7 +15,7 @@ import com.asmolabs.vectispire.common.domain.trends.MttrCalculator;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.gate.GateService;
-import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
@@ -51,7 +51,7 @@ public class ComplianceService {
     private final SettingsService settings;
     /** Lue pour une seule question : par quelle porte entre-t-on, et y en a-t-il deux ? */
     private final SignInMethodPolicy signIn;
-    private final Components components;
+    private final InventoryQueryService components;
     private final Clock clock;
 
     public ComplianceService(
@@ -65,7 +65,7 @@ public class ComplianceService {
             EncryptionService encryption,
             SettingsService settings,
             SignInMethodPolicy signIn,
-            Components components,
+            InventoryQueryService components,
             Clock clock) {
         this.gate = gate;
         this.issues = issues;

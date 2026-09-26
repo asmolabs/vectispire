@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.inventory.persistence;
 
-import com.asmolabs.vectispire.core.persistence.LicensePolicyEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

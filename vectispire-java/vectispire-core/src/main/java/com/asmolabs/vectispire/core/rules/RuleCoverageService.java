@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.scanning.BundledRules;
-import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -31,9 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class RuleCoverageService {
 
     private final RuleSetService ruleSets;
-    private final Components components;
+    private final InventoryQueryService components;
 
-    public RuleCoverageService(RuleSetService ruleSets, Components components) {
+    public RuleCoverageService(RuleSetService ruleSets, InventoryQueryService components) {
         this.ruleSets = ruleSets;
         this.components = components;
     }

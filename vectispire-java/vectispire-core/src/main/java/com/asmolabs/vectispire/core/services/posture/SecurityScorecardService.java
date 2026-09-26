@@ -1,28 +1,28 @@
 package com.asmolabs.vectispire.core.services.posture;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.inventory.LicenseGovernanceService;
-import com.asmolabs.vectispire.core.services.issues.SlaService;
-import java.util.Locale;
-import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.issues.SlaService;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 /**

@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.inventory.persistence;
 
-import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,11 +1,11 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.inventory.web;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TopImpactPackage;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.inventory.BlastRadiusService;
+import com.asmolabs.vectispire.core.inventory.BlastRadiusService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

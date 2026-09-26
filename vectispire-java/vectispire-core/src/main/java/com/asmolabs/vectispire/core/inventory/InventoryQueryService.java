@@ -1,10 +1,10 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Instant;
 import java.util.List;
@@ -58,6 +58,33 @@ public class InventoryQueryService {
 
     /** @param truncated said plainly: a capped list read as complete is a wrong answer */
     public record Results(List<Occurrence> occurrences, int total, boolean truncated) {}
+
+    /**
+     * Every distinct package URL the inventory holds — what rule coverage compares the rule sets with.
+     *
+     * <p>This method and the three below exist because the components table is this module's: rule
+     * coverage and the compliance summary read it through the repository while the code was
+     * packaged by layer, a dependency on inventory neither showed. Each delegates to the query it
+     * replaces, with no transaction of its own, as before.
+     */
+    public List<String> distinctPurls() {
+        return components.distinctPurls();
+    }
+
+    /** Every distinct package URL with the target its scan was of, as {@code Components} returns them. */
+    public List<Object[]> distinctPurlsByTarget() {
+        return components.distinctPurlsByTarget();
+    }
+
+    /** The repositories whose scans produced an inventory. */
+    public List<Long> distinctRepositoriesWithComponents() {
+        return components.distinctRepositoriesWithComponents();
+    }
+
+    /** The container images whose scans produced an inventory. */
+    public List<Long> distinctContainersWithComponents() {
+        return components.distinctContainersWithComponents();
+    }
 
     /** @throws IllegalArgumentException for a blank name: searching for everything is not a search */
     public Results search(String name, String version, Visibility allowed) {

@@ -7,7 +7,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
-import com.asmolabs.vectispire.core.repositories.Components;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.util.List;
 import java.util.Optional;
@@ -34,13 +34,13 @@ import org.junit.jupiter.api.Test;
 class RuleCoverageServiceTest {
 
     private RuleSetService ruleSets;
-    private Components components;
+    private InventoryQueryService components;
     private RuleCoverageService service;
 
     @BeforeEach
     void wire() {
         ruleSets = mock(RuleSetService.class);
-        components = mock(Components.class);
+        components = mock(InventoryQueryService.class);
         service = new RuleCoverageService(ruleSets, components);
 
         when(ruleSets.active()).thenReturn(Optional.empty());

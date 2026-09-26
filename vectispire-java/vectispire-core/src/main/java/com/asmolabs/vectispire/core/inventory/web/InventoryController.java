@@ -1,8 +1,8 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.inventory.web;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.inventory.InventoryQueryService;
+import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

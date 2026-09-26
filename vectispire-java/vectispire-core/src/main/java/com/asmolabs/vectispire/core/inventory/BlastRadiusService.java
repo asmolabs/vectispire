@@ -1,5 +1,6 @@
-package com.asmolabs.vectispire.core.services.inventory;
+package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TargetImpact;
 import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport.TopImpactPackage;
@@ -12,7 +13,6 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.repositories.FindingGraphQueries;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
@@ -21,8 +21,8 @@ import com.asmolabs.vectispire.core.repositories.Scans;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;

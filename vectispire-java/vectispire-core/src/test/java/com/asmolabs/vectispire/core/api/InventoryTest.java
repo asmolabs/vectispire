@@ -8,10 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
+import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Components;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.settings.SettingsService;

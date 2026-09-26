@@ -1,17 +1,18 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.inventory.web;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseSummary;
-import com.asmolabs.vectispire.core.api.security.RequiresAccount;
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import com.asmolabs.vectispire.core.api.RequestActors;
+import com.asmolabs.vectispire.core.api.Visibilities;
+import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.inventory.LicenseGovernanceService;
+import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
