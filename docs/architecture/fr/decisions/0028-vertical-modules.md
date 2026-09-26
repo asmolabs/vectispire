@@ -1,6 +1,6 @@
 # 0028 — Les domaines deviennent des modules verticaux, et le socle est partagé
 
-**Date :** 2026-09-26 · **Statut :** acceptée · **Décideur :** Laurent Boucher
+**Date :** 2026-09-26 · **Statut :** acceptée (achevée par la [0029](0029-core-domains-become-modules.md)) · **Décideur :** Laurent Boucher
 
 > Prolonge la [0026](0026-services-are-grouped-by-domain.md), qu'elle ne remplace pas : les domaines,
 > le socle et le tableau de qui peut utiliser qui sont ceux de la 0026. Cette décision couvre les étapes
@@ -153,6 +153,9 @@ constats :
   les deux.
 
 ## Ce que l'étape 5 doit résoudre
+
+> Résolu par la [0029](0029-core-domains-become-modules.md), qui dit constat par constat comment, et
+> ce qu'est devenu l'état intermédiaire décrit plus haut. La liste est gardée telle qu'écrite.
 
 - **Déplacer `issues`, `scanning` et `targets`** avec leurs contrôleurs, entités et repositories, et
   dissoudre `platform` (le tick de maintenance, la rétention et l'écran des paramètres deviennent la

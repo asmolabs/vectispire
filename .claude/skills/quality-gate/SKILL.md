@@ -41,7 +41,7 @@ and `typescript` in `package-lock.json`, and `npm audit`.
 
 ## 4. Engine campaign — when engine-sensitive files changed
 
-Migrations, `core/repositories/`, `core/persistence/`, `core/config/`, `src/integrationTest/`,
+Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTest/`,
 `gradle/libs.versions.toml`, `gradle.lockfile`:
 
 ```bash

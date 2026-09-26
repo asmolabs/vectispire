@@ -42,10 +42,10 @@ codebase ([decision 0007](decisions/0007-none-is-not-an-empty-list.md)).
 ```mermaid
 flowchart TB
     subgraph proc["Vectispire control plane (Spring Boot)"]
-        API["HTTP API<br/>core/‹module›/web/, core/api/"]
-        SVC["Services<br/>core/‹module›/, core/services/"]
-        REPO["Repositories<br/>core/‹module›/persistence/, core/repositories/"]
-        SCHED["Scheduler<br/>SchedulerService — periodic tick"]
+        API["HTTP API<br/>core/‹module›/web/"]
+        SVC["Services<br/>core/‹module›/, core/‹module›/internal/"]
+        REPO["Repositories<br/>core/‹module›/persistence/"]
+        SCHED["Periodic tick<br/>MaintenanceJobs — each module's MaintenanceTask"]
     end
 
     UI["Angular UI<br/>vectispire-angular/src/app/"]
@@ -72,11 +72,13 @@ the same HTTP API that a CI pipeline or a remote agent talks to.
 
 ### Modules, and the layers inside them
 
-The control plane is moving from packages by layer to **vertical modules, one per domain**
-([decision 0028](decisions/0028-vertical-modules.md)). Nineteen domains have moved — the foundation
-(`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) and `access`, `agents`, `ai`,
-`compliance`, `exports`, `gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`,
-`threatintel`, `tickets`. Each is a package of its own:
+The control plane is packaged as **vertical modules, one per domain** (decisions
+[0028](decisions/0028-vertical-modules.md) and [0029](decisions/0029-core-domains-become-modules.md)):
+the foundation (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`, `maintenance`),
+the core domains `targets`, `scanning` and `issues`, and `access`, `agents`, `ai`, `compliance`,
+`exports`, `gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`, `threatintel`, `tickets`
+— with `platform` on top, the shell that composes several domains for the settings screen and holds
+the foundation's routes. Each is a package of its own:
 
 ```
 core/<module>/               its API: the services other modules call, their views, its events
@@ -85,27 +87,27 @@ core/<module>/internal/      how the API is built
 core/<module>/persistence/   its entities and its repositories
 ```
 
-`issues`, `scanning`, `targets`, the `platform` composition roots and `shared` are still packaged by
-layer, under `core/api/`, `core/services/`, `core/repositories/` and `core/persistence/` — the next
-step moves them. Either way, the same layers hold:
+The packages by layer — `core/api/`, `core/services/`, `core/repositories/`, `core/persistence/` —
+are gone; `core/config/` (the datasource, the engines' setup, the JSON mapper, the schedulers) is the
+one package outside a module. The layers hold inside each module:
 
 ```
-web/, api/ ──► module root + internal/, services/ ──► persistence/, repositories/ ──► database
-                          │                                      │
-                          └──────────────────┬───────────────────┘
-                                             ▼
-                                          domain/          (pure, depends on nothing)
+web/ ──► module root + internal/ ──► persistence/ ──► database
+                   │                      │
+                   └──────────┬───────────┘
+                              ▼
+                           domain/          (pure, depends on nothing)
 ```
 
 One rule, and it is what makes the whole thing testable: **a layer only knows the one below it.**
 A controller calls its module's API, never its `internal` or `persistence` package; a module reaches
-another only through that module's root, or the one named interface the migration declared
-(`access`'s route markers and principal). The domains depend on each other in one direction, over
+another only through that module's root, or one of the three named interfaces the migration
+declared (`access`'s route markers and principal, and the query records of `scanning` and `issues`). The domains depend on each other in one direction, over
 the foundation every domain may use. `ArchitectureTest` refuses a cycle between domains, a dependency
 the table does not allow, and a reach into another module's internals; the table is in [decision
 0026](decisions/0026-services-are-grouped-by-domain.md), with the edges the modules surfaced in
-0028. Spring Modulith is in the build in observation mode only — what it sees, and what it still
-reports, is [05](05-modularity.md).
+0028 and 0029. Spring Modulith is in the build in observation mode only — what it sees, and that it
+reports nothing any more, is [05](05-modularity.md).
 
 ## The path of a scan
 
@@ -115,7 +117,7 @@ sequenceDiagram
     participant Q as Queue (scan table)
     participant R as ScanRunner
     participant I as ScanIngestor
-    participant S as IssueSync
+    participant S as Backlog (issues)
 
     D->>Q: inserts a "queued" row
     Note over Q: returns immediately
@@ -123,9 +125,10 @@ sequenceDiagram
     R->>R: clone / resolve the image
     R->>R: SBOM, vulnerabilities, secrets, IaC, SAST
     R-->>I: ScanArtifacts (null = did not run)
-    I->>I: normalizes into Finding
-    I->>S: syncs from the scan
+    I->>I: normalizes into ObservedFinding
+    I->>S: hands the observation over (ScanIngestor.Backlog)
     S->>S: fingerprints, reconciles, opens / resolves
+    S-->>I: counts, and each finding's issue
 ```
 
 ### The analyzers

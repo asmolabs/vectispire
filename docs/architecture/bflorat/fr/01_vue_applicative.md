@@ -44,9 +44,9 @@ flowchart TB
     end
 
     subgraph Backend["Plan de Contrôle Backend (vectispire-java)"]
-        API["Couche REST API Controller<br/>(com.asmolabs.vectispire.core.api)"]
-        Services["Couche Services Métier<br/>(com.asmolabs.vectispire.core.services)"]
-        Repo["Couche Repositories Spring Data<br/>(com.asmolabs.vectispire.core.repositories)"]
+        API["Couche REST API Controller<br/>(com.asmolabs.vectispire.core.‹module›.web)"]
+        Services["Couche Services Métier<br/>(com.asmolabs.vectispire.core.‹module›, .internal)"]
+        Repo["Couche Repositories Spring Data<br/>(com.asmolabs.vectispire.core.‹module›.persistence)"]
         Domain["Domaine Métier Pur<br/>(com.asmolabs.vectispire.common.domain)"]
     end
 

@@ -36,46 +36,54 @@ agent's existence is precisely what it does not have ([decision
 the build graph rather than a rule somebody enforces: the violation does not fail review, it
 fails to compile.
 
-**What that costs.** The layers *inside* `vectispire-core` — persistence, repositories, services,
-api — can no longer be expressed by the module graph, so `ArchitectureTest` enforces them with
-ArchUnit, in every module and in the layered packages alike. That is a genuine step down: an ArchUnit rule can be deleted by
-the same commit that violates it; a missing dependency cannot.
+**What that costs.** The layers *inside* `vectispire-core` — persistence, services, web — can no
+longer be expressed by the module graph, so `ArchitectureTest` enforces them with ArchUnit, in every
+module. That is a genuine step down: an ArchUnit rule can be deleted by the same commit that violates
+it; a missing dependency cannot.
 
-**Inside `vectispire-core`, domains — nineteen of them already modules.** The control plane is
-divided into twenty-four domains over a foundation every domain may use (`settings`, `outbound`,
-`crypto`, `audit`, `outbox`, `reporting`, and a `shared` of one class meant to empty). Nineteen are
-vertical modules ([decision 0028](../docs/architecture/en/decisions/0028-vertical-modules.md)), each a
-package of its own:
+**Inside `vectispire-core`, twenty-four modules.** The control plane is divided into domains over a
+foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
+`maintenance`), with `platform` on top — the settings screen that composes four domains, the
+foundation's routes, the error handler and the OpenAPI configuration; it may use any module and none
+uses it. Every one is a vertical module (decisions
+[0028](../docs/architecture/en/decisions/0028-vertical-modules.md) and
+[0029](../docs/architecture/en/decisions/0029-core-domains-become-modules.md)), a package of its own:
 
 ```
 core/<module>/              its API: the services other modules call, their views, its events, its ports
-core/<module>/web/          its controllers; core/access/web/security/ is the one named interface
-core/<module>/internal/     what the API is built from
-core/<module>/persistence/  its entities and its repositories
+core/<module>/web/          its controllers
+core/<module>/internal/     what the API is built from: port implementations, periodic tasks, configuration
+core/<module>/persistence/  its entities, its repositories, and the projections their queries select into
 ```
 
-`issues`, `scanning`, `targets`, `platform` and `shared` are still packaged by layer — `core/api/`,
-`core/services/<domain>/`, `core/repositories/`, `core/persistence/` — until step 5 of the migration
-moves them. A class goes where its callers put it: anything another module or the module's own
-controllers call is at the root, a public class only its services use is in `internal`. A controller
-calls its module's API, never `internal` or any `persistence`; a module reaches another only through
-that module's root or a named interface. The domains form no cycle — none recorded either, since both
-exceptions were broken — and depend in the directions decisions
-[0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md) and 0028 tabulate; new
-code goes into the module whose row matches what it needs, and a row that has to change changes in
-the same review, with its reason. Upwards, a lower domain declares a port and a
-higher one implements it (`ScanIngestor.Enricher`, `AuditLogService.Listener`, `TicketReferences`,
-`OutboxHandler`). **An effect across domains inside a transaction is a synchronous event**: target
-deletion publishes `TargetDeleted` in its transaction, and each owning domain purges its own rows in
-a listener that requires that transaction, in the order `TargetPurge.Phase` fixes. An effect that must
-survive the commit leaves through the outbox.
+Three named interfaces publish more than a root: `core/access/web/security/` (the route markers, the
+principal, `Visibilities`), and `core/scanning/persistence/queries/` and `core/issues/persistence/queries/`
+— the records other modules read unchanged, `IssueFilters` among them. The packages by layer are
+gone; `core/config/` is the one package outside a module.
+
+A class goes where its callers put it: anything another module or the module's own controllers call
+is at the root, a public class only its services use is in `internal`. A controller calls its
+module's API, never `internal` or any `persistence`; a module reaches another only through that
+module's root or a named interface — reading another module's repository is exactly what the modules
+exist to show, so the owner gets an API method (`TargetCatalog`, `ScanCatalog`, `IssueCatalog` answer
+views) or, when it sits above you, a port. The domains form no cycle — none recorded either — and
+depend in the directions decisions
+[0026](../docs/architecture/en/decisions/0026-services-are-grouped-by-domain.md), 0028 and 0029
+tabulate; new code goes into the module whose row matches what it needs, and a row that has to change
+changes in the same review, with its reason. Upwards, a lower domain declares a port and a higher one
+implements it (`TargetScans`, `TargetBacklog`, `ScanIngestor.Backlog`, `GrantableTargets`,
+`AuditLogService.Listener`, `TicketReferences`). **An effect across domains inside a transaction is a
+synchronous event**: target deletion publishes `TargetDeleted` in its transaction, and each owning
+domain purges its own rows in a listener that requires that transaction, in the order
+`TargetPurge.Phase` fixes. An effect that must survive the commit leaves through the outbox. **A
+periodic job is a `MaintenanceTask`** in the owner's `internal`, placed in `MaintenanceTask.Sequence`
+and listed in `MaintenanceJobsTest.COMPOSITION`: the tick knows none of the work.
 
 **Spring Modulith is present, in observation mode.** `ModularityObservationTest` writes what it sees
-into `build/modulith-docs/` and fails on nothing: twenty-four modules — the nineteen domains, the
-foundation declared shared, and the five layered packages step 5 empties — and 554 messages `verify()`
-would report, down from 1,304, none of them a module reaching into another module's internals
-([05](../docs/architecture/en/05-modularity.md)). At runtime it is inert, which
-`ModulithRuntimeInertTest` checks.
+into `build/modulith-docs/` and fails on nothing — and since step 5 it finds nothing: twenty-five
+modules (the twenty-four above, seven of them shared, and `config`), no message `verify()` would
+report, down from 1,304 and then 554 ([05](../docs/architecture/en/05-modularity.md)). At runtime it is
+inert, which `ModulithRuntimeInertTest` checks.
 
 ## What is checked, and where
 
@@ -85,13 +93,15 @@ would report, down from 1,304, none of them a module reaching into another modul
 | Layering inside the control plane | `ArchitectureTest` (ArchUnit) |
 | The domain depends on no framework, and no Docker client | `ArchitectureTest` |
 | `cap_drop`, `network: none` and read-only mounts reach the daemon | `ContainerRunnerIntegrationTest` |
-| Only `repositories` speaks SQL | `ArchitectureTest` |
-| Every service lives in a domain, the domains form no cycle, and each uses only what decisions 0026 and 0028 allow | `ArchitectureTest` |
-| Every class sits in a module's root, `web`, `internal` or `persistence`, or in a layered package; a module reaches another only through its root or a named interface; a controller calls its own module's API | `ArchitectureTest` |
-| The evidence another module keeps reaches the cleanup pass that purges it | `EvidencePurgeWiringTest`, `EvidenceRetentionTest` |
+| Only a module's `persistence` speaks SQL | `ArchitectureTest` |
+| Every repository write — `@Modifying` or a derived `deleteBy…` — carries `@Transactional` | `ArchitectureTest` |
+| The domains form no cycle, and each uses only what decisions 0026, 0028 and 0029 allow; nothing uses `platform` | `ArchitectureTest` |
+| Every class sits in a module's root, `web`, `internal` or `persistence`, or in `config`; a module reaches another only through its root or a named interface; a controller calls its own module's API | `ArchitectureTest` |
+| The gate's verdicts and the compliance captures are purged by one dial, not the payload window, and a failed purge skips only its table | `EvidenceRetentionTest` |
+| The running application contributes exactly the periodic tasks the tick is tested with, in their order | `MaintenanceCompositionTest`, `MaintenanceJobsTest` |
 | Deleting a target takes every row that names it and nobody else's, children before parents, atomically | `TargetDeletionTest`, `TargetPurgeOrderTest`, `TargetDeletionIntegrationTest` (MySQL, PostgreSQL) |
 | Spring Modulith contributes nothing at runtime, and what it sees is written down without enforcing it | `ModulithRuntimeInertTest`, `ModularityObservationTest` |
-| No controller — in `core.api` or a module's `web` — names a persistence type, the principal included; services answer with `…View` records | `ArchitectureTest` |
+| No controller names a persistence type — an entity, a repository or a published query record — the principal included; services answer with `…View` records | `ArchitectureTest` |
 | The fingerprint's identity rules hold | `IssueFingerprintTest` |
 | The audit chain detects tampering, not concurrency | `AuditChainTest` |
 | A caller can only tighten a gate policy, never relax it | `PolicyGateTest` |
@@ -223,10 +233,10 @@ See [decision 0013](../docs/architecture/en/decisions/0013-flyway-multi-dialect-
 real SQLite database. `./gradlew integrationTestAll` runs the schema and concurrency checks on
 PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs it in two places.
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
-**when anything engine-sensitive changed** — a migration, `core/repositories/` and a module's
-`core/<module>/persistence/` (every query lives there, which `ArchitectureTest` enforces),
-`core/persistence/`, `core/config/`, the integration sources, or the dependency catalogue and
-lockfiles — or when the diff range cannot be resolved.
+**when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`
+(every query, `Specification` and entity lives there, which `ArchitectureTest` enforces),
+`core/config/`, the integration sources, or the dependency catalogue and lockfiles — or when the diff
+range cannot be resolved.
 It used to watch migrations only, and a concurrency fix in `ScanQueue` reached `main` green before
 the nightly found it failing on SQLite. Every night, the `databases` job of
 [`nightly.yml`](../.github/workflows/nightly.yml) runs it unconditionally. A green push pipeline
@@ -263,7 +273,8 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | The backlog grouping took a column name as a string parameter | `Issues` |
 | `ScanTask.Target` is a sealed interface, which tells a JSON parser nothing: a task handed to a remote agent deserialized into an exception | `ScanTask` |
 | No remote agent could hand back a result: `ScanArtifacts` is a record of `Optional`s, neither mapper registered Jackson 2's `jdk8` module, and every test of the protocol mocked the transport or sent `{}` | `AgentWireFormatTest`, `AgentResultWireTest` |
-| Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open; a module's own repositories follow the same two conventions | `repositories/package-info.java` |
+| Every `@Modifying` repository query now carries `@Transactional` — Spring Data does not add it, so an omission works whenever a caller happens to have a transaction open. The convention lived in `core.repositories`' package-info; when step 5 emptied the package it became a rule, which found fifteen derived `deleteBy…` methods in five modules without it | `ArchitectureTest.everyRepositoryWriteIsTransactional` |
+| A write that must arbitrate — claiming a scan, taking the leader lease, superseding a rule set — is a conditional statement whose row count names the winner, never a `save`, which reads then writes and lets whoever wrote last win | `ScanQueue`, `LeaderElection`, `RuleSets` |
 | `max_concurrent` was stored, shown and sent to every agent, and nothing applied it: the claim took a scan whatever the agent held, and the agent ran one at a time. The count and the take now commit behind the agent's row — without that lock, two polls reading different candidates both count below the limit | `ScanQueue.claimWithin` |
 | The agent's stop raised a flag and returned; the JVM halts when its shutdown hooks do, so the scan its javadoc promised would finish was cut off mid-run | `AgentRunner.stop` |
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |

@@ -29,16 +29,17 @@ The layer rule, checked by `ArchitectureTest`, has six layers and each one only 
 downwards:
 
 ```
-  domain ◄── scanning ◄── persistence ◄── repositories ◄── services ◄── api
+  domain ◄── scanning ◄── persistence ◄── services ◄── api
 ``` `vectispire-common/domain` depends on nothing but the JDK, BouncyCastle and
 Jackson — no Spring, no JPA, no Docker client.
 
-**New code goes into its domain's module, in the place its callers decide** (decision 0028). Nineteen
-of the twenty-four domains (decision 0026) are vertical modules — the foundation any domain may use,
-`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`, declared shared on
-`VectispireApplication`, and `access`, `agents`, `ai`, `compliance`, `exports`, `gate`, `inventory`,
-`notifications`, `posture`, `rules`, `siem`, `threatintel`, `tickets`. Each has four places and no
-fifth:
+**New code goes into its domain's module, in the place its callers decide** (decisions 0028, 0029).
+Every domain is a vertical module — the foundation any domain may use, `settings`, `outbound`,
+`crypto`, `audit`, `outbox`, `reporting`, `maintenance`, declared shared on `VectispireApplication`;
+`access`, `targets`, `scanning`, `issues`, `agents`, `ai`, `compliance`, `exports`, `gate`,
+`inventory`, `notifications`, `posture`, `rules`, `siem`, `threatintel`, `tickets`; and `platform` on
+top, the shell (the settings screen, the foundation's routes, the error handler, the OpenAPI
+configuration) that may use any module and that none may use. Each has four places and no fifth:
 
 ```
 core.<module>               its API: what another module or its own controllers call — services, views,
@@ -49,27 +50,33 @@ core.<module>.persistence   its entities, its repositories, and the projections 
 ```
 
 A package-private class stays at the root beside its users — moving it to `internal` means widening
-it. `issues`, `scanning`, `targets`, `platform` and `shared` are still packaged by layer (`core.api`,
-`core.services.<domain>`, `core.repositories`, `core.persistence`) until step 5; new code for them
-goes there, in its domain's sub-package, never into `core.services` itself, and nothing new goes into
-`shared`. **Inside a module the layers hold**: `web` calls the module's root, never `internal`
+it. The packages by layer — `core.api`, `core.services`, `core.repositories`, `core.persistence` — are
+gone, and so is `shared`; `core.config` (the datasource, the engines' setup, the mapper, the
+schedulers) is the one package outside a module, and nothing domain-shaped goes into it. **Inside a
+module the layers hold**: `web` calls the module's root, never `internal`
 (`controllersCallTheirModuleApi`) and never any `persistence` (`apiNeverTouchesPersistence`);
 `persistence` reaches nothing above it, and an entity names no repository. **Between modules, only the
 root or a named interface**: reading another module's repository is the coupling the modules exist to
-show — add a method to the owner's API instead (the nine that were needed are tabulated in 0028), or a
-port when the owner sits above you. The one named interface is `core.access.web.security` —
-the markers, `VectispirePrincipal`, `Visibilities`, `RequestActors`, `TrustedProxies`; the filter
-chain is `access`'s own, in `.chain`. A foundation module keeps no controller: its routes need
-`access`'s markers and `access` uses the foundation, so they close a cycle (`AuditLogController` and
-`CryptoController` wait in `core.api`). `ArchitectureTest` fails on a class in no module place or
-layered package (`everyClassHasAPlace`), on any cycle between domains (sliced by domain, modules and
-`core.services` alike; `KNOWN_CYCLES` is empty and only shrinks), on a reach into another module's
-internals (`modulesMeetAtTheirApi`), and on a dependency the `MAY_USE` table does not allow — read
-over a whole module, controllers and entities included; any module's `web` may use `access`. When a lower domain needs a higher
-one, declare a port it implements (`ScanIngestor.Enricher`, `AuditLogService.Listener`,
-`TicketReferences`); an effect that must survive the commit goes through the outbox. Widening the
-table is a decision for the review, with its reason — not the line you add to turn the build green;
-nothing new goes into `shared`.
+show — add a method to the owner's API instead (`TargetCatalog`, `ScanCatalog`, `IssueCatalog` run the
+reader's query and answer views; 0028 and 0029 tabulate the rest), or a port when the owner sits above
+you. Three named interfaces: `core.access.web.security` — the markers, `VectispirePrincipal`,
+`Visibilities`, `RequestActors`, `TrustedProxies`; the filter chain is `access`'s own, in `.chain` —
+and the `queries` of `scanning` and `issues` (`core.<module>.persistence.queries`): the records their
+queries select into that other modules read unchanged, and `IssueFilters`, the criteria every read
+over the backlog applies. Nothing else of `persistence` is published; the predicate built from the
+criteria (`IssueSpecifications`) stays beside the repository. A foundation module keeps no controller:
+its routes need `access`'s markers and `access` uses the foundation, so they close a cycle — they live
+in `platform.web`. `ArchitectureTest` fails on a class in no module place and not in `config`
+(`everyClassHasAPlace`), on any cycle between modules (`KNOWN_CYCLES` is empty and only shrinks), on a
+reach into another module's internals (`modulesMeetAtTheirApi`), and on a dependency the `MAY_USE`
+table does not allow — read over a whole module, controllers and entities included; any module's
+`web` may use `access`. When a lower domain needs a higher one, declare a port it implements
+(`TargetScans`, `TargetBacklog`, `ScanIngestor.Backlog`, `GrantableTargets`, `AuditLogService.Listener`,
+`TicketReferences`); an effect that must survive the commit goes through the outbox. **A periodic job
+is a `MaintenanceTask`** in the owner's `internal` — never a line in a composition root: place it in
+`MaintenanceTask.Sequence` and list it in `MaintenanceJobsTest.COMPOSITION`, whose context twin fails
+if the application contributes a task the tick is not tested with, or misses one. Widening the table is
+a decision for the review, with its reason — not the line you add to turn the build green.
 
 **A cross-domain effect inside a transaction is a synchronous domain event** — the `TargetDeleted`
 pattern. The publisher stays in its transaction; each owning domain handles its own tables in a plain
@@ -79,16 +86,18 @@ tables linked by foreign keys, the order is explicit (`@Order` with the constant
 `TargetPurge.Phase`, children first) and tested by probes between the phases — the schema's cascades
 hide a wrong order otherwise. A bulk `@Modifying` delete that follows Spring Data derived deletes in
 the same transaction needs `flushAutomatically = true`: the derived ones queue their removals, the
-bulk statement and its cascade run first, and the commit fails on rows already gone. An event type the
-listeners of lower domains must see lives where they can see it (`TargetDeleted` is in
-`common.domain.targets`, because `targets` uses `access` and `scanning`).
+bulk statement and its cascade run first, and the commit fails on rows already gone. An event is its
+publisher's (`TargetDeleted` and `TargetPurge` are `targets`'): every listener sits above the
+publisher, and an owner below it that must act in the same transaction is called by the publisher
+before the first phase (`TargetGrants.revokeAll`).
 
 **Spring Modulith is present in observation mode.** `ModularityObservationTest` writes what it sees
-to `build/modulith-docs/` and fails on nothing — twenty-four modules since step 4, the nineteen domains
-and the five layered packages, with every remaining violation a reach into `core.services` or a cycle
-through it (docs/architecture 05). A new module goes into `ArchitectureTest.MODULES`, the test's list
-and, if it is foundation, `sharedModules`; a new named interface is a `@NamedInterface` on a
-`package-info`, and a reason in it. It does nothing at runtime: no event publication registry (the outbox is the one, decision
+to `build/modulith-docs/` and fails on nothing — and since step 5 it finds nothing: twenty-five modules
+(twenty-four domains, seven shared, and `config`), zero violations, so `verify()` would pass
+(docs/architecture 05). Keep it at zero: a new message in the report is a reach you just added. A new
+module goes into `ArchitectureTest.MODULES`, the test's list and, if it is foundation, `sharedModules`
+and `FOUNDATION`; a new named interface is a `@NamedInterface` on a `package-info`, and a reason in
+it. It does nothing at runtime: no event publication registry (the outbox is the one, decision
 0025), no actuator endpoint, its "moments" auto-configuration excluded; `ModulithRuntimeInertTest`
 fails if one of its beans appears. Do not add a Modulith starter or turn the test into `verify()`
 outside the migration plan's steps.
@@ -123,9 +132,10 @@ Run `integrationTestAll` whenever you touch it. It covers **two deployable engin
 MySQL, plus SQLite as a test fixture** — decision 0014, which replaced the earlier claim of four.
 SQLite is not a deployment target; do not add behaviour that only it can satisfy.
 
-**Every `@Modifying` query carries `@Transactional`.** Spring Data does not add it. Without it
-the method works whenever a caller happens to have a transaction open and fails when none does,
-which is how the omission survives review.
+**Every `@Modifying` query carries `@Transactional`**, and so does every derived `deleteBy…`.
+Spring Data does not add it. Without it the method works whenever a caller happens to have a
+transaction open and fails when none does, which is how the omission survives review — fifteen derived
+deletes had survived it until `ArchitectureTest.everyRepositoryWriteIsTransactional` made it a rule.
 
 **`@Transactional` on a method the same class calls is not a transaction.** The proxy is
 bypassed. Use `TransactionTemplate` where a boundary is opened from inside a class — that is
@@ -151,18 +161,18 @@ written — the twenty-first hole turned up hours after the twentieth was closed
 **Controllers map HTTP; services decide.** No business logic and no repository call in a
 controller — lookups, rules, writes, transactions and audit entries live in a service method, and
 the controller keeps parameters, status codes and DTOs. `ArchitectureTest` enforces the parts that
-can be enforced: repositories are reached by services only, the `api` layer — `core.api` and every
-module's `web` — opens no transaction, and only the security web layer (`core.access.web.security`)
-writes the audit log.
+can be enforced: repositories are reached by services only, the `api` layer — every module's `web` —
+opens no transaction, and only the security web layer (`core.access.web.security`) writes the audit
+log.
 
 **No JPA entity crosses a route, in either direction.** Services hand back records whose
 components are the entity's property names (`IssueView`, `AuditEntryView`…), so the wire does not
 move. Returning the entity made the table the contract — a bookkeeping column was published the day
 it was mapped. `SchemaNameCollisionTest` walks every type reachable from a route (generics, record
-components, getters) — in `core.api` and every module's `web` — and fails on a JPA mapping;
+components, getters) — in every module's `web` — and fails on anything of a `persistence` package;
 `EntityViewsTest` fails when an entity gains a property its view does not carry. A rule that finds
-its subject by package must read both packagings: four of them read `core.api` alone until step 3,
-and each would have gone quiet on the first controller that moved.
+its subject by package must read where the subject lives now: four of them read `core.api` alone
+until step 3, and each would have gone quiet on the first controller that moved.
 
 **Nothing of `persistence` reaches `api` at all** — not in a response, not for one call.
 `ArchitectureTest.apiNeverTouchesPersistence` is firm, with no exception list. A service returns a
@@ -275,9 +285,9 @@ agent-claim lock survived a barrage of eight concurrent polls with the lock remo
 the same oldest row and the conditional update turned the loser away on its own. Only a test that
 makes two polls read different rows — latches, not luck — killed the mutant.
 
-**Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations,
-`core/repositories/`, `core/persistence/`, any `core/<module>/persistence/`, `core/config/`, the
-integration sources, and the Gradle catalogue or lockfiles. CI's `engines` job fires on the same paths, but a push that turns it red
+**Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations, any
+`core/<module>/persistence/` (queries, `Specification`s, entities), `core/config/`, the integration
+sources, and the Gradle catalogue or lockfiles. CI's `engines` job fires on the same paths, but a push that turns it red
 has already reached `develop`.
 
 **A route whose shape changes regenerates the contract.** `ClientContractSpecTest` fails with the

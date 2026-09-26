@@ -56,6 +56,13 @@ coordonnées par un bail » — est faux et enverrait un lecteur chercher un bai
 | Relais de l'outbox — notifications et événements SIEM | 60 s | aucune : chaque message est **réservé** avant d'être envoyé, si bien que deux instances ne le livrent pas en même temps |
 | Maintenance horaire | 1 h | aucune : l'élagage est idempotent |
 
+Le relais, le tick du planificateur et la maintenance horaire sont une seule classe, `MaintenanceJobs`,
+qui ne connaît aucun des travaux : chaque module apporte une `MaintenanceTask` depuis son propre
+paquet `internal` — la rétention des scans, le balayage des tickets, l'expiration des triages, les
+purges de preuves… — et le tick exécute les tâches d'une cadence dans leur ordre déclaré
+([0029](decisions/0029-core-domains-become-modules.md)). Seul un travail qui tolère de tourner sur
+plusieurs instances peut en être une.
+
 Le planificateur est élu parce qu'il *crée* du travail : deux instances décidant indépendamment
 qu'une analyse nocturne est due la mettraient deux fois en file. Les autres réclament ce qui existe
 déjà ou répètent une opération dont la seconde exécution ne coûte rien — et une élection n'y

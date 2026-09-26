@@ -42,9 +42,9 @@ flowchart TB
     end
 
     subgraph Backend["Control Plane Backend (vectispire-java)"]
-        API["REST API Controller Layer<br/>(com.asmolabs.vectispire.core.api)"]
-        Services["Business Services Layer<br/>(com.asmolabs.vectispire.core.services)"]
-        Repo["Spring Data Repositories Layer<br/>(com.asmolabs.vectispire.core.repositories)"]
+        API["REST API Controller Layer<br/>(com.asmolabs.vectispire.core.‹module›.web)"]
+        Services["Business Services Layer<br/>(com.asmolabs.vectispire.core.‹module›, .internal)"]
+        Repo["Spring Data Repositories Layer<br/>(com.asmolabs.vectispire.core.‹module›.persistence)"]
         Domain["Pure Domain Model<br/>(com.asmolabs.vectispire.common.domain)"]
     end
 

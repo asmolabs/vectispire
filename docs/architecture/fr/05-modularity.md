@@ -1,93 +1,89 @@
 # 05 — La modularité vue par Spring Modulith
 
-> **Observé le 2026-09-26, après les étapes 3 et 4 de la migration vers Spring Modulith**, avec
-> l'observation de l'étape 2 gardée comme référence. Modulith est dans le build pour qu'on l'interroge,
-> pas pour imposer ses réponses : `ModularityObservationTest` construit son modèle du plan de contrôle,
-> écrit le rapport et les diagrammes générés dans `vectispire-java/vectispire-core/build/modulith-docs/`,
-> et n'échoue sur rien de ce qu'il trouve. À l'exécution, il ne fait rien — `ModulithRuntimeInertTest`
-> échoue si l'un de ses beans devient actif. Les règles qui *sont* imposées restent celles
+> **Observé le 2026-09-26, après l'étape 5 de la migration vers Spring Modulith**, avec l'observation
+> de l'étape 2 gardée comme référence. Modulith est dans le build pour qu'on l'interroge, pas pour
+> imposer ses réponses : `ModularityObservationTest` construit son modèle du plan de contrôle, écrit le
+> rapport et les diagrammes générés dans `vectispire-java/vectispire-core/build/modulith-docs/`, et
+> n'échoue sur rien de ce qu'il trouve. À l'exécution, il ne fait rien — `ModulithRuntimeInertTest`
+> échoue si l'un de ses beans devient actif. Les règles qui *sont* imposées sont celles
 > d'[`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java),
-> telles que les décisions [0026](decisions/0026-services-are-grouped-by-domain.md) et
-> [0028](decisions/0028-vertical-modules.md) les décrivent.
+> telles que les décisions [0026](decisions/0026-services-are-grouped-by-domain.md),
+> [0028](decisions/0028-vertical-modules.md) et [0029](decisions/0029-core-domains-become-modules.md)
+> les décrivent.
 
-## Ce que Modulith détecte : dix-neuf domaines, et cinq couches restantes
+## Ce que Modulith détecte : vingt-quatre domaines et `config`
 
 Modulith prend pour modules les paquetages situés directement sous la classe de l'application,
 `com.asmolabs.vectispire.core`. L'étape 2 en trouvait cinq, les couches d'un code découpé par couche —
 `api`, `services`, `repositories`, `persistence`, `config` — et rien des domaines, qui étaient les
 entrailles d'un seul module.
 
-Les étapes 3 et 4 ont déplacé dix-neuf domaines dans des paquetages à eux
-([0028](decisions/0028-vertical-modules.md)) : `core.<domaine>` pour l'API, `.web` pour les
-contrôleurs, `.internal` pour l'implémentation, `.persistence` pour les entités et les repositories.
-Modulith trouve maintenant **24 modules** :
+Les étapes 3 à 5 ont déplacé chaque domaine dans un paquetage à lui
+([0028](decisions/0028-vertical-modules.md), [0029](decisions/0029-core-domains-become-modules.md)) :
+`core.<domaine>` pour l'API, `.web` pour les contrôleurs, `.internal` pour l'implémentation,
+`.persistence` pour les entités et les repositories. Modulith trouve désormais **25 modules**, et les
+paquetages par couche ont disparu :
 
-| Module | Nature | Autres domaines dont il dépend | Paquetages par couche qu'il utilise |
-|---|---|---|---|
-| `settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting` | socle, **partagé** | — (`crypto` utilise `outbound` et `settings`) | — |
-| `siem` | domaine | `access` | — |
-| `rules` | domaine | `access`, `inventory` | `repositories` |
-| `ai` | domaine | `access` | `persistence`, `repositories` |
-| `threatintel` | domaine | `access`, `siem` | les trois |
-| `tickets` | domaine | `access` | les trois |
-| `agents` | domaine | `access`, `rules` | les trois |
-| `notifications` | domaine | `access` | les trois |
-| `exports` | domaine | `access`, `gate` | les trois |
-| `gate` | domaine | `access`, `rules`, `siem` | les trois |
-| `inventory` | domaine | `access` | les trois |
-| `posture` | domaine | `access`, `gate`, `inventory`, `notifications` | les trois |
-| `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `posture`, `rules` | les trois |
-| `access` | domaine | — | les trois |
-| `api`, `services`, `repositories`, `persistence`, `config` | découpage par couche | — | l'étape 5 les vide |
+| Module | Nature | Autres domaines dont il dépend |
+|---|---|---|
+| `settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`, `maintenance` | socle, **partagé** | `crypto` utilise `outbound` et `settings` ; `outbox` utilise `maintenance` |
+| `access` | domaine | — |
+| `siem` | domaine | `access` |
+| `targets` | domaine | `access` |
+| `scanning` | domaine | `access`, `targets` |
+| `inventory` | domaine | `access`, `scanning`, `targets` |
+| `issues` | domaine | `access`, `scanning`, `targets` |
+| `ai` | domaine | `access`, `issues` |
+| `notifications` | domaine | `access`, `issues`, `targets` |
+| `rules` | domaine | `access`, `inventory`, `issues`, `scanning` |
+| `threatintel` | domaine | `access`, `issues`, `scanning`, `siem`, `targets` |
+| `agents` | domaine | `access`, `rules`, `scanning`, `targets` |
+| `gate` | domaine | `access`, `issues`, `rules`, `scanning`, `siem`, `targets` |
+| `exports` | domaine | `access`, `gate`, `issues`, `scanning`, `targets` |
+| `posture` | domaine | `access`, `gate`, `inventory`, `issues`, `notifications`, `scanning`, `targets` |
+| `tickets` | domaine | `access`, `gate`, `issues`, `targets` |
+| `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
+| `platform` | la coque | tous ; utilisé par aucun |
+| `config` | infrastructure | — |
 
-« Les trois », ce sont `services`, `repositories` et `persistence` : les paquetages par couche où
-vivent encore `issues`, `scanning`, `targets`, `platform` et `shared`. Le socle est déclaré partagé
-(`@Modulithic(sharedModules = …)` sur `VectispireApplication`) et reste fermé : ses paquetages
-`internal` et `persistence` sont cachés comme ceux de n'importe quel module. `access` publie une seule
-interface nommée, `security` — les marqueurs de route, le principal et les utilitaires dont se servent
-les contrôleurs de tous les modules.
+`access` figure dans la plupart des lignes à travers les contrôleurs : chaque route a besoin de ses
+marqueurs et résout une `Visibility`. Le socle est déclaré partagé (`@Modulithic(sharedModules = …)` sur
+`VectispireApplication`) et reste fermé : ses paquetages `internal` et `persistence` sont cachés comme
+ceux de n'importe quel module. Trois interfaces nommées sont publiées : `security` d'`access` (les
+marqueurs de route, le principal et les aides que les contrôleurs de tous les modules utilisent), et les
+`queries` de `scanning` et d'`issues` — les enregistrements dans lesquels leurs requêtes sélectionnent
+et que d'autres modules lisent tels quels (`LatestScanRow`, `PackageImpact` ; `IssueFilters`,
+`IssueRows`, `IssueAggregates`).
 
 `vectispire-common` est hors du paquetage de l'application et se lit comme une bibliothèque : une
-dépendance vers `common.domain` est invisible pour Modulith, ce qu'il faut garder en tête pour les
-types partagés qui y vivent — `ScanTarget` et, depuis l'étape 1, l'événement `TargetDeleted`.
+dépendance à `common.domain` est invisible pour Modulith. Depuis l'étape 5, aucun événement n'y vit
+pour être vu par des modules inférieurs : `TargetDeleted` et `TargetPurge` appartiennent à `targets`,
+et tous les écouteurs sont au-dessus de lui.
 
 ## Ce que `verify()` rejetterait
 
-| | Avant l'étape 3 (étape 2) | Après l'étape 4 |
-|---|---|---|
-| Modules | 5, tous des couches | 24 : 19 domaines (6 partagés), 5 couches |
-| Messages | **1 304** | **554** |
-| `api` → types non exposés de `services` (couche → couche) | 1 304 (208 types) | 278 (50 types) |
-| un module → types non exposés de `services` (module → couche) | — | 201 |
-| un paquetage par couche → types non exposés d'un module | — | 18 |
-| un module → types non exposés d'un autre module | — | **0** |
-| cycles | 0 | 57, **tous par `services`** |
+| | Avant l'étape 3 (étape 2) | Après l'étape 4 | Après l'étape 5 |
+|---|---|---|---|
+| Modules | 5, toutes des couches | 24 : 19 domaines (6 partagés), 5 couches | 25 : 24 domaines (7 partagés), `config` |
+| Messages | **1 304** | **554** | **0** |
+| `api` → types non exposés de `services` (couche → couche) | 1 304 (208 types) | 278 (50 types) | — |
+| un module → types non exposés de `services` (module → couche) | — | 201 | — |
+| un paquetage par couche → types non exposés d'un module | — | 18 | — |
+| un module → types non exposés d'un autre module | — | **0** | **0** |
+| cycles | 0 | 57, tous à travers `services` | **0** |
 
-Comme avant, un message est compté par dépendance fautive — paramètre de constructeur, champ, chaque
-appel — si bien que les nombres mesurent des lignes de code plus que des problèmes. Ce que veut dire
-chaque sorte restante :
+**`verify()` passerait.** Tous les messages restants venaient du découpage par couche, et ce découpage
+a disparu : les contrôleurs ont suivi leurs domaines, chaque lecture des tables d'un autre module est
+devenue un appel à l'API du propriétaire ou un port, et les 57 cycles — un seul artefact, `services` vu
+comme un module, posé sur une poignée de vraies dépendances à double sens — ont été rompus un à un,
+chacun dans le sens que donne le métier (la 0029 en donne le tableau). La propre règle de cycles
+d'`ArchitectureTest`, découpée par module, est d'accord : rien à signaler, `KNOWN_CYCLES` vide.
 
-- **`api` → `services`, 278.** Les contrôleurs d'`issues`, `targets`, `scanning` et `platform` encore
-  dans `core.api`, qui appellent des services situés dans des sous-paquetages de `core.services`. Ils
-  partent avec leurs domaines à l'étape 5.
-- **Module → `services`, 201.** Un module qui appelle des services d'`issues`, de `scanning` ou de
-  `targets`, ou `shared.TargetNaming` : `posture` et `compliance` lisent `SlaService`, `exports` importe
-  le VEX par `issues`, `notifications` et `threatintel` implémentent les ports de `scanning`. Chacun est
-  consigné comme constat pour l'étape 5 dans la 0028.
-- **Couche → module, 18.** `core.services` qui atteint les internes d'un module — l'écran des
-  paramètres lit `Users` d'`access`, l'administration des solutions écrit les attributions d'`access`,
-  les métriques de la plateforme de scan comptent par le repository d'`outbox`, le répartiteur prend
-  l'entité de `rules` — et `ApiExceptionHandler`, qui traduit une exception imbriquée dans la chaîne de
-  filtres d'`access`.
-- **Cycles, 57.** `services` est un seul module pour Modulith : un module qui utilise `issues` et qu'utilise
-  `platform` — `posture`, `compliance`, `access`… — ferme un cycle en passant par lui. Aucun ne relie deux
-  domaines sans passer par `services`, ce que confirme la règle de cycles d'`ArchitectureTest` —
-  découpée par domaine, `core.services.issues` comme `core.access` : elle n'a aucun cycle à signaler.
-
-**Le chiffre qui compte est le zéro.** Aucun module n'atteint le paquetage `internal`, `persistence`
-ou `web` d'un autre : là où c'était le cas — neuf lecteurs du repository d'un autre domaine — la lecture
-est devenue un appel à l'API du propriétaire ou un port, et `ArchitectureTest.modulesMeetAtTheirApi`
-l'y maintient. Ce qui reste appartient au découpage par couche, et c'est à l'étape 5 de le supprimer.
+Deux couplages restent que ni Modulith ni ArchUnit ne peuvent compter, parce que ce sont des chaînes :
+des requêtes JPQL qui nomment l'entité d'un autre module — les balayages d'orphelins, les jointures de
+l'inventaire aux scans qui ont vu chaque composant, `AiReviewResults`,
+`Scans.findWithSbomButNoComponents`. Chacune est une instruction sur deux tables, moins chère que deux
+requêtes et une différence d'ensembles ; la 0029 les liste comme ce qui reste.
 
 ## Ce qui a changé avant cette observation (étape 1)
 
@@ -107,31 +103,42 @@ ce que Modulith vérifiera plus tard parte d'un graphe sans exception connue :
   d'une cascade que SQLite n'honore que tant qu'un pragma est émis. Écrire le test a révélé qu'un
   dépôt portant le moindre historique de tri ne pouvait pas être supprimé ; c'est corrigé.
 - **`ReportCursor` a quitté `shared`** pour un domaine de fondation `reporting` ;
-  `ReachabilityAnalyzer`, un service que rien n'appelait, a été supprimé. `TargetNaming` reste dans
-  `shared` : neuf autres domaines lisent les noms par lui, dont `access` et `scanning`, que `targets` utilise
-  lui-même ; le déplacer dans `targets` fermerait deux cycles.
+  `ReachabilityAnalyzer`, un service que rien n'appelait, a été supprimé.
 
 ## Ce qu'ont changé les étapes 3 et 4
 
-- **Dix-neuf domaines sont des modules**, le socle d'abord ; 262 classes, dont quatre nouvelles, avec
-  leurs contrôleurs, entités, repositories et tests. Le contrat HTTP n'a pas changé (`openapi.json` se
-  régénère à l'identique), et l'application démarre avec les mêmes 206 méthodes de routage.
-- **`core.api.security` fait désormais partie d'`access`** : `core.access.web.security`, l'interface
+- **Dix-neuf domaines sont devenus des modules**, le socle d'abord ; 262 classes, avec leurs
+  contrôleurs, entités, repositories et tests.
+- **`core.api.security` est devenu une partie d'`access`** : `core.access.web.security`, l'interface
   nommée, et `.chain` en dessous pour les filtres.
-- **Neuf lectures des tables d'un autre module sont devenues des appels d'API ou des ports** — le
-  tableau est dans la 0028 — et six dépendances que le découpage par couche cachait sont maintenant des
-  lignes de `MAY_USE`, chacune avec sa raison.
-- **Chaque règle qui trouvait son sujet par paquetage lit les deux découpages** : la règle des couches,
-  les règles de domaine, les lints de route, le parcours des schémas, le seuil de couverture et le
-  filtre de chemins du job `engines` de la CI.
+- **Neuf lectures des tables d'un autre module sont devenues des appels d'API ou des ports**, et six
+  dépendances que le découpage par couche cachait sont devenues des lignes de `MAY_USE`, chacune avec sa
+  raison.
 
-## Ce que change l'étape 5
+## Ce qu'a changé l'étape 5
 
-`issues`, `scanning` et `targets` deviennent des modules ; `platform` se dissout dans les modules qu'il
-compose (la tâche périodique, la règle de rétention et la contribution aux paramètres de chaque module)
-et `shared` dans `targets`. Les modules `services`, `api`, `repositories` et `persistence` de Modulith
-sont alors vides, chaque cycle qu'il signale aujourd'hui disparaît avec eux, et le rapport devient la
-liste des domaines qui fouillent les uns chez les autres — ce que l'étape 6 transforme en `verify()`
-bloquant. La décision 0028 énumère ce qui devra être tranché en chemin : à qui appartiennent la ligne
-d'agent et les politiques de barrière enregistrées, où vont les routes du socle et la comparaison de
-SBOM, et les deux types qui franchissent une frontière sans qu'aucune règle les voie.
+- **`targets`, `scanning` et `issues` sont des modules**, et chacun possède ses tables : les autres
+  interrogent `TargetCatalog`, `ScanCatalog` et `IssueCatalog`, qui exécutent les mêmes requêtes et
+  répondent les vues que les routes renvoient déjà. `agents` possède la ligne d'agent et `gate` les
+  politiques enregistrées, chacune lue d'en dessous par un port. Trois modules plutôt qu'un : les
+  interfaces de requêtes nommées publient cinq types sur 118 classes, et une poignée d'opérations
+  définies passent entre les trois (la 0029 les compte).
+- **`platform` est dissous.** La tâche périodique est un port — `maintenance.MaintenanceTask`, apporté
+  par treize tâches des modules qui possèdent le travail, dont les purges de preuves qu'`access`
+  exécutait pour `gate` et `compliance` — et `platform` est la coque qui reste : l'écran des paramètres,
+  les routes du socle, le gestionnaire d'exceptions, le renvoi vers la SPA et la configuration OpenAPI.
+  `shared` a disparu : `TargetNaming` est parti dans `targets`.
+- **`core.api`, `core.services`, `core.repositories` et `core.persistence` sont vides.** `core.config`
+  est le seul paquetage hors module. Le contrat n'a pas bougé (`openapi.json` se régénère à
+  l'identique), et l'application démarre avec les mêmes 206 méthodes de routage.
+- **Chaque règle lit un seul découpage** : la règle des couches a perdu sa couche `repositories`, les
+  places sont les quatre d'un module ou `config`, et la convention d'écriture des repositories est
+  devenue une règle, `everyRepositoryWriteIsTransactional` — qui a trouvé quinze suppressions dérivées
+  sans `@Transactional`.
+
+## Ce que change l'étape 6
+
+`ModularityObservationTest` devient `ApplicationModules.verify()`. Rien n'a à bouger d'abord : le
+rapport est vide. Ce que l'étape 6 doit décider, c'est seulement comment le build échoue — sur le
+modèle entier, ou avec les trois interfaces nommées déclarées comme la surface publiée qu'elles sont
+déjà.

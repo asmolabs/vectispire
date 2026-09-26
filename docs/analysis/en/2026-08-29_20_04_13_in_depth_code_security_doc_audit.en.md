@@ -144,7 +144,7 @@ PROBE reader sees openai key        = false
 before it reaches the database — `PUT /settings/ticket-token`, `PUT /settings/webhook-secret`, and
 (working tree) `PUT /settings/ai-openai-key`. Each calls `EncryptionService.encrypt` and stores a
 `v2:` blob. The generic catalog route at `SettingsController.update`
-([`SettingsController.java:157`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/SettingsController.java))
+([`SettingsController.java:157`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/platform/web/SettingsController.java))
 validates the key against the catalog and then calls `settings.set(...)` with the raw string.
 `SettingsService.set` writes text. There is no branch on `Sensitivity.SECRET` anywhere in the write
 path — `isSecret()` is consulted in exactly one place in `vectispire-core`, and it is the *read*

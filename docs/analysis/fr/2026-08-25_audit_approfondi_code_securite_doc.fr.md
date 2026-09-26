@@ -162,7 +162,7 @@ La map `mfaChallenges` est par ailleurs une `ConcurrentHashMap` en mémoire, non
 
 ### 3.4 Le « quatre yeux » repose sur le rôle, pas sur l'identité (🟡 Moyenne)
 
-[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/issues/IssueTriageService.java) rétrograde `NOT_AFFECTED` en `PENDING_APPROVAL` lorsque l'acteur ne possède pas `Role.canApproveTriage`, et `canApprove` est dérivé uniquement du rôle de l'appelant en [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
+[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/IssueTriageService.java) rétrograde `NOT_AFFECTED` en `PENDING_APPROVAL` lorsque l'acteur ne possède pas `Role.canApproveTriage`, et `canApprove` est dérivé uniquement du rôle de l'appelant en [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/web/IssuesController.java).
 
 Rien ne compare l'identité de l'approbateur à celle du demandeur. Un Security Champion peut lever une exemption et l'approuver dans le même appel, et un approbateur agissant seul contourne entièrement la file. Il s'agit d'une **barrière de rôle maker-checker**, qui est un vrai contrôle — mais ce n'est pas un contrôle à quatre yeux, et les évaluateurs DORA art. 9 / NIS 2 art. 21 lisent ce terme au sens littéral.
 

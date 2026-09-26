@@ -149,7 +149,7 @@ soit chiffrée avant d'atteindre la base — `PUT /settings/ticket-token`,
 `PUT /settings/webhook-secret` et (arbre de travail) `PUT /settings/ai-openai-key`. Chacune appelle
 `EncryptionService.encrypt` et stocke un blob `v2:`. La route générique du catalogue,
 `SettingsController.update`
-([`SettingsController.java:157`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/SettingsController.java)),
+([`SettingsController.java:157`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/platform/web/SettingsController.java)),
 valide la clé contre le catalogue puis appelle `settings.set(...)` avec la chaîne brute.
 `SettingsService.set` écrit du texte. Il n'existe aucun embranchement sur `Sensitivity.SECRET` dans
 le chemin d'écriture : `isSecret()` n'est consulté qu'à un seul endroit de `vectispire-core`, et

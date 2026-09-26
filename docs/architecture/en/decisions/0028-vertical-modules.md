@@ -1,6 +1,6 @@
 # 0028 — The domains become vertical modules, and the foundation is shared
 
-**Date:** 2026-09-26 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-09-26 · **Status:** accepted (completed by [0029](0029-core-domains-become-modules.md)) · **Decider:** Laurent Boucher
 
 > Builds on [0026](0026-services-are-grouped-by-domain.md), which it does not supersede: the domains,
 > the foundation and the table of who may use whom are 0026's. This record is steps 3 and 4 of the
@@ -142,6 +142,9 @@ Some things stayed layered for a reason of their own, and are findings too:
 - **`TargetNaming`** (`shared`): `access` and `scanning` read names through it, and `targets` uses both.
 
 ## What step 5 must resolve
+
+> Resolved by [0029](0029-core-domains-become-modules.md), which says finding by finding how, and
+> what the intermediate state below became. The list is kept as it was written.
 
 - **Move `issues`, `scanning` and `targets`** with their controllers, entities and repositories, and
   dissolve `platform` (the maintenance tick, retention and the settings screen become each module's

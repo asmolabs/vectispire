@@ -43,10 +43,10 @@ l'ensemble de la codebase ([décision 0007](decisions/0007-none-is-not-an-empty-
 ```mermaid
 flowchart TB
     subgraph proc["Plan de contrôle Vectispire (Spring Boot)"]
-        API["API HTTP<br/>core/‹module›/web/, core/api/"]
-        SVC["Services<br/>core/‹module›/, core/services/"]
-        REPO["Repositories<br/>core/‹module›/persistence/, core/repositories/"]
-        SCHED["Planificateur<br/>SchedulerService — tick périodique"]
+        API["API HTTP<br/>core/‹module›/web/"]
+        SVC["Services<br/>core/‹module›/, core/‹module›/internal/"]
+        REPO["Repositories<br/>core/‹module›/persistence/"]
+        SCHED["Tâche périodique<br/>MaintenanceJobs — la MaintenanceTask de chaque module"]
     end
 
     UI["Interface Angular<br/>vectispire-angular/src/app/"]
@@ -73,11 +73,13 @@ dialogue avec la même API HTTP que les pipelines CI et les agents distants.
 
 ### Les modules, et les couches à l'intérieur
 
-Le plan de contrôle passe d'un découpage en paquets par couche à des **modules verticaux, un par
-domaine** ([décision 0028](decisions/0028-vertical-modules.md)). Dix-neuf domaines ont migré — le socle
-(`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`) et `access`, `agents`, `ai`,
-`compliance`, `exports`, `gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`,
-`threatintel`, `tickets`. Chacun est un paquet à lui :
+Le plan de contrôle est découpé en **modules verticaux, un par domaine** (décisions
+[0028](decisions/0028-vertical-modules.md) et [0029](decisions/0029-core-domains-become-modules.md)) :
+le socle (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`, `maintenance`), les
+domaines cœur `targets`, `scanning` et `issues`, et `access`, `agents`, `ai`, `compliance`, `exports`,
+`gate`, `inventory`, `notifications`, `posture`, `rules`, `siem`, `threatintel`, `tickets` — avec
+`platform` au-dessus, la coque qui compose plusieurs domaines pour l'écran des paramètres et porte les
+routes du socle. Chacun est un paquet à lui :
 
 ```
 core/<module>/               son API : les services que les autres modules appellent, leurs vues, ses événements
@@ -86,28 +88,29 @@ core/<module>/internal/      ce dont l'API est faite
 core/<module>/persistence/   ses entités et ses repositories
 ```
 
-`issues`, `scanning`, `targets`, les racines de composition de `platform` et `shared` sont encore
-découpés par couche, sous `core/api/`, `core/services/`, `core/repositories/` et `core/persistence/` —
-l'étape suivante les déplace. Dans les deux cas, les mêmes couches tiennent :
+Les paquets par couche — `core/api/`, `core/services/`, `core/repositories/`, `core/persistence/` —
+ont disparu ; `core/config/` (la source de données, le réglage des moteurs, le mapper JSON, les
+ordonnanceurs) est le seul paquet hors module. Les couches tiennent à l'intérieur de chaque module :
 
 ```
-web/, api/ ──► racine du module + internal/, services/ ──► persistence/, repositories/ ──► base de données
-                          │                                          │
-                          └────────────────────┬─────────────────────┘
-                                               ▼
-                                            domain/          (pur, ne dépend de rien)
+web/ ──► racine du module + internal/ ──► persistence/ ──► base de données
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  ▼
+                               domain/          (pur, ne dépend de rien)
 ```
 
 Une règle stricte garantit la testabilité : **une couche ne connaît que la couche située
 immédiatement en dessous.** Un contrôleur appelle l'API de son module, jamais son paquet `internal`
-ni `persistence` ; un module n'en atteint un autre que par la racine de celui-ci, ou par la seule
-interface nommée que la migration a déclarée (les marqueurs de route et le principal d'`access`). Les
+ni `persistence` ; un module n'en atteint un autre que par la racine de celui-ci, ou par l'une des
+trois interfaces nommées que la migration a déclarées (les marqueurs de route et le principal
+d'`access`, et les enregistrements de requêtes de `scanning` et d'`issues`). Les
 domaines dépendent les uns des autres dans un seul sens, au-dessus du socle que tous peuvent utiliser.
 `ArchitectureTest` refuse un cycle entre domaines, une dépendance que le tableau n'autorise pas, et un
 accès aux internes d'un autre module ; le tableau est dans la
 [décision 0026](decisions/0026-services-are-grouped-by-domain.md), avec les arêtes que les modules ont
-révélées dans la 0028. Spring Modulith est dans le build en mode observation seulement — ce qu'il voit,
-et ce qu'il signale encore, c'est le [05](05-modularity.md).
+révélées dans la 0028 et la 0029. Spring Modulith est dans le build en mode observation seulement — ce
+qu'il voit, et qu'il ne signale plus rien, c'est le [05](05-modularity.md).
 
 ## Le déroulement d'un scan
 
@@ -117,7 +120,7 @@ sequenceDiagram
     participant Q as File d'attente (table t_scan)
     participant R as ScanRunner
     participant I as ScanIngestor
-    participant S as IssueSync
+    participant S as Backlog (issues)
 
     D->>Q: insère une ligne "queued"
     Note over Q: retourne immédiatement
@@ -125,9 +128,10 @@ sequenceDiagram
     R->>R: clone / résout l'image
     R->>R: SBOM, vulnérabilités, secrets, IaC, SAST
     R-->>I: ScanArtifacts (null = n'a pas tourné)
-    I->>I: normalise dans Finding
-    I->>S: synchronise depuis le scan
+    I->>I: normalise dans ObservedFinding
+    I->>S: remet l'observation (ScanIngestor.Backlog)
     S->>S: calcule l'empreinte, réconcilie, ouvre / résout
+    S-->>I: les comptes, et l'issue de chaque finding
 ```
 
 ### Les analyseurs

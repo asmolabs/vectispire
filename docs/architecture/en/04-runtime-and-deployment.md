@@ -54,6 +54,12 @@ coordinated by a lease" — is wrong and would send a reader looking for a lease
 | Outbox relay — notifications and SIEM events | 60 s | none: each message is **claimed** before it is sent, so two instances do not deliver it at once |
 | Hourly maintenance | 1 h | none: pruning is idempotent |
 
+The relay, the scheduler's tick and the hourly maintenance are one class, `MaintenanceJobs`, which
+knows none of the work: each module contributes a `MaintenanceTask` from its own `internal` package —
+the scan retention, the ticket sweep, the triage expiry, the evidence purges… — and the tick runs a
+cadence's tasks in their declared order ([0029](decisions/0029-core-domains-become-modules.md)). Only
+work that tolerates running on several instances may be one.
+
 The scheduler is elected because it *creates* work: two instances deciding independently that a
 nightly scan is due would queue it twice. The others either claim what already exists or repeat an
 operation whose second run costs nothing — and an election there would buy nothing while adding a

@@ -66,9 +66,8 @@ what `ScannerImages` pins, so the same scanner version audits Vectispire as audi
 to show, and that is the flow the rule is meant to enforce.
 
 **Two suites run on push only when their own ground moved.** `engines` runs `integrationTestAll`
-when anything engine-sensitive changed — a migration, the query layer (`core/repositories/`), the
-entity mappings (`core/persistence/`), a module's own of both (`core/<module>/persistence/`), the
-datasource setup (`core/config/`), the campaign itself,
+when anything engine-sensitive changed — a migration, the query layer and the entity mappings (each
+module's `core/<module>/persistence/`), the datasource setup (`core/config/`), the campaign itself,
 or a dependency version — and `e2e` runs the Playwright suite when `vectispire-angular/` or the
 lockfile changed; a diff range that cannot be resolved counts as changed. Both also run
 unconditionally in [`nightly.yml`](.github/workflows/nightly.yml) — `databases` and `e2e`,
@@ -116,11 +115,13 @@ was rejected. When a document and a module contradict each other, the module is 
 the document has a bug — say so rather than working around it.
 
 **The layering is enforced, not suggested.** `ArchitectureTest` reads the import graph with
-ArchUnit: `domain ← scanning ← persistence ← repositories ← services ← api`. A service writing
-SQL, or a domain class importing Spring, fails the suite. The layers hold inside every domain
-module too — nineteen domains are `core/<module>/` with `web`, `internal` and `persistence` beneath
-([decision 0028](docs/architecture/en/decisions/0028-vertical-modules.md)) — and a module reaching
-into another module's internals fails it as well.
+ArchUnit: `domain ← scanning ← persistence ← services ← api`, one place of each inside every
+vertical module ([0028](docs/architecture/en/decisions/0028-vertical-modules.md),
+[0029](docs/architecture/en/decisions/0029-core-domains-become-modules.md)). A service writing
+SQL, or a domain class importing Spring, fails the suite. Every domain is `core/<module>/` with
+`web`, `internal` and `persistence` beneath; the packages by layer are gone and `core/config/` is the
+one package outside a module. A module reaching into another module's internals fails the suite as
+well, and Spring Modulith, still in observation mode, reports no violation.
 
 **The agent's isolation is not one of those rules — it is a fact about the build graph.**
 `vectispire-agent` does not depend on `vectispire-core`, so no JDBC driver is on its compile

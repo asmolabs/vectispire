@@ -161,7 +161,7 @@ The `mfaChallenges` map is also an unbounded in-memory `ConcurrentHashMap` with 
 
 ### 3.4 Four-eyes approval is role-based, not identity-based (🟡 Medium)
 
-[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/issues/IssueTriageService.java) downgrades `NOT_AFFECTED` to `PENDING_APPROVAL` when the actor lacks `Role.canApproveTriage`, and `canApprove` is derived purely from the caller's role at [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/IssuesController.java).
+[`IssueTriageService.resolveRequest`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/IssueTriageService.java) downgrades `NOT_AFFECTED` to `PENDING_APPROVAL` when the actor lacks `Role.canApproveTriage`, and `canApprove` is derived purely from the caller's role at [`IssuesController.java:306`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/issues/web/IssuesController.java).
 
 Nothing compares the approver's identity to the requester's. A Security Champion can raise an exemption and approve it in the same call, and an approver acting alone bypasses the queue entirely. That is a **maker-checker role gate**, which is a real control — but it is not four-eyes, and DORA Art. 9 / NIS 2 Art. 21 assessors read the term literally.
 
