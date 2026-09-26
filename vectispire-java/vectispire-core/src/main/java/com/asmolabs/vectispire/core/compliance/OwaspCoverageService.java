@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.EnumMap;
 import java.util.Map;
@@ -34,13 +34,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class OwaspCoverageService {
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
     private final SettingsService settings;
 
     public OwaspCoverageService(
-            Issues issues, ScanCatalog scans, RuleCoverageService ruleCoverage, SettingsService settings) {
+            IssueCatalog issues, ScanCatalog scans, RuleCoverageService ruleCoverage, SettingsService settings) {
         this.issues = issues;
         this.scans = scans;
         this.ruleCoverage = ruleCoverage;
@@ -77,8 +77,7 @@ public class OwaspCoverageService {
     private Map<String, Long> openByCategory(Visibility allowed) {
         return issues.countOpenSastByOwaspCategory(new IssueFilters(
                         IssueState.OPEN.wireName(), null, null, null, null, null,
-                        false, false, null, true, Map.of(), allowed)
-                .toSpecification()).stream()
+                        false, false, null, true, Map.of(), allowed)).stream()
                 .collect(java.util.stream.Collectors.toMap(
                         IssueAggregates.OwaspCategoryCount::category,
                         IssueAggregates.OwaspCategoryCount::count,
@@ -107,7 +106,6 @@ public class OwaspCoverageService {
     private long countOpen(FindingType type, Visibility allowed) {
         return issues.count(new IssueFilters(
                         IssueState.OPEN.wireName(), null, type.wireName(), null, null, null,
-                        false, false, null, true, Map.of(), allowed)
-                .toSpecification());
+                        false, false, null, true, Map.of(), allowed));
     }
 }

@@ -26,15 +26,23 @@ public final class IssueViews {
 
     /** What the gate reads. Deliberately narrower than the entity. */
     public static GateIssue forGate(IssueEntity issue) {
+        return forGate(IssueView.of(issue));
+    }
+
+    /**
+     * The same, from the view another module holds — the one mapping, which the entity's overload
+     * goes through: two copies would be two chances for the gate and the ticket sweep to disagree.
+     */
+    public static GateIssue forGate(IssueView issue) {
         return new GateIssue(
-                issue.getId(),
-                IssueState.OPEN.wireName().equals(issue.getState()),
-                FindingType.fromWireName(issue.getType()).orElse(null),
-                Severity.of(issue.getSeverity()),
-                issue.getIdentifier(),
-                issue.getPackageName(),
-                issue.getFixVersions(),
-                issue.getIsKev(),
+                issue.id(),
+                IssueState.OPEN.wireName().equals(issue.state()),
+                FindingType.fromWireName(issue.type()).orElse(null),
+                Severity.of(issue.severity()),
+                issue.identifier(),
+                issue.packageName(),
+                issue.fixVersions(),
+                issue.isKev(),
                 triageOf(issue));
     }
 
@@ -60,23 +68,28 @@ public final class IssueViews {
 
     /** What a ticket's title and body read. */
     public static TicketableIssue forTicket(IssueEntity issue) {
+        return forTicket(IssueView.of(issue));
+    }
+
+    /** The same, from the view — the one mapping. */
+    public static TicketableIssue forTicket(IssueView issue) {
         return new TicketableIssue(
-                issue.getId(),
-                FindingType.fromWireName(issue.getType()).orElse(null),
-                issue.getIdentifier(),
-                Severity.of(issue.getSeverity()),
-                issue.getPackageName(),
-                issue.getPackageVersion(),
-                issue.getFixVersions(),
-                FixState.fromWireName(issue.getFixState()).orElse(FixState.UNKNOWN),
+                issue.id(),
+                FindingType.fromWireName(issue.type()).orElse(null),
+                issue.identifier(),
+                Severity.of(issue.severity()),
+                issue.packageName(),
+                issue.packageVersion(),
+                issue.fixVersions(),
+                FixState.fromWireName(issue.fixState()).orElse(FixState.UNKNOWN),
                 directnessOf(issue),
-                issue.getFilePath(),
-                issue.getLine(),
-                issue.getIsKev(),
-                issue.getEpssScore(),
-                issue.getLink(),
-                issue.getDescription(),
-                issue.getFingerprint());
+                issue.filePath(),
+                issue.line(),
+                issue.isKev(),
+                issue.epssScore(),
+                issue.link(),
+                issue.description(),
+                issue.fingerprint());
     }
 
     /**
@@ -86,8 +99,8 @@ public final class IssueViews {
      * backlog. Reading it as {@code NOT_AFFECTED} would make a row written by a later version —
      * or by hand — silently disappear from every gate and every ticket sweep.
      */
-    private static TriageStatus triageOf(IssueEntity issue) {
-        return TriageStatus.fromWireName(issue.getTriageStatus()).orElse(TriageStatus.UNDER_REVIEW);
+    private static TriageStatus triageOf(IssueView issue) {
+        return TriageStatus.fromWireName(issue.triageStatus()).orElse(TriageStatus.UNDER_REVIEW);
     }
 
     /**
@@ -96,11 +109,11 @@ public final class IssueViews {
      * <p>A container scan cannot tell a direct dependency from a transitive one, and reading the
      * absence as "transitive" would put a confident wrong answer in a ticket somebody acts on.
      */
-    private static Directness directnessOf(IssueEntity issue) {
-        if (issue.getIsDirectDependency() == null) {
+    private static Directness directnessOf(IssueView issue) {
+        if (issue.isDirectDependency() == null) {
             return Directness.UNKNOWN;
         }
-        return issue.getIsDirectDependency() ? Directness.DIRECT : Directness.TRANSITIVE;
+        return issue.isDirectDependency() ? Directness.DIRECT : Directness.TRANSITIVE;
     }
 
     /**
@@ -112,35 +125,40 @@ public final class IssueViews {
      * on top of that.
      */
     public static ExportableIssue forExport(IssueEntity issue) {
+        return forExport(IssueView.of(issue));
+    }
+
+    /** The same, from the view — the one mapping. */
+    public static ExportableIssue forExport(IssueView issue) {
         return ExportableIssue.builder()
-                .id(issue.getId())
-                .fingerprint(issue.getFingerprint())
-                .type(FindingType.fromWireName(issue.getType()).orElse(null))
-                .identifier(issue.getIdentifier())
-                .severity(Severity.of(issue.getSeverity()))
-                .cvssScore(issue.getCvssScore())
-                .epssScore(issue.getEpssScore())
-                .kev(issue.getIsKev())
-                .packageName(issue.getPackageName())
-                .packageVersion(issue.getPackageVersion())
-                .purl(issue.getPurl())
+                .id(issue.id())
+                .fingerprint(issue.fingerprint())
+                .type(FindingType.fromWireName(issue.type()).orElse(null))
+                .identifier(issue.identifier())
+                .severity(Severity.of(issue.severity()))
+                .cvssScore(issue.cvssScore())
+                .epssScore(issue.epssScore())
+                .kev(issue.isKev())
+                .packageName(issue.packageName())
+                .packageVersion(issue.packageVersion())
+                .purl(issue.purl())
                 .directness(directnessOf(issue))
-                .filePath(issue.getFilePath())
-                .line(issue.getLine())
-                .fixState(FixState.fromWireName(issue.getFixState()).orElse(FixState.UNKNOWN))
-                .fixVersions(issue.getFixVersions())
-                .link(issue.getLink())
-                .description(issue.getDescription())
-                .resolved(IssueState.RESOLVED.wireName().equals(issue.getState()))
+                .filePath(issue.filePath())
+                .line(issue.line())
+                .fixState(FixState.fromWireName(issue.fixState()).orElse(FixState.UNKNOWN))
+                .fixVersions(issue.fixVersions())
+                .link(issue.link())
+                .description(issue.description())
+                .resolved(IssueState.RESOLVED.wireName().equals(issue.state()))
                 .triageStatus(triageOf(issue))
-                .triageJustification(issue.getTriageJustification())
-                .triageComment(issue.getTriageComment())
-                .triagedBy(issue.getTriagedBy())
-                .triagedAt(issue.getTriagedAt())
-                .triageExpiresAt(issue.getTriageExpiresAt())
-                .firstSeenAt(issue.getFirstSeenAt())
-                .lastSeenAt(issue.getLastSeenAt())
-                .timesSeen(issue.getTimesSeen())
+                .triageJustification(issue.triageJustification())
+                .triageComment(issue.triageComment())
+                .triagedBy(issue.triagedBy())
+                .triagedAt(issue.triagedAt())
+                .triageExpiresAt(issue.triageExpiresAt())
+                .firstSeenAt(issue.firstSeenAt())
+                .lastSeenAt(issue.lastSeenAt())
+                .timesSeen(issue.timesSeen())
                 .build();
     }
 }

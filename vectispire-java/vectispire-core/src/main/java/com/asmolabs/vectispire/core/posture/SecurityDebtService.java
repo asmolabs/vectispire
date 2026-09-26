@@ -8,10 +8,9 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationCoverage;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,11 +101,11 @@ public class SecurityDebtService {
      */
     private static final int MOST_LEVERAGE_EVER = 50;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final TargetCatalog targets;
 
     public SecurityDebtService(
-            Issues issues,
+            IssueCatalog issues,
             TargetCatalog targets) {
         this.issues = issues;
         this.targets = targets;
@@ -115,7 +113,7 @@ public class SecurityDebtService {
 
     @Transactional(readOnly = true)
     public SecurityDebtReport calculateDebt(Long repoId, Long containerId, Visibility allowed) {
-        Specification<IssueEntity> filter = openIssuesOf(repoId, containerId, allowed);
+        IssueFilters filter = openIssuesOf(repoId, containerId, allowed);
 
         Tallies tallies = tally(issues.countGroupedBySeverityAndType(filter));
 
@@ -190,11 +188,10 @@ public class SecurityDebtService {
      * plan; counting it inflated the effort estimate and could put an upgrade at the top of the
      * plan for issues the team had already dismissed.
      */
-    private static Specification<IssueEntity> openIssuesOf(Long repoId, Long containerId, Visibility allowed) {
+    private static IssueFilters openIssuesOf(Long repoId, Long containerId, Visibility allowed) {
         return new IssueFilters(
                         IssueState.OPEN.wireName(), null, null, null, repoId, containerId,
-                        false, false, null, true, Map.of(), allowed)
-                .toSpecification();
+                        false, false, null, true, Map.of(), allowed);
     }
 
     /**
@@ -251,7 +248,7 @@ public class SecurityDebtService {
      * is ranked on aggregate rows, and the identifiers and target names — the only part whose
      * size follows the backlog — are fetched for the survivors alone.
      */
-    private List<HighImpactFix> rank(Specification<IssueEntity> filter, int wanted) {
+    private List<HighImpactFix> rank(IssueFilters filter, int wanted) {
         List<IssueAggregates.PackageWeight> weights = issues.weighPackages(filter).stream()
                 // A package whose findings are all unnamed still has one unnamed CVE, so this
                 // only drops rows a filter already emptied.
@@ -298,7 +295,7 @@ public class SecurityDebtService {
 
     /** The CVEs and target names of the ranked packages, and the names of those targets only. */
     private Map<String, Detail> detailsOf(
-            Specification<IssueEntity> filter, List<IssueAggregates.PackageWeight> weights) {
+            IssueFilters filter, List<IssueAggregates.PackageWeight> weights) {
 
         List<IssueAggregates.PackageDetail> rows = issues.detailPackages(
                 filter, weights.stream().map(IssueAggregates.PackageWeight::packageName).toList());

@@ -7,7 +7,6 @@ import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphEdge;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphNode;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
@@ -35,15 +34,12 @@ public class BlastRadiusService {
 
     private final TargetCatalog targets;
     private final ScanCatalog findingsRepo;
-    private final Issues issuesRepo;
 
     public BlastRadiusService(
             TargetCatalog targets,
-            ScanCatalog findingsRepo,
-            Issues issuesRepo) {
+            ScanCatalog findingsRepo) {
         this.targets = targets;
         this.findingsRepo = findingsRepo;
-        this.issuesRepo = issuesRepo;
     }
 
     /**

@@ -3,8 +3,8 @@ package com.asmolabs.vectispire.core.ai;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.core.access.RowVisibility;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.stereotype.Service;
@@ -20,9 +20,9 @@ import org.springframework.stereotype.Service;
 public class AiAdvisorService {
 
     private final AiReviewService reviews;
-    private final Issues issues;
+    private final IssueCatalog issues;
 
-    public AiAdvisorService(AiReviewService reviews, Issues issues) {
+    public AiAdvisorService(AiReviewService reviews, IssueCatalog issues) {
         this.reviews = reviews;
         this.issues = issues;
     }
@@ -34,7 +34,7 @@ public class AiAdvisorService {
      *     restricted reader which sequential ids existed
      */
     public AiVulnerabilityAdvice explainIssue(long issueId, Visibility allowed) {
-        IssueEntity issue = RowVisibility.requireVisibleIssue(issues.findById(issueId).orElse(null), IssueEntity::target, allowed);
+        IssueView issue = RowVisibility.requireVisibleIssue(issues.issue(issueId).orElse(null), AiAdvisorService::targetOf, allowed);
         return reviews.explainVulnerability(issue);
     }
 
@@ -56,8 +56,8 @@ public class AiAdvisorService {
             String reachability,
             Visibility allowed) {
 
-        List<IssueEntity> matched = issues.findByIdentifier(cveId).stream()
-                .filter(issue -> allowed.permits(issue.target()))
+        List<IssueView> matched = issues.withIdentifier(cveId).stream()
+                .filter(issue -> allowed.permits(targetOf(issue)))
                 .toList();
         if (!matched.isEmpty()) {
             return reviews.explainVulnerability(matched.get(0));
@@ -71,5 +71,15 @@ public class AiAdvisorService {
                 reachability != null ? reachability : "UNKNOWN",
                 cveId.toUpperCase(Locale.ROOT).contains("2021-44228") || cveId.toUpperCase(Locale.ROOT).contains("2024-3094"),
                 0.75);
+    }
+
+    /** A row attached to neither target is left to {@code Visibility.permits}, as the entity's reading is. */
+    private static com.asmolabs.vectispire.common.domain.targets.ScanTarget targetOf(IssueView issue) {
+        if (issue.repoId() != null) {
+            return new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository(issue.repoId());
+        }
+        return issue.containerId() == null
+                ? null
+                : new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Container(issue.containerId());
     }
 }

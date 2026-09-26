@@ -6,19 +6,18 @@ import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,9 +27,9 @@ import org.springframework.stereotype.Service;
 public class VexGeneratorService {
 
     private final ScanCatalog scansRepo;
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
 
-    public VexGeneratorService(ScanCatalog scansRepo, Issues issuesRepo) {
+    public VexGeneratorService(ScanCatalog scansRepo, IssueCatalog issuesRepo) {
         this.scansRepo = scansRepo;
         this.issuesRepo = issuesRepo;
     }
@@ -40,11 +39,11 @@ public class VexGeneratorService {
     }
 
     public OpenVexDocument generateAggregate(Visibility allowed) {
-        List<IssueEntity> issues = issuesRepo.findAll(withCve(allowed));
+        List<IssueView> issues = issuesRepo.issues(withCve(allowed));
         List<OpenVexStatement> statements = new ArrayList<>();
 
-        for (IssueEntity issue : issues) {
-            if (issue.getIdentifier() == null || !issue.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-")) {
+        for (IssueView issue : issues) {
+            if (issue.identifier() == null || !issue.identifier().toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
             statements.add(createStatementFromIssue(issue));
@@ -100,22 +99,22 @@ public class VexGeneratorService {
                 null);
     }
 
-    private OpenVexStatement createStatementFromIssue(IssueEntity issue) {
-        String cve = issue.getIdentifier();
-        String purl = issue.getPurl() != null && !issue.getPurl().isBlank()
-                ? issue.getPurl()
-                : "pkg:generic/" + (issue.getPackageName() != null ? issue.getPackageName() : "unknown") + "@" + (issue.getPackageVersion() != null ? issue.getPackageVersion() : "latest");
+    private OpenVexStatement createStatementFromIssue(IssueView issue) {
+        String cve = issue.identifier();
+        String purl = issue.purl() != null && !issue.purl().isBlank()
+                ? issue.purl()
+                : "pkg:generic/" + (issue.packageName() != null ? issue.packageName() : "unknown") + "@" + (issue.packageVersion() != null ? issue.packageVersion() : "latest");
 
-        if ("closed".equalsIgnoreCase(issue.getState()) || "resolved".equalsIgnoreCase(issue.getState())) {
+        if ("closed".equalsIgnoreCase(issue.state()) || "resolved".equalsIgnoreCase(issue.state())) {
             return OpenVexStatement.fixed(cve, purl, "Remediated and verified resolved.");
         }
 
-        if ("false_positive".equalsIgnoreCase(issue.getTriageStatus()) || "accepted_risk".equalsIgnoreCase(issue.getTriageStatus())) {
-            String justification = issue.getTriageJustification() != null ? issue.getTriageJustification() : "Accepted under documented security exception.";
+        if ("false_positive".equalsIgnoreCase(issue.triageStatus()) || "accepted_risk".equalsIgnoreCase(issue.triageStatus())) {
+            String justification = issue.triageJustification() != null ? issue.triageJustification() : "Accepted under documented security exception.";
             return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST, justification);
         }
 
-        if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.getReachability())) {
+        if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.reachability())) {
             return OpenVexStatement.affected(
                     cve,
                     purl,
@@ -140,11 +139,8 @@ public class VexGeneratorService {
      * authorization predicate already lives. Restating it here would be a second copy of a rule
      * that must not have two.
      */
-    private static Specification<IssueEntity> withCve(Visibility allowed) {
-        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                .toSpecification()
-                .and((root, query, builder) ->
-                        builder.like(builder.upper(root.get("identifier")), "CVE-%"));
+    private static IssueFilters withCve(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed).onlyCves();
     }
 
 }

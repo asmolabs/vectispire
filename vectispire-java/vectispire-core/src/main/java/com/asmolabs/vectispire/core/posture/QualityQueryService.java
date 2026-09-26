@@ -4,11 +4,10 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
@@ -24,10 +23,10 @@ public class QualityQueryService {
     /** Eight: enough to see a pattern, few enough that the list is read rather than scrolled. */
     private static final int TOP = 8;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final TargetNaming naming;
 
-    public QualityQueryService(Issues issues, TargetNaming naming) {
+    public QualityQueryService(IssueCatalog issues, TargetNaming naming) {
         this.issues = issues;
         this.naming = naming;
     }
@@ -70,15 +69,15 @@ public class QualityQueryService {
                     issues.countByStateAndTypeWithin(state, type, ids),
                     issues.countDistinctRulesWithin(state, type, ids),
                     issues.countDistinctFilesWithin(state, type, ids),
-                    buckets(issues.countOpenByRuleWithin(state, type, ids, Limit.of(TOP))),
-                    buckets(issues.countOpenByFileWithin(state, type, ids, Limit.of(TOP))),
-                    namedTargets(issues.countOpenByTargetRepositoryWithin(state, type, ids, Limit.of(TOP))));
+                    buckets(issues.countOpenByRuleWithin(state, type, ids, TOP)),
+                    buckets(issues.countOpenByFileWithin(state, type, ids, TOP)),
+                    namedTargets(issues.countOpenByTargetRepositoryWithin(state, type, ids, TOP)));
         }
 
-        List<Bucket> byRule = buckets(issues.countOpenByRule(state, type, Limit.of(TOP)));
-        List<Bucket> byFile = buckets(issues.countOpenByFile(state, type, Limit.of(TOP)));
+        List<Bucket> byRule = buckets(issues.countOpenByRule(state, type, TOP));
+        List<Bucket> byFile = buckets(issues.countOpenByFile(state, type, TOP));
 
-        List<Bucket> byTarget = namedTargets(issues.countOpenByTargetRepository(state, type, Limit.of(TOP)));
+        List<Bucket> byTarget = namedTargets(issues.countOpenByTargetRepository(state, type, TOP));
 
         return new Overview(
                 issues.countByStateAndType(state, type),
@@ -94,18 +93,18 @@ public class QualityQueryService {
      * translate a foreign key in their head. Resolved here rather than by a join: the list is
      * eight rows, and joining inside the grouped query would force grouping on the name too.
      */
-    private List<Bucket> namedTargets(List<Object[]> rows) {
+    private List<Bucket> namedTargets(List<IssueCatalog.RepositoryCount> rows) {
         TargetNaming.Names names = naming.all();
         return rows.stream()
                 .map(row -> new Bucket(
-                        names.repositories().getOrDefault(((Number) row[0]).longValue(), TargetNaming.DELETED),
-                        ((Number) row[1]).longValue()))
+                        names.repositories().getOrDefault(row.repositoryId(), TargetNaming.DELETED),
+                        row.count()))
                 .toList();
     }
 
-    private static List<Bucket> buckets(List<Object[]> rows) {
+    private static List<Bucket> buckets(List<IssueCatalog.KeyCount> rows) {
         return rows.stream()
-                .map(row -> new Bucket((String) row[0], ((Number) row[1]).longValue()))
+                .map(row -> new Bucket(row.key(), row.count()))
                 .toList();
     }
 }

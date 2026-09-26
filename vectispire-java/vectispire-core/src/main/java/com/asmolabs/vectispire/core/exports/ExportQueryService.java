@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.core.exports.internal.PostureReport;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
@@ -25,7 +25,6 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -49,7 +48,7 @@ public class ExportQueryService {
      */
     private static final int MAX_EXPORTED = 50_000;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final GateService gate;
     private final TargetNaming naming;
     private final ExportProperties properties;
@@ -59,7 +58,7 @@ public class ExportQueryService {
     private final ProductVersion version;
 
     public ExportQueryService(
-            Issues issues,
+            IssueCatalog issues,
             GateService gate,
             TargetNaming naming,
             ExportProperties properties,
@@ -171,7 +170,7 @@ public class ExportQueryService {
                 false,
                 null);
 
-        return issues.findAll(filters.toSpecification(), PageRequest.ofSize(MAX_EXPORTED)).stream()
+        return issues.issues(filters, MAX_EXPORTED).stream()
                 .map(IssueViews::forExport)
                 .toList();
     }

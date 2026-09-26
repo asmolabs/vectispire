@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -17,7 +17,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
 
@@ -29,11 +28,11 @@ import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
 public class CycloneDxGeneratorService {
 
     private final ScanCatalog scansRepo;
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final String toolVersion;
 
     public CycloneDxGeneratorService(
-            ScanCatalog scansRepo, Issues issuesRepo, ProductVersion version) {
+            ScanCatalog scansRepo, IssueCatalog issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
         this.issuesRepo = issuesRepo;
         // The same version every other export states, or none: the tool entry's version is
@@ -46,20 +45,20 @@ public class CycloneDxGeneratorService {
     }
 
     public CycloneDxDocument generateAggregate(Visibility allowed) {
-        List<IssueEntity> allIssues = issuesRepo.findAll(withCve(allowed));
+        List<IssueView> allIssues = issuesRepo.issues(withCve(allowed));
         Map<String, Component> componentMap = new HashMap<>();
         List<Vulnerability> vulnerabilities = new ArrayList<>();
 
-        for (IssueEntity issue : allIssues) {
-            String cve = issue.getIdentifier();
+        for (IssueView issue : allIssues) {
+            String cve = issue.identifier();
             if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
-            String pkg = issue.getPackageName() != null ? issue.getPackageName() : "unknown";
-            String version = issue.getPackageVersion() != null ? issue.getPackageVersion() : "latest";
-            String purl = issue.getPurl() != null && !issue.getPurl().isBlank()
-                    ? issue.getPurl()
+            String pkg = issue.packageName() != null ? issue.packageName() : "unknown";
+            String version = issue.packageVersion() != null ? issue.packageVersion() : "latest";
+            String purl = issue.purl() != null && !issue.purl().isBlank()
+                    ? issue.purl()
                     : "pkg:generic/" + pkg + "@" + version;
 
             componentMap.putIfAbsent(purl, new Component(
@@ -127,9 +126,9 @@ public class CycloneDxGeneratorService {
                     "required"));
 
             // Look up corresponding issue to extract triage state
-            Optional<IssueEntity> matchingIssue = issuesRepo.findByIdentifier(cve).stream()
-                    .filter(i -> (scan.repoId() != null && scan.repoId().equals(i.getRepoId()))
-                            || (scan.containerId() != null && scan.containerId().equals(i.getContainerId())))
+            Optional<IssueView> matchingIssue = issuesRepo.withIdentifier(cve).stream()
+                    .filter(i -> (scan.repoId() != null && scan.repoId().equals(i.repoId()))
+                            || (scan.containerId() != null && scan.containerId().equals(i.containerId())))
                     .findFirst();
 
             vulnerabilities.add(buildVulnerabilityFromFinding(finding, matchingIssue.orElse(null), purl));
@@ -160,10 +159,10 @@ public class CycloneDxGeneratorService {
                 vulnerabilities);
     }
 
-    private Vulnerability buildVulnerability(IssueEntity issue, String purl) {
-        String cve = issue.getIdentifier();
-        Double score = issue.getCvssScore();
-        String severity = issue.getSeverity() != null ? issue.getSeverity().toLowerCase(Locale.ROOT) : "medium";
+    private Vulnerability buildVulnerability(IssueView issue, String purl) {
+        String cve = issue.identifier();
+        Double score = issue.cvssScore();
+        String severity = issue.severity() != null ? issue.severity().toLowerCase(Locale.ROOT) : "medium";
 
         List<Rating> ratings = List.of(new Rating(
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
@@ -172,21 +171,21 @@ public class CycloneDxGeneratorService {
                 "CVSSv31",
                 null));
 
-        Analysis analysis = mapAnalysis(issue.getTriageStatus(), issue.getTriageJustification(), issue.getTriageComment(), issue.getReachability(), issue.getState());
+        Analysis analysis = mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.reachability(), issue.state());
 
         return new Vulnerability(
                 "vuln-" + cve + "-" + Math.abs(purl.hashCode()),
                 cve,
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
                 ratings,
-                cve + " in " + issue.getPackageName(),
-                issue.getDescription(),
-                issue.getFixVersions() != null ? "Upgrade component to version " + issue.getFixVersions() : null,
+                cve + " in " + issue.packageName(),
+                issue.description(),
+                issue.fixVersions() != null ? "Upgrade component to version " + issue.fixVersions() : null,
                 analysis,
                 List.of(new Affects(purl)));
     }
 
-    private Vulnerability buildVulnerabilityFromFinding(ScanFindingView finding, IssueEntity issue, String purl) {
+    private Vulnerability buildVulnerabilityFromFinding(ScanFindingView finding, IssueView issue, String purl) {
         String cve = finding.identifier();
         Double score = finding.cvssScore();
         String severity = finding.severity() != null ? finding.severity().toLowerCase(Locale.ROOT) : "medium";
@@ -199,7 +198,7 @@ public class CycloneDxGeneratorService {
                 null));
 
         Analysis analysis = issue != null
-                ? mapAnalysis(issue.getTriageStatus(), issue.getTriageJustification(), issue.getTriageComment(), issue.getReachability(), issue.getState())
+                ? mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.reachability(), issue.state())
                 : new Analysis("in_triage", null, "Discovered during automated scan", List.of());
 
         return new Vulnerability(
@@ -280,11 +279,8 @@ public class CycloneDxGeneratorService {
      * authorization predicate already lives. Restating it here would be a second copy of a rule
      * that must not have two.
      */
-    private static Specification<IssueEntity> withCve(Visibility allowed) {
-        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                .toSpecification()
-                .and((root, query, builder) ->
-                        builder.like(builder.upper(root.get("identifier")), "CVE-%"));
+    private static IssueFilters withCve(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed).onlyCves();
     }
 
 }

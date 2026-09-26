@@ -4,10 +4,9 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import java.time.Clock;
 import java.time.Duration;
@@ -15,7 +14,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,11 +40,11 @@ public class RemediationDistributionService {
 
     public static final int MAX_WINDOW_DAYS = 365;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final SlaService sla;
     private final Clock clock;
 
-    public RemediationDistributionService(Issues issues, SlaService sla, Clock clock) {
+    public RemediationDistributionService(IssueCatalog issues, SlaService sla, Clock clock) {
         this.issues = issues;
         this.sla = sla;
         this.clock = clock;
@@ -58,9 +56,8 @@ public class RemediationDistributionService {
         Instant since = clock.instant().minus(Duration.ofDays(windowDays));
         RemediationSla policy = sla.policy();
 
-        Specification<IssueEntity> visible =
-                new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification();
+        IssueFilters visible =
+                new IssueFilters(null, null, null, null, null, null, false, false, null, allowed);
 
         List<RemediationDistribution.Resolved> resolved =
                 issues.resolvedDurationsSince(visible, since).stream()
@@ -105,7 +102,7 @@ public class RemediationDistributionService {
             // No window for this severity: nothing can be late against a deadline nobody set.
             return 0;
         }
-        return issues.count(sla.overdue(Map.of(severity, threshold), allowed).toSpecification());
+        return issues.count(sla.overdue(Map.of(severity, threshold), allowed));
     }
 
 }

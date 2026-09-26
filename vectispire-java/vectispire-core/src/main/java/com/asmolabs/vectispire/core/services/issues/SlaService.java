@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueSpecifications;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -93,7 +94,7 @@ public class SlaService {
         // the estate — the same shape as the reads `ReadCostSweepTest` watches, and the one
         // that kept the compliance summary linear after the other four were projected.
         for (com.asmolabs.vectispire.core.repositories.IssueRows.Attribution row : issues.findBy(
-                overdue(thresholds, allowed).toSpecification(),
+                IssueSpecifications.of(overdue(thresholds, allowed)),
                 query -> query.as(com.asmolabs.vectispire.core.repositories.IssueRows.Attribution.class).all())) {
             Long repoId = row.repoId();
             Long containerId = row.containerId();
@@ -126,7 +127,7 @@ public class SlaService {
             // "all late".
             return 0;
         }
-        return issues.count(overdue(thresholds, allowed).toSpecification());
+        return issues.count(IssueSpecifications.of(overdue(thresholds, allowed)));
     }
 
     /**

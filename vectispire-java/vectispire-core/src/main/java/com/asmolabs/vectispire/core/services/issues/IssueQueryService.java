@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueOrdering;
+import com.asmolabs.vectispire.core.repositories.IssueSpecifications;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.TriageEvents;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
@@ -126,7 +127,7 @@ public class IssueQueryService {
                 allowed);
 
         var page = issues.findAll(
-                filters.toSpecification(),
+                IssueSpecifications.of(filters),
                 PageRequest.of(from / Math.max(size, 1), size, IssueOrdering.MOST_SEVERE_FIRST));
 
         return new IssuePage(named(page.getContent()), page.getTotalElements(), size, from);

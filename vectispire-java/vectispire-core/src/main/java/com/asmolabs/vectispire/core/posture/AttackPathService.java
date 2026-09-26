@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
@@ -34,12 +34,12 @@ public class AttackPathService {
 
     private final TargetCatalog targets;
     private final ApiInventoryService apiInventory;
-    private final Issues issues;
+    private final IssueCatalog issues;
 
     public AttackPathService(
             TargetCatalog targets,
             ApiInventoryService apiInventory,
-            Issues issues) {
+            IssueCatalog issues) {
         this.targets = targets;
         this.apiInventory = apiInventory;
         this.issues = issues;
@@ -83,7 +83,7 @@ public class AttackPathService {
         return Optional.of(buildGraph(
                 repoOpt.get(),
                 apiInventory.forRepository(repositoryId).endpoints(),
-                issues.findUnsettledByRepositoryAndState(
+                issues.unsettledOfRepository(
                         repositoryId, "open", TriageStatus.settledWireNames(), IssueRows.GraphNode.class)));
     }
 
@@ -388,7 +388,7 @@ public class AttackPathService {
         Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
                 apiInventory.endpointViewsByRepository(repoIds);
         Map<Long, List<IssueRows.GraphNode>> issuesByRepo = issues
-                .findByStateAndRepoIdInAndTriageStatusNotIn(
+                .unsettledOfRepositories(
                         "open", repoIds, TriageStatus.settledWireNames(), IssueRows.GraphNode.class).stream()
                 .collect(Collectors.groupingBy(IssueRows.GraphNode::repoId));
 

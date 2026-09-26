@@ -22,12 +22,11 @@ import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -63,7 +62,7 @@ public class GateService {
     /** What a global policy stores in a column the schema declares not-null. */
     private static final long NO_TARGET = 0L;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final GatePolicies policies;
 
     /** The reading the ticket sweep shares; built over the same repository, so it holds no state of its own. */
@@ -76,7 +75,7 @@ public class GateService {
     private final Clock clock;
 
     public GateService(
-            Issues issues,
+            IssueCatalog issues,
             GatePolicies policies,
             GateVerdicts verdicts,
             TargetCatalog catalog,
@@ -359,13 +358,7 @@ public class GateService {
      * numbers before the query moved.
      */
     private List<GateIssue> openIssuesOf(ScanTarget target) {
-        String open = IssueState.OPEN.wireName();
-        List<IssueEntity> rows = switch (target) {
-            case ScanTarget.Repository repository -> issues.findByStateAndRepoId(open, repository.id());
-            case ScanTarget.Container container ->
-                    issues.findByStateAndRepoIdIsNullAndContainerId(open, container.id());
-        };
-        return rows.stream().map(IssueViews::forGate).toList();
+        return issues.gateIssuesOf(target, IssueState.OPEN.wireName());
     }
 
     /** Every target's open issues, for the overview — which is the one caller that needs them all. */
@@ -375,7 +368,7 @@ public class GateService {
         // target's issues and can afford entities; this reads every open issue in the deployment,
         // and the dashboard opens on every sign-in. Ten columns instead of the row, measured by
         // `ReadCostSweepTest`.
-        for (IssueRows.GateRow row : issues.findByState(IssueState.OPEN.wireName(), IssueRows.GateRow.class)) {
+        for (IssueRows.GateRow row : issues.inState(IssueState.OPEN.wireName(), IssueRows.GateRow.class)) {
             targetOf(row).ifPresent(target ->
                     byTarget.computeIfAbsent(target, key -> new ArrayList<>()).add(IssueViews.forGate(row)));
         }
@@ -407,16 +400,6 @@ public class GateService {
 
     private Map<String, StoredPolicy> activePolicies() {
         return activePolicies.byScope();
-    }
-
-    private static Optional<ScanTarget> targetOf(IssueEntity issue) {
-        if (issue.getRepoId() != null) {
-            return Optional.of(new ScanTarget.Repository(issue.getRepoId()));
-        }
-        if (issue.getContainerId() != null) {
-            return Optional.of(new ScanTarget.Container(issue.getContainerId()));
-        }
-        return Optional.empty();
     }
 
     /** The same attribution, from a projected row. */

@@ -244,6 +244,12 @@ class ArchitectureTest {
      * layered packaging let any class name. They ask {@code ScanCatalog} now, the owner's API, and the
      * dependency they always had is written down. {@code scanning} uses only {@code access} and
      * {@code targets}, below all four.
+     *
+     * <p><b>And {@code issues}</b>, in the rows of {@code ai} (the advisor explains an issue),
+     * {@code rules} (a rule set's impact on the open SAST issues) and {@code threatintel} (the feed
+     * re-evaluates the backlog's exploitation): they read the issues table through the layered
+     * repository and ask {@code IssueCatalog} now. {@code issues} uses {@code access}, {@code targets}
+     * and {@code scanning}, none of which uses these three.
      */
     private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
             Map.entry("settings", Set.of()),
@@ -264,13 +270,13 @@ class ArchitectureTest {
             // is active and fetches its files through `ScanRuleSets`, a port `scanning` declares and
             // `rules` implements. Called the other way, `scanning` -> `rules` -> `inventory` ->
             // `scanning` would be a cycle once the inventory reads scans through their module.
-            Map.entry("rules", Set.of("inventory", "scanning")),
+            Map.entry("rules", Set.of("inventory", "issues", "scanning")),
             // `scanning` since step 5, and in place of `scanning` -> `inventory`: the inventory reads
             // scans and findings (licences, SBOM diff, blast radius, the purge's selection), while a
             // scan's components and API surface reach it through `ScanIngestor.InventorySink`, a port
             // `scanning` declares and `inventory` implements.
             Map.entry("inventory", Set.of("scanning", "targets")),
-            Map.entry("ai", Set.of("access")),
+            Map.entry("ai", Set.of("access", "issues")),
             // `targets` since step 5: an issue belongs to a target, is named through `TargetNaming` and
             // answers the listings' open counts through `TargetBacklog`, a port `targets` declares.
             // `scanning` since step 5, and in place of `scanning` -> `issues`: the backlog reads scans and
@@ -295,7 +301,7 @@ class ArchitectureTest {
             // are ports `targets` declares, so every domain that names a target can depend on it,
             // and the purge of a deleted target can be an event `targets` owns.
             Map.entry("targets", Set.of("access")),
-            Map.entry("threatintel", Set.of("scanning", "siem", "targets")),
+            Map.entry("threatintel", Set.of("issues", "scanning", "siem", "targets")),
             // `access` since gate became a module: its register is purged past the evidence window by
             // the authentication tables' pass, which now reaches it through a port gate implements
             // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse

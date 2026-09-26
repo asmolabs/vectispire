@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReportPdf;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -34,7 +34,7 @@ public class OwaspReportService {
     private final OwaspReviewService reviews;
     private final TargetCatalog targets;
     private final ScanCatalog scans;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final AuditLogService audit;
     private final BrandingProperties branding;
 
@@ -42,7 +42,7 @@ public class OwaspReportService {
             OwaspReviewService reviews,
             TargetCatalog targets,
             ScanCatalog scans,
-            Issues issues,
+            IssueCatalog issues,
             AuditLogService audit,
             BrandingProperties branding) {
         this.reviews = reviews;

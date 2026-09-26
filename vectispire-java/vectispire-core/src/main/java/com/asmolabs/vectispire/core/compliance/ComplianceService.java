@@ -19,7 +19,7 @@ import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -38,7 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ComplianceService {
 
     private final GateService gate;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final SlaService sla;
     private final AuditLogService audit;
     private final EncryptionService encryption;
@@ -50,7 +50,7 @@ public class ComplianceService {
 
     public ComplianceService(
             GateService gate,
-            Issues issues,
+            IssueCatalog issues,
             SlaService sla,
             AuditLogService audit,
             EncryptionService encryption,
@@ -117,39 +117,23 @@ public class ComplianceService {
         Map<String, TargetCounts> counts = new java.util.HashMap<>();
         // Settled triage left out, as countOpen below already does for the fleet: the per-target
         // table and the fleet figures above it were two answers to one question.
-        for (Object[] row : issues.countOpenGroupedByTarget(IssueState.OPEN.wireName(), TriageStatus.settledWireNames())) {
-            Long repoId = (Long) row[0];
-            Long containerId = (Long) row[1];
+        for (IssueCatalog.TargetBreakdown row : issues.countOpenGroupedByTarget(
+                IssueState.OPEN.wireName(), TriageStatus.settledWireNames())) {
+            Long repoId = row.repoId();
+            Long containerId = row.containerId();
             if (repoId == null && containerId == null) {
                 continue;
             }
             String key = targetKey(repoId, containerId);
             counts.merge(
                     key,
-                    TargetCounts.NONE.plus((String) row[2], (String) row[3], toBoolean(row[4]), ((Number) row[5]).longValue()),
+                    TargetCounts.NONE.plus(row.severity(), row.type(), row.kev(), row.count()),
                     (a, b) -> new TargetCounts(
                             a.critical() + b.critical(), a.high() + b.high(), a.medium() + b.medium(),
                             a.low() + b.low(), a.kev() + b.kev(), a.secrets() + b.secrets(),
                             a.sast() + b.sast(), a.iac() + b.iac()));
         }
         return counts;
-    }
-
-    /**
-     * Tolerant of a numeric flag, though no engine currently sends one.
-     *
-     * <p>Written on the assumption that SQLite would hand back an Integer where the others hand
-     * back a Boolean. **Measured afterwards, and that is not what happens**: the projection
-     * selects a mapped entity attribute, so Hibernate normalises it to {@code Boolean} on every
-     * engine the campaign runs — replacing this with a plain cast passes everywhere.
-     *
-     * <p>Kept anyway, and the reason is narrow rather than superstitious: the day this projection
-     * reads a column the entity does not map, the normalisation goes with it. The comment is
-     * corrected rather than the code, because a defence whose stated reason is false is worse
-     * than no defence — somebody will trust the reason.
-     */
-    private static boolean toBoolean(Object value) {
-        return value instanceof Boolean flag ? flag : value instanceof Number n && n.intValue() != 0;
     }
 
     /**
@@ -345,10 +329,9 @@ public class ComplianceService {
         // Three columns, not every resolved row: a mean time to remediate is an average over
         // severity and two dates, and reading the entities made the summary cost one managed
         // object per resolved issue in the estate.
-        List<MttrCalculator.ResolvedIssue> resolved = issues.findBy(
+        List<MttrCalculator.ResolvedIssue> resolved = issues.rows(
                         new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, null, null,
-                                false, false, null, allowed).toSpecification(),
-                        query -> query.as(IssueRows.Resolution.class).all())
+                                false, false, null, allowed), IssueRows.Resolution.class)
                 .stream()
                 .map(row -> new MttrCalculator.ResolvedIssue(
                         Severity.of(row.severity()), row.firstSeenAt(), row.resolvedAt()))
@@ -490,10 +473,9 @@ public class ComplianceService {
         List<ComplianceEvaluation> evaluations = ComplianceEngine.evaluateAll(input, platform);
 
         // The same projection as the estate-wide summary above, narrowed to one target.
-        List<MttrCalculator.ResolvedIssue> resolved = issues.findBy(
+        List<MttrCalculator.ResolvedIssue> resolved = issues.rows(
                         new IssueFilters(IssueState.RESOLVED.wireName(), null, null, null, repoId, containerId,
-                                false, false, null, allowed).toSpecification(),
-                        query -> query.as(IssueRows.Resolution.class).all())
+                                false, false, null, allowed), IssueRows.Resolution.class)
                 .stream()
                 .map(row -> new MttrCalculator.ResolvedIssue(
                         Severity.of(row.severity()), row.firstSeenAt(), row.resolvedAt()))
@@ -584,7 +566,7 @@ public class ComplianceService {
                 null,
                 true,
                 Map.of(),
-                allowed).toSpecification());
+                allowed));
     }
 
     private long countOpenType(FindingType type, Long repoId, Long containerId, Visibility allowed) {
@@ -600,7 +582,7 @@ public class ComplianceService {
                 null,
                 true,
                 Map.of(),
-                allowed).toSpecification());
+                allowed));
     }
 
     private long countOverdueForTarget(Long repoId, Long containerId, Visibility allowed) {
@@ -620,6 +602,6 @@ public class ComplianceService {
                 null,
                 true,
                 thresholds,
-                allowed).toSpecification());
+                allowed));
     }
 }

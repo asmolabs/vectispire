@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -312,14 +312,14 @@ public class AiReviewService {
         return java.time.Duration.ofSeconds(seconds > 0 ? seconds : AiReview.DEFAULT_TIMEOUT_SECONDS);
     }
 
-    public AiVulnerabilityAdvice explainVulnerability(IssueEntity issue) {
-        String id = issue.getIdentifier() != null ? issue.getIdentifier() : "VULN-" + issue.getId();
-        String pkg = issue.getPackageName();
-        String ver = issue.getPackageVersion();
-        String fix = issue.getFixVersions();
-        String reachability = issue.getReachability() != null ? issue.getReachability() : "UNKNOWN";
+    public AiVulnerabilityAdvice explainVulnerability(IssueView issue) {
+        String id = issue.identifier() != null ? issue.identifier() : "VULN-" + issue.id();
+        String pkg = issue.packageName();
+        String ver = issue.packageVersion();
+        String fix = issue.fixVersions();
+        String reachability = issue.reachability() != null ? issue.reachability() : "UNKNOWN";
         boolean isKev = issue.isKev();
-        Double epss = issue.getEpssScore();
+        Double epss = issue.epssScore();
 
         if (isEnabled()) {
             try {

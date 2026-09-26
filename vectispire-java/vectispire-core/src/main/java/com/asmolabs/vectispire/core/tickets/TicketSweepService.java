@@ -13,8 +13,8 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.ActiveGatePolicies;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
 /**
@@ -48,14 +47,14 @@ public class TicketSweepService {
     private static final String SCOPE_REPOSITORY = "repository";
     private static final String SCOPE_CONTAINER = "container";
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final ActiveGatePolicies policies;
     private final TargetNaming names;
     private final TicketService tickets;
     private final AuditLogService audit;
 
     public TicketSweepService(
-            Issues issues,
+            IssueCatalog issues,
             ActiveGatePolicies policies,
             TargetNaming names,
             TicketService tickets,
@@ -96,10 +95,10 @@ public class TicketSweepService {
     }
 
     private int openActionableTickets(int limit) {
-        List<IssueEntity> candidates = issues.findActionableWithoutTicket(
+        List<IssueView> candidates = issues.actionableWithoutTicket(
                 IssueState.OPEN.wireName(),
                 List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.FIXED.wireName()),
-                Limit.of(limit));
+                limit);
         if (candidates.isEmpty()) {
             return 0;
         }
@@ -108,7 +107,7 @@ public class TicketSweepService {
         TargetNaming.Names targetNames = names.all();
 
         int created = 0;
-        for (IssueEntity issue : candidates) {
+        for (IssueView issue : candidates) {
             ResolvedPolicy resolved = PolicyResolution.resolve(
                     new PolicyLookup(
                             Optional.ofNullable(byScope.get(scopeOf(issue))),
@@ -123,20 +122,20 @@ public class TicketSweepService {
             }
 
             Optional<TicketService.Ticket> ticket = tickets.createForIssue(
-                    IssueViews.forTicket(issue), targetNames.of(issue.getRepoId(), issue.getContainerId()));
+                    IssueViews.forTicket(issue), targetNames.of(issue.repoId(), issue.containerId()));
             // Left without a reference on purpose: the next pass will try again.
             if (ticket.isEmpty()) {
                 continue;
             }
 
-            issues.attachTicket(issue.getId(), ticket.get().reference(), ticket.get().url());
+            issues.attachTicket(issue.id(), ticket.get().reference(), ticket.get().url());
             created++;
 
             audit.record(AuditLogService.Record.of(
                     AuditOperation.TICKET_CREATED,
-                    String.valueOf(issue.getId()),
+                    String.valueOf(issue.id()),
                     "Ticket " + ticket.get().reference() + " opened for "
-                            + (issue.getIdentifier() == null ? issue.getType() : issue.getIdentifier())
+                            + (issue.identifier() == null ? issue.type() : issue.identifier())
                             + " (" + resolved.describeSource() + ")",
                     null));
         }
@@ -151,22 +150,22 @@ public class TicketSweepService {
      * Automatically closes tickets on the remote tracker when an issue is marked resolved.
      */
     public int closeResolvedTickets(int limit) {
-        List<IssueEntity> resolvedIssues = issues.findResolvedWithOpenTicket(Limit.of(limit));
+        List<IssueView> resolvedIssues = issues.resolvedWithOpenTicket(limit);
         if (resolvedIssues.isEmpty()) {
             return 0;
         }
 
         int closed = 0;
-        for (IssueEntity issue : resolvedIssues) {
-            boolean success = tickets.closeTicket(issue.getTicketRef(), "Resolved by clean security scan");
+        for (IssueView issue : resolvedIssues) {
+            boolean success = tickets.closeTicket(issue.ticketRef(), "Resolved by clean security scan");
             if (success) {
-                issues.attachTicket(issue.getId(), "CLOSED:" + issue.getTicketRef(), issue.getTicketUrl());
+                issues.attachTicket(issue.id(), "CLOSED:" + issue.ticketRef(), issue.ticketUrl());
                 closed++;
 
                 audit.record(AuditLogService.Record.of(
                         AuditOperation.TICKET_CLOSED,
-                        String.valueOf(issue.getId()),
-                        "Ticket " + issue.getTicketRef() + " automatically closed after issue resolution",
+                        String.valueOf(issue.id()),
+                        "Ticket " + issue.ticketRef() + " automatically closed after issue resolution",
                         null));
             }
         }
@@ -182,12 +181,12 @@ public class TicketSweepService {
      * the global policy rather than resolving a {@code container:null} scope — which would look
      * up nothing and quietly give that issue the built-in policy instead of the operator's.
      */
-    private static String scopeOf(IssueEntity issue) {
-        if (issue.getRepoId() != null) {
-            return SCOPE_REPOSITORY + ":" + issue.getRepoId();
+    private static String scopeOf(IssueView issue) {
+        if (issue.repoId() != null) {
+            return SCOPE_REPOSITORY + ":" + issue.repoId();
         }
-        if (issue.getContainerId() != null) {
-            return SCOPE_CONTAINER + ":" + issue.getContainerId();
+        if (issue.containerId() != null) {
+            return SCOPE_CONTAINER + ":" + issue.containerId();
         }
         return SCOPE_GLOBAL + ":0";
     }

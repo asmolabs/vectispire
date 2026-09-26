@@ -7,11 +7,10 @@ import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
@@ -19,7 +18,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 /**
@@ -28,14 +26,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class SecurityScorecardService {
 
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final TargetCatalog targets;
     private final ScanCatalog scansRepo;
     private final LicenseGovernanceService licenseService;
     private final SlaService sla;
 
     public SecurityScorecardService(
-            Issues issuesRepo,
+            IssueCatalog issuesRepo,
             TargetCatalog targets,
             ScanCatalog scansRepo,
             LicenseGovernanceService licenseService,
@@ -52,8 +50,7 @@ public class SecurityScorecardService {
             // The route is guarded by the controller; this narrows the *read*, which used to be
             // the whole table filtered down to one repository afterwards.
             List<IssueRows.Posture> openIssues = issuesRepo
-                    .findBy(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))),
-                            query -> query.as(IssueRows.Posture.class).all())
+                    .rows(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))), IssueRows.Posture.class)
                     .stream()
                     .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                     .toList();
@@ -76,8 +73,7 @@ public class SecurityScorecardService {
             // The repository form was narrowed and this one was not, in the same change — which
             // is what a sweep is for and what reading the diff was not enough to catch.
             List<IssueRows.Posture> openIssues = issuesRepo
-                    .findBy(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))),
-                            query -> query.as(IssueRows.Posture.class).all())
+                    .rows(openWithin(Visibility.only(List.of(new ScanTarget.Container(containerId)))), IssueRows.Posture.class)
                     .stream()
                     .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                     .toList();
@@ -102,7 +98,7 @@ public class SecurityScorecardService {
      */
     public SecurityScorecard getGlobalScorecard(Visibility allowed) {
         List<IssueRows.Posture> openIssues = issuesRepo
-                .findBy(openWithin(allowed), query -> query.as(IssueRows.Posture.class).all())
+                .rows(openWithin(allowed), IssueRows.Posture.class)
                 .stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
@@ -233,9 +229,8 @@ public class SecurityScorecardService {
      * clause, as {@code SlaService.overdue} does, so the grade and the overdue figure on the same
      * card leave out the same issues.
      */
-    private static Specification<IssueEntity> openWithin(Visibility allowed) {
-        return new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
-                .toSpecification();
+    private static IssueFilters openWithin(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed);
     }
 
 

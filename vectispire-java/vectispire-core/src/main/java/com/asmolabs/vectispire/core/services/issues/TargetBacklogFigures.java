@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.repositories.IssueSpecifications;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.targets.TargetBacklog;
@@ -46,8 +47,7 @@ public class TargetBacklogFigures implements TargetBacklog {
     public Map<Long, Map<Severity, Long>> openBySeverityPerRepository(Visibility narrowed) {
         Map<Long, Map<Severity, Long>> counts = new HashMap<>();
         for (IssueAggregates.TargetSeverityCount row : issues.countOpenByTargetAndSeverity(
-                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), narrowed)
-                        .toSpecification())) {
+                IssueSpecifications.of(new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), narrowed)))) {
             if (row.repoId() == null) {
                 continue;
             }

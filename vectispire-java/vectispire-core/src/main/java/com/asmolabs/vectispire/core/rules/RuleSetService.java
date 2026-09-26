@@ -3,14 +3,14 @@ package com.asmolabs.vectispire.core.rules;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,11 +48,11 @@ public class RuleSetService {
     private static final int MAX_NAME_LENGTH = 255;
 
     private final RuleSets ruleSets;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final ObjectMapper json;
     private final Clock clock;
 
-    public RuleSetService(RuleSets ruleSets, Issues issues, ObjectMapper json, Clock clock) {
+    public RuleSetService(RuleSets ruleSets, IssueCatalog issues, ObjectMapper json, Clock clock) {
         this.ruleSets = ruleSets;
         this.issues = issues;
         this.json = json;
@@ -207,11 +207,7 @@ public class RuleSetService {
      * --no-rewrite-rule-ids} stops Semgrep prefixing it with the rule file's path.
      */
     private Map<String, Long> openSastIssuesByRule() {
-        Map<String, Long> counts = new HashMap<>();
-        for (Object[] row : issues.countOpenByIdentifier(IssueState.OPEN.wireName(), FindingType.SAST.wireName())) {
-            counts.put((String) row[0], ((Number) row[1]).longValue());
-        }
-        return counts;
+        return new HashMap<>(issues.countOpenByIdentifier(IssueState.OPEN.wireName(), FindingType.SAST.wireName()));
     }
 
     private String writeFiles(List<StoredFile> files) {

@@ -17,10 +17,9 @@ import com.asmolabs.vectispire.core.exports.CsafGeneratorService;
 import com.asmolabs.vectispire.core.exports.CycloneDxGeneratorService;
 import com.asmolabs.vectispire.core.exports.VexGeneratorService;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -58,7 +57,7 @@ public class EvidenceVaultService {
     private final ComplianceService compliance;
     private final AuditLogService auditService;
     private final AuditLogQueryService auditLogRepo;
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final ScanCatalog scansRepo;
     private final AttestationService attestationService;
     private final VexGeneratorService vexService;
@@ -75,7 +74,7 @@ public class EvidenceVaultService {
             ComplianceService compliance,
             AuditLogService auditService,
             AuditLogQueryService auditLogRepo,
-            Issues issuesRepo,
+            IssueCatalog issuesRepo,
             ScanCatalog scansRepo,
             AttestationService attestationService,
             VexGeneratorService vexService,
@@ -154,14 +153,10 @@ public class EvidenceVaultService {
             // Scoped in SQL rather than filtered afterwards: the register is the triage
             // decisions somebody may see, and reading the rest to discard it was both the leak
             // and the whole-table read.
-            List<IssueEntity> triagedIssues = issuesRepo
-                    .findAll(new IssueFilters(
-                                    null, null, null, null, null, null, false, false, null, allowed)
-                            .toSpecification())
-                    .stream()
-                    .filter(i -> i.getTriageStatus() != null && !i.getTriageStatus().equals("untriaged"))
-                    .toList();
-            byte[] triageBytes = json.writeValueAsBytes(triagedIssues);
+            // Serialized by the backlog, with this bundle's mapper: the file is the rows as Jackson
+            // reads them, which a view of them would not be (decision 0029).
+            byte[] triageBytes = issuesRepo.triagedAsJson(
+                    new IssueFilters(null, null, null, null, null, null, false, false, null, allowed), json);
             addZipEntry(zip, entries, "03_triage_and_exemptions.json",
                     "Security triage, risk acceptance overrides, and false-positive justifications",
                     triageBytes);

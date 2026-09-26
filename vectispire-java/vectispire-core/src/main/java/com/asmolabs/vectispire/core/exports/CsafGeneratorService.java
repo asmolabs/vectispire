@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 /**
@@ -37,10 +36,10 @@ import org.springframework.stereotype.Service;
 public class CsafGeneratorService {
 
     private final ScanCatalog scansRepo;
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final ProductVersion version;
 
-    public CsafGeneratorService(ScanCatalog scansRepo, Issues issuesRepo, ProductVersion version) {
+    public CsafGeneratorService(ScanCatalog scansRepo, IssueCatalog issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
         this.issuesRepo = issuesRepo;
         this.version = version;
@@ -51,18 +50,18 @@ public class CsafGeneratorService {
     }
 
     public CsafDocument generateAggregate(Visibility allowed) {
-        List<IssueEntity> issues = issuesRepo.findAll(withCve(allowed));
+        List<IssueView> issues = issuesRepo.issues(withCve(allowed));
         Map<String, CsafDocument.FullProductName> productMap = new HashMap<>();
         List<CsafDocument.CsafVulnerability> vulnerabilities = new ArrayList<>();
 
-        for (IssueEntity issue : issues) {
-            String cve = issue.getIdentifier();
+        for (IssueView issue : issues) {
+            String cve = issue.identifier();
             if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
-            String pkg = issue.getPackageName() != null ? issue.getPackageName() : "unknown";
-            String version = issue.getPackageVersion() != null ? issue.getPackageVersion() : "latest";
+            String pkg = issue.packageName() != null ? issue.packageName() : "unknown";
+            String version = issue.packageVersion() != null ? issue.packageVersion() : "latest";
             String productId = "CSAFPID-" + Math.abs((pkg + "@" + version).hashCode());
 
             // **Name then id, which is the opposite of the record this replaced.** Ported by
@@ -72,15 +71,15 @@ public class CsafGeneratorService {
                     pkg + " " + version,
                     productId,
                     new CsafDocument.ProductIdentificationHelper(
-                            issue.getPurl() != null ? issue.getPurl() : "pkg:generic/" + pkg + "@" + version, null)));
+                            issue.purl() != null ? issue.purl() : "pkg:generic/" + pkg + "@" + version, null)));
 
             // A person's triage clears a product. The reachability column does not: it was set
             // by a substring search that did not match, and this line published that as
             // `known_not_affected` in a document nobody approved.
-            boolean notAffected = "not_affected".equalsIgnoreCase(issue.getTriageStatus());
-            boolean fixed = "resolved".equalsIgnoreCase(issue.getState()) || "fixed".equalsIgnoreCase(issue.getTriageStatus());
-            boolean underInvestigation = "under_review".equalsIgnoreCase(issue.getTriageStatus())
-                    || "pending_approval".equalsIgnoreCase(issue.getTriageStatus());
+            boolean notAffected = "not_affected".equalsIgnoreCase(issue.triageStatus());
+            boolean fixed = "resolved".equalsIgnoreCase(issue.state()) || "fixed".equalsIgnoreCase(issue.triageStatus());
+            boolean underInvestigation = "under_review".equalsIgnoreCase(issue.triageStatus())
+                    || "pending_approval".equalsIgnoreCase(issue.triageStatus());
 
             List<String> notAffectedList = notAffected ? List.of(productId) : List.of();
             List<String> affectedList = (!notAffected && !fixed && !underInvestigation) ? List.of(productId) : List.of();
@@ -98,11 +97,11 @@ public class CsafGeneratorService {
 
             List<CsafDocument.Threat> threats = affectedList.isEmpty() ? List.of() : List.of(new CsafDocument.Threat(
                     "impact",
-                    issue.getDescription() != null ? issue.getDescription() : "Identified vulnerable component.",
+                    issue.description() != null ? issue.description() : "Identified vulnerable component.",
                     affectedList));
 
-            List<CsafDocument.Note> notes = notAffected && issue.getTriageJustification() != null
-                    ? List.of(new CsafDocument.Note("description", "VEX Justification", issue.getTriageJustification()))
+            List<CsafDocument.Note> notes = notAffected && issue.triageJustification() != null
+                    ? List.of(new CsafDocument.Note("description", "VEX Justification", issue.triageJustification()))
                     : List.of();
 
             vulnerabilities.add(new CsafDocument.CsafVulnerability(
@@ -220,11 +219,8 @@ public class CsafGeneratorService {
      * authorization predicate already lives. Restating it here would be a second copy of a rule
      * that must not have two.
      */
-    private static Specification<IssueEntity> withCve(Visibility allowed) {
-        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                .toSpecification()
-                .and((root, query, builder) ->
-                        builder.like(builder.upper(root.get("identifier")), "CVE-%"));
+    private static IssueFilters withCve(Visibility allowed) {
+        return new IssueFilters(null, null, null, null, null, null, false, false, null, allowed).onlyCves();
     }
 
 }

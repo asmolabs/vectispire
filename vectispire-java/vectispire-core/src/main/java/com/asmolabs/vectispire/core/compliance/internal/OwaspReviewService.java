@@ -6,10 +6,10 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
 import java.util.List;
@@ -52,12 +52,12 @@ public class OwaspReviewService {
 
     private final AiReviewService models;
     private final AiReviewResults results;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final ScanCatalog scans;
     private final Clock clock;
 
     public OwaspReviewService(
-            AiReviewService models, AiReviewResults results, Issues issues, ScanCatalog scans, Clock clock) {
+            AiReviewService models, AiReviewResults results, IssueCatalog issues, ScanCatalog scans, Clock clock) {
         this.models = models;
         this.results = results;
         this.issues = issues;
@@ -97,7 +97,7 @@ public class OwaspReviewService {
                 .orElseThrow(() -> new ReviewRefusedException(
                         "This repository has never been scanned. There is nothing to report on yet."));
 
-        List<IssueEntity> open = issues.findByRepositoryAndState(repository.id(), IssueState.OPEN.wireName());
+        List<IssueView> open = issues.ofRepositoryInState(repository.id(), IssueState.OPEN.wireName());
         String digest = OwaspReview.digest(
                 new OwaspReview.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
@@ -130,21 +130,21 @@ public class OwaspReviewService {
         return results.save(result);
     }
 
-    private static OwaspReview.Evidence evidenceOf(IssueEntity issue) {
-        String component = issue.getPackageName() == null
+    private static OwaspReview.Evidence evidenceOf(IssueView issue) {
+        String component = issue.packageName() == null
                 ? null
-                : issue.getPackageVersion() == null
-                        ? issue.getPackageName()
-                        : issue.getPackageName() + " " + issue.getPackageVersion();
+                : issue.packageVersion() == null
+                        ? issue.packageName()
+                        : issue.packageName() + " " + issue.packageVersion();
 
         return new OwaspReview.Evidence(
-                issue.getType(),
-                issue.getSeverity(),
-                issue.getIdentifier(),
+                issue.type(),
+                issue.severity(),
+                issue.identifier(),
                 component,
-                issue.getFilePath(),
-                issue.getTriageStatus(),
-                issue.getDescription());
+                issue.filePath(),
+                issue.triageStatus(),
+                issue.description());
     }
 
     /** The column is 500, and a stack-trace message routinely exceeds it. */

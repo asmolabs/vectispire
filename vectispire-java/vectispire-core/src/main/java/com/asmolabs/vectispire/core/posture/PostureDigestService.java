@@ -16,7 +16,7 @@ import com.asmolabs.vectispire.core.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -26,7 +26,6 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +78,7 @@ public class PostureDigestService {
     private final SettingsService settings;
     private final GateService gate;
     private final SlaService sla;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final AuditLogQueryService auditLog;
     private final AuditLogService audit;
     private final NotificationService webhook;
@@ -91,7 +90,7 @@ public class PostureDigestService {
             SettingsService settings,
             GateService gate,
             SlaService sla,
-            Issues issues,
+            IssueCatalog issues,
             AuditLogQueryService auditLog,
             AuditLogService audit,
             NotificationService webhook,
@@ -207,10 +206,9 @@ public class PostureDigestService {
 
         LocalDate to = LocalDate.ofInstant(now, ZoneOffset.UTC);
         BacklogTrend.Series week = BacklogTrend.over(
-                issues.findAll(new IssueFilters(null, null, null, null, null, null, false, false, null, everything)
-                                .toSpecification())
+                issues.issues(new IssueFilters(null, null, null, null, null, null, false, false, null, everything))
                         .stream()
-                        .map(issue -> new BacklogTrend.Lifespan(issue.getFirstSeenAt(), issue.getResolvedAt()))
+                        .map(issue -> new BacklogTrend.Lifespan(issue.firstSeenAt(), issue.resolvedAt()))
                         .toList(),
                 to.minusDays(WEEK_DAYS - 1L),
                 to);
@@ -241,8 +239,7 @@ public class PostureDigestService {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),
                             severity.wireName(),
-                            null, null, null, null, false, false, null, true, Map.of(), allowed)
-                    .toSpecification());
+                            null, null, null, null, false, false, null, true, Map.of(), allowed));
             if (count > 0) {
                 counts.put(severity.wireName(), count);
             }

@@ -45,7 +45,8 @@ class TicketSweepServiceTest {
         when(naming.all()).thenReturn(new TargetNaming.Names(Map.of(), Map.of()));
 
         sweep = new TicketSweepService(
-                issues, new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit);
+                new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues),
+                new com.asmolabs.vectispire.core.gate.ActiveGatePolicies(policies), naming, tickets, audit);
 
         when(tickets.isEnabled()).thenReturn(true);
         when(policies.findByIsActiveTrue()).thenReturn(List.of());

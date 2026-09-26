@@ -9,14 +9,13 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.core.gate.GateService;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.posture.internal.PostureScoreboards;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -30,7 +29,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 /**
@@ -57,7 +55,7 @@ public class DashboardQueryService {
     private static final int MAX_TREND_DAYS = 365;
 
     private final GateService gate;
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final ScanCatalog scans;
     private final TargetNaming naming;
     private final SlaService sla;
@@ -66,7 +64,7 @@ public class DashboardQueryService {
     private final Clock clock;
 
     public DashboardQueryService(
-            GateService gate, Issues issues, ScanCatalog scans, TargetNaming naming, SlaService sla, Clock clock) {
+            GateService gate, IssueCatalog issues, ScanCatalog scans, TargetNaming naming, SlaService sla, Clock clock) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
@@ -117,8 +115,7 @@ public class DashboardQueryService {
                 // deployment's quality backlog beside their own numbers.
                 issues.count(new IssueFilters(
                                 IssueState.OPEN.wireName(), null, FindingType.QUALITY.wireName(),
-                                null, null, null, false, false, null, allowed)
-                        .toSpecification()),
+                                null, null, null, false, false, null, allowed)),
                 posture.targets().stream().filter(target -> !target.passed()).toList(),
                 recentScans(allowed));
     }
@@ -158,9 +155,7 @@ public class DashboardQueryService {
         // issue in the estate to take two timestamps off each — measured linear, at a constant
         // query count. The projection asks the database for exactly what the curve is made of.
         List<BacklogTrend.Lifespan> lifespans = issues
-                .findBy(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification(),
-                        query -> query.as(IssueRows.Lifespan.class).all())
+                .rows(new IssueFilters(null, null, null, null, null, null, false, false, null, allowed), IssueRows.Lifespan.class)
                 .stream()
                 .map(row -> new BacklogTrend.Lifespan(row.firstSeenAt(), row.resolvedAt()))
                 .toList();
@@ -190,16 +185,14 @@ public class DashboardQueryService {
         // target has resolved since it was added. That half is counted by the database instead
         // — `group by` for the open backlog, and the closed issues narrowed to the two instants
         // an average needs.
-        Specification<IssueEntity> visible =
-                new IssueFilters(null, null, null, null, null, null, false, false, null, allowed)
-                        .toSpecification();
+        IssueFilters visible =
+                new IssueFilters(null, null, null, null, null, null, false, false, null, allowed);
 
         Instant now = clock.instant();
         Instant windowStart = PostureTrendAnalytics.windowStart(window, now);
 
-        List<IssueRows.Observation> touching = issues.findBy(
-                visible.and(IssueFilters.touchingWindow(windowStart)),
-                query -> query.as(IssueRows.Observation.class).all());
+        List<IssueRows.Observation> touching = issues.rows(
+                visible.touching(windowStart), IssueRows.Observation.class);
 
         // **The open backlog leaves settled triage out; the curve and the resolved half do not.**
         // The ranking used to count every unresolved row, so a target whose team had argued each
@@ -208,8 +201,7 @@ public class DashboardQueryService {
         // they do there; `pending_approval` and any status this version does not know stay. The
         // curve is a record of what appeared and closed, which a triage decision does not rewrite.
         List<IssueAggregates.TargetSeverityCount> openCounts = issues.countOpenByTargetAndSeverity(
-                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
-                        .toSpecification());
+                new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed));
         List<IssueAggregates.TargetResolutions> resolved = issues.countResolvedByTarget(visible);
 
         // Named once for both halves: the curve needs no names at all, but the scoreboard does,
@@ -259,8 +251,7 @@ public class DashboardQueryService {
             long count = issues.count(new IssueFilters(
                             IssueState.OPEN.wireName(),
                             severity.wireName(),
-                            null, null, null, null, false, false, null, true, Map.of(), allowed)
-                    .toSpecification());
+                            null, null, null, null, false, false, null, true, Map.of(), allowed));
             if (count > 0) {
                 // Absent rather than zero, as the grouped query left it: the screen reads this as
                 // a map and a zero would add a row for every severity nobody has.

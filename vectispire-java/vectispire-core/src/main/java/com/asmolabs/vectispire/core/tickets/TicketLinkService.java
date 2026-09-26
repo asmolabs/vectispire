@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.time.Clock;
@@ -35,12 +35,12 @@ public class TicketLinkService {
 
     private static final int MAX_URL_LENGTH = 512;
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final IssueTickets tickets;
     private final AuditLogService audit;
     private final Clock clock;
 
-    public TicketLinkService(Issues issues, IssueTickets tickets, AuditLogService audit, Clock clock) {
+    public TicketLinkService(IssueCatalog issues, IssueTickets tickets, AuditLogService audit, Clock clock) {
         this.issues = issues;
         this.tickets = tickets;
         this.audit = audit;
@@ -60,8 +60,8 @@ public class TicketLinkService {
     }
 
     /** The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike. */
-    private IssueEntity visibleIssue(long issueId, Visibility visibility) {
-        return RowVisibility.requireVisibleIssue(issues.findById(issueId).orElse(null), IssueEntity::target, visibility);
+    private IssueView visibleIssue(long issueId, Visibility visibility) {
+        return RowVisibility.requireVisibleIssue(issues.issue(issueId).orElse(null), TicketLinkService::targetOf, visibility);
     }
 
     public List<IssueTicketView> list(long issueId, Visibility visibility) {
@@ -81,7 +81,7 @@ public class TicketLinkService {
     public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
-        IssueEntity issue = visibleIssue(issueId, visibility);
+        IssueView issue = visibleIssue(issueId, visibility);
         TicketingProvider parsed = TicketingProvider.valueOf(
                 BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider").toUpperCase(Locale.ROOT));
         // Both columns are non-null and bounded, and both were written as sent: a blank key stored a
@@ -92,7 +92,7 @@ public class TicketLinkService {
 
         Instant now = clock.instant();
         IssueTicketEntity ticket = new IssueTicketEntity();
-        ticket.setIssueId(issue.getId());
+        ticket.setIssueId(issue.id());
         ticket.setProvider(parsed.name());
         ticket.setTicketKey(key);
         ticket.setTicketUrl(url);
@@ -104,12 +104,22 @@ public class TicketLinkService {
 
         audit.record(new AuditLogService.Record(
                 AuditOperation.TICKET_LINKED,
-                String.valueOf(issue.getId()),
+                String.valueOf(issue.id()),
                 "Linked " + parsed.getDisplayName() + " ticket: " + saved.getTicketKey(),
                 actor.username(),
                 actor.ipAddress(),
                 actor.userAgent()));
 
         return IssueTicketView.of(saved);
+    }
+
+    /** A row attached to neither target is left to {@code Visibility.permits}, as the entity's reading is. */
+    private static com.asmolabs.vectispire.common.domain.targets.ScanTarget targetOf(IssueView issue) {
+        if (issue.repoId() != null) {
+            return new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Repository(issue.repoId());
+        }
+        return issue.containerId() == null
+                ? null
+                : new com.asmolabs.vectispire.common.domain.targets.ScanTarget.Container(issue.containerId());
     }
 }

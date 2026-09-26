@@ -78,7 +78,7 @@ class PostureDigestServiceTest {
         when(issues.findAll(ArgumentMatchers.<Specification<IssueEntity>>any())).thenReturn(List.of());
 
         digest = new PostureDigestService(
-                settings, gate, sla, issues, auditLog, audit, webhook, mail, post,
+                settings, gate, sla, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), auditLog, audit, webhook, mail, post,
                 Clock.fixed(WEDNESDAY, ZoneOffset.UTC));
     }
 

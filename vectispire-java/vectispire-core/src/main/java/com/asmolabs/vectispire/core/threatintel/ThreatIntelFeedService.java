@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
@@ -42,7 +42,7 @@ public class ThreatIntelFeedService {
 
     private final ThreatIntels intelRepo;
     private final ThreatIntelSyncs syncRepo;
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final SiemEvents siemEvents;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
@@ -50,7 +50,7 @@ public class ThreatIntelFeedService {
     public ThreatIntelFeedService(
             ThreatIntels intelRepo,
             ThreatIntelSyncs syncRepo,
-            Issues issuesRepo,
+            IssueCatalog issuesRepo,
             SiemEvents siemEvents,
             AuditLogService audit,
             TransactionTemplate transactions) {
@@ -123,10 +123,10 @@ public class ThreatIntelFeedService {
         // back in a single batch. What is unchanged on purpose is which issues qualify — "not
         // closed and not resolved", passed as data so the definition stays the caller's.
         long updatedIssuesCount = 0;
-        List<IssueEntity> allOpenIssues = issuesRepo.findByStateNotIn(List.of("closed", "resolved"));
+        List<IssueView> allOpenIssues = issuesRepo.notInStates(List.of("closed", "resolved"));
 
         Map<String, ThreatIntelEntity> intelByCve = allOpenIssues.stream()
-                .map(IssueEntity::getIdentifier)
+                .map(IssueView::identifier)
                 .filter(Objects::nonNull)
                 .map(id -> id.toLowerCase(Locale.ROOT))
                 .distinct()
@@ -140,44 +140,50 @@ public class ThreatIntelFeedService {
                                                 intel -> intel,
                                                 (left, right) -> left))));
 
-        for (IssueEntity issue : allOpenIssues) {
-            if (issue.getIdentifier() == null) continue;
+        // The figures are this module's decision; the rows are the backlog's, written in one batch
+        // after the loop, in this transaction (decision 0029).
+        List<IssueCatalog.Exploitation> updates = new java.util.ArrayList<>();
+        for (IssueView issue : allOpenIssues) {
+            if (issue.identifier() == null) continue;
             Optional<ThreatIntelEntity> match = Optional.ofNullable(
-                    intelByCve.get(issue.getIdentifier().toLowerCase(Locale.ROOT)));
+                    intelByCve.get(issue.identifier().toLowerCase(Locale.ROOT)));
             if (match.isPresent()) {
                 ThreatIntelEntity intel = match.get();
                 boolean becameKev = !issue.isKev() && intel.isKev();
                 boolean updated = false;
+                boolean kev = issue.isKev();
+                Double epss = issue.epssScore();
 
                 if (intel.isKev() != issue.isKev()) {
-                    issue.setKev(intel.isKev());
+                    kev = intel.isKev();
                     updated = true;
                 }
-                if (intel.getEpssScore() != null && !intel.getEpssScore().equals(issue.getEpssScore())) {
-                    issue.setEpssScore(intel.getEpssScore());
+                if (intel.getEpssScore() != null && !intel.getEpssScore().equals(issue.epssScore())) {
+                    epss = intel.getEpssScore();
                     updated = true;
                 }
 
                 if (updated) {
-                    issuesRepo.save(issue);
+                    updates.add(new IssueCatalog.Exploitation(issue.id(), kev, epss));
                     updatedIssuesCount++;
 
                     if (becameKev) {
-                        log.warn("CVE {} newly reclassified as actively exploited CISA KEV! Notifying SOC/SIEM.", issue.getIdentifier());
+                        log.warn("CVE {} newly reclassified as actively exploited CISA KEV! Notifying SOC/SIEM.", issue.identifier());
                         // Queued in this transaction, sent after it commits: a reclassification
                         // that rolls back announces nothing, and no collector holds this sync's
                         // locks while it answers.
                         siemEvents.enqueue(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
-                                .message("Vulnerability " + issue.getIdentifier()
+                                .message("Vulnerability " + issue.identifier()
                                         + " promoted to CISA Known Exploited Vulnerability (KEV)")
                                 .target(targetOf(issue))
-                                .identifier(issue.getIdentifier())
-                                .component(issue.getPackageName())
+                                .identifier(issue.identifier())
+                                .component(issue.packageName())
                                 .build());
                     }
                 }
             }
         }
+        issuesRepo.recordExploitation(updates);
 
         // Update sync record
         ThreatIntelSyncEntity sync = syncRepo.findById(ThreatIntelSyncEntity.SINGLETON_ID)
@@ -197,11 +203,11 @@ public class ThreatIntelFeedService {
     }
 
     /** The target a finding belongs to, as the CEF target field names it: {@code repository 12}, {@code container 3}. */
-    private static String targetOf(IssueEntity issue) {
-        if (issue.getRepoId() != null) {
-            return "repository " + issue.getRepoId();
+    private static String targetOf(IssueView issue) {
+        if (issue.repoId() != null) {
+            return "repository " + issue.repoId();
         }
-        return issue.getContainerId() == null ? null : "container " + issue.getContainerId();
+        return issue.containerId() == null ? null : "container " + issue.containerId();
     }
 
     public Optional<ThreatIntelRecord> lookupCve(String cveId) {

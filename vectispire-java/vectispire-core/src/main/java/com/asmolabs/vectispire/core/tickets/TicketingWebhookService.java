@@ -10,9 +10,9 @@ import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.WebhookAuthenticity;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.services.issues.IssueTriageService;
+import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals;
 import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveries;
 import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
@@ -36,7 +36,7 @@ public class TicketingWebhookService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketingWebhookService.class);
 
-    private final Issues issues;
+    private final IssueCatalog issues;
     private final IssueTriageService triageService;
     private final AuditLogService audit;
     private final ObjectMapper json;
@@ -49,7 +49,7 @@ public class TicketingWebhookService {
     private static final java.time.Duration REPLAY_WINDOW = java.time.Duration.ofDays(30);
 
     public TicketingWebhookService(
-            Issues issues,
+            IssueCatalog issues,
             IssueTriageService triageService,
             AuditLogService audit,
             ObjectMapper json,
@@ -158,13 +158,13 @@ public class TicketingWebhookService {
             return new Outcome.NoReference();
         }
 
-        Optional<IssueEntity> matchingIssue = issues.findByTicketRefOrIid(event.ticketRef());
+        Optional<IssueView> matchingIssue = issues.withTicket(event.ticketRef());
         if (matchingIssue.isEmpty()) {
             log.info("Received webhook for ticket {} from {} but no corresponding Vectispire issue found.", event.ticketRef(), provider);
             return new Outcome.NoMatchingIssue(event.ticketRef());
         }
 
-        IssueEntity issue = matchingIssue.get();
+        IssueView issue = matchingIssue.get();
         String actionTaken;
 
         if (event.isRefusedOrFalsePositive()) {
@@ -208,8 +208,8 @@ public class TicketingWebhookService {
             // renders as "under review" in the documents, never as "not affected".
             // Synchronisation therefore goes on recording what the tracker says; it only stops
             // publishing it in a human's place.
-            IssueEntity triaged = triageService.triage(
-                    issue.getId(),
+            IssueView triaged = triageService.triageView(
+                    issue.id(),
                     new Triage.Request(
                             status,
                             author,
@@ -218,12 +218,12 @@ public class TicketingWebhookService {
                             null),
                     false);
 
-            actionTaken = "Queued as " + triaged.getTriageStatus() + " (" + justification.wireName()
+            actionTaken = "Queued as " + triaged.triageStatus() + " (" + justification.wireName()
                     + ") from " + author;
 
             audit.record(new AuditLogService.Record(
                     AuditOperation.TICKET_SYNCED,
-                    String.valueOf(issue.getId()),
+                    String.valueOf(issue.id()),
                     "Issue triage automatically synchronized from " + provider.name() + " ticket " + event.ticketRef() + ": " + actionTaken,
                     author,
                     origin.ipAddress(),
@@ -232,14 +232,14 @@ public class TicketingWebhookService {
             actionTaken = "Ticket updated on " + provider.name() + " (status: " + event.status() + ")";
             audit.record(new AuditLogService.Record(
                     AuditOperation.TICKET_SYNCED,
-                    String.valueOf(issue.getId()),
+                    String.valueOf(issue.id()),
                     "Ticket update received from " + provider.name() + " for " + event.ticketRef() + " (status: " + event.status() + ")",
                     event.author(),
                     origin.ipAddress(),
                     origin.userAgent()));
         }
 
-        return new Outcome.Synced(issue.getId(), event.ticketRef(), actionTaken);
+        return new Outcome.Synced(issue.id(), event.ticketRef(), actionTaken);
     }
 
     private record ExtractedTicketEvent(

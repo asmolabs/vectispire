@@ -5,10 +5,9 @@ import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFlee
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssPrioritizedIssue;
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -31,13 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class EpssPrioritizationService {
 
-    private final Issues issuesRepo;
+    private final IssueCatalog issuesRepo;
     private final ThreatIntels intelRepo;
     private final ThreatIntelFeedService threatIntelService;
     private final TargetCatalog targets;
 
     public EpssPrioritizationService(
-            Issues issuesRepo,
+            IssueCatalog issuesRepo,
             ThreatIntels intelRepo,
             ThreatIntelFeedService threatIntelService,
             TargetCatalog targets) {
@@ -75,10 +74,8 @@ public class EpssPrioritizationService {
         // argued `not_affected` could head the list of what to fix first — the most actionable
         // screen contradicting the decision already taken about the row. `pending_approval` and
         // any status this version does not know still rank: neither is a decision.
-        List<IssueRows.EpssRow> openIssues = issuesRepo.findBy(
-                        new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed)
-                                .toSpecification(),
-                        query -> query.as(IssueRows.EpssRow.class).all())
+        List<IssueRows.EpssRow> openIssues = issuesRepo.rows(
+                        new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed), IssueRows.EpssRow.class)
                 .stream()
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();

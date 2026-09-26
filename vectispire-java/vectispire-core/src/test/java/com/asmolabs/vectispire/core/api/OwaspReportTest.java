@@ -67,7 +67,7 @@ class OwaspReportTest extends ApiTestBase {
         models = Mockito.mock(AiReviewService.class);
         Mockito.when(models.isEnabled()).thenReturn(true);
         Mockito.when(models.selectedModel()).thenReturn("gemma4:12b-it-qat");
-        service = new OwaspReviewService(models, results, issues, catalog, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new OwaspReviewService(models, results, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), catalog, Clock.fixed(NOW, ZoneOffset.UTC));
 
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");

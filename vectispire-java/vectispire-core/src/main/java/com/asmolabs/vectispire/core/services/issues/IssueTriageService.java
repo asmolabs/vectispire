@@ -73,6 +73,16 @@ public class IssueTriageService {
     }
 
     /**
+     * {@link #triage(long, Triage.Request, boolean)} as another module sees its result: the issue's
+     * view. Transactional itself, since the call below does not go through the proxy; it is the one
+     * the tracker's webhook uses, and the entity stays this module's (decision 0029).
+     */
+    @Transactional
+    public IssueView triageView(long issueId, Triage.Request request, boolean canApprove) {
+        return IssueView.of(triage(issueId, request, canApprove));
+    }
+
+    /**
      * The same decision on several issues, or on none.
      */
     @Transactional

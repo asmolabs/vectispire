@@ -41,7 +41,7 @@ class RuleSetServiceTest {
     void wire() {
         ruleSets = mock(RuleSets.class);
         issues = mock(Issues.class);
-        service = new RuleSetService(ruleSets, issues, new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new RuleSetService(ruleSets, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 
         when(ruleSets.save(any())).thenAnswer(call -> call.getArgument(0));
         when(ruleSets.findByIsActiveTrue()).thenReturn(Optional.empty());
