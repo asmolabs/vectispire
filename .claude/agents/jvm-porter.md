@@ -192,6 +192,11 @@ pins nothing; several written here did until this was the rule. Script it with a
 restores the file and a timeout: a regex mutant once ran for fifteen minutes and left the source
 mutated.
 
+**A lock whose race needs a particular interleaving is tested by forcing that interleaving.** The
+agent-claim lock survived a barrage of eight concurrent polls with the lock removed: the polls read
+the same oldest row and the conditional update turned the loser away on its own. Only a test that
+makes two polls read different rows — latches, not luck — killed the mutant.
+
 **Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations,
 `core/repositories/`, `core/persistence/`, `core/config/`, the integration sources, and the Gradle
 catalogue or lockfiles. CI's `engines` job fires on the same paths, but a push that turns it red
