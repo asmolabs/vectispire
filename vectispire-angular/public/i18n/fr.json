@@ -2248,7 +2248,7 @@
     "nobody_yet": "Personne pour l'instant",
     "members_hint": "Un administrateur n'est jamais restreint : l'ajouter ne change rien pour lui.",
     "nothing_yet": "Rien pour l'instant",
-    "targets_hint": "Chaque membre voit chacune de ces cibles, et seuls les administrateurs peuvent modifier la liste.",
+    "targets_hint": "Chaque membre voit chacune de ces cibles, et seuls les administrateurs peuvent modifier la liste. Un projet couvre les dépôts qui y sont classés au moment de chaque requête, y compris ceux classés plus tard.",
     "webhook_url": "URL du webhook",
     "webhook_scope": "Seul ce qui concerne les cibles de cette équipe est publié ici. Le webhook global continue de tout recevoir.",
     "webhook_write_only": "Le champ s'ouvre vide même quand un canal est configuré : l'URL n'est jamais renvoyée, car la lire suffit pour publier dans ce canal.",
@@ -2256,7 +2256,8 @@
     "delete_header": "Supprimer cette équipe ?",
     "delete_consequence": "et ses accès disparaissent ensemble : ses {{members}} membre(s) perdent immédiatement les {{targets}} cible(s) qu'elle possédait, sauf si autre chose les leur accorde.",
     "aria_rename": "Renommer {{name}}",
-    "aria_delete": "Supprimer {{name}}"
+    "aria_delete": "Supprimer {{name}}",
+    "target_project": "Projet"
   },
   "tiers": {
     "label": "Niveau de criticité métier",
@@ -2326,7 +2327,7 @@
   "users": {
     "access_for": "Visibilité de",
     "access_header": "Visibilité",
-    "access_help": "Ce compte voit ces cibles, plus celles de ses équipes — les deux ensembles s'additionnent. Aucune cible cochée veut dire qu'il ne voit rien.",
+    "access_help": "Ce compte voit ces cibles, plus celles de ses équipes — les deux ensembles s'additionnent. Aucune cible cochée veut dire qu'il ne voit rien. Un projet couvre les dépôts qui y sont classés au moment de chaque requête, y compris ceux classés plus tard.",
     "access_mode_everyone": "Le réglage « ce que voit un non-administrateur » est sur « tout le monde » : tout compte connecté voit tout le parc, et ces affectations ne décident de rien tant qu'il n'a pas changé.",
     "access_none": "Aucune",
     "access_read_failed": "Les cibles actuelles de ce compte n'ont pas pu être lues.",
@@ -2368,7 +2369,8 @@
     "reset_hint": "Le compte devra le changer à sa prochaine connexion.",
     "reset": "Réinitialiser",
     "delete_header": "Supprimer ce compte ?",
-    "delete_consequence": "et ses sessions seront supprimés. C'est définitif."
+    "delete_consequence": "et ses sessions seront supprimés. C'est définitif.",
+    "target_project": "Projet"
   },
   "git_tokens": {
     "title": "Jetons HTTPS",

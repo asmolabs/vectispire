@@ -14,13 +14,18 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { AccountsApi } from '../../core/api/accounts.api';
 import { SettingsApi } from '../../core/api/settings.api';
-import type { ApiKeyTargets, UserSummary, UserTargetAssignment } from '../../core/api.models';
+import { SolutionsApi } from '../../core/api/solutions.api';
+import type {
+    ApiKeyTargets,
+    SolutionTree,
+    TargetGrant,
+    UserSummary,
+    UserTargetAssignment
+} from '../../core/api.models';
 import { GOVERNANCE_READER_ROLES } from '../../core/session.store';
+import { grantOptions } from '../../shared/grant-options';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-
-/** A list from the server, or none: read inside a computed the template renders, anything else would break the screen. */
-const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? rows : []);
 
 @Component({
     selector: 'app-users',
@@ -46,6 +51,7 @@ export class Users {
     private readonly i18n = inject(I18nService);
     private readonly accountsApi = inject(AccountsApi);
     private readonly settingsApi = inject(SettingsApi);
+    private readonly solutionsApi = inject(SolutionsApi);
     readonly roles = computed(() => {
         this.i18n.translations();
         return [
@@ -89,21 +95,22 @@ export class Users {
     readonly accessVisible = signal(false);
     readonly accessUser = signal<UserSummary | null>(null);
     private readonly targets = signal<ApiKeyTargets | null>(null);
+    /** Where the grantable projects come from: every project, named "Solution / Project". */
+    private readonly tree = signal<SolutionTree | null>(null);
+    /**
+     * What the open account holds, as the server names it. Kept beside the selection so a grant
+     * the lists above do not carry still has an option to be shown by — see `grantOptions`.
+     */
+    private readonly grants = signal<TargetGrant[]>([]);
 
     /** Labelled at render time, not at load: the language changes at runtime. */
-    readonly targetOptions = computed<{ label: string; value: string }[]>(() => {
+    readonly targetOptions = computed(() => {
         this.i18n.translations();
-        const targets = this.targets();
-        return [
-            ...listOf(targets?.repositories).map((row) => ({
-                label: `${this.i18n.t('users.target_repository')} — ${row.label}`,
-                value: `repository:${row.id}`
-            })),
-            ...listOf(targets?.containers).map((row) => ({
-                label: `${this.i18n.t('users.target_image')} — ${row.label}`,
-                value: `container:${row.id}`
-            }))
-        ];
+        return grantOptions(this.targets(), this.tree(), this.grants(), {
+            repository: this.i18n.t('users.target_repository'),
+            container: this.i18n.t('users.target_image'),
+            project: this.i18n.t('users.target_project')
+        });
     });
     /**
      * A signal because the dialog fills it from the answer to `userTargets`, after it has opened:
@@ -147,6 +154,10 @@ export class Users {
             next: (targets) => this.targets.set(targets ?? null),
             error: () => this.targets.set(null)
         });
+        this.solutionsApi.solutionTree().subscribe({
+            next: (tree) => this.tree.set(tree ?? null),
+            error: () => this.tree.set(null)
+        });
         this.settingsApi.settings().subscribe({
             next: (result) =>
                 this.visibilityMode.set(
@@ -161,10 +172,14 @@ export class Users {
         this.accessUser.set(user);
         this.formError.set(null);
         this.selectedTargets.set([]);
+        this.grants.set([]);
         this.accessVisible.set(true);
 
         this.accountsApi.userTargets(user.id).subscribe({
-            next: (targets) => this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            next: (targets) => {
+                this.grants.set(targets ?? []);
+                this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`));
+            },
             error: () => this.formError.set(this.i18n.t('users.access_read_failed'))
         });
     }

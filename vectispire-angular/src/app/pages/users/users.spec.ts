@@ -42,6 +42,36 @@ describe('the accounts screen', () => {
         containers: [{ id: 3, label: 'registry/service:1.4' }]
     });
 
+    /** Two projects to grant, named as the server names a project grant: "Solution / Project". */
+    const openIssues = { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 };
+    const TREE = asSchema('SolutionTree', {
+        solutions: [
+            {
+                id: 1,
+                name: 'Payments',
+                description: null,
+                createdAt: '2026-09-01T00:00:00Z',
+                partial: false,
+                repositoryCount: 1,
+                openIssues,
+                projects: [
+                    {
+                        id: 11,
+                        solutionId: 1,
+                        name: 'Gateway',
+                        description: null,
+                        createdAt: '2026-09-01T00:00:00Z',
+                        partial: false,
+                        repositoryCount: 1,
+                        openIssues,
+                        repositories: [{ id: 7, name: 'helios-portal' }]
+                    }
+                ]
+            }
+        ],
+        unfiled: { repositoryCount: 0, openIssues, repositories: [] }
+    });
+
     /** Restricted mode, which is a fresh installation's default. */
     const SETTINGS = asSchema('Catalog', {
         settings: [
@@ -71,6 +101,7 @@ describe('the accounts screen', () => {
         // dialog. Emptied here so cases that are not about them stay readable — and the default is
         // restricted mode, the one where the assignments count.
         http.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
+        http.expectOne((call) => call.url === '/api/v1/solutions').flush(TREE);
         http.expectOne((call) => call.url === '/api/v1/settings').flush(SETTINGS);
     }, 20_000);
 
@@ -131,7 +162,7 @@ describe('the accounts screen', () => {
         page.openAccess(LIST.users[1]);
 
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
-            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+            asSchemaList('TargetGrant', [{ kind: 'repository', id: 7, name: 'helios-portal' }])
         );
 
         // A dialog that opened empty would make every save a total revocation: the administrator
@@ -154,17 +185,55 @@ describe('the accounts screen', () => {
         expect(picker().textContent).not.toContain('helios-portal');
 
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
-            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+            asSchemaList('TargetGrant', [{ kind: 'repository', id: 7, name: 'helios-portal' }])
         );
 
         await vi.waitFor(() => expect(picker().textContent).toContain('helios-portal'));
+    });
+
+    it('offers every project as a grant, named "Solution / Project"', () => {
+        expect(fixture.componentInstance.targetOptions()).toContainEqual({
+            label: 'users.target_project — Payments / Gateway',
+            value: 'project:11'
+        });
+    });
+
+    /**
+     * A project grant, **on screen and through the save.** The picker renders a selected value only
+     * if an option carries it; a project grant the dialog could not label would show as nothing
+     * ticked, and saving the dialog as shown would revoke it. The grant here names a project the
+     * tree does not hold, so only the server's name can label it.
+     */
+    it('shows a project grant by the name the server gives it, and keeps it on save', async () => {
+        fixture.autoDetectChanges();
+        const page = fixture.componentInstance;
+        page.openAccess(LIST.users[1]);
+        await fixture.whenStable();
+
+        http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
+            asSchemaList('TargetGrant', [
+                { kind: 'project', id: 42, name: 'Mobile / App' },
+                { kind: 'repository', id: 7, name: 'helios-portal' }
+            ])
+        );
+
+        const picker = () => document.querySelector('#user-targets')?.closest('p-multiselect') as HTMLElement;
+        await vi.waitFor(() => expect(picker().textContent).toContain('Mobile / App'));
+
+        page.saveAccess();
+        const put = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/users/2/targets');
+        expect(put.request.body).toEqual([
+            { kind: 'project', id: 42 },
+            { kind: 'repository', id: 7 }
+        ]);
+        put.flush([]);
     });
 
     it('sends the set as it stands, empty included, because empty is the revocation', () => {
         const page = fixture.componentInstance;
         page.openAccess(LIST.users[1]);
         http.expectOne((call) => call.url === '/api/v1/users/2/targets').flush(
-            asSchemaList('UserTargetAssignment', [{ kind: 'repository', id: 7 }])
+            asSchemaList('TargetGrant', [{ kind: 'repository', id: 7, name: 'helios-portal' }])
         );
 
         page.selectedTargets.set([]);
@@ -231,6 +300,7 @@ describe('the accounts screen', () => {
         wide.detectChanges();
         calls.expectOne((call) => call.url === '/api/v1/users').flush(LIST);
         calls.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
+        calls.expectOne((call) => call.url === '/api/v1/solutions').flush(TREE);
         calls
             .expectOne((call) => call.url === '/api/v1/settings')
             .flush(

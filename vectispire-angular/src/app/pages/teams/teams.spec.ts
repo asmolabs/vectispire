@@ -60,10 +60,41 @@ describe('the teams screen', () => {
         containers: [{ id: 3, label: 'registry.invalid/app:1.0' }]
     });
 
+    /** One project to grant, named as the server names a project grant: "Solution / Project". */
+    const openIssues = { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 };
+    const TREE = asSchema('SolutionTree', {
+        solutions: [
+            {
+                id: 1,
+                name: 'Payments',
+                description: null,
+                createdAt: '2026-09-01T00:00:00Z',
+                partial: false,
+                repositoryCount: 0,
+                openIssues,
+                projects: [
+                    {
+                        id: 11,
+                        solutionId: 1,
+                        name: 'Gateway',
+                        description: null,
+                        createdAt: '2026-09-01T00:00:00Z',
+                        partial: false,
+                        repositoryCount: 0,
+                        openIssues,
+                        repositories: []
+                    }
+                ]
+            }
+        ],
+        unfiled: { repositoryCount: 0, openIssues, repositories: [] }
+    });
+
     function settleBoot(accounts: object = ACCOUNTS): void {
         http.expectOne((call) => call.url === '/api/v1/teams').flush([TEAM]);
         http.expectOne((call) => call.url === '/api/v1/users').flush(accounts);
         http.expectOne((call) => call.url === '/api/v1/api-keys/targets').flush(TARGETS);
+        http.expectOne((call) => call.url === '/api/v1/solutions').flush(TREE);
     }
 
     beforeEach(async () => {
@@ -117,9 +148,9 @@ describe('the teams screen', () => {
 
         http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([2]);
         http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush(
-            asSchemaList('TeamTargetAssignment', [
-                { kind: 'repository', id: 7 },
-                { kind: 'container', id: 3 }
+            asSchemaList('TargetGrant', [
+                { kind: 'repository', id: 7, name: 'ours' },
+                { kind: 'container', id: 3, name: 'registry.invalid/app:1.0' }
             ])
         );
 
@@ -147,6 +178,50 @@ describe('the teams screen', () => {
         http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush([]);
 
         await vi.waitFor(() => expect(picker().textContent).toContain('reader'));
+    });
+
+    it('offers every project as a grant, named "Solution / Project"', () => {
+        settleBoot();
+
+        expect(fixture.componentInstance.targetOptions()).toContainEqual({
+            label: 'Project — Payments / Gateway',
+            value: 'project:11'
+        });
+    });
+
+    /**
+     * A project grant, **on screen and through the save.** The picker renders a selected value only
+     * if an option carries it; a grant the dialog could not label would show as nothing ticked, and
+     * saving the dialog as shown would revoke it. This one names a project the tree does not hold,
+     * so only the server's name can label it.
+     */
+    it('shows a project grant by the name the server gives it, and keeps it on save', async () => {
+        settleBoot();
+        fixture.autoDetectChanges();
+        const page = fixture.componentInstance;
+        page.openAccess(TEAM);
+        await fixture.whenStable();
+
+        http.expectOne((call) => call.url === '/api/v1/teams/4/members').flush([2]);
+        http.expectOne((call) => call.url === '/api/v1/teams/4/targets').flush(
+            asSchemaList('TargetGrant', [
+                { kind: 'project', id: 42, name: 'Mobile / App' },
+                { kind: 'container', id: 3, name: 'registry.invalid/app:1.0' }
+            ])
+        );
+
+        const picker = () => document.querySelector('#team-targets')?.closest('p-multiselect') as HTMLElement;
+        await vi.waitFor(() => expect(picker().textContent).toContain('Project — Mobile / App'));
+
+        page.saveAccess();
+        http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/members').flush([2]);
+        const targets = http.expectOne((call) => call.method === 'PUT' && call.url === '/api/v1/teams/4/targets');
+        expect(targets.request.body).toEqual([
+            { kind: 'project', id: 42 },
+            { kind: 'container', id: 3 }
+        ]);
+        targets.flush([]);
+        http.expectOne((call) => call.url === '/api/v1/teams').flush([TEAM]);
     });
 
     it('parses the identifiers back into numbers when saving', () => {

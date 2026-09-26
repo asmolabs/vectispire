@@ -7,6 +7,7 @@ import {
     IssuedApiKey,
     NewApiKey,
     NewUser,
+    TargetGrant,
     TeamSummary,
     TeamTargetAssignment,
     UserTargetAssignment,
@@ -91,9 +92,12 @@ export class AccountsApi {
         return this.http.put<number[]>(`/api/v1/teams/${id}/members`, userIds);
     }
 
-    /** Les cibles qu'un compte voit directement. Vide veut dire « aucune », en mode restreint. */
-    userTargets(id: number): Observable<UserTargetAssignment[]> {
-        return this.http.get<UserTargetAssignment[]>(`/api/v1/users/${id}/targets`);
+    /**
+     * The targets an account sees directly, each named by the server. Empty means "none", in
+     * restricted mode.
+     */
+    userTargets(id: number): Observable<TargetGrant[]> {
+        return this.http.get<TargetGrant[]>(`/api/v1/users/${id}/targets`);
     }
 
     /**
@@ -102,15 +106,15 @@ export class AccountsApi {
      * <p>Wholesale and not by additions: the operation that matters is the <em>removal</em>, and a
      * screen sending only what it wants added would make a revocation a click with no effect.
      */
-    setUserTargets(id: number, targets: UserTargetAssignment[]): Observable<UserTargetAssignment[]> {
-        return this.http.put<UserTargetAssignment[]>(`/api/v1/users/${id}/targets`, targets);
+    setUserTargets(id: number, targets: UserTargetAssignment[]): Observable<TargetGrant[]> {
+        return this.http.put<TargetGrant[]>(`/api/v1/users/${id}/targets`, targets);
     }
 
-    teamTargets(id: number): Observable<TeamTargetAssignment[]> {
-        return this.http.get<TeamTargetAssignment[]>(`/api/v1/teams/${id}/targets`);
+    teamTargets(id: number): Observable<TargetGrant[]> {
+        return this.http.get<TargetGrant[]>(`/api/v1/teams/${id}/targets`);
     }
 
-    setTeamTargets(id: number, targets: TeamTargetAssignment[]): Observable<TeamTargetAssignment[]> {
-        return this.http.put<TeamTargetAssignment[]>(`/api/v1/teams/${id}/targets`, targets);
+    setTeamTargets(id: number, targets: TeamTargetAssignment[]): Observable<TargetGrant[]> {
+        return this.http.put<TargetGrant[]>(`/api/v1/teams/${id}/targets`, targets);
     }
 }

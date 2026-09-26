@@ -11,15 +11,18 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { AccountsApi } from '../../core/api/accounts.api';
-import type { ApiKeyTargets, TeamSummary, TeamTargetAssignment, UserSummary } from '../../core/api.models';
+import { SolutionsApi } from '../../core/api/solutions.api';
+import type {
+    ApiKeyTargets,
+    SolutionTree,
+    TargetGrant,
+    TeamSummary,
+    TeamTargetAssignment,
+    UserSummary
+} from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-
-/** A target, as the multiselect needs it: one option list across both kinds. */
-interface TargetOption {
-    label: string;
-    value: string;
-}
+import { grantOptions } from '../../shared/grant-options';
 
 /**
  * Teams: who is in them, and what they own.
@@ -32,9 +35,6 @@ interface TargetOption {
  * Both halves are sent **wholesale**. A screen that sent only what it added, against a server
  * that only added, would make removing somebody a click that silently does nothing.
  */
-/** A list from the server, or none: read inside a computed the template renders, anything else would break the screen. */
-const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? rows : []);
-
 @Component({
     selector: 'app-teams',
     standalone: true,
@@ -56,26 +56,28 @@ const listOf = <T>(rows: T[] | null | undefined): T[] => (Array.isArray(rows) ? 
 })
 export class Teams {
     private readonly accountsApi = inject(AccountsApi);
+    private readonly solutionsApi = inject(SolutionsApi);
     private readonly i18n = inject(I18nService);
 
     readonly teams = signal<TeamSummary[]>([]);
     readonly accounts = signal<UserSummary[]>([]);
     private readonly targets = signal<ApiKeyTargets | null>(null);
+    /** Where the grantable projects come from: every project, named "Solution / Project". */
+    private readonly tree = signal<SolutionTree | null>(null);
+    /**
+     * What the open team holds, as the server names it. Kept beside the selection so a grant the
+     * lists above do not carry still has an option to be shown by — see `grantOptions`.
+     */
+    private readonly grants = signal<TargetGrant[]>([]);
 
     /** Labelled at render time, not at load: the language changes at runtime. */
-    readonly targetOptions = computed<TargetOption[]>(() => {
+    readonly targetOptions = computed(() => {
         this.i18n.translations();
-        const targets = this.targets();
-        return [
-            ...listOf(targets?.repositories).map((row) => ({
-                label: `${this.i18n.t('teams.target_repository')} — ${row.label}`,
-                value: `repository:${row.id}`
-            })),
-            ...listOf(targets?.containers).map((row) => ({
-                label: `${this.i18n.t('teams.target_image')} — ${row.label}`,
-                value: `container:${row.id}`
-            }))
-        ];
+        return grantOptions(this.targets(), this.tree(), this.grants(), {
+            repository: this.i18n.t('teams.target_repository'),
+            container: this.i18n.t('teams.target_image'),
+            project: this.i18n.t('teams.target_project')
+        });
     });
     readonly loading = signal(true);
     readonly saving = signal(false);
@@ -127,6 +129,10 @@ export class Teams {
         this.accountsApi.apiKeyTargets().subscribe({
             next: (targets) => this.targets.set(targets),
             error: () => this.targets.set(null)
+        });
+        this.solutionsApi.solutionTree().subscribe({
+            next: (tree) => this.tree.set(tree ?? null),
+            error: () => this.tree.set(null)
         });
     }
 
@@ -189,6 +195,7 @@ export class Teams {
         this.formError.set(null);
         this.selectedMembers.set([]);
         this.selectedTargets.set([]);
+        this.grants.set([]);
         this.accessVisible.set(true);
 
         this.accountsApi.teamMembers(team.id).subscribe({
@@ -196,7 +203,10 @@ export class Teams {
             error: () => this.formError.set(this.i18n.t('teams.error_read_members'))
         });
         this.accountsApi.teamTargets(team.id).subscribe({
-            next: (targets) => this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`)),
+            next: (targets) => {
+                this.grants.set(targets ?? []);
+                this.selectedTargets.set((targets ?? []).map((target) => `${target.kind}:${target.id}`));
+            },
             error: () => this.formError.set(this.i18n.t('teams.error_read_targets'))
         });
     }

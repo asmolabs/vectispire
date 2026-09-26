@@ -2138,7 +2138,7 @@
     "nobody_yet": "Nobody yet",
     "members_hint": "An administrator is never restricted, so adding one changes nothing for them.",
     "nothing_yet": "Nothing yet",
-    "targets_hint": "Every member sees each of these, and only administrators can change the list.",
+    "targets_hint": "Every member sees each of these, and only administrators can change the list. A project covers the repositories filed in it at the time of each request, those filed later included.",
     "webhook_url": "Webhook URL",
     "webhook_scope": "Only what concerns this team's targets is posted here. The global webhook keeps receiving everything.",
     "webhook_write_only": "The field starts empty even when a channel is set: the URL is never sent back, because reading it is enough to post in that channel.",
@@ -2146,7 +2146,8 @@
     "delete_header": "Delete this team?",
     "delete_consequence": "and its access go together: its {{members}} member(s) immediately lose the {{targets}} target(s) it owned, unless something else grants them.",
     "aria_rename": "Rename {{name}}",
-    "aria_delete": "Delete {{name}}"
+    "aria_delete": "Delete {{name}}",
+    "target_project": "Project"
   },
   "tiers": {
     "label": "Business Criticality Tier",
@@ -2216,7 +2217,7 @@
   "users": {
     "access_for": "Visibility of",
     "access_header": "Visibility",
-    "access_help": "This account sees these targets, plus those of its teams — the two sets add up. No target ticked means it sees nothing.",
+    "access_help": "This account sees these targets, plus those of its teams — the two sets add up. No target ticked means it sees nothing. A project covers the repositories filed in it at the time of each request, those filed later included.",
     "access_mode_everyone": "The “what a non-administrator sees” setting is on “everyone”: every signed-in account sees the whole estate, and these assignments decide nothing until it changes.",
     "access_none": "None",
     "access_read_failed": "This account's current targets could not be read.",
@@ -2258,7 +2259,8 @@
     "reset_hint": "The account will have to change it at its next sign-in.",
     "reset": "Reset",
     "delete_header": "Delete this account?",
-    "delete_consequence": "and its sessions will be deleted. This is permanent."
+    "delete_consequence": "and its sessions will be deleted. This is permanent.",
+    "target_project": "Project"
   },
   "git_tokens": {
     "title": "HTTPS tokens",
