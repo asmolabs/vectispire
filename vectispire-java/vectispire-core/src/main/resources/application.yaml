@@ -52,7 +52,8 @@ server:
 # people did, not how the system is behaving.
 #
 # `health` stays anonymous because a container probe has no session; everything else here needs
-# one. A metrics endpoint names internal structure and volumes, which is not something to publish
+# an administrator's session — not an agent or integration key, and not a session that still owes a
+# password change, none of which the application's route confinement reaches here (ActuatorAccess). A metrics endpoint names internal structure and volumes, which is not something to publish
 # to whoever can reach the port.
 #
 # Shipping these somewhere is one dependency away — add `io.micrometer:micrometer-registry-prometheus`

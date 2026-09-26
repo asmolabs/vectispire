@@ -124,4 +124,40 @@ class PlatformMetricsTest extends ApiTestBase {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
                         .isOk());
     }
+
+    @Test
+    @DisplayName("are an administrator's session's to read, and no other credential's")
+    void areAnAdministratorsSessionsOnly() throws Exception {
+        // The MVC confinement — an agent key to the agent protocol, an integration key to the
+        // routes of its scope, a session owing a password change to that change — does not reach
+        // Actuator, whose endpoints are not the application's handlers. Each of these read the
+        // instance's internal structure and volumes.
+        String agentKey = json.readTree(mvc.perform(authenticated(
+                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/admin/agents"),
+                                asAdmin())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"metrics-probe-" + System.nanoTime() + "\"}"))
+                .andReturn().getResponse().getContentAsString()).get("secret").asText();
+        String integrationKey = json.readTree(mvc.perform(authenticated(
+                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/api-keys"),
+                                asAdmin())
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"metrics-probe\", \"scopes\": [\"read\"]}"))
+                .andReturn().getResponse().getContentAsString()).get("secret").asText();
+
+        for (String endpoint : List.of("/actuator/metrics", "/actuator/info")) {
+            for (String refused : List.of(agentKey, integrationKey, asReader(), asCiso(), asPendingPasswordChange())) {
+                mvc.perform(authenticated(
+                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(endpoint), refused))
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status()
+                                .isForbidden());
+            }
+            mvc.perform(authenticated(
+                            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(endpoint), asAdmin()))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+        }
+        // The probe stays open: a container's health check has no session.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/actuator/health/liveness"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+    }
 }

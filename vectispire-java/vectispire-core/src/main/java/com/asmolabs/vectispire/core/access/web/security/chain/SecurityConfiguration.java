@@ -223,6 +223,9 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                         .requestMatchers("/api/v1/agent/**").permitAll()
                         .requestMatchers("/api/v1/tickets/webhook/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
+                        // The rest of Actuator: an administrator's session, and no other credential
+                        // — the MVC confinement does not reach these endpoints. See ActuatorAccess.
+                        .requestMatchers("/actuator/**").access(ActuatorAccess.administratorSession())
                         // **A complete endpoint catalogue, and who may read it is now a
                         // decision.** `springdoc` is off by default, so nothing is served at
                         // all until somebody turns it on — but when they did, this line handed
