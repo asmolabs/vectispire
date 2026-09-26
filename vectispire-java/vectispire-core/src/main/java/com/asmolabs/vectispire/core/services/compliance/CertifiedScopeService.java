@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

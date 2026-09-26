@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

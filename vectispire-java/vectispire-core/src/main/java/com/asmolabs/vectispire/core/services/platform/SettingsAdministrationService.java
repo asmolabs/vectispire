@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import java.time.Instant;
 import java.util.ArrayList;

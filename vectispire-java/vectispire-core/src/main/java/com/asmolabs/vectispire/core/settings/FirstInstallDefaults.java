@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.settings;
+package com.asmolabs.vectispire.core.settings;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.settings.Setting;

@@ -17,7 +17,7 @@ import com.asmolabs.vectispire.core.repositories.Teams;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
 import java.time.Instant;

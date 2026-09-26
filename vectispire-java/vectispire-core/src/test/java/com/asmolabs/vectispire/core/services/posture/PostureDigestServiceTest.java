@@ -23,7 +23,7 @@ import com.asmolabs.vectispire.core.services.notifications.MailNotificationChann
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

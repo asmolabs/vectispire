@@ -9,8 +9,9 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.repositories.Settings;
+import com.asmolabs.vectispire.core.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
+import com.asmolabs.vectispire.core.settings.persistence.Settings;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -36,15 +37,18 @@ class SigningKeyServiceTest extends VectispireContextTest {
     private Settings settings;
 
     @Autowired
+    private SettingsService settingsService;
+
+    @Autowired
     private EncryptionService encryption;
 
     @Test
     @DisplayName("survives a restart: a second instance signs with the key the first one stored")
     void survivesARestart() {
-        SigningKeyService first = new SigningKeyService("", settings, encryption);
+        SigningKeyService first = new SigningKeyService("", settingsService, encryption);
         String signature = first.sign(PAYLOAD);
 
-        SigningKeyService afterRestart = new SigningKeyService("", settings, encryption);
+        SigningKeyService afterRestart = new SigningKeyService("", settingsService, encryption);
 
         assertThat(afterRestart.getKeyId()).isEqualTo(first.getKeyId());
         assertThat(afterRestart.verify(PAYLOAD, signature)).isTrue();
@@ -58,7 +62,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
     void aConfiguredKeyPublishesItsOwnHalf() {
         KeyPair pair = CosignSigner.generateKeyPair();
 
-        SigningKeyService service = new SigningKeyService(CosignSigner.toPem(pair.getPrivate()), settings, encryption);
+        SigningKeyService service = new SigningKeyService(CosignSigner.toPem(pair.getPrivate()), settingsService, encryption);
 
         // It published the public half of a fresh random pair: nothing it signed ever verified.
         assertThat(service.getPublicKey().getEncoded()).isEqualTo(pair.getPublic().getEncoded());
@@ -74,7 +78,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         generator.initialize(new ECGenParameterSpec("secp384r1"));
         String p384 = CosignSigner.toPem(generator.generateKeyPair().getPrivate());
 
-        assertThatThrownBy(() -> new SigningKeyService(p384, settings, encryption))
+        assertThatThrownBy(() -> new SigningKeyService(p384, settingsService, encryption))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("P-256");
     }
@@ -87,7 +91,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         row.setValue("v2:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
         settings.save(row);
 
-        SigningKeyService service = new SigningKeyService("", settings, encryption);
+        SigningKeyService service = new SigningKeyService("", settingsService, encryption);
 
         assertThatThrownBy(() -> service.sign(PAYLOAD))
                 .isInstanceOf(IllegalStateException.class)
@@ -104,7 +108,7 @@ class SigningKeyServiceTest extends VectispireContextTest {
         when(unconfigured.encrypt(anyString(), anyString())).thenThrow(new MissingEncryptionKeyException());
         when(unconfigured.inspect(any(), any())).thenThrow(new MissingEncryptionKeyException());
 
-        SigningKeyService service = new SigningKeyService("", settings, unconfigured);
+        SigningKeyService service = new SigningKeyService("", settingsService, unconfigured);
 
         assertThatThrownBy(() -> service.sign(PAYLOAD)).isInstanceOf(MissingEncryptionKeyException.class);
         assertThat(settings.findById(SigningKeyService.STORED_KEY)).isEmpty();

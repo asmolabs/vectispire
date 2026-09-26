@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.services.settings.ProductVersion;
+import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 import com.asmolabs.vectispire.core.repositories.Issues;

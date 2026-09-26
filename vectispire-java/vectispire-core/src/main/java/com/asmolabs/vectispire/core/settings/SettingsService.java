@@ -1,10 +1,11 @@
-package com.asmolabs.vectispire.core.services.settings;
+package com.asmolabs.vectispire.core.settings;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.repositories.Settings;
+import com.asmolabs.vectispire.core.settings.persistence.SettingEntity;
+import com.asmolabs.vectispire.core.settings.persistence.Settings;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,6 +87,32 @@ public class SettingsService {
             // answer the deployment would give with no row at all.
             return Integer.parseInt(setting.defaultValue().trim());
         }
+    }
+
+    /**
+     * A row no {@link Setting} names: a value the deployment keeps for itself and never shows on the
+     * settings screen — the document signing key, encrypted, is the one there is. Empty when absent,
+     * and when the row holds no value.
+     *
+     * <p>Here rather than in its caller's hands because the table is this module's: {@code crypto}
+     * read and wrote {@code t_setting} through the repository while the code was packaged by layer,
+     * a dependency on settings nothing showed. No transaction of its own, as before the move — the
+     * repository call opens one.
+     */
+    public Optional<String> internalValue(String key) {
+        return settings.findById(key).map(SettingEntity::getValue);
+    }
+
+    /**
+     * Stores such a row and flushes it at once: the caller reads it back to find out which of two
+     * instances starting together won, and a row still in the persistence context would answer that
+     * question with its own write.
+     */
+    public void storeInternal(String key, String value) {
+        SettingEntity row = new SettingEntity();
+        row.setKey(key);
+        row.setValue(value);
+        settings.saveAndFlush(row);
     }
 
     /**

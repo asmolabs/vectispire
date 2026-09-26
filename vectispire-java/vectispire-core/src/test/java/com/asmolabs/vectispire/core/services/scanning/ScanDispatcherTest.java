@@ -37,7 +37,7 @@ import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.services.rules.RuleSetService;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;

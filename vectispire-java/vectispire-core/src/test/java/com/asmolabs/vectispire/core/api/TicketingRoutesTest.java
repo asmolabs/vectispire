@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 class TicketingRoutesTest extends ApiTestBase {
 
     @org.springframework.beans.factory.annotation.Autowired
-    private com.asmolabs.vectispire.core.services.settings.SettingsService settings;
+    private com.asmolabs.vectispire.core.settings.SettingsService settings;
 
     @Autowired
     private Issues issues;

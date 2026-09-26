@@ -20,7 +20,7 @@ import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.services.access.UserView;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

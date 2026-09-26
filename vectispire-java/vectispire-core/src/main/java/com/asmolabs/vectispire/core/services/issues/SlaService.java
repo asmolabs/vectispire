@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;

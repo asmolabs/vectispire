@@ -3,8 +3,7 @@ package com.asmolabs.vectispire.core.services.crypto;
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
-import com.asmolabs.vectispire.core.persistence.SettingEntity;
-import com.asmolabs.vectispire.core.repositories.Settings;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -50,7 +49,7 @@ public class SigningKeyService {
     private static final String CONTEXT = "internal:document_signing_key";
 
     private final String configuredKey;
-    private final Settings settings;
+    private final SettingsService settings;
     private final EncryptionService encryption;
 
     private volatile KeyMaterial material;
@@ -63,7 +62,7 @@ public class SigningKeyService {
     }
 
     public SigningKeyService(
-            @Value("${vectispire.signing.key:}") String configuredKey, Settings settings, EncryptionService encryption) {
+            @Value("${vectispire.signing.key:}") String configuredKey, SettingsService settings, EncryptionService encryption) {
         this.configuredKey = configuredKey == null ? "" : configuredKey.trim();
         this.settings = settings;
         this.encryption = encryption;
@@ -153,24 +152,21 @@ public class SigningKeyService {
     }
 
     private KeyMaterial loadOrCreate() {
-        String stored = settings.findById(STORED_KEY).map(SettingEntity::getValue).orElse("").trim();
+        String stored = settings.internalValue(STORED_KEY).orElse("").trim();
         if (!stored.isEmpty()) {
             return KeyMaterial.of(CosignSigner.parsePrivateKey(decrypt(stored)));
         }
 
         KeyPair generated = CosignSigner.generateKeyPair();
-        SettingEntity row = new SettingEntity();
-        row.setKey(STORED_KEY);
         // Throws MissingEncryptionKeyException without ENCRYPTION_KEY: a key that cannot be kept is
         // a key whose signatures die with this process.
-        row.setValue(encryption.encrypt(CosignSigner.toPem(generated.getPrivate()), CONTEXT));
-        settings.saveAndFlush(row);
+        settings.storeInternal(STORED_KEY, encryption.encrypt(CosignSigner.toPem(generated.getPrivate()), CONTEXT));
 
         // **Read back, and use what is stored.** Two instances starting together could each
         // generate a key; whichever row survives is the one both must sign with. The window is the
         // first signature on a fresh deployment — which is why a multi-instance deployment sets
         // vectispire.signing.key instead.
-        String kept = settings.findById(STORED_KEY).map(SettingEntity::getValue).orElseThrow().trim();
+        String kept = settings.internalValue(STORED_KEY).orElseThrow().trim();
         KeyMaterial key = KeyMaterial.of(CosignSigner.parsePrivateKey(decrypt(kept)));
         log.info("Generated the document signing key {} and stored it encrypted. Keep ENCRYPTION_KEY: without it, "
                 + "this key cannot be read back and nothing can be signed.", key.keyId());

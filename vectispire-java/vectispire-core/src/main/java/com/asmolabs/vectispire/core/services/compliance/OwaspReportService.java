@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.services.settings.BrandingProperties;
+import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;

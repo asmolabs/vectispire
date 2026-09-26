@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
-import com.asmolabs.vectispire.core.services.settings.FirstInstallDefaults;
+import com.asmolabs.vectispire.core.settings.FirstInstallDefaults;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;

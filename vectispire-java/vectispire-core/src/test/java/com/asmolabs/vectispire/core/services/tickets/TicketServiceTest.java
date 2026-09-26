@@ -23,7 +23,7 @@ import com.asmolabs.vectispire.core.services.crypto.EncryptionProperties;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;

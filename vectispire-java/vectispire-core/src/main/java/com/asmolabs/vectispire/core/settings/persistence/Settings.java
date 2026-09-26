@@ -1,6 +1,5 @@
-package com.asmolabs.vectispire.core.repositories;
+package com.asmolabs.vectispire.core.settings.persistence;
 
-import com.asmolabs.vectispire.core.persistence.SettingEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

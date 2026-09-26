@@ -20,7 +20,7 @@ import com.asmolabs.vectispire.core.services.access.UserView;
 import com.asmolabs.vectispire.core.services.ai.AiReviewService;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.notifications.NotificationService;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.services.tickets.TicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;

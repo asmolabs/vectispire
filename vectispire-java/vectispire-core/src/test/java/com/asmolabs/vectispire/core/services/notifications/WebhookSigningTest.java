@@ -19,7 +19,7 @@ import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbound.PinnedHttpSender;
-import com.asmolabs.vectispire.core.services.settings.SettingsService;
+import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Duration;

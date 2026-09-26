@@ -78,7 +78,7 @@ class ArchitectureTest {
      * issues}, {@code scanning}, {@code targets}, {@code platform} and {@code shared} are step 5's
      * and still live in the layered packages.
      */
-    private static final List<String> MODULES = List.of();
+    private static final List<String> MODULES = List.of("settings");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -222,7 +222,10 @@ class ArchitectureTest {
             Map.entry("shared", Set.of()),
             Map.entry("settings", Set.of()),
             Map.entry("outbound", Set.of()),
-            Map.entry("crypto", Set.of("outbound")),
+            // `settings` since the foundation became modules: the document signing key is kept in a
+            // `t_setting` row, which `crypto` read and wrote through the repository. Now through
+            // `SettingsService`; `settings` uses nothing, so no cycle can close.
+            Map.entry("crypto", Set.of("outbound", "settings")),
             Map.entry("audit", Set.of()),
             Map.entry("outbox", Set.of()),
             Map.entry("reporting", Set.of()),
