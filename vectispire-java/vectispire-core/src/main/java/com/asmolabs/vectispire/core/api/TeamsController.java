@@ -165,9 +165,9 @@ public class TeamsController {
 
     private static TeamSummary summaryOf(TeamView view) {
         return new TeamSummary(
-                view.team().getId(),
-                view.team().getName(),
-                view.team().getDescription(),
+                view.id(),
+                view.name(),
+                view.description(),
                 view.memberCount(),
                 view.targetCount(),
                 view.notified());

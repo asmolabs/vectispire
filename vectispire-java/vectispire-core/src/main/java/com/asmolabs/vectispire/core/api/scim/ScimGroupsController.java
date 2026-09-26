@@ -57,7 +57,7 @@ public class ScimGroupsController {
             case ScimProvisioningService.GroupCreation.NameTaken taken ->
                     ResponseEntity.status(HttpStatus.CONFLICT).build();
             case ScimProvisioningService.GroupCreation.Created(ScimProvisioningService.GroupView group) ->
-                    ResponseEntity.created(URI.create("/scim/v2/Groups/" + group.team().getId())).body(toDto(group));
+                    ResponseEntity.created(URI.create("/scim/v2/Groups/" + group.id())).body(toDto(group));
         };
     }
 
@@ -99,15 +99,15 @@ public class ScimGroupsController {
 
         ScimGroupDto.ScimGroupMeta meta = new ScimGroupDto.ScimGroupMeta(
                 "Group",
-                group.team().getCreatedAt() != null ? group.team().getCreatedAt().toString() : null,
+                group.createdAt() != null ? group.createdAt().toString() : null,
                 null,
-                "/scim/v2/Groups/" + group.team().getId());
+                "/scim/v2/Groups/" + group.id());
 
         return new ScimGroupDto(
                 List.of(ScimGroupDto.SCHEMA_GROUP),
-                String.valueOf(group.team().getId()),
+                String.valueOf(group.id()),
                 null,
-                group.team().getName(),
+                group.name(),
                 memberDtos,
                 meta);
     }

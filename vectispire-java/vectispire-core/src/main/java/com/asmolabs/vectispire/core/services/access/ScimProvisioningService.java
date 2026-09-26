@@ -122,7 +122,7 @@ public class ScimProvisioningService {
     }
 
     public sealed interface UserCreation {
-        record Created(UserEntity user) implements UserCreation {}
+        record Created(UserView user) implements UserCreation {}
 
         record UsernameTaken() implements UserCreation {}
     }
@@ -130,7 +130,8 @@ public class ScimProvisioningService {
     /** @param display the member's username, or its identifier when the account is gone */
     public record GroupMember(long userId, String display) {}
 
-    public record GroupView(TeamEntity team, List<GroupMember> members) {}
+    /** A team as SCIM describes it: the row's properties under their own names, and its members. */
+    public record GroupView(Long id, String name, Instant createdAt, List<GroupMember> members) {}
 
     public sealed interface GroupCreation {
         record Created(GroupView group) implements GroupCreation {}
@@ -140,15 +141,15 @@ public class ScimProvisioningService {
 
     // --- Users ---------------------------------------------------------------------------------
 
-    public List<UserEntity> users(String filter) {
-        if (filter != null && !filter.isBlank()) {
-            return filterUsers(filter.trim());
-        }
-        return users.findAllByOrderByUsernameAsc();
+    public List<UserView> users(String filter) {
+        List<UserEntity> found = filter != null && !filter.isBlank()
+                ? filterUsers(filter.trim())
+                : users.findAllByOrderByUsernameAsc();
+        return found.stream().map(UserView::of).toList();
     }
 
-    public Optional<UserEntity> user(Long id) {
-        return users.findById(id);
+    public Optional<UserView> user(Long id) {
+        return users.findById(id).map(UserView::of);
     }
 
     public UserCreation createUser(UserAttributes attributes, RequestActor origin) {
@@ -184,11 +185,11 @@ public class ScimProvisioningService {
                 origin.ipAddress(),
                 origin.userAgent()));
 
-        return new UserCreation.Created(saved);
+        return new UserCreation.Created(UserView.of(saved));
     }
 
     /** Empty when there is no such account. */
-    public Optional<UserEntity> replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
+    public Optional<UserView> replaceUser(Long id, UserAttributes attributes, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -242,11 +243,11 @@ public class ScimProvisioningService {
                     origin.userAgent()));
         }
 
-        return Optional.of(saved);
+        return Optional.of(UserView.of(saved));
     }
 
     /** Empty when there is no such account. */
-    public Optional<UserEntity> patchUser(Long id, List<PatchOperation> operations, RequestActor origin) {
+    public Optional<UserView> patchUser(Long id, List<PatchOperation> operations, RequestActor origin) {
         Optional<UserEntity> found = users.findById(id);
         if (found.isEmpty()) {
             return Optional.empty();
@@ -275,7 +276,7 @@ public class ScimProvisioningService {
                     origin.userAgent()));
         }
 
-        return Optional.of(saved);
+        return Optional.of(UserView.of(saved));
     }
 
     /** Idempotent, as RFC 7644 lets it be: deleting an account that is not there is not an error. */
@@ -463,7 +464,7 @@ public class ScimProvisioningService {
         });
 
         replaced.ifPresent(group ->
-                recordGroup(origin, "SCIM updated team: " + group.team().getName(), group.team().getName()));
+                recordGroup(origin, "SCIM updated team: " + group.name(), group.name()));
         return replaced;
     }
 
@@ -492,7 +493,7 @@ public class ScimProvisioningService {
         });
 
         patched.ifPresent(group ->
-                recordGroup(origin, "SCIM patched team: " + group.team().getName(), group.team().getName()));
+                recordGroup(origin, "SCIM patched team: " + group.name(), group.name()));
         return patched;
     }
 
@@ -568,6 +569,6 @@ public class ScimProvisioningService {
                 memberViews.add(new GroupMember(tm.getId().userId(), display));
             }
         }
-        return new GroupView(team, memberViews);
+        return new GroupView(team.getId(), team.getName(), team.getCreatedAt(), memberViews);
     }
 }

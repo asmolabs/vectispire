@@ -20,6 +20,7 @@ import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.settings.SettingsService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -93,12 +94,27 @@ public class TeamAdministrationService {
     }
 
     /**
-     * A team with what the list shows of it.
+     * A team with what the list shows of it: the row's properties under their own names, and the
+     * counts beside them — never the row, which is not the controller's to hold.
      *
      * @param notified whether it has its own channel — never the URL, which is a bearer
      *     capability and has no way out of this class
      */
-    public record TeamView(TeamEntity team, int memberCount, int targetCount, boolean notified) {}
+    public record TeamView(
+            Long id,
+            String name,
+            String description,
+            Instant createdAt,
+            int memberCount,
+            int targetCount,
+            boolean notified) {
+
+        static TeamView of(TeamEntity team, int memberCount, int targetCount, boolean notified) {
+            return new TeamView(
+                    team.getId(), team.getName(), team.getDescription(), team.getCreatedAt(),
+                    memberCount, targetCount, notified);
+        }
+    }
 
     /** @param kind {@code repository}, {@code container} or {@code project} */
     public record TargetAssignment(String kind, Long id) implements TargetNaming.Grant {}
@@ -116,7 +132,7 @@ public class TeamAdministrationService {
 
         return teams.findAll().stream()
                 .sorted(Comparator.comparing(TeamEntity::getName, String.CASE_INSENSITIVE_ORDER))
-                .map(team -> new TeamView(
+                .map(team -> TeamView.of(
                         team,
                         members.getOrDefault(team.getId(), 0L).intValue(),
                         owned.getOrDefault(team.getId(), 0L).intValue(),
@@ -135,7 +151,7 @@ public class TeamAdministrationService {
         TeamEntity saved = teams.save(team);
 
         record(actor, saved.getId(), AuditOperation.TEAM_UPDATED, "Team created: " + name);
-        return new TeamView(saved, 0, 0, false);
+        return TeamView.of(saved, 0, 0, false);
     }
 
     /** Either field may be null, which leaves it as it is. */
@@ -155,7 +171,7 @@ public class TeamAdministrationService {
 
         record(actor, id, AuditOperation.TEAM_UPDATED,
                 "Team " + previous + " updated" + (previous.equals(team.getName()) ? "" : " → " + team.getName()));
-        return new TeamView(
+        return TeamView.of(
                 team,
                 memberships.findByTeamId(id).size(),
                 targets.findByTeamId(id).size(),
@@ -305,7 +321,7 @@ public class TeamAdministrationService {
                     "Webhook set on " + team.getName());
         }
 
-        return new TeamView(
+        return TeamView.of(
                 team,
                 memberships.findByTeamId(id).size(),
                 targets.findByTeamId(id).size(),

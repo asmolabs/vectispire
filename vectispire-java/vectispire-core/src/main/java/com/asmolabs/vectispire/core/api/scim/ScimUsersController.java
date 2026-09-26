@@ -6,8 +6,8 @@ import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimUserDto;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.services.access.ScimProvisioningService;
+import com.asmolabs.vectispire.core.services.access.UserView;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;
@@ -67,8 +67,8 @@ public class ScimUsersController {
         return switch (provisioning.createUser(attributesOf(dto), RequestActors.unnamed(request))) {
             case ScimProvisioningService.UserCreation.UsernameTaken taken ->
                     ResponseEntity.status(HttpStatus.CONFLICT).build();
-            case ScimProvisioningService.UserCreation.Created(UserEntity saved) ->
-                    ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.getId())).body(toDto(saved));
+            case ScimProvisioningService.UserCreation.Created(UserView saved) ->
+                    ResponseEntity.created(URI.create("/scim/v2/Users/" + saved.id())).body(toDto(saved));
         };
     }
 
@@ -127,30 +127,30 @@ public class ScimUsersController {
                 dto.roles() != null && !dto.roles().isEmpty() ? dto.roles().get(0).value() : null);
     }
 
-    private static ScimUserDto toDto(UserEntity user) {
-        List<ScimUserDto.Email> emails = user.getEmail() != null && !user.getEmail().isBlank()
-                ? List.of(new ScimUserDto.Email(user.getEmail(), "work", true))
+    private static ScimUserDto toDto(UserView user) {
+        List<ScimUserDto.Email> emails = user.email() != null && !user.email().isBlank()
+                ? List.of(new ScimUserDto.Email(user.email(), "work", true))
                 : List.of();
-        List<ScimUserDto.RoleEntry> roles = user.getRole() != null
-                ? List.of(new ScimUserDto.RoleEntry(user.getRole(), true))
+        List<ScimUserDto.RoleEntry> roles = user.role() != null
+                ? List.of(new ScimUserDto.RoleEntry(user.role(), true))
                 : List.of();
 
         ScimUserDto.ScimUserMeta meta = new ScimUserDto.ScimUserMeta(
                 "User",
-                user.getCreatedAt() != null ? user.getCreatedAt().toString() : null,
-                user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null,
-                "/scim/v2/Users/" + user.getId());
+                user.createdAt() != null ? user.createdAt().toString() : null,
+                user.updatedAt() != null ? user.updatedAt().toString() : null,
+                "/scim/v2/Users/" + user.id());
 
         return new ScimUserDto(
                 List.of(ScimUserDto.SCHEMA_USER),
-                String.valueOf(user.getId()),
-                user.getKeycloakId(),
-                user.getUsername(),
-                new ScimUserDto.Name(user.getDisplayName(), null, null),
-                user.getDisplayName(),
+                String.valueOf(user.id()),
+                user.keycloakId(),
+                user.username(),
+                new ScimUserDto.Name(user.displayName(), null, null),
+                user.displayName(),
                 emails,
                 roles,
-                user.getIsActive(),
+                user.isActive(),
                 meta);
     }
 
