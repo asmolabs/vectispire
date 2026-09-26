@@ -69,7 +69,8 @@ class OutboxServiceTest {
     @Test
     @DisplayName("the payload carries a message identifier, because delivery is at-least-once")
     void enqueueStampsAnIdentifier() {
-        OutboxMessageEntity message = service.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA);
+        service.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA);
+        OutboxMessageEntity message = saved();
 
         // The POST can succeed and the transaction marking it sent can fail. The receiver is the
         // only place that ambiguity can be resolved, so it has to be told which message this is.
@@ -166,7 +167,8 @@ class OutboxServiceTest {
     void thePayloadSurvivesTheRoundTrip() {
         NotificationPayload queued = NotificationPayload.of(new NotificationPayload.Delta(
                 "service", 7, List.of(issue()), List.of(), 3, Severity.HIGH));
-        OutboxMessageEntity stored = service.enqueue(queued, OutboxService.TYPE_SCAN_DELTA);
+        service.enqueue(queued, OutboxService.TYPE_SCAN_DELTA);
+        OutboxMessageEntity stored = saved();
         due(stored);
 
         ArgumentCaptor<NotificationPayload> delivered = ArgumentCaptor.forClass(NotificationPayload.class);
@@ -201,6 +203,13 @@ class OutboxServiceTest {
     private static NotificationPayload.NotifiableIssue issue() {
         return new NotificationPayload.NotifiableIssue(
                 1L, "CVE-2026-1", FindingType.VULNERABILITY, Severity.HIGH, false, 0.4, "openssl", null, "3.5.2", null);
+    }
+
+    /** The row {@code enqueue} handed the repository — it returns the message identifier only, since decision 0029. */
+    private OutboxMessageEntity saved() {
+        ArgumentCaptor<OutboxMessageEntity> row = ArgumentCaptor.forClass(OutboxMessageEntity.class);
+        verify(messages).save(row.capture());
+        return row.getValue();
     }
 
     private void due(OutboxMessageEntity... pending) {

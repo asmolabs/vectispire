@@ -63,14 +63,15 @@ class OutboxDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("the payload carries the identifier the row was given")
     void theStampedIdentifierMatchesTheRow() {
-        OutboxMessageEntity stored = transactions.execute(
+        UUID id = transactions.execute(
                 status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA));
 
         // Assigned before the insert because it goes inside the payload — the reason the entity
         // is `Persistable`. If the two ever disagreed, a receiver would deduplicate on a value
-        // nothing else refers to.
-        assertThat(stored.getPayload()).contains(stored.getId().toString());
-        assertThat(messages.findById(stored.getId())).isPresent();
+        // nothing else refers to. Read back from the table: what `enqueue` returns is the
+        // identifier it stamped, and the row is what a receiver's message is compared with.
+        OutboxMessageEntity stored = messages.findById(id).orElseThrow();
+        assertThat(stored.getPayload()).contains(id.toString());
     }
 
     @Test
@@ -88,8 +89,7 @@ class OutboxDatabaseTest extends VectispireContextTest {
     @DisplayName("a due message is claimed by one caller only, and falls due again if its claimant vanishes")
     void aClaimIsExclusiveAndLapses() {
         UUID id = transactions
-                .execute(status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA))
-                .getId();
+                .execute(status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA));
         Instant now = Instant.now();
         Instant until = now.plus(OutboxRetry.CLAIM_WINDOW);
 
@@ -106,8 +106,7 @@ class OutboxDatabaseTest extends VectispireContextTest {
     @DisplayName("a message waiting for its retry is not due yet")
     void aScheduledRetryIsNotDue() {
         UUID id = transactions
-                .execute(status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA))
-                .getId();
+                .execute(status -> outbox.enqueue(Map.of("scan_id", 7), OutboxService.TYPE_SCAN_DELTA));
         Instant now = Instant.now();
         messages.recordAttempt(id, 1, "connection refused", "pending", now.plusSeconds(600));
 
@@ -119,11 +118,9 @@ class OutboxDatabaseTest extends VectispireContextTest {
     @DisplayName("only delivered messages past their retention are pruned")
     void pruningSparesWhatIsStillPending() {
         UUID pending = transactions
-                .execute(status -> outbox.enqueue(Map.of("scan_id", 1), OutboxService.TYPE_SCAN_DELTA))
-                .getId();
+                .execute(status -> outbox.enqueue(Map.of("scan_id", 1), OutboxService.TYPE_SCAN_DELTA));
         UUID sent = transactions
-                .execute(status -> outbox.enqueue(Map.of("scan_id", 2), OutboxService.TYPE_SCAN_DELTA))
-                .getId();
+                .execute(status -> outbox.enqueue(Map.of("scan_id", 2), OutboxService.TYPE_SCAN_DELTA));
         messages.markSent(sent, 1, "sent", Instant.now().minus(OutboxRetry.SENT_RETENTION).minusSeconds(60));
 
         assertThat(outbox.pruneSent()).isEqualTo(1);

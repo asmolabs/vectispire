@@ -91,9 +91,15 @@ public class OutboxService {
      * <p>A message identifier is stamped into the payload because delivery is at-least-once —
      * the POST can succeed and the transaction marking it sent can fail — and the receiver is
      * the only place that ambiguity can be resolved.
+     *
+     * @return the message identifier stamped into the payload. <b>Not the stored row</b>, which it
+     *     used to be: no caller outside this module read it, and it put the relay's entity in the
+     *     signature every enqueuing module compiles against — {@code siem} and {@code notifications}
+     *     depended on {@code outbox}'s persistence through a return type no dependency rule counts
+     *     (decision 0029)
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public OutboxMessageEntity enqueue(Object payload, String messageType) {
+    public UUID enqueue(Object payload, String messageType) {
         return enqueue(payload, messageType, null);
     }
 
@@ -105,7 +111,7 @@ public class OutboxService {
      *     the first POST succeeded
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public OutboxMessageEntity enqueue(Object payload, String messageType, Long teamId) {
+    public UUID enqueue(Object payload, String messageType, Long teamId) {
         UUID id = UUID.randomUUID();
         ObjectNode body = json.valueToTree(payload);
         body.put("message_id", id.toString());
@@ -121,7 +127,8 @@ public class OutboxService {
         message.setLastError(null);
         message.setCreatedAt(clock.instant());
         message.setSentAt(null);
-        return messages.save(message);
+        messages.save(message);
+        return id;
     }
 
     /**
