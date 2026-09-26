@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.targets.TargetDeleted;
 import com.asmolabs.vectispire.common.domain.targets.TargetPurge;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
 import com.asmolabs.vectispire.core.access.persistence.UserTargets;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -20,19 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class TargetGrantsPurge {
 
-    private final UserTargets userTargets;
-    private final TeamTargets teamTargets;
+    private final TargetGrants grants;
 
-    TargetGrantsPurge(UserTargets userTargets, TeamTargets teamTargets) {
-        this.userTargets = userTargets;
-        this.teamTargets = teamTargets;
+    TargetGrantsPurge(TargetGrants grants) {
+        this.grants = grants;
     }
 
     @EventListener
     @Order(TargetPurge.Phase.REFERENCES)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetDeleted deleted) {
-        userTargets.deleteByTarget(deleted.kind(), deleted.id());
-        teamTargets.deleteByTarget(deleted.kind(), deleted.id());
+        grants.revokeAll(deleted.kind(), deleted.id());
     }
 }

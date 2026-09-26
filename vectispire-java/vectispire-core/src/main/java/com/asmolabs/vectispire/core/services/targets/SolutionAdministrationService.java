@@ -6,8 +6,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.RowVisibility;
-import com.asmolabs.vectispire.core.access.persistence.TeamTargets;
-import com.asmolabs.vectispire.core.access.persistence.UserTargets;
+import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.ProjectEntity;
@@ -56,8 +55,7 @@ public class SolutionAdministrationService {
     private final Solutions solutions;
     private final Projects projects;
     private final GitRepositories repositories;
-    private final UserTargets userTargets;
-    private final TeamTargets teamTargets;
+    private final TargetGrants grants;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
     private final Clock clock;
@@ -66,16 +64,14 @@ public class SolutionAdministrationService {
             Solutions solutions,
             Projects projects,
             GitRepositories repositories,
-            UserTargets userTargets,
-            TeamTargets teamTargets,
+            TargetGrants grants,
             AuditLogService audit,
             TransactionTemplate transactions,
             Clock clock) {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;
-        this.userTargets = userTargets;
-        this.teamTargets = teamTargets;
+        this.grants = grants;
         this.audit = audit;
         this.transactions = transactions;
         this.clock = clock;
@@ -219,10 +215,9 @@ public class SolutionAdministrationService {
 
         Removed removed = transactions.execute(status -> {
             int detached = repositories.detachProject(id);
-            int grants = userTargets.deleteByTarget(TeamRules.KIND_PROJECT, id)
-                    + teamTargets.deleteByTarget(TeamRules.KIND_PROJECT, id);
+            int revoked = grants.revokeAll(TeamRules.KIND_PROJECT, id);
             projects.deleteById(id);
-            return new Removed(detached, grants);
+            return new Removed(detached, revoked);
         });
 
         AuditLogService.Record deleted = actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id),
