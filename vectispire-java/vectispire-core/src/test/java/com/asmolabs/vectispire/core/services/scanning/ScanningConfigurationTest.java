@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
-import com.asmolabs.vectispire.core.rules.RuleSetService;
 import java.time.Clock;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,8 +52,8 @@ class ScanningConfigurationTest {
     static class Dependencies {
 
         @Bean
-        RuleSetService ruleSetService() {
-            return mock(RuleSetService.class);
+        ScanRuleSets scanRuleSets() {
+            return mock(ScanRuleSets.class);
         }
 
         @Bean

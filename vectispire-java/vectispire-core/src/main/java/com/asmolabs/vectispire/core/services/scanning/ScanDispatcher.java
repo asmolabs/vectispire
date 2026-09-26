@@ -25,7 +25,6 @@ import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
-import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import jakarta.annotation.PreDestroy;
@@ -79,7 +78,7 @@ public class ScanDispatcher {
     private final ScanIngestor ingestor;
     private final EncryptionService encryption;
     private final SettingsService settings;
-    private final RuleSetService ruleSets;
+    private final ScanRuleSets ruleSets;
     private final SealedEnvelope envelopes;
     private final ScanningProperties properties;
 
@@ -123,7 +122,7 @@ public class ScanDispatcher {
             ScanIngestor ingestor,
             EncryptionService encryption,
             SettingsService settings,
-            RuleSetService ruleSets,
+            ScanRuleSets ruleSets,
             SealedEnvelope envelopes,
             ScanningProperties properties,
             Optional<ScanRunner> runner,
@@ -550,7 +549,7 @@ public class ScanDispatcher {
                 // every executor identical: an agent asking for "the active set" itself would
                 // scan with whatever it found at the moment it asked, and two agents could
                 // diverge on the same target.
-                ruleSets.active().map(set -> set.getContentHash()).orElse(null),
+                ruleSets.activeHash().orElse(null),
                 steps);
     }
 

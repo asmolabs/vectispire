@@ -34,7 +34,6 @@ import com.asmolabs.vectispire.core.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.repositories.Containers;
 import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.SshKeys;
-import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.services.issues.IssueSyncService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Duration;
@@ -71,7 +70,7 @@ class ScanDispatcherTest {
     private SshKeys sshKeys;
     private com.asmolabs.vectispire.core.repositories.GitTokens gitTokens;
     private SettingsService settings;
-    private RuleSetService ruleSets;
+    private ScanRuleSets ruleSets;
     private ScanDispatcher dispatcher;
 
     @BeforeEach
@@ -82,9 +81,9 @@ class ScanDispatcherTest {
         sshKeys = mock(SshKeys.class);
         gitTokens = mock(com.asmolabs.vectispire.core.repositories.GitTokens.class);
         settings = mock(SettingsService.class);
-        ruleSets = mock(RuleSetService.class);
+        ruleSets = mock(ScanRuleSets.class);
 
-        when(ruleSets.active()).thenReturn(Optional.empty());
+        when(ruleSets.activeHash()).thenReturn(Optional.empty());
         when(settings.isEnabled(any())).thenReturn(false);
         when(repositories.findById(1L)).thenReturn(Optional.of(repository()));
         when(sshKeys.findById(KEY_ID)).thenReturn(Optional.of(sshKey()));

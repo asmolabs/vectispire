@@ -240,7 +240,11 @@ class ArchitectureTest {
             // `inventory` since inventory became a module: rule coverage compares the rule sets with the
             // package URLs the components inventory holds, which it read through the repository.
             // `inventory` uses nothing above the foundation.
-            Map.entry("rules", Set.of("inventory")),
+            // `scanning` since step 5, and in place of `scanning` -> `rules`: a scan asks which rule set
+            // is active and fetches its files through `ScanRuleSets`, a port `scanning` declares and
+            // `rules` implements. Called the other way, `scanning` -> `rules` -> `inventory` ->
+            // `scanning` would be a cycle once the inventory reads scans through their module.
+            Map.entry("rules", Set.of("inventory", "scanning")),
             Map.entry("inventory", Set.of()),
             Map.entry("ai", Set.of("access")),
             Map.entry("issues", Set.of("access")),
@@ -249,7 +253,7 @@ class ArchitectureTest {
             // for the policies in force instead of reading their table from below it. `gate` uses
             // nothing that uses `tickets` (the tracker implements `issues`' `TicketReferences`).
             Map.entry("tickets", Set.of("access", "gate", "issues")),
-            Map.entry("scanning", Set.of("access", "inventory", "issues", "rules")),
+            Map.entry("scanning", Set.of("access", "inventory", "issues")),
             // `rules` since agents became a module and took its controllers: a remote agent fetches the
             // rule set a task names by its hash (`AgentsController.ruleSet`). `rules` uses nothing
             // above the foundation.
