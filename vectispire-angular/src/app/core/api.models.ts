@@ -654,6 +654,53 @@ export type TeamTargetAssignment = Refine<Schema<'TeamTargetAssignment'>, { kind
  */
 export type UserTargetAssignment = Refine<Schema<'UserTargetAssignment'>, { kind: string; id: number }>;
 
+/**
+ * A grant as the server reads it back, **named by the server**.
+ *
+ * The write side stays `{ kind, id }`; the read side carries the name because a project grant
+ * names something the picker's repository and image lists do not hold — "Solution / Project" —
+ * and a grant the dialog cannot label is a grant it shows as nothing, then drops on save.
+ * `kind` is `repository`, `container` or `project`; left a string so a fourth kind is shown raw
+ * rather than refused.
+ */
+export type TargetGrant = Refine<Schema<'TargetGrant'>, { kind: string; id: number; name: string | null }>;
+
+/** Open issues by severity, over what the reader may see — settled triage left out. */
+export type OpenIssues = Schema<'OpenIssues'>;
+
+export type RepositoryRef = Refine<Schema<'RepositoryRef'>, { id: number; name: string }>;
+
+/** A project in the tree. `partial` says the reader sees only some of its repositories. */
+export type ProjectNode = Refine<
+    Schema<'ProjectNode'>,
+    {
+        id: number;
+        solutionId: number;
+        name: string;
+        description: string | null;
+        openIssues: OpenIssues;
+        repositories: RepositoryRef[];
+    }
+>;
+
+export type SolutionNode = Refine<
+    Schema<'SolutionNode'>,
+    { id: number; name: string; description: string | null; openIssues: OpenIssues; projects: ProjectNode[] }
+>;
+
+/** The repositories in no project: a group of its own, never left out of the tree. */
+export type Unfiled = Refine<Schema<'Unfiled'>, { openIssues: OpenIssues; repositories: RepositoryRef[] }>;
+
+/** `GET /api/v1/solutions` — decision 0023. */
+export type SolutionTree = Refine<Schema<'SolutionTree'>, { solutions: SolutionNode[]; unfiled: Unfiled }>;
+
+export type SolutionView = Refine<Schema<'SolutionView'>, { id: number; name: string; description: string | null }>;
+
+export type ProjectView = Refine<
+    Schema<'ProjectView'>,
+    { id: number; solutionId: number; name: string; description: string | null }
+>;
+
 /** A target a key may be scoped to, as the picker needs it: identified and named. */
 export type TargetOption = Refine<Schema<'TargetOption'>, { id: number; label: string }>;
 

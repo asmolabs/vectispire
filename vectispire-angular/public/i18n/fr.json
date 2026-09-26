@@ -1371,7 +1371,8 @@
     "evidence": "Conformité & preuves",
     "posture": "Posture de sécurité",
     "compliance_history": "Progression de la conformité",
-    "git_tokens": "Jetons HTTPS"
+    "git_tokens": "Jetons HTTPS",
+    "solutions": "Solutions et projets"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -2051,6 +2052,51 @@
     "negligible": "Négligeable",
     "unknown": "Inconnue"
   },
+  "solutions": {
+    "title": "Solutions et projets",
+    "subtitle": "Quels dépôts composent quel produit. Les chiffres ne couvrent que ce que vous pouvez voir.",
+    "new_solution": "Nouvelle solution",
+    "new_project": "Nouveau projet",
+    "repository_count": "Dépôts : {{count}}",
+    "partial": "Visible en partie : {{count}} dépôts que vous pouvez voir",
+    "no_open_issues": "Aucun problème ouvert",
+    "empty": "Aucune solution ne vous est encore visible.",
+    "empty_admin": "Aucune solution pour l'instant. Créez-en une, ajoutez-y des projets, puis classez-y les dépôts.",
+    "no_projects": "Aucun projet dans cette solution pour l'instant.",
+    "no_repositories": "Aucun dépôt classé dans ce projet.",
+    "unfiled": "Sans projet",
+    "unfiled_hint": "Les dépôts classés dans aucun projet. Rien n'est déduit : un administrateur les classe.",
+    "unfiled_empty": "Tous les dépôts que vous voyez sont classés dans un projet.",
+    "aria_edit": "Renommer ou décrire {{name}}",
+    "aria_delete": "Supprimer {{name}}",
+    "aria_move": "Déplacer {{name}} vers un autre projet",
+    "aria_unfile": "Retirer {{name}} de son projet",
+    "aria_file": "Classer {{name}} dans un projet",
+    "file": "Classer dans un projet",
+    "move": "Déplacer",
+    "name": "Nom",
+    "description": "Description",
+    "name_required": "Un nom est requis.",
+    "header_new_solution": "Nouvelle solution",
+    "header_edit_solution": "Modifier la solution",
+    "header_new_project": "Nouveau projet dans {{solution}}",
+    "header_edit_project": "Modifier le projet",
+    "header_delete_solution": "Supprimer la solution",
+    "header_delete_project": "Supprimer le projet",
+    "header_unfile": "Retirer du projet",
+    "header_file": "Classer {{name}}",
+    "delete_solution_consequence": "Supprimer la solution {{name}} ? C'est refusé tant qu'elle contient des projets : supprimez-les ou videz-les d'abord.",
+    "delete_project_consequence": "Supprimer le projet {{name}} ? Ses {{count}} dépôts reviennent à « sans projet », et toute autorisation qui nomme ce projet est révoquée : les comptes et équipes qui les voyaient par elle cessent de les voir. Aucun dépôt ni aucun constat n'est supprimé.",
+    "unfile_consequence": "Renvoyer {{repository}} à « sans projet » ? Les comptes et équipes qui ne le voient que par une autorisation sur {{project}} cessent de le voir.",
+    "currently_in": "Actuellement dans {{project}}.",
+    "target_project": "Projet",
+    "choose_project": "Choisir un projet",
+    "file_consequence": "Classer {{repository}} dans {{to}} change les accès : tout compte et toute équipe autorisés sur {{to}} le verront.",
+    "move_consequence": "Déplacer {{repository}} change qui peut le voir : ceux qui ne le voient que par une autorisation sur {{from}} le perdent, ceux autorisés sur {{to}} le gagnent.",
+    "error_load": "Les solutions n'ont pas pu être chargées.",
+    "error_save": "La modification n'a pas pu être enregistrée.",
+    "error_change": "La modification n'a pas été appliquée."
+  },
   "soa": {
     "applicability": {
       "APPLICABLE": "Applicable",
@@ -2262,7 +2308,8 @@
     "change_password": "Changement de mot de passe",
     "login": "Connexion",
     "error": "Erreur",
-    "notfound": "Page non trouvée"
+    "notfound": "Page non trouvée",
+    "solutions": "Solutions et projets"
   },
   "topbar": {
     "account": "Mon compte",

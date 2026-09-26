@@ -131,6 +131,13 @@ export class AppMenu {
                         icon: 'pi pi-fw pi-sitemap',
                         routerLink: ['/repositories']
                     },
+                    // Beside the repositories it groups, for every account: the tree answers with
+                    // what the reader may see, so no one is offered a link that leads to a refusal.
+                    {
+                        label: this.i18n.t('menu.solutions'),
+                        icon: 'pi pi-fw pi-objects-column',
+                        routerLink: ['/solutions']
+                    },
                     { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
                 ]
             },

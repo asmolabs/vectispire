@@ -1371,7 +1371,8 @@
     "evidence": "Compliance & evidence",
     "posture": "Security posture",
     "compliance_history": "Compliance progression",
-    "git_tokens": "HTTPS tokens"
+    "git_tokens": "HTTPS tokens",
+    "solutions": "Solutions & projects"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -1941,6 +1942,51 @@
     "negligible": "Negligible",
     "unknown": "Unknown"
   },
+  "solutions": {
+    "title": "Solutions & projects",
+    "subtitle": "Which repositories make up which product. Figures cover only what you may see.",
+    "new_solution": "New solution",
+    "new_project": "New project",
+    "repository_count": "Repositories: {{count}}",
+    "partial": "Partially visible: {{count}} repositories you can see",
+    "no_open_issues": "No open issues",
+    "empty": "No solution is visible to you yet.",
+    "empty_admin": "No solution yet. Create one, then add projects to it and file repositories into them.",
+    "no_projects": "No project in this solution yet.",
+    "no_repositories": "No repository filed in this project.",
+    "unfiled": "No project",
+    "unfiled_hint": "Repositories not filed in any project. Nothing is inferred: an administrator files them.",
+    "unfiled_empty": "Every repository you can see is filed in a project.",
+    "aria_edit": "Rename or describe {{name}}",
+    "aria_delete": "Delete {{name}}",
+    "aria_move": "Move {{name}} to another project",
+    "aria_unfile": "Remove {{name}} from its project",
+    "aria_file": "File {{name}} into a project",
+    "file": "File into project",
+    "move": "Move",
+    "name": "Name",
+    "description": "Description",
+    "name_required": "A name is required.",
+    "header_new_solution": "New solution",
+    "header_edit_solution": "Edit solution",
+    "header_new_project": "New project in {{solution}}",
+    "header_edit_project": "Edit project",
+    "header_delete_solution": "Delete solution",
+    "header_delete_project": "Delete project",
+    "header_unfile": "Remove from project",
+    "header_file": "File {{name}}",
+    "delete_solution_consequence": "Delete the solution {{name}}? This is refused while it still holds projects: delete or empty them first.",
+    "delete_project_consequence": "Delete the project {{name}}? Its {{count}} repositories return to “no project”, and every grant naming this project is revoked: the accounts and teams that saw them through it stop seeing them. No repository and no finding is deleted.",
+    "unfile_consequence": "Return {{repository}} to “no project”? Accounts and teams that see it only through a grant on {{project}} stop seeing it.",
+    "currently_in": "Currently in {{project}}.",
+    "target_project": "Project",
+    "choose_project": "Choose a project",
+    "file_consequence": "Filing {{repository}} into {{to}} is an access change: every account and team granted {{to}} will see it.",
+    "move_consequence": "Moving {{repository}} changes who can see it: those who see it only through a grant on {{from}} lose it, and those granted {{to}} gain it.",
+    "error_load": "The solutions could not be loaded.",
+    "error_save": "The change could not be saved.",
+    "error_change": "The change was not applied."
+  },
   "soa": {
     "applicability": {
       "APPLICABLE": "Applicable",
@@ -2152,7 +2198,8 @@
     "change_password": "Change your password",
     "login": "Sign in",
     "error": "Error",
-    "notfound": "Page not found"
+    "notfound": "Page not found",
+    "solutions": "Solutions & projects"
   },
   "topbar": {
     "account": "My account",

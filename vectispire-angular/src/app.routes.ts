@@ -45,6 +45,13 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/repositories/repositories').then((m) => m.Repositories)
             },
             {
+                // Readable by every account: the server answers with what the reader may see, and
+                // the page offers the writes to administrators only.
+                path: 'solutions',
+                title: 'titles.solutions',
+                loadComponent: () => import('./app/pages/solutions/solutions').then((m) => m.Solutions)
+            },
+            {
                 path: 'containers',
                 title: 'titles.containers',
                 loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers)

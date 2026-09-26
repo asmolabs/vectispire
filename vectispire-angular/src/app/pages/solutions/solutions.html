@@ -1,0 +1,356 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'solutions.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'solutions.subtitle' | translate }}</p>
+    </div>
+    @if (isAdmin()) {
+        <p-button
+            id="new-solution"
+            [label]="'solutions.new_solution' | translate"
+            icon="pi pi-plus"
+            (onClick)="newSolution()"
+        />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<!-- The open issues of a node, by severity: one tag per severity that has any, worst first. -->
+<ng-template #badges let-issues>
+    <span class="inline-flex flex-wrap items-center gap-1" data-testid="open-issues">
+        @if (total(issues) === 0) {
+            <p-tag severity="success" [value]="'solutions.no_open_issues' | translate" />
+        } @else {
+            @for (severity of severities(); track severity.field) {
+                @if (count(issues, severity.field) > 0) {
+                    <p-tag
+                        [severity]="severity.colour"
+                        [value]="count(issues, severity.field) + ' ' + severity.label"
+                    />
+                }
+            }
+        }
+    </span>
+</ng-template>
+
+@if (loading() && !tree()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+} @else {
+    @if (solutions().length === 0) {
+        <p-card styleClass="mb-4">
+            <p class="m-0 text-muted-color" data-testid="no-solutions">
+                {{ isAdmin() ? ('solutions.empty_admin' | translate) : ('solutions.empty' | translate) }}
+            </p>
+        </p-card>
+    }
+
+    @for (solution of solutions(); track solution.id) {
+        <p-card styleClass="mb-4">
+            <section [attr.data-testid]="'solution-' + solution.id">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="text-xl font-semibold m-0 flex items-center gap-2">
+                            <i class="pi pi-objects-column text-muted-color" aria-hidden="true"></i>
+                            {{ solution.name }}
+                        </h2>
+                        @if (solution.description) {
+                            <p class="text-muted-color mt-1 mb-0">{{ solution.description }}</p>
+                        }
+                        <div class="flex flex-wrap items-center gap-2 mt-2">
+                            <p-tag
+                                severity="secondary"
+                                [value]="'solutions.repository_count' | translate: { count: solution.repositoryCount }"
+                            />
+                            @if (solution.partial) {
+                                <p-tag
+                                    severity="warn"
+                                    icon="pi pi-eye-slash"
+                                    data-testid="partial"
+                                    [value]="'solutions.partial' | translate: { count: solution.repositoryCount }"
+                                />
+                            }
+                            <ng-container *ngTemplateOutlet="badges; context: { $implicit: solution.openIssues }" />
+                        </div>
+                    </div>
+                    @if (isAdmin()) {
+                        <div class="whitespace-nowrap">
+                            <p-button
+                                icon="pi pi-plus"
+                                [text]="true"
+                                [label]="'solutions.new_project' | translate"
+                                data-testid="new-project"
+                                (onClick)="newProject(solution)"
+                            />
+                            <p-button
+                                icon="pi pi-pencil"
+                                [text]="true"
+                                [rounded]="true"
+                                [ariaLabel]="'solutions.aria_edit' | translate: { name: solution.name }"
+                                (onClick)="editSolution(solution)"
+                            />
+                            <p-button
+                                icon="pi pi-trash"
+                                severity="danger"
+                                [text]="true"
+                                [rounded]="true"
+                                [ariaLabel]="'solutions.aria_delete' | translate: { name: solution.name }"
+                                (onClick)="askDeleteSolution(solution)"
+                            />
+                        </div>
+                    }
+                </div>
+
+                @if ((solution.projects ?? []).length === 0) {
+                    <p class="text-muted-color mt-3 mb-0">{{ 'solutions.no_projects' | translate }}</p>
+                }
+
+                <ul class="list-none p-0 m-0 mt-3 flex flex-col gap-3">
+                    @for (project of solution.projects ?? []; track project.id) {
+                        <li
+                            [id]="'project-' + project.id"
+                            class="border rounded-md p-3"
+                            [class.ring-2]="focused() === 'project-' + project.id"
+                            style="border-color: var(--surface-border)"
+                            [attr.data-testid]="'project-' + project.id"
+                        >
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <h3 class="text-lg font-medium m-0 flex items-center gap-2">
+                                        <i class="pi pi-folder text-muted-color" aria-hidden="true"></i>
+                                        {{ project.name }}
+                                    </h3>
+                                    @if (project.description) {
+                                        <p class="text-muted-color text-sm mt-1 mb-0">{{ project.description }}</p>
+                                    }
+                                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                                        <p-tag
+                                            severity="secondary"
+                                            [value]="
+                                                'solutions.repository_count'
+                                                    | translate: { count: project.repositoryCount }
+                                            "
+                                        />
+                                        @if (project.partial) {
+                                            <p-tag
+                                                severity="warn"
+                                                icon="pi pi-eye-slash"
+                                                data-testid="partial"
+                                                [value]="
+                                                    'solutions.partial' | translate: { count: project.repositoryCount }
+                                                "
+                                            />
+                                        }
+                                        <ng-container
+                                            *ngTemplateOutlet="badges; context: { $implicit: project.openIssues }"
+                                        />
+                                    </div>
+                                </div>
+                                @if (isAdmin()) {
+                                    <div class="whitespace-nowrap">
+                                        <p-button
+                                            icon="pi pi-pencil"
+                                            [text]="true"
+                                            [rounded]="true"
+                                            [ariaLabel]="'solutions.aria_edit' | translate: { name: project.name }"
+                                            (onClick)="editProject(solution, project)"
+                                        />
+                                        <p-button
+                                            icon="pi pi-trash"
+                                            severity="danger"
+                                            [text]="true"
+                                            [rounded]="true"
+                                            [ariaLabel]="'solutions.aria_delete' | translate: { name: project.name }"
+                                            (onClick)="askDeleteProject(solution, project)"
+                                        />
+                                    </div>
+                                }
+                            </div>
+
+                            @if ((project.repositories ?? []).length === 0) {
+                                <p class="text-muted-color text-sm mt-2 mb-0">
+                                    {{ 'solutions.no_repositories' | translate }}
+                                </p>
+                            }
+                            <ul class="list-none p-0 m-0 mt-2">
+                                @for (repository of project.repositories ?? []; track repository.id) {
+                                    <li class="flex items-center justify-between gap-2 py-1">
+                                        <a
+                                            [routerLink]="['/issues']"
+                                            [queryParams]="{ repository_id: repository.id }"
+                                            class="flex items-center gap-2"
+                                        >
+                                            <i class="pi pi-sitemap text-muted-color" aria-hidden="true"></i>
+                                            {{ repository.name }}
+                                        </a>
+                                        @if (isAdmin()) {
+                                            <span class="whitespace-nowrap">
+                                                <p-button
+                                                    icon="pi pi-arrow-right-arrow-left"
+                                                    [text]="true"
+                                                    [rounded]="true"
+                                                    size="small"
+                                                    [ariaLabel]="
+                                                        'solutions.aria_move' | translate: { name: repository.name }
+                                                    "
+                                                    (onClick)="openFile(repository, { solution, project })"
+                                                />
+                                                <p-button
+                                                    icon="pi pi-times"
+                                                    severity="danger"
+                                                    [text]="true"
+                                                    [rounded]="true"
+                                                    size="small"
+                                                    [ariaLabel]="
+                                                        'solutions.aria_unfile' | translate: { name: repository.name }
+                                                    "
+                                                    (onClick)="askUnfile(repository, solution, project)"
+                                                />
+                                            </span>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        </li>
+                    }
+                </ul>
+            </section>
+        </p-card>
+    }
+
+    <!--
+        "No project", always, and always last — empty included. A filing that is not finished has to
+        look unfinished, and a group that disappeared when empty would read as "everything is filed"
+        exactly when the tree failed to say anything.
+    -->
+    <p-card>
+        <section data-testid="unfiled">
+            <h2 class="text-xl font-semibold m-0 flex items-center gap-2">
+                <i class="pi pi-folder-open text-muted-color" aria-hidden="true"></i>
+                {{ 'solutions.unfiled' | translate }}
+            </h2>
+            <p class="text-muted-color mt-1 mb-0">{{ 'solutions.unfiled_hint' | translate }}</p>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+                <p-tag
+                    severity="secondary"
+                    [value]="'solutions.repository_count' | translate: { count: unfiled()?.repositoryCount ?? 0 }"
+                />
+                <ng-container *ngTemplateOutlet="badges; context: { $implicit: unfiled()?.openIssues }" />
+            </div>
+            @if ((unfiled()?.repositories ?? []).length === 0) {
+                <p class="text-muted-color text-sm mt-2 mb-0">{{ 'solutions.unfiled_empty' | translate }}</p>
+            }
+            <ul class="list-none p-0 m-0 mt-2">
+                @for (repository of unfiled()?.repositories ?? []; track repository.id) {
+                    <li class="flex items-center justify-between gap-2 py-1">
+                        <a
+                            [routerLink]="['/issues']"
+                            [queryParams]="{ repository_id: repository.id }"
+                            class="flex items-center gap-2"
+                        >
+                            <i class="pi pi-sitemap text-muted-color" aria-hidden="true"></i>
+                            {{ repository.name }}
+                        </a>
+                        @if (isAdmin()) {
+                            <p-button
+                                icon="pi pi-folder-open"
+                                [text]="true"
+                                size="small"
+                                [label]="'solutions.file' | translate"
+                                [ariaLabel]="'solutions.aria_file' | translate: { name: repository.name }"
+                                [disabled]="!hasProjects()"
+                                (onClick)="openFile(repository)"
+                            />
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+    </p-card>
+}
+
+<p-dialog [header]="editorHeader()" [(visible)]="editorVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="node-name" class="font-medium">{{ 'solutions.name' | translate }}</label>
+            <input pInputText id="node-name" name="node-name" [maxlength]="nameMax" [(ngModel)]="formName" />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="node-description" class="font-medium"
+                >{{ 'solutions.description' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="node-description"
+                name="node-description"
+                [maxlength]="descriptionMax"
+                [(ngModel)]="formDescription"
+            />
+        </div>
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="editorVisible.set(false)" />
+        <p-button [label]="'common.save' | translate" [loading]="saving()" (onClick)="saveEditor()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog [header]="confirmHeader()" [(visible)]="confirmVisible" [modal]="true" [style]="{ width: '32rem' }">
+    <p class="m-0" data-testid="confirm-text">{{ confirmText() }}</p>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="confirmVisible.set(false)" />
+        <p-button [label]="'common.confirm' | translate" severity="danger" [loading]="saving()" (onClick)="confirm()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'solutions.header_file' | translate: { name: filing()?.repository?.name ?? '' }"
+    [(visible)]="fileVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
+    <div class="flex flex-col gap-4">
+        @if (filing()?.from; as from) {
+            <p class="m-0">
+                {{ 'solutions.currently_in' | translate: { project: from.solution.name + ' / ' + from.project.name } }}
+            </p>
+        }
+        <div class="flex flex-col gap-2">
+            <label for="target-project" class="font-medium">{{ 'solutions.target_project' | translate }}</label>
+            <p-select
+                inputId="target-project"
+                name="target-project"
+                [options]="projectChoices()"
+                [group]="true"
+                optionLabel="label"
+                optionValue="value"
+                optionGroupLabel="label"
+                optionGroupChildren="items"
+                [(ngModel)]="targetProjectId"
+                [placeholder]="'solutions.choose_project' | translate"
+                [filter]="true"
+                appendTo="body"
+                styleClass="w-full"
+            />
+        </div>
+        @if (filingConsequence(); as consequence) {
+            <p-message severity="warn" [closable]="false" data-testid="file-consequence">{{ consequence }}</p-message>
+        }
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="fileVisible.set(false)" />
+        <p-button
+            [label]="filing()?.from ? ('solutions.move' | translate) : ('solutions.file' | translate)"
+            [disabled]="targetProjectId() === null"
+            [loading]="saving()"
+            (onClick)="saveFile()"
+        />
+    </ng-template>
+</p-dialog>

@@ -154,6 +154,18 @@ describe('every screen', () => {
                 never_reviewed: 0
             });
         }
+        // The tree, not a collection: the solutions and the "no project" group beside them. Read by
+        // the tree itself and by the two access dialogs, which offer its projects as grants.
+        if (url.endsWith('/solutions')) {
+            return asSchema('SolutionTree', {
+                solutions: [],
+                unfiled: {
+                    repositoryCount: 0,
+                    openIssues: { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 },
+                    repositories: []
+                }
+            });
+        }
         // ApiKeysController.Targets: two named lists, not a collection.
         if (url.endsWith('/api-keys/targets')) return asSchema('Targets', { repositories: [], containers: [] });
         if (url.endsWith('/attack-surface')) {
