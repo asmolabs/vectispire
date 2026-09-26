@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.scanning.persistence;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.util.List;
 
@@ -19,8 +18,9 @@ import java.util.List;
  * itself that authorization spread across controllers is one chance per controller to forget one,
  * and the forgotten one is the hole. This was it.
  *
- * <p>A repository fragment rather than {@code @Query} methods, for the reason
- * {@link IssueAggregates} gives: the caller's allowance is a set, the query filter is one of three
+ * <p>A repository fragment rather than {@code @Query} methods, for the reason {@code issues}'
+ * {@code IssueAggregateQueries} gives — named, not linked, because {@code scanning} does not depend
+ * on {@code issues}: the caller's allowance is a set, the query filter is one of three
  * shapes, and the combinations multiply into methods nobody can keep consistent. Built once, here.
  */
 public interface FindingGraphQueries {

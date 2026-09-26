@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.config;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
-import com.asmolabs.vectispire.core.access.persistence.UserSessions;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

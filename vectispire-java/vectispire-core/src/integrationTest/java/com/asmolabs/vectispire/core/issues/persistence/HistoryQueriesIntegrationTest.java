@@ -157,8 +157,13 @@ class HistoryQueriesIntegrationTest {
 
         assertThat(rows).hasSize(1);
         assertThat(((ComponentEntity) rows.getFirst()[0]).getVersion()).isEqualTo("2.14.1");
-        // The half of the answer that makes it actionable: our release, not the library's.
-        assertThat(((ScanEntity) rows.getFirst()[1]).getVersion()).isEqualTo("1.17.6");
+        // The half of the answer that makes it actionable: our release, not the library's. The scan
+        // comes back as its columns, not as a row of another module's table — `inventory` reads
+        // scans through `ScanCatalog` and names no scanning entity (decision 0029); the casts are
+        // the ones `InventoryQueryService` makes, which is what an engine returning another numeric
+        // type would break.
+        assertThat((Long) rows.getFirst()[1]).isEqualTo(scanId);
+        assertThat((String) rows.getFirst()[5]).isEqualTo("1.17.6");
     }
 
     @Test
