@@ -9,11 +9,11 @@ import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.services.targets.ContainerAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.targets.ContainerAdministrationService.Listed;
 import com.asmolabs.vectispire.core.services.targets.ContainerAdministrationService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import com.asmolabs.vectispire.core.services.targets.ContainerView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -86,8 +86,8 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerEntity saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
-        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
+        ContainerView saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
     }
 
     /**
@@ -124,9 +124,9 @@ public class ContainersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        ContainerEntity saved =
+        ContainerView saved =
                 inventory.update(id, changesOf(body), allowed(principal), RequestActors.of(principal, request));
-        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
     }
 
     @RequiresAdministrator
@@ -138,7 +138,7 @@ public class ContainersController {
             HttpServletRequest request) {
 
         ContainerAdministrationService.Triggered triggered = inventory.trigger(id, allowed(principal), RequestActors.of(principal, request));
-        return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
+        return new QueuedScan(triggered.scan().id(), triggered.scan().status());
     }
 
     @RequiresAdministrator
@@ -157,24 +157,24 @@ public class ContainersController {
     }
 
     private static ContainerSummary summaryOf(Listed listed) {
-        ContainerEntity container = listed.container();
+        ContainerView container = listed.container();
         ImageReference reference = referenceOf(container);
         return new ContainerSummary(
-                container.getId(),
-                container.getRegistry(),
-                container.getImageName(),
-                container.getTag(),
+                container.id(),
+                container.registry(),
+                container.imageName(),
+                container.tag(),
                 reference.format(),
                 reference.displayName(),
-                container.getScanIntervalMinutes(),
-                container.getScanCron(),
-                container.getRequiredAgentLabel(),
-                container.getLastScheduledScanAt(),
+                container.scanIntervalMinutes(),
+                container.scanCron(),
+                container.requiredAgentLabel(),
+                container.lastScheduledScanAt(),
                 listed.latestScan()
                         .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
                         .orElse(null),
                 listed.openIssues(),
-                container.getTier());
+                container.tier());
     }
 
     private static Changes changesOf(ContainerCreateRequest body) {
@@ -188,7 +188,7 @@ public class ContainersController {
                 body.tier());
     }
 
-    private static ImageReference referenceOf(ContainerEntity container) {
+    private static ImageReference referenceOf(ContainerView container) {
         return ContainerAdministrationService.referenceOf(container);
     }
 }

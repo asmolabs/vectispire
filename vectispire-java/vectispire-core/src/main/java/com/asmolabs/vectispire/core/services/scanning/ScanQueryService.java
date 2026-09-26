@@ -34,10 +34,10 @@ public class ScanQueryService {
         this.naming = naming;
     }
 
-    public record History(List<ScanEntity> scans, TargetNaming.Names names) {}
+    public record History(List<ScanView> scans, TargetNaming.Names names) {}
 
     /** @param findingsTotal how many the scan recorded, which may exceed {@code findings} */
-    public record Detail(ScanEntity scan, TargetNaming.Names names, List<FindingEntity> findings, long findingsTotal) {
+    public record Detail(ScanView scan, TargetNaming.Names names, List<ScanFindingView> findings, long findingsTotal) {
 
         public boolean findingsTruncated() {
             return findingsTotal > findings.size();
@@ -53,6 +53,7 @@ public class ScanQueryService {
         return new History(
                 scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
                         .filter(scan -> allowed.permits(RowVisibility.targetOf(scan)))
+                        .map(ScanView::of)
                         .toList(),
                 names);
     }
@@ -61,7 +62,7 @@ public class ScanQueryService {
         ScanEntity scan = visible(id, allowed);
         List<FindingEntity> page = findings.findByScanId(id, Limit.of(MAX_FINDINGS));
         long total = findings.countByScanId(id);
-        return new Detail(scan, naming.all(), page, total);
+        return new Detail(ScanView.of(scan), naming.all(), page.stream().map(ScanFindingView::of).toList(), total);
     }
 
     /**

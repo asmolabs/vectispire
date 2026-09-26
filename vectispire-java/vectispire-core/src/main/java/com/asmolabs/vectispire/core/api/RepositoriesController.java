@@ -7,11 +7,11 @@ import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.Listed;
 import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import com.asmolabs.vectispire.core.services.targets.RepositoryView;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -114,8 +114,8 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
-        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
+        RepositoryView saved = inventory.create(changesOf(body), RequestActors.of(principal, request));
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
     }
 
     /**
@@ -142,9 +142,9 @@ public class RepositoriesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        RepositoryEntity saved =
+        RepositoryView saved =
                 inventory.update(id, changesOf(body), allowed(principal), RequestActors.of(principal, request));
-        return summaryOf(inventory.listed(allowed(principal), saved.getId()).orElseThrow());
+        return summaryOf(inventory.listed(allowed(principal), saved.id()).orElseThrow());
     }
 
     /**
@@ -163,7 +163,7 @@ public class RepositoriesController {
             HttpServletRequest request) {
 
         RepositoryAdministrationService.Triggered triggered = inventory.trigger(id, allowed(principal), RequestActors.of(principal, request));
-        return new QueuedScan(triggered.scan().getId(), triggered.scan().getStatus());
+        return new QueuedScan(triggered.scan().id(), triggered.scan().status());
     }
 
     @Operation(summary = "Delete repository", description = "Removes repository and cascades deletion of its issues, findings and history.")
@@ -184,26 +184,26 @@ public class RepositoriesController {
     }
 
     private static RepositorySummary summaryOf(Listed listed) {
-        RepositoryEntity repository = listed.repository();
+        RepositoryView repository = listed.repository();
         return new RepositorySummary(
-                repository.getId(),
-                RepositoryUrl.redact(repository.getUrl()),
-                repository.getBranch(),
-                repository.getName(),
-                repository.getSubPath(),
+                repository.id(),
+                RepositoryUrl.redact(repository.url()),
+                repository.branch(),
+                repository.name(),
+                repository.subPath(),
                 displayName(repository),
-                repository.getScanIntervalMinutes(),
-                repository.getScanCron(),
-                repository.getRequiredAgentLabel(),
-                repository.getSshKeyId(),
-                repository.getHttpsTokenId(),
-                repository.getLastScheduledScanAt(),
+                repository.scanIntervalMinutes(),
+                repository.scanCron(),
+                repository.requiredAgentLabel(),
+                repository.sshKeyId(),
+                repository.httpsTokenId(),
+                repository.lastScheduledScanAt(),
                 listed.latestScan()
                         .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
                         .orElse(null),
                 listed.openIssues(),
-                repository.getTier(),
-                repository.getProjectId(),
+                repository.tier(),
+                repository.projectId(),
                 listed.projectName());
     }
 
@@ -234,7 +234,7 @@ public class RepositoriesController {
      * {@code org/project} instead of {@code https://github.com/org/project.git}. That is also
      * what makes it fit in a table column.
      */
-    private static String displayName(RepositoryEntity repository) {
-        return RepositoryUrl.displayName(repository.getName(), repository.getUrl());
+    private static String displayName(RepositoryView repository) {
+        return RepositoryUrl.displayName(repository.name(), repository.url());
     }
 }

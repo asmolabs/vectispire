@@ -5,9 +5,9 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.core.api.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.services.scanning.ScanQueryService;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -120,17 +120,17 @@ public class ScansController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Scan ID", required = true) @PathVariable long id) {
         ScanQueryService.Detail detail = scans.detail(id, allowed(principal));
-        ScanEntity scan = detail.scan();
+        ScanView scan = detail.scan();
 
         return new ScanDetail(
                 summaryOf(scan, detail.names()),
-                scan.getSubPath(),
-                scan.getProjectType(),
-                scan.getVersion(),
+                scan.subPath(),
+                scan.projectType(),
+                scan.version(),
                 // The SBOM is not returned here: it weighs megabytes and the screen shows none
                 // of it. It is served whole by `/{id}/sbom` instead, so a caller who wants it
                 // asks for it.
-                scan.getSbom() != null,
+                scan.sbom() != null,
                 detail.findings().stream().map(ScansController::viewOf).toList(),
                 detail.findingsTotal(),
                 detail.findingsTruncated());
@@ -181,36 +181,36 @@ public class ScansController {
         return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
-    private static ScanSummary summaryOf(ScanEntity scan, TargetNaming.Names names) {
+    private static ScanSummary summaryOf(ScanView scan, TargetNaming.Names names) {
         return new ScanSummary(
-                scan.getId(),
-                scan.getStatus(),
-                scan.getBranch(),
-                scan.getCreatedAt(),
-                scan.getDurationMs(),
-                scan.getFindingsCount(),
-                scan.getNewIssuesCount(),
-                scan.getResolvedIssuesCount(),
-                scan.getError(),
-                scan.getClaimedBy(),
-                scan.getAttempts(),
-                scan.getRepoId() != null ? "repository" : "container",
-                scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId(),
-                names.of(scan.getRepoId(), scan.getContainerId()));
+                scan.id(),
+                scan.status(),
+                scan.branch(),
+                scan.createdAt(),
+                scan.durationMs(),
+                scan.findingsCount(),
+                scan.newIssuesCount(),
+                scan.resolvedIssuesCount(),
+                scan.error(),
+                scan.claimedBy(),
+                scan.attempts(),
+                scan.repoId() != null ? "repository" : "container",
+                scan.repoId() != null ? scan.repoId() : scan.containerId(),
+                names.of(scan.repoId(), scan.containerId()));
     }
 
-    private static FindingView viewOf(FindingEntity finding) {
+    private static FindingView viewOf(ScanFindingView finding) {
         return new FindingView(
-                finding.getId(),
-                finding.getType(),
-                finding.getSeverity(),
-                finding.getIdentifier(),
-                finding.getPackageName(),
-                finding.getPackageVersion(),
-                finding.getFixVersions(),
-                finding.getFilePath(),
-                finding.getLine(),
-                finding.getDescription(),
-                finding.getLink());
+                finding.id(),
+                finding.type(),
+                finding.severity(),
+                finding.identifier(),
+                finding.packageName(),
+                finding.packageVersion(),
+                finding.fixVersions(),
+                finding.filePath(),
+                finding.line(),
+                finding.description(),
+                finding.link());
     }
 }

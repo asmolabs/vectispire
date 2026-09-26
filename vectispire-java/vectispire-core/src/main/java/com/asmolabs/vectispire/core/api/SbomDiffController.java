@@ -72,8 +72,8 @@ public class SbomDiffController {
     }
 
     private void requireVisibleScan(long scanId, Visibility allowed) {
-        Visibilities.requireVisible(
-                scans.scan(scanId).orElse(null),
+        scans.requireVisible(
+                scanId,
                 allowed);
     }
 

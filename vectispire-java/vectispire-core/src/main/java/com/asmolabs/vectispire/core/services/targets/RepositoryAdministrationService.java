@@ -24,6 +24,7 @@ import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import com.asmolabs.vectispire.core.services.scanning.CronExpressions;
 import com.asmolabs.vectispire.core.services.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Instant;
 import java.util.HashMap;
@@ -96,7 +97,7 @@ public class RepositoryAdministrationService {
      *
      * @param projectName {@code Solution / Project}, or null for a repository in no project
      */
-    public record Listed(RepositoryEntity repository, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
+    public record Listed(RepositoryView repository, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
 
     /**
      * What an operator asked for, field by field.
@@ -131,7 +132,7 @@ public class RepositoryAdministrationService {
         }
     }
 
-    public record Triggered(RepositoryEntity repository, ScanEntity scan) {}
+    public record Triggered(RepositoryView repository, ScanView scan) {}
 
     /** Every repository the allowance permits, with each one's latest scan and open issue count. */
     public List<Listed> list(Visibility allowed) {
@@ -149,7 +150,7 @@ public class RepositoryAdministrationService {
                 .collect(java.util.stream.Collectors.toSet()));
         return visible.stream()
                 .map(repository -> new Listed(
-                        repository,
+                        RepositoryView.of(repository),
                         Optional.ofNullable(latest.get(repository.getId())),
                         open.getOrDefault(repository.getId(), 0L),
                         repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId())))
@@ -165,11 +166,11 @@ public class RepositoryAdministrationService {
      */
     public Optional<Listed> listed(Visibility allowed, long id) {
         return list(allowed).stream()
-                .filter(listed -> listed.repository().getId().equals(id))
+                .filter(listed -> listed.repository().id().equals(id))
                 .findFirst();
     }
 
-    public RepositoryEntity create(Changes changes, RequestActor actor) {
+    public RepositoryView create(Changes changes, RequestActor actor) {
         String url = BoundedText.within(trim(changes.url()), COLUMN_LENGTH, "The repository URL");
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
@@ -199,7 +200,7 @@ public class RepositoryAdministrationService {
         RepositoryEntity saved = repositories.save(repository);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Repository added: " + RepositoryUrl.redact(saved.getUrl())));
-        return saved;
+        return RepositoryView.of(saved);
     }
 
     /**
@@ -213,7 +214,7 @@ public class RepositoryAdministrationService {
      *
      * <p>The audit entry names the previous URL as well, redacted, for the reason the route gives.
      */
-    public RepositoryEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
+    public RepositoryView update(long id, Changes changes, Visibility allowed, RequestActor actor) {
         // Absent and hidden refused in one sentence: the absent row used to say "No repository
         // with id 7." and the hidden one "Target not found.", which told them apart.
         RepositoryEntity repository =
@@ -272,7 +273,7 @@ public class RepositoryAdministrationService {
                 AuditOperation.SETTING_UPDATED,
                 String.valueOf(saved.getId()),
                 "Repository updated: " + RepositoryUrl.redact(saved.getUrl()) + moved));
-        return saved;
+        return RepositoryView.of(saved);
     }
 
     /**
@@ -286,7 +287,7 @@ public class RepositoryAdministrationService {
         ScanEntity scan = trigger.trigger(repository);
         audit.record(actor.entry(
                 AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + RepositoryUrl.redact(repository.getUrl())));
-        return new Triggered(repository, scan);
+        return new Triggered(RepositoryView.of(repository), ScanView.of(scan));
     }
 
     /** Deletes the repository and everything hanging off it. */

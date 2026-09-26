@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.api;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.services.access.RowVisibility;
 
 /**
@@ -18,10 +17,6 @@ import com.asmolabs.vectispire.core.services.access.RowVisibility;
 final class Visibilities {
 
     private Visibilities() {}
-
-    static void requireVisible(ScanEntity scan, Visibility visibility) {
-        RowVisibility.requireVisible(scan, visibility);
-    }
 
     static void requireVisible(ScanTarget target, Visibility visibility) {
         RowVisibility.requireVisible(target, visibility);

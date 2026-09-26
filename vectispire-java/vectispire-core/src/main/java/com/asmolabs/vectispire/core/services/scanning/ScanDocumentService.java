@@ -1,18 +1,21 @@
 package com.asmolabs.vectispire.core.services.scanning;
 
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.repositories.Scans;
-import java.util.Optional;
+import com.asmolabs.vectispire.core.services.access.RowVisibility;
 import org.springframework.stereotype.Service;
 
 /**
  * The scan a per-scan document is about — OpenVEX, CycloneDX, CSAF, attestation, SBOM diff.
  *
- * <p><b>It hands the row back rather than deciding whether the caller may have it.</b> The
- * decision is {@code Visibilities.requireVisible} in the controller, and it has to receive the
- * absent scan as an absence — not a refusal worded here — so that "no such scan" and "not your
- * scan" come out as the same 404 in the same words. Ids are sequential; two wordings would let a
+ * <p><b>It refuses an absent scan and a hidden one in the same words.</b> The absent row reaches
+ * {@link RowVisibility} as an absence — not a refusal worded here — so that "no such scan" and
+ * "not your scan" come out as the same 404. Ids are sequential; two wordings would let a
  * restricted reader enumerate every scan of the deployment.
+ *
+ * <p>It used to hand the row back for the controller to pass to that same guard, which put a
+ * {@code ScanEntity} in {@code api} for the length of one call. The controller names the scan by
+ * its id now, and the row stays here.
  */
 @Service
 public class ScanDocumentService {
@@ -23,7 +26,8 @@ public class ScanDocumentService {
         this.scans = scans;
     }
 
-    public Optional<ScanEntity> scan(long scanId) {
-        return scans.findById(scanId);
+    /** @throws java.util.NoSuchElementException absent and hidden alike, as {@link RowVisibility} words it */
+    public void requireVisible(long scanId, Visibility visibility) {
+        RowVisibility.requireVisible(scans.findById(scanId).orElse(null), visibility);
     }
 }

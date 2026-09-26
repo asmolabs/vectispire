@@ -69,8 +69,8 @@ public class CsafController {
      * all, so which document a caller requested decided whether the check happened.
      */
     private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
-        Visibilities.requireVisible(
-                scans.scan(scanId).orElse(null),
+        scans.requireVisible(
+                scanId,
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 

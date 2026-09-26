@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
 import com.asmolabs.vectispire.core.repositories.OpenIssueCount;
 import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.targets.RepositoryAdministrationService.LatestScan;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
@@ -66,7 +67,7 @@ public class ContainerAdministrationService {
     }
 
     /** An image as the inventory shows it: the row, its latest scan, and what waits on it. */
-    public record Listed(ContainerEntity container, Optional<LatestScan> latestScan, long openIssues) {}
+    public record Listed(ContainerView container, Optional<LatestScan> latestScan, long openIssues) {}
 
     /** What an operator asked for; {@code null} is "leave alone" on update, as for repositories. */
     public record Changes(
@@ -78,7 +79,7 @@ public class ContainerAdministrationService {
             String requiredAgentLabel,
             String tier) {}
 
-    public record Triggered(ContainerEntity container, ScanEntity scan) {}
+    public record Triggered(ContainerView container, ScanView scan) {}
 
     public List<Listed> list(Visibility allowed) {
         Map<Long, LatestScan> latest = latestScans();
@@ -87,7 +88,7 @@ public class ContainerAdministrationService {
         return containers.findAll().stream()
                 .filter(container -> allowed.permits(new ScanTarget.Container(container.getId())))
                 .map(container -> new Listed(
-                        container,
+                        ContainerView.of(container),
                         Optional.ofNullable(latest.get(container.getId())),
                         open.getOrDefault(container.getId(), 0L)))
                 .toList();
@@ -96,11 +97,11 @@ public class ContainerAdministrationService {
     /** One row of {@link #list}, read through it for the reason given on the repository side. */
     public Optional<Listed> listed(Visibility allowed, long id) {
         return list(allowed).stream()
-                .filter(listed -> listed.container().getId().equals(id))
+                .filter(listed -> listed.container().id().equals(id))
                 .findFirst();
     }
 
-    public ContainerEntity create(Changes changes, RequestActor actor) {
+    public ContainerView create(Changes changes, RequestActor actor) {
         ImageReference reference = new ImageReference(
                 optional(changes.registry()),
                 trim(changes.imageName()),
@@ -124,7 +125,7 @@ public class ContainerAdministrationService {
         ContainerEntity saved = containers.save(container);
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image added: " + referenceOf(saved).format()));
-        return saved;
+        return ContainerView.of(saved);
     }
 
     /**
@@ -136,7 +137,7 @@ public class ContainerAdministrationService {
      *
      * <p>The audit entry names the previous reference as well, for the reason the route gives.
      */
-    public ContainerEntity update(long id, Changes changes, Visibility allowed, RequestActor actor) {
+    public ContainerView update(long id, Changes changes, Visibility allowed, RequestActor actor) {
         // Absent and hidden refused in one sentence, as for a repository.
         ContainerEntity container =
                 RowVisibility.requireVisible(containers.findById(id), new ScanTarget.Container(id), allowed);
@@ -178,7 +179,7 @@ public class ContainerAdministrationService {
         String moved = now.equals(previousReference) ? "" : " (was " + previousReference + ")";
         audit.record(actor.entry(
                 AuditOperation.SETTING_UPDATED, String.valueOf(saved.getId()), "Image updated: " + now + moved));
-        return saved;
+        return ContainerView.of(saved);
     }
 
     /** @param allowed what the caller may see, as for a repository: a restricted key is narrowed. */
@@ -188,7 +189,7 @@ public class ContainerAdministrationService {
         ScanEntity scan = trigger.trigger(container);
         audit.record(actor.entry(
                 AuditOperation.SCAN_TRIGGERED, String.valueOf(scan.getId()), "Scan requested: " + referenceOf(container).format()));
-        return new Triggered(container, scan);
+        return new Triggered(ContainerView.of(container), ScanView.of(scan));
     }
 
     /** Deletes the image and everything hanging off it. */
@@ -212,7 +213,11 @@ public class ContainerAdministrationService {
         BoundedText.within(reference.tag(), COLUMN_LENGTH, "The tag");
     }
 
-    public static ImageReference referenceOf(ContainerEntity container) {
+    public static ImageReference referenceOf(ContainerView container) {
+        return new ImageReference(container.registry(), container.imageName(), container.tag());
+    }
+
+    private static ImageReference referenceOf(ContainerEntity container) {
         return new ImageReference(container.getRegistry(), container.getImageName(), container.getTag());
     }
 
