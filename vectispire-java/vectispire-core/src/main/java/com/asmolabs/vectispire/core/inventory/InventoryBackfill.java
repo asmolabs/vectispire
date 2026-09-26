@@ -2,14 +2,13 @@ package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +35,12 @@ public class InventoryBackfill {
     /** Enough to converge quickly, small enough that one pass is never a long transaction. */
     private static final int BATCH = 50;
 
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final Components components;
     private final ComponentInventory inventory;
     private final ObjectMapper json;
 
-    public InventoryBackfill(Scans scans, Components components, ComponentInventory inventory, ObjectMapper json) {
+    public InventoryBackfill(ScanCatalog scans, Components components, ComponentInventory inventory, ObjectMapper json) {
         this.scans = scans;
         this.components = components;
         this.inventory = inventory;
@@ -51,22 +50,22 @@ public class InventoryBackfill {
     /** @return how many scans were indexed this pass */
     @Transactional
     public int runOnce() {
-        List<ScanEntity> pending = scans.findWithSbomButNoComponents(Limit.of(BATCH));
+        List<ScanView> pending = scans.withSbomButNoComponents(BATCH);
         if (pending.isEmpty()) {
             return 0;
         }
 
         int indexed = 0;
-        for (ScanEntity scan : pending) {
+        for (ScanView scan : pending) {
             try {
-                JsonNode sbom = json.readTree(scan.getSbom());
-                inventory.record(scan.getId(), sbom, new DependencyGraph(sbom));
+                JsonNode sbom = json.readTree(scan.sbom());
+                inventory.record(scan.id(), sbom, new DependencyGraph(sbom));
                 indexed++;
             } catch (RuntimeException | com.fasterxml.jackson.core.JsonProcessingException unreadable) {
                 // A stored payload that cannot be parsed is not worth failing the tick for, and
                 // it will be retried next pass. Logged so a document that never indexes is
                 // visible rather than silently absent from every search.
-                log.warn("Inventory backfill: the SBOM of scan {} could not be read.", scan.getId());
+                log.warn("Inventory backfill: the SBOM of scan {} could not be read.", scan.id());
             }
         }
         if (indexed > 0) {

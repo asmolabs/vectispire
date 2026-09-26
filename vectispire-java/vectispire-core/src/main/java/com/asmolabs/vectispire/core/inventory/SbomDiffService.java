@@ -1,20 +1,19 @@
 package com.asmolabs.vectispire.core.inventory;
 
-import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta.ChangeType;
+import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta;
 import com.asmolabs.vectispire.common.domain.sbom.CveDelta;
 import com.asmolabs.vectispire.common.domain.sbom.SbomDiffReport;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,7 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,33 +32,30 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SbomDiffService {
 
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final Components components;
-    private final Findings findings;
     private final ObjectMapper objectMapper;
 
     public SbomDiffService(
-            Scans scans,
+            ScanCatalog scans,
             Components components,
-            Findings findings,
             ObjectMapper objectMapper) {
         this.scans = scans;
         this.components = components;
-        this.findings = findings;
         this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
     public Optional<SbomDiffReport> diff(long fromScanId, long toScanId) {
-        Optional<ScanEntity> fromOpt = scans.findById(fromScanId);
-        Optional<ScanEntity> toOpt = scans.findById(toScanId);
+        Optional<ScanView> fromOpt = scans.scan(fromScanId);
+        Optional<ScanView> toOpt = scans.scan(toScanId);
 
         if (fromOpt.isEmpty() || toOpt.isEmpty()) {
             return Optional.empty();
         }
 
-        ScanEntity fromScan = fromOpt.get();
-        ScanEntity toScan = toOpt.get();
+        ScanView fromScan = fromOpt.get();
+        ScanView toScan = toOpt.get();
 
         Map<String, ComponentInfo> fromComponents = loadComponents(fromScan);
         Map<String, ComponentInfo> toComponents = loadComponents(toScan);
@@ -143,8 +138,8 @@ public class SbomDiffService {
         int introducedCves = (int) cveDeltas.stream().filter(c -> c.status() == CveDelta.Status.INTRODUCED).count();
         int resolvedCves = (int) cveDeltas.stream().filter(c -> c.status() == CveDelta.Status.RESOLVED).count();
 
-        String fromVer = fromScan.getVersion() != null ? fromScan.getVersion() : "scan-" + fromScanId;
-        String toVer = toScan.getVersion() != null ? toScan.getVersion() : "scan-" + toScanId;
+        String fromVer = fromScan.version() != null ? fromScan.version() : "scan-" + fromScanId;
+        String toVer = toScan.version() != null ? toScan.version() : "scan-" + toScanId;
 
         return Optional.of(new SbomDiffReport(
                 fromScanId,
@@ -175,9 +170,9 @@ public class SbomDiffService {
     @Transactional(readOnly = true)
     public Optional<SbomDiffReport> diffLatest(Long repoId, Long containerId) {
         List<Long> recent = repoId != null
-                ? scans.findRecentIdsByRepoId(repoId, Limit.of(2))
+                ? scans.recentIds(new ScanTarget.Repository(repoId), 2)
                 : containerId != null
-                        ? scans.findRecentIdsByContainerId(containerId, Limit.of(2))
+                        ? scans.recentIds(new ScanTarget.Container(containerId), 2)
                         : List.of();
 
         if (recent.size() >= 2) {
@@ -191,45 +186,45 @@ public class SbomDiffService {
     }
 
     private List<CveDelta> computeCveDeltas(long fromScanId, long toScanId) {
-        Map<String, FindingEntity> fromFindings = findings.findByScanId(fromScanId).stream()
-                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
+        Map<String, ScanFindingView> fromFindings = scans.findings(fromScanId).stream()
+                .filter(f -> "vulnerability".equalsIgnoreCase(f.type()) || (f.identifier() != null && (f.identifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.identifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
                 .collect(Collectors.toMap(f -> normalizeCveKey(f), Function.identity(), (a, b) -> a));
 
-        Map<String, FindingEntity> toFindings = findings.findByScanId(toScanId).stream()
-                .filter(f -> "vulnerability".equalsIgnoreCase(f.getType()) || (f.getIdentifier() != null && (f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.getIdentifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
+        Map<String, ScanFindingView> toFindings = scans.findings(toScanId).stream()
+                .filter(f -> "vulnerability".equalsIgnoreCase(f.type()) || (f.identifier() != null && (f.identifier().toUpperCase(Locale.ROOT).startsWith("CVE-") || f.identifier().toUpperCase(Locale.ROOT).startsWith("GHSA-"))))
                 .collect(Collectors.toMap(f -> normalizeCveKey(f), Function.identity(), (a, b) -> a));
 
         List<CveDelta> results = new ArrayList<>();
 
-        for (Map.Entry<String, FindingEntity> entry : toFindings.entrySet()) {
+        for (Map.Entry<String, ScanFindingView> entry : toFindings.entrySet()) {
             String key = entry.getKey();
-            FindingEntity finding = entry.getValue();
+            ScanFindingView finding = entry.getValue();
             if (!fromFindings.containsKey(key)) {
                 results.add(new CveDelta(
-                        finding.getIdentifier() != null ? finding.getIdentifier() : "UNKNOWN",
-                        finding.getSeverity(),
-                        finding.getPackageName() != null ? finding.getPackageName() : finding.getFilePath(),
-                        finding.getPackageVersion(),
+                        finding.identifier() != null ? finding.identifier() : "UNKNOWN",
+                        finding.severity(),
+                        finding.packageName() != null ? finding.packageName() : finding.filePath(),
+                        finding.packageVersion(),
                         CveDelta.Status.INTRODUCED));
             } else {
                 results.add(new CveDelta(
-                        finding.getIdentifier() != null ? finding.getIdentifier() : "UNKNOWN",
-                        finding.getSeverity(),
-                        finding.getPackageName() != null ? finding.getPackageName() : finding.getFilePath(),
-                        finding.getPackageVersion(),
+                        finding.identifier() != null ? finding.identifier() : "UNKNOWN",
+                        finding.severity(),
+                        finding.packageName() != null ? finding.packageName() : finding.filePath(),
+                        finding.packageVersion(),
                         CveDelta.Status.PERSISTENT));
             }
         }
 
-        for (Map.Entry<String, FindingEntity> entry : fromFindings.entrySet()) {
+        for (Map.Entry<String, ScanFindingView> entry : fromFindings.entrySet()) {
             String key = entry.getKey();
-            FindingEntity finding = entry.getValue();
+            ScanFindingView finding = entry.getValue();
             if (!toFindings.containsKey(key)) {
                 results.add(new CveDelta(
-                        finding.getIdentifier() != null ? finding.getIdentifier() : "UNKNOWN",
-                        finding.getSeverity(),
-                        finding.getPackageName() != null ? finding.getPackageName() : finding.getFilePath(),
-                        finding.getPackageVersion(),
+                        finding.identifier() != null ? finding.identifier() : "UNKNOWN",
+                        finding.severity(),
+                        finding.packageName() != null ? finding.packageName() : finding.filePath(),
+                        finding.packageVersion(),
                         CveDelta.Status.RESOLVED));
             }
         }
@@ -237,17 +232,17 @@ public class SbomDiffService {
         return results;
     }
 
-    private String normalizeCveKey(FindingEntity finding) {
-        String cve = finding.getIdentifier() != null ? finding.getIdentifier() : "";
-        String pkg = finding.getPackageName() != null ? finding.getPackageName() : "";
+    private String normalizeCveKey(ScanFindingView finding) {
+        String cve = finding.identifier() != null ? finding.identifier() : "";
+        String pkg = finding.packageName() != null ? finding.packageName() : "";
         return cve + ":" + pkg;
     }
 
-    private Map<String, ComponentInfo> loadComponents(ScanEntity scan) {
+    private Map<String, ComponentInfo> loadComponents(ScanView scan) {
         Map<String, ComponentInfo> map = new HashMap<>();
 
         // 1. Try t_component table first
-        List<ComponentEntity> rows = components.findByScanId(scan.getId());
+        List<ComponentEntity> rows = components.findByScanId(scan.id());
         if (!rows.isEmpty()) {
             for (ComponentEntity row : rows) {
                 map.put(row.getName(), new ComponentInfo(
@@ -262,9 +257,9 @@ public class SbomDiffService {
         }
 
         // 2. Fallback to raw SBOM JSON if t_component was empty
-        if (scan.getSbom() != null && !scan.getSbom().isBlank()) {
+        if (scan.sbom() != null && !scan.sbom().isBlank()) {
             try {
-                JsonNode root = objectMapper.readTree(scan.getSbom());
+                JsonNode root = objectMapper.readTree(scan.sbom());
                 JsonNode artifacts = root.path("artifacts");
                 if (artifacts.isArray()) {
                     for (JsonNode artifact : artifacts) {

@@ -17,8 +17,8 @@ import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.agents.persistence.Agents;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.services.scanning.WorkerProperties;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
@@ -64,7 +64,7 @@ public class AgentAdministrationService {
 
     private final Agents agents;
     private final AgentKeys keys;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final TargetCatalog targets;
     private final AuditLogService audit;
     private final WorkerProperties worker;
@@ -74,7 +74,7 @@ public class AgentAdministrationService {
     public AgentAdministrationService(
             Agents agents,
             AgentKeys keys,
-            Scans scans,
+            ScanCatalog scans,
             TargetCatalog targets,
             AuditLogService audit,
             WorkerProperties worker,
@@ -182,7 +182,7 @@ public class AgentAdministrationService {
             containerNames.put(c.id(), name);
         });
 
-        List<ScanEntity> activeScans = scans.findByStatusInOrderByCreatedAtAsc(
+        List<ScanView> activeScans = scans.withStatusOldestFirst(
                 List.of(ScanStatus.SCANNING.wireName(), ScanStatus.PENDING.wireName()));
 
         List<RunningScan> runningItems = new ArrayList<>();
@@ -190,53 +190,53 @@ public class AgentAdministrationService {
         Set<String> busyAgentIds = new HashSet<>();
         int pendingPos = 1;
 
-        for (ScanEntity scan : activeScans) {
-            String targetType = scan.getRepoId() != null ? "repository" : "container";
-            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
-            String targetName = scan.getRepoId() != null
-                    ? repoNames.getOrDefault(scan.getRepoId(), "Repository #" + scan.getRepoId())
-                    : containerNames.getOrDefault(scan.getContainerId(), "Container #" + scan.getContainerId());
+        for (ScanView scan : activeScans) {
+            String targetType = scan.repoId() != null ? "repository" : "container";
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
+            String targetName = scan.repoId() != null
+                    ? repoNames.getOrDefault(scan.repoId(), "Repository #" + scan.repoId())
+                    : containerNames.getOrDefault(scan.containerId(), "Container #" + scan.containerId());
 
-            if (ScanStatus.SCANNING.wireName().equals(scan.getStatus())) {
-                String agentId = scan.getClaimedBy();
+            if (ScanStatus.SCANNING.wireName().equals(scan.status())) {
+                String agentId = scan.claimedBy();
                 String agentName = agentId != null
                         ? agentNames.getOrDefault(agentId, agentId.equalsIgnoreCase("worker") || agentId.equalsIgnoreCase("built-in") ? "Built-in Worker" : "Agent " + agentId)
                         : "Unknown Worker";
                 if (agentId != null) {
                     busyAgentIds.add(agentId);
                 }
-                long durationSec = scan.getClaimedAt() != null
-                        ? Math.max(0, Duration.between(scan.getClaimedAt(), asOf).toSeconds())
+                long durationSec = scan.claimedAt() != null
+                        ? Math.max(0, Duration.between(scan.claimedAt(), asOf).toSeconds())
                         : 0;
 
                 runningItems.add(new RunningScan(
-                        scan.getId(),
+                        scan.id(),
                         targetType,
                         targetId,
                         targetName,
-                        scan.getBranch(),
+                        scan.branch(),
                         agentId,
                         agentName,
-                        scan.getClaimedAt() != null ? scan.getClaimedAt() : scan.getCreatedAt(),
+                        scan.claimedAt() != null ? scan.claimedAt() : scan.createdAt(),
                         durationSec,
-                        scan.getRequiredAgentLabel()));
-            } else if (ScanStatus.PENDING.wireName().equals(scan.getStatus())) {
-                boolean isRoutable = scan.getRequiredAgentLabel() == null
-                        || scan.getRequiredAgentLabel().isBlank()
-                        || activeAgentLabels.contains(scan.getRequiredAgentLabel());
+                        scan.requiredAgentLabel()));
+            } else if (ScanStatus.PENDING.wireName().equals(scan.status())) {
+                boolean isRoutable = scan.requiredAgentLabel() == null
+                        || scan.requiredAgentLabel().isBlank()
+                        || activeAgentLabels.contains(scan.requiredAgentLabel());
 
-                long waitSec = scan.getCreatedAt() != null
-                        ? Math.max(0, Duration.between(scan.getCreatedAt(), asOf).toSeconds())
+                long waitSec = scan.createdAt() != null
+                        ? Math.max(0, Duration.between(scan.createdAt(), asOf).toSeconds())
                         : 0;
 
                 pendingItems.add(new PendingScan(
-                        scan.getId(),
+                        scan.id(),
                         targetType,
                         targetId,
                         targetName,
-                        scan.getBranch(),
-                        scan.getRequiredAgentLabel(),
-                        scan.getCreatedAt(),
+                        scan.branch(),
+                        scan.requiredAgentLabel(),
+                        scan.createdAt(),
                         waitSec,
                         isRoutable,
                         pendingPos++));
@@ -251,8 +251,8 @@ public class AgentAdministrationService {
         }
         int idleCount = Math.max(0, onlineCount - busyCount);
 
-        long completed24h = scans.countByStatusAndCreatedAtAfter(ScanStatus.COMPLETED.wireName(), last24h);
-        Double avgDurationMs = scans.findAvgDurationMsByStatusAndCreatedAtAfter(ScanStatus.COMPLETED.wireName(), last24h);
+        long completed24h = scans.countWithStatusSince(ScanStatus.COMPLETED.wireName(), last24h);
+        Double avgDurationMs = scans.averageDurationMsSince(ScanStatus.COMPLETED.wireName(), last24h);
         long avgDurationSec = avgDurationMs != null ? Math.round(avgDurationMs / 1000.0) : 0;
 
         QueueFigures figures = new QueueFigures(
@@ -447,7 +447,7 @@ public class AgentAdministrationService {
     public void remove(UUID id, RequestActor actor) {
         AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
 
-        long running = scans.countByStatusAndClaimedBy(ScanStatus.SCANNING.wireName(), id.toString());
+        long running = scans.countWithStatusClaimedBy(ScanStatus.SCANNING.wireName(), id.toString());
         if (running > 0) {
             // Deleting now would leave those scans ownerless until their lease lapses, and the
             // operator would see them "running" without knowing nobody is running them.
@@ -480,21 +480,17 @@ public class AgentAdministrationService {
         served.addAll(AgentLabels.parse(worker.labels()));
 
         List<Unroutable> unroutable = new ArrayList<>();
-        for (Object[] row : scans.countPendingByRequiredLabel(ScanStatus.PENDING.wireName())) {
-            String label = (String) row[0];
+        for (Map.Entry<String, Long> row : scans.countByRequiredLabel(ScanStatus.PENDING.wireName()).entrySet()) {
+            String label = row.getKey();
             if (!served.contains(label)) {
-                unroutable.add(new Unroutable(label, ((Number) row[1]).longValue()));
+                unroutable.add(new Unroutable(label, row.getValue()));
             }
         }
         return unroutable;
     }
 
     private Map<String, Long> runningByAgent() {
-        Map<String, Long> running = new HashMap<>();
-        for (Object[] row : scans.countRunningByClaimant(ScanStatus.SCANNING.wireName())) {
-            running.put((String) row[0], ((Number) row[1]).longValue());
-        }
-        return running;
+        return new HashMap<>(scans.countByClaimant(ScanStatus.SCANNING.wireName()));
     }
 
     /**

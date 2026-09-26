@@ -10,14 +10,14 @@ import com.asmolabs.vectispire.common.domain.trends.BacklogTrend;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.posture.internal.PostureScoreboards;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Clock;
@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -59,7 +58,7 @@ public class DashboardQueryService {
 
     private final GateService gate;
     private final Issues issues;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final TargetNaming naming;
     private final SlaService sla;
 
@@ -67,7 +66,7 @@ public class DashboardQueryService {
     private final Clock clock;
 
     public DashboardQueryService(
-            GateService gate, Issues issues, Scans scans, TargetNaming naming, SlaService sla, Clock clock) {
+            GateService gate, Issues issues, ScanCatalog scans, TargetNaming naming, SlaService sla, Clock clock) {
         this.gate = gate;
         this.issues = issues;
         this.scans = scans;
@@ -278,8 +277,8 @@ public class DashboardQueryService {
      * of repositories a restricted reader was never given, on the home page.
      */
     private List<RecentScan> recentScans(Visibility allowed) {
-        List<ScanEntity> recent = switch (allowed) {
-            case Visibility.Everything everything -> scans.findHistory(null, null, Limit.of(RECENT_SCANS));
+        List<ScanView> recent = switch (allowed) {
+            case Visibility.Everything everything -> scans.history(null, null, RECENT_SCANS);
             case Visibility.Only only -> {
                 List<Long> repoIds = only.targets().stream()
                         .filter(t -> t instanceof ScanTarget.Repository)
@@ -289,16 +288,16 @@ public class DashboardQueryService {
                         .map(t -> ((ScanTarget.Container) t).id()).toList();
                 yield repoIds.isEmpty() && containerIds.isEmpty()
                         ? List.of()
-                        : scans.findRecentWithin(orNone(repoIds), orNone(containerIds), Limit.of(RECENT_SCANS));
+                        : scans.recentWithin(orNone(repoIds), orNone(containerIds), RECENT_SCANS);
             }
         };
         TargetNaming.Names names = naming.forIds(
-                idsOf(recent, ScanEntity::getRepoId), idsOf(recent, ScanEntity::getContainerId));
+                idsOf(recent, ScanView::repoId), idsOf(recent, ScanView::containerId));
 
         return recent.stream().map(scan -> recentOf(scan, names)).toList();
     }
 
-    private static List<Long> idsOf(List<ScanEntity> scans, Function<ScanEntity, Long> id) {
+    private static List<Long> idsOf(List<ScanView> scans, Function<ScanView, Long> id) {
         return scans.stream().map(id).filter(Objects::nonNull).distinct().toList();
     }
 
@@ -312,26 +311,26 @@ public class DashboardQueryService {
      * <p>Images are left alone: their scans carry {@code n/a} in that column, and "alpine:3.20 -
      * n/a" is worse than no branch at all.
      */
-    private static String scanTargetName(ScanEntity scan, TargetNaming.Names names) {
-        String name = names.of(scan.getRepoId(), scan.getContainerId());
-        if (name == null || scan.getContainerId() != null) {
+    private static String scanTargetName(ScanView scan, TargetNaming.Names names) {
+        String name = names.of(scan.repoId(), scan.containerId());
+        if (name == null || scan.containerId() != null) {
             return name;
         }
-        String branch = scan.getBranch();
+        String branch = scan.branch();
         return branch == null || branch.isBlank() ? name : name + " — " + branch;
     }
 
-    private static RecentScan recentOf(ScanEntity scan, TargetNaming.Names names) {
+    private static RecentScan recentOf(ScanView scan, TargetNaming.Names names) {
         return new RecentScan(
-                scan.getId(),
-                scan.getRepoId(),
-                scan.getContainerId(),
-                names.kindOf(scan.getContainerId()),
+                scan.id(),
+                scan.repoId(),
+                scan.containerId(),
+                names.kindOf(scan.containerId()),
                 scanTargetName(scan, names),
-                scan.getStatus(),
-                scan.getFindingsCount(),
-                scan.getError(),
-                scan.getCreatedAt());
+                scan.status(),
+                scan.findingsCount(),
+                scan.error(),
+                scan.createdAt());
     }
 
     private static List<Long> repositoryIds(

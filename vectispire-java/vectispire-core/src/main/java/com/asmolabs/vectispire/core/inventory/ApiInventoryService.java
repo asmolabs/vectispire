@@ -12,7 +12,6 @@ import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -74,13 +73,11 @@ public class ApiInventoryService {
 
     private final ApiEndpoints apiEndpoints;
     private final ApiContracts apiContracts;
-    private final Scans scans;
     private final Clock clock;
 
-    public ApiInventoryService(ApiEndpoints apiEndpoints, ApiContracts apiContracts, Scans scans, Clock clock) {
+    public ApiInventoryService(ApiEndpoints apiEndpoints, ApiContracts apiContracts, Clock clock) {
         this.apiEndpoints = apiEndpoints;
         this.apiContracts = apiContracts;
-        this.scans = scans;
         this.clock = clock;
     }
 

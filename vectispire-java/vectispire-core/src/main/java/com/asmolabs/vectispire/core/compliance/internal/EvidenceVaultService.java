@@ -4,9 +4,8 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.audit.AuditChain;
-import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest;
 import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest.EvidenceFileEntry;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.common.domain.compliance.EvidenceBundleManifest;
 import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
@@ -21,7 +20,7 @@ import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -60,7 +59,7 @@ public class EvidenceVaultService {
     private final AuditLogService auditService;
     private final AuditLogQueryService auditLogRepo;
     private final Issues issuesRepo;
-    private final Scans scansRepo;
+    private final ScanCatalog scansRepo;
     private final AttestationService attestationService;
     private final VexGeneratorService vexService;
     private final CsafGeneratorService csafService;
@@ -77,7 +76,7 @@ public class EvidenceVaultService {
             AuditLogService auditService,
             AuditLogQueryService auditLogRepo,
             Issues issuesRepo,
-            Scans scansRepo,
+            ScanCatalog scansRepo,
             AttestationService attestationService,
             VexGeneratorService vexService,
             CsafGeneratorService csafService,
@@ -171,10 +170,10 @@ public class EvidenceVaultService {
             // The twenty most recent the caller may see, as ids: an attestation names its target's
             // provenance and gate verdict, so the twenty must be visible ones. Read from
             // `findAll()` they were also the twenty *oldest*, and every scan came with its SBOM.
-            List<Long> completedScans = scansRepo.idsAndTargetsNewestFirst("completed").stream()
-                    .filter(row -> allowed.permits(targetOf(row[1], row[2])))
+            List<Long> completedScans = scansRepo.withStatusNewestFirst("completed").stream()
+                    .filter(row -> allowed.permits(row.target()))
                     .limit(20)
-                    .map(row -> ((Number) row[0]).longValue())
+                    .map(ScanCatalog.ScanOfTarget::id)
                     .toList();
             // **Refusals are written into the bundle; failures are not swallowed.** This loop ended in
             // `catch (Exception ignored) {}`, so a statement that could not be built or signed left
@@ -341,11 +340,4 @@ public class EvidenceVaultService {
      * A scan attached to neither target is unclassifiable, and a restriction does not wave it through.
      * Read from a {@code [.., repoId, containerId]} projection row.
      */
-    private static ScanTarget targetOf(Object repoId, Object containerId) {
-        if (repoId != null) {
-            return new ScanTarget.Repository(((Number) repoId).longValue());
-        }
-        return containerId == null ? null : new ScanTarget.Container(((Number) containerId).longValue());
-    }
-
 }

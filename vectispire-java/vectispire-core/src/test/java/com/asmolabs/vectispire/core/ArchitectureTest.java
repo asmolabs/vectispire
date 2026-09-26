@@ -236,8 +236,14 @@ class ArchitectureTest {
      * but {@code access} — its figures and its "scan now" became ports — the names could go home, and
      * those domains' dependency on the targets became a line of this table instead of a foundation
      * class; {@code agents}, {@code compliance} and {@code threatintel} joined when they stopped
-     * reading the targets' rows and asked {@code TargetCatalog} instead (decision 0029). {@code targets} uses only {@code access}, so none of these lines can close
-     * a cycle.
+     * reading the targets' rows and asked {@code TargetCatalog} instead (decision 0029). {@code
+     * targets} uses only {@code access}, so none of these lines can close a cycle.
+     *
+     * <p><b>{@code scanning} likewise</b>, in the rows of {@code gate}, {@code posture}, {@code
+     * compliance} and {@code inventory}: they read the scans table through its repository, which the
+     * layered packaging let any class name. They ask {@code ScanCatalog} now, the owner's API, and the
+     * dependency they always had is written down. {@code scanning} uses only {@code access} and
+     * {@code targets}, below all four.
      */
     private static final Map<String, Set<String>> MAY_USE = Map.ofEntries(
             Map.entry("settings", Set.of()),
@@ -290,7 +296,7 @@ class ArchitectureTest {
             // the authentication tables' pass, which now reaches it through a port gate implements
             // (`SessionCleanupService.EvidencePurge`) instead of reading its repository. The reverse
             // read had closed a cycle; `access` uses nothing above the foundation.
-            Map.entry("gate", Set.of("access", "issues", "rules", "siem", "targets")),
+            Map.entry("gate", Set.of("access", "issues", "rules", "scanning", "siem", "targets")),
             // `access` since access became a module: a scan's delta is routed to the teams granted its
             // target that have a channel, and a team message is posted to that channel — both tables
             // access writes, which routing read through their repositories (now `TeamChannels`).
@@ -300,7 +306,8 @@ class ArchitectureTest {
             // for a scan, and its route first refuses a scan the caller may not see
             // (`ScanDocumentService.requireVisible`). `scanning` does not use `exports`.
             Map.entry("exports", Set.of("gate", "issues", "scanning", "targets")),
-            Map.entry("posture", Set.of("access", "gate", "inventory", "issues", "notifications", "targets")),
+            Map.entry("posture",
+                    Set.of("access", "gate", "inventory", "issues", "notifications", "scanning", "targets")),
             Map.entry("compliance",
                     Set.of("access", "ai", "exports", "gate", "inventory", "issues", "posture", "rules", "scanning",
                             "targets")));

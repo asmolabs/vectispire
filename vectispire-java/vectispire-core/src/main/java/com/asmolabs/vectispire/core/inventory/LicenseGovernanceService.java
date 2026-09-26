@@ -13,10 +13,9 @@ import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicies;
 import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicyEntity;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -49,8 +48,7 @@ public class LicenseGovernanceService {
 
     private final LicensePolicies policyRepo;
     private final Components componentsRepo;
-    private final Findings findingsRepo;
-    private final Scans scansRepo;
+    private final ScanCatalog scansRepo;
     private final TargetCatalog targets;
     private final ObjectMapper objectMapper;
     private final AuditLogService audit;
@@ -59,15 +57,13 @@ public class LicenseGovernanceService {
     public LicenseGovernanceService(
             LicensePolicies policyRepo,
             Components componentsRepo,
-            Findings findingsRepo,
-            Scans scansRepo,
+            ScanCatalog scansRepo,
             TargetCatalog targets,
             ObjectMapper objectMapper,
             AuditLogService audit,
             TransactionTemplate transactions) {
         this.policyRepo = policyRepo;
         this.componentsRepo = componentsRepo;
-        this.findingsRepo = findingsRepo;
         this.scansRepo = scansRepo;
         this.targets = targets;
         this.objectMapper = objectMapper;
@@ -161,40 +157,40 @@ public class LicenseGovernanceService {
         Map<Long, ContainerView> containers = targets.containers().stream()
                 .collect(Collectors.toMap(ContainerView::id, c -> c, (a, b) -> a));
 
-        List<ScanEntity> selected;
+        List<ScanView> selected;
         if (repoIdFilter != null) {
-            selected = scansRepo.findByRepoId(repoIdFilter);
+            selected = scansRepo.ofRepository(repoIdFilter);
         } else if (containerIdFilter != null) {
-            selected = scansRepo.findByContainerId(containerIdFilter);
+            selected = scansRepo.ofContainer(containerIdFilter);
         } else {
-            selected = scansRepo.findAll();
+            selected = scansRepo.all();
         }
-        Map<Long, ScanEntity> scans = selected.stream()
-                .collect(Collectors.toMap(ScanEntity::getId, s -> s, (a, b) -> a));
+        Map<Long, ScanView> scans = selected.stream()
+                .collect(Collectors.toMap(ScanView::id, s -> s, (a, b) -> a));
 
         // 1. Ingest real licenses from Scan SBOMs (Syft / CycloneDX)
-        for (ScanEntity scan : scans.values()) {
-            if (repoIdFilter != null && !Objects.equals(scan.getRepoId(), repoIdFilter)) {
+        for (ScanView scan : scans.values()) {
+            if (repoIdFilter != null && !Objects.equals(scan.repoId(), repoIdFilter)) {
                 continue;
             }
-            if (containerIdFilter != null && !Objects.equals(scan.getContainerId(), containerIdFilter)) {
+            if (containerIdFilter != null && !Objects.equals(scan.containerId(), containerIdFilter)) {
                 continue;
             }
-            if (repoIdFilter == null && containerIdFilter != null && scan.getRepoId() != null) {
+            if (repoIdFilter == null && containerIdFilter != null && scan.repoId() != null) {
                 continue;
             }
 
-            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
-            String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
-            String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).name()
-                    : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
+            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
+            String targetName = scan.repoId() != null && repos.containsKey(scan.repoId())
+                    ? repos.get(scan.repoId()).name()
+                    : (scan.containerId() != null && containers.containsKey(scan.containerId())
+                            ? containers.get(scan.containerId()).imageName() + ":" + containers.get(scan.containerId()).tag()
                             : "General");
 
-            if (scan.getSbom() != null && !scan.getSbom().isBlank()) {
+            if (scan.sbom() != null && !scan.sbom().isBlank()) {
                 try {
-                    JsonNode root = objectMapper.readTree(scan.getSbom());
+                    JsonNode root = objectMapper.readTree(scan.sbom());
                     JsonNode artifacts = root.path("artifacts");
                     if (artifacts.isArray()) {
                         for (JsonNode artifact : artifacts) {
@@ -230,7 +226,7 @@ public class LicenseGovernanceService {
                     // Logged, not swallowed: an SBOM that no longer parses took every licence of
                     // its scan out of the inventory with nothing to say why.
                     log.warn("Scan {}: SBOM unreadable, its licences are missing from the inventory: {}",
-                            scan.getId(), unreadable.getMessage());
+                            scan.id(), unreadable.getMessage());
                 }
             }
         }
@@ -239,22 +235,22 @@ public class LicenseGovernanceService {
         List<ComponentEntity> components =
                 scans.isEmpty() ? List.of() : componentsRepo.findByScanIdIn(scans.keySet());
         for (ComponentEntity comp : components) {
-            ScanEntity scan = comp.getScanId() != null ? scans.get(comp.getScanId()) : null;
+            ScanView scan = comp.getScanId() != null ? scans.get(comp.getScanId()) : null;
             if (scan == null) continue;
 
-            if (repoIdFilter != null && !Objects.equals(scan.getRepoId(), repoIdFilter)) {
+            if (repoIdFilter != null && !Objects.equals(scan.repoId(), repoIdFilter)) {
                 continue;
             }
-            if (containerIdFilter != null && !Objects.equals(scan.getContainerId(), containerIdFilter)) {
+            if (containerIdFilter != null && !Objects.equals(scan.containerId(), containerIdFilter)) {
                 continue;
             }
 
-            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
-            String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
-            String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).name()
-                    : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
+            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
+            String targetName = scan.repoId() != null && repos.containsKey(scan.repoId())
+                    ? repos.get(scan.repoId()).name()
+                    : (scan.containerId() != null && containers.containsKey(scan.containerId())
+                            ? containers.get(scan.containerId()).imageName() + ":" + containers.get(scan.containerId()).tag()
                             : "General");
 
             String key = targetKind + ":" + targetId + ":" + comp.getName() + ":" + (comp.getVersion() != null ? comp.getVersion() : "");
@@ -279,38 +275,38 @@ public class LicenseGovernanceService {
         }
 
         // 3. Check direct license findings from scanners (Trivy license scanner)
-        List<FindingEntity> licenseFindings =
-                scans.isEmpty() ? List.of() : findingsRepo.findLicenseFindings(scans.keySet());
+        List<ScanFindingView> licenseFindings =
+                scans.isEmpty() ? List.of() : scansRepo.licenseFindings(scans.keySet());
 
-        for (FindingEntity finding : licenseFindings) {
-            ScanEntity scan = finding.getScanId() != null ? scans.get(finding.getScanId()) : null;
+        for (ScanFindingView finding : licenseFindings) {
+            ScanView scan = finding.scanId() != null ? scans.get(finding.scanId()) : null;
             if (scan == null) continue;
 
-            if (repoIdFilter != null && !Objects.equals(scan.getRepoId(), repoIdFilter)) {
+            if (repoIdFilter != null && !Objects.equals(scan.repoId(), repoIdFilter)) {
                 continue;
             }
-            if (containerIdFilter != null && !Objects.equals(scan.getContainerId(), containerIdFilter)) {
+            if (containerIdFilter != null && !Objects.equals(scan.containerId(), containerIdFilter)) {
                 continue;
             }
 
-            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
-            String targetKind = scan.getRepoId() != null ? "repository" : (scan.getContainerId() != null ? "container" : "general");
-            String targetName = scan.getRepoId() != null && repos.containsKey(scan.getRepoId())
-                    ? repos.get(scan.getRepoId()).name()
-                    : (scan.getContainerId() != null && containers.containsKey(scan.getContainerId())
-                            ? containers.get(scan.getContainerId()).imageName() + ":" + containers.get(scan.getContainerId()).tag()
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
+            String targetKind = scan.repoId() != null ? "repository" : (scan.containerId() != null ? "container" : "general");
+            String targetName = scan.repoId() != null && repos.containsKey(scan.repoId())
+                    ? repos.get(scan.repoId()).name()
+                    : (scan.containerId() != null && containers.containsKey(scan.containerId())
+                            ? containers.get(scan.containerId()).imageName() + ":" + containers.get(scan.containerId()).tag()
                             : "General");
 
-            String license = finding.getIdentifier() != null ? finding.getIdentifier() : "UNKNOWN";
+            String license = finding.identifier() != null ? finding.identifier() : "UNKNOWN";
             LicenseRiskCategory risk = LicenseRiskCategory.classify(license);
             boolean compliant = policy.isCompliant(license, risk);
             String violationReason = compliant ? null : "License " + license + " is forbidden under active compliance policy (" + risk + ")";
 
-            String key = targetKind + ":" + targetId + ":" + (finding.getPackageName() != null ? finding.getPackageName() : "unknown") + ":" + (finding.getPackageVersion() != null ? finding.getPackageVersion() : "");
+            String key = targetKind + ":" + targetId + ":" + (finding.packageName() != null ? finding.packageName() : "unknown") + ":" + (finding.packageVersion() != null ? finding.packageVersion() : "");
             entryMap.put(key, new LicenseEntry(
-                    finding.getPackageName() != null ? finding.getPackageName() : "unknown",
-                    finding.getPackageVersion() != null ? finding.getPackageVersion() : "unknown",
-                    finding.getPurl(),
+                    finding.packageName() != null ? finding.packageName() : "unknown",
+                    finding.packageVersion() != null ? finding.packageVersion() : "unknown",
+                    finding.purl(),
                     license,
                     risk,
                     compliant,

@@ -10,8 +10,8 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.IssueAggregates;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.util.EnumMap;
 import java.util.Map;
@@ -35,12 +35,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class OwaspCoverageService {
 
     private final Issues issues;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
     private final SettingsService settings;
 
     public OwaspCoverageService(
-            Issues issues, Scans scans, RuleCoverageService ruleCoverage, SettingsService settings) {
+            Issues issues, ScanCatalog scans, RuleCoverageService ruleCoverage, SettingsService settings) {
         this.issues = issues;
         this.scans = scans;
         this.ruleCoverage = ruleCoverage;
@@ -95,10 +95,10 @@ public class OwaspCoverageService {
      */
     private boolean scanned(Visibility allowed) {
         return java.util.stream.Stream.concat(
-                        scans.findLatestPerRepository().stream()
+                        scans.latestPerRepository().stream()
                                 .filter(row -> row.targetId() != null)
                                 .<ScanTarget>map(row -> new ScanTarget.Repository(row.targetId())),
-                        scans.findLatestPerContainer().stream()
+                        scans.latestPerContainer().stream()
                                 .filter(row -> row.targetId() != null)
                                 .<ScanTarget>map(row -> new ScanTarget.Container(row.targetId())))
                 .anyMatch(allowed::permits);

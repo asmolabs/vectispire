@@ -26,9 +26,9 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.services.issues.IssueViews;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
@@ -70,7 +70,7 @@ public class GateService {
     private final ActiveGatePolicies activePolicies;
     private final GateVerdicts verdicts;
     private final TargetCatalog catalog;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
     private final SiemEvents siem;
     private final Clock clock;
@@ -80,7 +80,7 @@ public class GateService {
             GatePolicies policies,
             GateVerdicts verdicts,
             TargetCatalog catalog,
-            Scans scans,
+            ScanCatalog scans,
             RuleCoverageService ruleCoverage,
             SiemEvents siem,
             Clock clock) {
@@ -384,10 +384,10 @@ public class GateService {
 
     private Map<ScanTarget, SecurityOverview.LatestScan> latestScans() {
         Map<ScanTarget, SecurityOverview.LatestScan> latest = new HashMap<>();
-        scans.findLatestPerRepository()
+        scans.latestPerRepository()
                 .forEach(row -> latestScan(row)
                         .ifPresent(scan -> latest.put(new ScanTarget.Repository(row.targetId()), scan)));
-        scans.findLatestPerContainer()
+        scans.latestPerContainer()
                 .forEach(row -> latestScan(row)
                         .ifPresent(scan -> latest.put(new ScanTarget.Container(row.targetId()), scan)));
         return latest;

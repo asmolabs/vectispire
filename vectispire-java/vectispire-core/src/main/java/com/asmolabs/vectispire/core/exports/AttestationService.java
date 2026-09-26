@@ -5,11 +5,11 @@ import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.gate.GateVerdictView;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
@@ -33,21 +33,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class AttestationService {
 
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final TargetCatalog targets;
-    private final Findings findings;
     private final GateRegisterService verdicts;
     private final String version;
 
     public AttestationService(
-            Scans scans,
+            ScanCatalog scans,
             TargetCatalog targets,
-            Findings findings,
             GateRegisterService verdicts,
             ProductVersion version) {
         this.scans = scans;
         this.targets = targets;
-        this.findings = findings;
         this.verdicts = verdicts;
         // The version every export states. It was the literal "0.9.0", which every release after
         // that one would have gone on claiming inside a signed document.
@@ -67,44 +64,44 @@ public class AttestationService {
     }
 
     public InTotoAttestation generateAttestation(long scanId) {
-        ScanEntity scan = scans.findById(scanId)
+        ScanView scan = scans.scan(scanId)
                 .orElseThrow(() -> new NoSuchElementException("Scan not found."));
 
-        if (!ScanStatus.COMPLETED.wireName().equals(scan.getStatus())) {
+        if (!ScanStatus.COMPLETED.wireName().equals(scan.status())) {
             throw new NotAttestableException("Scan #" + scanId + " did not complete; there is no result to attest.");
         }
-        if (scan.getRepoId() == null && scan.getContainerId() == null) {
+        if (scan.repoId() == null && scan.containerId() == null) {
             throw new NotAttestableException("Scan #" + scanId + " is attached to no target; there is nothing to name.");
         }
-        if (scan.getSbom() == null || scan.getSbom().isBlank()) {
+        if (scan.sbom() == null || scan.sbom().isBlank()) {
             throw new NotAttestableException("Scan #" + scanId + " recorded no SBOM; there is no artefact to name by digest.");
         }
 
-        boolean isRepository = scan.getRepoId() != null;
+        boolean isRepository = scan.repoId() != null;
         String targetKind = isRepository ? "repository" : "container";
         String targetName = targetName(scan);
-        String sbomDigest = Digests.sha256Hex(scan.getSbom());
+        String sbomDigest = Digests.sha256Hex(scan.sbom());
 
         InTotoAttestation.FindingsSummary summary = new InTotoAttestation.FindingsSummary(
-                findings.countByScanIdAndSeverity(scanId, Severity.CRITICAL.wireName()),
-                findings.countByScanIdAndSeverity(scanId, Severity.HIGH.wireName()),
-                findings.countByScanIdAndSeverity(scanId, Severity.MEDIUM.wireName()),
-                findings.countByScanIdAndSeverity(scanId, Severity.LOW.wireName()),
-                findings.countByScanIdAndIsKevTrue(scanId),
-                findings.countByScanIdAndType(scanId, FindingType.SECRET.wireName()),
-                scan.getFindingsCount());
+                scans.countFindings(scanId, Severity.CRITICAL.wireName()),
+                scans.countFindings(scanId, Severity.HIGH.wireName()),
+                scans.countFindings(scanId, Severity.MEDIUM.wireName()),
+                scans.countFindings(scanId, Severity.LOW.wireName()),
+                scans.countKevFindings(scanId),
+                scans.countFindingsOfType(scanId, FindingType.SECRET.wireName()),
+                scan.findingsCount());
 
         return InTotoAttestation.create(
                 targetName + "/sbom-scan-" + scanId + ".json",
                 sbomDigest,
                 version,
-                scan.getId(),
+                scan.id(),
                 targetKind,
                 targetName,
-                scan.getBranch(),
+                scan.branch(),
                 // Not recorded by the scan. Null says so; anything else would be a guess.
                 null,
-                scan.getCreatedAt(),
+                scan.createdAt(),
                 verdictAfter(scan).map(AttestationService::assessment).orElse(null),
                 summary,
                 sbomDigest);
@@ -118,21 +115,19 @@ public class AttestationService {
      * completed scan: before, it judged an older backlog; after, a newer one. None in that window
      * means the gate was not consulted, and the statement says nothing rather than "passed".
      */
-    private Optional<GateVerdictView> verdictAfter(ScanEntity scan) {
-        Instant from = scan.getCreatedAt();
+    private Optional<GateVerdictView> verdictAfter(ScanView scan) {
+        Instant from = scan.createdAt();
         String completed = ScanStatus.COMPLETED.wireName();
         // An empty window with a later scan means "not asked", and must not fall through to the
         // unbounded query — that would hand this scan a verdict about the next one's backlog.
-        if (scan.getRepoId() != null) {
-            Long id = scan.getRepoId();
-            Optional<ScanEntity> next =
-                    scans.findFirstByRepoIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(id, completed, from);
-            return verdicts.lastForRepository(id, from, next.map(ScanEntity::getCreatedAt).orElse(null));
+        if (scan.repoId() != null) {
+            Long id = scan.repoId();
+            Optional<ScanView> next = scans.nextWithStatusAfter(new ScanTarget.Repository(id), completed, from);
+            return verdicts.lastForRepository(id, from, next.map(ScanView::createdAt).orElse(null));
         }
-        Long id = scan.getContainerId();
-        Optional<ScanEntity> next =
-                scans.findFirstByContainerIdAndStatusAndCreatedAtGreaterThanOrderByCreatedAtAsc(id, completed, from);
-        return verdicts.lastForContainer(id, from, next.map(ScanEntity::getCreatedAt).orElse(null));
+        Long id = scan.containerId();
+        Optional<ScanView> next = scans.nextWithStatusAfter(new ScanTarget.Container(id), completed, from);
+        return verdicts.lastForContainer(id, from, next.map(ScanView::createdAt).orElse(null));
     }
 
     private static InTotoAttestation.PolicyAssessment assessment(GateVerdictView verdict) {
@@ -148,15 +143,15 @@ public class AttestationService {
     }
 
     /** A container by image and tag, as every other screen names it — not "Target #12". */
-    private String targetName(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return targets.repository(scan.getRepoId())
+    private String targetName(ScanView scan) {
+        if (scan.repoId() != null) {
+            return targets.repository(scan.repoId())
                     .map(RepositoryView::name)
-                    .orElse("repository-" + scan.getRepoId());
+                    .orElse("repository-" + scan.repoId());
         }
-        return targets.container(scan.getContainerId())
+        return targets.container(scan.containerId())
                 .map(AttestationService::imageOf)
-                .orElse("container-" + scan.getContainerId());
+                .orElse("container-" + scan.containerId());
     }
 
     private static String imageOf(ContainerView container) {

@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReportPdf;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -33,7 +33,7 @@ public class OwaspReportService {
 
     private final OwaspReviewService reviews;
     private final TargetCatalog targets;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final Issues issues;
     private final AuditLogService audit;
     private final BrandingProperties branding;
@@ -41,7 +41,7 @@ public class OwaspReportService {
     public OwaspReportService(
             OwaspReviewService reviews,
             TargetCatalog targets,
-            Scans scans,
+            ScanCatalog scans,
             Issues issues,
             AuditLogService audit,
             BrandingProperties branding) {
@@ -104,15 +104,15 @@ public class OwaspReportService {
                     "The last run did not produce a report: " + result.getError());
         }
 
-        ScanEntity scan = scans.findById(result.getScanId()).orElse(null);
+        ScanView scan = scans.scan(result.getScanId()).orElse(null);
         return OwaspReportPdf.render(
                 new OwaspReportPdf.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
                         repository.branch(),
-                        scan == null ? null : scan.getVersion(),
+                        scan == null ? null : scan.version(),
                         result.getModel(),
                         result.getScanId(),
-                        scan == null ? null : scan.getCreatedAt(),
+                        scan == null ? null : scan.createdAt(),
                         result.getCreatedAt(),
                         issues.countByStateAndRepository(IssueState.OPEN.wireName(), repositoryId),
                         branding.name()),

@@ -24,7 +24,8 @@ public interface Components extends JpaRepository<ComponentEntity, Long> {
      * {@code org.apache.logging.log4j:log4j-core}.
      */
     @Query("""
-            select c, s from ComponentEntity c, ScanEntity s
+            select c, s.id, s.repoId, s.containerId, s.branch, s.version, s.createdAt
+              from ComponentEntity c, ScanEntity s
              where c.scanId = s.id
                and (lower(c.name) like :name or lower(c.purl) like :name)
                and (:version is null or c.version = :version)

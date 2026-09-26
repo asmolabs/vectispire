@@ -7,12 +7,10 @@ import com.asmolabs.vectispire.common.domain.graph.BlastRadiusReport;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphEdge;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph.GraphNode;
 import com.asmolabs.vectispire.common.domain.graph.DependencyGraph;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.FindingGraphQueries;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
@@ -36,19 +34,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class BlastRadiusService {
 
     private final TargetCatalog targets;
-    private final Findings findingsRepo;
+    private final ScanCatalog findingsRepo;
     private final Issues issuesRepo;
-    private final Scans scansRepo;
 
     public BlastRadiusService(
             TargetCatalog targets,
-            Findings findingsRepo,
-            Issues issuesRepo,
-            Scans scansRepo) {
+            ScanCatalog findingsRepo,
+            Issues issuesRepo) {
         this.targets = targets;
         this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
-        this.scansRepo = scansRepo;
     }
 
     /**
@@ -69,7 +64,7 @@ public class BlastRadiusService {
         String query = rawQuery != null ? rawQuery.trim() : "";
         boolean isCveQuery = query.toUpperCase(Locale.ROOT).startsWith("CVE-");
 
-        List<FindingGraphQueries.GraphRow> rows = findingsRepo.forGraph(query, isCveQuery, true, allowed);
+        List<ScanCatalog.FindingOnScan> rows = findingsRepo.findingsForGraph(query, isCveQuery, true, allowed);
 
         // Named only for the targets that actually appeared, rather than by loading both tables.
         Map<Long, RepositoryView> reposMap = namedRepositories(rows);
@@ -86,54 +81,54 @@ public class BlastRadiusService {
 
         // The scan arrives with its findings rather than being fetched per group: that lookup
         // was an N+1 sitting on top of a whole-table read.
-        Map<ScanEntity, List<FindingEntity>> findingsByScan = new LinkedHashMap<>();
-        for (FindingGraphQueries.GraphRow row : rows) {
+        Map<ScanView, List<ScanFindingView>> findingsByScan = new LinkedHashMap<>();
+        for (ScanCatalog.FindingOnScan row : rows) {
             findingsByScan.computeIfAbsent(row.scan(), key -> new ArrayList<>()).add(row.finding());
         }
 
-        for (Map.Entry<ScanEntity, List<FindingEntity>> entry : findingsByScan.entrySet()) {
-            ScanEntity scan = entry.getKey();
+        for (Map.Entry<ScanView, List<ScanFindingView>> entry : findingsByScan.entrySet()) {
+            ScanView scan = entry.getKey();
 
-            String targetKind = scan.getRepoId() != null ? "REPOSITORY" : "CONTAINER";
-            Long targetId = scan.getRepoId() != null ? scan.getRepoId() : scan.getContainerId();
+            String targetKind = scan.repoId() != null ? "REPOSITORY" : "CONTAINER";
+            Long targetId = scan.repoId() != null ? scan.repoId() : scan.containerId();
             if (targetId == null) continue;
 
-            String targetName = scan.getRepoId() != null && reposMap.containsKey(targetId)
+            String targetName = scan.repoId() != null && reposMap.containsKey(targetId)
                     ? reposMap.get(targetId).name()
-                    : (scan.getContainerId() != null && containersMap.containsKey(targetId)
+                    : (scan.containerId() != null && containersMap.containsKey(targetId)
                             ? containersMap.get(targetId).imageName() + ":" + containersMap.get(targetId).tag()
                             : "target-" + targetId);
 
-            String targetContext = scan.getRepoId() != null
-                    ? (scan.getBranch() != null ? scan.getBranch() : "main")
-                    : (scan.getContainerId() != null && containersMap.containsKey(targetId)
+            String targetContext = scan.repoId() != null
+                    ? (scan.branch() != null ? scan.branch() : "main")
+                    : (scan.containerId() != null && containersMap.containsKey(targetId)
                             ? containersMap.get(targetId).tag()
                             : "latest");
 
             String targetNodeId = "target-" + targetKind.toLowerCase(Locale.ROOT) + "-" + targetId;
 
-            List<FindingEntity> scanFindings = entry.getValue();
-            for (FindingEntity finding : scanFindings) {
+            List<ScanFindingView> scanFindings = entry.getValue();
+            for (ScanFindingView finding : scanFindings) {
                 // The package-name and secret filters moved into the query; so did the match
                 // below. Kept as a single guard rather than removed, because the query is the
                 // contract and this is the assertion that it held.
-                String pkgName = finding.getPackageName();
-                String cveId = finding.getIdentifier();
+                String pkgName = finding.packageName();
+                String cveId = finding.identifier();
 
-                boolean isDirect = Boolean.TRUE.equals(finding.getIsDirectDependency());
+                boolean isDirect = Boolean.TRUE.equals(finding.isDirectDependency());
                 if (isDirect) directCount++; else transitiveCount++;
 
                 if (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                     uniqueCves.add(cveId);
                 }
-                if (finding.getCvssScore() != null && finding.getCvssScore() > maxCvss) {
-                    maxCvss = finding.getCvssScore();
+                if (finding.cvssScore() != null && finding.cvssScore() > maxCvss) {
+                    maxCvss = finding.cvssScore();
                 }
 
-                String reachability = finding.getReachability() != null ? finding.getReachability() : "UNKNOWN";
-                String sourceFile = finding.getFilePath() != null && !finding.getFilePath().isBlank()
-                        ? finding.getFilePath()
-                        : (finding.getPurl() != null ? extractEcosystem(finding.getPurl()) : "manifest");
+                String reachability = finding.reachability() != null ? finding.reachability() : "UNKNOWN";
+                String sourceFile = finding.filePath() != null && !finding.filePath().isBlank()
+                        ? finding.filePath()
+                        : (finding.purl() != null ? extractEcosystem(finding.purl()) : "manifest");
 
                 targets.add(new TargetImpact(
                         targetId,
@@ -141,24 +136,24 @@ public class BlastRadiusService {
                         targetName,
                         targetContext,
                         sourceFile,
-                        finding.getPurl(),
+                        finding.purl(),
                         pkgName,
-                        finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest",
+                        finding.packageVersion() != null ? finding.packageVersion() : "latest",
                         isDirect,
                         (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) ? List.of(cveId) : List.of(),
                         reachability,
-                        scan.getId()));
+                        scan.id()));
 
                 // Add Target Node
                 nodesMap.putIfAbsent(targetNodeId, new GraphNode(
-                        targetNodeId, targetName, "TARGET", scan.getBranch() != null ? scan.getBranch() : "main",
+                        targetNodeId, targetName, "TARGET", scan.branch() != null ? scan.branch() : "main",
                         targetKind, 0, isDirect, List.of()));
 
                 // Add Package Node
-                String pkgNodeId = "pkg-" + pkgName + "@" + (finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest");
+                String pkgNodeId = "pkg-" + pkgName + "@" + (finding.packageVersion() != null ? finding.packageVersion() : "latest");
                 nodesMap.putIfAbsent(pkgNodeId, new GraphNode(
-                        pkgNodeId, pkgName, "PACKAGE", finding.getPackageVersion(),
-                        extractEcosystem(finding.getPurl()), finding.getCvssScore() != null ? (int)(finding.getCvssScore() * 10) : 0,
+                        pkgNodeId, pkgName, "PACKAGE", finding.packageVersion(),
+                        extractEcosystem(finding.purl()), finding.cvssScore() != null ? (int)(finding.cvssScore() * 10) : 0,
                         isDirect, cveId != null ? List.of(cveId) : List.of()));
 
                 // Edge Target -> Package
@@ -169,7 +164,7 @@ public class BlastRadiusService {
                     String cveNodeId = "cve-" + cveId;
                     nodesMap.putIfAbsent(cveNodeId, new GraphNode(
                             cveNodeId, cveId, "CVE", null, null,
-                            finding.getCvssScore() != null ? (int)(finding.getCvssScore() * 10) : 50,
+                            finding.cvssScore() != null ? (int)(finding.cvssScore() * 10) : 50,
                             isDirect, List.of(cveId)));
 
                     edges.add(new GraphEdge(pkgNodeId, cveNodeId, "AFFECTED_BY"));
@@ -254,9 +249,9 @@ public class BlastRadiusService {
     }
 
     /** The repositories named by these rows, and no others. */
-    private Map<Long, RepositoryView> namedRepositories(List<FindingGraphQueries.GraphRow> rows) {
+    private Map<Long, RepositoryView> namedRepositories(List<ScanCatalog.FindingOnScan> rows) {
         Set<Long> ids = rows.stream()
-                .map(row -> row.scan().getRepoId())
+                .map(row -> row.scan().repoId())
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         return ids.isEmpty()
@@ -265,9 +260,9 @@ public class BlastRadiusService {
                         .collect(Collectors.toMap(RepositoryView::id, r -> r));
     }
 
-    private Map<Long, ContainerView> namedContainers(List<FindingGraphQueries.GraphRow> rows) {
+    private Map<Long, ContainerView> namedContainers(List<ScanCatalog.FindingOnScan> rows) {
         Set<Long> ids = rows.stream()
-                .map(row -> row.scan().getContainerId())
+                .map(row -> row.scan().containerId())
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
         return ids.isEmpty()

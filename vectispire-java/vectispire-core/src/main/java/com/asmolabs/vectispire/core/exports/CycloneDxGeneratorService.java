@@ -2,15 +2,12 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
-import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -22,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
 
 /**
  * Generates CycloneDX 1.5 Software Bill of Materials (SBOM) with BOM-linked
@@ -30,15 +28,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class CycloneDxGeneratorService {
 
-    private final Scans scansRepo;
-    private final Findings findingsRepo;
+    private final ScanCatalog scansRepo;
     private final Issues issuesRepo;
     private final String toolVersion;
 
     public CycloneDxGeneratorService(
-            Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ProductVersion version) {
+            ScanCatalog scansRepo, Issues issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
-        this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
         // The same version every other export states, or none: the tool entry's version is
         // optional in CycloneDX, and it was the literal "0.9.0".
@@ -46,7 +42,7 @@ public class CycloneDxGeneratorService {
     }
 
     public Optional<CycloneDxDocument> generateForScan(Long scanId) {
-        return scansRepo.findById(scanId).map(this::buildForScan);
+        return scansRepo.scan(scanId).map(this::buildForScan);
     }
 
     public CycloneDxDocument generateAggregate(Visibility allowed) {
@@ -104,21 +100,21 @@ public class CycloneDxGeneratorService {
                 vulnerabilities);
     }
 
-    private CycloneDxDocument buildForScan(ScanEntity scan) {
-        List<FindingEntity> scanFindings = findingsRepo.findByScanId(scan.getId());
+    private CycloneDxDocument buildForScan(ScanView scan) {
+        List<ScanFindingView> scanFindings = scansRepo.findings(scan.id());
         Map<String, Component> componentMap = new HashMap<>();
         List<Vulnerability> vulnerabilities = new ArrayList<>();
 
-        for (FindingEntity finding : scanFindings) {
-            String cve = finding.getIdentifier();
+        for (ScanFindingView finding : scanFindings) {
+            String cve = finding.identifier();
             if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
-            String pkg = finding.getPackageName() != null ? finding.getPackageName() : "unknown";
-            String version = finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest";
-            String purl = finding.getPurl() != null && !finding.getPurl().isBlank()
-                    ? finding.getPurl()
+            String pkg = finding.packageName() != null ? finding.packageName() : "unknown";
+            String version = finding.packageVersion() != null ? finding.packageVersion() : "latest";
+            String purl = finding.purl() != null && !finding.purl().isBlank()
+                    ? finding.purl()
                     : "pkg:generic/" + pkg + "@" + version;
 
             componentMap.putIfAbsent(purl, new Component(
@@ -132,25 +128,25 @@ public class CycloneDxGeneratorService {
 
             // Look up corresponding issue to extract triage state
             Optional<IssueEntity> matchingIssue = issuesRepo.findByIdentifier(cve).stream()
-                    .filter(i -> (scan.getRepoId() != null && scan.getRepoId().equals(i.getRepoId()))
-                            || (scan.getContainerId() != null && scan.getContainerId().equals(i.getContainerId())))
+                    .filter(i -> (scan.repoId() != null && scan.repoId().equals(i.getRepoId()))
+                            || (scan.containerId() != null && scan.containerId().equals(i.getContainerId())))
                     .findFirst();
 
             vulnerabilities.add(buildVulnerabilityFromFinding(finding, matchingIssue.orElse(null), purl));
         }
 
-        String targetName = scan.getRepoId() != null ? "repo-" + scan.getRepoId() : "container-" + scan.getContainerId();
+        String targetName = scan.repoId() != null ? "repo-" + scan.repoId() : "container-" + scan.containerId();
         Component scanTarget = new Component(
                 "urn:vectispire:target:" + targetName,
                 "application",
                 "vectispire",
                 targetName,
-                scan.getVersion() != null ? scan.getVersion() : "latest",
+                scan.version() != null ? scan.version() : "latest",
                 null,
                 null);
 
         Metadata metadata = new Metadata(
-                scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now(),
+                scan.createdAt() != null ? scan.createdAt() : Instant.now(),
                 List.of(new Tool("AsmoLabs", "Vectispire", toolVersion)),
                 scanTarget);
 
@@ -190,10 +186,10 @@ public class CycloneDxGeneratorService {
                 List.of(new Affects(purl)));
     }
 
-    private Vulnerability buildVulnerabilityFromFinding(FindingEntity finding, IssueEntity issue, String purl) {
-        String cve = finding.getIdentifier();
-        Double score = finding.getCvssScore();
-        String severity = finding.getSeverity() != null ? finding.getSeverity().toLowerCase(Locale.ROOT) : "medium";
+    private Vulnerability buildVulnerabilityFromFinding(ScanFindingView finding, IssueEntity issue, String purl) {
+        String cve = finding.identifier();
+        Double score = finding.cvssScore();
+        String severity = finding.severity() != null ? finding.severity().toLowerCase(Locale.ROOT) : "medium";
 
         List<Rating> ratings = List.of(new Rating(
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
@@ -211,9 +207,9 @@ public class CycloneDxGeneratorService {
                 cve,
                 new Source("NVD", "https://nvd.nist.gov/vuln/detail/" + cve),
                 ratings,
-                cve + " in " + finding.getPackageName(),
-                finding.getDescription(),
-                finding.getFixVersions() != null ? "Upgrade component to version " + finding.getFixVersions() : null,
+                cve + " in " + finding.packageName(),
+                finding.description(),
+                finding.fixVersions() != null ? "Upgrade component to version " + finding.fixVersions() : null,
                 analysis,
                 List.of(new Affects(purl)));
     }

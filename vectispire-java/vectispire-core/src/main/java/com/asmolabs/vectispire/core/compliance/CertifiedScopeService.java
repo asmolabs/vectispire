@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.repositories.LatestScanRow;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
@@ -40,13 +40,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class CertifiedScopeService {
 
     private final TargetCatalog targets;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final SettingsService settings;
     private final Clock clock;
 
     public CertifiedScopeService(
             TargetCatalog targets,
-            Scans scans,
+            ScanCatalog scans,
             SettingsService settings,
             Clock clock) {
         this.targets = targets;
@@ -73,8 +73,8 @@ public class CertifiedScopeService {
         Set<ScanTarget> inScope = inScope(allowed);
 
         Map<ScanTarget, Instant> lastScan = new HashMap<>();
-        collect(scans.findLatestPerRepository(), ScanTarget.Repository::new, lastScan);
-        collect(scans.findLatestPerContainer(), ScanTarget.Container::new, lastScan);
+        collect(scans.latestPerRepository(), ScanTarget.Repository::new, lastScan);
+        collect(scans.latestPerContainer(), ScanTarget.Container::new, lastScan);
 
         Instant cutoff = clock.instant().minus(Duration.ofDays(freshnessDays()));
 

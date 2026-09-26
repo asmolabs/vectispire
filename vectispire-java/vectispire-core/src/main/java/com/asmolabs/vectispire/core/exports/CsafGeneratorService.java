@@ -2,14 +2,12 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
-import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,20 +36,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class CsafGeneratorService {
 
-    private final Scans scansRepo;
-    private final Findings findingsRepo;
+    private final ScanCatalog scansRepo;
     private final Issues issuesRepo;
     private final ProductVersion version;
 
-    public CsafGeneratorService(Scans scansRepo, Findings findingsRepo, Issues issuesRepo, ProductVersion version) {
+    public CsafGeneratorService(ScanCatalog scansRepo, Issues issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
-        this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
         this.version = version;
     }
 
     public Optional<CsafDocument> generateForScan(Long scanId) {
-        return scansRepo.findById(scanId).map(this::buildCsafForScan);
+        return scansRepo.scan(scanId).map(this::buildCsafForScan);
     }
 
     public CsafDocument generateAggregate(Visibility allowed) {
@@ -127,26 +123,26 @@ public class CsafGeneratorService {
                 vulnerabilities);
     }
 
-    private CsafDocument buildCsafForScan(ScanEntity scan) {
-        List<FindingEntity> scanFindings = findingsRepo.findByScanId(scan.getId());
+    private CsafDocument buildCsafForScan(ScanView scan) {
+        List<ScanFindingView> scanFindings = scansRepo.findings(scan.id());
         Map<String, CsafDocument.FullProductName> productMap = new HashMap<>();
         List<CsafDocument.CsafVulnerability> vulnerabilities = new ArrayList<>();
 
-        for (FindingEntity finding : scanFindings) {
-            String cve = finding.getIdentifier();
+        for (ScanFindingView finding : scanFindings) {
+            String cve = finding.identifier();
             if (cve == null || !cve.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
 
-            String pkg = finding.getPackageName() != null ? finding.getPackageName() : "unknown";
-            String version = finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest";
+            String pkg = finding.packageName() != null ? finding.packageName() : "unknown";
+            String version = finding.packageVersion() != null ? finding.packageVersion() : "latest";
             String productId = "CSAFPID-" + Math.abs((pkg + "@" + version).hashCode());
 
             productMap.putIfAbsent(productId, new CsafDocument.FullProductName(
                     pkg + " " + version,
                     productId,
                     new CsafDocument.ProductIdentificationHelper(
-                            finding.getPurl() != null ? finding.getPurl() : "pkg:generic/" + pkg + "@" + version, null)));
+                            finding.purl() != null ? finding.purl() : "pkg:generic/" + pkg + "@" + version, null)));
 
             // **Never from reachability.** That column was set by a substring search that did not
             // match, and this line put the product in the CSAF `known_not_affected` list on the
@@ -170,11 +166,11 @@ public class CsafGeneratorService {
                     null));
         }
 
-        Instant timestamp = scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now();
+        Instant timestamp = scan.createdAt() != null ? scan.createdAt() : Instant.now();
         return new CsafDocument(
                 metadata(
-                        "Vectispire Scan #" + scan.getId() + " Security Advisory",
-                        "VECTISPIRE-SCAN-" + scan.getId(),
+                        "Vectispire Scan #" + scan.id() + " Security Advisory",
+                        "VECTISPIRE-SCAN-" + scan.id(),
                         timestamp),
                 new CsafDocument.ProductTree(new ArrayList<>(productMap.values())),
                 vulnerabilities);

@@ -6,13 +6,12 @@ import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
-import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanFindingView;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,18 +27,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class VexGeneratorService {
 
-    private final Scans scansRepo;
-    private final Findings findingsRepo;
+    private final ScanCatalog scansRepo;
     private final Issues issuesRepo;
 
-    public VexGeneratorService(Scans scansRepo, Findings findingsRepo, Issues issuesRepo) {
+    public VexGeneratorService(ScanCatalog scansRepo, Issues issuesRepo) {
         this.scansRepo = scansRepo;
-        this.findingsRepo = findingsRepo;
         this.issuesRepo = issuesRepo;
     }
 
     public Optional<OpenVexDocument> generateForScan(Long scanId) {
-        return scansRepo.findById(scanId).map(this::buildVexForScan);
+        return scansRepo.scan(scanId).map(this::buildVexForScan);
     }
 
     public OpenVexDocument generateAggregate(Visibility allowed) {
@@ -59,33 +56,33 @@ public class VexGeneratorService {
                 statements);
     }
 
-    private OpenVexDocument buildVexForScan(ScanEntity scan) {
-        List<FindingEntity> scanFindings = findingsRepo.findByScanId(scan.getId());
+    private OpenVexDocument buildVexForScan(ScanView scan) {
+        List<ScanFindingView> scanFindings = scansRepo.findings(scan.id());
         List<OpenVexStatement> statements = new ArrayList<>();
 
-        for (FindingEntity finding : scanFindings) {
-            String identifier = finding.getIdentifier();
+        for (ScanFindingView finding : scanFindings) {
+            String identifier = finding.identifier();
             if (identifier == null || !identifier.toUpperCase(Locale.ROOT).startsWith("CVE-")) {
                 continue;
             }
             statements.add(createStatementFromFinding(finding));
         }
 
-        String uri = "https://vectispire.internal/api/v1/vex/scans/" + scan.getId() + "/openvex.json";
-        return OpenVexDocument.create(uri, scan.getCreatedAt() != null ? scan.getCreatedAt() : Instant.now(), statements);
+        String uri = "https://vectispire.internal/api/v1/vex/scans/" + scan.id() + "/openvex.json";
+        return OpenVexDocument.create(uri, scan.createdAt() != null ? scan.createdAt() : Instant.now(), statements);
     }
 
-    private OpenVexStatement createStatementFromFinding(FindingEntity finding) {
-        String cve = finding.getIdentifier();
-        String purl = finding.getPurl() != null && !finding.getPurl().isBlank()
-                ? finding.getPurl()
-                : "pkg:generic/" + (finding.getPackageName() != null ? finding.getPackageName() : "unknown") + "@" + (finding.getPackageVersion() != null ? finding.getPackageVersion() : "latest");
+    private OpenVexStatement createStatementFromFinding(ScanFindingView finding) {
+        String cve = finding.identifier();
+        String purl = finding.purl() != null && !finding.purl().isBlank()
+                ? finding.purl()
+                : "pkg:generic/" + (finding.packageName() != null ? finding.packageName() : "unknown") + "@" + (finding.packageVersion() != null ? finding.packageVersion() : "latest");
 
-        String reachability = finding.getReachability();
+        String reachability = finding.reachability();
         // No `not_affected` from reachability — see the note on the issue-level statement below.
 
         if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(reachability)) {
-            String traces = finding.getReachableSymbols() != null ? " Traces: " + finding.getReachableSymbols() : "";
+            String traces = finding.reachableSymbols() != null ? " Traces: " + finding.reachableSymbols() : "";
             return OpenVexStatement.affected(
                     cve,
                     purl,

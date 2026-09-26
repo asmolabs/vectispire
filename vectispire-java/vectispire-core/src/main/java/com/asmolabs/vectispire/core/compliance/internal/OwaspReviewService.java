@@ -7,9 +7,9 @@ import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.services.scanning.ScanView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
 import java.util.List;
@@ -53,11 +53,11 @@ public class OwaspReviewService {
     private final AiReviewService models;
     private final AiReviewResults results;
     private final Issues issues;
-    private final Scans scans;
+    private final ScanCatalog scans;
     private final Clock clock;
 
     public OwaspReviewService(
-            AiReviewService models, AiReviewResults results, Issues issues, Scans scans, Clock clock) {
+            AiReviewService models, AiReviewResults results, Issues issues, ScanCatalog scans, Clock clock) {
         this.models = models;
         this.results = results;
         this.issues = issues;
@@ -92,7 +92,7 @@ public class OwaspReviewService {
                     "Model review is switched off. Turn it on under Settings → Model review.");
         }
 
-        ScanEntity scan = scans.findHistory(repository.id(), null, Limit.of(1)).stream()
+        ScanView scan = scans.history(repository.id(), null, 1).stream()
                 .findFirst()
                 .orElseThrow(() -> new ReviewRefusedException(
                         "This repository has never been scanned. There is nothing to report on yet."));
@@ -102,13 +102,13 @@ public class OwaspReviewService {
                 new OwaspReview.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
                         repository.branch(),
-                        scan.getVersion(),
+                        scan.version(),
                         open.size()),
                 open.stream().map(OwaspReviewService::evidenceOf).toList(),
                 MAX_EVIDENCE);
 
         AiReviewResultEntity result = new AiReviewResultEntity();
-        result.setScanId(scan.getId());
+        result.setScanId(scan.id());
         result.setModel(models.selectedModel());
         result.setPrompt(OwaspReview.PROMPT);
         // **Kept, because a report nobody can trace to its input is not evidence of anything.**

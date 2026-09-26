@@ -11,8 +11,8 @@ import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
+import com.asmolabs.vectispire.core.services.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,14 +30,14 @@ public class SecurityScorecardService {
 
     private final Issues issuesRepo;
     private final TargetCatalog targets;
-    private final Scans scansRepo;
+    private final ScanCatalog scansRepo;
     private final LicenseGovernanceService licenseService;
     private final SlaService sla;
 
     public SecurityScorecardService(
             Issues issuesRepo,
             TargetCatalog targets,
-            Scans scansRepo,
+            ScanCatalog scansRepo,
             LicenseGovernanceService licenseService,
             SlaService sla) {
         this.issuesRepo = issuesRepo;
@@ -64,7 +64,7 @@ public class SecurityScorecardService {
                     .filter(l -> repoId.equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
-            boolean hasAttestation = scansRepo.existsByRepoIdAndStatusIgnoreCase(repoId, "completed");
+            boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Repository(repoId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Repository(repoId))));
 
             return computeScorecard(repoId, "repository", repo.name(), openIssues, licenses, hasAttestation, overdue);
@@ -86,7 +86,7 @@ public class SecurityScorecardService {
                     .filter(l -> containerId.equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
-            boolean hasAttestation = scansRepo.existsByContainerIdAndStatusIgnoreCase(containerId, "completed");
+            boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Container(containerId), "completed");
             long overdue = sla.countOverdue(Visibility.only(List.of(new ScanTarget.Container(containerId))));
 
             return computeScorecard(containerId, "container", container.imageName() + ":" + container.tag(), openIssues, licenses, hasAttestation, overdue);
@@ -123,7 +123,7 @@ public class SecurityScorecardService {
         // scan, as two columns. It used to load every scan entity, SBOM and CVE payloads included,
         // to read one boolean.
         boolean hasAttestation = scansRepo.targetsWithStatus("completed").stream()
-                .anyMatch(row -> allowed.permits(targetOf(row[0], row[1])));
+                .anyMatch(row -> allowed.permits(row.target()));
 
         long overdue = sla.countOverdue(allowed);
 

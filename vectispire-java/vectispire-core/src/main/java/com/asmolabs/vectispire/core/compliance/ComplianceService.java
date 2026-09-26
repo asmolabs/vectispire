@@ -20,7 +20,6 @@ import com.asmolabs.vectispire.core.inventory.InventoryQueryService;
 import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.IssueRows;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -40,7 +39,6 @@ public class ComplianceService {
 
     private final GateService gate;
     private final Issues issues;
-    private final Scans scans;
     private final SlaService sla;
     private final AuditLogService audit;
     private final EncryptionService encryption;
@@ -53,7 +51,6 @@ public class ComplianceService {
     public ComplianceService(
             GateService gate,
             Issues issues,
-            Scans scans,
             SlaService sla,
             AuditLogService audit,
             EncryptionService encryption,
@@ -63,7 +60,6 @@ public class ComplianceService {
             Clock clock) {
         this.gate = gate;
         this.issues = issues;
-        this.scans = scans;
         this.sla = sla;
         this.audit = audit;
         this.encryption = encryption;

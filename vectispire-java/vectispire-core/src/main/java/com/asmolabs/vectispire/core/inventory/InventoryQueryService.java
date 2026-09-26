@@ -4,7 +4,6 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Instant;
 import java.util.List;
@@ -101,7 +100,7 @@ public class InventoryQueryService {
                 Limit.of(MAX_ROWS + 1));
 
         List<Occurrence> occurrences = rows.stream()
-                .map(row -> occurrenceOf((ComponentEntity) row[0], (ScanEntity) row[1], names))
+                .map(row -> occurrenceOf((ComponentEntity) row[0], row, names))
                 // Filtered after the query for the same reason the scan history is: the
                 // restriction is a set of targets, and expressing it in SQL would duplicate a
                 // predicate that already exists — and getting it wrong here leaks an inventory.
@@ -155,9 +154,16 @@ public class InventoryQueryService {
                 : new ScanTarget.Container(occurrence.targetId());
     }
 
-    private static Occurrence occurrenceOf(ComponentEntity component, ScanEntity scan, TargetNaming.Names names) {
-        boolean isRepository = scan.getRepoId() != null;
-        Long targetId = isRepository ? scan.getRepoId() : scan.getContainerId();
+    /**
+     * @param row the component, then the scan's identifier, repository, container, branch, version and
+     *     creation instant — the scan's columns rather than the scan entity, which is {@code scanning}'s
+     */
+    private static Occurrence occurrenceOf(ComponentEntity component, Object[] row, TargetNaming.Names names) {
+        Long scanId = (Long) row[1];
+        Long repoId = (Long) row[2];
+        Long containerId = (Long) row[3];
+        boolean isRepository = repoId != null;
+        Long targetId = isRepository ? repoId : containerId;
 
         return new Occurrence(
                 component.getName(),
@@ -167,10 +173,10 @@ public class InventoryQueryService {
                 component.getIsDirect(),
                 isRepository ? "repository" : "container",
                 targetId,
-                names.of(scan.getRepoId(), scan.getContainerId()),
-                scan.getBranch(),
-                scan.getVersion(),
-                scan.getId(),
-                scan.getCreatedAt());
+                names.of(repoId, containerId),
+                (String) row[4],
+                (String) row[5],
+                scanId,
+                (java.time.Instant) row[6]);
     }
 }
