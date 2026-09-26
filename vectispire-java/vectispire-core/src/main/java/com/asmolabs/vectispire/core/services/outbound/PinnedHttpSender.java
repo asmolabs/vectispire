@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import java.io.IOException;

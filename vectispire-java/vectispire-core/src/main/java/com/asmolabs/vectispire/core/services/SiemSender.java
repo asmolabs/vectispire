@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SiemEndpoint;
 import com.asmolabs.vectispire.common.domain.siem.SyslogMessage;
+import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
+import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.shared.ProductVersion;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.net.InetAddress;

@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.D
 import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.core.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.repositories.Outbox;
+import com.asmolabs.vectispire.core.services.outbound.OutboundJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;

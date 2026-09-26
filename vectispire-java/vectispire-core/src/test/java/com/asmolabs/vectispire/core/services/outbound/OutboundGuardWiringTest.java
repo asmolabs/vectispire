@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.outbound;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

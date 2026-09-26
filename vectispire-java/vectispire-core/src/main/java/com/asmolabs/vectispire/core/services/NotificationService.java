@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
+import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.shared.SettingsService;
 import java.time.Clock;
 import java.util.List;

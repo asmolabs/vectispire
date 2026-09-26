@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.core.services.crypto.VaultKmsProvider;
+import com.asmolabs.vectispire.core.services.outbound.PinnedHttpSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;

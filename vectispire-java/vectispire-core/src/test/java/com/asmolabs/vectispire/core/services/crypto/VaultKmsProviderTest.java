@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
-import com.asmolabs.vectispire.core.services.PinnedHttpSender;
+import com.asmolabs.vectispire.core.services.outbound.PinnedHttpSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
