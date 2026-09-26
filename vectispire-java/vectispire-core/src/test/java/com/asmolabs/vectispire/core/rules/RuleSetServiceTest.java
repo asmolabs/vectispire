@@ -9,10 +9,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
-import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.common.domain.rules.RuleSet;
+import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -41,7 +41,7 @@ class RuleSetServiceTest {
     void wire() {
         ruleSets = mock(RuleSets.class);
         issues = mock(Issues.class);
-        service = new RuleSetService(ruleSets, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new RuleSetService(ruleSets, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 
         when(ruleSets.save(any())).thenAnswer(call -> call.getArgument(0));
         when(ruleSets.findByIsActiveTrue()).thenReturn(Optional.empty());

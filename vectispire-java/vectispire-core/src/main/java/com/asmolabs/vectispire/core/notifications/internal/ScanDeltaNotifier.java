@@ -6,11 +6,11 @@ import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload.N
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.access.TeamChannels;
+import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.ScanDelta;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
-import com.asmolabs.vectispire.core.services.issues.IssueView;
-import com.asmolabs.vectispire.core.services.issues.ScanDelta;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;

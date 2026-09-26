@@ -86,7 +86,7 @@ class ArchitectureTest {
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
             // Step 5: the core domains, bottom-up — each only once what it uses was a module.
-            "targets", "scanning");
+            "targets", "scanning", "issues");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =
@@ -140,9 +140,9 @@ class ArchitectureTest {
                 .layer("scanning").definedBy(ROOT + ".common.scanning..")
                 // A module keeps its entities and its repositories together in `persistence`; they
                 // form one layer here, below its services, and `entitiesReachNoRepository` keeps the
-                // order between the two that `core.persistence` and `core.repositories` still show.
+                // order between the two that `core.persistence` and `core.repositories` showed until
+                // step 5 emptied them.
                 .layer("persistence").definedBy(layer(CORE + ".persistence..", ".persistence.."))
-                .layer("repositories").definedBy(CORE + ".repositories..")
                 // A module's root is its API and `internal` its implementation: both are the service
                 // layer, which the layered packaging calls `services`.
                 .layer("services").definedBy(layer(CORE + ".services..", "", ".internal.."))
@@ -152,11 +152,11 @@ class ArchitectureTest {
                 .whereLayer("api").mayNotBeAccessedByAnyLayer()
                 .whereLayer("services").mayOnlyBeAccessedByLayers("api")
                 // Not `api`: a controller maps HTTP, a service reads, decides and writes. Thirty-three
-                // controllers reached repositories directly when this line still allowed it; they
-                // were moved behind services on 2026-09-24, under a ratchet that shrank to nothing.
-                .whereLayer("repositories").mayOnlyBeAccessedByLayers("services")
-                // Not `api` either, since 2026-09-26: see apiNeverTouchesPersistence below.
-                .whereLayer("persistence").mayOnlyBeAccessedByLayers("repositories", "services")
+                // controllers reached repositories directly when a line here still allowed it; they
+                // were moved behind services on 2026-09-24, under a ratchet that shrank to nothing,
+                // and since 2026-09-26 no controller names an entity either — see
+                // apiNeverTouchesPersistence below.
+                .whereLayer("persistence").mayOnlyBeAccessedByLayers("services")
                 .whereLayer("scanning").mayOnlyBeAccessedByLayers("services", "api")
                 // No optional layers and no empty-should escape any more: every layer is
                 // populated, so an empty one is now a package that was renamed or deleted — and

@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.Findings;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -95,7 +95,7 @@ class VexRoutesTest extends ApiTestBase {
     void ingestsUpstreamOpenVex() throws Exception {
         String token = asAdmin();
 
-        com.asmolabs.vectispire.core.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.persistence.IssueEntity();
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.issues.persistence.IssueEntity();
         issue.setFingerprint("fp-upstream-test-1");
         issue.setIdentifier("CVE-2023-9999");
         issue.setType("vulnerability");
@@ -138,7 +138,7 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.triagedIssues").value(1))
                 .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-9999"));
 
-        com.asmolabs.vectispire.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
         assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
         assertThat(updated.getTriageComment()).contains("Spring Security Team");
     }
@@ -148,7 +148,7 @@ class VexRoutesTest extends ApiTestBase {
     void ingestsUpstreamCycloneDxVex() throws Exception {
         String token = asAdmin();
 
-        com.asmolabs.vectispire.core.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.persistence.IssueEntity();
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity issue = new com.asmolabs.vectispire.core.issues.persistence.IssueEntity();
         issue.setFingerprint("fp-upstream-cdx-test");
         issue.setIdentifier("CVE-2023-8888");
         issue.setType("vulnerability");
@@ -195,7 +195,7 @@ class VexRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.triagedIssues").value(1))
                 .andExpect(jsonPath("$.appliedCves[0]").value("CVE-2023-8888"));
 
-        com.asmolabs.vectispire.core.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
+        com.asmolabs.vectispire.core.issues.persistence.IssueEntity updated = issuesRepo.findById(issue.getId()).orElseThrow();
         assertThat(updated.getTriageStatus()).isEqualTo("not_affected");
         assertThat(updated.getTriageComment()).contains("Apache Security Team");
     }

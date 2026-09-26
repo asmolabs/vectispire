@@ -57,14 +57,14 @@ class ModularityObservationTest {
             Pattern.compile("Module '([^']+)' depends on non-exposed type (\\S+) within module '([^']+)'");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
-    private static final Set<String> LAYERED = Set.of("api", "services", "repositories", "persistence", "config");
+    private static final Set<String> LAYERED = Set.of("api", "services", "config");
 
     /** The domains steps 3 and 4 made modules — the same list as {@code ArchitectureTest.MODULES}. */
     private static final List<String> MODULES = List.of(
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
-            "targets", "scanning");
+            "targets", "scanning", "issues");
 
     /**
      * What {@code verify()} reported before step 3, taken on 2026-09-26 (step 2): five layer modules and

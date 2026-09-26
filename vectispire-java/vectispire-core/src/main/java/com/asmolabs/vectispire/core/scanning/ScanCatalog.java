@@ -2,8 +2,10 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingGraphQueries;
 import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
@@ -175,6 +177,21 @@ public class ScanCatalog {
 
     public List<ScanFindingView> findings(long scanId) {
         return findings.findByScanId(scanId).stream().map(ScanFindingView::of).toList();
+    }
+
+    /** The findings of these scans, in one query — the triage history reads a page of scans at once. */
+    public List<ScanFindingView> findingsOfScans(Collection<Long> scanIds) {
+        return scanIds.isEmpty()
+                ? List.of()
+                : findings.findByScanIdIn(scanIds).stream().map(ScanFindingView::of).toList();
+    }
+
+    /** Where one issue was observed, newest scan first: the sightings of its detail. */
+    public List<FindingOnScan> sightings(long issueId, int limit) {
+        return findings.sightingsOf(issueId, Limit.of(limit)).stream()
+                .map(row -> new FindingOnScan(
+                        ScanFindingView.of((FindingEntity) row[0]), ScanView.of((ScanEntity) row[1])))
+                .toList();
     }
 
     /** The licence findings of these scans. */

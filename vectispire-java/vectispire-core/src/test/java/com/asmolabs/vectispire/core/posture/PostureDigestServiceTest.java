@@ -16,13 +16,13 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.GateService;
+import com.asmolabs.vectispire.core.issues.SlaService;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.services.issues.SlaService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -78,7 +78,7 @@ class PostureDigestServiceTest {
         when(issues.findAll(ArgumentMatchers.<Specification<IssueEntity>>any())).thenReturn(List.of());
 
         digest = new PostureDigestService(
-                settings, gate, sla, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), auditLog, audit, webhook, mail, post,
+                settings, gate, sla, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), auditLog, audit, webhook, mail, post,
                 Clock.fixed(WEDNESDAY, ZoneOffset.UTC));
     }
 

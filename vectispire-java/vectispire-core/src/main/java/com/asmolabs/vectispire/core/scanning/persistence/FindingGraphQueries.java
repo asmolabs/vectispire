@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.scanning.persistence;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
-import com.asmolabs.vectispire.core.repositories.IssueAggregates;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.util.List;
 

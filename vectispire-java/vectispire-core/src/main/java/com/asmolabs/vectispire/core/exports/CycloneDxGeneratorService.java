@@ -2,12 +2,12 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
+import com.asmolabs.vectispire.core.issues.IssueCatalog;
+import com.asmolabs.vectispire.core.issues.IssueFilters;
+import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
-import com.asmolabs.vectispire.core.services.issues.IssueCatalog;
-import com.asmolabs.vectispire.core.services.issues.IssueView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import java.time.Instant;
 import java.util.ArrayList;

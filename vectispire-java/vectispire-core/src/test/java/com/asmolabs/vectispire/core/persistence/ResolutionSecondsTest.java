@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;

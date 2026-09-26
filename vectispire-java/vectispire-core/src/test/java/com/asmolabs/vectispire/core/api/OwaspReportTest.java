@@ -13,8 +13,8 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.Issues;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.Scans;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
@@ -67,7 +67,7 @@ class OwaspReportTest extends ApiTestBase {
         models = Mockito.mock(AiReviewService.class);
         Mockito.when(models.isEnabled()).thenReturn(true);
         Mockito.when(models.selectedModel()).thenReturn("gemma4:12b-it-qat");
-        service = new OwaspReviewService(models, results, new com.asmolabs.vectispire.core.services.issues.IssueCatalog(issues), catalog, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new OwaspReviewService(models, results, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), catalog, Clock.fixed(NOW, ZoneOffset.UTC));
 
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");

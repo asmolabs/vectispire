@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.posture.internal;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetMaturityScore;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetTotals;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
-import com.asmolabs.vectispire.core.repositories.IssueAggregates;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.LinkedHashMap;
 import java.util.List;

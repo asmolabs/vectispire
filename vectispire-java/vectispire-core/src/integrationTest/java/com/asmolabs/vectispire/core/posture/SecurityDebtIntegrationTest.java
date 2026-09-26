@@ -13,11 +13,12 @@ import com.asmolabs.vectispire.common.domain.remediation.RemediationGap;
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.issues.IssueFilters;
+import com.asmolabs.vectispire.core.issues.internal.IssueSpecifications;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.persistence.Engine;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.repositories.IssueAggregates;
-import com.asmolabs.vectispire.core.repositories.IssueFilters;
-import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
@@ -46,7 +47,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * over an expression — and those are precisely the constructs whose result <em>type</em> is the
  * driver's business rather than Hibernate's. A mapped attribute comes back normalised; the value
  * of {@code sum(case …)} comes back as whatever the driver felt like, which is why
- * {@code IssueAggregatesImpl} reads it as a {@link Number}.
+ * {@code IssueAggregateQueriesImpl} reads it as a {@link Number}.
  *
  * <p>So the assertions here are deliberately shallow on arithmetic and specific about SQL:
  * {@code SecurityDebtDatabaseTest} owns the numbers, on one engine, in the ordinary suite. This
@@ -201,10 +202,9 @@ class SecurityDebtIntegrationTest {
         issues.save(unplaced);
 
         Map<String, Long> byCategory = issues.countOpenSastByOwaspCategory(
-                        new IssueFilters(
+                        IssueSpecifications.of(new IssueFilters(
                                 IssueState.OPEN.wireName(), null, null, null, null, null,
-                                false, false, null, true, Map.of(), Visibility.everything())
-                        .toSpecification())
+                                false, false, null, true, Map.of(), Visibility.everything())))
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(
                         IssueAggregates.OwaspCategoryCount::category,

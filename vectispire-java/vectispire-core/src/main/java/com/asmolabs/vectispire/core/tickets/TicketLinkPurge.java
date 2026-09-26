@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.tickets;
 
-import com.asmolabs.vectispire.core.services.issues.PurgedIssues;
+import com.asmolabs.vectispire.core.issues.PurgedIssues;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.util.List;

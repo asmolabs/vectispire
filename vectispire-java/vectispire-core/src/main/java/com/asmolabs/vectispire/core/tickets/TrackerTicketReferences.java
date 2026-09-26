@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.tickets.TicketProvider;
 import com.asmolabs.vectispire.common.domain.tickets.Tickets;
-import com.asmolabs.vectispire.core.services.issues.TicketReferences;
+import com.asmolabs.vectispire.core.issues.TicketReferences;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
