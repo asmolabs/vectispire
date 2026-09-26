@@ -16,7 +16,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.services.GateRegisterService;
 import com.asmolabs.vectispire.core.services.GateService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.IssueTicketView;
 import com.asmolabs.vectispire.core.services.TicketLinkService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.HttpStatus;

@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.persistence.SessionEntity;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
-import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

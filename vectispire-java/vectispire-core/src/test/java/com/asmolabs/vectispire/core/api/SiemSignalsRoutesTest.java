@@ -73,7 +73,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
     private MaintenanceJobs jobs;
 
     @Autowired
-    private com.asmolabs.vectispire.core.services.TotpService totp;
+    private com.asmolabs.vectispire.core.services.access.TotpService totp;
 
     @Test
     @DisplayName("the sign-in ceiling: an account's sixth wrong password")

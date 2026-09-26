@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService.Listed;
 import com.asmolabs.vectispire.core.services.RepositoryAdministrationService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.services.IssueDecisionService;
 import com.asmolabs.vectispire.core.services.ScanDocumentService;
 import com.asmolabs.vectispire.core.services.VexGeneratorService;
 import com.asmolabs.vectispire.core.services.VexIngestorService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;

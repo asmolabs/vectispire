@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.services.SolutionAdministrationService.Proje
 import com.asmolabs.vectispire.core.services.SolutionAdministrationService.SolutionView;
 import com.asmolabs.vectispire.core.services.SolutionQueryService;
 import com.asmolabs.vectispire.core.services.SolutionQueryService.SolutionTree;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;

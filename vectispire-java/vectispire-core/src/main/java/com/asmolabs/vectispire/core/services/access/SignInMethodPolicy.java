@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.access;
 
 import java.util.Optional;
 import org.slf4j.Logger;

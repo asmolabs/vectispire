@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.api.security;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
-import com.asmolabs.vectispire.core.services.ApiKeyAuthService;
+import com.asmolabs.vectispire.core.services.access.ApiKeyAuthService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;

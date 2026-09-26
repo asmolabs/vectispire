@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Changes;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService.Listed;
 import com.asmolabs.vectispire.core.services.ContainerAdministrationService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;

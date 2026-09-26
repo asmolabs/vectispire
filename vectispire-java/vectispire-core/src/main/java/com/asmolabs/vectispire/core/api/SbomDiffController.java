@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.ScanDocumentService;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.asmolabs.vectispire.core.services.SbomDiffService;
 import org.springframework.http.ResponseEntity;

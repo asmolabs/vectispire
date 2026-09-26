@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.core.api.scim.dto.ScimGroupDto;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimListResponse;
 import com.asmolabs.vectispire.core.api.scim.dto.ScimPatchOp;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
-import com.asmolabs.vectispire.core.services.ScimProvisioningService;
+import com.asmolabs.vectispire.core.services.access.ScimProvisioningService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.List;

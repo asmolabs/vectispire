@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.repositories.IssueFilters;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Projects;
 import com.asmolabs.vectispire.core.repositories.Solutions;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.asmolabs.vectispire.core.services.shared.TargetNaming;
 import java.time.Instant;
 import java.util.ArrayList;

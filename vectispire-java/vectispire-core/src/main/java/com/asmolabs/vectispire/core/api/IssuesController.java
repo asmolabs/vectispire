@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.IssueDecisionService;
 import com.asmolabs.vectispire.core.services.IssueQueryService;
 import com.asmolabs.vectispire.core.services.IssueView;
-import com.asmolabs.vectispire.core.services.VisibilityService;
+import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
