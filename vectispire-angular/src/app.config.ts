@@ -2,6 +2,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { authInterceptor } from './app/core/auth.interceptor';
 import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
 import {
+    TitleStrategy,
     provideRouter,
     withComponentInputBinding,
     withEnabledBlockingInitialNavigation,
@@ -12,6 +13,7 @@ import { provideOptimus } from '@openng/optimus-ui/config';
 import { appRoutes } from './app.routes';
 import { I18nService } from './app/core/i18n/i18n.service';
 import { BrandingService } from './app/core/branding.service';
+import { TranslatedTitleStrategy } from './app/core/i18n/translated-title.strategy';
 
 export const appConfig: ApplicationConfig = {
     providers: [
@@ -25,6 +27,8 @@ export const appConfig: ApplicationConfig = {
             // configuration everybody assumes is implicit.
             withComponentInputBinding()
         ),
+        // Route titles are translation keys; the default strategy would put the key itself in the tab.
+        { provide: TitleStrategy, useExisting: TranslatedTitleStrategy },
         provideHttpClient(withInterceptors([authInterceptor])),
         provideZonelessChangeDetection(),
         provideOptimus({ theme: { preset: Aura, options: { darkModeSelector: '.app-dark' } } }),

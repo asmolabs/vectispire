@@ -85,6 +85,22 @@ for (const file of walk(join(root, 'src/app'))) {
     }
 }
 
+// **The route titles, which live outside `src/app`.** `app.routes.ts` names each page's tab title
+// as a key that `TranslatedTitleStrategy` resolves — neither a `t(…)` call nor a pipe, and in a
+// file the walk above does not read. Unread, a misspelt title would reach the tab as the raw key.
+// A title that is not a key is a sentence frozen in one language, which the `label:` ratchet
+// below would refuse in `src/app` and cannot see here.
+const ROUTE_TITLE = /\btitle:\s*['"]([a-z0-9_]+(?:\.[a-z0-9_]+)+)['"]/g;
+const routes = readFileSync(join(root, 'src/app.routes.ts'), 'utf8');
+for (const [, key] of routes.matchAll(ROUTE_TITLE)) {
+    referenced.add(key);
+}
+const routeTitles = [...routes.matchAll(/\btitle:/g)].length;
+if (routeTitles !== [...routes.matchAll(ROUTE_TITLE)].length) {
+    console.error(`A route title in src/app.routes.ts is not a translation key: write 'titles.…' and add it to both bundles.`);
+    process.exit(1);
+}
+
 // **The count is pinned, not floored, and it is pinned because the floor saw nothing.** This file
 // first carried `if (referenced.size < 40)`. An audit put back the two hard-coded labels this
 // script had been written to prevent: the count fell from 54 to 52, 40 stayed cleared, the suite
@@ -94,7 +110,7 @@ for (const file of walk(join(root, 'src/app'))) {
 // An exact number is updated in the same commit as the key being added or removed, so it asks the
 // question at the moment somebody can answer it. Changing it is a one-line move — but it is a
 // *deliberate* move, and that is the whole difference.
-const EXPECTED_KEYS = 1769;
+const EXPECTED_KEYS = 1811;
 if (referenced.size !== EXPECTED_KEYS) {
     const direction = referenced.size < EXPECTED_KEYS ? 'disappeared' : 'appeared';
     console.error(
