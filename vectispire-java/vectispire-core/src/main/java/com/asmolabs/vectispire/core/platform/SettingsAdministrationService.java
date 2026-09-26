@@ -278,6 +278,13 @@ public class SettingsAdministrationService {
                                 return "Double validation (Four-Eyes Approval) for VEX triage set to "
                                         + ("true".equalsIgnoreCase(change.value()) ? "ENABLED" : "DISABLED");
                             }
+                            // **A secret's value stays out of the entry.** A webhook URL posts in a
+                            // channel, a tracker or model URL maps the internal network: the entry is
+                            // read by auditors, forwarded to the SIEM, copied to the mirror and into
+                            // the evidence bundle, and kept for ever — as the team webhook's is.
+                            if (change.setting().isSecret()) {
+                                return change.setting().key() + (change.value().isEmpty() ? " cleared" : " changed");
+                            }
                             return change.setting().key() + " = " + (change.value().isEmpty() ? "(empty)" : change.value());
                         })
                         .reduce((a, b) -> a + "; " + b)
