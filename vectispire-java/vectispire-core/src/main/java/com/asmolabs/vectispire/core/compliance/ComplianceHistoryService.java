@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.rules.RuleCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotEntity;
-import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.rules.RuleCoverageService;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -48,7 +48,7 @@ public class ComplianceHistoryService {
 
     private static final Logger log = LoggerFactory.getLogger(ComplianceHistoryService.class);
 
-    private final ComplianceSnapshots snapshots;
+    private final ComplianceSnapshotRepository snapshots;
     private final ComplianceService compliance;
     private final StatementOfApplicabilityService soa;
     private final RuleCoverageService ruleCoverage;
@@ -56,7 +56,7 @@ public class ComplianceHistoryService {
     private final Clock clock;
 
     public ComplianceHistoryService(
-            ComplianceSnapshots snapshots,
+            ComplianceSnapshotRepository snapshots,
             ComplianceService compliance,
             StatementOfApplicabilityService soa,
             RuleCoverageService ruleCoverage,

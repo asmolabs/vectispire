@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -45,7 +45,7 @@ class SupplyChainCoverageTest extends VectispireContextTest {
     private ScanRepository scans;
 
     @Autowired
-    private Components components;
+    private ComponentRepository components;
 
     @Autowired
     private Clock clock;

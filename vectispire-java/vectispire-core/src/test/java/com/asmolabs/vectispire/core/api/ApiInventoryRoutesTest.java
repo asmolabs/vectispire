@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -22,10 +22,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 class ApiInventoryRoutesTest extends ApiTestBase {
 
     @Autowired
-    private ApiEndpoints apiEndpointsRepo;
+    private ApiEndpointRepository apiEndpointsRepo;
 
     @Autowired
-    private ApiContracts apiContractsRepo;
+    private ApiContractRepository apiContractsRepo;
 
     @Autowired
     private GitRepositoryRepository repositoriesRepo;

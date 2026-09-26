@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  * it per reader would produce a different history for each of them and none of them an audit
  * trail. The route is gated on the role instead.
  */
-public interface ComplianceSnapshots extends JpaRepository<ComplianceSnapshotEntity, UUID> {
+public interface ComplianceSnapshotRepository extends JpaRepository<ComplianceSnapshotEntity, UUID> {
 
     Optional<ComplianceSnapshotEntity> findByPeriodAndFramework(String period, String framework);
 

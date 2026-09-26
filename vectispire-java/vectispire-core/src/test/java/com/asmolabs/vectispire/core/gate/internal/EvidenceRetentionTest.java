@@ -11,8 +11,8 @@ import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
-import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,16 +39,16 @@ class EvidenceRetentionTest {
 
     private static final Instant NOW = Instant.parse("2026-09-14T10:00:00Z");
 
-    private GateVerdicts verdicts;
-    private ComplianceSnapshots snapshots;
+    private GateVerdictRepository verdicts;
+    private ComplianceSnapshotRepository snapshots;
     private SettingsService settings;
     private VerdictRetentionTask verdictRetention;
     private SnapshotRetentionTask snapshotRetention;
 
     @BeforeEach
     void wire() {
-        verdicts = mock(GateVerdicts.class);
-        snapshots = mock(ComplianceSnapshots.class);
+        verdicts = mock(GateVerdictRepository.class);
+        snapshots = mock(ComplianceSnapshotRepository.class);
         settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         verdictRetention = new VerdictRetentionTask(verdicts, settings, clock);

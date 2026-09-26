@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** What the gate has answered, newest first. */
-public interface GateVerdicts extends JpaRepository<GateVerdictEntity, java.util.UUID> {
+public interface GateVerdictRepository extends JpaRepository<GateVerdictEntity, java.util.UUID> {
 
     /**
      * The register, newest first, bounded.

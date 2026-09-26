@@ -25,7 +25,7 @@ public interface IssueRepository
      * been withdrawn kept its old row for ever — a register of current exceptions listing
      * exceptions that no longer exist, which is the one thing it must never do.
      *
-     * <p>Visibility is not expressed here, for the reason given on {@code GateVerdicts}: whose
+     * <p>Visibility is not expressed here, for the reason given on {@code GateVerdictRepository}: whose
      * estate a row belongs to has one implementation and it is not in JPQL. The limit bounds what
      * is read so a restricted reader sees fewer rows, never somebody else's.
      */
@@ -40,7 +40,7 @@ public interface IssueRepository
      * The page of exceptions after a cursor.
      *
      * <p><b>A second method rather than a nullable parameter</b>, for the reason spelt out on
-     * {@code GateVerdicts.pageAfter}: an untyped null in a comparison runs on SQLite and fails on
+     * {@code GateVerdictRepository.pageAfter}: an untyped null in a comparison runs on SQLite and fails on
      * PostgreSQL, and that has already shipped here once.
      *
      * <p>{@code triagedAt} can be null on a row written before triage recorded one. Such a row

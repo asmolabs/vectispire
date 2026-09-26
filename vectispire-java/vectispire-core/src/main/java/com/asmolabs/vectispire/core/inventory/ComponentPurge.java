@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.inventory;
 
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
@@ -21,9 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 class ComponentPurge {
 
     private final PurgedScans scans;
-    private final Components components;
+    private final ComponentRepository components;
 
-    ComponentPurge(PurgedScans scans, Components components) {
+    ComponentPurge(PurgedScans scans, ComponentRepository components) {
         this.scans = scans;
         this.components = components;
     }

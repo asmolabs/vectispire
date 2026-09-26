@@ -9,8 +9,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
-import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarations;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarationRepository;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -47,10 +47,10 @@ class DecisionInputBoundsTest extends ApiTestBase {
     private IssueRepository issues;
 
     @Autowired
-    private ControlDeclarations declarations;
+    private ControlDeclarationRepository declarations;
 
     @Autowired
-    private GatePolicies policies;
+    private GatePolicyRepository policies;
 
     @Test
     @DisplayName("a triage comment past the text ceiling is a 400, alone or in bulk")

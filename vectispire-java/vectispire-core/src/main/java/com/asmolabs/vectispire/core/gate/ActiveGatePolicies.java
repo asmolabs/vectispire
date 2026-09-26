@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.gate;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.PolicyResolution.StoredPolicy;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,9 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ActiveGatePolicies {
 
-    private final GatePolicies policies;
+    private final GatePolicyRepository policies;
 
-    public ActiveGatePolicies(GatePolicies policies) {
+    public ActiveGatePolicies(GatePolicyRepository policies) {
         this.policies = policies;
     }
 

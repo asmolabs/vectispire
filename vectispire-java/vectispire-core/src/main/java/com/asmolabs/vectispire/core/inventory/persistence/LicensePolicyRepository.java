@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface LicensePolicies extends JpaRepository<LicensePolicyEntity, Long> {
+public interface LicensePolicyRepository extends JpaRepository<LicensePolicyEntity, Long> {
 }

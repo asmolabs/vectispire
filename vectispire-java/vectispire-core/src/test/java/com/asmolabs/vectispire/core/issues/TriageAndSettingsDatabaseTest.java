@@ -40,7 +40,7 @@ class TriageAndSettingsDatabaseTest extends VectispireContextTest {
     private IssueRepository issues;
 
     @Autowired
-    private com.asmolabs.vectispire.core.rules.persistence.RuleSets ruleSets;
+    private com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository ruleSets;
 
     @Test
     @DisplayName("a decision is written, review date included")

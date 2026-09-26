@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface ApiContracts extends JpaRepository<ApiContractEntity, Long> {
+public interface ApiContractRepository extends JpaRepository<ApiContractEntity, Long> {
 
     /**
      * The rows belonging to these repositories, and to no others.

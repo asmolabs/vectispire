@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,11 +36,11 @@ public class InventoryBackfill {
     private static final int BATCH = 50;
 
     private final ScanCatalog scans;
-    private final Components components;
+    private final ComponentRepository components;
     private final ComponentInventory inventory;
     private final ObjectMapper json;
 
-    public InventoryBackfill(ScanCatalog scans, Components components, ComponentInventory inventory, ObjectMapper json) {
+    public InventoryBackfill(ScanCatalog scans, ComponentRepository components, ComponentInventory inventory, ObjectMapper json) {
         this.scans = scans;
         this.components = components;
         this.inventory = inventory;

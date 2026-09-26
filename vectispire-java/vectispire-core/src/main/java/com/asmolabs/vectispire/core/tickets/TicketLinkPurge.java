@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.core.issues.PurgedIssues;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
-import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.util.List;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -21,9 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 class TicketLinkPurge {
 
     private final PurgedIssues issues;
-    private final IssueTickets links;
+    private final IssueTicketRepository links;
 
-    TicketLinkPurge(PurgedIssues issues, IssueTickets links) {
+    TicketLinkPurge(PurgedIssues issues, IssueTicketRepository links) {
         this.issues = issues;
         this.links = links;
     }

@@ -16,17 +16,17 @@ import com.asmolabs.vectispire.core.access.persistence.UserTargetEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserTargetRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
@@ -40,7 +40,7 @@ import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
-import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -115,7 +115,7 @@ final class TargetRowsFixture {
         policy.setVersion(1);
         policy.setIsActive(true);
         policy.setCreatedAt(AT);
-        beans.getBean(GatePolicies.class).save(policy);
+        beans.getBean(GatePolicyRepository.class).save(policy);
 
         ScanEntity scan = new ScanEntity();
         scan.setRepoId(repoId);
@@ -158,7 +158,7 @@ final class TargetRowsFixture {
         ticket.setStatus("open");
         ticket.setCreatedAt(AT);
         ticket.setUpdatedAt(AT);
-        beans.getBean(IssueTickets.class).save(ticket);
+        beans.getBean(IssueTicketRepository.class).save(ticket);
 
         FindingEntity finding = new FindingEntity();
         finding.setScanId(scanId);
@@ -175,7 +175,7 @@ final class TargetRowsFixture {
         component.setScanId(scanId);
         component.setName("log4j-core");
         component.setVersion("2.14.1");
-        beans.getBean(Components.class).save(component);
+        beans.getBean(ComponentRepository.class).save(component);
 
         AiReviewResultEntity review = new AiReviewResultEntity();
         review.setScanId(scanId);
@@ -183,7 +183,7 @@ final class TargetRowsFixture {
         review.setPrompt("prompt");
         review.setStatus("completed");
         review.setCreatedAt(AT);
-        beans.getBean(AiReviewResults.class).save(review);
+        beans.getBean(AiReviewResultRepository.class).save(review);
 
         GateVerdictEntity verdict = new GateVerdictEntity();
         verdict.setId(UUID.randomUUID());
@@ -192,7 +192,7 @@ final class TargetRowsFixture {
         verdict.setPassed(true);
         verdict.setPolicySource("default");
         verdict.setDecidedAt(AT);
-        beans.getBean(GateVerdicts.class).save(verdict);
+        beans.getBean(GateVerdictRepository.class).save(verdict);
 
         if (repoId != null) {
             ApiEndpointEntity endpoint = new ApiEndpointEntity();
@@ -203,7 +203,7 @@ final class TargetRowsFixture {
             endpoint.setAuthRequired(false);
             endpoint.setVisibility("PUBLIC");
             endpoint.setCreatedAt(AT);
-            beans.getBean(ApiEndpoints.class).save(endpoint);
+            beans.getBean(ApiEndpointRepository.class).save(endpoint);
 
             ApiContractEntity contract = new ApiContractEntity();
             contract.setRepositoryId(repoId);
@@ -211,7 +211,7 @@ final class TargetRowsFixture {
             contract.setContractPath("openapi.yaml");
             contract.setEndpointsCount(1);
             contract.setCreatedAt(AT);
-            beans.getBean(ApiContracts.class).save(contract);
+            beans.getBean(ApiContractRepository.class).save(contract);
         }
     }
 

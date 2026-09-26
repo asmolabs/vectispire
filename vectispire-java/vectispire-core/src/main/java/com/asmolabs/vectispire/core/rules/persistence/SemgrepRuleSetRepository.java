@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  * what "not active" means: the unique index over that column is what enforces "at most one
  * active", and an index only counts NULLs as distinct.
  */
-public interface RuleSets extends JpaRepository<SemgrepRuleSetEntity, Long> {
+public interface SemgrepRuleSetRepository extends JpaRepository<SemgrepRuleSetEntity, Long> {
     Optional<SemgrepRuleSetEntity> findByIsActiveTrue();
 
     /**

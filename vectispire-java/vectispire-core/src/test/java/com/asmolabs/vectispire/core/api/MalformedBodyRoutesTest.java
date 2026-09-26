@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
-import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -36,7 +36,7 @@ class MalformedBodyRoutesTest extends ApiTestBase {
     private IssueRepository issues;
 
     @Autowired
-    private IssueTickets tickets;
+    private IssueTicketRepository tickets;
 
     @Autowired
     private LicenseGovernanceService licences;

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceHistory;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotEntity;
-import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import java.time.Clock;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -33,7 +33,7 @@ class ComplianceCaptureTest extends VectispireContextTest {
     private ComplianceHistoryService history;
 
     @Autowired
-    private ComplianceSnapshots snapshots;
+    private ComplianceSnapshotRepository snapshots;
 
     @Autowired
     private Clock clock;

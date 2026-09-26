@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface AiReviewResults extends JpaRepository<AiReviewResultEntity, Long> {
+public interface AiReviewResultRepository extends JpaRepository<AiReviewResultEntity, Long> {
 
     /**
      * The most recent report about one repository, whichever scan it was built from.

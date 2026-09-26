@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
-import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntels;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -31,13 +31,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class EpssPrioritizationService {
 
     private final IssueCatalog issuesRepo;
-    private final ThreatIntels intelRepo;
+    private final ThreatIntelRepository intelRepo;
     private final ThreatIntelFeedService threatIntelService;
     private final TargetCatalog targets;
 
     public EpssPrioritizationService(
             IssueCatalog issuesRepo,
-            ThreatIntels intelRepo,
+            ThreatIntelRepository intelRepo,
             ThreatIntelFeedService threatIntelService,
             TargetCatalog targets) {
         this.issuesRepo = issuesRepo;

@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.inventory;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Instant;
 import java.util.List;
@@ -27,10 +27,10 @@ public class InventoryQueryService {
      */
     private static final int MAX_ROWS = 500;
 
-    private final Components components;
+    private final ComponentRepository components;
     private final TargetNaming naming;
 
-    public InventoryQueryService(Components components, TargetNaming naming) {
+    public InventoryQueryService(ComponentRepository components, TargetNaming naming) {
         this.components = components;
         this.naming = naming;
     }
@@ -70,7 +70,7 @@ public class InventoryQueryService {
         return components.distinctPurls();
     }
 
-    /** Every distinct package URL with the target its scan was of, as {@code Components} returns them. */
+    /** Every distinct package URL with the target its scan was of, as {@code ComponentRepository} returns them. */
     public List<Object[]> distinctPurlsByTarget() {
         return components.distinctPurlsByTarget();
     }

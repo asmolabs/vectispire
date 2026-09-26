@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface SiemConfigs extends JpaRepository<SiemConfigEntity, Long> {
+public interface SiemConfigRepository extends JpaRepository<SiemConfigEntity, Long> {
 }

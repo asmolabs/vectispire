@@ -12,11 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
  * The gate policies: one global, plus one per target that overrides it.
  *
  * <p>{@code isActive} is {@code Boolean} and {@code null} means "superseded", for the reason
- * given in {@code RuleSets}: the unique index that enforces "at most one active per scope" only
+ * given in {@code SemgrepRuleSetRepository}: the unique index that enforces "at most one active per scope" only
  * counts NULLs as distinct. Old versions are kept rather than deleted — a build that failed
  * last month failed under rules somebody must still be able to read.
  */
-public interface GatePolicies extends JpaRepository<GatePolicyEntity, Long> {
+public interface GatePolicyRepository extends JpaRepository<GatePolicyEntity, Long> {
 
     List<GatePolicyEntity> findByIsActiveTrue();
 

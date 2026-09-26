@@ -85,17 +85,17 @@ class CrossModuleQueriesTest {
      * The cross-module statements as step 6 found them — the ones decision 0029 listed, and no other.
      */
     private static final List<Known> KNOWN = List.of(
-            new Known(new Reference("AiReviewResults.latestForRepository", "scanning", "ScanEntity"), false,
+            new Known(new Reference("AiReviewResultRepository.latestForRepository", "scanning", "ScanEntity"), false,
                     "A review row carries its scan's id, not its repository's: the latest review of a repository "
                             + "is a join to the scans. Through ScanCatalog it would be all the repository's scan "
                             + "ids as an in-list."),
-            new Known(new Reference("Components.search", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
-            new Known(new Reference("Components.versionsOf", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
-            new Known(new Reference("Components.distinctRepositoriesWithComponents", "scanning", "ScanEntity"), false,
+            new Known(new Reference("ComponentRepository.search", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
+            new Known(new Reference("ComponentRepository.versionsOf", "scanning", "ScanEntity"), false, SCAN_OF_A_COMPONENT),
+            new Known(new Reference("ComponentRepository.distinctRepositoriesWithComponents", "scanning", "ScanEntity"), false,
                     SCAN_OF_A_COMPONENT),
-            new Known(new Reference("Components.distinctContainersWithComponents", "scanning", "ScanEntity"), false,
+            new Known(new Reference("ComponentRepository.distinctContainersWithComponents", "scanning", "ScanEntity"), false,
                     SCAN_OF_A_COMPONENT),
-            new Known(new Reference("Components.distinctPurlsByTarget", "scanning", "ScanEntity"), false,
+            new Known(new Reference("ComponentRepository.distinctPurlsByTarget", "scanning", "ScanEntity"), false,
                     SCAN_OF_A_COMPONENT),
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),

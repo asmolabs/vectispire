@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
-import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -47,12 +47,12 @@ public class RuleSetService {
 
     private static final int MAX_NAME_LENGTH = 255;
 
-    private final RuleSets ruleSets;
+    private final SemgrepRuleSetRepository ruleSets;
     private final IssueCatalog issues;
     private final ObjectMapper json;
     private final Clock clock;
 
-    public RuleSetService(RuleSets ruleSets, IssueCatalog issues, ObjectMapper json, Clock clock) {
+    public RuleSetService(SemgrepRuleSetRepository ruleSets, IssueCatalog issues, ObjectMapper json, Clock clock) {
         this.ruleSets = ruleSets;
         this.issues = issues;
         this.json = json;
@@ -89,7 +89,7 @@ public class RuleSetService {
         row.setSizeBytes(stored.stream()
                 .mapToLong(file -> file.content().getBytes(StandardCharsets.UTF_8).length)
                 .sum());
-        // `null`, not `false`. See `RuleSets`: the unique index is the guard.
+        // `null`, not `false`. See `SemgrepRuleSetRepository`: the unique index is the guard.
         row.setIsActive(null);
         row.setUploadedBy(uploadedBy);
         row.setUploadedAt(clock.instant());

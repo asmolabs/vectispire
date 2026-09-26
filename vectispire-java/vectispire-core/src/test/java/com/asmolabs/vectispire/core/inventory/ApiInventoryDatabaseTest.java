@@ -7,8 +7,8 @@ import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -47,10 +47,10 @@ class ApiInventoryDatabaseTest extends VectispireContextTest {
     private ScanRepository scans;
 
     @Autowired
-    private ApiEndpoints endpoints;
+    private ApiEndpointRepository endpoints;
 
     @Autowired
-    private ApiContracts contracts;
+    private ApiContractRepository contracts;
 
     @Test
     @DisplayName("an absent cataloguer leaves yesterday's contracts in place")

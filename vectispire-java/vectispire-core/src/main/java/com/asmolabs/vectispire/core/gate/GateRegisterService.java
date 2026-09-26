@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -23,9 +23,9 @@ public class GateRegisterService {
     /** A register is read, not paged through: past a few hundred rows nobody is reading. */
     private static final int MAX_VERDICTS = 500;
 
-    private final GateVerdicts verdicts;
+    private final GateVerdictRepository verdicts;
 
-    public GateRegisterService(GateVerdicts verdicts) {
+    public GateRegisterService(GateVerdictRepository verdicts) {
         this.verdicts = verdicts;
     }
 

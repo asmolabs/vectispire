@@ -16,7 +16,7 @@ import org.springframework.data.repository.query.Param;
  * applicable to us" has no target to belong to, so there is nothing for an allowance to narrow.
  * The routes are gated on the role instead.
  */
-public interface ControlDeclarations extends JpaRepository<ControlDeclarationEntity, UUID> {
+public interface ControlDeclarationRepository extends JpaRepository<ControlDeclarationEntity, UUID> {
 
     List<ControlDeclarationEntity> findByFramework(String framework);
 

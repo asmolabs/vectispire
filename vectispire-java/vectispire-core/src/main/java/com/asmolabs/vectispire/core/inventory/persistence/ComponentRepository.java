@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Components extends JpaRepository<ComponentEntity, Long> {
+public interface ComponentRepository extends JpaRepository<ComponentEntity, Long> {
 
     /**
      * Where a component was seen, and in which version of which project.

@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Tracker deliveries already acted on — see {@link WebhookDeliveryEntity}. */
-public interface WebhookDeliveries extends JpaRepository<WebhookDeliveryEntity, String> {
+public interface WebhookDeliveryRepository extends JpaRepository<WebhookDeliveryEntity, String> {
 
     /** Drops what is too old to be worth a replay check, on the write path that fills the table. */
     @Transactional

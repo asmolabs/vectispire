@@ -6,7 +6,7 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -58,7 +58,7 @@ class ActiveGatePoliciesTest {
         GatePolicyEntity repository = policy("critical");
         repository.setTargetKind("repository");
         repository.setTargetId(7L);
-        GatePolicies policies = mock(GatePolicies.class);
+        GatePolicyRepository policies = mock(GatePolicyRepository.class);
         when(policies.findByIsActiveTrue()).thenReturn(List.of(global, repository));
 
         // The key is what the sweep and the verdict both spell from an issue's target: a policy keyed

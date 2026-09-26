@@ -9,9 +9,9 @@ import com.asmolabs.vectispire.common.domain.apis.ShadowApiDiff;
 import com.asmolabs.vectispire.common.domain.apis.ShadowApiStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiContractEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiContractRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -71,11 +71,11 @@ public class ApiInventoryService {
             List<EndpointView> highRiskEndpoints,
             List<EndpointView> allEndpoints) {}
 
-    private final ApiEndpoints apiEndpoints;
-    private final ApiContracts apiContracts;
+    private final ApiEndpointRepository apiEndpoints;
+    private final ApiContractRepository apiContracts;
     private final Clock clock;
 
-    public ApiInventoryService(ApiEndpoints apiEndpoints, ApiContracts apiContracts, Clock clock) {
+    public ApiInventoryService(ApiEndpointRepository apiEndpoints, ApiContractRepository apiContracts, Clock clock) {
         this.apiEndpoints = apiEndpoints;
         this.apiContracts = apiContracts;
         this.clock = clock;

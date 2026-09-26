@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 class TicketSweepServiceTest {
 
     private IssueRepository issues;
-    private GatePolicies policies;
+    private GatePolicyRepository policies;
     private TicketService tickets;
     private AuditLogService audit;
     private TicketSweepService sweep;
@@ -38,7 +38,7 @@ class TicketSweepServiceTest {
     @BeforeEach
     void wire() {
         issues = mock(IssueRepository.class);
-        policies = mock(GatePolicies.class);
+        policies = mock(GatePolicyRepository.class);
         tickets = mock(TicketService.class);
         audit = mock(AuditLogService.class);
         TargetNaming naming = mock(TargetNaming.class);

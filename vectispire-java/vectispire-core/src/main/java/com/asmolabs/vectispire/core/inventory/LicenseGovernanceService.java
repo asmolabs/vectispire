@@ -10,8 +10,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicies;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
+import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicyRepository;
 import com.asmolabs.vectispire.core.inventory.persistence.LicensePolicyEntity;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
@@ -46,8 +46,8 @@ public class LicenseGovernanceService {
 
     private static final Logger log = LoggerFactory.getLogger(LicenseGovernanceService.class);
 
-    private final LicensePolicies policyRepo;
-    private final Components componentsRepo;
+    private final LicensePolicyRepository policyRepo;
+    private final ComponentRepository componentsRepo;
     private final ScanCatalog scansRepo;
     private final TargetCatalog targets;
     private final ObjectMapper objectMapper;
@@ -55,8 +55,8 @@ public class LicenseGovernanceService {
     private final TransactionTemplate transactions;
 
     public LicenseGovernanceService(
-            LicensePolicies policyRepo,
-            Components componentsRepo,
+            LicensePolicyRepository policyRepo,
+            ComponentRepository componentsRepo,
             ScanCatalog scansRepo,
             TargetCatalog targets,
             ObjectMapper objectMapper,

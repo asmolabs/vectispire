@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Optional;
@@ -39,13 +39,13 @@ public class SiemExporterService {
     /** Encrypted, 1,500 ASCII characters become at most 2,043: see V32 and {@link #requireUsableHeader}. */
     private static final int MAX_AUTH_HEADER_LENGTH = 1_500;
 
-    private final SiemConfigs repository;
+    private final SiemConfigRepository repository;
     private final SiemSender sender;
     private final EncryptionService encryption;
     private final AuditLogService audit;
 
     public SiemExporterService(
-            SiemConfigs repository,
+            SiemConfigRepository repository,
             SiemSender sender,
             EncryptionService encryption,
             AuditLogService audit) {

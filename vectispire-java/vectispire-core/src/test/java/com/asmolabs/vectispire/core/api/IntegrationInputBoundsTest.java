@@ -7,8 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.core.access.persistence.TeamEntity;
 import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
-import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
-import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Instant;
@@ -39,10 +39,10 @@ class IntegrationInputBoundsTest extends ApiTestBase {
     private SshKeyRepository sshKeys;
 
     @Autowired
-    private RuleSets ruleSets;
+    private SemgrepRuleSetRepository ruleSets;
 
     @Autowired
-    private SiemConfigs siem;
+    private SiemConfigRepository siem;
 
     @Autowired
     private TeamRepository teams;

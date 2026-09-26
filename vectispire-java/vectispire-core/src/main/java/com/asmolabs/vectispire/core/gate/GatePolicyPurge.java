@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.gate;
 
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.targets.TargetDeleted;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import org.springframework.context.event.EventListener;
@@ -19,9 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 class GatePolicyPurge {
 
-    private final GatePolicies policies;
+    private final GatePolicyRepository policies;
 
-    GatePolicyPurge(GatePolicies policies) {
+    GatePolicyPurge(GatePolicyRepository policies) {
         this.policies = policies;
     }
 

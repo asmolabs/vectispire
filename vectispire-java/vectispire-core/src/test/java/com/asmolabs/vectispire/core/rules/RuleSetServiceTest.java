@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
-import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
+import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetRepository;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,13 +33,13 @@ class RuleSetServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T09:00:00Z");
 
-    private RuleSets ruleSets;
+    private SemgrepRuleSetRepository ruleSets;
     private IssueRepository issues;
     private RuleSetService service;
 
     @BeforeEach
     void wire() {
-        ruleSets = mock(RuleSets.class);
+        ruleSets = mock(SemgrepRuleSetRepository.class);
         issues = mock(IssueRepository.class);
         service = new RuleSetService(ruleSets, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), new ObjectMapper(), Clock.fixed(NOW, ZoneOffset.UTC));
 

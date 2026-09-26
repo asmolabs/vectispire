@@ -57,7 +57,7 @@ class OwaspReportTest extends ApiTestBase {
     private IssueRepository issues;
 
     @Autowired
-    private com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults results;
+    private com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository results;
 
     private AiReviewService models;
     private OwaspReviewService service;

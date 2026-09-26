@@ -5,7 +5,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
 import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultEntity;
-import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
@@ -51,13 +51,13 @@ public class OwaspReviewService {
     private static final String STATUS_FAILED = "failed";
 
     private final AiReviewService models;
-    private final AiReviewResults results;
+    private final AiReviewResultRepository results;
     private final IssueCatalog issues;
     private final ScanCatalog scans;
     private final Clock clock;
 
     public OwaspReviewService(
-            AiReviewService models, AiReviewResults results, IssueCatalog issues, ScanCatalog scans, Clock clock) {
+            AiReviewService models, AiReviewResultRepository results, IssueCatalog issues, ScanCatalog scans, Clock clock) {
         this.models = models;
         this.results = results;
         this.issues = issues;

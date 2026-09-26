@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -25,7 +25,7 @@ import org.springframework.http.MediaType;
 class LicenseGovernanceRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Components componentsRepo;
+    private ComponentRepository componentsRepo;
 
     @Autowired
     private GitRepositoryRepository repositoriesRepo;

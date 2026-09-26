@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.compliance.internal;
 
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.maintenance.MaintenanceTask;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -24,11 +24,11 @@ public class SnapshotRetentionTask implements MaintenanceTask {
 
     private static final Logger log = LoggerFactory.getLogger(SnapshotRetentionTask.class);
 
-    private final ComplianceSnapshots snapshots;
+    private final ComplianceSnapshotRepository snapshots;
     private final SettingsService settings;
     private final Clock clock;
 
-    public SnapshotRetentionTask(ComplianceSnapshots snapshots, SettingsService settings, Clock clock) {
+    public SnapshotRetentionTask(ComplianceSnapshotRepository snapshots, SettingsService settings, Clock clock) {
         this.snapshots = snapshots;
         this.settings = settings;
         this.clock = clock;

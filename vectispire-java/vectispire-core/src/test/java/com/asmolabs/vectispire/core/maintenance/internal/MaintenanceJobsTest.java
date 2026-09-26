@@ -17,9 +17,9 @@ import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
-import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshots;
+import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.gate.internal.VerdictRetentionTask;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.inventory.InventoryBackfill;
 import com.asmolabs.vectispire.core.inventory.internal.InventoryBackfillTask;
 import com.asmolabs.vectispire.core.issues.IssueTriageService;
@@ -100,8 +100,8 @@ class MaintenanceJobsTest {
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
     private ComplianceHistoryService complianceHistory;
-    private GateVerdicts verdicts;
-    private ComplianceSnapshots snapshots;
+    private GateVerdictRepository verdicts;
+    private ComplianceSnapshotRepository snapshots;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -117,8 +117,8 @@ class MaintenanceJobsTest {
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
         complianceHistory = mock(ComplianceHistoryService.class);
-        verdicts = mock(GateVerdicts.class);
-        snapshots = mock(ComplianceSnapshots.class);
+        verdicts = mock(GateVerdictRepository.class);
+        snapshots = mock(ComplianceSnapshotRepository.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 

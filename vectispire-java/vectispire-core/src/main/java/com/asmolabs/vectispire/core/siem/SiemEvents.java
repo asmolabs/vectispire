@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.core.audit.AuditChainBroken;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.outbox.OutboxService;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -70,7 +70,7 @@ public class SiemEvents implements AuditLogService.Listener {
     /** Enough for any audit description, bounded so one oversized value cannot bloat every row. */
     static final int MAX_MESSAGE_LENGTH = 1_024;
 
-    private final SiemConfigs configs;
+    private final SiemConfigRepository configs;
     private final OutboxService outbox;
 
     /**
@@ -81,7 +81,7 @@ public class SiemEvents implements AuditLogService.Listener {
      */
     private final TransactionTemplate separately;
 
-    public SiemEvents(SiemConfigs configs, OutboxService outbox, PlatformTransactionManager transactions) {
+    public SiemEvents(SiemConfigRepository configs, OutboxService outbox, PlatformTransactionManager transactions) {
         this.configs = configs;
         this.outbox = outbox;
         this.separately = new TransactionTemplate(transactions);

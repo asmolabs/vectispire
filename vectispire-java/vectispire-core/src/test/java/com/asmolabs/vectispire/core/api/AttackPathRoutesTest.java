@@ -5,7 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -27,7 +27,7 @@ class AttackPathRoutesTest extends ApiTestBase {
     private ScanRepository scansRepo;
 
     @Autowired
-    private ApiEndpoints apiEndpointsRepo;
+    private ApiEndpointRepository apiEndpointsRepo;
 
     @Autowired
     private IssueRepository issuesRepo;

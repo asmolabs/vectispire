@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.core.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.outbox.OutboxHandler;
 import com.asmolabs.vectispire.core.siem.internal.SiemSender;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.UUID;
@@ -28,12 +28,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class SiemDelivery implements OutboxHandler {
 
-    private final SiemConfigs configs;
+    private final SiemConfigRepository configs;
     private final SiemSender sender;
     private final EncryptionService encryption;
     private final ObjectMapper json;
 
-    public SiemDelivery(SiemConfigs configs, SiemSender sender, EncryptionService encryption, ObjectMapper json) {
+    public SiemDelivery(SiemConfigRepository configs, SiemSender sender, EncryptionService encryption, ObjectMapper json) {
         this.configs = configs;
         this.sender = sender;
         this.encryption = encryption;

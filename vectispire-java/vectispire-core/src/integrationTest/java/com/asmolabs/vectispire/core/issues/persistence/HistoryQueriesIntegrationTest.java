@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -82,7 +82,7 @@ class HistoryQueriesIntegrationTest {
     private TriageEventRepository events;
 
     @Autowired
-    private Components components;
+    private ComponentRepository components;
 
     private long repositoryId;
     private long scanId;

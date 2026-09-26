@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
-import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarations;
+import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarationRepository;
 import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +40,7 @@ class ControlDeclarationTest extends VectispireContextTest {
     private StatementOfApplicabilityService soa;
 
     @Autowired
-    private ControlDeclarations declarations;
+    private ControlDeclarationRepository declarations;
 
     @Autowired
     private AuditLogRepository auditLog;

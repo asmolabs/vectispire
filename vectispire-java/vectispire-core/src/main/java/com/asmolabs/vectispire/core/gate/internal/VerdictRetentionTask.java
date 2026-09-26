@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.gate.internal;
 
 import com.asmolabs.vectispire.common.domain.retention.EvidenceRetention;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.maintenance.MaintenanceTask;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * The gate's verdict register, purged past the evidence window.
  *
  * <p><b>Its own task since step 5, no longer a port of the authentication tables' pass.</b> That pass
- * purged the register because it had always done so: first by reading {@code GateVerdicts} while the
+ * purged the register because it had always done so: first by reading {@code GateVerdictRepository} while the
  * code was packaged by layer, then — once the register was this module's and the read closed a cycle
  * — through a port {@code access} declared and this module implemented. A lower module purging a
  * higher one's table through an interface was the indirection the periodic tick's own port removes:
@@ -42,11 +42,11 @@ public class VerdictRetentionTask implements MaintenanceTask {
 
     private static final Logger log = LoggerFactory.getLogger(VerdictRetentionTask.class);
 
-    private final GateVerdicts verdicts;
+    private final GateVerdictRepository verdicts;
     private final SettingsService settings;
     private final Clock clock;
 
-    public VerdictRetentionTask(GateVerdicts verdicts, SettingsService settings, Clock clock) {
+    public VerdictRetentionTask(GateVerdictRepository verdicts, SettingsService settings, Clock clock) {
         this.verdicts = verdicts;
         this.settings = settings;
         this.clock = clock;

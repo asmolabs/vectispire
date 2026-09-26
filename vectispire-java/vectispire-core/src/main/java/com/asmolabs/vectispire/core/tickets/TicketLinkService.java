@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
-import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
+import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -36,11 +36,11 @@ public class TicketLinkService {
     private static final int MAX_URL_LENGTH = 512;
 
     private final IssueCatalog issues;
-    private final IssueTickets tickets;
+    private final IssueTicketRepository tickets;
     private final AuditLogService audit;
     private final Clock clock;
 
-    public TicketLinkService(IssueCatalog issues, IssueTickets tickets, AuditLogService audit, Clock clock) {
+    public TicketLinkService(IssueCatalog issues, IssueTicketRepository tickets, AuditLogService audit, Clock clock) {
         this.issues = issues;
         this.tickets = tickets;
         this.audit = audit;

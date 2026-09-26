@@ -13,7 +13,7 @@ import java.time.Instant;
  * {@code openapi.json} did not move — and the two can now change apart.
  *
  * @param active {@code true} for the one active set, {@code null} for the others. See {@code
- *     RuleSets} for why it is not {@code false}
+ *     SemgrepRuleSetRepository} for why it is not {@code false}
  */
 public record RuleSetSummary(
         Long id,

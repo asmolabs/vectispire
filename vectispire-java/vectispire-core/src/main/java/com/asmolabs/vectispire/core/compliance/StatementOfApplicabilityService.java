@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarationEntity;
-import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarations;
+import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarationRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -39,13 +39,13 @@ public class StatementOfApplicabilityService {
     /** The width of {@code control_owner}. */
     private static final int OWNER_LENGTH = 255;
 
-    private final ControlDeclarations declarations;
+    private final ControlDeclarationRepository declarations;
     private final ComplianceService compliance;
     private final AuditLogService audit;
     private final Clock clock;
 
     public StatementOfApplicabilityService(
-            ControlDeclarations declarations,
+            ControlDeclarationRepository declarations,
             ComplianceService compliance,
             AuditLogService audit,
             Clock clock) {

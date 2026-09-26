@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueTriageService;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.tickets.internal.WebhookRefusals;
-import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveries;
+import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryRepository;
 import com.asmolabs.vectispire.core.tickets.persistence.WebhookDeliveryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,7 +41,7 @@ public class TicketingWebhookService {
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final TicketService tickets;
-    private final WebhookDeliveries deliveries;
+    private final WebhookDeliveryRepository deliveries;
     private final WebhookRefusals refusals;
     private final java.time.Clock clock;
 
@@ -54,7 +54,7 @@ public class TicketingWebhookService {
             AuditLogService audit,
             ObjectMapper json,
             TicketService tickets,
-            WebhookDeliveries deliveries,
+            WebhookDeliveryRepository deliveries,
             WebhookRefusals refusals,
             java.time.Clock clock) {
         this.issues = issues;

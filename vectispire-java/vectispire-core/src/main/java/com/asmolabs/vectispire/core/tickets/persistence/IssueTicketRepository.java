@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Access to external ticket mappings.
  */
 @Repository
-public interface IssueTickets extends JpaRepository<IssueTicketEntity, Long> {
+public interface IssueTicketRepository extends JpaRepository<IssueTicketEntity, Long> {
 
     List<IssueTicketEntity> findByIssueIdOrderByCreatedAtDesc(Long issueId);
 

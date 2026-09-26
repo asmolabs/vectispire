@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
+import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -58,7 +58,7 @@ class AttackPathDatabaseTest extends VectispireContextTest {
     private GitRepositoryRepository repositories;
 
     @Autowired
-    private ApiEndpoints endpoints;
+    private ApiEndpointRepository endpoints;
 
     @Autowired
     private IssueRepository issues;

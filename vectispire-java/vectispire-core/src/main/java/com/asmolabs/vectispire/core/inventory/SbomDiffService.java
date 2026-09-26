@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.sbom.CveDelta;
 import com.asmolabs.vectispire.common.domain.sbom.SbomDiffReport;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
@@ -33,12 +33,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SbomDiffService {
 
     private final ScanCatalog scans;
-    private final Components components;
+    private final ComponentRepository components;
     private final ObjectMapper objectMapper;
 
     public SbomDiffService(
             ScanCatalog scans,
-            Components components,
+            ComponentRepository components,
             ObjectMapper objectMapper) {
         this.scans = scans;
         this.components = components;

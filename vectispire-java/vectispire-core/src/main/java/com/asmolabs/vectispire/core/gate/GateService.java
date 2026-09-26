@@ -18,10 +18,10 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
+import com.asmolabs.vectispire.core.gate.persistence.GatePolicyRepository;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueViews;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
@@ -63,11 +63,11 @@ public class GateService {
     private static final long NO_TARGET = 0L;
 
     private final IssueCatalog issues;
-    private final GatePolicies policies;
+    private final GatePolicyRepository policies;
 
     /** The reading the ticket sweep shares; built over the same repository, so it holds no state of its own. */
     private final ActiveGatePolicies activePolicies;
-    private final GateVerdicts verdicts;
+    private final GateVerdictRepository verdicts;
     private final TargetCatalog catalog;
     private final ScanCatalog scans;
     private final RuleCoverageService ruleCoverage;
@@ -76,8 +76,8 @@ public class GateService {
 
     public GateService(
             IssueCatalog issues,
-            GatePolicies policies,
-            GateVerdicts verdicts,
+            GatePolicyRepository policies,
+            GateVerdictRepository verdicts,
             TargetCatalog catalog,
             ScanCatalog scans,
             RuleCoverageService ruleCoverage,

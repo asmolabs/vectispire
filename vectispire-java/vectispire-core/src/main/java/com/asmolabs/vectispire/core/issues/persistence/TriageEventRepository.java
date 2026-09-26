@@ -22,7 +22,7 @@ public interface TriageEventRepository extends JpaRepository<TriageEventEntity, 
      *
      * <p>Bounded rather than paged: past a few hundred rows a register stops being read and starts
      * being exported. Visibility is not expressed here, for the reason given on {@code
-     * GateVerdicts}: whose estate a row belongs to has one implementation and it is not in JPQL.
+     * GateVerdictRepository}: whose estate a row belongs to has one implementation and it is not in JPQL.
      */
     @Query("select e from TriageEventEntity e where e.toStatus in :statuses order by e.occurredAt desc, e.id desc")
     List<TriageEventEntity> findDecisions(

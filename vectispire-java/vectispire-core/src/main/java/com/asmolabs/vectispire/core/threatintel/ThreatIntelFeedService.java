@@ -12,8 +12,8 @@ import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
-import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncs;
-import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntels;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncRepository;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -40,16 +40,16 @@ public class ThreatIntelFeedService {
 
     private static final Logger log = LoggerFactory.getLogger(ThreatIntelFeedService.class);
 
-    private final ThreatIntels intelRepo;
-    private final ThreatIntelSyncs syncRepo;
+    private final ThreatIntelRepository intelRepo;
+    private final ThreatIntelSyncRepository syncRepo;
     private final IssueCatalog issuesRepo;
     private final SiemEvents siemEvents;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
 
     public ThreatIntelFeedService(
-            ThreatIntels intelRepo,
-            ThreatIntelSyncs syncRepo,
+            ThreatIntelRepository intelRepo,
+            ThreatIntelSyncRepository syncRepo,
             IssueCatalog issuesRepo,
             SiemEvents siemEvents,
             AuditLogService audit,

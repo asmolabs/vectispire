@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -53,7 +53,7 @@ class AttestationRoutesTest extends ApiTestBase {
     private FindingRepository findings;
 
     @Autowired
-    private GateVerdicts verdicts;
+    private GateVerdictRepository verdicts;
 
     @Autowired
     private BuildProperties build;

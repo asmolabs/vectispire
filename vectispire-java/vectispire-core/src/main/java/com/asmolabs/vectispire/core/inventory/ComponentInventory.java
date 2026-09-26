@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,9 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ComponentInventory {
 
-    private final Components components;
+    private final ComponentRepository components;
 
-    public ComponentInventory(Components components) {
+    public ComponentInventory(ComponentRepository components) {
         this.components = components;
     }
 

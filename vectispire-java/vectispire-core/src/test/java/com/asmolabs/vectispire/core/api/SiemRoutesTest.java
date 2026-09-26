@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigEntity;
-import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
+import com.asmolabs.vectispire.core.siem.persistence.SiemConfigRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +20,7 @@ import org.springframework.http.MediaType;
 class SiemRoutesTest extends ApiTestBase {
 
     @Autowired
-    private SiemConfigs configs;
+    private SiemConfigRepository configs;
 
     @Autowired
     private SettingsService settings;

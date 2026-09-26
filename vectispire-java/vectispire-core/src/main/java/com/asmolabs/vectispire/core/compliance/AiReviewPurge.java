@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.compliance;
 
-import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResults;
+import com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository;
 import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
@@ -20,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 class AiReviewPurge {
 
     private final PurgedScans scans;
-    private final AiReviewResults reviews;
+    private final AiReviewResultRepository reviews;
 
-    AiReviewPurge(PurgedScans scans, AiReviewResults reviews) {
+    AiReviewPurge(PurgedScans scans, AiReviewResultRepository reviews) {
         this.scans = scans;
         this.reviews = reviews;
     }

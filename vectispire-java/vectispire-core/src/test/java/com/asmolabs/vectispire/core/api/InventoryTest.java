@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
-import com.asmolabs.vectispire.core.inventory.persistence.Components;
+import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -41,7 +41,7 @@ class InventoryTest extends ApiTestBase {
     private ScanRepository scans;
 
     @Autowired
-    private Components components;
+    private ComponentRepository components;
 
     @Autowired
     private SettingsService settings;

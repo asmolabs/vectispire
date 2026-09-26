@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
-import com.asmolabs.vectispire.core.gate.persistence.GateVerdicts;
+import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -45,7 +45,7 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     private GateService gate;
 
     @Autowired
-    private GateVerdicts verdicts;
+    private GateVerdictRepository verdicts;
 
     @Autowired
     private GitRepositoryRepository repositories;
