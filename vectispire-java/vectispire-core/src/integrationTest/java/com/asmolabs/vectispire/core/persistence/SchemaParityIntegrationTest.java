@@ -168,7 +168,7 @@ class SchemaParityIntegrationTest {
                 .as("the poller's `findDue`, on a schedule")
                 .contains("status");
 
-        // The child tables of a scan: read with it, purged with it by `TargetDeletionService`.
+        // The child tables of a scan: read with it, purged with it by the `TargetDeleted` listeners.
         // Three of them carried an index that led with the wrong column, which is the case this
         // assertion exists to catch — `getIndexInfo` would have reported an index on the table
         // and said nothing about it being unusable for this lookup.

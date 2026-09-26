@@ -100,7 +100,7 @@ class ForeignKeyEnforcementTest extends VectispireContextTest {
         finding.setCreatedAt(Instant.now());
         findings.saveAndFlush(finding);
 
-        // Deleted through the scan alone: `TargetDeletionService` removes children explicitly and
+        // Deleted through the scan alone: the `TargetDeleted` listeners remove children explicitly and
         // would hide the question. What is under test is what happens when nobody remembers to —
         // a crash between two deletes, a repair run at the prompt, a path added later.
         scans.deleteById(scanId);
