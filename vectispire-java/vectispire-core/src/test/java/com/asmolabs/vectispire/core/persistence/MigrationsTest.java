@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.core.config.MigrationDialect;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -30,15 +31,17 @@ import org.junit.jupiter.api.io.TempDir;
 @DisplayName("the schema migrations (Flyway)")
 class MigrationsTest {
 
-    private static final String LOCATIONS = "classpath:db/migration/sqlite";
-
     @TempDir
     Path scratch;
 
     private static void apply(Path database) {
+        // The locations and the placeholders the application uses on this engine, from the one
+        // place that spells them: a hand-written `db/migration/sqlite` here would apply V1 to V39
+        // and silently skip every common migration from V40 on.
         Flyway flyway = Flyway.configure()
                 .dataSource("jdbc:sqlite:" + database, "", "")
-                .locations(LOCATIONS)
+                .locations(MigrationDialect.SQLITE.locations().toArray(String[]::new))
+                .placeholders(MigrationDialect.SQLITE.placeholders())
                 .load();
         flyway.migrate();
     }

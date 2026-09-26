@@ -31,7 +31,13 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration/{vendor}
+    # **Common first, then the engine's own (decision 0027).** A migration that differs between
+    # engines only by its column types is written once under `common`, with the placeholders
+    # `MigrationPlaceholders` sets for the engine; one whose structure diverges is written in each
+    # vendor directory. A version lives in exactly one of the two places, which
+    # `MigrationLayoutTest` enforces — V1 to V39 predate the rule and stay where they are, since
+    # Flyway would refuse every existing installation if their checksums moved.
+    locations: classpath:db/migration/common,classpath:db/migration/{vendor}
 
 server:
   # The API and the agent protocol share it. Long polling holds a request open, which is why

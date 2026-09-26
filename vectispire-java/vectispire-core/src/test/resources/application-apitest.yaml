@@ -19,9 +19,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.community.dialect.SQLiteDialect
-  flyway:
-    enabled: true
-    locations: classpath:db/migration/{vendor}
+  # No `flyway` block: the suite reads the locations the application reads. It used to repeat
+  # them, and a copy is the one that stays behind when the original gains a directory.
 
 vectispire:
   # The periodic jobs are switched off, not merely slowed: a scheduler tick firing mid-test
