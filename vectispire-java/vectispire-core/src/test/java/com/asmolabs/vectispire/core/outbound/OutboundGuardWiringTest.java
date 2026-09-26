@@ -1,9 +1,10 @@
-package com.asmolabs.vectispire.core.services.outbound;
+package com.asmolabs.vectispire.core.outbound;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
+import com.asmolabs.vectispire.core.outbound.internal.OutboundGuardConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

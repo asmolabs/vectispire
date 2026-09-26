@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbound;
+package com.asmolabs.vectispire.core.outbound.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;

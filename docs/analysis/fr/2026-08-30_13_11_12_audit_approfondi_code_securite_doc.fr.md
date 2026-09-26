@@ -261,7 +261,7 @@ délibérément.
 ### 3.4 🟡 Le refus des redirections peut être retiré sans qu'aucun test ne bouge — mais la seconde ceinture tient
 
 **Exécuté, et le résultat corrige ce que je cherchais.** Retirer `.disableRedirectHandling()` de
-[`PinnedHttpSender`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/outbound/PinnedHttpSender.java)
+[`PinnedHttpSender`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/outbound/PinnedHttpSender.java)
 laisse **les 1326 tests verts**. Les quatre cas de `PinnedHttpSenderTest` couvrent l'épinglage DNS
 et aucun ne couvre le refus des redirections, que le code affirme pourtant en gras.
 

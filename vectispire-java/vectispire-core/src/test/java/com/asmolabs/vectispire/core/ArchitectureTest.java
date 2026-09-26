@@ -78,7 +78,7 @@ class ArchitectureTest {
      * issues}, {@code scanning}, {@code targets}, {@code platform} and {@code shared} are step 5's
      * and still live in the layered packages.
      */
-    private static final List<String> MODULES = List.of("settings");
+    private static final List<String> MODULES = List.of("settings", "outbound");
 
     /** The top-level packages of the layered packaging, which step 5 empties. */
     private static final Set<String> LAYERED_PACKAGES =

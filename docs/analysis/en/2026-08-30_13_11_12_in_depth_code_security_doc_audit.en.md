@@ -253,7 +253,7 @@ the present tense. It is a repository setting requiring admin rights — deliber
 ### 3.4 🟡 Redirect refusal can be removed with no test moving — but the second belt holds
 
 **Executed, and the result corrects what I was looking for.** Removing `.disableRedirectHandling()`
-from [`PinnedHttpSender`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/outbound/PinnedHttpSender.java)
+from [`PinnedHttpSender`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/outbound/PinnedHttpSender.java)
 leaves **all 1326 tests green**. `PinnedHttpSenderTest`'s four cases cover DNS pinning thoroughly and
 none covers redirect refusal, which the code nonetheless asserts in bold.
 

@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.notifications.SlackBlockKit;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbox.NotificationChannel;
 import com.asmolabs.vectispire.core.settings.ExportProperties;
 import com.asmolabs.vectispire.core.settings.SettingsService;

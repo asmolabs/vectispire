@@ -12,7 +12,7 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.persistence.TeamWebhookEntity;
 import com.asmolabs.vectispire.core.repositories.TeamWebhooks;
 import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
-import com.asmolabs.vectispire.core.services.outbound.OutboundPost;
+import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.services.outbox.GoneDestinationException;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;

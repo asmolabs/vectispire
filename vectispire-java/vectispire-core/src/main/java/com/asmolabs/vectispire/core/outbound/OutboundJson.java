@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.outbound;
+package com.asmolabs.vectispire.core.outbound;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
