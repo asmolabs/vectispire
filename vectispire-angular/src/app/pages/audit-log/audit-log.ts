@@ -23,7 +23,12 @@ const OPERATION_KEYS: Record<string, string> = {
     SCAN_TRIGGERED: 'audit_log.operations.scan_triggered',
     POLICY_UPDATED: 'audit_log.operations.policy_updated',
     TEAM_UPDATED: 'audit_log.operations.team_updated',
-    TEAM_ACCESS_CHANGED: 'audit_log.operations.team_access_changed'
+    TEAM_ACCESS_CHANGED: 'audit_log.operations.team_access_changed',
+    // Decision 0023. A creation and a deletion are recorded under the `_UPDATED` of their kind,
+    // as for teams; a filing or a move under its own, because it changes who sees a repository.
+    SOLUTION_UPDATED: 'audit_log.operations.solution_updated',
+    PROJECT_UPDATED: 'audit_log.operations.project_updated',
+    PROJECT_REPOSITORIES_CHANGED: 'audit_log.operations.project_repositories_changed'
 };
 
 const PAGE_SIZE = 50;

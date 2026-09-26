@@ -331,7 +331,10 @@
       "scan_triggered": "Analyse déclenchée",
       "policy_updated": "Politique modifiée",
       "team_updated": "Équipe modifiée",
-      "team_access_changed": "Accès de l'équipe modifiés"
+      "team_access_changed": "Accès de l'équipe modifiés",
+      "solution_updated": "Solution modifiée",
+      "project_updated": "Projet modifié",
+      "project_repositories_changed": "Dépôts du projet modifiés"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

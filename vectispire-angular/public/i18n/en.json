@@ -331,7 +331,10 @@
       "scan_triggered": "Scan triggered",
       "policy_updated": "Policy changed",
       "team_updated": "Team changed",
-      "team_access_changed": "Team access changed"
+      "team_access_changed": "Team access changed",
+      "solution_updated": "Solution changed",
+      "project_updated": "Project changed",
+      "project_repositories_changed": "Project repositories changed"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",
