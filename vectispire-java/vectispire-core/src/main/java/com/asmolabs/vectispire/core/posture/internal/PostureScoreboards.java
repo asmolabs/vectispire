@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.posture;
+package com.asmolabs.vectispire.core.posture.internal;
 
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics.TargetMaturityScore;

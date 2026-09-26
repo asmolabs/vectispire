@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.remediation.HighImpactFix;
@@ -7,17 +7,17 @@ import com.asmolabs.vectispire.common.domain.remediation.RemediationDistribution
 import com.asmolabs.vectispire.common.domain.remediation.SecurityDebtReport;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.posture.RemediationDistributionService;
-import com.asmolabs.vectispire.core.services.posture.SecurityDebtService;
+import com.asmolabs.vectispire.core.posture.RemediationDistributionService;
+import com.asmolabs.vectispire.core.posture.SecurityDebtService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.Operation;
 
 /**
  * Endpoints for security debt analytics and prioritized high-impact remediation fixes.

@@ -211,7 +211,7 @@ are bounded, and the contrast is what makes the first three unambiguous.
 **Where it comes from.** Four `findAll` calls that materialise complete `IssueEntity` rows to read
 two or three columns:
 
-- [`DashboardController:211`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/DashboardController.java) — every issue, mapped to `BacklogTrend.Lifespan(firstSeenAt, resolvedAt)`
+- [`DashboardController:211`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/posture/web/DashboardController.java) — every issue, mapped to `BacklogTrend.Lifespan(firstSeenAt, resolvedAt)`
 - `DashboardController:237` — the same shape on the dashboard root
 - [`ComplianceService:250`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/compliance/ComplianceService.java) and `:379` — mapped to `MttrCalculator.ResolvedIssue(severity, firstSeenAt, resolvedAt)`
 

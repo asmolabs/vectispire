@@ -214,7 +214,7 @@ premières sans ambiguïté.
 **D'où cela vient.** Quatre appels `findAll` qui matérialisent des `IssueEntity` complètes pour en
 lire deux ou trois colonnes :
 
-- [`DashboardController:211`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/api/DashboardController.java) — chaque constat, projeté en `BacklogTrend.Lifespan(firstSeenAt, resolvedAt)`
+- [`DashboardController:211`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/posture/web/DashboardController.java) — chaque constat, projeté en `BacklogTrend.Lifespan(firstSeenAt, resolvedAt)`
 - `DashboardController:237` — la même forme sur la racine du tableau de bord
 - [`ComplianceService:250`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/compliance/ComplianceService.java) et `:379` — projetés en `MttrCalculator.ResolvedIssue(severity, firstSeenAt, resolvedAt)`
 

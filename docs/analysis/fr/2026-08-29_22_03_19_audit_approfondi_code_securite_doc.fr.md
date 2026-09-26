@@ -181,7 +181,7 @@ deux `findAll()` en tête de méthode (dépôts et conteneurs, matérialisés en
 
 **`/api/v1/attack-paths/overview`** charge les constats ouverts du périmètre visible via
 `findByStateAndRepoIdIn("open", repoIds)` puis parcourt tout en Java
-([`AttackPathService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/posture/AttackPathService.java),
+([`AttackPathService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/posture/AttackPathService.java),
 lignes 336–344). Le coefficient est ~0,75 n parce que la fixture n'ouvre que trois constats sur
 quatre — la pente suit les constats ouverts, pas la table entière, ce qui est la même maladie à un
 facteur près.

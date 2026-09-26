@@ -178,7 +178,7 @@ that.
 
 **`/api/v1/attack-paths/overview`** loads the open issues of the visible scope through
 `findByStateAndRepoIdIn("open", repoIds)` and then walks everything in Java
-([`AttackPathService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/posture/AttackPathService.java),
+([`AttackPathService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/posture/AttackPathService.java),
 lines 336–344). The coefficient is ~0.75 n because the fixture leaves three issues in four open —
 the slope follows open issues rather than the whole table, which is the same illness up to a factor.
 

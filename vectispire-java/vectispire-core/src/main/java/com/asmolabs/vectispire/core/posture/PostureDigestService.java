@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.posture;
+package com.asmolabs.vectispire.core.posture;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -8,8 +8,8 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.gate.ViolationView;
+import com.asmolabs.vectispire.core.posture.DashboardQueryService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
-import com.asmolabs.vectispire.core.services.posture.DashboardQueryService;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

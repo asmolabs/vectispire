@@ -1,8 +1,8 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.posture.QualityQueryService;
+import com.asmolabs.vectispire.core.posture.QualityQueryService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
