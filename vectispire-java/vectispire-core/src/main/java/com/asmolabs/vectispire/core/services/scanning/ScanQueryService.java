@@ -52,7 +52,7 @@ public class ScanQueryService {
         // that cannot grow.
         return new History(
                 scans.findHistory(repoId, containerId, Limit.of(Math.clamp(limit, 1, MAX_HISTORY))).stream()
-                        .filter(scan -> allowed.permits(RowVisibility.targetOf(scan)))
+                        .filter(scan -> allowed.permits(scan.target()))
                         .map(ScanView::of)
                         .toList(),
                 names);
@@ -80,6 +80,6 @@ public class ScanQueryService {
 
     /** The scan, or the same 404 whether it is absent or hidden — see {@link RowVisibility}. */
     private ScanEntity visible(long id, Visibility allowed) {
-        return RowVisibility.requireVisible(scans.findById(id).orElse(null), allowed);
+        return RowVisibility.requireVisibleScan(scans.findById(id).orElse(null), ScanEntity::target, allowed);
     }
 }

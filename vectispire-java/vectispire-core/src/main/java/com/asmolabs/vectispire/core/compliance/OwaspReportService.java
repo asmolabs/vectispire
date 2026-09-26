@@ -120,6 +120,6 @@ public class OwaspReportService {
     }
 
     private RepositoryEntity visible(long repositoryId, Visibility allowed) {
-        return RowVisibility.requireVisible(repositories.findById(repositoryId).orElse(null), allowed);
+        return RowVisibility.requireVisibleRepository(repositories.findById(repositoryId).orElse(null), repositoryId, allowed);
     }
 }

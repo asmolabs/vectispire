@@ -11,7 +11,6 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
-import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
@@ -305,7 +304,7 @@ public class VexIngestorService {
      */
     private static List<IssueEntity> visibleTo(Importer importer, List<IssueEntity> issues) {
         return issues.stream()
-                .filter(issue -> RowVisibility.isVisible(issue, importer.caller().visibility()))
+                .filter(issue -> importer.caller().visibility().permits(issue.target()))
                 .toList();
     }
 

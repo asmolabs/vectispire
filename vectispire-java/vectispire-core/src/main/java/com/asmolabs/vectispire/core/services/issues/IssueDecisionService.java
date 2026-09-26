@@ -110,7 +110,7 @@ public class IssueDecisionService {
         String actor = caller.actor();
         boolean canApprove = canApprove(caller);
         // Checked before the write, and 404 rather than 403.
-        String previous = RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility())
+        String previous = RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, caller.visibility())
                 .getTriageStatus();
         IssueEntity issue = triage.triage(id, decision.toRequest(actor), canApprove);
 
@@ -163,7 +163,7 @@ public class IssueDecisionService {
         List<String> previous = new java.util.ArrayList<>(ids.size());
         for (Long id : ids) {
             previous.add(String.valueOf(
-                    RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility()).getTriageStatus()));
+                    RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, caller.visibility()).getTriageStatus()));
         }
 
         List<IssueEntity> triaged = triage.triageAll(ids, decision.toRequest(actor), canApprove);
@@ -198,7 +198,7 @@ public class IssueDecisionService {
      * @throws InvalidTicketException a reference missing or too long, a URL too long
      */
     public IssueView attachTicket(long id, String rawReference, String rawUrl, Caller caller) {
-        IssueEntity issue = RowVisibility.requireVisible(issues.findById(id).orElse(null), caller.visibility());
+        IssueEntity issue = RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, caller.visibility());
 
         String reference = rawReference == null ? "" : rawReference.trim();
         if (reference.isEmpty()) {

@@ -102,7 +102,7 @@ public class HistoryQueryService {
     private RepositoryEntity visible(long id, Visibility allowed) {
         // 404 rather than 403 when it exists but is not visible, in the same words as when it does
         // not exist — see `RowVisibility`.
-        return RowVisibility.requireVisible(repositories.findById(id).orElse(null), allowed);
+        return RowVisibility.requireVisibleRepository(repositories.findById(id).orElse(null), id, allowed);
     }
 
     private TriageHistory.Repository rowOf(RepositoryEntity repository) {

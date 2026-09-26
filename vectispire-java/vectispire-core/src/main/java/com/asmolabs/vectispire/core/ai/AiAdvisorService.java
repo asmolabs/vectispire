@@ -34,7 +34,7 @@ public class AiAdvisorService {
      *     restricted reader which sequential ids existed
      */
     public AiVulnerabilityAdvice explainIssue(long issueId, Visibility allowed) {
-        IssueEntity issue = RowVisibility.requireVisible(issues.findById(issueId).orElse(null), allowed);
+        IssueEntity issue = RowVisibility.requireVisibleIssue(issues.findById(issueId).orElse(null), IssueEntity::target, allowed);
         return reviews.explainVulnerability(issue);
     }
 
@@ -57,7 +57,7 @@ public class AiAdvisorService {
             Visibility allowed) {
 
         List<IssueEntity> matched = issues.findByIdentifier(cveId).stream()
-                .filter(issue -> RowVisibility.isVisible(issue, allowed))
+                .filter(issue -> allowed.permits(issue.target()))
                 .toList();
         if (!matched.isEmpty()) {
             return reviews.explainVulnerability(matched.get(0));

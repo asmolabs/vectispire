@@ -221,7 +221,7 @@ public class IssueQueryService {
      *     in the same words, so a refusal reads as an absence
      */
     public IssueDetail detail(long id, Visibility allowed) {
-        IssueEntity issue = RowVisibility.requireVisible(issues.findById(id).orElse(null), allowed);
+        IssueEntity issue = RowVisibility.requireVisibleIssue(issues.findById(id).orElse(null), IssueEntity::target, allowed);
 
         TargetNaming.Names names = naming.all();
         List<Sighting> sightings = findings.sightingsOf(id, Limit.of(MAX_SIGHTINGS)).stream()

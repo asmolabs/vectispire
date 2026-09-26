@@ -61,7 +61,7 @@ public class TicketLinkService {
 
     /** The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike. */
     private IssueEntity visibleIssue(long issueId, Visibility visibility) {
-        return RowVisibility.requireVisible(issues.findById(issueId).orElse(null), visibility);
+        return RowVisibility.requireVisibleIssue(issues.findById(issueId).orElse(null), IssueEntity::target, visibility);
     }
 
     public List<IssueTicketView> list(long issueId, Visibility visibility) {

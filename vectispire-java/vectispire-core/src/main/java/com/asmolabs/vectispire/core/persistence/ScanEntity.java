@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.persistence;
 
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -215,6 +216,22 @@ public class ScanEntity {
 
     public void setProjectType(String projectType) {
         this.projectType = projectType;
+    }
+
+    /**
+     * The target this row belongs to, or {@code null} when it names neither — left so for {@code
+     * Visibility.permits}, which shows an unclassifiable row to an unrestricted caller and hides it
+     * from a restricted one.
+     *
+     * <p>Not a getter on purpose: it is no column, and {@code EntityViewsTest} reads the getters as
+     * what a view must carry. It was {@code RowVisibility.targetOf}, in {@code access}, which could
+     * not name this entity once the table had a module of its own (decision 0029).
+     */
+    public ScanTarget target() {
+        if (repoId != null) {
+            return new ScanTarget.Repository(repoId);
+        }
+        return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 
     public Long getRepoId() {

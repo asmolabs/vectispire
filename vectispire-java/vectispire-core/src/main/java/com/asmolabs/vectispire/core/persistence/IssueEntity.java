@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.persistence;
 
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -7,9 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import java.time.Instant;
 
 /**
  * A finding with an identity across scans, and the triage attached to it.
@@ -185,6 +186,22 @@ public class IssueEntity {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    /**
+     * The target this row belongs to, or {@code null} when it names neither — left so for {@code
+     * Visibility.permits}, which shows an unclassifiable row to an unrestricted caller and hides it
+     * from a restricted one.
+     *
+     * <p>Not a getter on purpose: it is no column, and {@code EntityViewsTest} reads the getters as
+     * what a view must carry. It was {@code RowVisibility.targetOf}, in {@code access}, which could
+     * not name this entity once the table had a module of its own (decision 0029).
+     */
+    public ScanTarget target() {
+        if (repoId != null) {
+            return new ScanTarget.Repository(repoId);
+        }
+        return containerId == null ? null : new ScanTarget.Container(containerId);
     }
 
     public Long getRepoId() {

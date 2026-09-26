@@ -240,7 +240,7 @@ public class SolutionAdministrationService {
      */
     public void fileRepository(long projectId, long repositoryId, Visibility allowed, RequestActor actor) {
         ProjectEntity project = requireProject(projectId);
-        RepositoryEntity repository = RowVisibility.requireVisible(repositories.findById(repositoryId).orElse(null), allowed);
+        RepositoryEntity repository = RowVisibility.requireVisibleRepository(repositories.findById(repositoryId).orElse(null), repositoryId, allowed);
         Long previousId = repository.getProjectId();
         if (Objects.equals(previousId, projectId)) {
             return;
@@ -266,7 +266,7 @@ public class SolutionAdministrationService {
      */
     public void removeRepository(long projectId, long repositoryId, Visibility allowed, RequestActor actor) {
         ProjectEntity project = requireProject(projectId);
-        RepositoryEntity repository = RowVisibility.requireVisible(repositories.findById(repositoryId).orElse(null), allowed);
+        RepositoryEntity repository = RowVisibility.requireVisibleRepository(repositories.findById(repositoryId).orElse(null), repositoryId, allowed);
         if (!Objects.equals(repository.getProjectId(), projectId)) {
             throw new NoSuchElementException("This repository is not in that project.");
         }

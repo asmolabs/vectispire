@@ -2,10 +2,8 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
 
 /**
  * The guard for a read that reaches a row by its identifier — the one copy of it.
@@ -33,25 +31,19 @@ public final class RowVisibility {
 
     private RowVisibility() {}
 
-    /** The issue, or "Issue not found." for absent and hidden alike. */
-    public static IssueEntity requireVisible(IssueEntity issue, Visibility visibility) {
-        if (issue == null || !isVisible(issue, visibility)) {
+    /**
+     * The issue, or "Issue not found." for absent and hidden alike.
+     *
+     * <p><b>Generic, with the target read by the caller's own rule.</b> These guards took {@code
+     * IssueEntity}, {@code ScanEntity} and {@code RepositoryEntity}; since each table has a module of
+     * its own above {@code access} (decision 0029), {@code access} cannot name them. What stays here is
+     * what the class exists for: one sentence per kind of row, for absent and hidden alike.
+     */
+    public static <T> T requireVisibleIssue(T issue, Function<? super T, ScanTarget> targetOf, Visibility visibility) {
+        if (issue == null || !visibility.permits(targetOf.apply(issue))) {
             throw new NoSuchElementException("Issue not found.");
         }
         return issue;
-    }
-
-    /**
-     * The same rule, for a route that looks issues up by something other than their id.
-     *
-     * <p><b>A lookup by CVE is a search across every target</b>, so it has no single row to refuse:
-     * the rows the caller may not see have to be dropped before anything is read from them. The
-     * explanation route took the first match from anywhere in the estate — package, version, fix,
-     * EPSS — and its answer differed depending on whether a match existed, which told a reader
-     * with one repository whether a CVE was present in repositories they were never given.
-     */
-    public static boolean isVisible(IssueEntity issue, Visibility visibility) {
-        return visibility.permits(targetOf(issue));
     }
 
     /**
@@ -62,20 +54,20 @@ public final class RowVisibility {
      * Five copies of an authorization rule is five chances for one to be forgotten, and the
      * forgotten one had already happened four times over.
      */
-    public static ScanEntity requireVisible(ScanEntity scan, Visibility visibility) {
+    public static <T> T requireVisibleScan(T scan, Function<? super T, ScanTarget> targetOf, Visibility visibility) {
         // **One message for both cases.** An absent scan said "Scan not found." and a hidden one
         // fell through to "Target not found.": ids are sequential, so the wording alone let a
         // restricted reader enumerate every scan of the deployment. Pass the absent row here as
         // null rather than refusing it beforehand in the caller's own words.
-        if (scan == null || !visibility.permits(targetOf(scan))) {
+        if (scan == null || !visibility.permits(targetOf.apply(scan))) {
             throw new NoSuchElementException("Scan not found.");
         }
         return scan;
     }
 
     /** The same rule for a route named by a repository: absent and hidden read alike. */
-    public static RepositoryEntity requireVisible(RepositoryEntity repository, Visibility visibility) {
-        if (repository == null || !visibility.permits(new ScanTarget.Repository(repository.getId()))) {
+    public static <T> T requireVisibleRepository(T repository, long repositoryId, Visibility visibility) {
+        if (repository == null || !visibility.permits(new ScanTarget.Repository(repositoryId))) {
             throw new NoSuchElementException("Repository not found.");
         }
         return repository;
@@ -106,24 +98,5 @@ public final class RowVisibility {
         if (!visibility.permits(target)) {
             throw new NoSuchElementException(TARGET_NOT_FOUND);
         }
-    }
-
-    /**
-     * A scan attached to neither target is unclassifiable, and left to {@link Visibility#permits}:
-     * visible to an unrestricted caller, hidden from a restricted one.
-     */
-    public static ScanTarget targetOf(ScanEntity scan) {
-        if (scan.getRepoId() != null) {
-            return new ScanTarget.Repository(scan.getRepoId());
-        }
-        return scan.getContainerId() == null ? null : new ScanTarget.Container(scan.getContainerId());
-    }
-
-    /** The same reading for an issue: a row attached to neither target is left to {@code permits}. */
-    public static ScanTarget targetOf(IssueEntity issue) {
-        if (issue.getRepoId() != null) {
-            return new ScanTarget.Repository(issue.getRepoId());
-        }
-        return issue.getContainerId() == null ? null : new ScanTarget.Container(issue.getContainerId());
     }
 }

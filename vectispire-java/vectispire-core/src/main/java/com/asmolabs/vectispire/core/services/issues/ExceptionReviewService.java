@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services.issues;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
@@ -47,7 +48,7 @@ public class ExceptionReviewService {
 
         // 404 rather than 403, like everywhere else here: a restricted reader must not learn that
         // an issue exists by being refused it.
-        RowVisibility.requireVisible(issues.findById(issueId).orElse(null), allowed);
+        RowVisibility.requireVisibleIssue(issues.findById(issueId).orElse(null), IssueEntity::target, allowed);
 
         triage.review(issueId, outcome, comment, actor, newExpiry);
 

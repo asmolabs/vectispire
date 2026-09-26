@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.services.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,6 @@ public class ScanDocumentService {
 
     /** @throws java.util.NoSuchElementException absent and hidden alike, as {@link RowVisibility} words it */
     public void requireVisible(long scanId, Visibility visibility) {
-        RowVisibility.requireVisible(scans.findById(scanId).orElse(null), visibility);
+        RowVisibility.requireVisibleScan(scans.findById(scanId).orElse(null), ScanEntity::target, visibility);
     }
 }
