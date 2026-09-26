@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -33,7 +33,7 @@ class TicketWebhookInputTest extends ApiTestBase {
              "webhookEvent":"jira:issue_updated"}""";
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private SettingsService settings;

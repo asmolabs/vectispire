@@ -11,10 +11,10 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import java.time.Clock;
 import java.time.Instant;
@@ -42,8 +42,8 @@ class IssueSyncServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-13T10:00:00Z");
 
-    private Issues issues;
-    private Findings findings;
+    private IssueRepository issues;
+    private FindingRepository findings;
     private IssueSyncService service;
 
     private final List<IssueEntity> stored = new ArrayList<>();
@@ -51,8 +51,8 @@ class IssueSyncServiceTest {
 
     @BeforeEach
     void wire() {
-        issues = mock(Issues.class);
-        findings = mock(Findings.class);
+        issues = mock(IssueRepository.class);
+        findings = mock(FindingRepository.class);
         service = new IssueSyncService(issues, Clock.fixed(NOW, ZoneOffset.UTC));
 
         stored.clear();

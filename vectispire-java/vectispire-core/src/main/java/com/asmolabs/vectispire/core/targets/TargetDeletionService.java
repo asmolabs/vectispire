@@ -2,8 +2,8 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.TargetGrants;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -39,13 +39,13 @@ public class TargetDeletionService {
 
     private static final Logger log = LoggerFactory.getLogger(TargetDeletionService.class);
 
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
     private final TargetGrants grants;
     private final ApplicationEventPublisher events;
 
     public TargetDeletionService(
-            GitRepositories repositories, Containers containers, TargetGrants grants, ApplicationEventPublisher events) {
+            GitRepositoryRepository repositories, ContainerRepository containers, TargetGrants grants, ApplicationEventPublisher events) {
         this.repositories = repositories;
         this.containers = containers;
         this.grants = grants;

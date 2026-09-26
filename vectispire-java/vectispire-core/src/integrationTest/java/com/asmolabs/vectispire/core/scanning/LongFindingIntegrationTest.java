@@ -9,12 +9,12 @@ import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner.Depend
 import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner.SecretFinding;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,16 +69,16 @@ class LongFindingIntegrationTest {
     private ScanIngestor ingestor;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
-    private Findings findings;
+    private FindingRepository findings;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
     private TransactionTemplate transactions;

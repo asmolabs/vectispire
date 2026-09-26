@@ -12,8 +12,8 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,10 +39,10 @@ import org.springframework.http.MediaType;
 class ClientRequestContractTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private UserRepository users;

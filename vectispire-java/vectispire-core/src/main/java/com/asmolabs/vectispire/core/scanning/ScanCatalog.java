@@ -4,9 +4,9 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingGraphQueries;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.time.Instant;
@@ -38,10 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ScanCatalog {
 
-    private final Scans scans;
-    private final Findings findings;
+    private final ScanRepository scans;
+    private final FindingRepository findings;
 
-    public ScanCatalog(Scans scans, Findings findings) {
+    public ScanCatalog(ScanRepository scans, FindingRepository findings) {
         this.scans = scans;
         this.findings = findings;
     }

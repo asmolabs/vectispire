@@ -5,8 +5,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -32,10 +32,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 class DocumentVersionRoutesTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     private String admin;
     private long repoId;

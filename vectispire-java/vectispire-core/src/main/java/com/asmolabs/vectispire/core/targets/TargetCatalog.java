@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -29,10 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TargetCatalog {
 
-    private final GitRepositories repositories;
-    private final Containers containers;
+    private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
 
-    public TargetCatalog(GitRepositories repositories, Containers containers) {
+    public TargetCatalog(GitRepositoryRepository repositories, ContainerRepository containers) {
         this.repositories = repositories;
         this.containers = containers;
     }
@@ -85,7 +85,7 @@ public class TargetCatalog {
      *
      * <p>A targeted update rather than a save of a row read at the top of the tick, which would write
      * back whatever an operator changed on the settings screen in between (see {@code
-     * GitRepositories.stampScheduled}).
+     * GitRepositoryRepository.stampScheduled}).
      */
     @Transactional
     public void stampScheduled(ScanTarget target, Instant at) {

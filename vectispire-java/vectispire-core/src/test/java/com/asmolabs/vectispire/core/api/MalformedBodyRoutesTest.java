@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
 import java.time.Instant;
 import java.util.Map;
@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 class MalformedBodyRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private IssueTickets tickets;

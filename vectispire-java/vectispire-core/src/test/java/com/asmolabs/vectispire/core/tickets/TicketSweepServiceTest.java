@@ -17,7 +17,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicyEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 @DisplayName("opening tickets for what would fail a build")
 class TicketSweepServiceTest {
 
-    private Issues issues;
+    private IssueRepository issues;
     private GatePolicies policies;
     private TicketService tickets;
     private AuditLogService audit;
@@ -37,7 +37,7 @@ class TicketSweepServiceTest {
 
     @BeforeEach
     void wire() {
-        issues = mock(Issues.class);
+        issues = mock(IssueRepository.class);
         policies = mock(GatePolicies.class);
         tickets = mock(TicketService.class);
         audit = mock(AuditLogService.class);

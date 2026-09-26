@@ -11,12 +11,12 @@ import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFindings;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.List;
@@ -43,13 +43,13 @@ class IssueSyncDatabaseTest extends VectispireContextTest {
     private IssueSyncService sync;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
     private TransactionTemplate transactions;

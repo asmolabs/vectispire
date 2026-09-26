@@ -8,9 +8,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** The container images under watch. */
-public interface Containers extends JpaRepository<ContainerEntity, Long> {
+public interface ContainerRepository extends JpaRepository<ContainerEntity, Long> {
 
-    /** See {@link GitRepositories#stampScheduled}: same reason, same shape. */
+    /** See {@link GitRepositoryRepository#stampScheduled}: same reason, same shape. */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("update ContainerEntity c set c.lastScheduledScanAt = :at where c.id = :id")

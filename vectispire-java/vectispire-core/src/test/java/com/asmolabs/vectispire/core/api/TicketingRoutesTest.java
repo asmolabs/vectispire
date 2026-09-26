@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class TicketingRoutesTest extends ApiTestBase {
     private com.asmolabs.vectispire.core.settings.SettingsService settings;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Test
     @DisplayName("creates and lists external issue tickets")

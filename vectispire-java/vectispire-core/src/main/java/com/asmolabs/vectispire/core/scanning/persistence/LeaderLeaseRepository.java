@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
  * There is no {@code save} here on purpose: a merge would read, then write, and the winner
  * would be whoever wrote last rather than whoever met the condition.
  */
-public interface LeaderLeases extends JpaRepository<LeaderLeaseEntity, String> {
+public interface LeaderLeaseRepository extends JpaRepository<LeaderLeaseEntity, String> {
 
     /** Renewal by the current holder. Conditioned on still being the holder. */
     @Transactional

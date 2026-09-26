@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -52,7 +52,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class VexIngestorService {
 
-    private final Issues issuesRepo;
+    private final IssueRepository issuesRepo;
     private final IssueTriageService triageService;
     private final SettingsService settings;
     private final AuditLogService audit;
@@ -60,7 +60,7 @@ public class VexIngestorService {
     private final ObjectMapper json;
 
     public VexIngestorService(
-            Issues issuesRepo,
+            IssueRepository issuesRepo,
             IssueTriageService triageService,
             SettingsService settings,
             AuditLogService audit,

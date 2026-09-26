@@ -13,8 +13,8 @@ import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.List;
@@ -70,16 +70,16 @@ class HistoryQueriesIntegrationTest {
     }
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
-    private TriageEvents events;
+    private TriageEventRepository events;
 
     @Autowired
     private Components components;

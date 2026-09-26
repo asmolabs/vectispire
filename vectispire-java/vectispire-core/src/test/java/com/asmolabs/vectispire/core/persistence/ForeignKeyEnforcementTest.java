@@ -8,10 +8,10 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -41,13 +41,13 @@ class ForeignKeyEnforcementTest extends VectispireContextTest {
     private JdbcTemplate jdbc;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
-    private Findings findings;
+    private FindingRepository findings;
 
     @Test
     @DisplayName("the pragma is on, on a connection the pool handed out")

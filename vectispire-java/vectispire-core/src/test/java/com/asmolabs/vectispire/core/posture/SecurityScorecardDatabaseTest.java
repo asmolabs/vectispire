@@ -11,12 +11,12 @@ import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,16 +42,16 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     private SecurityScorecardService scorecards;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Containers containers;
+    private ContainerRepository containers;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @MockitoBean
     private LicenseGovernanceService licences;

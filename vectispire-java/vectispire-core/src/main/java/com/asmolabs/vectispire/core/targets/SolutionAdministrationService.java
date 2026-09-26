@@ -9,12 +9,12 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Projects;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Solutions;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.NoSuchElementException;
@@ -51,18 +51,18 @@ public class SolutionAdministrationService {
     /** The width of both {@code description} columns. */
     static final int DESCRIPTION_LENGTH = 255;
 
-    private final Solutions solutions;
-    private final Projects projects;
-    private final GitRepositories repositories;
+    private final SolutionRepository solutions;
+    private final ProjectRepository projects;
+    private final GitRepositoryRepository repositories;
     private final TargetGrants grants;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     public SolutionAdministrationService(
-            Solutions solutions,
-            Projects projects,
-            GitRepositories repositories,
+            SolutionRepository solutions,
+            ProjectRepository projects,
+            GitRepositoryRepository repositories,
             TargetGrants grants,
             AuditLogService audit,
             TransactionTemplate transactions,

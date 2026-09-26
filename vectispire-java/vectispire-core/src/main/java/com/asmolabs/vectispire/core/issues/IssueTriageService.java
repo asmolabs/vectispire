@@ -4,9 +4,9 @@ import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,11 +42,11 @@ public class IssueTriageService {
      */
     private static final String REVIEW = "review";
 
-    private final Issues issues;
-    private final TriageEvents events;
+    private final IssueRepository issues;
+    private final TriageEventRepository events;
     private final Clock clock;
 
-    public IssueTriageService(Issues issues, TriageEvents events, Clock clock) {
+    public IssueTriageService(IssueRepository issues, TriageEventRepository events, Clock clock) {
         this.issues = issues;
         this.events = events;
         this.clock = clock;

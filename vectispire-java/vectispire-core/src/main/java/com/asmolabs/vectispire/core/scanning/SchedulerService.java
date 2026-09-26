@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.CronExpressions;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
@@ -47,14 +47,14 @@ public class SchedulerService {
     private static final Logger log = LoggerFactory.getLogger(SchedulerService.class);
 
     private final TargetCatalog targets;
-    private final Scans scans;
+    private final ScanRepository scans;
     private final LeaderElection election;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
     public SchedulerService(
             TargetCatalog targets,
-            Scans scans,
+            ScanRepository scans,
             LeaderElection election,
             TransactionTemplate transactions,
             Clock clock) {

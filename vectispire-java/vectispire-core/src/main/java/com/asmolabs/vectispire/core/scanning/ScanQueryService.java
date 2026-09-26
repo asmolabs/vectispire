@@ -3,9 +3,9 @@ package com.asmolabs.vectispire.core.scanning;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -24,11 +24,11 @@ public class ScanQueryService {
     private static final int MAX_FINDINGS = 500;
     private static final int MAX_HISTORY = 200;
 
-    private final Scans scans;
-    private final Findings findings;
+    private final ScanRepository scans;
+    private final FindingRepository findings;
     private final TargetNaming naming;
 
-    public ScanQueryService(Scans scans, Findings findings, TargetNaming naming) {
+    public ScanQueryService(ScanRepository scans, FindingRepository findings, TargetNaming naming) {
         this.scans = scans;
         this.findings = findings;
         this.naming = naming;

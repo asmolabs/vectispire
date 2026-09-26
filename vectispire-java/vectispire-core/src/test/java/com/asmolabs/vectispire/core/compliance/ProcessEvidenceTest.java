@@ -14,8 +14,8 @@ import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.compliance.internal.ProcessEvidenceService;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
 import java.time.YearMonth;
@@ -52,10 +52,10 @@ class ProcessEvidenceTest extends VectispireContextTest {
     private ProcessEvidenceService evidence;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private Clock clock;

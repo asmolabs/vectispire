@@ -35,11 +35,11 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.CloneCredentials;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -69,10 +69,10 @@ class ScanDispatcherTest {
     private final SealedEnvelope envelopes = new SealedEnvelope();
 
     private ScanQueue queue;
-    private GitRepositories repositories;
-    private Containers containers;
-    private SshKeys sshKeys;
-    private com.asmolabs.vectispire.core.targets.persistence.GitTokens gitTokens;
+    private GitRepositoryRepository repositories;
+    private ContainerRepository containers;
+    private SshKeyRepository sshKeys;
+    private com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository gitTokens;
     private SettingsService settings;
     private ScanRuleSets ruleSets;
     private ScanDispatcher dispatcher;
@@ -80,10 +80,10 @@ class ScanDispatcherTest {
     @BeforeEach
     void wire() {
         queue = mock(ScanQueue.class);
-        repositories = mock(GitRepositories.class);
-        containers = mock(Containers.class);
-        sshKeys = mock(SshKeys.class);
-        gitTokens = mock(com.asmolabs.vectispire.core.targets.persistence.GitTokens.class);
+        repositories = mock(GitRepositoryRepository.class);
+        containers = mock(ContainerRepository.class);
+        sshKeys = mock(SshKeyRepository.class);
+        gitTokens = mock(com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(ScanRuleSets.class);
 

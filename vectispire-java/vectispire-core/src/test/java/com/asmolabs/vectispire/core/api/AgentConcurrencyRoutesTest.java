@@ -13,9 +13,9 @@ import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.util.UUID;
@@ -44,10 +44,10 @@ class AgentConcurrencyRoutesTest extends ApiTestBase {
     private AgentRepository agents;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
-    private Containers containers;
+    private ContainerRepository containers;
 
     private record Enrolled(UUID id, String token) {}
 

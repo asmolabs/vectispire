@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Findings extends JpaRepository<FindingEntity, Long>, FindingGraphQueries {
+public interface FindingRepository extends JpaRepository<FindingEntity, Long>, FindingGraphQueries {
     List<FindingEntity> findByScanId(Long scanId);
 
     /**

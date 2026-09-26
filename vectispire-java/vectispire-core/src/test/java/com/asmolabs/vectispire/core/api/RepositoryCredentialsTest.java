@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ class RepositoryCredentialsTest extends ApiTestBase {
     private static final String MASKED = "https://***@github.com/org/private.git";
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
     private AuditLogRepository auditLogs;

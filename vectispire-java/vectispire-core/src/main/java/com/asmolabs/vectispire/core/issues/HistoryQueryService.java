@@ -6,9 +6,9 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
@@ -49,16 +49,16 @@ public class HistoryQueryService {
 
     private final TargetCatalog targets;
     private final ScanCatalog scans;
-    private final Issues issues;
-    private final TriageEvents events;
+    private final IssueRepository issues;
+    private final TriageEventRepository events;
     private final BrandingProperties branding;
     private final Clock clock;
 
     public HistoryQueryService(
             TargetCatalog targets,
             ScanCatalog scans,
-            Issues issues,
-            TriageEvents events,
+            IssueRepository issues,
+            TriageEventRepository events,
             BrandingProperties branding,
             Clock clock) {
         this.targets = targets;

@@ -13,10 +13,10 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -37,13 +37,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class RepositoryAdministrationService {
 
-    private final GitRepositories repositories;
+    private final GitRepositoryRepository repositories;
     private final TargetScans scans;
     private final TargetBacklog backlog;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
-    private final GitTokens gitTokens;
-    private final SshKeys sshKeys;
+    private final GitTokenRepository gitTokens;
+    private final SshKeyRepository sshKeys;
     private final GitHostAllowlist allowedHosts;
     private final TargetNaming naming;
 
@@ -54,13 +54,13 @@ public class RepositoryAdministrationService {
     static final int COLUMN_LENGTH = 255;
 
     public RepositoryAdministrationService(
-            GitRepositories repositories,
+            GitRepositoryRepository repositories,
             TargetScans scans,
             TargetBacklog backlog,
             TargetDeletionService targetDeletion,
             AuditLogService audit,
-            GitTokens gitTokens,
-            SshKeys sshKeys,
+            GitTokenRepository gitTokens,
+            SshKeyRepository sshKeys,
             GitHostAllowlist allowedHosts,
             TargetNaming naming) {
         this.repositories = repositories;

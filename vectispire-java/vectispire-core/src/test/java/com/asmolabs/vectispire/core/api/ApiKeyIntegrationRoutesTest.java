@@ -10,8 +10,8 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.util.List;
 import java.util.Map;
@@ -29,13 +29,13 @@ import org.springframework.http.MediaType;
 class ApiKeyIntegrationRoutesTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
     private UserRepository users;
 
     @Autowired
-    private Containers containers;
+    private ContainerRepository containers;
 
     private long repository(String name) {
         RepositoryEntity repository = new RepositoryEntity();

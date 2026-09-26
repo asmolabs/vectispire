@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import java.time.Clock;
@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ScanTriggerService {
 
-    private final Scans scans;
+    private final ScanRepository scans;
     private final Clock clock;
 
-    public ScanTriggerService(Scans scans, Clock clock) {
+    public ScanTriggerService(ScanRepository scans, Clock clock) {
         this.scans = scans;
         this.clock = clock;
     }

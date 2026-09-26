@@ -18,7 +18,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.issues.SlaService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.notifications.MailNotificationChannel;
 import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
@@ -67,7 +67,7 @@ class PostureDigestServiceTest {
 
         GateService gate = mock(GateService.class);
         SlaService sla = mock(SlaService.class);
-        Issues issues = mock(Issues.class);
+        IssueRepository issues = mock(IssueRepository.class);
 
         when(settings.isEnabled(Setting.DIGEST_ENABLED)).thenReturn(true);
         when(webhook.webhookUrl()).thenReturn("https://hooks.example.com/weekly");

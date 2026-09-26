@@ -9,8 +9,8 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
@@ -22,7 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * The per-target figures in the compliance summary, against a database that has issues in it.
  *
  * <p><b>Why this suite exists.</b> The summary used to ask nine count queries per target inside
- * its loop — the shape {@code TriageEvents.findForIssues} documents as "the difference between a
+ * its loop — the shape {@code TriageEventRepository.findForIssues} documents as "the difference between a
  * screen and a timeout on a real backlog". Collapsing that into one grouped query changes how
  * every number on the page is derived, and the existing route tests could not tell: they run
  * against an empty database, so they pass under any aggregation, right or wrong.
@@ -34,10 +34,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 class ComplianceTargetCountsTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     private long repository(String url) {
         RepositoryEntity repository = new RepositoryEntity();

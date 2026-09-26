@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.OpenIssueCount;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
@@ -20,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TargetBacklogFigures implements TargetBacklog {
 
-    private final Issues issues;
+    private final IssueRepository issues;
 
-    public TargetBacklogFigures(Issues issues) {
+    public TargetBacklogFigures(IssueRepository issues) {
         this.issues = issues;
     }
 

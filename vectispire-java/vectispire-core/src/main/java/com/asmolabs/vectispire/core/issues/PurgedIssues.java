@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetDeleted;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
@@ -13,15 +13,15 @@ import org.springframework.stereotype.Service;
  *
  * <p>One answer for every module purging what hangs off an issue — ticket links, triage events,
  * findings — so that two listeners of the same purge cannot disagree about which issues it concerns.
- * It was a default method of the {@code Issues} repository, for the reason {@code PurgedScans} gives
+ * It was a default method of {@code IssueRepository}, for the reason {@code PurgedScans} gives
  * (decision 0029); the queries are unchanged.
  */
 @Service
 public class PurgedIssues {
 
-    private final Issues issues;
+    private final IssueRepository issues;
 
-    public PurgedIssues(Issues issues) {
+    public PurgedIssues(IssueRepository issues) {
         this.issues = issues;
     }
 

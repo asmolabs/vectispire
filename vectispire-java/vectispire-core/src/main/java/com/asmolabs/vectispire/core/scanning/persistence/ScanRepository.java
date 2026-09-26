@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * then trim it — was tried and made PostgreSQL fail the very tests MySQL was failing: a
  * claimant holding rows it will not take starves the others for as long as it holds them.
  */
-public interface Scans extends JpaRepository<ScanEntity, Long> {
+public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
 
     long countByStatus(String status);
 

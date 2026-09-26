@@ -97,11 +97,11 @@ class CrossModuleQueriesTest {
                     SCAN_OF_A_COMPONENT),
             new Known(new Reference("Components.distinctPurlsByTarget", "scanning", "ScanEntity"), false,
                     SCAN_OF_A_COMPONENT),
-            new Known(new Reference("Issues.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("Issues.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("Scans.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("Scans.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("Scans.findWithSbomButNoComponents", "inventory", "ComponentEntity"), true,
+            new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
+            new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
+            new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
+            new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
+            new Known(new Reference("ScanRepository.findWithSbomButNoComponents", "inventory", "ComponentEntity"), true,
                     "The inventory's backfill (InventoryBackfill, through ScanCatalog) selects the scans whose SBOM "
                             + "has no component row yet, by the absence of rows so that the query and the table "
                             + "cannot disagree. It reads `inventory` from `scanning`, which may not use it: the "

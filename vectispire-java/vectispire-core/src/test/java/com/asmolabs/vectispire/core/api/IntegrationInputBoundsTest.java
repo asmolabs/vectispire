@@ -9,8 +9,8 @@ import com.asmolabs.vectispire.core.access.persistence.TeamWebhookRepository;
 import com.asmolabs.vectispire.core.access.persistence.TeamRepository;
 import com.asmolabs.vectispire.core.rules.persistence.RuleSets;
 import com.asmolabs.vectispire.core.siem.persistence.SiemConfigs;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -33,10 +33,10 @@ class IntegrationInputBoundsTest extends ApiTestBase {
     private static final String KEY = "-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----";
 
     @Autowired
-    private GitTokens gitTokens;
+    private GitTokenRepository gitTokens;
 
     @Autowired
-    private SshKeys sshKeys;
+    private SshKeyRepository sshKeys;
 
     @Autowired
     private RuleSets ruleSets;

@@ -13,7 +13,7 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Period;
 import java.util.List;
@@ -50,14 +50,14 @@ public class IssueDecisionService {
 
     private static final int MAX_TICKET_URL = 500;
 
-    private final Issues issues;
+    private final IssueRepository issues;
     private final IssueTriageService triage;
     private final AuditLogService audit;
     private final SettingsService settings;
     private final TicketReferences tickets;
 
     public IssueDecisionService(
-            Issues issues,
+            IssueRepository issues,
             IssueTriageService triage,
             AuditLogService audit,
             SettingsService settings,
@@ -221,7 +221,7 @@ public class IssueDecisionService {
 
         String previous = issue.getTicketRef();
         // Recorded with its author: a ticket a person attached is theirs to close, and the sweep
-        // leaves it alone — see Issues.findResolvedWithOpenTicket.
+        // leaves it alone — see IssueRepository.findResolvedWithOpenTicket.
         issues.attachTicketBy(id, reference, url, caller.actor());
 
         // Recorded as a decision, because it is one: the tracker's webhook can now close this

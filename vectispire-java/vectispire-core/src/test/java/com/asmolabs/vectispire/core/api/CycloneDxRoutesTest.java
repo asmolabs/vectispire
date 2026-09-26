@@ -6,10 +6,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -20,13 +20,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 class CycloneDxRoutesTest extends ApiTestBase {
 
     @Autowired
-    private Scans scansRepo;
+    private ScanRepository scansRepo;
 
     @Autowired
-    private GitRepositories repositoriesRepo;
+    private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
-    private Findings findingsRepo;
+    private FindingRepository findingsRepo;
 
     @Test
     @DisplayName("generates valid CycloneDX 1.5 SBOM with VEX analysis for scan")

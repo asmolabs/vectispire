@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.scanning;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import org.springframework.stereotype.Service;
 
 /**
@@ -21,9 +21,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class ScanDocumentService {
 
-    private final Scans scans;
+    private final ScanRepository scans;
 
-    public ScanDocumentService(Scans scans) {
+    public ScanDocumentService(ScanRepository scans) {
         this.scans = scans;
     }
 

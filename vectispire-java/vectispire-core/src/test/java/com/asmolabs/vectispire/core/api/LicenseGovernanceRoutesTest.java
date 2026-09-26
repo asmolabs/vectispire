@@ -9,10 +9,10 @@ import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseRiskCategory;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.Set;
@@ -28,13 +28,13 @@ class LicenseGovernanceRoutesTest extends ApiTestBase {
     private Components componentsRepo;
 
     @Autowired
-    private GitRepositories repositoriesRepo;
+    private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
-    private Scans scansRepo;
+    private ScanRepository scansRepo;
 
     @Autowired
-    private Findings findingsRepo;
+    private FindingRepository findingsRepo;
 
     @Test
     @DisplayName("retrieves license policy, summary, and inventory with copyleft risk classification")

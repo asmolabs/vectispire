@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -18,10 +18,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 class EpssRoutesTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositoriesRepo;
+    private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
-    private Issues issuesRepo;
+    private IssueRepository issuesRepo;
 
     /**
      * The field is called {@code topPriorities}, and it used to return the whole estate.

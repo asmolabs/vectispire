@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,13 +38,13 @@ public class ScanQueue {
 
     private static final int ERROR_MAX_LENGTH = 2_000;
 
-    private final Scans scans;
+    private final ScanRepository scans;
     private final AgentClaimLock agents;
     private final Policy policy;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
-    public ScanQueue(Scans scans, AgentClaimLock agents, Policy policy, Clock clock, TransactionTemplate transactions) {
+    public ScanQueue(ScanRepository scans, AgentClaimLock agents, Policy policy, Clock clock, TransactionTemplate transactions) {
         this.scans = scans;
         this.agents = agents;
         this.policy = policy;

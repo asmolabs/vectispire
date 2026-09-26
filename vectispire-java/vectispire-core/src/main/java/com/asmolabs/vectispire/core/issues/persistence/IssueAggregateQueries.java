@@ -32,7 +32,7 @@ import org.springframework.data.jpa.domain.Specification;
  * <p>Rows come back as {@code Object[]} and are read tolerantly. A {@code count} is a mapped
  * attribute nowhere: it is an expression, and the type a driver hands back for
  * {@code sum(case … end)} is its own business — {@code Long} on one, {@code BigDecimal} on
- * another. That is the difference between these and the projections in {@link Issues}, which
+ * another. That is the difference between these and the projections in {@link IssueRepository}, which
  * select mapped attributes Hibernate normalises.
  */
 public interface IssueAggregateQueries {

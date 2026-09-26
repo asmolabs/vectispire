@@ -8,7 +8,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
@@ -31,10 +31,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class SlaService {
 
     private final SettingsService settings;
-    private final Issues issues;
+    private final IssueRepository issues;
     private final Clock clock;
 
-    public SlaService(SettingsService settings, Issues issues, Clock clock) {
+    public SlaService(SettingsService settings, IssueRepository issues, Clock clock) {
         this.settings = settings;
         this.issues = issues;
         this.clock = clock;

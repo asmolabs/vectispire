@@ -5,9 +5,9 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.paging.RegisterCursor;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Clock;
@@ -45,12 +45,12 @@ public class ExceptionsRegisterService {
     private static final List<String> DECISIONS =
             List.of(TriageStatus.NOT_AFFECTED.wireName(), TriageStatus.PENDING_APPROVAL.wireName());
 
-    private final TriageEvents events;
-    private final Issues issues;
+    private final TriageEventRepository events;
+    private final IssueRepository issues;
     private final TargetNaming naming;
     private final Clock clock;
 
-    public ExceptionsRegisterService(TriageEvents events, Issues issues, TargetNaming naming, Clock clock) {
+    public ExceptionsRegisterService(TriageEventRepository events, IssueRepository issues, TargetNaming naming, Clock clock) {
         this.events = events;
         this.issues = issues;
         this.naming = naming;

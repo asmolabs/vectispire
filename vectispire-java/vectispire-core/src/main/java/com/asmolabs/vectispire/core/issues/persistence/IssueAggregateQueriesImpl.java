@@ -27,7 +27,7 @@ import org.springframework.data.jpa.domain.Specification;
  * {@link IssueAggregateQueries}, in criteria form.
  *
  * <p>The name is load-bearing: Spring Data finds this class because it is the fragment interface
- * plus {@code Impl}. Renaming either half leaves {@link Issues} unimplementable at startup.
+ * plus {@code Impl}. Renaming either half leaves {@link IssueRepository} unimplementable at startup.
  */
 public class IssueAggregateQueriesImpl implements IssueAggregateQueries {
 

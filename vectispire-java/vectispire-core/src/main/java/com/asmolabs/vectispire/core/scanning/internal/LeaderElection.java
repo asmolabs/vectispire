@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.scanning.internal;
 
 import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeaseEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeases;
+import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeaseRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -45,11 +45,11 @@ public class LeaderElection {
      */
     public static final String INSTANCE_ID = UUID.randomUUID().toString().replace("-", "");
 
-    private final LeaderLeases leases;
+    private final LeaderLeaseRepository leases;
     private final Duration leaseDuration;
     private final Clock clock;
 
-    public LeaderElection(LeaderLeases leases, LeaderProperties properties, Clock clock) {
+    public LeaderElection(LeaderLeaseRepository leases, LeaderProperties properties, Clock clock) {
         this.leases = leases;
         this.leaseDuration = properties.lease();
         this.clock = clock;
@@ -142,7 +142,7 @@ public class LeaderElection {
      *
      * <p>Not a style choice: comparing a bare parameter to {@code null} in JPQL leaves
      * PostgreSQL unable to infer its type, and the single-statement version failed there while
-     * passing on the other three. See {@code LeaderLeases.takeOverFrom}.
+     * passing on the other three. See {@code LeaderLeaseRepository.takeOverFrom}.
      */
     private int takeOver(LeaderLeaseEntity lease, String name, String holder, Instant expiresAt, Instant at) {
         if (lease.getHolder() == null || lease.getExpiresAt() == null) {

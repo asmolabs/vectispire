@@ -89,7 +89,7 @@ public class RepositoryEntity {
      *
      * <p><b>Read-only to Hibernate, and that is the point.</b> Which project a repository is in
      * decides who sees it, so the column is written by the targeted updates in
-     * {@code GitRepositories} and by nothing else. Mapped writable, every save of this entity —
+     * {@code GitRepositoryRepository} and by nothing else. Mapped writable, every save of this entity —
      * the settings form, the badge publication — would write back whatever project the row held
      * when it was read, and a repository moved in another tab would silently move back, taking
      * its visibility with it.

@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import java.time.Clock;
 import java.time.Instant;
@@ -45,10 +45,10 @@ public class IssueSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(IssueSyncService.class);
 
-    private final Issues issues;
+    private final IssueRepository issues;
     private final Clock clock;
 
-    public IssueSyncService(Issues issues, Clock clock) {
+    public IssueSyncService(IssueRepository issues, Clock clock) {
         this.issues = issues;
         this.clock = clock;
     }

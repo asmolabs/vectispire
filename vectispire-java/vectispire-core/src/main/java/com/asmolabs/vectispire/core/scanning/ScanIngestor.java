@@ -10,7 +10,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Clock;
@@ -139,7 +139,7 @@ public class ScanIngestor {
 
     private final InventorySink inventory;
     private final Backlog backlog;
-    private final Findings findingRows;
+    private final FindingRepository findingRows;
     private final Optional<Enricher> enricher;
     private final Optional<EndOfLifeSource> endOfLife;
     private final Optional<LicenseSource> licenses;
@@ -147,7 +147,7 @@ public class ScanIngestor {
 
     public ScanIngestor(
             Backlog backlog,
-            Findings findingRows,
+            FindingRepository findingRows,
             Optional<Enricher> enricher,
             Optional<EndOfLifeSource> endOfLife,
             Optional<LicenseSource> licenses,

@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -30,7 +30,7 @@ class SmallInputFixesTest extends ApiTestBase {
     private AuditLogRepository auditLog;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Test
     @DisplayName("activating a rule set that does not exist is a 404, not a malformed request")

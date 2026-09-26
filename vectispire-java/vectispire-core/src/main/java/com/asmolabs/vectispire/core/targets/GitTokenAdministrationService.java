@@ -7,9 +7,9 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitTokenEntity;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
@@ -35,15 +35,15 @@ public class GitTokenAdministrationService {
     /** Encrypted, this still fits MySQL's 65,535-byte {@code text}: see {@link #add}. */
     private static final int MAX_TOKEN_LENGTH = 8_192;
 
-    private final GitTokens tokens;
-    private final GitRepositories repositories;
+    private final GitTokenRepository tokens;
+    private final GitRepositoryRepository repositories;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
 
     public GitTokenAdministrationService(
-            GitTokens tokens,
-            GitRepositories repositories,
+            GitTokenRepository tokens,
+            GitRepositoryRepository repositories,
             EncryptionService encryption,
             AuditLogService audit,
             Clock clock) {

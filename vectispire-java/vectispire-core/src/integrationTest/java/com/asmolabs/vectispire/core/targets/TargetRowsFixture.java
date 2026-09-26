@@ -28,16 +28,16 @@ import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.Components;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketEntity;
 import com.asmolabs.vectispire.core.tickets.persistence.IssueTickets;
@@ -77,14 +77,14 @@ final class TargetRowsFixture {
         repository.setUrl("https://example.invalid/" + name + ".git");
         repository.setName(name);
         repository.setBranch("main");
-        return new ScanTarget.Repository(beans.getBean(GitRepositories.class).save(repository).getId());
+        return new ScanTarget.Repository(beans.getBean(GitRepositoryRepository.class).save(repository).getId());
     }
 
     ScanTarget container(String name) {
         ContainerEntity container = new ContainerEntity();
         container.setImageName("example/" + name);
         container.setTag("1.0");
-        return new ScanTarget.Container(beans.getBean(Containers.class).save(container).getId());
+        return new ScanTarget.Container(beans.getBean(ContainerRepository.class).save(container).getId());
     }
 
     /** One row per dependent table, all naming {@code target}. */
@@ -123,7 +123,7 @@ final class TargetRowsFixture {
         scan.setBranch("main");
         scan.setStatus(ScanStatus.COMPLETED.wireName());
         scan.setCreatedAt(AT);
-        long scanId = beans.getBean(Scans.class).save(scan).getId();
+        long scanId = beans.getBean(ScanRepository.class).save(scan).getId();
 
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repoId);
@@ -139,7 +139,7 @@ final class TargetRowsFixture {
         issue.setFirstSeenScanId(scanId);
         issue.setLastSeenScanId(scanId);
         issue.setTimesSeen(1);
-        long issueId = beans.getBean(Issues.class).save(issue).getId();
+        long issueId = beans.getBean(IssueRepository.class).save(issue).getId();
 
         TriageEventEntity event = new TriageEventEntity();
         event.setIssueId(issueId);
@@ -148,7 +148,7 @@ final class TargetRowsFixture {
         event.setToStatus(TriageStatus.UNDER_REVIEW.wireName());
         event.setOrigin("system");
         event.setOccurredAt(AT);
-        beans.getBean(TriageEvents.class).save(event);
+        beans.getBean(TriageEventRepository.class).save(event);
 
         IssueTicketEntity ticket = new IssueTicketEntity();
         ticket.setIssueId(issueId);
@@ -169,7 +169,7 @@ final class TargetRowsFixture {
         finding.setPackageName("log4j-core");
         finding.setSource("grype");
         finding.setCreatedAt(AT);
-        beans.getBean(Findings.class).save(finding);
+        beans.getBean(FindingRepository.class).save(finding);
 
         ComponentEntity component = new ComponentEntity();
         component.setScanId(scanId);

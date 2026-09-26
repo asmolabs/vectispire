@@ -5,8 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import jakarta.persistence.EntityManagerFactory;
 import java.time.Instant;
@@ -46,10 +46,10 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
     private SbomDiffService sbomDiff;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
     private EntityManagerFactory entityManagerFactory;

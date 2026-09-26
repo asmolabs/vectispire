@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
@@ -27,14 +27,14 @@ class IssueTriageServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T09:00:00Z");
 
-    private Issues issues;
-    private com.asmolabs.vectispire.core.issues.persistence.TriageEvents events;
+    private IssueRepository issues;
+    private com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository events;
     private IssueTriageService service;
 
     @BeforeEach
     void wire() {
-        issues = mock(Issues.class);
-        events = mock(com.asmolabs.vectispire.core.issues.persistence.TriageEvents.class);
+        issues = mock(IssueRepository.class);
+        events = mock(com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository.class);
         service = new IssueTriageService(issues, events, Clock.fixed(NOW, ZoneOffset.UTC));
         when(issues.save(any())).thenAnswer(call -> call.getArgument(0));
         when(issues.saveAll(any())).thenAnswer(call -> call.getArgument(0));

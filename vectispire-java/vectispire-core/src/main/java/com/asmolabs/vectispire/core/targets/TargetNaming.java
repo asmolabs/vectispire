@@ -7,13 +7,13 @@ import com.asmolabs.vectispire.core.access.GrantableTargets.Grant;
 import com.asmolabs.vectispire.core.access.GrantableTargets.TargetGrant;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Projects;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Solutions;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -37,12 +37,12 @@ public class TargetNaming {
     /** Said explicitly rather than shown as a blank: a scan's history stays useful after its target is gone. */
     public static final String DELETED = "deleted target";
 
-    private final GitRepositories repositories;
-    private final Containers containers;
-    private final Projects projects;
-    private final Solutions solutions;
+    private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
+    private final ProjectRepository projects;
+    private final SolutionRepository solutions;
 
-    public TargetNaming(GitRepositories repositories, Containers containers, Projects projects, Solutions solutions) {
+    public TargetNaming(GitRepositoryRepository repositories, ContainerRepository containers, ProjectRepository projects, SolutionRepository solutions) {
         this.repositories = repositories;
         this.containers = containers;
         this.projects = projects;

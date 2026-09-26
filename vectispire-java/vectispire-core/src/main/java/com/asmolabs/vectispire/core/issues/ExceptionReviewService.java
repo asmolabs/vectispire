@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.issues;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import java.time.Instant;
 import org.springframework.stereotype.Service;
 
@@ -22,11 +22,11 @@ public class ExceptionReviewService {
     /** What the screen shows after a review: the head of the register, as the list route opens it. */
     private static final int REGISTER_AFTER_REVIEW = 200;
 
-    private final Issues issues;
+    private final IssueRepository issues;
     private final IssueTriageService triage;
     private final ExceptionsRegisterService register;
 
-    public ExceptionReviewService(Issues issues, IssueTriageService triage, ExceptionsRegisterService register) {
+    public ExceptionReviewService(IssueRepository issues, IssueTriageService triage, ExceptionsRegisterService register) {
         this.issues = issues;
         this.triage = triage;
         this.register = register;

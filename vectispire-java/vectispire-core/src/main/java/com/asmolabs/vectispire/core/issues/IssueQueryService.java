@@ -9,8 +9,8 @@ import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueOrdering;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
@@ -45,14 +45,14 @@ public class IssueQueryService {
     /** A detail page shows where an issue was seen, not every scan that ever ran. */
     private static final int MAX_SIGHTINGS = 100;
 
-    private final Issues issues;
+    private final IssueRepository issues;
     private final ScanCatalog findings;
-    private final TriageEvents events;
+    private final TriageEventRepository events;
     private final TargetNaming naming;
     private final SlaService sla;
 
     public IssueQueryService(
-            Issues issues, ScanCatalog findings, TriageEvents events, TargetNaming naming, SlaService sla) {
+            IssueRepository issues, ScanCatalog findings, TriageEventRepository events, TargetNaming naming, SlaService sla) {
         this.issues = issues;
         this.findings = findings;
         this.events = events;

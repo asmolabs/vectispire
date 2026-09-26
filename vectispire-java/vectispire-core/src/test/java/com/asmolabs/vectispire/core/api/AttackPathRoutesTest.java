@@ -7,10 +7,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -21,16 +21,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 class AttackPathRoutesTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositoriesRepo;
+    private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
-    private Scans scansRepo;
+    private ScanRepository scansRepo;
 
     @Autowired
     private ApiEndpoints apiEndpointsRepo;
 
     @Autowired
-    private Issues issuesRepo;
+    private IssueRepository issuesRepo;
 
     @Test
     @DisplayName("generates attack path graph correlating unauthenticated API, critical vulnerability, and secrets")

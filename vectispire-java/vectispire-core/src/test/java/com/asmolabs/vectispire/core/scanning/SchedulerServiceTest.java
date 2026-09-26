@@ -12,11 +12,11 @@ import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
 import java.time.Instant;
@@ -36,9 +36,9 @@ class SchedulerServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T02:00:00Z");
 
-    private GitRepositories repositories;
-    private Containers containers;
-    private Scans scans;
+    private GitRepositoryRepository repositories;
+    private ContainerRepository containers;
+    private ScanRepository scans;
     private LeaderElection election;
     private SchedulerService scheduler;
 
@@ -46,9 +46,9 @@ class SchedulerServiceTest {
 
     @BeforeEach
     void wire() {
-        repositories = mock(GitRepositories.class);
-        containers = mock(Containers.class);
-        scans = mock(Scans.class);
+        repositories = mock(GitRepositoryRepository.class);
+        containers = mock(ContainerRepository.class);
+        scans = mock(ScanRepository.class);
         election = mock(LeaderElection.class);
 
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);

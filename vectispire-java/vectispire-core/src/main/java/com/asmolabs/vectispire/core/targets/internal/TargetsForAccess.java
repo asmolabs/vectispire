@@ -3,9 +3,9 @@ package com.asmolabs.vectispire.core.targets.internal;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
-import com.asmolabs.vectispire.core.targets.persistence.Projects;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,12 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TargetsForAccess implements GrantableTargets {
 
-    private final GitRepositories repositories;
-    private final Containers containers;
-    private final Projects projects;
+    private final GitRepositoryRepository repositories;
+    private final ContainerRepository containers;
+    private final ProjectRepository projects;
     private final TargetNaming naming;
 
-    public TargetsForAccess(GitRepositories repositories, Containers containers, Projects projects, TargetNaming naming) {
+    public TargetsForAccess(GitRepositoryRepository repositories, ContainerRepository containers, ProjectRepository projects, TargetNaming naming) {
         this.repositories = repositories;
         this.containers = containers;
         this.projects = projects;

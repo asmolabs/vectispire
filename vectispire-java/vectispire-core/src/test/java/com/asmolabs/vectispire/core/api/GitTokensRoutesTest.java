@@ -8,8 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -25,10 +25,10 @@ import org.springframework.http.MediaType;
 class GitTokensRoutesTest extends ApiTestBase {
 
     @Autowired
-    private GitTokens tokens;
+    private GitTokenRepository tokens;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     private String createToken(String host) throws Exception {
         String body = mvc.perform(authenticated(post("/api/v1/git-tokens"), asAdmin())

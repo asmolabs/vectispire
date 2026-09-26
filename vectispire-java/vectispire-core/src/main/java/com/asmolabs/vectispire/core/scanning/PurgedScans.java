@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetDeleted;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>One answer for every module purging what hangs off a scan — components, AI reviews, findings —
  * so that two listeners of the same purge cannot disagree about which scans it concerns. It was a
- * default method of the {@code Scans} repository; {@code TargetPurge} belongs to {@code targets}'
+ * default method of {@code ScanRepository}; {@code TargetPurge} belongs to {@code targets}'
  * API now, which a repository sits below, and the listeners in other modules could not have reached
  * the repository anyway (decision 0029). The queries are the repository's, unchanged, and run in the
  * deleting transaction every caller is in.
@@ -25,10 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class PurgedScans {
 
-    private final Scans scans;
-    private final Findings findings;
+    private final ScanRepository scans;
+    private final FindingRepository findings;
 
-    public PurgedScans(Scans scans, Findings findings) {
+    public PurgedScans(ScanRepository scans, FindingRepository findings) {
         this.scans = scans;
         this.findings = findings;
     }

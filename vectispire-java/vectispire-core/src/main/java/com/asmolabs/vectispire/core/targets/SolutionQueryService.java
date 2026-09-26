@@ -4,12 +4,12 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Projects;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Solutions;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,12 +48,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SolutionQueryService {
 
-    private final Solutions solutions;
-    private final Projects projects;
-    private final GitRepositories repositories;
+    private final SolutionRepository solutions;
+    private final ProjectRepository projects;
+    private final GitRepositoryRepository repositories;
     private final TargetBacklog backlog;
 
-    public SolutionQueryService(Solutions solutions, Projects projects, GitRepositories repositories, TargetBacklog backlog) {
+    public SolutionQueryService(SolutionRepository solutions, ProjectRepository projects, GitRepositoryRepository repositories, TargetBacklog backlog) {
         this.solutions = solutions;
         this.projects = projects;
         this.repositories = repositories;

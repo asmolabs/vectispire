@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.VexJustification;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Instant;
 import java.time.Period;
@@ -37,7 +37,7 @@ class TriageAndSettingsDatabaseTest extends VectispireContextTest {
     private SettingsService settings;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private com.asmolabs.vectispire.core.rules.persistence.RuleSets ruleSets;

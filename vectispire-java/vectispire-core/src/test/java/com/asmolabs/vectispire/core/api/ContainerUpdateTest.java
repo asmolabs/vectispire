@@ -6,7 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -26,7 +26,7 @@ import org.springframework.http.MediaType;
 class ContainerUpdateTest extends ApiTestBase {
 
     @Autowired
-    private Containers containers;
+    private ContainerRepository containers;
 
     @Test
     @DisplayName("a schedule change round-trips, the row and its history staying put")

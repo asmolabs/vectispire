@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,9 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IssueCatalog {
 
-    private final Issues issues;
+    private final IssueRepository issues;
 
-    public IssueCatalog(Issues issues) {
+    public IssueCatalog(IssueRepository issues) {
         this.issues = issues;
     }
 
@@ -136,7 +136,7 @@ public class IssueCatalog {
     }
 
     /**
-     * See {@code Issues.countOpenGroupedByTarget}.
+     * See {@code IssueRepository.countOpenGroupedByTarget}.
      *
      * <p><b>Tolerant of a numeric flag, though no engine currently sends one.</b> Written on the
      * assumption that SQLite would hand back an Integer where the others hand back a Boolean.
@@ -269,7 +269,7 @@ public class IssueCatalog {
 
     // ------------------------------------------------------------------ tickets
 
-    /** See {@code Issues.findActionableWithoutTicket}: worst first, at most {@code limit}. */
+    /** See {@code IssueRepository.findActionableWithoutTicket}: worst first, at most {@code limit}. */
     public List<IssueView> actionableWithoutTicket(String state, Collection<String> excluded, int limit) {
         return issues.findActionableWithoutTicket(state, excluded, Limit.of(limit)).stream()
                 .map(IssueView::of)

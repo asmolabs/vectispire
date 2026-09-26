@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.settings.Setting;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Instant;
@@ -25,13 +25,13 @@ class RetentionServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T03:00:00Z");
 
-    private Scans scans;
+    private ScanRepository scans;
     private SettingsService settings;
     private RetentionService retention;
 
     @BeforeEach
     void wire() {
-        scans = mock(Scans.class);
+        scans = mock(ScanRepository.class);
         settings = mock(SettingsService.class);
         retention = new RetentionService(scans, settings, Clock.fixed(NOW, ZoneOffset.UTC));
 

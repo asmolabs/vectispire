@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -75,7 +75,7 @@ class ScanQueueIntegrationTest {
     private ScanQueue queue;
 
     @Autowired
-    private Scans scans;
+    private ScanRepository scans;
 
     @Autowired
     private TransactionTemplate transactions;

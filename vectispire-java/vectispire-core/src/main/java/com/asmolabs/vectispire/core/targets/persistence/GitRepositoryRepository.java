@@ -10,7 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /** The git repositories under watch. */
-public interface GitRepositories extends JpaRepository<RepositoryEntity, Long> {
+public interface GitRepositoryRepository extends JpaRepository<RepositoryEntity, Long> {
 
     /**
      * Records that the scheduler has taken this target up.

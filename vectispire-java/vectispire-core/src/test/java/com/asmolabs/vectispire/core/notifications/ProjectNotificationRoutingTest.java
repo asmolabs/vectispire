@@ -19,12 +19,12 @@ import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageRepository;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Projects;
+import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Solutions;
+import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -57,13 +57,13 @@ class ProjectNotificationRoutingTest extends VectispireContextTest {
     private TeamWebhookRepository teamWebhooks;
 
     @Autowired
-    private Solutions solutions;
+    private SolutionRepository solutions;
 
     @Autowired
-    private Projects projects;
+    private ProjectRepository projects;
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
     private OutboxMessageRepository outbox;

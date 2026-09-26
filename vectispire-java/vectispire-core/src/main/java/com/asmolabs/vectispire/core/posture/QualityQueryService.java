@@ -35,7 +35,7 @@ public class QualityQueryService {
 
     /**
      * @param ruleCount how many distinct rules the whole backlog touches, not how many rows
-     *     {@code topRules} holds — see {@code Issues.countDistinctRules}
+     *     {@code topRules} holds — see {@code IssueRepository.countDistinctRules}
      */
     public record Overview(
             long openCount,

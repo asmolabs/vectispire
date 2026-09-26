@@ -10,8 +10,8 @@ import com.asmolabs.vectispire.core.inventory.persistence.ApiContracts;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpointEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ApiEndpoints;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -28,10 +28,10 @@ class ApiInventoryRoutesTest extends ApiTestBase {
     private ApiContracts apiContractsRepo;
 
     @Autowired
-    private GitRepositories repositoriesRepo;
+    private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
-    private Scans scansRepo;
+    private ScanRepository scansRepo;
 
     @Test
     @DisplayName("returns global attack surface summary and high risk exposed endpoints")

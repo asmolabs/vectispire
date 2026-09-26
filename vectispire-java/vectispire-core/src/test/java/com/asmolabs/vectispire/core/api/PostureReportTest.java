@@ -11,7 +11,7 @@ import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import org.apache.pdfbox.Loader;
@@ -33,10 +33,10 @@ import org.springframework.http.MediaType;
 class PostureReportTest extends ApiTestBase {
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private com.asmolabs.vectispire.core.issues.persistence.Issues issues;
+    private com.asmolabs.vectispire.core.issues.persistence.IssueRepository issues;
 
     @Test
     @DisplayName("is a PDF that names the target, its verdict and its findings")

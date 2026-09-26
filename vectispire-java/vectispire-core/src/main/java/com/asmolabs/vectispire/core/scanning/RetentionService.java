@@ -4,7 +4,7 @@ import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy.Candidate
 import com.asmolabs.vectispire.common.domain.retention.RetentionPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import java.time.Clock;
 import java.time.Duration;
@@ -40,11 +40,11 @@ public class RetentionService {
      */
     private static final int BATCH_SIZE = 500;
 
-    private final Scans scans;
+    private final ScanRepository scans;
     private final SettingsService settings;
     private final Clock clock;
 
-    public RetentionService(Scans scans, SettingsService settings, Clock clock) {
+    public RetentionService(ScanRepository scans, SettingsService settings, Clock clock) {
         this.scans = scans;
         this.settings = settings;
         this.clock = clock;

@@ -46,7 +46,7 @@ class ScanIngestorTest {
     private static final long ISSUE = 41L;
 
     private ScanIngestor.Backlog sync;
-    private com.asmolabs.vectispire.core.scanning.persistence.Findings rows;
+    private com.asmolabs.vectispire.core.scanning.persistence.FindingRepository rows;
     private ScanIngestor.InventorySink components;
     private ScanIngestor ingestor;
 
@@ -54,7 +54,7 @@ class ScanIngestorTest {
     void wire() {
         sync = mock(ScanIngestor.Backlog.class);
         when(sync.reconcile(any())).thenAnswer(call -> reconciled(call.getArgument(0)));
-        rows = mock(com.asmolabs.vectispire.core.scanning.persistence.Findings.class);
+        rows = mock(com.asmolabs.vectispire.core.scanning.persistence.FindingRepository.class);
         components = mock(ScanIngestor.InventorySink.class);
         ingestor = ingestor(Optional.empty(), Optional.empty(), Optional.empty());
     }

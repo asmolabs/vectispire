@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
-import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeases;
+import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeaseRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -67,7 +67,7 @@ class LeaderElectionIntegrationTest {
     private LeaderElection election;
 
     @Autowired
-    private LeaderLeases leases;
+    private LeaderLeaseRepository leases;
 
     @BeforeEach
     void clearTheLease() {

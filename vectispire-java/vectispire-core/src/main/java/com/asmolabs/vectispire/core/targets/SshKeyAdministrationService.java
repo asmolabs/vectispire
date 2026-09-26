@@ -6,9 +6,9 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
@@ -37,15 +37,15 @@ public class SshKeyAdministrationService {
     /** Encrypted, this still fits MySQL's 65,535-byte {@code text}: see {@link #add}. */
     private static final int MAX_KEY_LENGTH = BoundedText.TEXT_MAX;
 
-    private final SshKeys keys;
-    private final GitRepositories repositories;
+    private final SshKeyRepository keys;
+    private final GitRepositoryRepository repositories;
     private final EncryptionService encryption;
     private final AuditLogService audit;
     private final Clock clock;
 
     public SshKeyAdministrationService(
-            SshKeys keys,
-            GitRepositories repositories,
+            SshKeyRepository keys,
+            GitRepositoryRepository repositories,
             EncryptionService encryption,
             AuditLogService audit,
             Clock clock) {

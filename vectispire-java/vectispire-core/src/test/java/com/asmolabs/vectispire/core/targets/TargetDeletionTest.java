@@ -10,9 +10,9 @@ import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
@@ -33,7 +33,7 @@ import org.springframework.transaction.IllegalTransactionStateException;
  * <p><b>It found a defect the day it was written.</b> A repository with a single triaged finding
  * could not be deleted: the purge queued the triage events' removal, the bulk delete of the issues
  * ran first and the cascade took the events, and the commit failed on rows that were no longer
- * there. Nothing had ever deleted a target carrying history. See {@code Issues#deleteByIdIn}.
+ * there. Nothing had ever deleted a target carrying history. See {@code IssueRepository#deleteByIdIn}.
  *
  * <p><b>No probe in this context, deliberately.</b> The order of the phases is {@code
  * TargetPurgeOrderTest}'s, whose probes flush the persistence context to look between phases — and
@@ -56,10 +56,10 @@ class TargetDeletionTest extends VectispireContextTest {
     private ApplicationEventPublisher events;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
-    private TriageEvents triageEvents;
+    private TriageEventRepository triageEvents;
 
     private TargetRowsFixture fixture;
 

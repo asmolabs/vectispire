@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.targets;
 
-import com.asmolabs.vectispire.core.targets.persistence.GitTokens;
-import com.asmolabs.vectispire.core.targets.persistence.SshKeys;
+import com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -27,10 +27,10 @@ public class CloneCredentials {
     /** An SSH private key as stored: the ciphertext is bound to {@code id}. */
     public record StoredSshKey(UUID id, String name, String ciphertext) {}
 
-    private final GitTokens gitTokens;
-    private final SshKeys sshKeys;
+    private final GitTokenRepository gitTokens;
+    private final SshKeyRepository sshKeys;
 
-    public CloneCredentials(GitTokens gitTokens, SshKeys sshKeys) {
+    public CloneCredentials(GitTokenRepository gitTokens, SshKeyRepository sshKeys) {
         this.gitTokens = gitTokens;
         this.sshKeys = sshKeys;
     }

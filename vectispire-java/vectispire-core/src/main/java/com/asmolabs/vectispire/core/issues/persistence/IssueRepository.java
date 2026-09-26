@@ -13,7 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-public interface Issues
+public interface IssueRepository
         extends JpaRepository<IssueEntity, Long>, JpaSpecificationExecutor<IssueEntity>, IssueAggregateQueries {
 
     /**
@@ -88,7 +88,7 @@ public interface Issues
      * <p><b>One query for a page of targets, not nine per target.</b> The summary asked for four
      * severities, the KEV flag and three finding types, per target, inside its loop — nine round
      * trips per row, so a hundred-target estate produced nine hundred for one page. That is the
-     * shape {@code TriageEvents.findForIssues} was written to avoid, and it is invisible on the
+     * shape {@code TriageEventRepository.findForIssues} was written to avoid, and it is invisible on the
      * SQLite suite for the same reason: a demo database answers all nine before anyone notices.
      *
      * <p><b>Visibility is not applied here, deliberately, and that is safe because it is purely

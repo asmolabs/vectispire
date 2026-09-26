@@ -2,7 +2,7 @@ package com.asmolabs.vectispire.core.scanning.internal;
 
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.targets.ContainerView;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
@@ -17,10 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TargetScanFigures implements TargetScans {
 
-    private final Scans scans;
+    private final ScanRepository scans;
     private final ScanTriggerService trigger;
 
-    public TargetScanFigures(Scans scans, ScanTriggerService trigger) {
+    public TargetScanFigures(ScanRepository scans, ScanTriggerService trigger) {
         this.scans = scans;
         this.trigger = trigger;
     }

@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderElection;
 import com.asmolabs.vectispire.core.scanning.internal.LeaderProperties;
 import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeaseEntity;
-import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeases;
+import com.asmolabs.vectispire.core.scanning.persistence.LeaderLeaseRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -30,12 +30,12 @@ class LeaderElectionTest {
     private static final String ME = "instance-a";
     private static final String THEM = "instance-b";
 
-    private LeaderLeases leases;
+    private LeaderLeaseRepository leases;
     private LeaderElection election;
 
     @BeforeEach
     void wire() {
-        leases = mock(LeaderLeases.class);
+        leases = mock(LeaderLeaseRepository.class);
         election = new LeaderElection(leases, new LeaderProperties(LEASE), Clock.fixed(NOW, ZoneOffset.UTC));
         when(leases.findById(anyString())).thenReturn(Optional.empty());
     }

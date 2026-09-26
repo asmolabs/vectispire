@@ -16,7 +16,7 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
-import com.asmolabs.vectispire.core.targets.persistence.Containers;
+import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -35,14 +35,14 @@ import org.springframework.stereotype.Service;
 @Service
 public class ContainerAdministrationService {
 
-    private final Containers containers;
+    private final ContainerRepository containers;
     private final TargetScans scans;
     private final TargetBacklog backlog;
     private final TargetDeletionService targetDeletion;
     private final AuditLogService audit;
 
     public ContainerAdministrationService(
-            Containers containers,
+            ContainerRepository containers,
             TargetScans scans,
             TargetBacklog backlog,
             TargetDeletionService targetDeletion,

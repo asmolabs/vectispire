@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.scanning;
 
-import com.asmolabs.vectispire.core.scanning.persistence.Findings;
-import com.asmolabs.vectispire.core.scanning.persistence.Scans;
+import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
 import java.util.List;
@@ -29,10 +29,10 @@ class ScanPurge {
     private static final Logger log = LoggerFactory.getLogger(ScanPurge.class);
 
     private final PurgedScans purgedScans;
-    private final Scans scans;
-    private final Findings findings;
+    private final ScanRepository scans;
+    private final FindingRepository findings;
 
-    ScanPurge(PurgedScans purgedScans, Scans scans, Findings findings) {
+    ScanPurge(PurgedScans purgedScans, ScanRepository scans, FindingRepository findings) {
         this.purgedScans = purgedScans;
         this.scans = scans;
         this.findings = findings;

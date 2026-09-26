@@ -1,7 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.issues.persistence.TriageEvents;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.scanning.PurgedScans;
 import com.asmolabs.vectispire.core.targets.OrphanedTargetRows;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
@@ -29,11 +29,11 @@ class IssuePurge {
     private static final Logger log = LoggerFactory.getLogger(IssuePurge.class);
 
     private final PurgedIssues purged;
-    private final Issues issues;
-    private final TriageEvents triageEvents;
+    private final IssueRepository issues;
+    private final TriageEventRepository triageEvents;
     private final PurgedScans scans;
 
-    IssuePurge(PurgedIssues purged, Issues issues, TriageEvents triageEvents, PurgedScans scans) {
+    IssuePurge(PurgedIssues purged, IssueRepository issues, TriageEventRepository triageEvents, PurgedScans scans) {
         this.purged = purged;
         this.issues = issues;
         this.triageEvents = triageEvents;

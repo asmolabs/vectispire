@@ -12,8 +12,8 @@ import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarations;
 import com.asmolabs.vectispire.core.gate.persistence.GatePolicies;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.issues.persistence.Issues;
-import com.asmolabs.vectispire.core.targets.persistence.GitRepositories;
+import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,10 +41,10 @@ class DecisionInputBoundsTest extends ApiTestBase {
     private static final String TOO_LONG = "c".repeat(BoundedText.TEXT_MAX + 1);
 
     @Autowired
-    private GitRepositories repositories;
+    private GitRepositoryRepository repositories;
 
     @Autowired
-    private Issues issues;
+    private IssueRepository issues;
 
     @Autowired
     private ControlDeclarations declarations;
