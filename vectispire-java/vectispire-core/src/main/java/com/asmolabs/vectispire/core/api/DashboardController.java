@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.domain.trends.PostureTrendAnalytics;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.DashboardQueryService;
-import com.asmolabs.vectispire.core.services.GateService;
+import com.asmolabs.vectispire.core.services.gate.GateService;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
 import java.util.List;
 import java.util.Map;

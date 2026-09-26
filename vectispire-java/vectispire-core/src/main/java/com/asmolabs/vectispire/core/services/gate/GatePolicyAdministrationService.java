@@ -1,10 +1,10 @@
-package com.asmolabs.vectispire.core.services;
+package com.asmolabs.vectispire.core.services.gate;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.persistence.GatePolicyEntity;
-import com.asmolabs.vectispire.core.services.GateService.PolicyScope;
+import com.asmolabs.vectispire.core.services.gate.GateService.PolicyScope;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
 import java.util.ArrayList;
