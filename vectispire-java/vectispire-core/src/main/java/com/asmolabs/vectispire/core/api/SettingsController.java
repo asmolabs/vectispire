@@ -6,7 +6,7 @@ import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.core.api.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.notifications.NotificationService;
+import com.asmolabs.vectispire.core.notifications.NotificationService;
 import com.asmolabs.vectispire.core.services.platform.SettingsAdministrationService;
 import com.asmolabs.vectispire.core.tickets.TicketService;
 import com.fasterxml.jackson.annotation.JsonProperty;

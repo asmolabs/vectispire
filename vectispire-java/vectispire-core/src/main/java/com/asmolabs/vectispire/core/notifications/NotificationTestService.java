@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.notifications;
+package com.asmolabs.vectispire.core.notifications;
 
 import com.asmolabs.vectispire.common.domain.notifications.NotificationPayload;
 import com.asmolabs.vectispire.common.domain.settings.Setting;

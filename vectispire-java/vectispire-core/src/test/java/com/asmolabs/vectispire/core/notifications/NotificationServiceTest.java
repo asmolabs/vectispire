@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.notifications;
+package com.asmolabs.vectispire.core.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

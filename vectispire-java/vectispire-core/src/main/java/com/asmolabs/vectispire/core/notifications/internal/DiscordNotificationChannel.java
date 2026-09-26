@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.notifications;
+package com.asmolabs.vectispire.core.notifications.internal;
 
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.notifications.DiscordEmbed;

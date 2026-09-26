@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.notifications;
+package com.asmolabs.vectispire.core.notifications;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.notifications.internal.ScanDeltaNotifier;
 import com.asmolabs.vectispire.core.outbox.persistence.Outbox;
 import com.asmolabs.vectispire.core.outbox.persistence.OutboxMessageEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;

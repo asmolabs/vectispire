@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.notifications;
+package com.asmolabs.vectispire.core.notifications;
 
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
