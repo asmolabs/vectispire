@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto;
 
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;

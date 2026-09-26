@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto.internal;
 
 import com.asmolabs.vectispire.common.domain.crypto.KmsProvider;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;

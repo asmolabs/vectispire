@@ -178,7 +178,7 @@ Par ailleurs, [`Dockerfile:76`](../../../Dockerfile) documente correctement que 
 
 ### 3.6 Le KMS échoue en mode ouvert (🟡 Moyenne)
 
-[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/crypto/EncryptionService.java) journalise `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` puis poursuit. Un jeton Vault expiré au démarrage bascule silencieusement toutes les écritures suivantes des clés gérées par Transit vers une clé locale dérivée par scrypt — un changement de garde des clés annoncé par une seule ligne WARN. Un contrôle qui se dégrade silencieusement est un contrôle qui n'est pas audité.
+[`EncryptionService`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/crypto/EncryptionService.java) journalise `"Vault KMS requested but missing endpoint or token. Falling back to local encryption."` puis poursuit. Un jeton Vault expiré au démarrage bascule silencieusement toutes les écritures suivantes des clés gérées par Transit vers une clé locale dérivée par scrypt — un changement de garde des clés annoncé par une seule ligne WARN. Un contrôle qui se dégrade silencieusement est un contrôle qui n'est pas audité.
 
 **Correctif :** lorsque `kmsType=vault` est explicitement configuré, refuser de démarrer sans point de terminaison Transit joignable.
 

@@ -1,8 +1,8 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.crypto.web;
 
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
 import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
-import com.asmolabs.vectispire.core.services.crypto.SigningKeyService;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;

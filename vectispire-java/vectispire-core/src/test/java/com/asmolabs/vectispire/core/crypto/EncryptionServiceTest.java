@@ -1,10 +1,11 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.SecretState;
+import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;

@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

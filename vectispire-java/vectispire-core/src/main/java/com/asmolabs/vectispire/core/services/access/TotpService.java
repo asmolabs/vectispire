@@ -7,7 +7,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.persistence.UserEntity;
 import com.asmolabs.vectispire.core.repositories.Users;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;

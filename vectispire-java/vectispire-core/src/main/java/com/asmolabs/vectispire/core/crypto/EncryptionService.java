@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto;
 
 import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.crypto.KmsProvider;
@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.common.domain.crypto.LocalKmsProvider;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher.Decrypted;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
+import com.asmolabs.vectispire.core.crypto.internal.EncryptionProperties;
+import com.asmolabs.vectispire.core.crypto.internal.VaultKmsProvider;
 import com.asmolabs.vectispire.core.outbound.PinnedHttpSender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;

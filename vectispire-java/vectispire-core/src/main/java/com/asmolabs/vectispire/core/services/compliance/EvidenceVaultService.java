@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.core.repositories.AuditLog;
 import com.asmolabs.vectispire.core.repositories.Issues;
 import com.asmolabs.vectispire.core.repositories.Scans;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
-import com.asmolabs.vectispire.core.services.crypto.SigningKeyService;
+import com.asmolabs.vectispire.core.crypto.SigningKeyService;
 import com.asmolabs.vectispire.core.services.exports.AttestationService;
 import com.asmolabs.vectispire.core.services.exports.CsafGeneratorService;
 import com.asmolabs.vectispire.core.services.exports.CycloneDxGeneratorService;

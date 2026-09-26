@@ -9,7 +9,7 @@ import com.asmolabs.vectispire.core.repositories.GitRepositories;
 import com.asmolabs.vectispire.core.repositories.GitTokens;
 import com.asmolabs.vectispire.core.services.audit.AuditLogService;
 import com.asmolabs.vectispire.core.services.audit.RequestActor;
-import com.asmolabs.vectispire.core.services.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;

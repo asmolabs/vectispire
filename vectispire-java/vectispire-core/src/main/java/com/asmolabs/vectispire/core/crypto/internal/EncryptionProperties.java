@@ -1,5 +1,6 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto.internal;
 
+import com.asmolabs.vectispire.core.crypto.SecretFile;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;

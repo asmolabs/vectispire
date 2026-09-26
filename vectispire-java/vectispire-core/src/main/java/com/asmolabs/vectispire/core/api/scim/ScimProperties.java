@@ -1,6 +1,6 @@
 package com.asmolabs.vectispire.core.api.scim;
 
-import com.asmolabs.vectispire.core.services.crypto.SecretFile;
+import com.asmolabs.vectispire.core.crypto.SecretFile;
 import java.util.Optional;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;

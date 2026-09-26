@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.crypto;
+package com.asmolabs.vectispire.core.crypto.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
