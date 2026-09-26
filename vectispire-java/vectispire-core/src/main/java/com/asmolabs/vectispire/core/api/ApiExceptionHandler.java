@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.services.InsecureCredentialTransportExceptio
 import com.asmolabs.vectispire.core.services.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.services.AttestationService;
 import com.asmolabs.vectispire.core.services.ScanTriggerService;
+import com.asmolabs.vectispire.core.services.SolutionAdministrationService;
 import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -101,9 +102,14 @@ public class ApiExceptionHandler {
      * <p>409 rather than 400: nothing about the request is malformed, and a caller that retries
      * it unchanged in five minutes may well succeed. "Already queued" is the state's answer, not
      * the request's fault. So is "not attestable": a scan still running may complete, and the
-     * refusal names what is missing rather than serving a statement with it invented.
+     * refusal names what is missing rather than serving a statement with it invented. And so is
+     * "this solution still holds projects": deleting them first makes the same request succeed.
      */
-    @ExceptionHandler({ScanTriggerService.AlreadyQueuedException.class, AttestationService.NotAttestableException.class})
+    @ExceptionHandler({
+        ScanTriggerService.AlreadyQueuedException.class,
+        AttestationService.NotAttestableException.class,
+        SolutionAdministrationService.SolutionNotEmptyException.class
+    })
     ProblemDetail conflict(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
     }

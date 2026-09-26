@@ -6,6 +6,8 @@ import com.asmolabs.vectispire.core.persistence.ApiContractEntity;
 import com.asmolabs.vectispire.core.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.persistence.IssueTicketEntity;
+import com.asmolabs.vectispire.core.persistence.ProjectEntity;
+import com.asmolabs.vectispire.core.persistence.SolutionEntity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -31,7 +33,9 @@ class EntityViewsTest {
                 Arguments.of(IssueEntity.class, IssueView.class),
                 Arguments.of(IssueTicketEntity.class, IssueTicketView.class),
                 Arguments.of(AuditLogEntity.class, AuditEntryView.class),
-                Arguments.of(ApiContractEntity.class, ApiContractView.class));
+                Arguments.of(ApiContractEntity.class, ApiContractView.class),
+                Arguments.of(SolutionEntity.class, SolutionAdministrationService.SolutionView.class),
+                Arguments.of(ProjectEntity.class, SolutionAdministrationService.ProjectView.class));
     }
 
     @ParameterizedTest(name = "{1} carries every property of {0}")

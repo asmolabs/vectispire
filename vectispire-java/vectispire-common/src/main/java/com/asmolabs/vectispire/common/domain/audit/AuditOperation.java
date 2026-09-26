@@ -94,6 +94,33 @@ public enum AuditOperation {
      */
     TEAM_ACCESS_CHANGED,
 
+    /**
+     * A solution was created, renamed, described or deleted (decision 0023).
+     *
+     * <p>No grant names a solution, so this changes nobody's access; it is audited because the
+     * solutions are the frame every per-project report is read in.
+     */
+    SOLUTION_UPDATED,
+
+    /**
+     * A project was created, renamed, described or deleted.
+     *
+     * <p>Deleting one is the entry that matters: it revokes every grant naming the project and
+     * returns its repositories to "no project", in one gesture, and the entry carries both counts.
+     */
+    PROJECT_UPDATED,
+
+    /**
+     * A repository was filed into a project, moved to another, or taken out of one.
+     *
+     * <p><b>An access change, though no grant row moves.</b> A project grant is resolved at each
+     * request into the project's repositories, so moving a repository moves its visibility for
+     * the project's grantees at once, in both directions — the entry says so, because nobody
+     * reading "moved to Payments" would otherwise think to look here for why somebody gained or
+     * lost a repository.
+     */
+    PROJECT_REPOSITORIES_CHANGED,
+
     /** Without it, sweeping every endpoint leaves no trace at all. */
     ACCESS_DENIED,
 

@@ -67,7 +67,11 @@ public class RepositoriesController {
             Instant lastScheduledScanAt,
             LastScan lastScan,
             long openIssues,
-            String tier) {}
+            String tier,
+            // The project it is filed in (decision 0023), null for "no project". Changed through
+            // `PUT /api/v1/projects/{id}/repositories/{repositoryId}`, not through this resource.
+            Long projectId,
+            String projectName) {}
 
     /** The names the Angular client sends. See {@code ClientContractTest} for why they differ. */
     public record RepositoryCreateRequest(
@@ -198,7 +202,9 @@ public class RepositoriesController {
                         .map(scan -> new LastScan(scan.id(), scan.status(), scan.createdAt(), scan.error()))
                         .orElse(null),
                 listed.openIssues(),
-                repository.getTier());
+                repository.getTier(),
+                repository.getProjectId(),
+                listed.projectName());
     }
 
     private static Changes changesOf(RepositoryCreateRequest body) {

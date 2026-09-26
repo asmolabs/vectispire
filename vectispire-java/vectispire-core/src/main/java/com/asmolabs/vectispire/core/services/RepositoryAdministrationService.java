@@ -50,6 +50,7 @@ public class RepositoryAdministrationService {
     private final GitTokens gitTokens;
     private final SshKeys sshKeys;
     private final GitHostAllowlist allowedHosts;
+    private final TargetNaming naming;
 
     /**
      * The width of {@code url}, {@code branch}, {@code name} and {@code required_agent_label}, and of
@@ -66,7 +67,8 @@ public class RepositoryAdministrationService {
             AuditLogService audit,
             GitTokens gitTokens,
             SshKeys sshKeys,
-            GitHostAllowlist allowedHosts) {
+            GitHostAllowlist allowedHosts,
+            TargetNaming naming) {
         this.repositories = repositories;
         this.scans = scans;
         this.issues = issues;
@@ -76,13 +78,19 @@ public class RepositoryAdministrationService {
         this.gitTokens = gitTokens;
         this.sshKeys = sshKeys;
         this.allowedHosts = allowedHosts;
+        this.naming = naming;
     }
 
     /** A target's most recent scan, whatever its outcome. Shared with the container inventory. */
     public record LatestScan(Long id, String status, Instant createdAt, String error) {}
 
-    /** A repository as the inventory shows it: the row, its latest scan, and what waits on it. */
-    public record Listed(RepositoryEntity repository, Optional<LatestScan> latestScan, long openIssues) {}
+    /**
+     * A repository as the inventory shows it: the row, its latest scan, what waits on it, and the
+     * project it is filed in.
+     *
+     * @param projectName {@code Solution / Project}, or null for a repository in no project
+     */
+    public record Listed(RepositoryEntity repository, Optional<LatestScan> latestScan, long openIssues, String projectName) {}
 
     /**
      * What an operator asked for, field by field.
@@ -124,12 +132,21 @@ public class RepositoryAdministrationService {
         Map<Long, LatestScan> latest = latestScans();
         Map<Long, Long> open = openIssueCounts();
 
-        return repositories.findAll().stream()
+        List<RepositoryEntity> visible = repositories.findAll().stream()
                 .filter(repository -> allowed.permits(new ScanTarget.Repository(repository.getId())))
+                .toList();
+        // Named for the visible rows only, in one pass: a project's name is shown only beside a
+        // repository the reader already sees, so the list reveals no project the tree would not.
+        Map<Long, String> projectNames = naming.projectNames(visible.stream()
+                .map(RepositoryEntity::getProjectId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
+        return visible.stream()
                 .map(repository -> new Listed(
                         repository,
                         Optional.ofNullable(latest.get(repository.getId())),
-                        open.getOrDefault(repository.getId(), 0L)))
+                        open.getOrDefault(repository.getId(), 0L),
+                        repository.getProjectId() == null ? null : projectNames.get(repository.getProjectId())))
                 .toList();
     }
 
