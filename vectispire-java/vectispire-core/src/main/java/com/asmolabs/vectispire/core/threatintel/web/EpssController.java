@@ -1,16 +1,16 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.threatintel.web;
 
 import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFleetSummary;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.api.security.RequiresAccount;
+import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.services.access.VisibilityService;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
-import com.asmolabs.vectispire.core.services.threatintel.EpssPrioritizationService;
-import com.asmolabs.vectispire.core.services.threatintel.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.threatintel.EpssPrioritizationService;
+import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;

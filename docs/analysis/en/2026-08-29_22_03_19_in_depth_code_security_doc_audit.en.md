@@ -170,7 +170,7 @@ unambiguous.
 
 **`/api/v1/epss/priorities` is the worst of the three, for two compounding reasons.** The *query*
 count grows as well — this is a genuine N+1, not merely a whole-table read. In
-[`EpssPrioritizationService.getFleetSummary`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/threatintel/EpssPrioritizationService.java),
+[`EpssPrioritizationService.getFleetSummary`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/threatintel/EpssPrioritizationService.java),
 the `for (IssueEntity issue : openIssues)` loop calls `threatIntelService.lookupCve(cveId)`, which
 executes `intelRepo.findByCveIdIgnoreCase(...)` — **one query per open issue**. Two `findAll()`
 calls at the top of the method (repositories and containers, materialised into `Map`s) sit on top of

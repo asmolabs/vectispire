@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.threatintel;
+package com.asmolabs.vectispire.core.threatintel.internal;
 
 import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;

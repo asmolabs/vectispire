@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.threatintel;
+package com.asmolabs.vectispire.core.threatintel;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
@@ -10,13 +10,13 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.persistence.IssueEntity;
-import com.asmolabs.vectispire.core.persistence.ThreatIntelEntity;
-import com.asmolabs.vectispire.core.persistence.ThreatIntelSyncEntity;
 import com.asmolabs.vectispire.core.repositories.Findings;
 import com.asmolabs.vectispire.core.repositories.Issues;
-import com.asmolabs.vectispire.core.repositories.ThreatIntelSyncs;
-import com.asmolabs.vectispire.core.repositories.ThreatIntels;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncs;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntels;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;

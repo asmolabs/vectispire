@@ -1,10 +1,11 @@
-package com.asmolabs.vectispire.core.api;
+package com.asmolabs.vectispire.core.threatintel.web;
 
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.core.api.RequestActors;
 import com.asmolabs.vectispire.core.api.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.api.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.api.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.services.threatintel.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -174,7 +174,7 @@ trois premières lignes non ambiguës.
 
 **`/api/v1/epss/priorities` est le pire des trois, et pour deux raisons cumulées.** Le nombre de
 *requêtes* croît lui aussi — c'est un vrai N+1, pas seulement une lecture de table. Dans
-[`EpssPrioritizationService.getFleetSummary`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/services/threatintel/EpssPrioritizationService.java),
+[`EpssPrioritizationService.getFleetSummary`](../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/threatintel/EpssPrioritizationService.java),
 la boucle `for (IssueEntity issue : openIssues)` appelle `threatIntelService.lookupCve(cveId)`, qui
 exécute `intelRepo.findByCveIdIgnoreCase(...)` — **une requête par constat ouvert**. S'y ajoutent
 deux `findAll()` en tête de méthode (dépôts et conteneurs, matérialisés en `Map`).

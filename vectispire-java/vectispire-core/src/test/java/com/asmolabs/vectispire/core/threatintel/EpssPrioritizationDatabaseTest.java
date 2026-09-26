@@ -1,4 +1,4 @@
-package com.asmolabs.vectispire.core.services.threatintel;
+package com.asmolabs.vectispire.core.threatintel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
