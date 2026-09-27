@@ -67,7 +67,10 @@ un socket monté, jamais un démon propre au plugin), et il écrit **du SARIF 2.
   mémoire, de processus et de CPU des scanners, une étiquette, le conteneur supprimé dans un `finally`.
 - **Pas root** : il tourne sous l'`uid:gid` du propriétaire de l'espace de travail, la leçon du montage
   de la base Grype — ce que root écrit dans un montage appartient à root sur l'hôte. Un hôte qui ne
-  rapporte aucun propriétaire ne lance pas de plugin du tout plutôt que de le lancer en root.
+  rapporte aucun propriétaire ne lance pas de plugin du tout plutôt que de le lancer en root, et un
+  Vectispire qui tourne lui-même en root non plus : son espace de travail appartient à root, donc son
+  propriétaire est root. Les images tournent en `1000:1000` ; le conteneur des jobs de la CI non,
+  et c'est ainsi que la faille a été trouvée.
 - **Seul l'arbre analysé est monté**, en lecture seule, sur `/repo/source` (le sous-chemin du dépôt
   s'il en a un, après que `SourceFiles.within` a prouvé qu'il est dans le clone). **Pas l'espace de
   travail** : sa racine contient le rapport de secrets en clair et le SBOM.

@@ -19,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -49,6 +50,8 @@ class PluginStepsTest {
 
     private Workspace workspace;
     private ContainerRunner containers;
+    /** Not the build's own user: the CI runs as root, a developer does not, and both must pass. */
+    private String owner = "1000:1000";
     private final AtomicReference<ContainerRun> launched = new AtomicReference<>();
 
     @BeforeEach
@@ -95,8 +98,12 @@ class PluginStepsTest {
         return run(manifest, reference -> manifest, null);
     }
 
+    private PluginScanner scanner(String mirror) {
+        return new PluginScanner(containers, mirror, directory -> Optional.ofNullable(owner));
+    }
+
     private List<PluginStep> run(PluginManifest manifest, PluginProvider provider, String mirror) {
-        return new PluginSteps(new PluginScanner(containers, mirror), provider)
+        return new PluginSteps(scanner(mirror), provider)
                 .run(List.of(ref(manifest)), workspace, workspace.source());
     }
 
@@ -137,8 +144,7 @@ class PluginStepsTest {
             assertThat(run.asRoot()).isFalse();
             assertThat(run.user())
                     .as("the workspace owner, so what the plugin writes stays deletable and nothing runs as root")
-                    .isEqualTo(ContainerRun.ownerOf(root.resolve("plugins").resolve("acme-lint")).orElseThrow())
-                    .isNotEqualTo("0:0");
+                    .isEqualTo("1000:1000");
             assertThat(run.mounts()).containsExactlyInAnyOrder(
                     ContainerRun.Mount.readOnly(workspace.source().toString(), PluginManifest.SOURCE),
                     ContainerRun.Mount.writable(root.resolve("plugins").resolve("acme-lint").toString(), PluginManifest.OUTPUT));
@@ -207,6 +213,26 @@ class PluginStepsTest {
 
             assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason())
                     .contains("exited with 2").contains("the plugin's own complaint");
+        }
+
+        @Test
+        @DisplayName("a workspace owned by root is not run as its owner: that would be running the plugin as root")
+        void rootOwnedWorkspace() {
+            owner = "0:0";
+            plugin(0, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("runs as root here");
+            verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("a host that reports no owner does not run the plugin as root instead")
+        void noOwner() {
+            owner = null;
+            plugin(0, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("reports no owner");
+            verify(containers, never()).run(any());
         }
 
         @Test
@@ -293,7 +319,7 @@ class PluginStepsTest {
             PluginManifest served = new PluginManifest("acme-lint", "ACME", asked.image(), asked.languages(),
                     List.of("--everything"), asked.output(), asked.exitCodes(), false, null, 120);
 
-            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), reference -> served)
+            List<PluginStep> steps = new PluginSteps(scanner(null), reference -> served)
                     .run(List.of(ref(asked)), workspace, workspace.source());
 
             assertThat(absentOf(steps).reason()).contains("not the one the task names");
@@ -305,7 +331,7 @@ class PluginStepsTest {
         void unfetchable() {
             PluginManifest asked = manifest(Set.of(Language.PYTHON));
 
-            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), PluginProvider.NONE)
+            List<PluginStep> steps = new PluginSteps(scanner(null), PluginProvider.NONE)
                     .run(List.of(ref(asked)), workspace, workspace.source());
 
             assertThat(absentOf(steps).reason()).contains("could not be obtained");
@@ -316,7 +342,7 @@ class PluginStepsTest {
         void noTree() {
             PluginManifest asked = manifest(Set.of(Language.PYTHON));
 
-            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), reference -> asked)
+            List<PluginStep> steps = new PluginSteps(scanner(null), reference -> asked)
                     .run(List.of(ref(asked)), workspace, workspace.source().resolve("missing"));
 
             assertThat(absentOf(steps).reason()).contains("absent from the checkout");
@@ -337,7 +363,7 @@ class PluginStepsTest {
                 return new ContainerRunner.ContainerResult("", "", 0);
             });
 
-            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null),
+            List<PluginStep> steps = new PluginSteps(scanner(null),
                             reference -> reference.id().equals("other") ? other : broken)
                     .run(List.of(ref(broken), ref(other)), workspace, workspace.source());
 

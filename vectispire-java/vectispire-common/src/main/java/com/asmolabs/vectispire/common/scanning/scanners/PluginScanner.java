@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * Running a plugin: a third-party image, confined exactly like the scanners Vectispire ships.
@@ -39,7 +40,9 @@ import java.util.Optional;
  *       plugin can log what it likes without corrupting its SARIF.
  *   <li><b>As the workspace's owner, never root</b> — the Grype lesson: what root writes into a mount
  *       is root's on the host, and the unprivileged process cannot delete it afterwards. A host that
- *       reports no owner cannot run a plugin at all, rather than run it as root.
+ *       reports no owner cannot run a plugin at all, rather than run it as root — and neither can
+ *       a Vectispire that itself runs as root, whose workspace is root's: running as its owner
+ *       would then be running as root, the one thing this rule exists to prevent.
  *   <li><b>The network only when the manifest asks</b>, with the justification the governor wrote.
  *   <li><b>A timeout no longer than the scanners'</b>; the memory, process and CPU ceilings are the
  *       scanner limits', unchanged.
@@ -61,13 +64,24 @@ public final class PluginScanner {
 
     private final ContainerRunner runner;
     private final String registryMirror;
+    private final Function<Path, Optional<String>> owners;
 
     /**
      * @param registryMirror the internal registry plugin images are pulled from, or blank for their
      *     own — see {@link ImageDigest#relocate}
      */
     public PluginScanner(ContainerRunner runner, String registryMirror) {
+        this(runner, registryMirror, ContainerRun::ownerOf);
+    }
+
+    /**
+     * @param owners how a directory's {@code uid:gid} is read. Replaceable because the answer is
+     *     whoever runs the build: the CI's job container is root, a developer is not, and a test of
+     *     either rule must not depend on which of the two ran it
+     */
+    public PluginScanner(ContainerRunner runner, String registryMirror, Function<Path, Optional<String>> owners) {
         this.runner = runner;
+        this.owners = owners;
         this.registryMirror = registryMirror == null || registryMirror.isBlank()
                 ? null
                 : ImageDigest.requireMirror(registryMirror);
@@ -88,9 +102,14 @@ public final class PluginScanner {
     public Optional<PluginReport> scan(Workspace workspace, Path analysedRoot, PluginManifest manifest) {
         String label = "plugin " + manifest.id();
         Path output = outputDirectory(workspace, manifest, label);
-        String owner = ContainerRun.ownerOf(output).orElseThrow(() -> ScannerFailureException.of(label,
+        String owner = owners.apply(output).orElseThrow(() -> ScannerFailureException.of(label,
                 "This host reports no owner for the workspace, so the plugin cannot run as an unprivileged user; "
                         + "it is not run as root instead."));
+        if (owner.startsWith("0:")) {
+            throw ScannerFailureException.of(label,
+                    "Vectispire runs as root here, so the workspace is root's and the plugin would run as root; "
+                            + "it is not run. Run Vectispire as an unprivileged user, as its images do (1000:1000).");
+        }
 
         ContainerRun run = ContainerRun.of(
                         ImageDigest.relocate(manifest.image(), registryMirror),

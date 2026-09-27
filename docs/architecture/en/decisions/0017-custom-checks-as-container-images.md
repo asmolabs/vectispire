@@ -65,7 +65,9 @@ mounted socket, never a daemon of the plugin's own), and it writes **SARIF 2.1.0
   memory, process and CPU ceilings, a label, the container removed in a `finally`.
 - **Not root**: it runs as the workspace owner's `uid:gid`, the lesson of the Grype database mount —
   what root writes into a mount is root's on the host. A host that reports no owner does not run a
-  plugin at all rather than run it as root.
+  plugin at all rather than run it as root, and neither does a Vectispire that itself runs as root:
+  its workspace is root's, so its owner is root. The images run as `1000:1000`; the CI's job
+  container does not, which is how the gap was found.
 - **Only the analysed tree is mounted**, read-only, at `/repo/source` (the repository's sub-path if
   it has one, after `SourceFiles.within` proved it lies inside the clone). **Not the workspace**:
   its root holds the secrets report in the clear and the SBOM.
