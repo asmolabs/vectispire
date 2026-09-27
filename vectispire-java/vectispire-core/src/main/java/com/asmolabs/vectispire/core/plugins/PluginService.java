@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
@@ -21,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -132,7 +133,7 @@ public class PluginService {
     public PluginView update(String id, PluginManifest requested, RequestActor actor) {
         PluginManifest manifest = requireManifest(requested).validated();
         if (!manifest.id().equals(id)) {
-            throw new IllegalArgumentException("The manifest's id \"" + manifest.id() + "\" is not the plugin's \"" + id
+            throw new InvalidInputException("The manifest's id \"" + manifest.id() + "\" is not the plugin's \"" + id
                     + "\": an id is never changed, since it names every issue the plugin ever opened.");
         }
         Instant now = clock.instant();
@@ -228,7 +229,7 @@ public class PluginService {
         SolutionAdministrationService.ProjectView project = requireProject(projectId);
         transactions.executeWithoutResult(status -> {
             PluginActivationEntity activation = activations.findByPluginIdAndProjectId(pluginId, projectId)
-                    .orElseThrow(() -> new NoSuchElementException(
+                    .orElseThrow(() -> new NotFoundException(
                             "Plugin \"" + pluginId + "\" is not switched on for project " + projectId + "."));
             activations.delete(activation);
         });
@@ -301,17 +302,17 @@ public class PluginService {
 
     private PluginEntity require(String id) {
         return plugins.findById(id == null ? "" : id)
-                .orElseThrow(() -> new NoSuchElementException("No plugin \"" + id + "\" is registered."));
+                .orElseThrow(() -> new NotFoundException("No plugin \"" + id + "\" is registered."));
     }
 
     private SolutionAdministrationService.ProjectView requireProject(long projectId) {
         return projects.project(projectId)
-                .orElseThrow(() -> new NoSuchElementException("No project " + projectId + "."));
+                .orElseThrow(() -> new NotFoundException("No project " + projectId + "."));
     }
 
     private static PluginManifest requireManifest(PluginManifest manifest) {
         if (manifest == null) {
-            throw new IllegalArgumentException("A plugin manifest is required.");
+            throw new InvalidInputException("A plugin manifest is required.");
         }
         return manifest;
     }

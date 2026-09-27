@@ -7,6 +7,8 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -29,7 +31,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -292,7 +293,7 @@ public class AgentAdministrationService {
     public Declared declare(Declaration declaration, RequestActor actor) {
         String name = declaration.name() == null ? "" : declaration.name().trim();
         if (name.isEmpty()) {
-            throw new IllegalArgumentException("The agent's name is required.");
+            throw new InvalidInputException("The agent's name is required.");
         }
         // Checked against the narrower of its two columns: the agent's own is 255, but its key is
         // named "Agent " + name in another 255, and past that the key's insert failed — a 500, and
@@ -307,7 +308,7 @@ public class AgentAdministrationService {
         CredentialsMode mode = declaration.credentialsMode() == null || declaration.credentialsMode().isBlank()
                 ? CredentialsMode.LOCAL
                 : CredentialsMode.byWireName(declaration.credentialsMode().trim())
-                        .orElseThrow(() -> new IllegalArgumentException(
+                        .orElseThrow(() -> new InvalidInputException(
                                 "Unknown credentials mode: \"" + declaration.credentialsMode() + "\"."));
 
         ApiKeys.IssuedKey issued = ApiKeys.generate();
@@ -346,7 +347,7 @@ public class AgentAdministrationService {
      * history; a lowered limit stops new claims and lets the running scans finish.
      */
     public Changed change(UUID id, Change change, RequestActor actor) {
-        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
 
         boolean enabled = change.enabled() == null ? agent.getEnabled() : change.enabled();
         String labels = change.labels() == null ? agent.getLabels() : joinedLabels(change.labels());
@@ -389,7 +390,7 @@ public class AgentAdministrationService {
      */
     private static int bounded(int requested) {
         AgentConcurrency.refusal(requested).ifPresent(reason -> {
-            throw new IllegalArgumentException(reason);
+            throw new InvalidInputException(reason);
         });
         return requested;
     }
@@ -410,7 +411,7 @@ public class AgentAdministrationService {
      *     to stop requiring signed results
      */
     public PinnedKey pinSigningKey(UUID id, String publicKey, RequestActor actor) {
-        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
         String supplied = publicKey == null ? "" : publicKey.trim();
 
         if (supplied.isEmpty()) {
@@ -436,7 +437,7 @@ public class AgentAdministrationService {
         if (!ResultAttestation.isUsablePublicKey(supplied)) {
             // Refused on the way in rather than at the first result: the failure would otherwise
             // surface on the agent, hours later, as a scan that cannot be handed back.
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "That is not an Ed25519 public key: 32 bytes of base64 are expected. Send \"generate\" "
                             + "to have one made here instead.");
         }
@@ -460,7 +461,7 @@ public class AgentAdministrationService {
      * plane believes about the agent.
      */
     public void resetSealingKey(UUID id, RequestActor actor) {
-        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
         agents.forgetSealingKey(id);
         audit.record(new AuditLogService.Record(
                 AuditOperation.AGENT_SEALING_KEY_RESET,
@@ -489,13 +490,13 @@ public class AgentAdministrationService {
     }
 
     public void remove(UUID id, RequestActor actor) {
-        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NoSuchElementException("Agent not found."));
+        AgentEntity agent = agents.findById(id).orElseThrow(() -> new NotFoundException("Agent not found."));
 
         long running = scans.countWithStatusClaimedBy(ScanStatus.SCANNING.wireName(), id.toString());
         if (running > 0) {
             // Deleting now would leave those scans ownerless until their lease lapses, and the
             // operator would see them "running" without knowing nobody is running them.
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "This agent is running " + running + " scan(s). Disable it and wait for it to finish.");
         }
 

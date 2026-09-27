@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.plugins.web;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresPlatformGovernor;
@@ -74,7 +75,7 @@ public class SarifSourcesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         if (body == null) {
-            throw new IllegalArgumentException("A source declaration is required.");
+            throw new InvalidInputException("A source declaration is required.");
         }
         return sources.declare(
                 new SarifSourceService.Declaration(
@@ -91,7 +92,7 @@ public class SarifSourcesController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         if (body == null) {
-            throw new IllegalArgumentException("Say whether the source is enabled.");
+            throw new InvalidInputException("Say whether the source is enabled.");
         }
         return sources.setEnabled(id, body.enabled(), RequestActors.of(principal, request));
     }

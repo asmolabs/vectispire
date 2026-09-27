@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -16,7 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -97,10 +98,10 @@ public class GitTokenAdministrationService {
         String token = trim(rawToken);
         String username = trim(rawUsername);
         if (name.isEmpty()) {
-            throw new IllegalArgumentException("A name is required.");
+            throw new InvalidInputException("A name is required.");
         }
         if (token.isEmpty()) {
-            throw new IllegalArgumentException("The token is required.");
+            throw new InvalidInputException("The token is required.");
         }
         // The name and the username go into varchar(255) columns, and past them the database
         // refused the row at the write, as a 500. The token goes into `text` encrypted: a third
@@ -112,7 +113,7 @@ public class GitTokenAdministrationService {
         if (token.chars().anyMatch(Character::isWhitespace)) {
             // A pasted line break or a "Bearer " prefix: the forge would refuse it at the first clone,
             // far from here, as an authentication failure.
-            throw new IllegalArgumentException("The token contains spaces or line breaks: paste the token alone.");
+            throw new InvalidInputException("The token contains spaces or line breaks: paste the token alone.");
         }
         String host = RepositoryUrl.normalizeHost(rawHost);
 
@@ -138,10 +139,10 @@ public class GitTokenAdministrationService {
     }
 
     public void remove(UUID id, RequestActor actor) {
-        GitTokenEntity token = tokens.findById(id).orElseThrow(() -> new NoSuchElementException("Token not found."));
+        GitTokenEntity token = tokens.findById(id).orElseThrow(() -> new NotFoundException("Token not found."));
         long inUse = repositories.countByHttpsTokenId(id);
         if (inUse > 0) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "This token is used by " + inUse + " repository(ies). Detach it from them first.");
         }
         tokens.deleteById(id);

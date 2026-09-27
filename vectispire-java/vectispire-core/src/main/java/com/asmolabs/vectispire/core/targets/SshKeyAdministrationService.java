@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
@@ -15,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -93,10 +94,10 @@ public class SshKeyAdministrationService {
         String publicKey = trim(rawPublicKey);
 
         if (name.isEmpty()) {
-            throw new IllegalArgumentException("A name is required.");
+            throw new InvalidInputException("A name is required.");
         }
         if (privateKey.isEmpty()) {
-            throw new IllegalArgumentException("The private key is required.");
+            throw new InvalidInputException("The private key is required.");
         }
         // The name goes into a varchar(255), the keys into `text` — the private one encrypted, a
         // third longer. An RSA key of 16,384 bits is under 13,000 characters in PEM; the ceiling
@@ -108,7 +109,7 @@ public class SshKeyAdministrationService {
         if (!PRIVATE_KEY_HEADER.matcher(privateKey).find()) {
             // Refused on entry: otherwise the error only shows at the first clone, in an agent's
             // log, and looks like a network problem.
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "This does not look like a private key: expected a \"-----BEGIN … PRIVATE KEY-----\" block.");
         }
 
@@ -134,13 +135,13 @@ public class SshKeyAdministrationService {
     }
 
     public void remove(UUID id, RequestActor actor) {
-        SshKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
+        SshKeyEntity key = keys.findById(id).orElseThrow(() -> new NotFoundException("Key not found."));
 
         long inUse = repositories.countBySshKeyId(id);
         if (inUse > 0) {
             // Deleting the key would break the next scan of those repositories, and the failure
             // would land far from here. The refusal says how many to detach first.
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "This key is used by " + inUse + " repository(ies). Detach it from them first.");
         }
 

@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.targets;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.agents.AgentLabels;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
@@ -20,7 +22,6 @@ import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -159,7 +160,7 @@ public class RepositoryAdministrationService {
         // Validated **here and not only at scan time**: an unvalidated URL reaching a git clone
         // is arbitrary code execution, not a typo.
         RepositoryUrl.validate(url).ifPresent(message -> {
-            throw new IllegalArgumentException(message);
+            throw new InvalidInputException(message);
         });
         refuseCredentialInUrl(url);
         refuseUnlistedHost(url);
@@ -212,7 +213,7 @@ public class RepositoryAdministrationService {
             // Validated on update exactly as on create: an unvalidated URL reaching a git clone
             // is arbitrary code execution, and a row edited later is no safer than a row added.
             RepositoryUrl.validate(url).ifPresent(message -> {
-                throw new IllegalArgumentException(message);
+                throw new InvalidInputException(message);
             });
             refuseCredentialInUrl(url);
             refuseUnlistedHost(url);
@@ -278,7 +279,7 @@ public class RepositoryAdministrationService {
     /** Deletes the repository and everything hanging off it. */
     public void delete(long id, RequestActor actor) {
         RepositoryEntity repository = repositories.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Repository not found."));
+                .orElseThrow(() -> new NotFoundException("Repository not found."));
         TargetGrants.Revoked revoked = targetDeletion.deleteRepository(id);
         TargetDeletionAudit.record(audit, actor, id, "repository " + id,
                 "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()), revoked);
@@ -296,7 +297,7 @@ public class RepositoryAdministrationService {
             return null;
         }
         if (!CronExpressions.isValid(trimmed)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "Unusable cron expression: \"" + trimmed + "\". Expected five fields, for example "
                             + "\"0 2 * * *\" (every day at 02:00) or \"0 */6 * * *\" (every six hours).");
         }
@@ -321,13 +322,13 @@ public class RepositoryAdministrationService {
      */
     private void refuseUnlistedHost(String url) {
         if (!allowedHosts.permits(url)) {
-            throw new IllegalArgumentException(allowedHosts.refusal(url));
+            throw new InvalidInputException(allowedHosts.refusal(url));
         }
     }
 
     private static void refuseCredentialInUrl(String url) {
         if (RepositoryUrl.carriesCredential(url)) {
-            throw new IllegalArgumentException("The URL carries a credential. Remove it from the URL and attach an "
+            throw new InvalidInputException("The URL carries a credential. Remove it from the URL and attach an "
                     + "HTTPS token instead: it is stored encrypted and sent only to its own host.");
         }
     }
@@ -341,22 +342,22 @@ public class RepositoryAdministrationService {
     private void requireMatchingCredential(RepositoryEntity repository) {
         UUID tokenId = repository.getHttpsTokenId();
         if (tokenId != null && repository.getSshKeyId() != null) {
-            throw new IllegalArgumentException("A repository uses an SSH key or an HTTPS token, not both.");
+            throw new InvalidInputException("A repository uses an SSH key or an HTTPS token, not both.");
         }
         if (tokenId != null) {
             if (!RepositoryUrl.isHttps(repository.getUrl())) {
-                throw new IllegalArgumentException("An HTTPS token only works with an https:// URL.");
+                throw new InvalidInputException("An HTTPS token only works with an https:// URL.");
             }
             String host = gitTokens.findById(tokenId)
-                    .orElseThrow(() -> new IllegalArgumentException("No HTTPS token with id " + tokenId + "."))
+                    .orElseThrow(() -> new InvalidInputException("No HTTPS token with id " + tokenId + "."))
                     .getHost();
             if (!RepositoryUrl.hasHost(repository.getUrl(), host)) {
-                throw new IllegalArgumentException("This token is issued for " + host
+                throw new InvalidInputException("This token is issued for " + host
                         + " and would be sent to no other host; the URL names another one.");
             }
         }
         if (repository.getSshKeyId() != null && RepositoryUrl.isHttps(repository.getUrl())) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "An SSH key is not used over HTTPS. Use an ssh:// or git@ URL, or attach an HTTPS token.");
         }
     }
@@ -369,7 +370,7 @@ public class RepositoryAdministrationService {
         try {
             return UUID.fromString(trimmed);
         } catch (IllegalArgumentException malformed) {
-            throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid " + what + " identifier.");
+            throw new InvalidInputException("\"" + trimmed + "\" is not a valid " + what + " identifier.");
         }
     }
 
@@ -394,10 +395,10 @@ public class RepositoryAdministrationService {
         try {
             id = UUID.fromString(trimmed);
         } catch (IllegalArgumentException malformed) {
-            throw new IllegalArgumentException("\"" + trimmed + "\" is not a valid SSH key identifier.");
+            throw new InvalidInputException("\"" + trimmed + "\" is not a valid SSH key identifier.");
         }
         if (!sshKeys.existsById(id)) {
-            throw new IllegalArgumentException("No SSH key with id " + id + ".");
+            throw new InvalidInputException("No SSH key with id " + id + ".");
         }
         return id;
     }

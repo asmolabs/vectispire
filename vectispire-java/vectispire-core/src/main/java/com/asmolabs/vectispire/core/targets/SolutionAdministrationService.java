@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -17,7 +19,6 @@ import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,8 +39,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * both directions, with no grant row touched. That is the whole point of the decision and also its
  * sharpest edge, so every move is audited in words that say it.
  *
- * <p>Refusals follow the house convention: {@link IllegalArgumentException} for what the
- * administrator can correct (400), {@link NoSuchElementException} for what is not there or not
+ * <p>Refusals follow the house convention: {@link InvalidInputException} for what the
+ * administrator can correct (400), {@link NotFoundException} for what is not there or not
  * visible (404, in one sentence for both), {@link SolutionNotEmptyException} for a deletion the
  * current state forbids (409).
  */
@@ -283,7 +284,7 @@ public class SolutionAdministrationService {
         ProjectEntity project = requireProject(projectId);
         RepositoryEntity repository = RowVisibility.requireVisibleRepository(repositories.findById(repositoryId).orElse(null), repositoryId, allowed);
         if (!Objects.equals(repository.getProjectId(), projectId)) {
-            throw new NoSuchElementException("This repository is not in that project.");
+            throw new NotFoundException("This repository is not in that project.");
         }
 
         repositories.assignProject(repositoryId, null);
@@ -296,11 +297,11 @@ public class SolutionAdministrationService {
     // -------------------------------------------------------------------------------- helpers
 
     private SolutionEntity requireSolution(long id) {
-        return solutions.findById(id).orElseThrow(() -> new NoSuchElementException("Solution not found."));
+        return solutions.findById(id).orElseThrow(() -> new NotFoundException("Solution not found."));
     }
 
     private ProjectEntity requireProject(long id) {
-        return projects.findById(id).orElseThrow(() -> new NoSuchElementException("Project not found."));
+        return projects.findById(id).orElseThrow(() -> new NotFoundException("Project not found."));
     }
 
     private String projectName(Long id) {
@@ -312,14 +313,14 @@ public class SolutionAdministrationService {
         if (existing.isPresent() && !existing.get().getId().equals(allowed)) {
             // Here rather than left to the constraint, which answers a 500 carrying a driver's
             // message — and which folds case on MySQL and not on PostgreSQL.
-            throw new IllegalArgumentException("A solution named \"" + name + "\" already exists.");
+            throw new InvalidInputException("A solution named \"" + name + "\" already exists.");
         }
     }
 
     private void refuseIfProjectNameTaken(long solutionId, String name, Long allowed) {
         Optional<ProjectEntity> existing = projects.findBySolutionIdAndNameIgnoreCase(solutionId, name);
         if (existing.isPresent() && !existing.get().getId().equals(allowed)) {
-            throw new IllegalArgumentException("This solution already holds a project named \"" + name + "\".");
+            throw new InvalidInputException("This solution already holds a project named \"" + name + "\".");
         }
     }
 }

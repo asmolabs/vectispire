@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.sarif.SarifReport;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.ApiKeyAdministrationService;
@@ -15,7 +17,6 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -90,7 +91,7 @@ public class SarifSourceService {
     /** Declares a source, or refuses it with a reason the governor can act on. */
     public SarifSourceView declare(Declaration declaration, RequestActor actor) {
         if (declaration == null) {
-            throw new IllegalArgumentException("A source declaration is required.");
+            throw new InvalidInputException("A source declaration is required.");
         }
         String slug = requireSlug(declaration.slug());
         String name = BoundedText.required(declaration.name(), MAX_NAME, "The source's name");
@@ -160,7 +161,7 @@ public class SarifSourceService {
     }
 
     private SarifSourceEntity require(long id) {
-        return sources.findById(id).orElseThrow(() -> new NoSuchElementException("No SARIF source " + id + "."));
+        return sources.findById(id).orElseThrow(() -> new NotFoundException("No SARIF source " + id + "."));
     }
 
     /**
@@ -169,20 +170,20 @@ public class SarifSourceService {
      */
     private UUID requireImportKey(UUID keyId) {
         if (keyId == null) {
-            throw new IllegalArgumentException("A source names the integration key it uploads with.");
+            throw new InvalidInputException("A source names the integration key it uploads with.");
         }
         ApiKeyAdministrationService.KeyView key = apiKeys.key(keyId)
-                .orElseThrow(() -> new IllegalArgumentException("No API key " + keyId + "."));
+                .orElseThrow(() -> new InvalidInputException("No API key " + keyId + "."));
         if (!key.scopes().contains(ApiKeyScope.SARIF_IMPORT.wireName())) {
-            throw new IllegalArgumentException("The key \"" + key.name() + "\" does not hold the "
+            throw new InvalidInputException("The key \"" + key.name() + "\" does not hold the "
                     + ApiKeyScope.SARIF_IMPORT.wireName() + " scope; issue one that does.");
         }
         if (key.scopes().contains(ApiKeyScope.AGENT.wireName()) || key.owner() == null) {
-            throw new IllegalArgumentException("The key \"" + key.name() + "\" acts for no active account; a source "
+            throw new InvalidInputException("The key \"" + key.name() + "\" acts for no active account; a source "
                     + "uploads with an integration key issued by an account.");
         }
         if (key.expired()) {
-            throw new IllegalArgumentException("The key \"" + key.name() + "\" has expired.");
+            throw new InvalidInputException("The key \"" + key.name() + "\" has expired.");
         }
         return keyId;
     }
@@ -190,33 +191,33 @@ public class SarifSourceService {
     /** Exactly one scope, and one that exists — described for the audit entry. */
     private String requireScope(Long projectId, Long repositoryId) {
         if ((projectId == null) == (repositoryId == null)) {
-            throw new IllegalArgumentException("A source delivers for exactly one project or one repository — never the "
+            throw new InvalidInputException("A source delivers for exactly one project or one repository — never the "
                     + "whole estate, and not both.");
         }
         if (projectId != null) {
             SolutionAdministrationService.ProjectView project = projects.project(projectId)
-                    .orElseThrow(() -> new NoSuchElementException("No project " + projectId + "."));
+                    .orElseThrow(() -> new NotFoundException("No project " + projectId + "."));
             return "project \"" + project.name() + "\" (" + projectId + ")";
         }
         targets.repository(repositoryId)
-                .orElseThrow(() -> new NoSuchElementException("No repository " + repositoryId + "."));
+                .orElseThrow(() -> new NotFoundException("No repository " + repositoryId + "."));
         return "repository " + repositoryId;
     }
 
     /** The tool names, compared as the import compares them: stripped and lowercased. */
     static List<String> requireTools(List<String> tools) {
         if (tools == null || tools.isEmpty()) {
-            throw new IllegalArgumentException("A source declares the tools it delivers — each run's tool.driver.name.");
+            throw new InvalidInputException("A source declares the tools it delivers — each run's tool.driver.name.");
         }
         if (tools.size() > MAX_TOOLS) {
-            throw new IllegalArgumentException("A source declares at most " + MAX_TOOLS + " tools.");
+            throw new InvalidInputException("A source declares at most " + MAX_TOOLS + " tools.");
         }
         List<String> normalized = new ArrayList<>();
         for (String tool : tools) {
             String value = tool == null ? "" : tool.strip().toLowerCase(Locale.ROOT);
             if (value.isEmpty() || value.length() > SarifReport.MAX_TOOL_NAME || value.contains(",")
                     || value.chars().anyMatch(Character::isISOControl)) {
-                throw new IllegalArgumentException("A tool name is 1 to " + SarifReport.MAX_TOOL_NAME
+                throw new InvalidInputException("A tool name is 1 to " + SarifReport.MAX_TOOL_NAME
                         + " characters, with no comma and no control character.");
             }
             if (!normalized.contains(value)) {
@@ -236,7 +237,7 @@ public class SarifSourceService {
             valid = alphanumeric || (c == '-' && i > 0 && i < value.length() - 1);
         }
         if (!valid) {
-            throw new IllegalArgumentException("A source's slug is 2 to " + MAX_SLUG + " lowercase letters, digits and "
+            throw new InvalidInputException("A source's slug is 2 to " + MAX_SLUG + " lowercase letters, digits and "
                     + "inner hyphens: it names every issue the source imports, and is never renamed.");
         }
         return value;

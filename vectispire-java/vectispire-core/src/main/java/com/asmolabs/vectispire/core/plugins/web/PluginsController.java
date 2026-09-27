@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.plugins.web;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -99,7 +100,7 @@ public class PluginsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         if (body == null) {
-            throw new IllegalArgumentException("Say whether the plugin is enabled.");
+            throw new InvalidInputException("Say whether the plugin is enabled.");
         }
         return plugins.setEnabled(id, body.enabled(), RequestActors.of(principal, request));
     }

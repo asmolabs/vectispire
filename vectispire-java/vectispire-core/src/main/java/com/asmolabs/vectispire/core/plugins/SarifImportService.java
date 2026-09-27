@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.plugins;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.ToolKeys;
@@ -29,7 +30,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -125,11 +125,11 @@ public class SarifImportService {
 
         RepositoryView repository = targets.repository(repositoryId)
                 .filter(found -> caller.allowed().permits(new ScanTarget.Repository(repositoryId)))
-                .orElseThrow(() -> new NoSuchElementException("No repository " + repositoryId + "."));
+                .orElseThrow(() -> new NotFoundException("No repository " + repositoryId + "."));
         if (!inScope(source, repository)) {
             refused(caller, String.valueOf(repositoryId), "source \"" + source.getSlug()
                     + "\" is not declared for repository " + repositoryId, null);
-            throw new NoSuchElementException("No repository " + repositoryId + ".");
+            throw new NotFoundException("No repository " + repositoryId + ".");
         }
 
         if (document == null || document.length > maxBytes) {
@@ -207,7 +207,7 @@ public class SarifImportService {
     public List<SarifImportView> history(long repositoryId, Visibility allowed) {
         targets.repository(repositoryId)
                 .filter(found -> allowed.permits(new ScanTarget.Repository(repositoryId)))
-                .orElseThrow(() -> new NoSuchElementException("No repository " + repositoryId + "."));
+                .orElseThrow(() -> new NotFoundException("No repository " + repositoryId + "."));
         return imports.findByRepoIdOrderByImportedAtDescIdDesc(repositoryId, PageRequest.of(0, HISTORY)).stream()
                 .map(SarifImportView::of)
                 .toList();

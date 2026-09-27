@@ -7,6 +7,8 @@ import static com.asmolabs.vectispire.core.targets.RepositoryAdministrationServi
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.AssetTier;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -20,7 +22,6 @@ import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -99,7 +100,7 @@ public class ContainerAdministrationService {
         // pull` unchecked is not a typo, it is whatever the operator's daemon will fetch.
         requireFits(reference);
         reference.validate().ifPresent(message -> {
-            throw new IllegalArgumentException(message);
+            throw new InvalidInputException(message);
         });
 
         ContainerEntity container = new ContainerEntity();
@@ -142,7 +143,7 @@ public class ContainerAdministrationService {
                 changes.tag() != null ? (trim(changes.tag()).isEmpty() ? "latest" : trim(changes.tag())) : container.getTag());
         requireFits(reference);
         reference.validate().ifPresent(message -> {
-            throw new IllegalArgumentException(message);
+            throw new InvalidInputException(message);
         });
         container.setRegistry(reference.registry());
         container.setImageName(reference.imageName());
@@ -185,7 +186,7 @@ public class ContainerAdministrationService {
     /** Deletes the image and everything hanging off it. */
     public void delete(long id, RequestActor actor) {
         ContainerEntity container = containers.findById(id)
-                .orElseThrow(() -> new NoSuchElementException("Image not found."));
+                .orElseThrow(() -> new NotFoundException("Image not found."));
         TargetGrants.Revoked revoked = targetDeletion.deleteContainer(id);
         TargetDeletionAudit.record(audit, actor, id, "image " + id,
                 "Image deleted: " + referenceOf(container).format(), revoked);

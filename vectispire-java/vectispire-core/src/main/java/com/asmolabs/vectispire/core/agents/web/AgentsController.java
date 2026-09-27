@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
@@ -19,7 +20,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -205,7 +205,7 @@ public class AgentsController {
         // are gone".
         return ruleSets.contentByHash(hash)
                 .map(content -> new RuleSetResponse(content.contentHash(), content.files()))
-                .orElseThrow(() -> new NoSuchElementException("No rule set with hash " + hash + "."));
+                .orElseThrow(() -> new NotFoundException("No rule set with hash " + hash + "."));
     }
 
     /**
@@ -221,7 +221,7 @@ public class AgentsController {
             @PathVariable String id, @PathVariable String digest, @AuthenticationPrincipal VectispirePrincipal principal) {
         authenticate(principal);
         return plugins.manifest(new PluginRef(id, digest))
-                .orElseThrow(() -> new NoSuchElementException("No plugin " + id + " with manifest " + digest + "."));
+                .orElseThrow(() -> new NotFoundException("No plugin " + id + " with manifest " + digest + "."));
     }
 
     /**
