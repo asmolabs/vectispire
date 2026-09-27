@@ -42,7 +42,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * operator reports as a bug in Vectispire rather than as a mistake in their own request.
  *
  * <p><b>One shape for every error, the framework's included.</b> Only the exceptions listed below
- * used to answer a problem. A {@code ResponseStatusException} — forty-three of them, each with a
+ * used to answer a problem. A {@code ResponseStatusException} — thirty-seven of them, each with a
  * sentence written for the caller — and every refusal Spring MVC makes on its own (an unknown route,
  * a wrong method or media type, a body that is not JSON) went to the container's error page instead:
  * {@code {timestamp, status, error, path}}, no {@code detail}, so the interface's {@code messageOf}

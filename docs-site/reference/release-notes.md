@@ -51,8 +51,17 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
-- A **413** is now always an RFC 9457 problem (`application/problem+json` with `detail`), also
-  when refused on the declared length before reading.
+- **Every error is an RFC 9457 problem** (`application/problem+json`) with a `detail` meant to be
+  shown — see [API errors](errors.md). Refusals that carried no sentence now do: an unknown route,
+  405, 406, 415, an unreadable body, the sign-in refusals, the 401 of a missing or invalid
+  credential (which had no body) and the 403 of a role (which had the container's
+  `{timestamp, status, error, path}`). The three rate limiters answered `{"message": …}`: the
+  sentence is now `detail`, and a new `retryAfterSeconds` repeats the `Retry-After` header. A
+  client reading `message` must read `detail`.
+- **A 500 no longer quotes the failure.** An error nobody wrote a message for — including one that
+  used to answer 400 or 404 with a library's own words ("For input string", "No value present",
+  "No enum constant …") — is a 500 whose `detail` gives a `correlationId`, logged with the error.
+  The refusals Vectispire writes keep their status and their sentence.
 - Granting a repository or an image that does not exist, or that the granting administrator
   cannot see, is refused with a **404**; a grant naming a missing project was a 400 and is a 404.
 - An **API key restricted to a target** acts on that target only; a restriction no route would

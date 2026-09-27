@@ -56,8 +56,19 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
-- Un **413** est désormais toujours un problème RFC 9457 (`application/problem+json` avec
-  `detail`), y compris quand il est refusé sur la longueur annoncée avant la lecture.
+- **Chaque erreur est un problème RFC 9457** (`application/problem+json`) avec un `detail` fait
+  pour être affiché — voir [Erreurs de l'API](errors.md). Les refus qui ne portaient aucune phrase
+  en portent une : une route inconnue, 405, 406, 415, un corps illisible, les refus de connexion,
+  le 401 d'un identifiant absent ou invalide (qui n'avait pas de corps) et le 403 d'un rôle (qui
+  portait le `{timestamp, status, error, path}` du conteneur). Les trois limiteurs de débit
+  répondaient `{"message": …}` : la phrase est désormais `detail`, et un nouveau
+  `retryAfterSeconds` répète l'en-tête `Retry-After`. Un client qui lit `message` doit lire
+  `detail`.
+- **Un 500 ne cite plus la défaillance.** Une erreur pour laquelle personne n'a écrit de message —
+  y compris celles qui répondaient 400 ou 404 avec les mots d'une bibliothèque (« For input
+  string », « No value present », « No enum constant … ») — est un 500 dont le `detail` donne un
+  `correlationId`, journalisé avec l'erreur. Les refus que Vectispire écrit gardent leur statut et
+  leur phrase.
 - Accorder un dépôt ou une image qui n'existe pas, ou que l'administrateur qui accorde ne voit
   pas, est refusé par un **404** ; un droit qui nomme un projet absent était un 400 et devient un
   404.

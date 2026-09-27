@@ -151,6 +151,7 @@ plugins:
             Rotation and purge: Rotation et purge
             Reference: Référence
             Configuration: Configuration
+            API errors: Erreurs de l'API
             FAQ: FAQ
             Release notes: Notes de version
 
@@ -228,5 +229,6 @@ nav:
       - Rotation and purge: administration/maintenance.md
   - Reference:
       - Configuration: reference/configuration.md
+      - API errors: reference/errors.md
       - FAQ: reference/faq.md
       - Release notes: reference/release-notes.md

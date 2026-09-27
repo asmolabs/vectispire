@@ -256,6 +256,15 @@ a foreign id is checked for existence *and* visibility (absent and hidden in the
 enforces no length, so the HTTP suite passes where MySQL and PostgreSQL answer 500. An encrypted
 column holds `v2:` + base64 of nonce, text and tag — size it for the ciphertext, not the secret.
 
+**A refusal is `InvalidInputException` (400) or `NotFoundException` (404)**, both in
+`common.domain.errors`, and its message is the problem's `detail`, shown as written. A bare
+`IllegalArgumentException` or `NoSuchElementException` is a 500 that quotes only a correlation id —
+so a JDK parser, `Enum.valueOf` or `Optional.orElseThrow()` on a caller's value is a 500 until you
+refuse it in words (`TicketingProvider.parse`); `RefusalTypesTest` fails on a new bare one. A
+`ResponseStatusException`'s reason reaches the client too: on a route that names a target, use the
+guard's sentence (`RowVisibility`), or the reason tells absent from hidden. Assert on `detailOf(...)`,
+never `getErrorMessage()` — MockMvc keeps the `sendError` reason, a container drops it.
+
 **No outbound HTTP inside a transaction.** An enrichment or an AI call holding a row lock for
 minutes is a production incident no test sees. `@Async` is inert here — there is no
 `@EnableAsync` — so work meant to leave after commit goes through the outbox.
