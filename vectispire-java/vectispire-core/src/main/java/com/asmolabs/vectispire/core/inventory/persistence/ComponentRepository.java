@@ -54,6 +54,10 @@ public interface ComponentRepository extends JpaRepository<ComponentEntity, Long
 
     List<ComponentEntity> findByScanId(long scanId);
 
+    /** Which of these scans the inventory holds components of — the backfill keeps the others. */
+    @Query("select distinct c.scanId from ComponentEntity c where c.scanId in :scanIds")
+    List<Long> indexedAmong(@Param("scanIds") Collection<Long> scanIds);
+
     List<ComponentEntity> findByScanIdIn(Collection<Long> scanIds);
 
     @Transactional

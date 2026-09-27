@@ -87,7 +87,7 @@ list does not carry; it sees twenty-six modules (the twenty-five above, seven of
 `config`) and writes their canvases and diagrams into `build/modulith-docs/`
 ([05](../docs/architecture/en/05-modularity.md)). `ArchitectureTest` keeps what Modulith cannot say:
 the layers inside a module, and the six modules that use `access` for their routes only. A JPQL string
-naming another module's entity is invisible to both, and `CrossModuleQueriesTest` lists the eleven
+naming another module's entity is invisible to both, and `CrossModuleQueriesTest` lists the ten
 there are. Production carries Modulith's annotations and nothing else, which `ModulithRuntimeInertTest`
 checks.
 

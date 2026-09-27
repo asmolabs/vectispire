@@ -181,23 +181,24 @@ class HistoryQueriesIntegrationTest {
     }
 
     @Test
-    @DisplayName("finds the scans whose SBOM nothing has indexed")
+    @DisplayName("finds the scans whose SBOM nothing has indexed, each module over its own table")
     void theBackfillSelectionRuns() {
-        assertThat(scans.findWithSbomButNoComponents(Limit.of(10))).isEmpty();
+        assertThat(scans.findIdsWithSbomBefore(Long.MAX_VALUE, Limit.of(10))).isEmpty();
 
         ScanEntity scan = scans.findById(scanId).orElseThrow();
         scan.setSbom("{\"artifacts\":[]}");
         scans.save(scan);
 
-        assertThat(scans.findWithSbomButNoComponents(Limit.of(10)))
-                .extracting(ScanEntity::getId)
-                .containsExactly(scanId);
+        List<Long> withSbom = scans.findIdsWithSbomBefore(Long.MAX_VALUE, Limit.of(10));
+        assertThat(withSbom).containsExactly(scanId);
+        assertThat(scans.findIdsWithSbomBefore(scanId, Limit.of(10))).as("the cursor excludes itself").isEmpty();
+        assertThat(components.indexedAmong(withSbom)).isEmpty();
 
         components.save(component("anything", "1.0.0"));
 
         // Selected by the absence of rows, so indexing one takes it out of the queue with no
         // marker column that could disagree with the table it describes.
-        assertThat(scans.findWithSbomButNoComponents(Limit.of(10))).isEmpty();
+        assertThat(components.indexedAmong(withSbom)).containsExactly(scanId);
     }
 
     private TriageEventEntity decision() {

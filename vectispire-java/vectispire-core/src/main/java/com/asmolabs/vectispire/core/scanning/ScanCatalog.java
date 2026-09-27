@@ -11,6 +11,7 @@ import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,9 +99,23 @@ public class ScanCatalog {
         };
     }
 
-    /** Scans holding an SBOM that the components inventory has not indexed yet, newest first. */
-    public List<ScanView> withSbomButNoComponents(int limit) {
-        return scans.findWithSbomButNoComponents(Limit.of(limit)).stream().map(ScanView::of).toList();
+    /**
+     * The identifiers of the scans holding an SBOM, newest first, below {@code before}.
+     *
+     * <p>Which of them the components inventory has indexed is {@code inventory}'s question, over its
+     * own table: the statement that answered both at once read {@code inventory}'s rows from here,
+     * against the modules' direction.
+     */
+    public List<Long> idsWithSbomBefore(long before, int limit) {
+        return scans.findIdsWithSbomBefore(before, Limit.of(limit));
+    }
+
+    /** These scans, newest first; an identifier with no scan is left out. */
+    public List<ScanView> scans(Collection<Long> ids) {
+        return scans.findAllById(ids).stream()
+                .sorted(Comparator.comparing(ScanEntity::getId).reversed())
+                .map(ScanView::of)
+                .toList();
     }
 
     public List<LatestScanRow> latestPerRepository() {

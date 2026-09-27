@@ -82,7 +82,11 @@ class CrossModuleQueriesTest {
             + "below, so the direction holds.";
 
     /**
-     * The cross-module statements as step 6 found them — the ones decision 0029 listed, and no other.
+     * The cross-module statements as step 6 found them — the ones decision 0029 listed, and no other —
+     * less the one that went. {@code ScanRepository.findWithSbomButNoComponents} read {@code
+     * inventory}'s table from {@code scanning}, against the direction; the backfill now asks {@code
+     * ScanCatalog} for the scans holding an SBOM and its own table for which of them it has indexed.
+     * None left points against the direction.
      */
     private static final List<Known> KNOWN = List.of(
             new Known(new Reference("AiReviewResultRepository.latestForRepository", "scanning", "ScanEntity"), false,
@@ -100,13 +104,7 @@ class CrossModuleQueriesTest {
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
             new Known(new Reference("IssueRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
             new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "ContainerEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP),
-            new Known(new Reference("ScanRepository.findWithSbomButNoComponents", "inventory", "ComponentEntity"), true,
-                    "The inventory's backfill (InventoryBackfill, through ScanCatalog) selects the scans whose SBOM "
-                            + "has no component row yet, by the absence of rows so that the query and the table "
-                            + "cannot disagree. It reads `inventory` from `scanning`, which may not use it: the "
-                            + "statement belongs in `inventory`, over its own table, asking ScanCatalog for the "
-                            + "scans that hold an SBOM."));
+            new Known(new Reference("ScanRepository.findOrphanedIds", "targets", "RepositoryEntity"), false, ORPHAN_SWEEP));
 
     private static JavaClasses classes;
 

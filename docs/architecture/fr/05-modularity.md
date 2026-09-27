@@ -94,11 +94,13 @@ module, ne peut exprimer : `ArchitectureTest.accessForRoutesOnly` en tient leurs
 **Les couplages que ni Modulith ni ArchUnit ne peuvent compter sont des chaînes** : des requêtes JPQL qui
 nomment l'entité d'un autre module. `CrossModuleQueriesTest` lit chaque requête de dépôt, rattache les
 entités, tables et classes qu'elle nomme à leur module, et échoue sur une référence que sa liste ne porte
-pas. Il en trouve onze — les balayages d'orphelins d'`IssueRepository` et de `ScanRepository` (les tables de `targets`),
-les cinq jointures de l'inventaire aux scans qui ont vu chaque composant,
-`AiReviewResultRepository.latestForRepository` (les scans), et `ScanRepository.findWithSbomButNoComponents`, qui lit
-`inventory` depuis `scanning`, à contresens des modules, et le dit. Chacune est une instruction sur deux
-tables, moins chère que deux requêtes et une différence d'ensembles ; la dernière est celle à déplacer.
+pas. Il en trouve dix — les balayages d'orphelins d'`IssueRepository` et de `ScanRepository` (les tables de `targets`),
+les cinq jointures de l'inventaire aux scans qui ont vu chaque composant, et
+`AiReviewResultRepository.latestForRepository` (les scans). Chacune est une instruction sur deux tables,
+moins chère que deux requêtes et une différence d'ensembles, et chacune lit un module sous le sien. La
+onzième, `ScanRepository.findWithSbomButNoComponents`, lisait `inventory` depuis `scanning`, à contresens
+des modules, et a été déplacée : le rattrapage de l'inventaire demande à `ScanCatalog` les scans qui
+portent un SBOM, une page d'identifiants à la fois, et à sa propre table lesquels il a déjà indexés.
 
 ## Ce qui a changé avant cette observation (étape 1)
 
