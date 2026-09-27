@@ -52,6 +52,13 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/solutions/solutions').then((m) => m.Solutions)
             },
             {
+                // Readable by every account, like the server's GET: an image, arguments and
+                // languages name no target. The page offers the writes to the platform governor only.
+                path: 'plugins',
+                title: 'titles.plugins',
+                loadComponent: () => import('./app/pages/plugins/plugins').then((m) => m.Plugins)
+            },
+            {
                 path: 'containers',
                 title: 'titles.containers',
                 loadComponent: () => import('./app/pages/containers/containers').then((m) => m.Containers)

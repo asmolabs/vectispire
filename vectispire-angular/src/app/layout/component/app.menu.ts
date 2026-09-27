@@ -138,7 +138,10 @@ export class AppMenu {
                         icon: 'pi pi-fw pi-objects-column',
                         routerLink: ['/solutions']
                     },
-                    { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
+                    { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] },
+                    // For every account, as the registry's read is: a developer whose scan lists a
+                    // plugin as absent has to be able to see what that plugin is.
+                    { label: this.i18n.t('menu.plugins'), icon: 'pi pi-fw pi-th-large', routerLink: ['/plugins'] }
                 ]
             },
             {

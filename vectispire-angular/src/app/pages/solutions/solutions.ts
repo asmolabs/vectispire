@@ -10,9 +10,20 @@ import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { MessageModule } from '@openng/optimus-ui/message';
 import { SelectModule } from '@openng/optimus-ui/select';
 import { TagModule } from '@openng/optimus-ui/tag';
+import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
+import { forkJoin } from 'rxjs';
 import { messageOf } from '../../core/api-error';
+import { PluginsApi } from '../../core/api/plugins.api';
 import { SolutionsApi } from '../../core/api/solutions.api';
-import type { OpenIssues, ProjectNode, RepositoryRef, SolutionNode, SolutionTree } from '../../core/api.models';
+import type {
+    OpenIssues,
+    Plugin,
+    PluginActivation,
+    ProjectNode,
+    RepositoryRef,
+    SolutionNode,
+    SolutionTree
+} from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
@@ -73,6 +84,7 @@ interface Filing {
         MessageModule,
         SelectModule,
         TagModule,
+        ToggleSwitchModule,
         TranslatePipe
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
@@ -80,12 +92,16 @@ interface Filing {
 })
 export class Solutions {
     private readonly api = inject(SolutionsApi);
+    private readonly pluginsApi = inject(PluginsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     private readonly injector = inject(Injector);
     private readonly load = new LatestRequest();
 
     readonly isAdmin = this.session.isAdmin;
+    /** Which plugins a project runs is governance: read by its readers, changed by a security lead. */
+    readonly readsGovernance = this.session.canReadGovernance;
+    readonly isSecurityLead = this.session.isSecurityLead;
     readonly nameMax = NAME_MAX;
     readonly descriptionMax = DESCRIPTION_MAX;
 
@@ -222,8 +238,78 @@ export class Solutions {
             : this.i18n.t('solutions.file_consequence', { repository: filing.repository.name, to: target });
     });
 
+    // --- Plugins switched on for a project (decision 0017) -----------------------------------------
+
+    readonly pluginsProject = signal<{ solution: SolutionNode; project: ProjectNode } | null>(null);
+    readonly pluginsVisible = signal(false);
+    readonly registry = signal<Plugin[] | null>(null);
+    readonly activations = signal<Map<string, PluginActivation>>(new Map());
+    readonly pluginsError = signal<string | null>(null);
+    readonly pluginBusy = signal<string | null>(null);
+    private readonly pluginsLoad = new LatestRequest();
+
     constructor() {
         this.reload();
+    }
+
+    /**
+     * The registry beside the project's activations, so every plugin is offered — switched on or not
+     * — with the languages it would look for. A plugin disabled on the platform keeps its activation
+     * and runs nowhere; the dialog says so rather than let a switch that is on read as "running".
+     */
+    openPlugins(solution: SolutionNode, project: ProjectNode): void {
+        this.pluginsProject.set({ solution, project });
+        this.registry.set(null);
+        this.activations.set(new Map());
+        this.pluginsError.set(null);
+        this.pluginsVisible.set(true);
+        this.pluginsLoad.run(
+            forkJoin({ plugins: this.pluginsApi.plugins(), active: this.pluginsApi.projectPlugins(project.id) }),
+            {
+                next: ({ plugins, active }) => {
+                    this.registry.set(plugins);
+                    this.activations.set(new Map(active.map((activation) => [activation.pluginId, activation])));
+                },
+                error: (failure) => {
+                    this.registry.set([]);
+                    this.pluginsError.set(messageOf(failure, this.i18n.t('solutions.plugins_error_load')));
+                }
+            }
+        );
+    }
+
+    /** On with a `PUT`, off with a `DELETE`; the row follows what the server answered, not the click. */
+    togglePlugin(plugin: Plugin, on: boolean): void {
+        const target = this.pluginsProject();
+        if (!target) return;
+        const projectId = target.project.id;
+        this.pluginBusy.set(plugin.id);
+        this.pluginsError.set(null);
+        const done = (next: Map<string, PluginActivation>) => {
+            this.pluginBusy.set(null);
+            this.activations.set(next);
+        };
+        const fail = (failure: unknown) => {
+            this.pluginBusy.set(null);
+            // Re-set so the switch returns to the stored state: the model was bound to the click.
+            this.activations.set(new Map(this.activations()));
+            this.pluginsError.set(messageOf(failure, this.i18n.t('solutions.plugins_error_change')));
+        };
+        if (on) {
+            this.pluginsApi.activatePlugin(projectId, plugin.id).subscribe({
+                next: (activation) => done(new Map(this.activations()).set(plugin.id, activation)),
+                error: fail
+            });
+        } else {
+            this.pluginsApi.deactivatePlugin(projectId, plugin.id).subscribe({
+                next: () => {
+                    const next = new Map(this.activations());
+                    next.delete(plugin.id);
+                    done(next);
+                },
+                error: fail
+            });
+        }
     }
 
     reload(preserveError = false): void {

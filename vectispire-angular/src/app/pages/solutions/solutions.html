@@ -147,6 +147,17 @@
                                         />
                                     </div>
                                 </div>
+                                @if (readsGovernance()) {
+                                    <p-button
+                                        icon="pi pi-th-large"
+                                        [text]="true"
+                                        size="small"
+                                        [label]="'solutions.plugins_btn' | translate"
+                                        [ariaLabel]="'solutions.aria_plugins' | translate: { name: project.name }"
+                                        data-testid="project-plugins"
+                                        (onClick)="openPlugins(solution, project)"
+                                    />
+                                }
                                 @if (isAdmin()) {
                                     <div class="whitespace-nowrap">
                                         <p-button
@@ -304,6 +315,82 @@
     <ng-template #footer>
         <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="confirmVisible.set(false)" />
         <p-button [label]="'common.confirm' | translate" severity="danger" [loading]="saving()" (onClick)="confirm()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="
+        'solutions.plugins_header'
+            | translate
+                : {
+                      project: pluginsProject()
+                          ? pluginsProject()!.solution.name + ' / ' + pluginsProject()!.project.name
+                          : ''
+                  }
+    "
+    [(visible)]="pluginsVisible"
+    [modal]="true"
+    [style]="{ width: '40rem', maxWidth: '95vw' }"
+>
+    <div class="flex flex-col gap-3" data-testid="plugins-dialog">
+        <p class="m-0 text-sm text-muted-color">{{ 'solutions.plugins_explain' | translate }}</p>
+        @if (!isSecurityLead()) {
+            <p-message severity="info" [closable]="false">{{ 'solutions.plugins_read_only' | translate }}</p-message>
+        }
+        @if (pluginsError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+        @if (registry(); as plugins) {
+            @if (plugins.length === 0 && !pluginsError()) {
+                <p class="m-0 text-muted-color">{{ 'solutions.plugins_none' | translate }}</p>
+            }
+            <ul class="list-none p-0 m-0 flex flex-col gap-2">
+                @for (plugin of plugins; track plugin.id) {
+                    <li
+                        class="flex items-start justify-between gap-3 border rounded-md p-2"
+                        style="border-color: var(--surface-border)"
+                        [attr.data-testid]="'project-plugin-' + plugin.id"
+                    >
+                        <div class="min-w-0">
+                            <div class="font-medium">
+                                <span class="font-mono">{{ plugin.id }}</span> — {{ plugin.name }}
+                            </div>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                @for (language of plugin.manifest.languages; track language) {
+                                    <p-tag severity="secondary" [value]="language" />
+                                }
+                            </div>
+                            @if (!plugin.enabled) {
+                                <div class="text-sm text-orange-600 mt-1">
+                                    {{ 'solutions.plugin_disabled' | translate }}
+                                </div>
+                            }
+                            @if (activations().get(plugin.id); as activation) {
+                                <div class="text-xs text-muted-color mt-1">
+                                    {{
+                                        'solutions.plugin_activated_by'
+                                            | translate: { who: activation.activatedBy ?? '—' }
+                                    }}
+                                    {{ activation.activatedAt | date: 'dd/MM/yyyy' }}
+                                </div>
+                            }
+                        </div>
+                        <p-toggleswitch
+                            [inputId]="'project-plugin-toggle-' + plugin.id"
+                            [ariaLabel]="'solutions.aria_plugin_toggle' | translate: { id: plugin.id }"
+                            [ngModel]="activations().has(plugin.id)"
+                            (ngModelChange)="togglePlugin(plugin, $event)"
+                            [disabled]="!isSecurityLead() || pluginBusy() === plugin.id"
+                        />
+                    </li>
+                }
+            </ul>
+        } @else {
+            <p class="m-0 text-muted-color">{{ 'common.loading' | translate }}</p>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.close' | translate" [text]="true" (onClick)="pluginsVisible.set(false)" />
     </ng-template>
 </p-dialog>
 

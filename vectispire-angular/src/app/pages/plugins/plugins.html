@@ -1,0 +1,381 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'plugins.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'plugins.subtitle' | translate }}</p>
+    </div>
+    @if (governs()) {
+        <p-button
+            id="register-plugin"
+            [label]="'plugins.register_btn' | translate"
+            icon="pi pi-plus"
+            (onClick)="openRegister()"
+        />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card styleClass="mb-4">
+    <p-table [value]="plugins()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'plugins.col_id' | translate }}</th>
+                <th>{{ 'plugins.col_name' | translate }}</th>
+                <th>{{ 'plugins.col_state' | translate }}</th>
+                <th>{{ 'plugins.col_languages' | translate }}</th>
+                <th>{{ 'plugins.col_network' | translate }}</th>
+                <th>{{ 'plugins.col_digest' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-plugin>
+            <tr [attr.data-testid]="'plugin-' + plugin.id">
+                <td class="font-mono font-medium">{{ plugin.id }}</td>
+                <td>{{ plugin.name }}</td>
+                <td>
+                    @if (plugin.enabled) {
+                        <p-tag severity="success" [value]="'plugins.enabled' | translate" />
+                    } @else {
+                        <p-tag severity="secondary" [value]="'plugins.disabled' | translate" />
+                    }
+                </td>
+                <td>
+                    <div class="flex flex-wrap gap-1">
+                        @for (language of plugin.manifest.languages; track language) {
+                            <p-tag severity="secondary" [value]="language" />
+                        }
+                    </div>
+                </td>
+                <td>
+                    @if (plugin.manifest.network) {
+                        <p-tag severity="warn" icon="pi pi-globe" [value]="'plugins.network_on' | translate" />
+                    } @else {
+                        <span class="text-muted-color">{{ 'plugins.network_off' | translate }}</span>
+                    }
+                </td>
+                <td class="font-mono text-sm">{{ shortDigest(plugin.manifestDigest) }}</td>
+                <td class="text-right whitespace-nowrap">
+                    <p-button
+                        icon="pi pi-eye"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'plugins.aria_view' | translate: { id: plugin.id }"
+                        (onClick)="open(plugin.id)"
+                    />
+                    @if (governs()) {
+                        <p-button
+                            icon="pi pi-pencil"
+                            [text]="true"
+                            [rounded]="true"
+                            [ariaLabel]="'plugins.aria_edit' | translate: { id: plugin.id }"
+                            (onClick)="openEdit(plugin)"
+                        />
+                        <p-button
+                            icon="pi pi-power-off"
+                            [text]="true"
+                            size="small"
+                            [severity]="plugin.enabled ? 'danger' : 'success'"
+                            [label]="(plugin.enabled ? 'plugins.disable_btn' : 'plugins.enable_btn') | translate"
+                            [loading]="busy() === plugin.id"
+                            (onClick)="setEnabled(plugin, !plugin.enabled)"
+                        />
+                    }
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="7" class="text-center text-muted-color py-6">{{ 'plugins.none' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+</p-card>
+
+@if (selectedError(); as message) {
+    <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+@if (selected(); as plugin) {
+    <p-card styleClass="mb-4" data-testid="plugin-detail">
+        <ng-template #title>
+            <div class="flex items-center justify-between gap-2">
+                <span
+                    ><span class="font-mono">{{ plugin.id }}</span> — {{ plugin.name }}</span
+                >
+                <p-button
+                    icon="pi pi-times"
+                    [text]="true"
+                    [rounded]="true"
+                    [ariaLabel]="'common.close' | translate"
+                    (onClick)="close()"
+                />
+            </div>
+        </ng-template>
+
+        <dl class="grid grid-cols-1 md:grid-cols-[14rem_1fr] gap-x-6 gap-y-2 m-0 text-sm">
+            <dt class="text-muted-color">{{ 'plugins.field_image' | translate }}</dt>
+            <dd class="m-0 font-mono break-all">{{ plugin.manifest.image }}</dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_digest' | translate }}</dt>
+            <dd class="m-0 font-mono break-all" data-testid="manifest-digest">{{ plugin.manifestDigest }}</dd>
+
+            <dt class="text-muted-color">{{ 'plugins.col_languages' | translate }}</dt>
+            <dd class="m-0">{{ plugin.manifest.languages.join(', ') }}</dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_arguments' | translate }}</dt>
+            <dd class="m-0">
+                <ol class="m-0 pl-5 font-mono">
+                    @for (argument of plugin.manifest.arguments; track $index) {
+                        <li class="whitespace-pre-wrap break-all">{{ argument }}</li>
+                    }
+                </ol>
+            </dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_output' | translate }}</dt>
+            <dd class="m-0 font-mono">{{ plugin.manifest.output ?? 'results.sarif' }}</dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_exit_codes' | translate }}</dt>
+            <dd class="m-0 font-mono">{{ plugin.manifest.exit_codes.join(', ') }}</dd>
+
+            <dt class="text-muted-color">{{ 'plugins.col_network' | translate }}</dt>
+            <dd class="m-0">
+                @if (plugin.manifest.network) {
+                    <p-tag severity="warn" icon="pi pi-globe" [value]="'plugins.network_on' | translate" />
+                    <div class="mt-1" data-testid="network-justification">
+                        {{ plugin.manifest.network_justification }}
+                    </div>
+                } @else {
+                    {{ 'plugins.network_none' | translate }}
+                }
+            </dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_timeout' | translate }}</dt>
+            <dd class="m-0">
+                @if (plugin.manifest.timeout_seconds) {
+                    {{ 'plugins.timeout_value' | translate: { seconds: plugin.manifest.timeout_seconds } }}
+                } @else {
+                    {{ 'plugins.timeout_default' | translate }}
+                }
+            </dd>
+
+            <dt class="text-muted-color">{{ 'plugins.field_registered' | translate }}</dt>
+            <dd class="m-0">
+                {{ plugin.createdBy ?? '—' }} · {{ plugin.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+                @if (plugin.updatedAt) {
+                    <span class="text-muted-color">
+                        · {{ 'plugins.updated_by' | translate: { who: plugin.updatedBy ?? '—' } }}
+                        {{ plugin.updatedAt | date: 'dd/MM/yyyy HH:mm' }}</span
+                    >
+                }
+            </dd>
+        </dl>
+
+        <p class="text-muted-color text-sm mb-0 mt-3">{{ 'plugins.no_delete' | translate }}</p>
+
+        @if (readsGovernance()) {
+            <div class="mt-4" data-testid="plugin-projects">
+                <div class="font-medium mb-2">{{ 'plugins.projects_title' | translate }}</div>
+                @if (projects(); as activations) {
+                    @if (activations.length === 0) {
+                        <p class="text-muted-color text-sm m-0">{{ 'plugins.projects_none' | translate }}</p>
+                    }
+                    <ul class="list-none p-0 m-0 flex flex-col gap-1 text-sm">
+                        @for (activation of activations; track activation.id) {
+                            <li>
+                                {{ projectName(activation.projectId) }}
+                                <span class="text-muted-color"
+                                    >· {{ activation.activatedBy ?? '—' }} ·
+                                    {{ activation.activatedAt | date: 'dd/MM/yyyy' }}</span
+                                >
+                            </li>
+                        }
+                    </ul>
+                } @else {
+                    <p class="text-muted-color text-sm m-0">{{ 'common.loading' | translate }}</p>
+                }
+                <p class="text-muted-color text-sm mt-2 mb-0">{{ 'plugins.projects_hint' | translate }}</p>
+            </div>
+        }
+    </p-card>
+}
+
+<p-dialog
+    [header]="(editing() ? 'plugins.header_edit' : 'plugins.header_register') | translate"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '44rem', maxWidth: '95vw' }"
+>
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+            <label for="plugin-id" class="font-medium">{{ 'plugins.field_id' | translate }}</label>
+            <input
+                pInputText
+                id="plugin-id"
+                name="plugin-id"
+                [(ngModel)]="draft.id"
+                [disabled]="editing() !== null"
+                maxlength="40"
+                [placeholder]="'plugins.id_placeholder' | translate"
+            />
+            <!--
+                Said here, where the id is typed, because this is the last moment it can change
+                anything: the id enters every issue fingerprint, and there is no rename and no delete.
+            -->
+            <p-message severity="warn" [closable]="false" data-testid="id-permanent">
+                {{ 'plugins.id_permanent' | translate }}
+            </p-message>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="plugin-name" class="font-medium">{{ 'plugins.col_name' | translate }}</label>
+            <input pInputText id="plugin-name" name="plugin-name" maxlength="100" [(ngModel)]="draft.name" />
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="plugin-image" class="font-medium">{{ 'plugins.field_image' | translate }}</label>
+            <input
+                pInputText
+                id="plugin-image"
+                name="plugin-image"
+                class="font-mono"
+                [(ngModel)]="draft.image"
+                [placeholder]="'plugins.image_placeholder' | translate"
+            />
+            <small class="text-muted-color">{{ 'plugins.image_hint' | translate }}</small>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="plugin-languages" class="font-medium">{{ 'plugins.col_languages' | translate }}</label>
+            <p-multiselect
+                inputId="plugin-languages"
+                name="plugin-languages"
+                [options]="languageOptions"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="draft.languages"
+                [filter]="true"
+                appendTo="body"
+                [placeholder]="'plugins.languages_placeholder' | translate"
+                styleClass="w-full"
+            />
+            <small class="text-muted-color">{{ 'plugins.languages_hint' | translate }}</small>
+        </div>
+
+        <fieldset class="flex flex-col gap-2 border-0 p-0 m-0">
+            <legend class="font-medium mb-2">{{ 'plugins.field_arguments' | translate }}</legend>
+            @for (argument of draft.arguments; track trackIndex($index); let index = $index) {
+                <div class="flex items-start gap-2">
+                    <textarea
+                        pTextarea
+                        rows="1"
+                        class="font-mono w-full"
+                        [id]="'plugin-argument-' + index"
+                        [name]="'plugin-argument-' + index"
+                        [attr.aria-label]="'plugins.aria_argument' | translate: { n: index + 1 }"
+                        [(ngModel)]="draft.arguments[index]"
+                    ></textarea>
+                    <p-button
+                        icon="pi pi-times"
+                        severity="danger"
+                        [text]="true"
+                        [rounded]="true"
+                        [ariaLabel]="'plugins.aria_remove_argument' | translate: { n: index + 1 }"
+                        (onClick)="removeArgument(index)"
+                    />
+                </div>
+            }
+            <div>
+                <p-button
+                    icon="pi pi-plus"
+                    size="small"
+                    [text]="true"
+                    [label]="'plugins.add_argument' | translate"
+                    (onClick)="addArgument()"
+                />
+            </div>
+            <small class="text-muted-color">{{ 'plugins.arguments_hint' | translate }}</small>
+        </fieldset>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="flex flex-col gap-2">
+                <label for="plugin-output" class="font-medium">{{ 'plugins.field_output' | translate }}</label>
+                <input
+                    pInputText
+                    id="plugin-output"
+                    name="plugin-output"
+                    class="font-mono"
+                    [(ngModel)]="draft.output"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="plugin-exit-codes" class="font-medium">{{ 'plugins.field_exit_codes' | translate }}</label>
+                <input
+                    pInputText
+                    id="plugin-exit-codes"
+                    name="plugin-exit-codes"
+                    class="font-mono"
+                    [(ngModel)]="draft.exitCodes"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="plugin-timeout" class="font-medium">{{ 'plugins.field_timeout' | translate }}</label>
+                <p-inputnumber
+                    inputId="plugin-timeout"
+                    name="plugin-timeout"
+                    [(ngModel)]="draft.timeoutSeconds"
+                    [min]="10"
+                    [max]="900"
+                    [placeholder]="'plugins.timeout_default' | translate"
+                    styleClass="w-full"
+                />
+            </div>
+        </div>
+        <small class="text-muted-color">{{ 'plugins.exit_codes_hint' | translate }}</small>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="plugin-network" name="plugin-network" [(ngModel)]="draft.network" />
+            <label for="plugin-network" class="m-0">
+                {{ 'plugins.network_toggle' | translate }}
+                <span class="block text-muted-color text-sm">{{ 'plugins.network_hint' | translate }}</span>
+            </label>
+        </div>
+        @if (draft.network) {
+            <div class="flex flex-col gap-2">
+                <label for="plugin-justification" class="font-medium">{{
+                    'plugins.field_justification' | translate
+                }}</label>
+                <textarea
+                    pTextarea
+                    id="plugin-justification"
+                    name="plugin-justification"
+                    rows="3"
+                    [maxlength]="justificationMax"
+                    [(ngModel)]="draft.networkJustification"
+                ></textarea>
+                <small class="text-muted-color">{{
+                    'plugins.justification_hint'
+                        | translate
+                            : { min: justificationMin, max: justificationMax, count: draft.networkJustification.length }
+                }}</small>
+            </div>
+        }
+
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="plugin-form-error">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button
+            [label]="(editing() ? 'common.save' : 'plugins.register_btn') | translate"
+            [loading]="saving()"
+            [disabled]="!draft.id.trim() || !draft.name.trim() || !draft.image.trim() || draft.languages.length === 0"
+            (onClick)="save()"
+        />
+    </ng-template>
+</p-dialog>

@@ -7,6 +7,7 @@ import { Solutions } from './solutions';
 import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
+import { ACTIVATION, PLUGIN } from '@/app/core/testing/plugins.fixtures';
 
 /**
  * The solutions tree (decision 0023), through the DOM.
@@ -330,5 +331,78 @@ describe('the solutions tree', () => {
 
         expect(fixture.componentInstance.editorVisible()).toBe(true);
         expect(fixture.componentInstance.formError()).toBe('Only an administrator may do this.');
+    });
+
+    /**
+     * Plugins per project (decision 0017): which plugins a project runs is governance — read by its
+     * readers, changed by a security lead. The dialog lists the whole registry beside the project's
+     * activations, with each plugin's languages, so what would run is visible before the switch.
+     */
+    describe('plugins per project', () => {
+        const OTHER = { ...PLUGIN, id: 'py-rules', name: 'Python rules', enabled: false };
+
+        async function openFor(role: string): Promise<void> {
+            await mount(role);
+            (
+                page().querySelector('[data-testid="project-11"] [data-testid="project-plugins"] button') as HTMLElement
+            ).click();
+            http.expectOne('/api/v1/plugins').flush([PLUGIN, OTHER]);
+            http.expectOne('/api/v1/projects/11/plugins').flush([{ ...ACTIVATION, projectId: 11 }]);
+            await fixture.whenStable();
+        }
+
+        const toggle = (id: string) =>
+            document.querySelector<HTMLInputElement>(`[data-testid="project-plugin-${id}"] input`);
+
+        it('is not offered to an account that cannot read governance', async () => {
+            await mount('USER');
+            expect(page().querySelector('[data-testid="project-plugins"]')).toBeNull();
+        });
+
+        it('shows an auditor what runs, with the languages, and lets it change nothing', async () => {
+            await openFor('AUDITOR');
+
+            const row = text('[data-testid="project-plugin-acme-lint"]');
+            expect(row).toContain('acme-lint');
+            expect(row).toContain('java');
+            expect(row).toContain('kotlin');
+            expect(toggle('acme-lint')?.checked).toBe(true);
+            expect(toggle('py-rules')?.checked).toBe(false);
+            expect(toggle('acme-lint')?.disabled).toBe(true);
+            expect(text('[data-testid="plugins-dialog"]')).toContain('Only an administrator, the CISO');
+            // A disabled plugin's switch may read "on" and run nothing; the row says so.
+            expect(text('[data-testid="project-plugin-py-rules"]')).toContain('Disabled on the platform');
+        });
+
+        it('lets a CISO switch one on with a PUT and off with a DELETE', async () => {
+            await openFor('CISO');
+            expect(toggle('py-rules')?.disabled).toBe(false);
+
+            fixture.componentInstance.togglePlugin(OTHER, true);
+            http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush({
+                ...ACTIVATION,
+                pluginId: 'py-rules',
+                projectId: 11
+            });
+            fixture.componentInstance.togglePlugin(PLUGIN, false);
+            http.expectOne({ method: 'DELETE', url: '/api/v1/projects/11/plugins/acme-lint' }).flush(null);
+            await fixture.whenStable();
+
+            expect([...fixture.componentInstance.activations().keys()]).toEqual(['py-rules']);
+        });
+
+        it("keeps the stored state and the server's reason when a switch is refused", async () => {
+            await openFor('CISO');
+
+            fixture.componentInstance.togglePlugin(OTHER, true);
+            http.expectOne({ method: 'PUT', url: '/api/v1/projects/11/plugins/py-rules' }).flush(
+                { detail: 'Only a security lead may switch a plugin on.' },
+                { status: 403, statusText: 'Forbidden' }
+            );
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.activations().has('py-rules')).toBe(false);
+            expect(text('[data-testid="plugins-dialog"]')).toContain('Only a security lead may switch a plugin on.');
+        });
     });
 });
