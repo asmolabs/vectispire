@@ -39,7 +39,7 @@ EPSS scores and CISA KEV status. The EPSS lookups are, with the end-of-life cata
 outbound calls a scan makes, and they carry CVE identifiers and nothing else. The KEV status is read
 from the catalogue the control plane synchronises every six hours — one download of CISA's
 catalogue, or of the mirror `VECTISPIRE_KEV_URL` names ([Configuration](../reference/configuration.md#threat-intelligence)),
-shown with its date on the **Threat intelligence** tab.
+shown with its date on the **Threat Intelligence** tab.
 
 Turning them off is an option for an air-gapped deployment. It costs you the ability to
 rank by exploitability, which is the ranking that works — see

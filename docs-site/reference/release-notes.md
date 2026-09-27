@@ -38,7 +38,7 @@ with their own keep it: VEX 16 MB, SARIF imports 32 MB, rule-set uploads 64 MB, 
 
 **The KEV feed is CISA's catalogue, read from the network.** It was a list of ten records typed
 into the code; the control plane now reads `known_exploited_vulnerabilities.json` every six hours
-and from the **Threat intelligence** settings tab, and a scan asks the stored copy instead of
+and from the **Threat Intelligence** settings tab, and a scan asks the stored copy instead of
 downloading it. The control plane needs to reach `www.cisa.gov` — or set `VECTISPIRE_KEV_URL` to a
 mirror (and `VECTISPIRE_KEV_ALLOW_PRIVATE=true` if it is on a private network), see
 [Configuration](configuration.md#threat-intelligence). The upgrade empties the old feed: until the

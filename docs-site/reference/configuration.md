@@ -100,7 +100,7 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 ## Threat intelligence
 
 The CISA KEV catalogue is read every six hours by the maintenance tick, and on demand from the
-**Threat intelligence** settings tab; a scan reads the stored copy and never downloads it. The EPSS
+**Threat Intelligence** settings tab; a scan reads the stored copy and never downloads it. The EPSS
 scores are asked per scan from `api.first.org` and are not part of this.
 
 | Variable | Default | Notes |
