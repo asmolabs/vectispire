@@ -3745,8 +3745,6 @@ export interface components {
             currentVersion?: string;
             /** Format: double */
             exploitProbability?: number;
-            /** @enum {string} */
-            exposure?: "MENTIONED_IN_CODE" | "NOT_MENTIONED" | "UNKNOWN";
             packageName?: string;
             targetVersion?: string;
         };
@@ -6210,7 +6208,6 @@ export interface operations {
                 packageName?: string;
                 currentVersion?: string;
                 fixVersion?: string;
-                reachability?: string;
             };
             header?: never;
             path: {

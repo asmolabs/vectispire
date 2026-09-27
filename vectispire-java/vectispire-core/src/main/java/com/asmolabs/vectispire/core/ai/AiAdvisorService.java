@@ -53,7 +53,6 @@ public class AiAdvisorService {
             String packageName,
             String currentVersion,
             String fixVersion,
-            String reachability,
             Visibility allowed) {
 
         List<IssueView> matched = issues.withIdentifier(cveId).stream()
@@ -68,7 +67,6 @@ public class AiAdvisorService {
                 packageName,
                 currentVersion,
                 fixVersion,
-                reachability != null ? reachability : "UNKNOWN",
                 cveId.toUpperCase(Locale.ROOT).contains("2021-44228") || cveId.toUpperCase(Locale.ROOT).contains("2024-3094"),
                 0.75);
     }

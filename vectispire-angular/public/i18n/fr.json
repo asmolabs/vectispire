@@ -117,9 +117,7 @@
     "error_not_found": "Cet agent n'existe plus."
   },
   "ai": {
-    "exposure_mentioned": "À regarder en premier : un contrôle de code a produit un constat qui mentionne ce composant. C'est un endroit où regarder, pas une preuve d'appel : cette corrélation rapproche des textes, elle ne suit pas le graphe d'appels.",
-    "exposure_not_mentioned": "Exposition indéterminée : aucun constat de code ne mentionne ce composant. Cela ne veut pas dire qu'il n'est pas utilisé — seulement que rien ne l'a montré.",
-    "exposure_unknown": "Exposition probable : le composant est dans le périmètre d'exécution. Vérifiez si des parcours utilisateur atteignent les fonctions de cette bibliothèque.",
+    "exposure_not_assessed": "Exposition non évaluée : Vectispire n'analyse pas si votre code appelle ce composant. Vérifiez si des parcours utilisateur atteignent les fonctions de cette bibliothèque.",
     "fix_action": "Mettre à jour « {{package}} » de la version {{version}} vers {{target}}.",
     "mechanics_generic": "Un attaquant peut envoyer des entrées malveillantes via les points d'entrée qui utilisent « {{package}} » pour déclencher un comportement non prévu.",
     "mechanics_kev": "Attention : cette faille figure au catalogue CISA KEV et fait l'objet d'exploitations actives (probabilité EPSS : {{chance}} %). Un attaquant distant peut exécuter du code arbitraire ou contourner les contrôles d'accès.",
@@ -1154,10 +1152,10 @@
     "ai_dialog_title": "Assistance au triage et à la remédiation",
     "ai_explain": "Expliquer et proposer une remédiation (IA)",
     "ai_mechanism": "Mécanisme d'Exploitation",
-    "ai_reachability": "Évaluation d'Exposition (Reachability)",
+    "ai_exposure": "Exposition",
     "ai_remediation": "Remédiation Recommandée",
     "ai_running": "Analyse de la vulnérabilité et calcul de remédiation en cours...",
-    "ai_running_help": "Interrogation du modèle IA local & corrélation d'exposition de code.",
+    "ai_running_help": "Interrogation du modèle configuré.",
     "ai_summary": "Vulgarisation & Résumé Exécutif",
     "ai_unreachable": "Le modèle n'a pas répondu. Rien n'a été produit : réessayez, ou vérifiez le modèle configuré dans les paramètres.",
     "ai_vex_suggestion": "Justification VEX suggérée",

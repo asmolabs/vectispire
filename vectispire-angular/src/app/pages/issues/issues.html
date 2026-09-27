@@ -534,21 +534,16 @@
                     class="p-4 bg-surface-50 dark:bg-surface-800/60 border border-surface-200 dark:border-surface-700 rounded-xl"
                 >
                     <h5 class="font-semibold text-sm mb-2 flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                        <i class="pi pi-compass"></i> {{ 'issues.ai_reachability' | translate }}
+                        <i class="pi pi-compass"></i> {{ 'issues.ai_exposure' | translate }}
                     </h5>
+                    <!--
+                        Nothing computes reachability, so the product can only say it did not look.
+                        It used to pick one of three sentences from the issue's reachability, and
+                        always picked "exposure likely: inside the execution perimeter".
+                    -->
                     <p class="text-xs text-muted-color leading-relaxed">
-                        @if (aiAdvice()!.deterministic; as own) {
-                            @switch (own.exposure) {
-                                @case ('MENTIONED_IN_CODE') {
-                                    {{ 'ai.exposure_mentioned' | translate }}
-                                }
-                                @case ('NOT_MENTIONED') {
-                                    {{ 'ai.exposure_not_mentioned' | translate }}
-                                }
-                                @case ('UNKNOWN') {
-                                    {{ 'ai.exposure_unknown' | translate }}
-                                }
-                            }
+                        @if (aiAdvice()!.deterministic) {
+                            {{ 'ai.exposure_not_assessed' | translate }}
                         } @else {
                             {{ aiAdvice()!.exposureAssessment }}
                         }

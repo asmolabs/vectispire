@@ -68,8 +68,10 @@ public class AiAdvisorController {
             @PathVariable String cveId,
             @RequestParam(required = false) String packageName,
             @RequestParam(required = false) String currentVersion,
-            @RequestParam(required = false) String fixVersion,
-            @RequestParam(required = false) String reachability) {
+            @RequestParam(required = false) String fixVersion) {
+        // `reachability` was a parameter here, and the caller's word became the advice's
+        // exposure: passing REACHABLE had the product answer "a code finding mentions this
+        // component". It is no longer read; a client still sending it is ignored, not refused.
 
         // Narrowed before anything is read, so that a CVE present only in a target the caller was
         // not given gets exactly the answer a CVE present nowhere gets — see `AiAdvisorService`.
@@ -78,7 +80,6 @@ public class AiAdvisorController {
                 packageName,
                 currentVersion,
                 fixVersion,
-                reachability,
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 }

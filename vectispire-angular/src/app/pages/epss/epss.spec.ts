@@ -177,7 +177,6 @@ describe('EPSS prioritisation', () => {
                 packageName: 'log4j-core',
                 currentVersion: '2.14.1',
                 targetVersion: '2.17.1',
-                exposure: 'NOT_MENTIONED',
                 activelyExploited: false,
                 exploitProbability: null
             }

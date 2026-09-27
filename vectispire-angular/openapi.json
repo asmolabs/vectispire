@@ -1881,10 +1881,6 @@
             "format" : "double",
             "type" : "number"
           },
-          "exposure" : {
-            "enum" : [ "MENTIONED_IN_CODE", "NOT_MENTIONED", "UNKNOWN" ],
-            "type" : "string"
-          },
           "packageName" : {
             "type" : "string"
           },
@@ -8044,13 +8040,6 @@
         }, {
           "in" : "query",
           "name" : "fixVersion",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "reachability",
           "required" : false,
           "schema" : {
             "type" : "string"

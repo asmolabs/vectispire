@@ -117,9 +117,7 @@
     "error_not_found": "This agent no longer exists."
   },
   "ai": {
-    "exposure_mentioned": "Look here first: a code check produced a finding that mentions this component. It is a place to look, not proof of a call: this correlation matches text, it does not follow the call graph.",
-    "exposure_not_mentioned": "Exposure undetermined: no code finding mentions this component. That does not mean it is unused — only that nothing has shown it.",
-    "exposure_unknown": "Exposure likely: the component is inside the execution perimeter. Check whether any user flow reaches this library's functions.",
+    "exposure_not_assessed": "Exposure not assessed: Vectispire does not analyse whether your code calls this component. Check whether any user flow reaches this library's functions.",
     "fix_action": "Upgrade “{{package}}” from version {{version}} to {{target}}.",
     "mechanics_generic": "An attacker may send malicious input through the entry points that use “{{package}}” to trigger unintended behaviour.",
     "mechanics_kev": "Warning: this flaw is in the CISA KEV catalogue and is being actively exploited (EPSS probability: {{chance}} %). A remote attacker may execute arbitrary code or bypass access controls.",
@@ -1154,10 +1152,10 @@
     "ai_dialog_title": "Triage and remediation assistance",
     "ai_explain": "Explain and suggest a fix (AI)",
     "ai_mechanism": "How it is exploited",
-    "ai_reachability": "Whether your code reaches it",
+    "ai_exposure": "Exposure",
     "ai_remediation": "What to do about it",
     "ai_running": "Reading the vulnerability and working out what to do…",
-    "ai_running_help": "Asking the configured model, and correlating exposure in the code.",
+    "ai_running_help": "Asking the configured model.",
     "ai_summary": "In plain words",
     "ai_unreachable": "The model did not answer. Nothing was produced: try again, or check the configured model in the settings.",
     "ai_vex_suggestion": "Suggested VEX justification",

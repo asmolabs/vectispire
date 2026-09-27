@@ -39,6 +39,25 @@ class AiAdvisorRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.remediation.suggestedVersion").value("2.17.1"));
     }
 
+    /**
+     * The caller's word is not an analysis.
+     *
+     * <p>The route took a {@code reachability} parameter and made it the advice's exposure, so a
+     * request saying REACHABLE had the product answer "a code finding mentions this component" —
+     * about a CVE the estate may not even carry. The parameter is ignored now, not refused, so a
+     * client still sending it keeps working.
+     */
+    @Test
+    @DisplayName("a reachability passed by the caller is ignored: the exposure was not assessed")
+    void theCallersReachabilityIsIgnored() throws Exception {
+        mvc.perform(authenticated(
+                post("/api/v1/ai-advisor/explain/cve/CVE-2021-44228?packageName=log4j-core&reachability=REACHABLE"),
+                asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.exposureAssessment").value(org.hamcrest.Matchers.startsWith("EXPOSURE NOT ASSESSED")))
+                .andExpect(jsonPath("$.deterministic.exposure").doesNotExist());
+    }
+
     @Test
     @DisplayName("POST /api/v1/ai-advisor/explain/issue/{issueId} explains existing issue entity")
     void explainsIssue() throws Exception {
@@ -49,7 +68,6 @@ class AiAdvisorRoutesTest extends ApiTestBase {
         issue.setPackageName("commons-text");
         issue.setPackageVersion("1.9");
         issue.setFixVersions("1.10.0");
-        issue.setReachability("UNREACHABLE");
         issue.setState("open");
         issue.setSeverity("MEDIUM");
         issue.setTriageStatus("under_review");

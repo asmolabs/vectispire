@@ -318,23 +318,24 @@ public class AiReviewService {
         String pkg = issue.packageName();
         String ver = issue.packageVersion();
         String fix = issue.fixVersions();
-        String reachability = issue.reachability() != null ? issue.reachability() : "UNKNOWN";
         boolean isKev = issue.isKev();
         Double epss = issue.epssScore();
 
         if (isEnabled()) {
             try {
                 // **`not_affected` is not among the choices offered, and that is deliberate.** The
-                // `Reachability` field handed over here is REACHABLE when a code finding mentions
-                // the package, and UNKNOWN otherwise — a text correlation, not a call graph. A
-                // model given that value and the `code_not_reachable` option produces a plausible
-                // and unfounded exemption, which arrives pre-filled in front of a developer.
-                // Exempting stays a person's decision; the model explains and proposes a fix.
+                // model is told nothing about whether the code calls the package, because nothing
+                // establishes it: no analysis writes the issue's reachability, which reads UNKNOWN
+                // on every row. (A comment here said REACHABLE was written whenever a code finding
+                // mentioned the package; nothing has written it since that correlation went.) A
+                // model offered the `code_not_reachable` option produces a plausible and unfounded
+                // exemption, which arrives pre-filled in front of a developer. Exempting stays a
+                // person's decision; the model explains and proposes a fix.
                 String prompt = String.format(
-                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, CodeEvidence: %s, KEV: %s, EPSS: %s. "
-                                + "CodeEvidence is a text correlation between the package name and code findings, not call-graph analysis: never present it as proof that the vulnerable method is or is not invoked. "
+                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, KEV: %s, EPSS: %s. "
+                                + "Nothing has established whether the application invokes the vulnerable code: say so in `exposure`, and say what to check, never that it is or is not invoked. "
                                 + "Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"affected|under_investigation\",\"vex_statement\":\"...\"}",
-                        id, pkg, ver, fix, reachability, isKev, epss);
+                        id, pkg, ver, fix, isKev, epss);
 
                 String text = chat(List.of(
                         Map.of("role", "system", "content", "You are an AppSec assistant. Respond ONLY with valid JSON without markdown wrapping."),
@@ -371,7 +372,7 @@ public class AiReviewService {
             }
         }
 
-        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, reachability, isKev, epss);
+        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, isKev, epss);
     }
 
     private OutboundPolicy policy() {

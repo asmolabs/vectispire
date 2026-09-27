@@ -1508,7 +1508,6 @@ export type AiDeterministic = Refine<
         packageName: string;
         currentVersion: string;
         targetVersion: string;
-        exposure: NonNullable<Schema<'Deterministic'>['exposure']>;
         exploitProbability: number | null;
     }
 >;

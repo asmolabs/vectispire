@@ -50,14 +50,12 @@ export class IntelApi {
         cveId: string,
         pkg?: string,
         currentVer?: string,
-        fixVer?: string,
-        reachability?: string
+        fixVer?: string
     ): Observable<AiVulnerabilityAdvice> {
         let params = new HttpParams();
         if (pkg) params = params.set('packageName', pkg);
         if (currentVer) params = params.set('currentVersion', currentVer);
         if (fixVer) params = params.set('fixVersion', fixVer);
-        if (reachability) params = params.set('reachability', reachability);
         return this.http.post<AiVulnerabilityAdvice>(
             `/api/v1/ai-advisor/explain/cve/${encodeURIComponent(cveId)}`,
             {},
