@@ -6,9 +6,16 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.WaitContainerResultCallback;
+import com.github.dockerjava.api.model.AccessMode;
+import com.github.dockerjava.api.model.Driver;
 import com.github.dockerjava.api.model.Frame;
 import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
 import com.github.dockerjava.api.model.StreamType;
+import com.github.dockerjava.api.model.Ulimit;
+import com.github.dockerjava.api.model.VolumeOptions;
+import com.github.dockerjava.api.model.VolumesFrom;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
@@ -257,13 +264,14 @@ public final class ContainerRunner {
         return quota;
     }
 
-    public ContainerResult run(ContainerRun request) {
-        Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
-        ensureImagePresent(request.image(), request.label());
-
-        HostConfig hostConfig = HostConfig.newHostConfig()
-                .withBinds(request.binds().stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
-                .withNetworkMode(request.network() ? "bridge" : "none")
+    /**
+     * The closed shape every container Vectispire starts is created in — the tool's and, for a
+     * bounded output, its holder's alike.
+     */
+    private HostConfig closedHostConfig(List<String> binds, boolean network) {
+        return HostConfig.newHostConfig()
+                .withBinds(binds.stream().map(com.github.dockerjava.api.model.Bind::parse).toList())
+                .withNetworkMode(network ? "bridge" : "none")
                 .withMemory(limits.memory())
                 .withNanoCPUs(acceptableNanoCpus())
                 .withPidsLimit(limits.pids())
@@ -291,14 +299,18 @@ public final class ContainerRunner {
                 // Removed explicitly below rather than by the daemon: an interrupted scan must
                 // not leave dead containers accumulating on the machine that scans.
                 .withAutoRemove(false);
+    }
 
-        var create = docker.createContainerCmd(request.image())
-                .withCmd(request.command())
+    /** Created — not started — labelled, with the scratch environment, as {@code user}. */
+    private String create(String image, List<String> command, String label, String user, boolean asRoot,
+            HostConfig hostConfig) {
+        var create = docker.createContainerCmd(image)
+                .withCmd(command)
                 // **Labelled, because the machine that scans is not necessarily ours.** An
                 // agent runs on a shared host where other containers come and go: with no
                 // mark, neither an operator nor an orphan sweep can tell what Vectispire
                 // launched from the rest.
-                .withLabels(Map.of(SCANNER_LABEL, request.label()))
+                .withLabels(Map.of(SCANNER_LABEL, label))
                 // Pointed at the tmpfs mounted above. Set for every scanner rather than for the
                 // ones known to need it: the next image added is not going to announce that it
                 // caches under `$HOME`, it is going to fail a scan on a read-only filesystem
@@ -315,17 +327,44 @@ public final class ContainerRunner {
                         // the loud failure rather than the quiet one.
                         "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT)
                 .withHostConfig(hostConfig);
-        if (request.user() != null) {
-            create = create.withUser(request.user());
-        } else if (request.asRoot()) {
+        if (user != null) {
+            create = create.withUser(user);
+        } else if (asRoot) {
             create = create.withUser("0:0");
         }
+        CreateContainerResponse created = create.exec();
+        return created.getId();
+    }
 
-        CreateContainerResponse container = create.exec();
+    public ContainerResult run(ContainerRun request) {
+        Duration timeout = request.timeout() == null ? limits.timeout() : request.timeout();
+        ContainerRun.BoundedOutput bounded = request.output();
+        if (bounded != null && request.user() == null) {
+            // The directory is created owned by this uid:gid, mode 0700: without one it would be
+            // root's, and a tool that is not root could not write its report.
+            throw new IllegalArgumentException("A bounded output needs the user it belongs to.");
+        }
+        ensureImagePresent(request.image(), request.label());
 
+        String holder = null;
+        String container = null;
         try {
-            docker.startContainerCmd(container.getId()).exec();
-            int exitCode = waitFor(container.getId(), timeout, request.label());
+            HostConfig hostConfig = closedHostConfig(request.binds(), request.network());
+            if (bounded != null) {
+                ensureImagePresent(bounded.holderImage(), request.label());
+                holder = startHolder(bounded, request.user(), request.label(), timeout);
+                hostConfig = hostConfig
+                        .withVolumesFrom(new VolumesFrom(holder, AccessMode.rw))
+                        // **No file larger than the directory**, sparse ones included. tmpfs keeps a
+                        // sparse file of any apparent size in a few pages, and the daemon archives the
+                        // apparent size: without this, `truncate -s 1T` beside the report would be read
+                        // back as a terabyte of zeros. The kernel sends SIGXFSZ past it (exit 153).
+                        .withUlimits(List.of(new Ulimit("fsize", bounded.bytes(), bounded.bytes())));
+            }
+            container = create(request.image(), request.command(), request.label(), request.user(), request.asRoot(),
+                    hostConfig);
+            docker.startContainerCmd(container).exec();
+            int exitCode = waitFor(container, timeout, request.label());
 
             // **Read after the container has finished, not attached before it starts.** A
             // follow-stream attached to a container that has not started yet completes
@@ -333,7 +372,7 @@ public final class ContainerRunner {
             // printed nothing, and therefore as "analysed, found nothing". The daemon retains
             // the logs, so collecting them afterwards loses none and races on nothing.
             StreamCollector output = new StreamCollector(limits.outputBytes(), STDERR_BYTES);
-            docker.logContainerCmd(container.getId())
+            docker.logContainerCmd(container)
                     .withStdOut(true)
                     .withStdErr(true)
                     .withTailAll()
@@ -347,19 +386,113 @@ public final class ContainerRunner {
                         + " bytes of output; it was stopped and its output discarded.");
             }
 
-            return new ContainerResult(output.stdout(), output.stderr(), exitCode);
+            Optional<CollectedOutput> collected = bounded == null
+                    ? Optional.empty()
+                    : Optional.of(collect(holder, bounded, request.label()));
+            return new ContainerResult(output.stdout(), output.stderr(), exitCode, collected);
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
             throw new ScannerFailureException(request.label(), "Interrupted while reading the scanner's output.");
         } finally {
             // In a `finally`: a forgotten container holds its workspace, hence the whole clone,
-            // and the machine eventually runs out of disk.
-            try {
-                docker.removeContainerCmd(container.getId()).withForce(true).exec();
-            } catch (RuntimeException alreadyGone) {
-                // Nothing to do about it, and nothing worth masking the real error for.
-            }
+            // and the machine eventually runs out of disk. The tool first, then its holder with
+            // its volume — the other order would leave the volume in use and the removal refused.
+            remove(container, false);
+            remove(holder, true);
         }
+    }
+
+    private void remove(String id, boolean withVolumes) {
+        if (id == null) {
+            return;
+        }
+        try {
+            docker.removeContainerCmd(id).withForce(true).withRemoveVolumes(withVolumes).exec();
+        } catch (RuntimeException alreadyGone) {
+            // Nothing to do about it, and nothing worth masking the real error for.
+        }
+    }
+
+    /**
+     * The files a bounded output may hold. A directory's worth: a report and what a tool leaves
+     * beside it. Each inode is kernel memory, and without a bound a tool creating empty files would
+     * spend the container's memory where no size limit counts it.
+     */
+    public static final int OUTPUT_INODES = 4096;
+
+    /** How long a holder outlives its tool's timeout if nothing removes it — a crash of this process. */
+    private static final Duration HOLDER_GRACE = Duration.ofMinutes(10);
+
+    /**
+     * Starts the container that owns a bounded output — see {@link ContainerRun.BoundedOutput}.
+     *
+     * <p>It sleeps, and nothing else, until it is stopped; then it prints what the kernel says of the
+     * directory — {@code df} in bytes and in inodes — and exits, which is the one measurement of
+     * "full" that does not guess from what is left in it. It expires on its own after the tool's
+     * timeout and a grace, so a crash of this process leaves no holder for ever.
+     */
+    private String startHolder(ContainerRun.BoundedOutput bounded, String user, String label, Duration timeout) {
+        String[] owner = user.split(":", 2);
+        if (owner.length != 2 || !owner[0].chars().allMatch(Character::isDigit) || !owner[1].chars().allMatch(Character::isDigit)
+                || owner[0].isEmpty() || owner[1].isEmpty()) {
+            throw new IllegalArgumentException("A bounded output belongs to a numeric uid:gid, not \"" + user + "\".");
+        }
+        Mount volume = new Mount()
+                .withType(MountType.VOLUME)
+                .withTarget(bounded.target())
+                // Labelled like the containers, so that a sweep can find a volume a crash left behind.
+                .withVolumeOptions(new VolumeOptions().withLabels(Map.of(SCANNER_LABEL, label + " (output)")).withDriverConfig(new Driver()
+                        .withName("local")
+                        .withOptions(Map.of(
+                                "type", "tmpfs",
+                                "device", "tmpfs",
+                                "o", "size=" + bounded.bytes() + ",nr_inodes=" + OUTPUT_INODES
+                                        + ",uid=" + owner[0] + ",gid=" + owner[1]
+                                        + ",mode=0700,noexec,nosuid,nodev"))));
+        String report = "df -P -k " + bounded.target() + "; df -P -i " + bounded.target();
+        String holder = create(
+                bounded.holderImage(),
+                List.of("sh", "-c", "trap '" + report + "; exit 0' TERM; sleep "
+                        + timeout.plus(HOLDER_GRACE).toSeconds() + " & wait"),
+                label + " (output)",
+                user,
+                false,
+                closedHostConfig(List.of(), false).withMounts(List.of(volume)));
+        try {
+            docker.startContainerCmd(holder).exec();
+        } catch (RuntimeException refused) {
+            remove(holder, true);
+            throw ScannerFailureException.of(label, "Its output directory could not be created: " + refused.getMessage());
+        }
+        return holder;
+    }
+
+    /**
+     * Reads the file back from the holder, then stops the holder and reads what the kernel said.
+     *
+     * <p>In that order: stopping the holder unmounts the tmpfs, and what was in it is gone.
+     */
+    private CollectedOutput collect(String holder, ContainerRun.BoundedOutput bounded, String label)
+            throws InterruptedException {
+        OutputFile file;
+        try (InputStream tar = docker.copyArchiveFromContainerCmd(holder, bounded.target() + "/" + bounded.file()).exec()) {
+            file = OutputArchive.read(tar, bounded.file(), limits.outputBytes());
+        } catch (com.github.dockerjava.api.exception.NotFoundException absent) {
+            file = new OutputFile.Missing();
+        } catch (IOException | RuntimeException unreadable) {
+            throw ScannerFailureException.of(label, "Its output could not be read back: " + unreadable.getMessage());
+        }
+
+        try {
+            docker.stopContainerCmd(holder).withTimeout(10).exec();
+        } catch (RuntimeException alreadyStopped) {
+            // Measured below or not at all; a holder that is gone printed nothing, and says so there.
+        }
+        StreamCollector measure = new StreamCollector(64 * 1024, 64 * 1024);
+        docker.logContainerCmd(holder).withStdOut(true).withStdErr(true).withTailAll().exec(measure).awaitCompletion();
+        return CollectedOutput.measured(bounded, measure.stdout(), file)
+                .orElseThrow(() -> ScannerFailureException.of(label, "Its output directory could not be measured, so "
+                        + "whether a write was refused is unknown; the report is not believed."));
     }
 
     /**
@@ -416,7 +549,69 @@ public final class ContainerRunner {
         }
     }
 
-    public record ContainerResult(String stdout, String stderr, int exitCode) {}
+    /** @param output what a bounded output held, for a run that had one — see {@link ContainerRun#withBoundedOutput} */
+    public record ContainerResult(String stdout, String stderr, int exitCode, Optional<CollectedOutput> output) {
+
+        public ContainerResult {
+            output = output == null ? Optional.empty() : output;
+        }
+
+        public ContainerResult(String stdout, String stderr, int exitCode) {
+            this(stdout, stderr, exitCode, Optional.empty());
+        }
+    }
+
+    /** The one file read back from a bounded output, as the archive answered it. */
+    public sealed interface OutputFile {
+
+        /** The tool wrote no file of that name. */
+        record Missing() implements OutputFile {}
+
+        /** A link, a directory, a FIFO — anything but a regular file; not read. */
+        record NotRegular() implements OutputFile {}
+
+        /** Larger than the scanner output ceiling; not read. */
+        record TooLarge(long size) implements OutputFile {}
+
+        /** The file's bytes, within the ceiling. */
+        record Read(byte[] bytes) implements OutputFile {}
+    }
+
+    /**
+     * What a bounded output held when its tool exited, in the kernel's words.
+     *
+     * @param capacity what it could hold, in bytes
+     * @param availableBytes what was left, as {@code df} answered it
+     * @param availableInodes the files it could still have created
+     */
+    public record CollectedOutput(long capacity, long availableBytes, long availableInodes, OutputFile file) {
+
+        /** Less than one page left, or no inode: a write was refused, or the next one would have been. */
+        public boolean full() {
+            return availableBytes < 4096 || availableInodes <= 0;
+        }
+
+        /**
+         * The holder's {@code df -P -k} and {@code df -P -i} lines for the directory, or empty when
+         * either is missing — a holder that died printed nothing, and a guess would be believed.
+         */
+        static Optional<CollectedOutput> measured(ContainerRun.BoundedOutput bounded, String printed, OutputFile file) {
+            // `Filesystem Size Used Available Capacity Mounted-on`: the fourth column, of the two lines
+            // naming the directory — the first in KiB, the second in inodes.
+            List<Long> available = printed.lines()
+                    .map(String::strip)
+                    .filter(line -> line.endsWith(" " + bounded.target()))
+                    .map(line -> line.split("\\s+"))
+                    .filter(columns -> columns.length == 6 && !columns[3].isEmpty()
+                            && columns[3].length() < 19 && columns[3].chars().allMatch(Character::isDigit))
+                    .map(columns -> Long.parseLong(columns[3]))
+                    .toList();
+            if (available.size() != 2) {
+                return Optional.empty();
+            }
+            return Optional.of(new CollectedOutput(bounded.bytes(), available.get(0) * 1024, available.get(1), file));
+        }
+    }
 
     /** How much of a scanner's error stream is kept: failures quote its first 2,000 characters. */
     static final long STDERR_BYTES = 1024 * 1024;

@@ -24,6 +24,7 @@ import java.util.Optional;
  * @param user {@code uid:gid} to run as, or {@code null} for the image's own user (or root, with
  *     {@link #asRoot}). Set for a tool that <em>writes</em> into a mount: what root writes there is
  *     root's on the host, and Vectispire, unprivileged, cannot delete it afterwards
+ * @param output a writable directory with a ceiling, or {@code null} — see {@link BoundedOutput}
  */
 public record ContainerRun(
         String image,
@@ -33,7 +34,8 @@ public record ContainerRun(
         boolean network,
         boolean asRoot,
         Duration timeout,
-        String user) {
+        String user,
+        BoundedOutput output) {
 
     /** @param readOnly explicit, and true wherever it can be */
     public record Mount(String source, String target, boolean readOnly) {
@@ -51,18 +53,66 @@ public record ContainerRun(
         }
     }
 
+    /**
+     * A directory the tool may write into, which <b>cannot hold more than {@code bytes}</b>.
+     *
+     * <p><b>A bind mount carries no size.</b> The plugins' output used to be a directory of the
+     * workspace bound writable into the container, and a plugin — code somebody else wrote — could
+     * fill the executor's disk through it for as long as its timeout allowed: the report was read up
+     * to the ceiling, but nothing bounded what was written beside it.
+     *
+     * <p>A size-limited tmpfs is the bound the kernel enforces, and the obvious one does not work:
+     * {@code HostConfig.Tmpfs} lives in the container's own mount namespace, which the archive API
+     * cannot read — not while the container runs, not after (measured on Docker 29: "Could not find
+     * the file"). What it can read is a <em>volume</em>, mounted on the daemon's side. So the
+     * directory is an anonymous volume of the local driver, of type tmpfs with {@code size=} and
+     * {@code nr_inodes=}, declared inside {@code POST /containers/create} — the socket proxy's
+     * {@code VOLUMES: 0} stays as it is, since no {@code /volumes} call is made. A tmpfs volume is
+     * unmounted, and emptied, when the last container using it stops; so a <b>holder</b> — a pinned
+     * busybox that only sleeps, in the same closed shape — owns it and keeps it mounted, the tool
+     * reaches it through {@code VolumesFrom}, and the file is read from the holder once the tool has
+     * exited. Both are removed in a {@code finally}, the volume with them.
+     *
+     * <p>Memory, not disk: the pages are charged to the tool's own memory ceiling, and the host's
+     * disk is not touched at all.
+     *
+     * @param target where the directory appears in the container
+     * @param bytes what it may hold, everything in it counted
+     * @param holderImage the image that keeps the directory alive, pinned by digest like any other
+     * @param file the one file read back — a bare name in {@code target}
+     */
+    public record BoundedOutput(String target, long bytes, String holderImage, String file) {
+
+        public BoundedOutput {
+            if (bytes <= 0) {
+                throw new IllegalArgumentException("A bounded output holds a positive number of bytes.");
+            }
+            if (file == null || file.isEmpty() || file.contains("/") || file.startsWith(".")) {
+                throw new IllegalArgumentException("The file read back is a bare name in the output directory.");
+            }
+        }
+    }
+
     /** The closed shape: no network, not root, default timeout. */
     public static ContainerRun of(String image, List<String> command, List<Mount> mounts, String label) {
-        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null);
+        return new ContainerRun(image, List.copyOf(command), List.copyOf(mounts), label, false, false, null, null, null);
     }
 
     public ContainerRun withNetwork() {
-        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user);
+        return new ContainerRun(image, command, mounts, label, true, asRoot, timeout, user, output);
     }
 
     /** Named `runningAsRoot` rather than `asRoot`: the latter is the component's accessor. */
     public ContainerRun runningAsRoot() {
-        return new ContainerRun(image, command, mounts, label, network, true, timeout, user);
+        return new ContainerRun(image, command, mounts, label, network, true, timeout, user, output);
+    }
+
+    /**
+     * Writes into a directory that cannot hold more than its ceiling, read back by the runner —
+     * see {@link BoundedOutput}. Needs {@link #runningAs}: the directory belongs to that user.
+     */
+    public ContainerRun withBoundedOutput(BoundedOutput value) {
+        return new ContainerRun(image, command, mounts, label, network, asRoot, timeout, user, value);
     }
 
     /**
@@ -70,11 +120,11 @@ public record ContainerRun(
      * writes stays deletable by the process that created the directory.
      */
     public ContainerRun runningAs(String uidGid) {
-        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid);
+        return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output);
     }
 
     public ContainerRun withTimeout(Duration value) {
-        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user);
+        return new ContainerRun(image, command, mounts, label, network, asRoot, value, user, output);
     }
 
     /**
