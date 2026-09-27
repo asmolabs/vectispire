@@ -1,6 +1,5 @@
 package com.asmolabs.vectispire.core.tickets.web;
 
-import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Bidirectional incident & ticketing integration (Jira, GitHub, GitLab).
@@ -57,21 +55,16 @@ public class TicketingController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
-        // Refused before the body is looked at, so a malformed request on a hidden issue answers
-        // 404 like any other, and not a 400 that would confirm the issue is there.
-        ticketLinks.requireVisibleIssue(issueId, allowed);
-
-        if (body == null || body.provider() == null || body.ticketKey() == null || body.ticketUrl() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Provider, ticket key and URL are required.");
-        }
-
+        // The service refuses a hidden issue before it looks at the fields, so a malformed request
+        // on a hidden issue answers 404 like any other, and not a 400 that would confirm the issue
+        // is there. An absent body is handed on as absent fields, for the same reason.
+        CreateTicketRequest fields = body == null ? new CreateTicketRequest(null, null, null) : body;
         return ticketLinks.attach(
                 issueId,
-                allowed,
-                body.provider(),
-                body.ticketKey(),
-                body.ticketUrl(),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()),
+                fields.provider(),
+                fields.ticketKey(),
+                fields.ticketUrl(),
                 RequestActors.of(principal, request, "unknown"));
     }
 }

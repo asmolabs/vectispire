@@ -8,7 +8,6 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.access.web.security.Visibilities;
 import com.asmolabs.vectispire.core.compliance.CertifiedScopeService;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
@@ -107,9 +106,7 @@ public class CertifiedScopeController {
     }
 
     private ScopeView set(VectispirePrincipal principal, ScanTarget target, boolean inScope, HttpServletRequest request) {
-        Visibility allowed = allowed(principal);
-        Visibilities.requireVisible(target, allowed);
-        scope.setInScope(target, inScope, RequestActors.of(principal, request));
+        scope.setInScope(target, allowed(principal), inScope, RequestActors.of(principal, request));
         return scope(principal);
     }
 

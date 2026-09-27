@@ -149,7 +149,7 @@ class CertifiedScopeTest extends VectispireContextTest {
     }
 
     private void inScope(long repoId) {
-        assertThat(scope.setInScope(new ScanTarget.Repository(repoId), true, new RequestActor("scope-test", null, null))).isTrue();
+        assertThat(scope.setInScope(new ScanTarget.Repository(repoId), Visibility.everything(), true, new RequestActor("scope-test", null, null))).isTrue();
     }
 
     private long repository(String name) {

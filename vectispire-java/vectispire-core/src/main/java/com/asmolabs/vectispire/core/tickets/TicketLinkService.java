@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.tickets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.ticketing.TicketingProvider;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -46,18 +47,6 @@ public class TicketLinkService {
         this.clock = clock;
     }
 
-    /**
-     * Refuses an issue the caller may not see with "Issue not found.", absent or hidden alike.
-     *
-     * <p>Public so a route can refuse a hidden issue <em>before</em> it validates the rest of the
-     * request: answering 400 to a malformed body on an issue the caller may not see, and 404 to a
-     * well-formed one, would tell the two apart. It answers nothing: the route only needed the
-     * refusal, and the row stays in this layer.
-     */
-    public void requireVisibleIssue(long issueId, Visibility visibility) {
-        visibleIssue(issueId, visibility);
-    }
-
     /** The issue, if the caller may see it; otherwise "Issue not found.", absent or hidden alike. */
     private IssueView visibleIssue(long issueId, Visibility visibility) {
         return RowVisibility.requireVisibleIssue(issues.issue(issueId).orElse(null), TicketLinkService::targetOf, visibility);
@@ -73,14 +62,23 @@ public class TicketLinkService {
      *
      * <p>The visibility check comes first, so a hidden issue answers 404 whatever the body holds —
      * answering 400 to a malformed body on an issue the caller may not see would tell the two apart.
+     * The missing fields are refused after it, here: the route used to refuse them itself, and so had
+     * to call a public "refuse this issue" method first, which answered nothing and which any caller
+     * could forget — the order was the route's to keep rather than this method's.
      *
-     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for a provider that is not a {@link TicketingProvider}, and
-     *     for a key or URL that is blank or longer than its column
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Issue not found." for an
+     *     issue absent or hidden alike, whatever the rest holds
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for a field missing,
+     *     for a provider that is not a {@link TicketingProvider}, and for a key or URL that is blank or
+     *     longer than its column
      */
     public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
         IssueView issue = visibleIssue(issueId, visibility);
+        if (provider == null || ticketKey == null || ticketUrl == null) {
+            throw new InvalidInputException("Provider, ticket key and URL are required.");
+        }
         TicketingProvider parsed = TicketingProvider.parse(
                 BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider"));
         // Both columns are non-null and bounded, and both were written as sent: a blank key stored a

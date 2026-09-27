@@ -126,12 +126,18 @@ public class CertifiedScopeService {
      * SQLite would wait on the write's file lock. A no-op leaves no entry, as a setting saved
      * unchanged leaves none.
      *
-     * <p>A target that does not exist is refused in the words a hidden one gets — the route has
-     * already refused those — so an id nobody registered is a 404, not a 200 for a write to nothing.
+     * <p><b>A hidden target is refused here, before the write</b>, and one that does not exist in the
+     * same words, so an id nobody registered is a 404 rather than a 200 for a write to nothing, and
+     * neither tells the other apart. The route used to refuse the hidden one and call this with the
+     * bare target, which let any other caller move a target it was never given in or out of the scope
+     * an auditor certifies.
      *
      * @return whether the flag changed
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Target not found." for
+     *     a target absent or hidden alike
      */
-    public boolean setInScope(ScanTarget target, boolean inScope, RequestActor actor) {
+    public boolean setInScope(ScanTarget target, Visibility allowed, boolean inScope, RequestActor actor) {
+        RowVisibility.requireVisible(target, allowed);
         TargetCatalog.ScopeChange outcome = targets.setInCertifiedScope(target, inScope);
         if (outcome == TargetCatalog.ScopeChange.ABSENT) {
             // Handed to the guard as an absent row, so it throws the one sentence it has.
