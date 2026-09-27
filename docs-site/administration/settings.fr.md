@@ -37,8 +37,12 @@ environ ne pouvait pas être enregistré du tout.
 
 ## Enrichissement
 
-Consultations EPSS et CISA KEV. Ce sont les seuls appels sortants du pipeline en dehors du
-catalogue de fin de support, et ils transportent des identifiants CVE et rien d'autre.
+Scores EPSS et statut CISA KEV. Les consultations EPSS sont, avec le catalogue de fin de support,
+les seuls appels sortants d'un scan, et elles transportent des identifiants CVE et rien d'autre. Le
+statut KEV est lu dans le catalogue que le plan de contrôle synchronise toutes les six heures — un
+téléchargement du catalogue de la CISA, ou du miroir que désigne `VECTISPIRE_KEV_URL`
+([Configuration](../reference/configuration.md#threat-intelligence)), affiché avec sa date dans
+l'onglet **Threat Intelligence**.
 
 Les désactiver est une option pour un déploiement isolé du réseau. Cela vous coûte la capacité
 de classer par exploitabilité, qui est le classement qui fonctionne — voir

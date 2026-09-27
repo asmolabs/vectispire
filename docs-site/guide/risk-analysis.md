@@ -13,6 +13,14 @@ point: CVSS says how bad it would be, EPSS says how likely anyone is to try.
 CISA **KEV** status sits alongside it — not a prediction but a record that exploitation has
 been observed. A KEV entry outranks a high EPSS, which outranks a high CVSS.
 
+The KEV status comes from CISA's catalogue as the control plane last read it: every six hours, or
+when a security lead presses **Synchronize** on the **Threat intelligence** settings tab. That tab
+says when it was last read, CISA's release date of the catalogue in use, and why the last attempt
+failed if it did — a failure keeps the catalogue in use rather than emptying it. An open issue is
+flagged when its CVE is listed and un-flagged when the catalogue stops listing it; a newly flagged
+one is sent to the SIEM as `ZAN-SEC-002`. Before the first synchronisation nothing is flagged, and
+the tab says *never synchronized* rather than a reassuring zero.
+
 The ranking covers open vulnerabilities whose triage is not settled: one triaged **not affected**
 or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
 approval stays ranked — a request is not a decision.

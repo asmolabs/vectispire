@@ -98,6 +98,22 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 | `VECTISPIRE_PLUGIN_REGISTRY` | *aucun* | Le registre interne depuis lequel chaque image de [plugin](../administration/plugins.md) est tirée — `registry.corp.example:5000/mirror`. L'hôte du registre de l'image est remplacé, son chemin et son digest conservés : le miroir peut servir un plugin mais pas en substituer un autre. Ni schéma, ni identifiant. Positionnez la même valeur sur chaque agent. |
 | `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `false` | `true` : le worker intégré ne lance aucun plugin dont le manifeste ne déclare pas de [signataire](../administration/plugins.md#signer-limage) — il est absent du scan, et rien de lui n'est démarré. Un signataire déclaré est vérifié avec cosign avant le pull quoi que dise ce réglage. Positionnez-le aussi sur chaque agent : c'est la décision propre à chaque exécuteur. |
 
+## Threat intelligence
+
+Le catalogue KEV de la CISA est lu toutes les six heures par la tâche de maintenance, et à la
+demande depuis l'onglet **Threat Intelligence** des paramètres ; un scan lit la copie stockée et ne
+le télécharge jamais. Les scores EPSS sont demandés à chaque scan à `api.first.org` et n'en font pas
+partie.
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_KEV_URL` | le `known_exploited_vulnerabilities.json` de la CISA | Un miroir, pour un parc qui ne joint pas `www.cisa.gov`. Il doit servir le catalogue entier au format de la CISA : un document sans sa liste, qui ne liste rien, qui porte moins d'entrées que son `count`, ou plus ancien que le catalogue en usage est refusé, et le catalogue en usage est conservé — ce qu'un catalogue partiel omet se lirait comme « n'est plus exploité ». |
+| `VECTISPIRE_KEV_ALLOW_PRIVATE` | `false` | `true` autorise cette URL à se résoudre vers une adresse privée ou de bouclage — un miroir interne au parc. Le lien local (le point de métadonnées du cloud) reste refusé. Une propriété du déploiement plutôt qu'un paramètre, pour qu'aucune session ne puisse diriger cet appel vers le réseau interne. |
+
+L'onglet indique quand le catalogue a été lu pour la dernière fois, la version et la date de
+publication CISA de celui en usage, et la dernière tentative en échec avec sa raison. Jamais
+synchronisé, un scan ne marque rien comme activement exploité — le journal le dit à chaque scan.
+
 ## Audit
 
 | Variable | Notes |

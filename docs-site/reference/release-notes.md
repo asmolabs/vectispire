@@ -36,7 +36,17 @@ and the database sits on an internal network. A tool that connected to it from t
 with their own keep it: VEX 16 MB, SARIF imports 32 MB, rule-set uploads 64 MB, agent results
 256 MB. A client sending a larger body to an ordinary route now gets a 413.
 
-**Schema migrations V32 to V41 run at start**, on MySQL and PostgreSQL. Back up the database
+**The KEV feed is CISA's catalogue, read from the network.** It was a list of ten records typed
+into the code; the control plane now reads `known_exploited_vulnerabilities.json` every six hours
+and from the **Threat intelligence** settings tab, and a scan asks the stored copy instead of
+downloading it. The control plane needs to reach `www.cisa.gov` — or set `VECTISPIRE_KEV_URL` to a
+mirror (and `VECTISPIRE_KEV_ALLOW_PRIVATE=true` if it is on a private network), see
+[Configuration](configuration.md#threat-intelligence). The upgrade empties the old feed: until the
+first synchronisation, the status says *never synchronized* and a scan marks nothing as actively
+exploited. That first synchronisation also **un-flags** open issues whose CVE the catalogue does not
+list, including those the typed-in list had flagged.
+
+**Schema migrations V32 to V43 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -54,6 +64,14 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   a change of certified scope is audited as `CERTIFIED_SCOPE_CHANGED`. A filter on the old
   operation stops finding syncs.
 - Recording a gate verdict is a write: the auditor and the platform governor are refused.
+- `GET /api/v1/threat-intel/status` and both sync routes answer the catalogue's version, its
+  release date, the last attempt and its error; `status` is `NEVER_SYNCED`, `SYNCED` or `FAILED`.
+  A sync that cannot read the catalogue answers **200** with `FAILED` and the reason, keeps the
+  catalogue in use, and is audited as a failed `THREAT_INTEL_SYNCED`. `GET /api/v1/epss/cve/{id}`
+  answers from the stored catalogue only — a **404** for a CVE it does not hold.
+- An OWASP review is recorded before the model is asked: `GET …/owasp-review` may answer
+  `status: running` while another request waits, and reads `failed` once the model's timeout has
+  passed with nobody left to settle it.
 - New finding types `plugin` and `imported`, and new fields on issues and scans (`tool`,
   `toolName`, `toolVersion`, `importSource`, a scan's `plugins[]`). The OpenAPI document in the
   repository is the contract.

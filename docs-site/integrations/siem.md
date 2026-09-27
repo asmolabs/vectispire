@@ -106,7 +106,7 @@ change meaning.
 
 | Signature | Name | CEF severity | Emitted when |
 |---|---|---|---|
-| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | the threat-intelligence sync finds a watched finding newly listed by CISA KEV |
+| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | a synchronisation of the CISA KEV catalogue — every six hours, or asked from the threat-intelligence tab — finds an open issue whose CVE it newly lists. Once per issue: a CVE already flagged is not announced again, and one the catalogue stops listing is un-flagged without an event |
 | `ZAN-SEC-003` | Security gate refused a build | 7 | a CI gate verdict fails |
 | `ZAN-SEC-005` | Finding settled by triage | 5 | a finding is marked not affected or fixed without going through approval, by hand or by VEX import |
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | an emergency recovery code is spent |

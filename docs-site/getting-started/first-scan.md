@@ -42,9 +42,10 @@ What happens, in order:
 5. Results are normalised into `Finding` rows, enriched with EPSS scores and CISA KEV
    status, evaluated against the license blocklist, and reconciled against existing issues.
 
-Steps 2–4 run with **the network disabled**. The only outbound calls the pipeline makes are
-the EPSS and KEV lookups, which carry CVE identifiers and nothing else, and the
-end-of-life catalogue, which carries product names and versions.
+Steps 2–4 run with **the network disabled**. The only outbound calls a scan makes are the
+EPSS lookups, which carry CVE identifiers and nothing else, and the end-of-life catalogue,
+which carries product names and versions. KEV status comes from the CISA catalogue the control
+plane downloads every six hours.
 
 ## 4. Schedule it
 

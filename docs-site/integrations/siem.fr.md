@@ -115,7 +115,7 @@ changera pas de sens.
 
 | Signature | Nom | Sévérité CEF | Émis quand |
 |---|---|---|---|
-| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | la synchronisation du renseignement sur les menaces trouve un constat surveillé nouvellement listé par la CISA (KEV) |
+| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | une synchronisation du catalogue CISA KEV — toutes les six heures, ou demandée depuis l'onglet Threat Intelligence — trouve un constat ouvert dont la CVE y est nouvellement listée. Une fois par constat : une CVE déjà marquée n'est pas annoncée à nouveau, et une que le catalogue cesse de lister perd son marquage sans événement |
 | `ZAN-SEC-003` | Security gate refused a build | 7 | un verdict de gate CI est un échec |
 | `ZAN-SEC-005` | Finding settled by triage | 5 | un constat est déclaré non affecté ou corrigé sans passer par l'approbation, à la main ou par import VEX |
 | `ZAN-SEC-006` | MFA backup code consumed | 6 | un code de secours est consommé |

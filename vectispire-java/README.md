@@ -169,6 +169,9 @@ same name; decision records written before that date keep the names they had.
 | A syslog collector is judged by the same address rules as a URL, reserved endpoints included | `OutboundUrlGuardTest`, `SiemRoutesTest` |
 | The SIEM export reaches a private collector only by its own, administrator-only setting, and its test route answers an outcome, never the socket's error | `SiemRoutesTest` |
 | A SIEM event leaves after its transaction commits, is retried, and the relay knows its type | `SiemExportRoutesTest` |
+| No outbound call runs inside a transaction: a scan's EPSS lookups happen before its write opens, the KEV catalogue is fetched before its write, and the OWASP review's model call sits between a committed request and a second write — asked from inside the stubbed call | `EnrichmentOutsideTransactionTest`, `ScanIngestorTest`, `ThreatIntelFeedRoutesTest`, `OwaspReportTest` |
+| A model review a stopped process left running reads as failed past its deadline, and the hourly sweep writes it so | `OwaspReportTest`, `MaintenanceJobsTest` |
+| The KEV feed is CISA's catalogue, read whole or not at all — a document without its list, empty, shorter than its `count` or older than the one in use is refused and the one in use kept; an issue is flagged when listed, un-flagged when not, announced once; one instance syncs per interval | `KevCatalogTest`, `ThreatIntelFeedRoutesTest`, `MaintenanceJobsTest` |
 | Each security event is emitted by the gesture that causes it, and by nothing quieter | `SiemSignalsRoutesTest` |
 | A SIEM signature identifier does not change meaning | `SecurityEventTypeTest` |
 | A username cannot forge a second CEF event or a field | `CefEventTest`, `SiemSignalsRoutesTest` |

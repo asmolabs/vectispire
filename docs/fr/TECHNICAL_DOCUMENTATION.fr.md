@@ -392,7 +392,8 @@ défensive — une réponse qui ne se parse pas donne une liste vide et ne lève
 | `ScanIngestorService` | Normalise les artefacts en lignes `Finding` et met l'analyse à jour. Connaît la base ; ne lance aucun conteneur. |
 | `IssueSyncService` | Réconcilie les constats avec les anomalies d'une analyse à l'autre : empreinte, `times_seen`, ouverture/résolution. Écrit la ligne d'outbox dans la même transaction. |
 | `IssueTriageService` | Applique une décision de triage validée, et fait expirer celles qui ont dépassé leur date de revue. |
-| `EnrichmentService` | Scores EPSS et catalogue CISA KEV. Au mieux : ne transforme jamais une analyse achevée en échec. |
+| `EnrichmentService` | Scores EPSS, demandés à chaque scan avant l'ouverture de sa transaction, et statut KEV, lu dans le catalogue stocké. Au mieux : ne transforme jamais une analyse achevée en échec. |
+| `ThreatIntelFeedService` | Le catalogue CISA KEV : récupéré hors de toute transaction (`KevCatalogSource`, `VECTISPIRE_KEV_URL`), refusé s'il n'est pas complet ou s'il est plus ancien que celui en usage, stocké, puis appliqué aux constats ouverts — `CRITICAL_KEV_DETECTED` pour un constat nouvellement listé. Toutes les six heures via `KevCatalogueSyncTask`, une seule instance élue par une mise à jour conditionnelle ; audité sous `THREAT_INTEL_SYNCED`, échec compris. |
 | `EolService` · `LicenseService` | Correspondance de fin de vie, et liste de licences interdites sur les données SBOM déjà collectées. |
 | `AiReviewService` | Voir §4. |
 | `NotificationService` · `OutboxService` | Choisit ce qui mérite un message, et relaie l'outbox avec un backoff plafonné. |

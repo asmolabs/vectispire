@@ -15,6 +15,15 @@ Le statut **KEV** de la CISA se tient à côté — non pas une prédiction, mai
 l'exploitation a été observée. Une entrée KEV passe devant un EPSS élevé, qui passe devant un
 CVSS élevé.
 
+Le statut KEV vient du catalogue de la CISA tel que le plan de contrôle l'a lu en dernier : toutes
+les six heures, ou quand un responsable sécurité clique **Synchroniser** dans l'onglet **Threat
+Intelligence** des paramètres. Cet onglet indique quand il a été lu, la date de publication CISA du
+catalogue en usage, et pourquoi la dernière tentative a échoué le cas échéant — un échec conserve le
+catalogue en usage au lieu de le vider. Un constat ouvert est marqué quand sa CVE est listée, et ne
+l'est plus quand le catalogue cesse de la lister ; un constat nouvellement marqué est envoyé au SIEM
+sous `ZAN-SEC-002`. Avant la première synchronisation rien n'est marqué, et l'onglet indique
+*jamais synchronisé* plutôt qu'un zéro rassurant.
+
 Le classement porte sur les vulnérabilités ouvertes dont le triage n'est pas réglé : une
 vulnérabilité triée **non affecté** ou **corrigé** en sort, comme elle sort de la barrière et du
 scorecard. Une exclusion encore en attente d'approbation reste classée — une demande n'est pas une

@@ -21,9 +21,10 @@ database credentials.
 Steps 2 to 6 run in ephemeral containers with **the network disabled**, a read-only mount,
 `cap_drop: ALL` and `no-new-privileges`. Every image is pinned by digest.
 
-The only outbound calls a scan makes are the EPSS and KEV lookups, carrying CVE
-identifiers and nothing else, and the end-of-life catalogue, carrying product names and
-versions. The code being scanned does not leave the machine.
+The only outbound calls a scan makes are the EPSS lookups, carrying CVE identifiers and
+nothing else, and the end-of-life catalogue, carrying product names and versions — both made
+before the scan's results are written, never while they are. KEV status is read from the
+catalogue the control plane synchronises every six hours. The code being scanned does not leave the machine.
 
 ## Reading a scan
 

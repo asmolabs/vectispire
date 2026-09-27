@@ -97,6 +97,21 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 | `VECTISPIRE_PLUGIN_REGISTRY` | *none* | The internal registry every [plugin](../administration/plugins.md) image is pulled from — `registry.corp.example:5000/mirror`. The image's registry host is replaced and its path and digest are kept, so the mirror can serve a plugin but cannot substitute another. No scheme, no credential. Set the same on each agent. |
 | `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `false` | `true`: the built-in worker runs no plugin whose manifest declares no [signer](../administration/plugins.md#signing-the-image) — it is absent from the scan, and nothing of it is started. A declared signer is verified with cosign before the pull whatever this says. Set it on each agent too: it is each executor's own decision. |
 
+## Threat intelligence
+
+The CISA KEV catalogue is read every six hours by the maintenance tick, and on demand from the
+**Threat intelligence** settings tab; a scan reads the stored copy and never downloads it. The EPSS
+scores are asked per scan from `api.first.org` and are not part of this.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_KEV_URL` | CISA's `known_exploited_vulnerabilities.json` | A mirror for an estate that cannot reach `www.cisa.gov`. It must serve the whole catalogue in CISA's format: a document without its list, listing nothing, carrying fewer entries than its `count`, or older than the catalogue in use is refused, and the catalogue in use is kept — what a partial one leaves out would read as "no longer exploited". |
+| `VECTISPIRE_KEV_ALLOW_PRIVATE` | `false` | `true` lets that URL resolve to a private or loopback address — a mirror inside the estate. Link-local (the cloud metadata endpoint) stays refused. A deployment property rather than a setting, so no session can point this call at the internal network. |
+
+The tab shows when the catalogue was last read, CISA's version and release date of the one in use,
+and the last failed attempt with its reason. Never synchronised, a scan marks nothing as actively
+exploited — the log says so at each scan.
+
 ## Audit
 
 | Variable | Notes |

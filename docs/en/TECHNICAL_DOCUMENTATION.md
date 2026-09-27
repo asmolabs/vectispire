@@ -385,7 +385,8 @@ parse yields an empty list and never raises.
 | `ScanIngestorService` | Normalizes artifacts into `Finding` rows and updates the scan. Knows the database; runs no container. |
 | `IssueSyncService` | Reconciles findings against issues across scans: fingerprint, `times_seen`, open/resolve. Writes the outbox row in the same transaction. |
 | `IssueTriageService` | Applies a validated triage decision, and expires the ones past their review date. |
-| `EnrichmentService` | EPSS scores and the CISA KEV catalog. Best-effort: never turns a completed scan into a failure. |
+| `EnrichmentService` | EPSS scores, asked per scan before its transaction opens, and KEV status, read from the stored catalogue. Best-effort: never turns a completed scan into a failure. |
+| `ThreatIntelFeedService` | The CISA KEV catalogue: fetched outside any transaction (`KevCatalogSource`, `VECTISPIRE_KEV_URL`), refused unless whole and not older than the one in use, stored, and applied to the open issues — `CRITICAL_KEV_DETECTED` for a newly listed one. Every six hours through `KevCatalogueSyncTask`, one instance elected by a conditional update; audited as `THREAT_INTEL_SYNCED`, a failure included. |
 | `EolService` · `LicenseService` | End-of-life matching, and the license blocklist over SBOM data already collected. |
 | `AiReviewService` | See §4. |
 | `NotificationService` · `OutboxService` | Selects what deserves a message, and relays the outbox with capped backoff. |

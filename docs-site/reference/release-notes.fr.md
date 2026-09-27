@@ -39,7 +39,19 @@ routes qui ont le leur le gardent : VEX 16 Mo, imports SARIF 32 Mo, envoi de jeu
 64 Mo, résultats d'agent 256 Mo. Un client qui envoie un corps plus gros à une route ordinaire
 reçoit désormais un 413.
 
-**Les migrations V32 à V41 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Le flux KEV est le catalogue de la CISA, lu sur le réseau.** C'était une liste de dix
+enregistrements écrits dans le code ; le plan de contrôle lit désormais
+`known_exploited_vulnerabilities.json` toutes les six heures et depuis l'onglet **Threat
+Intelligence** des paramètres, et un scan interroge la copie stockée au lieu de la télécharger. Le
+plan de contrôle doit joindre `www.cisa.gov` — ou `VECTISPIRE_KEV_URL` doit désigner un miroir (et
+`VECTISPIRE_KEV_ALLOW_PRIVATE=true` s'il est sur un réseau privé), voir
+[Configuration](configuration.md#threat-intelligence). La mise à jour vide l'ancien flux : jusqu'à la
+première synchronisation, le statut indique *jamais synchronisé* et un scan ne marque rien comme
+activement exploité. Cette première synchronisation **retire** aussi le marquage des constats
+ouverts dont la CVE ne figure pas au catalogue, y compris ceux que la liste écrite en dur avait
+marqués.
+
+**Les migrations V32 à V43 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -59,6 +71,15 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   filtre sur l'ancienne opération ne trouve plus les synchronisations.
 - Enregistrer un verdict de barrière est une écriture : l'auditeur et le gouverneur de la
   plateforme sont refusés.
+- `GET /api/v1/threat-intel/status` et les deux routes de synchronisation renvoient la version du
+  catalogue, sa date de publication, la dernière tentative et son erreur ; `status` vaut
+  `NEVER_SYNCED`, `SYNCED` ou `FAILED`. Une synchronisation qui ne peut pas lire le catalogue répond
+  **200** avec `FAILED` et la raison, conserve le catalogue en usage, et est auditée comme un
+  `THREAT_INTEL_SYNCED` en échec. `GET /api/v1/epss/cve/{id}` ne répond plus que depuis le catalogue
+  stocké — un **404** pour une CVE qu'il ne contient pas.
+- Une revue OWASP est enregistrée avant que le modèle soit interrogé : `GET …/owasp-review` peut
+  répondre `status: running` pendant qu'une autre demande attend, et se lit `failed` une fois le
+  délai du modèle dépassé sans personne pour la clore.
 - Nouveaux types de résultats `plugin` et `imported`, et nouveaux champs sur les problèmes et les
   scans (`tool`, `toolName`, `toolVersion`, `importSource`, les `plugins[]` d'un scan). Le
   document OpenAPI du dépôt fait foi.
