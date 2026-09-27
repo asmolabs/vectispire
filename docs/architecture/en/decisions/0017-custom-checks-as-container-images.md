@@ -299,7 +299,8 @@ is exactly why the justification is required and audited.
 
 - One migration, `V41`, written once in `common`: `t_plugin`, `t_plugin_manifest`,
   `t_plugin_activation`, `t_sarif_source`, `t_sarif_import`, provenance columns on `t_issue` and
-  `t_finding`, `include_plugins` on `t_gate_policy`. No foreign key: the `plugins` module's listeners
+  `t_finding`, each plugin's outcome on `t_scan` (`plugin_steps` — the only place a not-applicable
+  plugin is recorded, since it is nobody's failure), `include_plugins` on `t_gate_policy`. No foreign key: the `plugins` module's listeners
   purge its rows on `TargetDeleted` and `ProjectDeleted`.
 - A new module, `core.plugins`, using `access`, `access::security`, `issues`, `scanning` and `targets`;
   `scanning` declares the port `ScanPlugins` it implements. The agent route lives in `agents`, through

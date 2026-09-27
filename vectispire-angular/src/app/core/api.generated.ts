@@ -4538,6 +4538,15 @@ export interface components {
             /** Format: int32 */
             timeout_seconds?: number;
         };
+        PluginOutcome: {
+            /** Format: int32 */
+            findings?: number;
+            languages?: string[];
+            manifestDigest?: string;
+            pluginId?: string;
+            reason?: string;
+            state?: string;
+        };
         PluginStep: {
             state: string;
         };
@@ -5122,6 +5131,7 @@ export interface components {
             findingsTotal: number;
             findingsTruncated: boolean;
             hasSbom: boolean;
+            plugins?: components["schemas"]["PluginOutcome"][];
             projectType?: string;
             projectVersion?: string;
             scan?: components["schemas"]["ScanSummary"];

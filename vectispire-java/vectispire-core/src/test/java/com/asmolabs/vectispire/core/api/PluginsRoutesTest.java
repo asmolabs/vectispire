@@ -347,6 +347,46 @@ class PluginsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("an agent's result records each plugin's state on the scan, the not-applicable one included")
+        void theScanKeepsEachPluginsOutcome() throws Exception {
+            String governor = governor();
+            String digest = json.readTree(register(governor, manifest("acme-lint", DIGEST))
+                    .andReturn().getResponse().getContentAsString()).get("manifestDigest").asText();
+            long project = project();
+            mvc.perform(authenticated(put("/api/v1/projects/" + project + "/plugins/acme-lint"), asAdmin()))
+                    .andExpect(status().isOk());
+            queue(repositoryIn(project));
+            Enrolled agent = agent();
+            long scanId = claim(agent).path("scanId").asLong();
+
+            String result = """
+                    {"plugins":[
+                      {"state":"produced","pluginId":"acme-lint","manifestDigest":"%s","toolName":"acme","toolVersion":"4.2",
+                       "findings":[{"ruleId":"ACME001","severity":"HIGH","file":"src/App.java","line":3,"message":"m"}]},
+                      {"state":"not_applicable","pluginId":"py-only","manifestDigest":"%s","languages":["python"]},
+                      {"state":"absent","pluginId":"broken","manifestDigest":"%s","reason":"exited with 2"}],
+                     "failures":[{"step":"plugin broken","reason":"exited with 2"}],"duration":"PT3S"}
+                    """.formatted(digest, digest, digest);
+            mvc.perform(post("/api/v1/agent/jobs/" + scanId + "/result")
+                            .header("Authorization", "Bearer " + agent.token())
+                            .contentType(MediaType.APPLICATION_JSON).content(result))
+                    .andExpect(status().isOk());
+
+            mvc.perform(authenticated(get("/api/v1/scans/" + scanId), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.scan.status").value("completed"))
+                    .andExpect(jsonPath("$.plugins[0].pluginId").value("acme-lint"))
+                    .andExpect(jsonPath("$.plugins[0].state").value("produced"))
+                    .andExpect(jsonPath("$.plugins[0].findings").value(1))
+                    .andExpect(jsonPath("$.plugins[1].state").value("not_applicable"))
+                    .andExpect(jsonPath("$.plugins[1].languages[0]").value("python"))
+                    .andExpect(jsonPath("$.plugins[2].state").value("absent"))
+                    .andExpect(jsonPath("$.plugins[2].reason").value("exited with 2"))
+                    .andExpect(jsonPath("$.findings[0].tool").value("plugin:acme-lint"))
+                    .andExpect(jsonPath("$.findings[0].type").value("plugin"));
+        }
+
+        @Test
         @DisplayName("a stored manifest that no longer hashes to its digest is served to nobody")
         void aTamperedManifestIsNotServed() throws Exception {
             String digest = json.readTree(register(governor(), manifest("acme-lint", DIGEST))

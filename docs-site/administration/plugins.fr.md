@@ -132,6 +132,9 @@ Chaque plugin d'un scan finit dans l'un de trois états :
 | **non applicable** | Aucun de ses langages n'est dans le dépôt ; il n'a pas été lancé. | Laissées telles quelles. Pas un échec. |
 | **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (pull en échec, code de sortie non déclaré, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 
+Le détail du scan liste chaque plugin avec son état (`plugins` : `produced` avec son nombre de
+constats, `not_applicable` avec les langages qu'il cherchait, `absent` avec la raison).
+
 Les langages sont détectés à partir des noms de fichiers et des manifestes (`pom.xml`, `package.json`,
 `pyproject.toml`, `go.mod`…), dans une borne ; un dépôt trop grand pour être recensé lance tous les
 plugins plutôt que d'en sauter un à tort.

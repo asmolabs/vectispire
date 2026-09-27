@@ -97,7 +97,8 @@ public class ScansController {
             boolean hasSbom,
             List<FindingView> findings,
             long findingsTotal,
-            boolean findingsTruncated) {}
+            boolean findingsTruncated,
+            List<com.asmolabs.vectispire.core.scanning.PluginOutcome> plugins) {}
 
     @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
     @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
@@ -136,7 +137,8 @@ public class ScansController {
                 scan.sbom() != null,
                 detail.findings().stream().map(ScansController::viewOf).toList(),
                 detail.findingsTotal(),
-                detail.findingsTruncated());
+                detail.findingsTruncated(),
+                scan.plugins());
     }
 
     /**

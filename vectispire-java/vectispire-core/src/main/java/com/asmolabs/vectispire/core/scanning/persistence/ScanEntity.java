@@ -52,6 +52,11 @@ public class ScanEntity {
     @Column(name = "summary")
     private String summary;
 
+    /** Each plugin's outcome in this scan, as JSON — see {@code PluginOutcome}. Null when none ran. */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "plugin_steps")
+    private String pluginSteps;
+
     @Column(name = "duration_ms")
     private Long durationMs;
 
@@ -152,6 +157,14 @@ public class ScanEntity {
 
     public void setSummary(String summary) {
         this.summary = summary;
+    }
+
+    public String getPluginSteps() {
+        return pluginSteps;
+    }
+
+    public void setPluginSteps(String pluginSteps) {
+        this.pluginSteps = pluginSteps;
     }
 
     public Long getDurationMs() {

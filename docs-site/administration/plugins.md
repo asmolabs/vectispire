@@ -130,6 +130,9 @@ Each plugin of a scan ends in one of three states:
 | **not applicable** | None of its languages is in the repository; it was not started. | Left as they are. Not a failure. |
 | **absent** | It should have run and gave no usable report (pull failed, undeclared exit code, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
 
+The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings,
+`not_applicable` with the languages it looked for, `absent` with the reason).
+
 Languages are detected from file names and manifests (`pom.xml`, `package.json`, `pyproject.toml`,
 `go.mod`…), within a bound; a repository too large to count runs every plugin rather than skipping
 one wrongly.

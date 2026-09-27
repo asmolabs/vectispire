@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * A scan as the layers above the services hold it: the row's properties under their own names, not
@@ -32,7 +33,8 @@ public record ScanView(
         String claimedBy,
         Instant claimedAt,
         Instant leaseExpiresAt,
-        int attempts) {
+        int attempts,
+        List<PluginOutcome> plugins) {
 
     public static ScanView of(ScanEntity scan) {
         return new ScanView(
@@ -57,6 +59,7 @@ public record ScanView(
                 scan.getClaimedBy(),
                 scan.getClaimedAt(),
                 scan.getLeaseExpiresAt(),
-                scan.getAttempts());
+                scan.getAttempts(),
+                PluginOutcome.read(scan.getPluginSteps()));
     }
 }

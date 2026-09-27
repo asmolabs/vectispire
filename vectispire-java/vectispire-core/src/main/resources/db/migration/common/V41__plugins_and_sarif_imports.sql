@@ -85,6 +85,11 @@ alter table t_issue add column tool_name varchar(100);
 alter table t_issue add column tool_version varchar(100);
 alter table t_issue add column import_source varchar(40);
 
+-- What became of each plugin in a scan — produced, not applicable, absent — as a JSON array. Not
+-- applicable is a report, not a silence, and it appears nowhere else: an absent plugin is also among
+-- the scan's failures, a not-applicable one is not.
+alter table t_scan add column plugin_steps ${text};
+
 alter table t_finding add column tool varchar(200);
 alter table t_finding add column tool_name varchar(100);
 alter table t_finding add column tool_version varchar(100);

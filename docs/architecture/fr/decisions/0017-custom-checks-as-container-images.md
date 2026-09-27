@@ -310,7 +310,8 @@ auditée.
 
 - Une migration, `V41`, écrite une fois dans `common` : `t_plugin`, `t_plugin_manifest`,
   `t_plugin_activation`, `t_sarif_source`, `t_sarif_import`, des colonnes de provenance sur `t_issue` et
-  `t_finding`, `include_plugins` sur `t_gate_policy`. Pas de clé étrangère : les écouteurs du module
+  `t_finding`, le sort de chaque plugin sur `t_scan` (`plugin_steps` — le seul endroit où un plugin non
+  applicable est consigné, puisque ce n'est l'échec de personne), `include_plugins` sur `t_gate_policy`. Pas de clé étrangère : les écouteurs du module
   `plugins` purgent ses lignes sur `TargetDeleted` et `ProjectDeleted`.
 - Un nouveau module, `core.plugins`, qui utilise `access`, `access::security`, `issues`, `scanning` et
   `targets` ; `scanning` déclare le port `ScanPlugins` qu'il implémente. La route des agents vit dans

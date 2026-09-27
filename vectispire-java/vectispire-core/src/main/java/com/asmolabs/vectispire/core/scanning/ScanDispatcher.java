@@ -452,6 +452,9 @@ public class ScanDispatcher {
         // Step failures are recorded even on a successful scan: without them, an operator would
         // not know that one scanner looked at nothing.
         scan.setError(failureSummary(artifacts));
+        // Each plugin's outcome, the not-applicable ones included — which are nobody's failure and
+        // would otherwise be recorded nowhere.
+        scan.setPluginSteps(PluginOutcome.write(artifacts.plugins()));
         scan.setClaimedBy(null);
         scan.setClaimedAt(null);
         scan.setLeaseExpiresAt(null);
