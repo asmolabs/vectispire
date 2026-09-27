@@ -114,12 +114,35 @@ public class GateService {
             };
         }
 
+        /** A target's scope named as the policy routes name it: {@code repository/7}, {@code container/3}. */
+        public static PolicyScope of(String kind, long id) {
+            return of(switch (kind) {
+                case "repository" -> new ScanTarget.Repository(id);
+                case "container" -> new ScanTarget.Container(id);
+                default -> throw new IllegalArgumentException(
+                        "Unknown target kind: \"" + kind + "\". Use repository or container.");
+            });
+        }
+
         public boolean isGlobal() {
             return SCOPE_GLOBAL.equals(kind);
         }
     }
 
     public record Decision(GateVerdict verdict, ResolvedPolicy policy) {}
+
+    /**
+     * The target a verdict is asked about, from the two identifiers its request carries.
+     *
+     * <p>Exactly one: both would be a question about two targets answered as one verdict, neither a
+     * question about nothing.
+     */
+    public static ScanTarget verdictTarget(Long repositoryId, Long containerId) {
+        if ((repositoryId == null) == (containerId == null)) {
+            throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
+        }
+        return repositoryId != null ? new ScanTarget.Repository(repositoryId) : new ScanTarget.Container(containerId);
+    }
 
     /**
      * Who asked, so that a verdict can be attributed months later.
@@ -132,6 +155,11 @@ public class GateService {
         public static Caller unattributed() {
             return new Caller(null, null);
         }
+    }
+
+    /** What a route sent, read by {@link GatePolicyFields#asRequest} — the one reading of it. */
+    public Decision evaluateAndRecord(ScanTarget target, GatePolicyFields requested, Caller caller) {
+        return evaluateAndRecord(target, requested.asRequest(), caller);
     }
 
     /**

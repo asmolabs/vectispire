@@ -4,10 +4,6 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.asmolabs.vectispire.common.domain.gate.PolicyFlag;
-import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
-import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
-import com.asmolabs.vectispire.common.domain.gate.SeverityRequest;
-import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
@@ -16,6 +12,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.Visibilities;
+import com.asmolabs.vectispire.core.gate.GatePolicyFields;
 import com.asmolabs.vectispire.core.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.gate.GateVerdictView;
@@ -122,13 +119,7 @@ public class GateController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestBody GateRequest body,
             HttpServletRequest request) {
-        if ((body.repositoryId() == null) == (body.containerId() == null)) {
-            throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
-        }
-
-        ScanTarget target = body.repositoryId() != null
-                ? new ScanTarget.Repository(body.repositoryId())
-                : new ScanTarget.Container(body.containerId());
+        ScanTarget target = GateService.verdictTarget(body.repositoryId(), body.containerId());
 
         // A verdict is a summary of a target's backlog: counts, severities, the identifiers that
         // violate. Answering one for a target the caller may not see hands over most of what the
@@ -141,7 +132,15 @@ public class GateController {
         // added later cannot consult the gate without the answer joining the register.
         GateService.Decision decision = gate.evaluateAndRecord(
                 target,
-                requestedPolicy(body),
+                new GatePolicyFields(
+                        body.failOnSeverity(),
+                        body.failOnKev(),
+                        body.fixableOnly(),
+                        body.includeTriaged(),
+                        body.includeAiReview(),
+                        // The verdict's body does not carry it: a pipeline asks for the stored rule.
+                        null,
+                        body.includePlugins()),
                 new GateService.Caller(callerName(principal), proxies.clientAddress(request)));
         GateVerdict verdict = decision.verdict();
         GatePolicy policy = decision.policy().policy();
@@ -282,40 +281,5 @@ public class GateController {
     private static Map<String, Long> countsByWireName(GateVerdict verdict) {
         return verdict.countsBySeverity().entrySet().stream()
                 .collect(java.util.stream.Collectors.toMap(entry -> entry.getKey().wireName(), Map.Entry::getValue));
-    }
-
-    private static RequestedPolicy requestedPolicy(GateRequest body) {
-        RequestedPolicy requested = RequestedPolicy.none();
-        if (body.failOnSeverity() != null) {
-            requested = requested.with(severityRequest(body.failOnSeverity()));
-        }
-        requested = withFlag(requested, PolicyFlag.FAIL_ON_KEV, body.failOnKev());
-        requested = withFlag(requested, PolicyFlag.FIXABLE_ONLY, body.fixableOnly());
-        requested = withFlag(requested, PolicyFlag.INCLUDE_TRIAGED, body.includeTriaged());
-        requested = withFlag(requested, PolicyFlag.INCLUDE_AI_REVIEW, body.includeAiReview());
-        requested = withFlag(requested, PolicyFlag.INCLUDE_PLUGINS, body.includePlugins());
-        return requested;
-    }
-
-    /**
-     * {@code "none"} disables the threshold; anything else is one.
-     *
-     * <p>An unreadable severity is a threshold of {@code UNKNOWN}, which ranks last and would
-     * fail nothing. Refusing it is the only safe reading: a pipeline that typed "hgh" must be
-     * told, not quietly given a gate that passes everything.
-     */
-    private static SeverityRequest severityRequest(String value) {
-        if ("none".equalsIgnoreCase(value)) {
-            return new SeverityRequest.Disabled();
-        }
-        Severity severity = Severity.of(value);
-        if (severity == Severity.UNKNOWN) {
-            throw new IllegalArgumentException("Unknown severity: \"" + value + "\".");
-        }
-        return new SeverityRequest.Threshold(severity);
-    }
-
-    private static RequestedPolicy withFlag(RequestedPolicy requested, PolicyFlag flag, Boolean value) {
-        return value == null ? requested : requested.with(flag, value);
     }
 }

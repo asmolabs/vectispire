@@ -1,14 +1,13 @@
 package com.asmolabs.vectispire.core.gate.web;
 
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
-import com.asmolabs.vectispire.common.domain.issues.Severity;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.gate.GatePolicyAdministrationService;
+import com.asmolabs.vectispire.core.gate.GatePolicyFields;
 import com.asmolabs.vectispire.core.gate.GateService.PolicyScope;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.gate.StoredGatePolicyView;
@@ -143,7 +142,7 @@ public class GatePoliciesController {
             @PathVariable long id,
             @RequestBody PolicyRequest body) {
 
-        return store(PolicyScope.of(target(kind, id)), principal, request, body);
+        return store(PolicyScope.of(kind, id), principal, request, body);
     }
 
     /**
@@ -162,7 +161,7 @@ public class GatePoliciesController {
             @PathVariable String kind,
             @PathVariable long id) {
 
-        if (!administration.clear(PolicyScope.of(target(kind, id)), actor(principal, request))) {
+        if (!administration.clear(PolicyScope.of(kind, id), actor(principal, request))) {
             throw new NoSuchElementException("No policy stored for " + kind + " " + id + ".");
         }
     }
@@ -170,7 +169,7 @@ public class GatePoliciesController {
     private GatePolicyView store(
             PolicyScope scope, VectispirePrincipal principal, HttpServletRequest request, PolicyRequest body) {
 
-        StoredGatePolicyView stored = administration.store(scope, policyOf(body), body.note(), actor(principal, request));
+        StoredGatePolicyView stored = administration.store(scope, fieldsOf(body), body.note(), actor(principal, request));
         return view(stored, names.all());
     }
 
@@ -179,67 +178,15 @@ public class GatePoliciesController {
         return RequestActors.named(principal == null ? null : principal.getName(), request);
     }
 
-    /**
-     * <b>Every field is read, none is defaulted from what is already stored.</b> A partial
-     * update would make "leave this alone" and "set it to false" the same request, and the two
-     * differ by a build that fails.
-     */
-    private static GatePolicy policyOf(PolicyRequest body) {
-        return new GatePolicy(
-                threshold(body.failOnSeverity()),
-                required(body.failOnKev(), "fail_on_kev"),
-                required(body.fixableOnly(), "fixable_only"),
-                required(body.includeTriaged(), "include_triaged"),
-                required(body.includeAiReview(), "include_ai_review"),
-                // **The one field that may be absent, and for the opposite reason to the others.**
-                // They are refused when missing because a stored value would be silently
-                // reinstated under a version number saying somebody chose it. This flag has no
-                // prior value to reinstate: it did not exist before, every stored policy has it
-                // off, and absent means the behaviour the caller already had. Refusing it would
-                // break every pipeline that writes a policy today, over a rule none of them can
-                // yet know about.
-                body.failOnUncoveredLanguages() != null && body.failOnUncoveredLanguages(),
-                // Absent for the same reason, and newer still: every stored policy has it off, and
-                // a pipeline that writes a policy today cannot know it exists.
-                body.includePlugins() != null && body.includePlugins());
-    }
-
-    private static boolean required(Boolean value, String field) {
-        if (value == null) {
-            throw new IllegalArgumentException("\"" + field + "\" is required.");
-        }
-        return value;
-    }
-
-    /**
-     * {@code "none"} switches the severity rule off; anything else is a threshold.
-     *
-     * <p>An unreadable severity is refused rather than stored, for the reason the verdict route
-     * gives: {@code Severity.of} answers {@code UNKNOWN}, which ranks last, and a policy written
-     * from a typo would fail every build — or, read the other way round, pass everything.
-     */
-    private static Severity threshold(String value) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(
-                    "\"fail_on_severity\" is required — a severity, or \"none\" to switch the rule off.");
-        }
-        if ("none".equalsIgnoreCase(value.trim())) {
-            return null;
-        }
-        Severity severity = Severity.of(value);
-        if (severity == Severity.UNKNOWN) {
-            throw new IllegalArgumentException("Unknown severity: \"" + value + "\".");
-        }
-        return severity;
-    }
-
-    private static ScanTarget target(String kind, long id) {
-        return switch (kind) {
-            case "repository" -> new ScanTarget.Repository(id);
-            case "container" -> new ScanTarget.Container(id);
-            default -> throw new IllegalArgumentException(
-                    "Unknown target kind: \"" + kind + "\". Use repository or container.");
-        };
+    private static GatePolicyFields fieldsOf(PolicyRequest body) {
+        return new GatePolicyFields(
+                body.failOnSeverity(),
+                body.failOnKev(),
+                body.fixableOnly(),
+                body.includeTriaged(),
+                body.includeAiReview(),
+                body.failOnUncoveredLanguages(),
+                body.includePlugins());
     }
 
     private static GatePolicyView view(StoredGatePolicyView policy, TargetNaming.Names names) {

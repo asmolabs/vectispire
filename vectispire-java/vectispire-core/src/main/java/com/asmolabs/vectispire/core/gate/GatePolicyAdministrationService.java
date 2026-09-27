@@ -35,8 +35,14 @@ public class GatePolicyAdministrationService {
         this.audit = audit;
     }
 
-    /** Stores a new version for the scope, attributed to the actor, and records what it now says. */
-    public StoredGatePolicyView store(PolicyScope scope, GatePolicy policy, String note, RequestActor actor) {
+    /**
+     * Stores a new version for the scope, attributed to the actor, and records what it now says.
+     *
+     * @param fields what the route sent, read by {@link GatePolicyFields#asReplacement} — every
+     *     field but the two newest is required
+     */
+    public StoredGatePolicyView store(PolicyScope scope, GatePolicyFields fields, String note, RequestActor actor) {
+        GatePolicy policy = fields.asReplacement();
         // The note is a `text` column: bounded like every stored text, so a paste past MySQL's
         // 64 KB is a 400 here rather than a 500 from the insert.
         BoundedText.within(note, BoundedText.TEXT_MAX, "The note");
