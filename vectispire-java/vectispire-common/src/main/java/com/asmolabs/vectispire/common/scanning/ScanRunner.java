@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -67,7 +68,8 @@ public final class ScanRunner {
             GitClone.HostKeyPolicy hostKeys,
             GitClone.WithoutKey withoutKey,
             Clock clock) {
-        this(containers, images, bundledRules, ruleSets, PluginProvider.NONE, null, hostKeys, withoutKey, clock);
+        this(containers, images, bundledRules, ruleSets, PluginProvider.NONE, null, hostKeys, withoutKey, clock,
+                VulnerabilityDatabase.defaultRoot());
     }
 
     /**
@@ -75,6 +77,8 @@ public final class ScanRunner {
      *     worker, the protocol on an agent, as for {@code ruleSets}
      * @param pluginSettings the internal registry plugin images are pulled from, and whether this
      *     executor runs a plugin whose manifest declares no signer — the executor's own decisions
+     * @param vulnerabilityDatabase the host directory the matcher's database is kept in, shared by
+     *     every scan of this executor — see {@link VulnerabilityDatabase}
      */
     public ScanRunner(
             ContainerRunner containers,
@@ -85,10 +89,12 @@ public final class ScanRunner {
             PluginScanner.Settings pluginSettings,
             GitClone.HostKeyPolicy hostKeys,
             GitClone.WithoutKey withoutKey,
-            Clock clock) {
+            Clock clock,
+            Path vulnerabilityDatabase) {
         this.plugins = new PluginSteps(new PluginScanner(containers, pluginSettings), plugins);
         this.containers = containers;
-        this.dependencies = new DependencyScanner(containers, images);
+        this.dependencies = new DependencyScanner(
+                containers, images, new VulnerabilityDatabase(containers, images.grype(), vulnerabilityDatabase));
         this.secrets = new SecretsScanner(containers, images.gitleaks());
         this.iac = new IacScanner(containers, images.checkov());
         this.sast = new SastScanner(containers, images.semgrep());

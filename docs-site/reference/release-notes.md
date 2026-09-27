@@ -110,6 +110,9 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 - **SIEM export** over syslog UDP, TCP or TLS (RFC 5424, CEF), sent after commit —
   [SIEM export](../integrations/siem.md).
 - **Parallel scans on an agent**, 1 to 16 at once (`max_concurrent`), counted by the database.
+- **One vulnerability database per host**, downloaded once under a lock and shared read-only by
+  every scan instead of once per scan (some 3 GB), in `VECTISPIRE_VULNERABILITY_DB_DIR`; the matcher
+  now runs with no network.
 - **Resetting an agent's sealing key** from the Agents screen, for a host whose clock was put back
   or a key suspected of having leaked.
 - Single sign-on records the provider's second factor and may require it

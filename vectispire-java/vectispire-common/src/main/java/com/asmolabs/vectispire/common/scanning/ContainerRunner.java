@@ -185,6 +185,11 @@ public final class ContainerRunner {
         return limits.outputBytes();
     }
 
+    /** How long a scanner may run before it is stopped — what a scan that started can still take. */
+    public Duration scannerTimeout() {
+        return limits.timeout();
+    }
+
     /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
     public boolean isAvailable() {
         try {
@@ -293,9 +298,17 @@ public final class ContainerRunner {
                 // `HOME` goes with it because several of these images default it to `/` or to a
                 // directory in the image, and a cache write there now fails on a read-only
                 // filesystem rather than being silently discarded.
+                //
+                // **`mode=1777`, because the daemon copies the image's own mode onto the tmpfs.** The
+                // matcher's image ships a `/tmp` only root may write, and since the matcher runs as
+                // the workspace's owner rather than root, it could not create the listing file of its
+                // database check: "unable to create listing temp file: permission denied", then
+                // "database does not exist", and every scan's vulnerability matching was absent —
+                // measured against the pinned image on 2026-09-27. World-writable with the sticky bit
+                // is what a `/tmp` is; `noexec` and `nosuid` stay.
                 .withTmpFs(Map.of(
-                        "/tmp", "rw,noexec,nosuid,size=" + SCRATCH_MEGABYTES + "m",
-                        SCRATCH_HOME, "rw,noexec,nosuid,size=" + SCRATCH_MEGABYTES + "m"))
+                        "/tmp", "rw,noexec,nosuid,mode=1777,size=" + SCRATCH_MEGABYTES + "m",
+                        SCRATCH_HOME, "rw,noexec,nosuid,mode=1777,size=" + SCRATCH_MEGABYTES + "m"))
                 // Removed explicitly below rather than by the daemon: an interrupted scan must
                 // not leave dead containers accumulating on the machine that scans.
                 .withAutoRemove(false);
@@ -325,7 +338,15 @@ public final class ContainerRunner {
                         // the only one that mounts anything at this path — without the mount
                         // the variable names a directory on a read-only filesystem, which is
                         // the loud failure rather than the quiet one.
-                        "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT)
+                        "GRYPE_DB_CACHE_DIR=" + DATABASE_CACHE_MOUNT,
+                        // **The matcher never fetches its database while it matches.** It reads the
+                        // generation `VulnerabilityDatabase` downloaded once for the host, mounted
+                        // read-only and with no network; left on, it would try to update it on every
+                        // scan and fail against the read-only mount. `db update` and `db check`,
+                        // which are asked explicitly, are not affected.
+                        "GRYPE_DB_AUTO_UPDATE=false",
+                        // Nor its own version, which is pinned by digest and asked of nobody.
+                        "GRYPE_CHECK_FOR_APP_UPDATE=false")
                 .withHostConfig(hostConfig);
         if (user != null) {
             create = create.withUser(user);

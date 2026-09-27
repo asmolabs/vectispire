@@ -84,6 +84,12 @@ vectispire:
     # A repository with no deployment key attached falls back to this machine's own ~/.ssh.
     host-ssh: ${VECTISPIRE_HOST_SSH:true}
 
+    # **The matcher's database, once per host.** Downloaded here under a lock — some 3 GB — and
+    # mounted read-only by every scan of the built-in worker, instead of once per scan. Blank is a
+    # directory beside the workspaces; a disk that survives a restart spares the first scan after
+    # one the download. The daemon mounts it, so it is a path on the daemon's host.
+    vulnerability-db-dir: ${VECTISPIRE_VULNERABILITY_DB_DIR:}
+
     # **The scanner images, overridable one by one.** Blank keeps the digest Vectispire ships
     # with — the pinned, reviewed one. Set these to run from an internal registry (an air-gapped
     # or regulated estate has no other option), or to substitute an engine.

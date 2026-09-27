@@ -73,14 +73,17 @@ open a sealed key. For more machines, declare more agents.
 ### Sizing it
 
 Each scan runs up to five scanner containers one after the other, each capped at 2 GB of memory and
-at all but one of the Docker host's cores, and the vulnerability matcher downloads its database —
-about 2 GB — into that scan's own workspace. Per concurrent scan, count roughly:
+at all but one of the Docker host's cores. The vulnerability matcher's database — about 3 GB — is
+downloaded **once for the host**, not per scan, and shared read-only by every scan
+(`VECTISPIRE_VULNERABILITY_DB_DIR`, see [Configuration](../reference/configuration.md)): count it
+once, plus as much again while an update is downloaded beside the current one. Per concurrent scan,
+count roughly:
 
 | | per scan |
 |---|---|
 | CPU | one core |
 | Memory | 2 GB, on top of the agent's own JVM |
-| Disk (temporary directory) | 3 GB — the clone, the SBOM and the vulnerability database |
+| Disk (temporary directory) | the clone and the SBOM — the vulnerability database is the host's, counted once |
 
 Scans past what the machine can hold do not wait their turn: they compete for the same cores and
 time out together, 15 minutes per scanner. Stay below the machine; more capacity is another agent.

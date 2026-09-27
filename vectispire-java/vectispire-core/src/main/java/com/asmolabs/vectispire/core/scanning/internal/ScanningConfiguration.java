@@ -78,6 +78,10 @@ public class ScanningConfiguration {
      * @param pluginRegistry the internal registry plugin images are pulled from — the registry host of
      *     each image replaced, its path and digest kept, so the mirror serves but cannot substitute.
      *     Blank pulls each from its own registry
+     * @param vulnerabilityDbDir the directory the matcher's database is downloaded to once and shared
+     *     from, read-only, by every scan of the built-in worker. Blank is a directory beside the
+     *     workspaces, in the temporary directory; set it to a disk that survives a restart, and the
+     *     first scan after one does not wait for a download
      * @param pluginSignatureRequired run no plugin whose manifest declares no signer. Off by default:
      *     a declared signer is always verified, and requiring one of every plugin is this executor's
      *     operator's decision — the agent has the same setting, for its own host (decision 0017)
@@ -91,6 +95,7 @@ public class ScanningConfiguration {
             @Value("${vectispire.scanning.plugin-signature-required:false}") boolean pluginSignatureRequired,
             @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
             @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
+            @Value("${vectispire.scanning.vulnerability-db-dir:}") String vulnerabilityDbDir,
             // Blank keeps the pinned digest — see ScannerImages.withOverrides. Named one by one
             // rather than bound as a map so an unknown key is a startup failure instead of a
             // scanner that silently keeps running the image the operator meant to replace.
@@ -119,6 +124,9 @@ public class ScanningConfiguration {
                 // accepted, which is the whole point of recording it in the first place.
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
                 hostSsh ? GitClone.WithoutKey.HOST_SSH : GitClone.WithoutKey.NONE,
-                clock);
+                clock,
+                vulnerabilityDbDir.isBlank()
+                        ? com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.defaultRoot()
+                        : Path.of(vulnerabilityDbDir.trim()));
     }
 }

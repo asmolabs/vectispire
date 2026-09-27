@@ -91,6 +91,12 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
 
+## Base de vulnérabilités
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | *un répertoire du répertoire temporaire* | Où la base du rapprocheur de vulnérabilités — quelque 3 Go — est téléchargée **une fois pour l'hôte** et partagée, en lecture seule, par toutes les analyses ; chaque analyse téléchargeait la sienne. Un seul téléchargement à la fois sous un verrou sur ce répertoire, publié en entier par un renommage atomique, vérifié toutes les heures, et les générations remplacées supprimées dès qu'aucune analyse ne peut plus les lire. Le rapprocheur lui-même tourne sans réseau. Un chemin de l'hôte du démon Docker, comme les espaces de travail ; un disque qui survit à un redémarrage épargne le téléchargement à la première analyse qui suit. |
+
 ## Plugins
 
 | Variable | Défaut | Notes |
@@ -160,6 +166,7 @@ Puis `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | Le registre interne depuis lequel cet agent tire les images de plugins — hôte relogé, chemin et digest conservés. Vide, chacune est tirée de son propre registre, qu'un agent sur réseau fermé ne peut pas atteindre : le plugin est alors absent du scan et ses issues restent telles quelles. |
 | `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true` : cet agent ne lance aucun plugin dont le manifeste ne déclare pas de signataire, quoi qu'ait enregistré le plan de contrôle. Désactivé par défaut ; un signataire déclaré est vérifié avant le pull dans tous les cas. |
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | Où cet agent garde la base du rapprocheur de vulnérabilités, téléchargée une fois et partagée en lecture seule par ses analyses — comme pour le plan de contrôle plus haut. Vide : un répertoire du répertoire temporaire. |
 
 Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses variables : il se règle
 sur la ligne de l'agent dans le plan de contrôle, de 1 à 16, et l'agent le lit dans chaque réponse à

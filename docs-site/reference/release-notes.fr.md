@@ -123,6 +123,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 - **Export SIEM** en syslog UDP, TCP ou TLS (RFC 5424, CEF), envoyé après le commit —
   [Export SIEM](../integrations/siem.md).
 - **Scans parallèles sur un agent**, de 1 à 16 à la fois (`max_concurrent`), comptés par la base.
+- **Une base de vulnérabilités par hôte**, téléchargée une fois sous verrou et partagée en lecture
+  seule par toutes les analyses au lieu d'une fois par analyse (quelque 3 Go), dans
+  `VECTISPIRE_VULNERABILITY_DB_DIR` ; le rapprocheur tourne désormais sans réseau.
 - **Réinitialiser la clé de scellement d'un agent** depuis l'écran Agents, pour un hôte dont
   l'horloge a été remise en arrière ou une clé soupçonnée d'avoir fui.
 - L'authentification unique enregistre le second facteur du fournisseur et peut l'exiger

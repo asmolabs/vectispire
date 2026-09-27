@@ -90,6 +90,12 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
 
+## Vulnerability database
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | *a directory in the temporary directory* | Where the vulnerability matcher's database — some 3 GB — is downloaded **once for the host** and shared, read-only, by every scan; each scan used to download its own. One download at a time under a lock on this directory, published whole by an atomic rename, checked for updates hourly, and replaced generations deleted once no scan can still be reading them. The matcher itself runs with no network. A path on the Docker daemon's host, like the workspaces; a disk that survives a restart spares the first scan after one the download. |
+
 ## Plugins
 
 | Variable | Default | Notes |
@@ -158,6 +164,7 @@ Then `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | The internal registry plugin images are pulled from on this agent — host relocated, path and digest kept. Blank pulls each from its own registry, which an agent on a closed network cannot reach: the plugin is then absent from the scan and its issues stay as they were. |
 | `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true`: this agent runs no plugin whose manifest declares no signer, whatever the control plane registered. Off by default; a declared signer is verified before the pull either way. |
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | Where this agent keeps the vulnerability matcher's database, downloaded once and shared read-only by its scans — as for the control plane above. Blank is a directory in the temporary directory. |
 
 How many scans an agent runs at once is **not** one of its variables: it is set on the agent's row
 in the control plane, 1 to 16, and the agent reads it from every answer to its polls — see

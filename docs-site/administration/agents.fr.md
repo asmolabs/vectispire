@@ -75,15 +75,17 @@ dernier peut ouvrir une clé scellée. Pour davantage de machines, déclarez dav
 ### Le dimensionner
 
 Chaque analyse lance jusqu'à cinq conteneurs de scanners l'un après l'autre, chacun plafonné à 2 Go
-de mémoire et à tous les cœurs de l'hôte Docker sauf un, et le rapprochement des vulnérabilités
-télécharge sa base — environ 2 Go — dans l'espace de travail propre à cette analyse. Par analyse
-simultanée, comptez environ :
+de mémoire et à tous les cœurs de l'hôte Docker sauf un. La base du rapprochement des vulnérabilités
+— environ 3 Go — est téléchargée **une fois pour l'hôte**, et non par analyse, et partagée en lecture
+seule par toutes les analyses (`VECTISPIRE_VULNERABILITY_DB_DIR`, voir
+[Configuration](../reference/configuration.md)) : comptez-la une fois, et autant pendant qu'une mise
+à jour se télécharge à côté de la base en cours. Par analyse simultanée, comptez environ :
 
 | | par analyse |
 |---|---|
 | CPU | un cœur |
 | Mémoire | 2 Go, en plus de la JVM de l'agent |
-| Disque (répertoire temporaire) | 3 Go — le clone, le SBOM et la base de vulnérabilités |
+| Disque (répertoire temporaire) | le clone et le SBOM — la base de vulnérabilités est celle de l'hôte, comptée une fois |
 
 Les analyses au-delà de ce que la machine peut tenir n'attendent pas leur tour : elles se disputent
 les mêmes cœurs et expirent ensemble, à 15 minutes par scanner. Restez en deçà de la machine ; plus

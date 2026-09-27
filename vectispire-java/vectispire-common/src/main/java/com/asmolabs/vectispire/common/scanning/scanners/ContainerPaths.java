@@ -15,12 +15,13 @@ final class ContainerPaths {
     static final String MOUNT = "/repo";
 
     /**
-     * The only writable, disk-backed path a scanner container gets.
+     * Where the vulnerability database is mounted — read-only for a match, writable only for the
+     * download into a staging directory of {@link VulnerabilityDatabase}.
      *
-     * <p>The root filesystem is read-only and the scratch space is a tmpfs, so anything that
-     * has to survive in size — the vulnerability database, at roughly 1.9 GB — needs a real
-     * mount. Only the matcher asks for one. Taken from {@code ContainerRunner} rather than
-     * repeated, because the runner exports the environment variable that names it.
+     * <p>A disk-backed mount because the root filesystem is read-only and the scratch space is a
+     * tmpfs, counted against the container's memory, while the database runs to some 3 GB. Taken
+     * from {@code ContainerRunner} rather than repeated, because the runner exports the environment
+     * variable that names it.
      */
     static final String DATABASE_CACHE = com.asmolabs.vectispire.common.scanning.ContainerRunner.DATABASE_CACHE_MOUNT;
 

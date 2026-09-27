@@ -94,12 +94,19 @@ class DependencyScannerTest {
     @DisplayName("running the two tools")
     class Running {
 
+        private static final Path GENERATION = Path.of("/var/cache/vectispire-vulnerability-db/generations/1790000000000-0a1b2c3d");
+
         private final ContainerRunner runner = mock(ContainerRunner.class);
-        private final DependencyScanner scanner = new DependencyScanner(runner, ScannerImages.PINNED);
+        private final VulnerabilityDatabase database = mock(VulnerabilityDatabase.class);
+        private final DependencyScanner scanner = new DependencyScanner(runner, ScannerImages.PINNED, database);
+
+        {
+            when(database.mountable()).thenReturn(GENERATION);
+        }
 
         @Test
-        @DisplayName("the cataloguer runs offline on a read-only tree; only the matcher gets the network")
-        void onlyTheMatcherIsOnline() {
+        @DisplayName("both tools run offline, on read-only mounts: the matcher reads the host's database, it fetches nothing")
+        void bothToolsAreOffline() {
             when(runner.run(any())).thenReturn(new ContainerResult("{\"artifacts\": []}", "", 0));
 
             String owner = Workspace.withWorkspace(workspace -> {
@@ -118,16 +125,26 @@ class DependencyScannerTest {
             assertThat(syft.mounts()).allSatisfy(mount -> assertThat(mount.readOnly()).isTrue());
 
             assertThat(grype.image()).isEqualTo(ScannerImages.PINNED.grype());
-            assertThat(grype.network()).isTrue();
-            // As the workspace's owner, not root: what it writes into the database mount has to be
-            // deletable by the process that removes the workspace.
+            // It downloaded its database at every scan, which is what it had the network for; the
+            // database is the host's now, and the matcher has nowhere left to go.
+            assertThat(grype.network()).isFalse();
+            // As the workspace's owner, not root: it reads the 0700 workspace and the 0700 generation.
             assertThat(grype.asRoot()).isFalse();
             assertThat(grype.user()).isEqualTo(owner);
-            // The database cache is the one place it may write; the SBOM mount stays read-only.
-            assertThat(grype.mounts()).filteredOn(ContainerRun.Mount::readOnly).hasSize(1);
-            assertThat(grype.mounts()).filteredOn(mount -> !mount.readOnly())
+            // Nothing writable: the SBOM and the database are both read-only.
+            assertThat(grype.mounts()).allSatisfy(mount -> assertThat(mount.readOnly()).isTrue());
+            assertThat(grype.mounts()).filteredOn(mount -> mount.target().equals(ContainerPaths.DATABASE_CACHE))
                     .singleElement()
-                    .satisfies(mount -> assertThat(mount.target()).isEqualTo(ContainerPaths.DATABASE_CACHE));
+                    .satisfies(mount -> assertThat(mount.source()).isEqualTo(GENERATION.toString()));
+        }
+
+        @Test
+        @DisplayName("no database to be had is a failure of the step, and the matcher is not even started")
+        void noDatabaseIsAFailure() {
+            when(database.mountable()).thenThrow(ScannerFailureException.of("grype", "no network to fetch it"));
+
+            assertThatThrownBy(() -> scanner.matchStandaloneSbom("{}")).isInstanceOf(ScannerFailureException.class);
+            verify(runner, org.mockito.Mockito.never()).run(any());
         }
 
         @Test

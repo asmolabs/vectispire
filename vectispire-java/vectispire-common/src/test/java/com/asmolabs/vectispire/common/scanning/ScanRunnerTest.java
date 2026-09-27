@@ -78,7 +78,7 @@ class ScanRunnerTest {
                 false, null, null);
         ScanRunner runner = new ScanRunner(containers, ScannerImages.PINNED, Path.of("unused"), hash -> java.util.List.of(),
                 reference -> reference.id().equals("java-only") ? javaOnly : python, null,
-                new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE, FIXED);
+                new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE, FIXED, Path.of("database-unused"));
         ScanTask task = new ScanTask(new ScanTask.Target.Repository("https://host/p.git", "main", null, null), null,
                 Set.of(), java.util.List.of(
                         new com.asmolabs.vectispire.common.domain.plugins.PluginRef(python.id(), python.digest()),

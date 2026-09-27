@@ -146,7 +146,11 @@ public class AgentRunner implements ApplicationRunner {
                 // repository at all. Falling back to the host's own git access is what the mode
                 // means; an agent in DELEGATED still gets its key and never reaches this.
                 GitClone.WithoutKey.HOST_SSH,
-                clock);
+                clock,
+                // One download of the matcher's database for every scan this agent runs, kept here.
+                properties.vulnerabilityDbDir().isBlank()
+                        ? com.asmolabs.vectispire.common.scanning.scanners.VulnerabilityDatabase.defaultRoot()
+                        : Path.of(properties.vulnerabilityDbDir()));
 
         AgentLoop loop = new AgentLoop(protocol, runner::run, properties, identity.maxConcurrent());
         log.info("Up to {} scan(s) at once, as set on this agent's row.", AgentConcurrency.effective(identity.maxConcurrent()));

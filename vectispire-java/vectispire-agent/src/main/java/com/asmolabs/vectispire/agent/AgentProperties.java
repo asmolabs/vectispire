@@ -30,6 +30,8 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     the mirror serves a plugin and cannot substitute another (decision 0017). {@code
  *     pluginSignatureRequired} refuses a plugin whose manifest declares no signer: the agent's host
  *     runs the code, and its operator may refuse unsigned code whatever the governor registered
+ * @param vulnerabilityDbDir where the matcher's database is downloaded once and shared, read-only, by
+ *     every scan this agent runs; blank is a directory beside the workspaces
  */
 @ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
@@ -40,7 +42,8 @@ public record AgentProperties(
         @DefaultValue("60s") Duration heartbeat,
         @DefaultValue("docker") String scannerEngine,
         @DefaultValue("") String signingKey,
-        @DefaultValue Images images) {
+        @DefaultValue Images images,
+        @DefaultValue("") String vulnerabilityDbDir) {
 
     /** Blank keeps the digest the agent ships with — see {@code ScannerImages.withOverrides}. */
     public record Images(
@@ -61,7 +64,7 @@ public record AgentProperties(
             Duration heartbeat,
             String scannerEngine) {
         this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, "",
-                new Images("", "", "", "", "", "", false));
+                new Images("", "", "", "", "", "", false), "");
     }
 
     /**
@@ -81,6 +84,7 @@ public record AgentProperties(
         heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
         // Absent means "no override", which is the same thing every blank field means.
         images = images == null ? new Images("", "", "", "", "", "", false) : images;
+        vulnerabilityDbDir = vulnerabilityDbDir == null ? "" : vulnerabilityDbDir.trim();
     }
 
     private static Duration clamp(Duration value, Duration min, Duration max) {

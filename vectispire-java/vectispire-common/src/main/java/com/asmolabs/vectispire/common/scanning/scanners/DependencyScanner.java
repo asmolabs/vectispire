@@ -24,15 +24,15 @@ import java.util.stream.StreamSupport;
  * answers "what is in this application", and it lets the vulnerability analysis be replayed
  * without walking the code again. Merging the steps would lose that artifact.
  *
- * <p><b>The network is opened for the matcher only.</b> The cataloguer, on a directory, reads
- * dependency files and has nowhere to look. The matcher downloads and refreshes its
- * vulnerability database: with no network it would work against an absent or stale one and
- * return a reassuring result without saying so.
+ * <p><b>Neither tool has the network.</b> The cataloguer, on a directory, reads dependency files and
+ * has nowhere to look. The matcher used to download its vulnerability database at every scan, which
+ * is what it had the network for; the database is now the host's, fetched and refreshed on its own
+ * by {@link VulnerabilityDatabase} and mounted read-only, and a database absent or too old fails the
+ * step rather than returning a reassuring result.
  */
 public final class DependencyScanner {
 
     private static final String SBOM_FILENAME = "sbom.json";
-    private static final String GRYPE_CACHE_SUBDIR = "grype-db-cache";
 
     /**
      * The exported image, at the workspace root.
@@ -53,10 +53,12 @@ public final class DependencyScanner {
 
     private final ContainerRunner runner;
     private final ScannerImages images;
+    private final VulnerabilityDatabase database;
 
-    public DependencyScanner(ContainerRunner runner, ScannerImages images) {
+    public DependencyScanner(ContainerRunner runner, ScannerImages images, VulnerabilityDatabase database) {
         this.runner = runner;
         this.images = images;
+        this.database = database;
     }
 
     /**
@@ -178,37 +180,25 @@ public final class DependencyScanner {
     }
 
     private Optional<List<DependencyFinding>> match(Path mounted, String label) {
-        // **The one scanner that needs somewhere real to write, and why.** The container's root
-        // filesystem is read-only and its scratch space is a tmpfs — memory, counted against
-        // the 2 GB container limit. Grype's vulnerability database is about 1.9 GB, so it
-        // cannot live there: measured, not assumed, and the symptom was `no space left on
-        // device` followed by "database does not exist", which reads as a scanner outage
-        // rather than as a sizing mistake.
-        //
-        // A disk-backed mount for the database keeps the read-only root and puts the download
-        // exactly where it used to go — the container's own writable layer — with the
-        // difference that this directory is the *only* place it can write.
-        Path cache = mounted.resolve(GRYPE_CACHE_SUBDIR);
-        try {
-            Files.createDirectories(cache);
-        } catch (IOException e) {
-            throw new UncheckedIOException("could not stage the vulnerability database cache", e);
-        }
+        // **The database is the host's, not the scan's.** It used to be downloaded into a directory
+        // of each workspace — some 3 GB, a minute and a half, per scan — which is why the matcher was
+        // the one scanner with the network. It is now one read-only generation per host, fetched and
+        // refreshed under a lock by `VulnerabilityDatabase`, and resolved here before the container
+        // starts: whatever is published afterwards, this scan reads what it mounted. No database and
+        // no way to get one throws, and the step is absent — never an empty list.
+        Path generation = database.mountable();
 
         ContainerRun run = ContainerRun.of(
-                        images.grype(),
-                        List.of("sbom:" + ContainerPaths.MOUNT + "/" + SBOM_FILENAME, "-o", "json"),
-                        List.of(
-                                ContainerRun.Mount.readOnly(mounted.toString(), ContainerPaths.MOUNT),
-                                ContainerRun.Mount.writable(cache.toString(), ContainerPaths.DATABASE_CACHE)),
-                        label)
-                // The matcher downloads and refreshes its vulnerability database.
-                .withNetwork();
-        // **As the workspace's owner, not as root.** As root, the directories it creates in the
-        // database mount were root's on the host: the unprivileged process that owns the workspace
-        // could not empty them, the cleanup — which skips what it cannot delete, so that one file
-        // does not keep the rest — skipped them, and every scan left its two gigabytes on the disk.
-        // As the owner it can still read the 0700 workspace, which is why it ran as root.
+                images.grype(),
+                List.of("sbom:" + ContainerPaths.MOUNT + "/" + SBOM_FILENAME, "-o", "json"),
+                List.of(
+                        ContainerRun.Mount.readOnly(mounted.toString(), ContainerPaths.MOUNT),
+                        ContainerRun.Mount.readOnly(generation.toString(), ContainerPaths.DATABASE_CACHE)),
+                label);
+        // **No network, and nothing writable but the scratch space.** The matcher has nothing left to
+        // fetch — `GRYPE_DB_AUTO_UPDATE=false` stops it trying — so the one scanner that ran online no
+        // longer does. As the workspace's owner rather than root: it reads the 0700 workspace and the
+        // 0700 generation, both this process's.
         ContainerRunner.ContainerResult result = runner.run(ContainerRun.ownerOf(mounted).map(run::runningAs).orElseGet(run::runningAsRoot));
 
         return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
