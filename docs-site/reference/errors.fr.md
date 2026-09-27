@@ -37,7 +37,7 @@ décoder, comme un `%` isolé, reçoit la page HTML du conteneur de servlets.
 | **403** | L'identifiant est valide et n'autorise pas ceci : le rôle ne le permet pas, un changement de mot de passe est dû, ou la clé ou l'identifiant d'agent n'est pas accepté sur cette route. Le détail ne nomme pas les rôles qui le permettraient. |
 | **404** | La route n'existe pas, ou ce que le chemin désigne n'existe pas — **ou existe et vous n'avez pas à le voir**. Les deux se lisent pareil, dans les mêmes mots, à dessein : une réponse différente confirmerait l'existence d'un dépôt, d'un scan ou d'un constat qui ne vous a pas été confié. |
 | **405 / 406 / 415** | Mauvaise méthode, un `Accept` auquel la route ne sait pas répondre, un corps dans un type de média que la route ne lit pas. |
-| **409** | La requête entre en conflit avec l'état actuel et peut réussir plus tard telle quelle : un scan déjà en file, une solution qui contient encore des projets. |
+| **409** | La requête entre en conflit avec l'état actuel et peut réussir plus tard telle quelle : un scan déjà en file, une solution qui contient encore des projets, une revue OWASP qui ne peut pas encore tourner. |
 | **412** | Il manque au déploiement quelque chose qu'un exploitant règle : la clé de chiffrement, un secret qu'un agent ne peut pas recevoir. |
 | **413** | Le corps dépasse ce que la route accepte. Le détail donne le plafond. |
 | **422** | Une destination refusée par la politique de sortie. |

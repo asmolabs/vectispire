@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.platform.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
@@ -149,8 +150,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * the request's fault. So is "not attestable": a scan still running may complete, and the
      * refusal names what is missing rather than serving a statement with it invented. And so is
      * "this solution still holds projects": deleting them first makes the same request succeed.
+     * And a {@link ConflictException}, which is how a module declares one this class cannot name:
+     * the OWASP review's refusals — switched off, never scanned, a run that produced no report —
+     * sit in {@code compliance.internal}, were mapped by nobody, and answered 500.
      */
     @ExceptionHandler({
+        ConflictException.class,
         ScanTriggerService.AlreadyQueuedException.class,
         AttestationService.NotAttestableException.class,
         SolutionAdministrationService.SolutionNotEmptyException.class,

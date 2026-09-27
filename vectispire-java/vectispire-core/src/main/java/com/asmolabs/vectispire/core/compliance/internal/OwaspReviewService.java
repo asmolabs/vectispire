@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.compliance.internal;
 
 import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.aireview.OwaspReview;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.ai.AiReviewService;
@@ -84,7 +85,7 @@ public class OwaspReviewService {
     }
 
     /** Refused before anything is stored: an operator asking for a report has to be told why not. */
-    public static class ReviewRefusedException extends RuntimeException {
+    public static class ReviewRefusedException extends ConflictException {
         public ReviewRefusedException(String message) {
             super(message);
         }

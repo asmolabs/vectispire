@@ -36,7 +36,7 @@ for `application/problem+json` in `Accept`. A URL the server cannot even decode,
 | **403** | The credential is valid and may not do this: the role does not allow it, a password change is owed, or the key or agent credential is not accepted on this route. The detail does not name the roles that would be. |
 | **404** | The route does not exist, or what the path names does not — **or it exists and you may not see it**. The two read the same, in the same words, on purpose: a different answer would confirm that a repository, a scan or an issue you were not given exists. |
 | **405 / 406 / 415** | Wrong method, an `Accept` the route cannot answer, a body in a media type the route does not read. |
-| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects. |
+| **409** | The request conflicts with the current state and may succeed later unchanged: a scan already queued, a solution that still holds projects, an OWASP review that cannot run yet. |
 | **412** | The deployment is missing something an operator sets: the encryption key, a credential an agent cannot receive. |
 | **413** | The body is larger than the route accepts. The detail names the ceiling. |
 | **422** | A destination refused by the outbound policy. |
