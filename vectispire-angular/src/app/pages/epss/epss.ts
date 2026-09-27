@@ -132,6 +132,13 @@ export class Epss implements OnInit {
         this.intelApi.syncEpss().subscribe({
             next: (res) => {
                 this.syncing.set(false);
+                // A catalogue that could not be read answers 200 with FAILED and its reason, and the
+                // catalogue in use is kept: announced as a success, the screen would say the flags
+                // are fresh when they are exactly as old as they were.
+                if (res.status !== 'SYNCED') {
+                    this.error.set(res.lastError ?? this.i18n.t('epss.sync_failed'));
+                    return;
+                }
                 this.syncFeedback.set(this.i18n.t('epss.sync_succeeded', { cves: res.totalCves, kev: res.totalKev }));
                 this.loadSummary();
             },

@@ -80,6 +80,26 @@ describe('EPSS prioritisation', () => {
         await mount(true);
     }, 20_000);
 
+    it('a sync that could not read the catalogue is shown as a failure, with its reason', () => {
+        fixture.componentInstance.syncThreatIntel();
+        http.expectOne({ method: 'POST', url: '/api/v1/epss/sync' }).flush(
+            asSchema('ThreatIntelSyncStatus', {
+                lastSyncedAt: '2026-09-27T06:00:00Z',
+                totalCves: 1480,
+                totalKev: 1478,
+                status: 'FAILED',
+                backlogUpdatedCount: 0,
+                kevCatalogVersion: '2026.09.26',
+                kevReleasedAt: '2026-09-26T15:00:00Z',
+                lastAttemptAt: '2026-09-27T12:00:00Z',
+                lastError: 'KEV catalogue: connection refused'
+            })
+        );
+
+        expect(fixture.componentInstance.error()).toBe('KEV catalogue: connection refused');
+        expect(fixture.componentInstance.syncFeedback()).toBeNull();
+    });
+
     it('explains the CVE on screen, and not the one typed in the field', () => {
         lookup();
 
