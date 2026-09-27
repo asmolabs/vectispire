@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta.ChangeType;
 import com.asmolabs.vectispire.common.domain.sbom.ComponentDelta;
 import com.asmolabs.vectispire.common.domain.sbom.CveDelta;
@@ -8,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,20 +36,42 @@ import org.springframework.transaction.annotation.Transactional;
 public class SbomDiffService {
 
     private final ScanCatalog scans;
+    private final ScanDocumentService documents;
     private final ComponentRepository components;
     private final ObjectMapper objectMapper;
 
     public SbomDiffService(
             ScanCatalog scans,
+            ScanDocumentService documents,
             ComponentRepository components,
             ObjectMapper objectMapper) {
         this.scans = scans;
+        this.documents = documents;
         this.components = components;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Two scans the caller may see, compared.
+     *
+     * <p><b>Both ends refused here, not at the route.</b> A diff names the components that appeared
+     * and disappeared between two scans; checking only the first would let a caller pair a scan they
+     * may see with one they may not, and read the second through the difference. The route used to
+     * ask, and this method answered whoever called it without. The refusal is {@code scanning}'s
+     * ({@link ScanDocumentService}), so this module still uses {@code access} from its routes only,
+     * and an absent scan and a hidden one read alike.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Scan not found." for
+     *     either end absent or hidden
+     */
     @Transactional(readOnly = true)
-    public Optional<SbomDiffReport> diff(long fromScanId, long toScanId) {
+    public Optional<SbomDiffReport> diff(long fromScanId, long toScanId, Visibility allowed) {
+        documents.requireVisible(fromScanId, allowed);
+        documents.requireVisible(toScanId, allowed);
+        return compare(fromScanId, toScanId);
+    }
+
+    private Optional<SbomDiffReport> compare(long fromScanId, long toScanId) {
         Optional<ScanView> fromOpt = scans.scan(fromScanId);
         Optional<ScanView> toOpt = scans.scan(toScanId);
 
@@ -166,21 +191,21 @@ public class SbomDiffService {
      *
      * <p>A single scan yields a comparison of that scan with itself: this is deliberate, and it
      * answers "nothing changed" rather than "no data", which reads as a failure.
+     *
+     * <p><b>A target somebody checked</b> ({@link VisibleTarget}), since this module's services do
+     * not use {@code access}: the refusal is the route's, and a bare id would let the next caller
+     * skip it. The two scans are the target's own, so they need no second check.
      */
     @Transactional(readOnly = true)
-    public Optional<SbomDiffReport> diffLatest(Long repoId, Long containerId) {
-        List<Long> recent = repoId != null
-                ? scans.recentIds(new ScanTarget.Repository(repoId), 2)
-                : containerId != null
-                        ? scans.recentIds(new ScanTarget.Container(containerId), 2)
-                        : List.of();
+    public Optional<SbomDiffReport> diffLatest(VisibleTarget<?> target) {
+        List<Long> recent = scans.recentIds(target.target(), 2);
 
         if (recent.size() >= 2) {
             // Newest first: the first is the end state.
-            return diff(recent.get(1), recent.get(0));
+            return compare(recent.get(1), recent.get(0));
         }
         if (recent.size() == 1) {
-            return diff(recent.get(0), recent.get(0));
+            return compare(recent.get(0), recent.get(0));
         }
         return Optional.empty();
     }

@@ -2,11 +2,9 @@ package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
-import com.asmolabs.vectispire.core.access.web.security.Visibilities;
 import com.asmolabs.vectispire.core.posture.AttackPathService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,11 +46,8 @@ public class AttackPathController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository unique ID", required = true)
             @PathVariable("repoId") Long repoId) {
-        // **This is a route map for compromising a target** — ingress, endpoint, vulnerability,
-        // secret, each hop flagged exploitable. It is the last thing in the product to hand to
-        // somebody who was not given the repository.
-        Visibilities.requireVisible(new ScanTarget.Repository(repoId), allowanceOf(principal));
-        return attackPathService.getAttackPathGraph(repoId)
+        // A hidden repository is refused by the service, as an absent target.
+        return attackPathService.getAttackPathGraph(repoId, allowanceOf(principal))
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }

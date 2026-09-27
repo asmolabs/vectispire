@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
@@ -135,8 +136,20 @@ public class LicenseGovernanceService {
         return policy;
     }
 
-    public List<LicenseEntry> getInventory() {
-        return getInventory(null, null);
+    /**
+     * One target's inventory, for a caller that checked the target — the scorecard, whose service
+     * refused a hidden one first.
+     *
+     * <p><b>The proof, not two ids.</b> This was {@code getInventory(repoId, containerId)}, public
+     * and unfiltered, beside the forms that narrow to an allowance: any caller naming a target read
+     * its dependencies whoever it was acting for. The estate's form went with it — the portfolio
+     * reads {@link #getInventory(Visibility, Long, Long)} with no target, which narrows.
+     */
+    public List<LicenseEntry> getInventory(VisibleTarget<?> checked) {
+        return switch (checked.target()) {
+            case ScanTarget.Repository repository -> inventoryOf(repository.id(), null);
+            case ScanTarget.Container container -> inventoryOf(null, container.id());
+        };
     }
 
     /**
@@ -151,7 +164,7 @@ public class LicenseGovernanceService {
      * <p>The scans are selected first and everything else is keyed to them, which is the shape
      * the method already had in Java and now has in SQL.
      */
-    public List<LicenseEntry> getInventory(Long repoIdFilter, Long containerIdFilter) {
+    private List<LicenseEntry> inventoryOf(Long repoIdFilter, Long containerIdFilter) {
         LicensePolicy policy = getPolicy();
         Map<String, LicenseEntry> entryMap = new HashMap<>();
 
@@ -334,7 +347,7 @@ public class LicenseGovernanceService {
      * answered empty here rather than whole.
      */
     public List<LicenseEntry> getInventory(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
-        return visibleOnly(allowed, getInventory(repoIdFilter, containerIdFilter));
+        return visibleOnly(allowed, inventoryOf(repoIdFilter, containerIdFilter));
     }
 
     /**
@@ -376,7 +389,7 @@ public class LicenseGovernanceService {
      * only, which is how {@link Visibility#permits} treats a missing target everywhere else.
      */
     public LicenseSummary getSummary(Visibility allowed) {
-        return summarize(visibleOnly(allowed, getInventory(null, null)));
+        return summarize(visibleOnly(allowed, inventoryOf(null, null)));
     }
 
     private static ScanTarget targetOf(LicenseEntry entry) {

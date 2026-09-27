@@ -1,11 +1,13 @@
 package com.asmolabs.vectispire.core.posture;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.SlaService;
@@ -45,10 +47,21 @@ public class SecurityScorecardService {
         this.sla = sla;
     }
 
-    public Optional<SecurityScorecard> getRepositoryScorecard(Long repoId) {
+    /**
+     * A repository's scorecard, for a caller who may see it.
+     *
+     * <p><b>Refused here, before the row is read.</b> A scorecard is a target's posture in a number,
+     * and the number is the interesting part to somebody who was not given the target: it says how
+     * exposed a neighbouring team is. The route used to refuse and then call this with the bare id,
+     * which answered whoever called it next. A hidden repository is refused as a hidden target — "Target
+     * not found." — before any lookup could tell it from an absent one; an absent one the caller
+     * could see is empty.
+     */
+    public Optional<SecurityScorecard> getRepositoryScorecard(long repoId, Visibility allowed) {
+        VisibleTarget<ScanTarget.Repository> checked = RowVisibility.requireVisible(new ScanTarget.Repository(repoId), allowed);
         return targets.repository(repoId).map(repo -> {
-            // The route is guarded by the controller; this narrows the *read*, which used to be
-            // the whole table filtered down to one repository afterwards.
+            // This narrows the *read*, which used to be the whole table filtered down to one
+            // repository afterwards.
             List<IssueRows.Posture> openIssues = issuesRepo
                     .rows(openWithin(Visibility.only(List.of(new ScanTarget.Repository(repoId)))), IssueRows.Posture.class)
                     .stream()
@@ -57,8 +70,8 @@ public class SecurityScorecardService {
 
             // **The filter was passed to the stream and not to the query.** The unfiltered call
             // parsed every SBOM in the deployment to keep one repository's rows.
-            List<LicenseEntry> licenses = licenseService.getInventory(repoId, null).stream()
-                    .filter(l -> repoId.equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
+            List<LicenseEntry> licenses = licenseService.getInventory(checked).stream()
+                    .filter(l -> Long.valueOf(repoId).equals(l.targetId()) && "repository".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Repository(repoId), "completed");
@@ -68,7 +81,9 @@ public class SecurityScorecardService {
         });
     }
 
-    public Optional<SecurityScorecard> getContainerScorecard(Long containerId) {
+    /** An image's scorecard, for a caller who may see it — refused as {@link #getRepositoryScorecard} is. */
+    public Optional<SecurityScorecard> getContainerScorecard(long containerId, Visibility allowed) {
+        VisibleTarget<ScanTarget.Container> checked = RowVisibility.requireVisible(new ScanTarget.Container(containerId), allowed);
         return targets.container(containerId).map(container -> {
             // The repository form was narrowed and this one was not, in the same change — which
             // is what a sweep is for and what reading the diff was not enough to catch.
@@ -78,8 +93,8 @@ public class SecurityScorecardService {
                     .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                     .toList();
 
-            List<LicenseEntry> licenses = licenseService.getInventory(null, containerId).stream()
-                    .filter(l -> containerId.equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
+            List<LicenseEntry> licenses = licenseService.getInventory(checked).stream()
+                    .filter(l -> Long.valueOf(containerId).equals(l.targetId()) && "container".equalsIgnoreCase(l.targetKind()))
                     .toList();
 
             boolean hasAttestation = scansRepo.hasScanWithStatus(new ScanTarget.Container(containerId), "completed");
@@ -103,15 +118,13 @@ public class SecurityScorecardService {
                 .filter(i -> !"closed".equalsIgnoreCase(i.state()) && !"resolved".equalsIgnoreCase(i.state()))
                 .toList();
 
-        // **Narrowed here and not in the query, and the difference is worth stating.** The
-        // issues above are filtered in SQL; the licence inventory has no allowance parameter —
-        // it takes one target or none — so a restricted reader's entries are dropped after the
-        // fact. That closes the leak and leaves the read: the portfolio still parses every SBOM
-        // it can reach. Recorded rather than hidden, because a filter applied late is exactly
-        // the shape this service has been corrected for twice.
-        List<LicenseEntry> licenses = licenseService.getInventory().stream()
-                .filter(entry -> permits(allowed, entry))
-                .toList();
+        // **Narrowed after the read, not in the query, and the difference is worth stating.** The
+        // issues above are filtered in SQL; the licence inventory narrows to an allowance in
+        // memory, so the portfolio still parses every SBOM it can reach. Recorded rather than
+        // hidden, because a filter applied late is exactly the shape this service has been
+        // corrected for twice. The narrowing is the licence service's own since it stopped
+        // publishing the unfiltered estate: it used to be done here, on a list anyone could ask for.
+        List<LicenseEntry> licenses = licenseService.getInventory(allowed, null, null);
         // **Still a read of every target, no longer of every scan.** Those above asked "has this
         // target completed a scan" and are one indexed existence check. This asks "has *any target
         // the caller may see* completed one", and the allowance is a set of targets rather than a
@@ -233,18 +246,6 @@ public class SecurityScorecardService {
         return new IssueFilters(null, null, null, null, null, null, false, false, null, true, Map.of(), allowed);
     }
 
-
-    /** Whether a licence entry's target is one the caller may see. */
-    private static boolean permits(Visibility allowed, LicenseEntry entry) {
-        if (entry.targetId() == null) {
-            // "general" — attached to no target. Visible to an unrestricted caller and to nobody
-            // else, which is what `Visibility.permits(null)` already answers.
-            return allowed.permits(null);
-        }
-        return allowed.permits("container".equalsIgnoreCase(entry.targetKind())
-                ? new ScanTarget.Container(entry.targetId())
-                : new ScanTarget.Repository(entry.targetId()));
-    }
 
     /**
      * A scan attached to neither target is unclassifiable, and a restriction does not pass it.

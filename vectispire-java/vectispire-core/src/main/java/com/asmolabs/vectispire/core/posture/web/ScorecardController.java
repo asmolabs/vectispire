@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.posture.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -56,13 +55,10 @@ public class ScorecardController {
     public SecurityScorecard getRepositoryScorecard(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId) {
-        // A scorecard is a target's posture in a number, and the number is the interesting part
-        // to somebody who was not given the target: it says how exposed a neighbouring team is.
-        requireVisible(principal, new ScanTarget.Repository(repoId));
-        // The guard's own sentence, not "Repository not found: 7": since a reason reaches the
-        // client as the problem's detail, a second wording on this route would tell an absent
-        // repository from a hidden one.
-        return scorecardService.getRepositoryScorecard(repoId)
+        // The service refuses a hidden repository. The guard's own sentence for an absent one, not
+        // "Repository not found: 7": since a reason reaches the client as the problem's detail, a
+        // second wording on this route would tell an absent repository from a hidden one.
+        return scorecardService.getRepositoryScorecard(repoId, allowed(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found."));
     }
 
@@ -73,8 +69,7 @@ public class ScorecardController {
     public SecurityScorecard getContainerScorecard(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Container ID", required = true) @PathVariable("containerId") Long containerId) {
-        requireVisible(principal, new ScanTarget.Container(containerId));
-        return scorecardService.getContainerScorecard(containerId)
+        return scorecardService.getContainerScorecard(containerId, allowed(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found."));
     }
 
@@ -177,10 +172,6 @@ public class ScorecardController {
         return token == null
                 ? new BadgeState(false, null, null)
                 : new BadgeState(true, token, "/api/v1/scorecards/badges/" + token + ".svg");
-    }
-
-    private void requireVisible(VectispirePrincipal principal, ScanTarget target) {
-        Visibilities.requireVisible(target, allowed(principal));
     }
 
     private Visibility allowed(VectispirePrincipal principal) {

@@ -9,13 +9,15 @@
  *
  * <p>{@code scanning} since step 5, and in place of {@code scanning} → {@code inventory}: the
  * inventory reads scans and findings through {@code ScanCatalog} (licences, SBOM diff, blast
- * radius, the purge's selection), while a scan's components reach it through {@code
+ * radius, the purge's selection) and refuses the two ends of a diff through {@code
+ * ScanDocumentService}, while a scan's components reach it through {@code
  * ScanIngestor.InventorySink}, a port {@code scanning} declares and {@code inventory} implements;
  * {@code scanning::queries} for {@code PackageImpact}. {@code targets}: a component is named by the
  * target it was seen in.
  *
  * <p>{@code access} for its routes only, which resolve a {@code Visibility} through {@code
- * VisibilityService}: its service layer does not use {@code access}, which {@code
+ * VisibilityService} and refuse a named target, handing the service the proof ({@code
+ * VisibleTarget}): its service layer does not use {@code access}, which {@code
  * ArchitectureTest.accessForRoutesOnly} holds, since a module's allowed dependencies are one list
  * for the whole module.
  *

@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.targets.TargetCatalog.BadgeToken;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -56,7 +57,11 @@ public class ScorecardBadgeService {
      */
     public Optional<String> publishedSvg(String token) {
         return targets.repositoryWithBadge(token).map(repositoryId -> {
-            SecurityScorecard scorecard = scorecards.getRepositoryScorecard(repositoryId).orElse(null);
+            // The published token is the whole of this reader's allowance: the one repository it
+            // was issued for, said as such rather than as a scorecard read nobody was asked about.
+            SecurityScorecard scorecard = scorecards
+                    .getRepositoryScorecard(repositoryId, Visibility.only(List.of(new ScanTarget.Repository(repositoryId))))
+                    .orElse(null);
             String grade = scorecard != null ? scorecard.grade().getLabel() : "unknown";
             String color = scorecard != null ? scorecard.grade().getBadgeColor() : "#555";
             return SvgBadgeGenerator.generateBadge("security grade", grade, color);

@@ -5,10 +5,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.inventory.LicenseGovernanceService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
@@ -65,7 +68,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         repository.setUrl("https://example.invalid/corp/payments.git");
         repository.setBranch("main");
         repository = repositories.save(repository);
-        when(licences.getInventory(any(), any())).thenReturn(List.of());
+        when(licences.getInventory(any(VisibleTarget.class))).thenReturn(List.of());
     }
 
     @Test
@@ -121,7 +124,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         issue("critical", false, "UNKNOWN", "open"); // -8
         issue("high", false, "UNKNOWN", "open"); // -4
         issue("medium", true, "UNKNOWN", "open"); // -25, and a KEV is counted whatever its severity
-        when(licences.getInventory(repository.getId(), null)).thenReturn(List.of(
+        when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId())))).thenReturn(List.of(
                 licence(repository.getId(), "repository", false), licence(repository.getId(), "repository", true)));
 
         SecurityScorecard card = scorecard();
@@ -178,7 +181,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         theirs.setRepoId(other.getId());
         issues.save(theirs);
         // Returned by the inventory anyway: the service must not trust the filter it asked for.
-        when(licences.getInventory(repository.getId(), null)).thenReturn(List.of(licence(other.getId(), "repository", false)));
+        when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId())))).thenReturn(List.of(licence(other.getId(), "repository", false)));
 
         SecurityScorecard card = scorecard();
 
@@ -213,7 +216,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         issues.save(high);
         issue("critical", false, "UNKNOWN", "open"); // the repository's, not the container's
 
-        SecurityScorecard card = scorecards.getContainerScorecard(container.getId()).orElseThrow();
+        SecurityScorecard card = scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow();
 
         assertThat(card.targetName()).isEqualTo("registry.example.invalid/shop:1.4.2");
         assertThat(card.score()).isEqualTo(96);
@@ -223,12 +226,12 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("an unknown target has no scorecard, rather than a perfect one")
     void unknownTarget() {
-        assertThat(scorecards.getRepositoryScorecard(repository.getId() + 1000)).isEmpty();
-        assertThat(scorecards.getContainerScorecard(424242L)).isEmpty();
+        assertThat(scorecards.getRepositoryScorecard(repository.getId() + 1000, Visibility.everything())).isEmpty();
+        assertThat(scorecards.getContainerScorecard(424242L, Visibility.everything())).isEmpty();
     }
 
     private SecurityScorecard scorecard() {
-        return scorecards.getRepositoryScorecard(repository.getId()).orElseThrow();
+        return scorecards.getRepositoryScorecard(repository.getId(), Visibility.everything()).orElseThrow();
     }
 
     private void completedScan() {
@@ -271,5 +274,9 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     private static LicenseEntry licence(Long targetId, String kind, boolean compliant) {
         return new LicenseEntry("pkg", "1.0", null, compliant ? "MIT" : "AGPL-3.0", null, compliant,
                 compliant ? null : "disallowed", targetId, kind, "corp/payments");
+    }
+
+    private static VisibleTarget<ScanTarget.Repository> checked(ScanTarget.Repository target) {
+        return RowVisibility.requireVisible(target, Visibility.everything());
     }
 }

@@ -87,7 +87,7 @@ class AttackPathDatabaseTest extends VectispireContextTest {
     @Test
     @DisplayName("a graph carries the chain: ingress, the unauthenticated route, the vulnerability")
     void theGraphIsBuilt() {
-        AttackPathGraph graph = attackPaths.getAttackPathGraph(exposed).orElseThrow();
+        AttackPathGraph graph = attackPaths.getAttackPathGraph(exposed, Visibility.everything()).orElseThrow();
 
         assertThat(graph.nodes()).isNotEmpty();
         assertThat(graph.nodes()).anySatisfy(node ->
@@ -111,7 +111,7 @@ class AttackPathDatabaseTest extends VectispireContextTest {
         dismissed.setTriageStatus(TriageStatus.NOT_AFFECTED.wireName());
         issues.save(dismissed);
 
-        AttackPathGraph direct = attackPaths.getAttackPathGraph(exposed).orElseThrow();
+        AttackPathGraph direct = attackPaths.getAttackPathGraph(exposed, Visibility.everything()).orElseThrow();
         AttackPathGraph fromOverview = attackPaths.getOverview(Visibility.everything()).getFirst();
 
         assertThat(direct.nodes()).noneSatisfy(node -> assertThat(node.label()).contains("CVE-2023-0001"));
@@ -131,7 +131,7 @@ class AttackPathDatabaseTest extends VectispireContextTest {
                 .filter(g -> g.nodes().stream().anyMatch(n -> "GET /api/admin/users".equals(n.label())))
                 .findFirst()
                 .orElseThrow();
-        AttackPathGraph direct = attackPaths.getAttackPathGraph(exposed).orElseThrow();
+        AttackPathGraph direct = attackPaths.getAttackPathGraph(exposed, Visibility.everything()).orElseThrow();
 
         // Two code paths, one answer. A divergence here reads as a dashboard disagreeing with the
         // page it was opened from — the kind of defect a reader blames on caching.

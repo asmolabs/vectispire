@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.inventory.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.sbom.SbomDiffReport;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -8,7 +9,6 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.access.web.security.Visibilities;
 import com.asmolabs.vectispire.core.inventory.SbomDiffService;
-import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,13 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class SbomDiffController {
 
     private final SbomDiffService sbomDiffService;
-    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
-    public SbomDiffController(
-            SbomDiffService sbomDiffService, ScanDocumentService scans, VisibilityService visibility) {
+    public SbomDiffController(SbomDiffService sbomDiffService, VisibilityService visibility) {
         this.sbomDiffService = sbomDiffService;
-        this.scans = scans;
         this.visibility = visibility;
     }
 
@@ -40,13 +37,8 @@ public class SbomDiffController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam("fromScanId") long fromScanId,
             @RequestParam("toScanId") long toScanId) {
-        // **Both ends, not one.** A diff names the components that appeared and disappeared
-        // between two scans; checking only the first would let a caller pair a scan they may see
-        // with one they may not and read the second through the difference.
-        Visibility allowed = allowanceOf(principal);
-        requireVisibleScan(fromScanId, allowed);
-        requireVisibleScan(toScanId, allowed);
-        return sbomDiffService.diff(fromScanId, toScanId)
+        // Both ends are refused by the service, where the next caller of the diff meets the rule too.
+        return sbomDiffService.diff(fromScanId, toScanId, allowanceOf(principal))
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -56,14 +48,21 @@ public class SbomDiffController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(value = "repoId", required = false) Long repoId,
             @RequestParam(value = "containerId", required = false) Long containerId) {
+        // Both refused when both are named, as they always were, and the repository compared. The
+        // service takes the proof of the check (`VisibleTarget`) because this module's services do
+        // not use `access`. Naming neither compares nothing, which has always answered 404.
         Visibility allowed = allowanceOf(principal);
-        if (repoId != null) {
-            Visibilities.requireVisible(new ScanTarget.Repository(repoId), allowed);
+        VisibleTarget<?> repository = repoId == null
+                ? null
+                : Visibilities.requireVisible(new ScanTarget.Repository(repoId), allowed);
+        VisibleTarget<?> container = containerId == null
+                ? null
+                : Visibilities.requireVisible(new ScanTarget.Container(containerId), allowed);
+        VisibleTarget<?> target = repository != null ? repository : container;
+        if (target == null) {
+            return ResponseEntity.notFound().build();
         }
-        if (containerId != null) {
-            Visibilities.requireVisible(new ScanTarget.Container(containerId), allowed);
-        }
-        return sbomDiffService.diffLatest(repoId, containerId)
+        return sbomDiffService.diffLatest(target)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
@@ -71,11 +70,4 @@ public class SbomDiffController {
     private Visibility allowanceOf(VectispirePrincipal principal) {
         return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
-
-    private void requireVisibleScan(long scanId, Visibility allowed) {
-        scans.requireVisible(
-                scanId,
-                allowed);
-    }
-
 }

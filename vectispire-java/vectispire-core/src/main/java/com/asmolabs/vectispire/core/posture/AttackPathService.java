@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.posture;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPath;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathEdge;
 import com.asmolabs.vectispire.common.domain.attackpath.AttackPathGraph;
@@ -9,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.attackpath.AttackPathNodeType;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.inventory.ApiInventoryService;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
@@ -74,15 +76,25 @@ public class AttackPathService {
             // Ties broken on the id so two runs of the same estate draw the same picture.
             .thenComparing(i -> i.id() == null ? Long.MAX_VALUE : i.id());
 
+    /**
+     * One repository's graph, for a caller who may see it.
+     *
+     * <p><b>This is a route map for compromising a target</b> — ingress, endpoint, vulnerability,
+     * secret, each hop flagged exploitable — so it is refused here, before anything is read, and a
+     * hidden repository reads as an absent target. The route used to refuse and then hand this the
+     * bare id; the check now travels with the read, and on to the API inventory as the proof it takes.
+     */
     @Transactional(readOnly = true)
-    public Optional<AttackPathGraph> getAttackPathGraph(Long repositoryId) {
+    public Optional<AttackPathGraph> getAttackPathGraph(long repositoryId, Visibility allowed) {
+        VisibleTarget<ScanTarget.Repository> checked =
+                RowVisibility.requireVisible(new ScanTarget.Repository(repositoryId), allowed);
         Optional<RepositoryView> repoOpt = targets.repository(repositoryId);
         if (repoOpt.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(buildGraph(
                 repoOpt.get(),
-                apiInventory.forRepository(repositoryId).endpoints(),
+                apiInventory.forRepository(checked).endpoints(),
                 issues.unsettledOfRepository(
                         repositoryId, "open", TriageStatus.settledWireNames(), IssueRows.GraphNode.class)));
     }

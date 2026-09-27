@@ -2,8 +2,12 @@ package com.asmolabs.vectispire.core.inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
+import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
@@ -74,7 +78,7 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
 
-        assertThat(sbomDiff.diffLatest(target, null)).isPresent();
+        assertThat(sbomDiff.diffLatest(checked(target))).isPresent();
 
         // Two hundred scans that are foreign to the question asked. The threshold is low and
         // deliberately not zero: the diff then loads the two scans it compares and their findings,
@@ -92,7 +96,7 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
 
         // "Nothing changed" and "no data" look alike on screen and do not mean the same thing; the
         // second reads as a failure.
-        assertThat(sbomDiff.diffLatest(lonely, null)).isPresent();
+        assertThat(sbomDiff.diffLatest(checked(lonely))).isPresent();
     }
 
     @Test
@@ -103,7 +107,7 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
 
-        assertThat(sbomDiff.diffLatest(empty, null)).isEmpty();
+        assertThat(sbomDiff.diffLatest(checked(empty))).isEmpty();
         assertThat(statistics.getEntityLoadCount())
                 .as("no scan to compare is answered by one query, not by a read of the estate")
                 .isZero();
@@ -124,5 +128,10 @@ class SbomDiffCostDatabaseTest extends VectispireContextTest {
         entity.setBranch("main");
         entity.setCreatedAt(Instant.now());
         scans.save(entity);
+    }
+
+    /** The proof the service takes, minted by the guard as a route would, for a caller who sees all. */
+    private static VisibleTarget<ScanTarget.Repository> checked(long repoId) {
+        return RowVisibility.requireVisible(new ScanTarget.Repository(repoId), Visibility.everything());
     }
 }

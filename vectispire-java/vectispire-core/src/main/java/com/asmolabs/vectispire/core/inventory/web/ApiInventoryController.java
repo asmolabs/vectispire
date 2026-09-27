@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.inventory.web;
 
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -65,8 +66,7 @@ public class ApiInventoryController {
         // An API inventory is a map of somebody's attack surface — paths, methods, and where the
         // contract and the code disagree. It is the last thing to hand to a reader who was not
         // given that repository.
-        requireVisible(principal, id);
-        return apiInventoryService.forRepository(id);
+        return apiInventoryService.forRepository(requireVisible(principal, id));
     }
 
     /**
@@ -113,15 +113,19 @@ public class ApiInventoryController {
     public ResponseEntity<String> exportOpenApi(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id) {
-        requireVisible(principal, id);
-        String json = apiInventoryService.exportSynthesizedOpenApiJson(id);
+        String json = apiInventoryService.exportSynthesizedOpenApiJson(requireVisible(principal, id));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"openapi-repository-" + id + ".json\"")
                 .body(json);
     }
 
-    private void requireVisible(VectispirePrincipal principal, long repositoryId) {
-        Visibilities.requireVisible(
+    /**
+     * The route's refusal, handed on as the proof the service takes. This module's services do not
+     * use {@code access}, so the check cannot move into them; a bare id would let the next caller
+     * of the same method skip it.
+     */
+    private VisibleTarget<ScanTarget.Repository> requireVisible(VectispirePrincipal principal, long repositoryId) {
+        return Visibilities.requireVisible(
                 new ScanTarget.Repository(repositoryId),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }

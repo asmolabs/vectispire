@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.apis.ApiContract;
 import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.apis.ApiVisibility;
@@ -221,9 +222,16 @@ public class ApiInventoryService {
 
     /**
      * Returns API overview for a specific repository with Shadow API diff against contracts.
+     *
+     * <p><b>A repository somebody checked, not an id.</b> The inventory is a map of the repository's
+     * attack surface. This module's services do not use {@code access}, so the refusal is the
+     * caller's, and this took whatever id it was handed — from its route and from the attack-path
+     * graph alike. The parameter is the proof of that check ({@link VisibleTarget}), so a caller
+     * added later cannot reach the read without it.
      */
     @Transactional(readOnly = true)
-    public RepositoryApisOverview forRepository(long repositoryId) {
+    public RepositoryApisOverview forRepository(VisibleTarget<ScanTarget.Repository> repository) {
+        long repositoryId = repository.target().id();
         List<ApiEndpointEntity> rawEndpointEntities = apiEndpoints.findByRepositoryIdOrderByPathAsc(repositoryId);
         List<ApiContractEntity> contractEntities = apiContracts.findByRepositoryIdOrderByCreatedAtDesc(repositoryId);
 
@@ -420,10 +428,12 @@ public class ApiInventoryService {
     }
 
     /**
-     * Synthesizes an OpenAPI 3.0.3 specification from all discovered endpoints in a repository.
+     * Synthesizes an OpenAPI 3.0.3 specification from all discovered endpoints in a repository —
+     * one the caller was checked for, as {@link #forRepository} is.
      */
     @Transactional(readOnly = true)
-    public String exportSynthesizedOpenApiJson(long repositoryId) {
+    public String exportSynthesizedOpenApiJson(VisibleTarget<ScanTarget.Repository> repository) {
+        long repositoryId = repository.target().id();
         List<ApiEndpointEntity> endpoints = apiEndpoints.findByRepositoryIdOrderByPathAsc(repositoryId);
         StringBuilder json = new StringBuilder();
         json.append("{\n");
