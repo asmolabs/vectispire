@@ -88,6 +88,9 @@ public abstract class VectispireContextTest {
             "t_team",
             "t_audit_log",
             "t_login_attempt",
+            // The webhook's shared ceiling: left behind, one test's deliveries count against the
+            // next's, all of them from the one address MockMvc gives.
+            "t_rate_window",
             "t_session",
             "t_api_key",
             "t_agent",
