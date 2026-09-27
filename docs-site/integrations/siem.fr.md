@@ -125,7 +125,7 @@ changera pas de sens.
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | un compte est créé, supprimé, change de rôle, d'activation, de mot de passe, de second facteur ou de cibles visibles — depuis l'écran ou par SCIM |
 | `ZAN-SEC-011` | Team access grant changed | 6 | les membres ou les cibles d'une équipe changent, un dépôt est classé dans un projet ou déplacé, ou un projet, un dépôt ou une image qui portait des droits est supprimé |
 | `ZAN-SEC-012` | API key issued | 5 | une clé d'intégration est émise |
-| `ZAN-SEC-013` | API key revoked | 4 | une clé d'intégration est révoquée — à la main, ou avec le dépôt ou l'image auquel elle était restreinte (un événement par clé) |
+| `ZAN-SEC-013` | API key revoked | 4 | une clé d'intégration est révoquée — à la main, avec le dépôt ou l'image auquel elle était restreinte, ou par la réinitialisation du mot de passe de son compte (un événement par clé) |
 | `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | un agent est déclaré, activé, désactivé, supprimé, sa clé de signature épinglée ou retirée, ou sa clé de scellement réinitialisée par un administrateur |
 | `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | le résultat signé d'un agent ne se vérifie pas |
 | `ZAN-SEC-016` | Four-eyes triage request approved | 5 | une seconde personne tranche une demande en attente |

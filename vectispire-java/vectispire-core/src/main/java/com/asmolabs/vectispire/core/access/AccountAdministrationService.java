@@ -210,10 +210,12 @@ public class AccountAdministrationService {
         // shut them out: the sessions closed, the pipeline key they minted kept working. Only on a
         // reset — deactivating already stops every key of the account, and a role change moves
         // what they may do with it.
+        List<TargetGrants.RevokedKey> revokedKeys = List.of();
         if (password != null) {
-            int revokedKeys = accounts.saveRevokingEverything(user);
-            if (revokedKeys > 0) {
-                changes.add(revokedKeys + " API key" + (revokedKeys == 1 ? "" : "s") + " revoked");
+            revokedKeys = accounts.saveRevokingEverything(user);
+            if (!revokedKeys.isEmpty()) {
+                int count = revokedKeys.size();
+                changes.add(count + " API key" + (count == 1 ? "" : "s") + " revoked");
             }
         } else {
             accounts.save(user, revoke);
@@ -221,6 +223,19 @@ public class AccountAdministrationService {
 
         if (!changes.isEmpty()) {
             record(actor, id, "Account " + user.getUsername() + ": " + String.join(", ", changes));
+        }
+        // **One entry per key, under the key's id**, as a revocation by hand and one by a target's
+        // deletion leave (`TargetDeletionAudit`). A count on the account's entry told nobody which
+        // pipeline had just started answering 401, and the SIEM heard no `API_KEY_REVOKED` at all.
+        for (TargetGrants.RevokedKey key : revokedKeys) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.API_KEY_DELETED,
+                    key.id().toString(),
+                    "API key revoked with its account's password reset: " + key.name()
+                            + " (account " + user.getUsername() + ")",
+                    actor.username(),
+                    actor.ipAddress(),
+                    actor.userAgent()));
         }
         return new AccountView(UserView.of(user), revoke ? 0 : activeSessionsByUser().getOrDefault(id, 0L));
     }

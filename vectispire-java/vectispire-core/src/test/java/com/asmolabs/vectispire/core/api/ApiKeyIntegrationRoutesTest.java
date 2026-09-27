@@ -8,7 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
@@ -196,6 +198,49 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
 
         mvc.perform(authenticated(get("/api/v1/issues"), owned)).andExpect(status().isUnauthorized());
         mvc.perform(authenticated(get("/api/v1/issues"), bystander)).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("a reset records each key it revokes under the key's id, as a revocation by hand is recorded")
+    void aResetNamesEveryKeyItRevokes() throws Exception {
+        // The account's entry said "2 API keys revoked" and nothing else: no entry under either key,
+        // so neither whoever looked for the key that stopped working nor the SIEM heard of it.
+        String ownerName = "reset-keys-" + System.nanoTime();
+        String ownerToken = tokenFor(ownerName, Role.ADMIN, false);
+        List<String> ids = List.of(keyId(ownerToken, "reset-first"), keyId(ownerToken, "reset-second"));
+        String bystander = keyId(asAdmin(), "reset-bystander");
+        long ownerId = users.findByUsername(ownerName).orElseThrow().getId();
+
+        mvc.perform(authenticated(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .patch("/api/v1/users/" + ownerId), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("password", "another reset passphrase nobody knows"))))
+                .andExpect(status().isOk());
+
+        List<AuditLogEntity> revocations = auditLog.findAll().stream()
+                .filter(entry -> AuditOperation.API_KEY_DELETED.wireName().equals(entry.getOperationType()))
+                .toList();
+        assertThat(revocations)
+                .filteredOn(entry -> ids.contains(entry.getResourceId()))
+                .extracting(entry -> entry.getResourceId() + " " + entry.getDescription())
+                .containsExactlyInAnyOrder(
+                        ids.get(0) + " API key revoked with its account's password reset: reset-first (account "
+                                + ownerName + ")",
+                        ids.get(1) + " API key revoked with its account's password reset: reset-second (account "
+                                + ownerName + ")");
+        assertThat(revocations).noneMatch(entry -> bystander.equals(entry.getResourceId()));
+        assertThat(SecurityEventType.signalledBy(AuditOperation.API_KEY_DELETED))
+                .as("what the SIEM hears")
+                .contains(SecurityEventType.API_KEY_REVOKED);
+    }
+
+    private String keyId(String ownerToken, String name) throws Exception {
+        String response = mvc.perform(authenticated(post("/api/v1/api-keys"), ownerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name, "scopes", List.of("read")))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return json.readTree(response).path("key").path("id").asText();
     }
 
     @Test

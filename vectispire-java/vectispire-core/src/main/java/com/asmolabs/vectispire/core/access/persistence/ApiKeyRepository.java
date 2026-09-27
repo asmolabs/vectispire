@@ -10,13 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * The API keys.
- *
- * <p>Named with the {@code Repository} suffix, alone among these, because {@code ApiKeys} is
- * already the domain's rule class and two types of the same simple name in one method do not
- * compile.
- */
+/** The API keys. */
 public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
 
     /**
@@ -34,6 +28,12 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
     @Modifying(clearAutomatically = true)
     @Query("update ApiKeyEntity k set k.lastUsedAt = :at where k.id = :id")
     int markUsed(@Param("id") UUID id, @Param("at") Instant at);
+
+    /**
+     * The integration keys an account issued for itself, to be named one by one when a reset
+     * revokes them — see {@code AccountAdminService#saveRevokingEverything}.
+     */
+    List<ApiKeyEntity> findByOwnerUserId(Long ownerUserId);
 
     /**
      * Revokes every integration key an account issued for itself — see

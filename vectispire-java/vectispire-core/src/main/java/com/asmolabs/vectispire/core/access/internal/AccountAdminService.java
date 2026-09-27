@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.internal;
 
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
+import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.SessionRepository;
@@ -71,12 +72,21 @@ public class AccountAdminService {
      * Saves an account, closes its sessions and revokes the integration keys it issued — together
      * or not at all, for the reason {@link #save} gives.
      *
-     * @return how many keys were revoked, for the audit entry
+     * <p><b>Read, then deleted by owner rather than by the ids read.</b> The keys are named so that
+     * each revocation is audited under its own id; the delete stays the owner's, so a key issued
+     * between the read and the delete — by the very session this reset is shutting out — is revoked
+     * all the same, unnamed, rather than left working.
+     *
+     * @return the keys revoked, for one audit entry each
      */
     @Transactional
-    public int saveRevokingEverything(UserEntity user) {
+    public List<TargetGrants.RevokedKey> saveRevokingEverything(UserEntity user) {
         UserEntity saved = save(user, true);
-        return keys.revokeOwnedBy(saved.getId());
+        List<TargetGrants.RevokedKey> owned = keys.findByOwnerUserId(saved.getId()).stream()
+                .map(key -> new TargetGrants.RevokedKey(key.getId(), key.getName()))
+                .toList();
+        keys.revokeOwnedBy(saved.getId());
+        return owned;
     }
 
     /**
