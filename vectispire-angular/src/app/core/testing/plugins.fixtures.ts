@@ -16,7 +16,8 @@ export const MANIFEST: PluginManifest = asSchema('PluginManifest', {
     exit_codes: [0, 1],
     network: false,
     network_justification: null,
-    timeout_seconds: 600
+    timeout_seconds: 600,
+    signature: null
 });
 
 export const PLUGIN: Plugin = asSchema('PluginView', {

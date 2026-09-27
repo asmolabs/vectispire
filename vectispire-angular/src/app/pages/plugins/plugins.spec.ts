@@ -17,6 +17,9 @@ import { Plugins, parseExitCodes } from './plugins';
  * below sign in as each and look at what the DOM offers — hiding is cosmetic, the server decides,
  * but a button that answers 403 is the broken screen this product has already shipped once.
  */
+const RELEASE = 'https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0';
+const GITHUB = 'https://token.actions.githubusercontent.com';
+
 describe('the plugin registry', () => {
     let fixture: ComponentFixture<Plugins>;
     let http: HttpTestingController;
@@ -92,6 +95,7 @@ describe('the plugin registry', () => {
         expect(detail).toContain('0, 1');
         expect(detail).toContain('600 s');
         expect(detail).toContain('Pulls rules from rules.acme.internal daily.');
+        expect(dom().querySelector('[data-testid="plugin-signer"]')?.textContent).toContain('trusted by its digest alone');
         expect(dom().querySelector('[data-testid="manifest-digest"]')?.textContent).toContain(PLUGIN.manifestDigest);
         // An ordinary account is not answered which projects a plugin reads, and is not made to ask.
         http.expectNone('/api/v1/plugins/acme-lint/projects');
@@ -196,6 +200,45 @@ describe('the plugin registry', () => {
 
         expect(fixture.componentInstance.plugins()[0].enabled).toBe(false);
         expect(dom().textContent).toContain('acme-lint disabled');
+    });
+
+    it('shows who must have signed the image, keyless by identity and issuer', async () => {
+        await start('USER', { id: 'acme-lint' });
+
+        http.expectOne('/api/v1/plugins/acme-lint').flush({
+            ...PLUGIN,
+            manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } }
+        });
+        fixture.detectChanges();
+
+        const signer = dom().querySelector('[data-testid="plugin-signer"]')?.textContent ?? '';
+        expect(signer).toContain(`Keyless: ${RELEASE}, via ${GITHUB}`);
+        expect(signer).not.toContain('trusted by its digest alone');
+    });
+
+    it('sends the signer as typed, and none at all when its three fields are empty', async () => {
+        await start('SUPERUSER');
+
+        fixture.componentInstance.openEdit({ ...PLUGIN, manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } } });
+        expect(fixture.componentInstance.draft.signerIdentity).toBe(RELEASE);
+        expect(fixture.componentInstance.draft.signerIssuer).toBe(GITHUB);
+        // A key pasted beside the identity travels with it: refusing both is the server's call, not the form's.
+        fixture.componentInstance.draft.signerKey = '  -----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----\n';
+        fixture.componentInstance.save();
+        const edited = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint' });
+        expect(edited.request.body.signature).toEqual({
+            identity: RELEASE,
+            issuer: GITHUB,
+            public_key: '-----BEGIN PUBLIC KEY-----\nabc\n-----END PUBLIC KEY-----'
+        });
+        edited.flush(PLUGIN);
+
+        fixture.componentInstance.openEdit(PLUGIN);
+        Object.assign(fixture.componentInstance.draft, { signerIdentity: '  ', signerIssuer: '', signerKey: '' });
+        fixture.componentInstance.save();
+        const unsigned = http.expectOne({ method: 'PUT', url: '/api/v1/plugins/acme-lint' });
+        expect(unsigned.request.body.signature).toBeNull();
+        unsigned.flush(PLUGIN);
     });
 
     it('refuses exit codes that are not integers before asking the server', async () => {

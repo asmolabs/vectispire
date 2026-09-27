@@ -2028,7 +2028,18 @@ export type PluginManifest = Refine<
         network_justification: string | null;
         /** Null: the scanner limits' own timeout. */
         timeout_seconds: number | null;
+        /** Who must have signed the image; null trusts it by its digest alone. */
+        signature: PluginSignature | null;
     }
+>;
+
+/**
+ * Who a plugin's image must be signed by — keyless (identity and issuer, matched exactly) or a public
+ * key, exactly one of the two. **The server is the judge of which**: the form sends what was typed.
+ */
+export type PluginSignature = Refine<
+    Schema<'PluginSignature'>,
+    { identity: string | null; issuer: string | null; public_key: string | null }
 >;
 
 /** A registered plugin: the manifest it runs now, and who registered and last changed it. */

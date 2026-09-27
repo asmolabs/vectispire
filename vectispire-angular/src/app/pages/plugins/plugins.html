@@ -154,6 +154,20 @@
                 }
             </dd>
 
+            <dt class="text-muted-color">{{ 'plugins.field_signer' | translate }}</dt>
+            <dd class="m-0" data-testid="plugin-signer">
+                @if (plugin.manifest.signature?.public_key; as key) {
+                    {{ 'plugins.signer_key' | translate }}
+                    <pre class="m-0 mt-1 font-mono text-xs whitespace-pre-wrap">{{ key }}</pre>
+                } @else if (plugin.manifest.signature; as signer) {
+                    <span class="font-mono break-all">{{
+                        'plugins.signer_keyless' | translate: { identity: signer.identity ?? '', issuer: signer.issuer ?? '' }
+                    }}</span>
+                } @else {
+                    {{ 'plugins.signer_none' | translate }}
+                }
+            </dd>
+
             <dt class="text-muted-color">{{ 'plugins.field_timeout' | translate }}</dt>
             <dd class="m-0">
                 @if (plugin.manifest.timeout_seconds) {
@@ -364,6 +378,40 @@
                 }}</small>
             </div>
         }
+
+        <fieldset class="flex flex-col gap-2 border-0 p-0 m-0">
+            <legend class="font-medium">{{ 'plugins.field_signer' | translate }}</legend>
+            <small class="text-muted-color">{{ 'plugins.signer_hint' | translate }}</small>
+            <label for="plugin-signer-identity" class="text-sm">{{ 'plugins.field_signer_identity' | translate }}</label>
+            <input
+                pInputText
+                id="plugin-signer-identity"
+                name="plugin-signer-identity"
+                class="font-mono"
+                maxlength="500"
+                [(ngModel)]="draft.signerIdentity"
+            />
+            <label for="plugin-signer-issuer" class="text-sm">{{ 'plugins.field_signer_issuer' | translate }}</label>
+            <input
+                pInputText
+                id="plugin-signer-issuer"
+                name="plugin-signer-issuer"
+                class="font-mono"
+                maxlength="500"
+                placeholder="https://token.actions.githubusercontent.com"
+                [(ngModel)]="draft.signerIssuer"
+            />
+            <label for="plugin-signer-key" class="text-sm">{{ 'plugins.field_signer_key' | translate }}</label>
+            <textarea
+                pTextarea
+                id="plugin-signer-key"
+                name="plugin-signer-key"
+                rows="4"
+                class="font-mono text-xs"
+                maxlength="8192"
+                [(ngModel)]="draft.signerKey"
+            ></textarea>
+        </fieldset>
 
         @if (formError(); as message) {
             <p-message severity="error" [closable]="false" data-testid="plugin-form-error">{{ message }}</p-message>

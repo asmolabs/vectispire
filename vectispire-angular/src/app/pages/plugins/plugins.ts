@@ -16,7 +16,14 @@ import { ToggleSwitchModule } from '@openng/optimus-ui/toggleswitch';
 import { messageOf } from '../../core/api-error';
 import { PluginsApi } from '../../core/api/plugins.api';
 import { SolutionsApi } from '../../core/api/solutions.api';
-import type { Plugin, PluginActivation, PluginLanguage, PluginManifest, SolutionTree } from '../../core/api.models';
+import type {
+    Plugin,
+    PluginActivation,
+    PluginLanguage,
+    PluginManifest,
+    PluginSignature,
+    SolutionTree
+} from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
@@ -71,6 +78,9 @@ interface Draft {
     network: boolean;
     networkJustification: string;
     timeoutSeconds: number | null;
+    signerIdentity: string;
+    signerIssuer: string;
+    signerKey: string;
 }
 
 /** The server's bounds (decision 0017 §2), repeated only to shape the inputs; it stays the judge. */
@@ -323,7 +333,10 @@ function blank(): Draft {
         exitCodes: '0',
         network: false,
         networkJustification: '',
-        timeoutSeconds: null
+        timeoutSeconds: null,
+        signerIdentity: '',
+        signerIssuer: '',
+        signerKey: ''
     };
 }
 
@@ -338,7 +351,10 @@ function draftOf(manifest: PluginManifest): Draft {
         exitCodes: manifest.exit_codes.join(', '),
         network: manifest.network,
         networkJustification: manifest.network_justification ?? '',
-        timeoutSeconds: manifest.timeout_seconds
+        timeoutSeconds: manifest.timeout_seconds,
+        signerIdentity: manifest.signature?.identity ?? '',
+        signerIssuer: manifest.signature?.issuer ?? '',
+        signerKey: manifest.signature?.public_key ?? ''
     };
 }
 
@@ -358,6 +374,9 @@ export function parseExitCodes(text: string): number[] | null {
  * field left for the server to default would still be a field the governor did not see. The one
  * exception is deliberate: a justification is sent only with the network on, because the server
  * refuses one without it rather than store a reason for an exception that does not exist.
+ *
+ * The signer is sent as typed, all three fields, and null only when all three are empty: a key pasted
+ * beside an identity is the server's to refuse ("not both"), not the form's to drop silently.
  */
 export function manifestOf(draft: Draft, exitCodes: number[]): PluginManifest {
     return {
@@ -370,6 +389,14 @@ export function manifestOf(draft: Draft, exitCodes: number[]): PluginManifest {
         exit_codes: exitCodes,
         network: draft.network,
         network_justification: draft.network ? draft.networkJustification.trim() || null : null,
-        timeout_seconds: draft.timeoutSeconds
+        timeout_seconds: draft.timeoutSeconds,
+        signature: signatureOf(draft)
     };
+}
+
+function signatureOf(draft: Draft): PluginSignature | null {
+    const identity = draft.signerIdentity.trim() || null;
+    const issuer = draft.signerIssuer.trim() || null;
+    const publicKey = draft.signerKey.trim() || null;
+    return identity || issuer || publicKey ? { identity, issuer, public_key: publicKey } : null;
 }
