@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -124,10 +126,18 @@ public class CertifiedScopeService {
      * SQLite would wait on the write's file lock. A no-op leaves no entry, as a setting saved
      * unchanged leaves none.
      *
+     * <p>A target that does not exist is refused in the words a hidden one gets — the route has
+     * already refused those — so an id nobody registered is a 404, not a 200 for a write to nothing.
+     *
      * @return whether the flag changed
      */
     public boolean setInScope(ScanTarget target, boolean inScope, RequestActor actor) {
-        boolean changed = targets.setInCertifiedScope(target, inScope);
+        TargetCatalog.ScopeChange outcome = targets.setInCertifiedScope(target, inScope);
+        if (outcome == TargetCatalog.ScopeChange.ABSENT) {
+            // Handed to the guard as an absent row, so it throws the one sentence it has.
+            RowVisibility.requireVisible(Optional.empty(), target, Visibility.everything());
+        }
+        boolean changed = outcome == TargetCatalog.ScopeChange.CHANGED;
         if (changed) {
             audit.record(actor.entry(
                     AuditOperation.CERTIFIED_SCOPE_CHANGED,

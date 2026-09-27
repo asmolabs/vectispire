@@ -146,31 +146,41 @@ public class TargetCatalog {
     }
 
     /**
+     * What putting a target in or out of the certified scope did.
+     *
+     * <p><b>Three outcomes, not a boolean.</b> A {@code false} used to mean both "already so" and
+     * "no such target", so the route answered 200 for an id nobody had registered — a write to
+     * nothing reported as done. The caller refuses an absent one as a route refuses a hidden one.
+     */
+    public enum ScopeChange {
+        CHANGED,
+        UNCHANGED,
+        ABSENT
+    }
+
+    /**
      * Puts one target in or out of the certified scope — {@code compliance}'s decision, on the
      * target's row.
-     *
-     * @return whether the flag changed, so a caller can stay silent about a no-op; false for a
-     *     target that does not exist
      */
     @Transactional
-    public boolean setInCertifiedScope(ScanTarget target, boolean inScope) {
+    public ScopeChange setInCertifiedScope(ScanTarget target, boolean inScope) {
         return switch (target) {
             case ScanTarget.Repository repository -> repositories.findById(repository.id())
                     .map(row -> {
                         boolean changed = row.isInCertifiedScope() != inScope;
                         row.setInCertifiedScope(inScope);
                         repositories.save(row);
-                        return changed;
+                        return changed ? ScopeChange.CHANGED : ScopeChange.UNCHANGED;
                     })
-                    .orElse(false);
+                    .orElse(ScopeChange.ABSENT);
             case ScanTarget.Container container -> containers.findById(container.id())
                     .map(row -> {
                         boolean changed = row.isInCertifiedScope() != inScope;
                         row.setInCertifiedScope(inScope);
                         containers.save(row);
-                        return changed;
+                        return changed ? ScopeChange.CHANGED : ScopeChange.UNCHANGED;
                     })
-                    .orElse(false);
+                    .orElse(ScopeChange.ABSENT);
         };
     }
 }

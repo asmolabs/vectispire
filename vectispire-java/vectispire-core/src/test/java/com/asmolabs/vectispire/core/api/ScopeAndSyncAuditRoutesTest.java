@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
@@ -94,6 +95,23 @@ class ScopeAndSyncAuditRoutesTest extends ApiTestBase {
 
         assertThat(entries(AuditOperation.CERTIFIED_SCOPE_CHANGED, String.valueOf(repository))).isEmpty();
         assertThat(repositories.findById(repository).orElseThrow().isInCertifiedScope()).isFalse();
+    }
+
+    @Test
+    @DisplayName("an id nobody registered is refused as a hidden one is — 404, \"Target not found.\" — and records nothing")
+    void anAbsentTargetIsNotFound() throws Exception {
+        // `false` used to mean both "unchanged" and "absent", so the route answered 200 for a
+        // write to nothing. A repository and an image are asked separately: each kind has its row.
+        String token = tokenFor("scope-absent-" + System.nanoTime(), Role.CISO, false);
+        long absent = Long.MAX_VALUE - 7;
+
+        for (String kind : List.of("repositories", "containers")) {
+            mvc.perform(authenticated(put("/api/v1/compliance/scope/" + kind + "/" + absent)
+                                    .param("in_scope", "true"), token))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.detail").value("Target not found."));
+        }
+        assertThat(entries(AuditOperation.CERTIFIED_SCOPE_CHANGED, String.valueOf(absent))).isEmpty();
     }
 
     private void scope(String token, String kind, long id, boolean inScope) throws Exception {
