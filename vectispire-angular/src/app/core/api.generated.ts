@@ -3198,6 +3198,7 @@ export interface components {
             failOnUncoveredLanguages: boolean;
             fixableOnly: boolean;
             includeAiReview: boolean;
+            includePlugins: boolean;
             includeTriaged: boolean;
             source?: string;
             /** Format: int32 */
@@ -3930,6 +3931,7 @@ export interface components {
             fail_on_uncovered_languages: boolean;
             fixable_only: boolean;
             include_ai_review: boolean;
+            include_plugins: boolean;
             include_triaged: boolean;
             kind?: string;
             note?: string;
@@ -3946,6 +3948,7 @@ export interface components {
             fail_on_severity?: string;
             fixable_only?: boolean;
             include_ai_review?: boolean;
+            include_plugins?: boolean;
             include_triaged?: boolean;
             /** Format: int64 */
             repository_id?: number;
@@ -4570,6 +4573,7 @@ export interface components {
             fail_on_uncovered_languages?: boolean;
             fixable_only?: boolean;
             include_ai_review?: boolean;
+            include_plugins?: boolean;
             include_triaged?: boolean;
             note?: string;
         };

@@ -47,7 +47,7 @@ class ActiveGatePoliciesTest {
         var stored = ActiveGatePolicies.storedPolicy(entity);
 
         assertThat(stored.version()).isEqualTo(7);
-        assertThat(stored.policy()).isEqualTo(new GatePolicy(Severity.CRITICAL, false, true, true, true, true));
+        assertThat(stored.policy()).isEqualTo(new GatePolicy(Severity.CRITICAL, false, true, true, true, true, false));
     }
 
     @Test

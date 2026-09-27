@@ -20,6 +20,13 @@ public enum PolicyFlag {
     /** Let AI review findings weigh on the verdict. */
     INCLUDE_AI_REVIEW("include_ai_review", true),
 
+    /**
+     * Let plugin and imported findings weigh on the verdict (decision 0017). Their severity is a
+     * third-party tool's choice, so they count only when somebody asks — on their own flag, since
+     * a model review and a house linter are not one decision.
+     */
+    INCLUDE_PLUGINS("include_plugins", true),
+
     /** Fail only on issues that have a published fix — which evaluates fewer of them. */
     FIXABLE_ONLY("fixable_only", false),
 

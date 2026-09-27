@@ -64,6 +64,46 @@ class GatePoliciesRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a plugin finding weighs on the verdict only once a stored policy includes plugins")
+    void pluginsCountWhenAPolicySaysSo() throws Exception {
+        long target = repository("https://example.invalid/plugins.git");
+        IssueEntity finding = new IssueEntity();
+        finding.setRepoId(target);
+        finding.setFingerprint("plugin-finding-" + target);
+        finding.setType(FindingType.PLUGIN.wireName());
+        finding.setIdentifier("ACME001");
+        finding.setTool("plugin:acme-lint");
+        finding.setSeverity(Severity.CRITICAL.wireName());
+        finding.setState(IssueState.OPEN.wireName());
+        finding.setTriageStatus(com.asmolabs.vectispire.common.domain.issues.TriageStatus.UNDER_REVIEW.wireName());
+        finding.setFirstSeenAt(java.time.Instant.now());
+        finding.setLastSeenAt(java.time.Instant.now());
+        finding.setTimesSeen(1);
+        issues.save(finding);
+
+        mvc.perform(gate(target))
+                .andExpect(jsonPath("$.passed").value(true))
+                .andExpect(jsonPath("$.policy.includePlugins").value(false));
+        // A pipeline may ask for it — tightening is always allowed — without a stored policy.
+        mvc.perform(authenticated(post("/api/v1/gate"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"repository_id\":" + target + ",\"include_plugins\":true}"))
+                .andExpect(jsonPath("$.passed").value(false))
+                .andExpect(jsonPath("$.policy.includePlugins").value(true));
+
+        Map<String, Object> including = policy("high", true, false, false, false, "Our house rules gate releases.");
+        including.put("include_plugins", true);
+        mvc.perform(authenticated(put("/api/v1/gate/policies/global"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON).content(write(including)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.include_plugins").value(true));
+
+        mvc.perform(gate(target))
+                .andExpect(jsonPath("$.passed").value(false))
+                .andExpect(jsonPath("$.policy.includePlugins").value(true));
+    }
+
+    @Test
     @DisplayName("a target's own policy beats the global one")
     void theTargetOverridesTheGlobal() throws Exception {
         long strict = repository("https://example.invalid/strict.git");

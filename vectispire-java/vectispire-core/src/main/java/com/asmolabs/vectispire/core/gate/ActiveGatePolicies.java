@@ -53,7 +53,8 @@ public class ActiveGatePolicies {
                         policy.getFixableOnly(),
                         policy.getIncludeTriaged(),
                         policy.getIncludeAiReview(),
-                        policy.getFailOnUncoveredLanguages()),
+                        policy.getFailOnUncoveredLanguages(),
+                        policy.getIncludePlugins()),
                 policy.getVersion());
     }
 

@@ -80,6 +80,7 @@ public class GatePoliciesController {
             @JsonProperty("include_triaged") boolean includeTriaged,
             @JsonProperty("include_ai_review") boolean includeAiReview,
             @JsonProperty("fail_on_uncovered_languages") boolean failOnUncoveredLanguages,
+            @JsonProperty("include_plugins") boolean includePlugins,
             String note,
             @JsonProperty("created_by") String createdBy,
             @JsonProperty("created_at") String createdAt) {}
@@ -106,6 +107,7 @@ public class GatePoliciesController {
             @JsonProperty("include_triaged") Boolean includeTriaged,
             @JsonProperty("include_ai_review") Boolean includeAiReview,
             @JsonProperty("fail_on_uncovered_languages") Boolean failOnUncoveredLanguages,
+            @JsonProperty("include_plugins") Boolean includePlugins,
             String note) {}
 
     @GetMapping
@@ -196,7 +198,10 @@ public class GatePoliciesController {
                 // off, and absent means the behaviour the caller already had. Refusing it would
                 // break every pipeline that writes a policy today, over a rule none of them can
                 // yet know about.
-                body.failOnUncoveredLanguages() != null && body.failOnUncoveredLanguages());
+                body.failOnUncoveredLanguages() != null && body.failOnUncoveredLanguages(),
+                // Absent for the same reason, and newer still: every stored policy has it off, and
+                // a pipeline that writes a policy today cannot know it exists.
+                body.includePlugins() != null && body.includePlugins());
     }
 
     private static boolean required(Boolean value, String field) {
@@ -252,6 +257,7 @@ public class GatePoliciesController {
                 resolved.includeTriaged(),
                 resolved.includeAiReview(),
                 resolved.failOnUncoveredLanguages(),
+                resolved.includePlugins(),
                 policy.note(),
                 policy.createdBy(),
                 policy.createdAt() == null ? null : policy.createdAt().toString());
@@ -277,6 +283,7 @@ public class GatePoliciesController {
                 policy.includeTriaged(),
                 policy.includeAiReview(),
                 policy.failOnUncoveredLanguages(),
+                policy.includePlugins(),
                 null,
                 null,
                 null);

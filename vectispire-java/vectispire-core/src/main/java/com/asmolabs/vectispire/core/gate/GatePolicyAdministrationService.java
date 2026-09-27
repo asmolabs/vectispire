@@ -84,6 +84,9 @@ public class GatePolicyAdministrationService {
         if (policy.failOnUncoveredLanguages()) {
             parts.add("fail when no rule covers the target");
         }
+        if (policy.includePlugins()) {
+            parts.add("plugin and imported findings counted");
+        }
         return String.join(", ", parts);
     }
 }

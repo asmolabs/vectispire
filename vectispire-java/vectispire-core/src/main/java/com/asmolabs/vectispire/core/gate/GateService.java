@@ -304,6 +304,7 @@ public class GateService {
         stored.setIncludeTriaged(policy.includeTriaged());
         stored.setIncludeAiReview(policy.includeAiReview());
         stored.setFailOnUncoveredLanguages(policy.failOnUncoveredLanguages());
+        stored.setIncludePlugins(policy.includePlugins());
         stored.setNote(note == null || note.isBlank() ? null : note.trim());
         stored.setCreatedBy(author);
         stored.setCreatedAt(clock.instant());

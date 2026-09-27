@@ -26,7 +26,7 @@ class PolicyGateTest {
         void qualityNeverBlocks() {
             // Every flag on, including the ones that widen the evaluated set. Quality must
             // still be absent: there is no option, and this test is what keeps it that way.
-            GatePolicy everything = new GatePolicy(Severity.NEGLIGIBLE, true, false, true, true, false);
+            GatePolicy everything = new GatePolicy(Severity.NEGLIGIBLE, true, false, true, true, false, false);
 
             GateVerdict verdict = PolicyGate.evaluate(
                     List.of(issue(1, FindingType.QUALITY, Severity.CRITICAL, null)), everything);
@@ -56,6 +56,20 @@ class PolicyGateTest {
             assertThat(PolicyGate.evaluate(findings, GatePolicy.BUILT_IN).passed()).isTrue();
             assertThat(PolicyGate.evaluate(findings, GatePolicy.BUILT_IN.with(PolicyFlag.INCLUDE_AI_REVIEW, true)).passed())
                     .isTrue();
+        }
+
+        @Test
+        @DisplayName("plugin and imported findings count when the policy includes plugins — and AI review still does not")
+        void pluginsAreOptIn() {
+            List<GateIssue> plugin = List.of(issue(1, FindingType.PLUGIN, Severity.CRITICAL, null));
+            List<GateIssue> imported = List.of(issue(2, FindingType.IMPORTED, Severity.CRITICAL, null));
+            List<GateIssue> ai = List.of(issue(3, FindingType.AI_REVIEW, Severity.CRITICAL, null));
+            GatePolicy including = GatePolicy.BUILT_IN.with(PolicyFlag.INCLUDE_PLUGINS, true);
+
+            assertThat(PolicyGate.evaluate(plugin, including).passed()).isFalse();
+            assertThat(PolicyGate.evaluate(imported, including).passed()).isFalse();
+            assertThat(PolicyGate.evaluate(ai, including).passed()).isTrue();
+            assertThat(GatePolicy.BUILT_IN.includePlugins()).isFalse();
         }
 
         @Test
@@ -157,7 +171,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("a null threshold disables the severity rule without disabling KEV")
         void nullThresholdKeepsKev() {
-            GatePolicy kevOnly = new GatePolicy(null, true, false, false, false, false);
+            GatePolicy kevOnly = new GatePolicy(null, true, false, false, false, false, false);
             GateIssue critical = issue(1, FindingType.VULNERABILITY, Severity.CRITICAL, null);
             GateIssue kev = new GateIssue(2, true, FindingType.VULNERABILITY, Severity.LOW, "CVE-2", "pkg", null, true, null);
 
@@ -216,7 +230,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("switching off a rule that was already off is not a relaxation")
         void disablingWhatIsAlreadyOffIsSilent() {
-            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false);
+            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false, false);
 
             PolicyGate.Hardened hardened =
                     PolicyGate.harden(noSeverityRule, RequestedPolicy.none().with(new SeverityRequest.Disabled()));
@@ -227,7 +241,7 @@ class PolicyGateTest {
         @Test
         @DisplayName("adding a threshold where there was none is a tightening")
         void addingAThresholdTightens() {
-            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false);
+            GatePolicy noSeverityRule = new GatePolicy(null, true, false, false, false, false, false);
 
             PolicyGate.Hardened hardened = PolicyGate.harden(
                     noSeverityRule, RequestedPolicy.none().with(new SeverityRequest.Threshold(Severity.CRITICAL)));

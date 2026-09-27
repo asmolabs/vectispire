@@ -14,7 +14,8 @@ public record GatePolicy(
         boolean fixableOnly,
         boolean includeTriaged,
         boolean includeAiReview,
-        boolean failOnUncoveredLanguages) {
+        boolean failOnUncoveredLanguages,
+        boolean includePlugins) {
 
     /**
      * The default, and every element of it is an argued choice.
@@ -29,13 +30,15 @@ public record GatePolicy(
      *   <li><b>AI review findings are excluded.</b> They come from a local model handed the
      *       repository's source: a hostile repository can steer it, and an invented "critical"
      *       would fail somebody's build.
+     *   <li><b>Plugin and imported findings are excluded</b>, for the AI review's reason one step
+     *       removed: a third-party tool chose their severity (decision 0017).
      *   <li><b>Uncovered languages do not fail the build.</b> The strict answer is the other one —
      *       a target no rule reaches has not been examined — but turning it on by default would
      *       fail every existing build the day it shipped, over a condition its owners had never
      *       been shown. The coverage banner says it first; this blocks on it only when asked.
      * </ul>
      */
-    public static final GatePolicy BUILT_IN = new GatePolicy(Severity.HIGH, true, false, false, false, false);
+    public static final GatePolicy BUILT_IN = new GatePolicy(Severity.HIGH, true, false, false, false, false, false);
 
     public boolean flag(PolicyFlag flag) {
         return switch (flag) {
@@ -44,25 +47,28 @@ public record GatePolicy(
             case INCLUDE_AI_REVIEW -> includeAiReview;
             case FIXABLE_ONLY -> fixableOnly;
             case FAIL_ON_UNCOVERED_LANGUAGES -> failOnUncoveredLanguages;
+            case INCLUDE_PLUGINS -> includePlugins;
         };
     }
 
     public GatePolicy with(PolicyFlag flag, boolean value) {
         return switch (flag) {
             case FAIL_ON_KEV ->
-                new GatePolicy(failOnSeverity, value, fixableOnly, includeTriaged, includeAiReview, failOnUncoveredLanguages);
+                new GatePolicy(failOnSeverity, value, fixableOnly, includeTriaged, includeAiReview, failOnUncoveredLanguages, includePlugins);
             case INCLUDE_TRIAGED ->
-                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, value, includeAiReview, failOnUncoveredLanguages);
+                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, value, includeAiReview, failOnUncoveredLanguages, includePlugins);
             case INCLUDE_AI_REVIEW ->
-                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, includeTriaged, value, failOnUncoveredLanguages);
+                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, includeTriaged, value, failOnUncoveredLanguages, includePlugins);
             case FIXABLE_ONLY ->
-                new GatePolicy(failOnSeverity, failOnKev, value, includeTriaged, includeAiReview, failOnUncoveredLanguages);
+                new GatePolicy(failOnSeverity, failOnKev, value, includeTriaged, includeAiReview, failOnUncoveredLanguages, includePlugins);
             case FAIL_ON_UNCOVERED_LANGUAGES ->
-                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, includeTriaged, includeAiReview, value);
+                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, includeTriaged, includeAiReview, value, includePlugins);
+            case INCLUDE_PLUGINS ->
+                new GatePolicy(failOnSeverity, failOnKev, fixableOnly, includeTriaged, includeAiReview, failOnUncoveredLanguages, value);
         };
     }
 
     public GatePolicy withFailOnSeverity(Severity severity) {
-        return new GatePolicy(severity, failOnKev, fixableOnly, includeTriaged, includeAiReview, failOnUncoveredLanguages);
+        return new GatePolicy(severity, failOnKev, fixableOnly, includeTriaged, includeAiReview, failOnUncoveredLanguages, includePlugins);
     }
 }

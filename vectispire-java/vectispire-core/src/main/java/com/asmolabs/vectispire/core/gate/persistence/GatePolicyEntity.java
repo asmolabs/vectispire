@@ -57,6 +57,9 @@ public class GatePolicyEntity {
     @Column(name = "fail_on_uncovered_languages", nullable = false)
     private boolean failOnUncoveredLanguages;
 
+    @Column(name = "include_plugins", nullable = false)
+    private boolean includePlugins;
+
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "note")
     private String note;
@@ -149,6 +152,14 @@ public class GatePolicyEntity {
 
     public void setFailOnUncoveredLanguages(boolean failOnUncoveredLanguages) {
         this.failOnUncoveredLanguages = failOnUncoveredLanguages;
+    }
+
+    public boolean getIncludePlugins() {
+        return includePlugins;
+    }
+
+    public void setIncludePlugins(boolean includePlugins) {
+        this.includePlugins = includePlugins;
     }
 
     public void setIncludeAiReview(boolean includeAiReview) {

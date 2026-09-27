@@ -100,8 +100,13 @@ public final class PolicyGate {
                 // it, so an operator has to opt in before it can fail their build. Asked by type:
                 // the AI flag must not admit the plugin and imported findings, which are on
                 // request too, and ask on their own.
-                case ON_REQUEST -> issue.type() == com.asmolabs.vectispire.common.domain.issues.FindingType.AI_REVIEW
-                        && policy.includeAiReview();
+                case ON_REQUEST -> switch (issue.type()) {
+                    case AI_REVIEW -> policy.includeAiReview();
+                    // A plugin's or an imported report's severity is a third-party tool's choice
+                    // (decision 0017): it counts when the policy includes plugins, and only then.
+                    case PLUGIN, IMPORTED -> policy.includePlugins();
+                    default -> false;
+                };
                 case ALWAYS -> true;
             };
             if (!counts) {

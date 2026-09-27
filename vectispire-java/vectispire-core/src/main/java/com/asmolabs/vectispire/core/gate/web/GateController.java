@@ -73,7 +73,8 @@ public class GateController {
             @JsonProperty("fail_on_kev") Boolean failOnKev,
             @JsonProperty("fixable_only") Boolean fixableOnly,
             @JsonProperty("include_triaged") Boolean includeTriaged,
-            @JsonProperty("include_ai_review") Boolean includeAiReview) {}
+            @JsonProperty("include_ai_review") Boolean includeAiReview,
+            @JsonProperty("include_plugins") Boolean includePlugins) {}
 
     /**
      * <b>camelCase inside, snake_case outside</b>, and that asymmetry is the contract rather
@@ -90,6 +91,7 @@ public class GateController {
             boolean includeTriaged,
             boolean includeAiReview,
             boolean failOnUncoveredLanguages,
+            boolean includePlugins,
             String source,
             Integer version,
             String description) {}
@@ -156,6 +158,7 @@ public class GateController {
                         policy.flag(PolicyFlag.INCLUDE_TRIAGED),
                         policy.flag(PolicyFlag.INCLUDE_AI_REVIEW),
                         policy.flag(PolicyFlag.FAIL_ON_UNCOVERED_LANGUAGES),
+                        policy.flag(PolicyFlag.INCLUDE_PLUGINS),
                         SecurityOverviewView.source(decision.policy().source()),
                         decision.policy().version().orElse(null),
                         decision.policy().describeSource()),
@@ -290,6 +293,7 @@ public class GateController {
         requested = withFlag(requested, PolicyFlag.FIXABLE_ONLY, body.fixableOnly());
         requested = withFlag(requested, PolicyFlag.INCLUDE_TRIAGED, body.includeTriaged());
         requested = withFlag(requested, PolicyFlag.INCLUDE_AI_REVIEW, body.includeAiReview());
+        requested = withFlag(requested, PolicyFlag.INCLUDE_PLUGINS, body.includePlugins());
         return requested;
     }
 

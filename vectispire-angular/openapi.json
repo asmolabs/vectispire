@@ -411,6 +411,9 @@
           "includeAiReview" : {
             "type" : "boolean"
           },
+          "includePlugins" : {
+            "type" : "boolean"
+          },
           "includeTriaged" : {
             "type" : "boolean"
           },
@@ -422,7 +425,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "failOnKev", "failOnUncoveredLanguages", "fixableOnly", "includeAiReview", "includeTriaged" ],
+        "required" : [ "failOnKev", "failOnUncoveredLanguages", "fixableOnly", "includeAiReview", "includePlugins", "includeTriaged" ],
         "type" : "object"
       },
       "ArtifactLocation" : {
@@ -2380,6 +2383,9 @@
           "include_ai_review" : {
             "type" : "boolean"
           },
+          "include_plugins" : {
+            "type" : "boolean"
+          },
           "include_triaged" : {
             "type" : "boolean"
           },
@@ -2401,7 +2407,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "fail_on_kev", "fail_on_uncovered_languages", "fixable_only", "include_ai_review", "include_triaged", "version" ],
+        "required" : [ "fail_on_kev", "fail_on_uncovered_languages", "fixable_only", "include_ai_review", "include_plugins", "include_triaged", "version" ],
         "type" : "object"
       },
       "GateRequest" : {
@@ -2420,6 +2426,9 @@
             "type" : "boolean"
           },
           "include_ai_review" : {
+            "type" : "boolean"
+          },
+          "include_plugins" : {
             "type" : "boolean"
           },
           "include_triaged" : {
@@ -4123,6 +4132,9 @@
             "type" : "boolean"
           },
           "include_ai_review" : {
+            "type" : "boolean"
+          },
+          "include_plugins" : {
             "type" : "boolean"
           },
           "include_triaged" : {
