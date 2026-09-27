@@ -52,7 +52,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *
  * <p><b>The catalogue is a replacement, not a delta.</b> A CVE it does not list is not exploited
  * as far as this feed knows, and an open issue flagged exploited is un-flagged when its CVE leaves
- * it — or was never in it, as some of the typed-in ten were not. That is why only a whole catalogue
+ * it — or was never in it, as the typed-in placeholder was not. That is why only a whole catalogue
  * is applied ({@link KevCatalog}), and why one older than the catalogue in use is refused.
  */
 @Service

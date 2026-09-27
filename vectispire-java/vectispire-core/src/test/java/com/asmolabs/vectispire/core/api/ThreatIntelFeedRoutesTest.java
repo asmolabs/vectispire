@@ -117,8 +117,8 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
     @Test
     @DisplayName("an issue flagged exploited whose CVE the catalogue does not list is un-flagged")
     void aCveTheCatalogueDoesNotListIsNotExploited() throws Exception {
-        // Flagged by the typed-in list this replaced, which counted CVEs CISA does not.
-        IssueEntity notListed = issue("CVE-2024-6387", true);
+        // Flagged by the typed-in list this replaced, whose placeholder CISA never listed.
+        IssueEntity notListed = issue("CVE-2025-12345", true);
         catalogue(RELEASED, "CVE-2021-44228");
 
         mvc.perform(authenticated(post("/api/v1/threat-intel/sync"), asAdmin())).andExpect(status().isOk());
