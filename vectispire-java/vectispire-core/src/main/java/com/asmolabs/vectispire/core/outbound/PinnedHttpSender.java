@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -26,6 +27,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.io.entity.StringEntity;
@@ -77,9 +79,9 @@ public class PinnedHttpSender {
      * with no maximum, into a buffer pre-sized from the {@code Content-Length} the server declared —
      * so a webhook receiver, a tracker or a model server, or anybody an administrator was persuaded to
      * point a setting at, could answer with gigabytes and exhaust the control plane's heap. Every answer
-     * read here is a small JSON document — a ticket, a model's review, an EPSS score, an end-of-life
-     * index — well under one megabyte; four leaves room for the largest without leaving room for harm.
-     * A caller reading a catalogue passes its own ceiling.
+     * read here is a small JSON document — a ticket, a model's review, an end-of-life index — well
+     * under one megabyte; four leaves room for the largest without leaving room for harm. A caller
+     * reading a catalogue or a file passes its own ceiling.
      */
     public static final long DEFAULT_MAX_BODY_BYTES = 4L * 1024 * 1024;
 
@@ -91,6 +93,9 @@ public class PinnedHttpSender {
      * liked. Twice the timeout covers a slow connect followed by a slow answer.
      */
     static final int DEADLINE_IN_TIMEOUTS = 2;
+
+    /** What a file download reads of an answer that is not the file — a redirect, an error page. */
+    static final long ERROR_BODY_BYTES = 1024L * 1024;
 
     /**
      * The verbs a caller here has a use for.
@@ -151,6 +156,57 @@ public class PinnedHttpSender {
             Duration timeout,
             String label,
             long maxBodyBytes) {
+        return exchange(method, destination, headers, body, timeout, label, (response, abort) -> new Response(
+                response.getCode(),
+                new String(bounded(response.getEntity(), maxBodyBytes, abort, label), charsetOf(response.getEntity()))));
+    }
+
+    /**
+     * Fetches a file: a GET whose answer is bytes, read up to {@code maxBodyBytes}, and the
+     * redirect it answered with if it answered with one — which is <b>not followed here</b>, for the
+     * reason the client below gives. A caller that means to follow it validates its target first
+     * ({@code OutboundDownload}).
+     *
+     * @throws OutboundJson.OutboundFailureException on anything that is not an answer, on an answer
+     *     past the ceiling, and on an exchange that outlasts {@value #DEADLINE_IN_TIMEOUTS} timeouts
+     */
+    public Download download(
+            OutboundUrlGuard.Destination destination,
+            Map<String, String> headers,
+            Duration timeout,
+            String label,
+            long maxBodyBytes) {
+        return exchange(Method.GET, destination, headers, null, timeout, label, (response, abort) -> {
+            int status = response.getCode();
+            Optional<String> location = Optional.ofNullable(response.getFirstHeader("Location"))
+                    .map(header -> header.getValue().trim())
+                    .filter(value -> !value.isEmpty());
+            boolean file = status / 100 == 2;
+            // An answer that is not the file is read too, within a small ceiling, and dropped: left
+            // unread, the client would drain it on close, whatever its size.
+            byte[] body = bounded(response.getEntity(), file ? maxBodyBytes : Math.min(maxBodyBytes, ERROR_BODY_BYTES),
+                    abort, label);
+            return new Download(status, file ? body : new byte[0], location);
+        });
+    }
+
+    /** A file's answer: its status, its bytes on a 2xx (none otherwise), and where a redirect points. */
+    public record Download(int status, byte[] body, Optional<String> location) {}
+
+    /** Reads what came back, with the means to abandon the connection rather than drain it. */
+    @FunctionalInterface
+    private interface ResponseReader<T> {
+        T read(ClassicHttpResponse response, Runnable abort) throws IOException;
+    }
+
+    private <T> T exchange(
+            Method method,
+            OutboundUrlGuard.Destination destination,
+            Map<String, String> headers,
+            String body,
+            Duration timeout,
+            String label,
+            ResponseReader<T> reader) {
 
         if (destination.addresses().isEmpty()) {
             // **Refused rather than sent unpinned.** The guard tolerates a name it could not
@@ -184,8 +240,7 @@ public class PinnedHttpSender {
             request.cancel();
         }, CompletableFuture.delayedExecutor(deadline.toMillis(), TimeUnit.MILLISECONDS, Runnable::run));
         try (CloseableHttpClient client = pinnedTo(destination, timeout)) {
-            return client.execute(request, response -> new Response(
-                    response.getCode(), bounded(response.getEntity(), maxBodyBytes, request::cancel, label)));
+            return client.execute(request, response -> reader.read(response, request::cancel));
         } catch (UnknownHostException pinRefused) {
             // The resolver below throws this for a host it was not pinned to, which is what a
             // redirect chased despite the setting, or a rewritten URI, would look like from here.
@@ -206,19 +261,19 @@ public class PinnedHttpSender {
     }
 
     /**
-     * The body as text, read up to {@code maxBytes} and no further.
+     * The body, read up to {@code maxBytes} and no further.
      *
      * <p>Nothing is sized from what the server declares: a {@code Content-Length} is a claim, and the
      * buffer grows with what actually arrives. Decompressed bytes are what is counted, so a small
      * compressed answer that inflates past the ceiling is refused like a large one.
      */
-    private static String bounded(HttpEntity entity, long maxBytes, Runnable abort, String label) throws IOException {
+    private static byte[] bounded(HttpEntity entity, long maxBytes, Runnable abort, String label) throws IOException {
         if (entity == null) {
-            return "";
+            return new byte[0];
         }
         try (InputStream in = entity.getContent()) {
             if (in == null) {
-                return "";
+                return new byte[0];
             }
             byte[] bytes = in.readNBytes((int) Math.min(Integer.MAX_VALUE - 16, maxBytes + 1));
             if (bytes.length > maxBytes) {
@@ -229,10 +284,13 @@ public class PinnedHttpSender {
                 throw new OutboundJson.OutboundFailureException(
                         label + ": the answer is larger than " + maxBytes + " bytes and was not read further.");
             }
-            ContentType type = ContentType.parseLenient(entity.getContentType());
-            Charset charset = type != null && type.getCharset() != null ? type.getCharset() : StandardCharsets.UTF_8;
-            return new String(bytes, charset);
+            return bytes;
         }
+    }
+
+    private static Charset charsetOf(HttpEntity entity) {
+        ContentType type = entity == null ? null : ContentType.parseLenient(entity.getContentType());
+        return type != null && type.getCharset() != null ? type.getCharset() : StandardCharsets.UTF_8;
     }
 
     private static CloseableHttpClient pinnedTo(OutboundUrlGuard.Destination destination, Duration timeout) {

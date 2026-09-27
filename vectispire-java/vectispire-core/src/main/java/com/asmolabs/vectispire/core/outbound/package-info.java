@@ -1,5 +1,5 @@
 /**
- * The one door out: {@code PinnedHttpSender}, {@code OutboundJson}, {@code OutboundPost}, the
+ * The one door out: {@code PinnedHttpSender}, {@code OutboundJson}, {@code OutboundPost}, {@code OutboundDownload}, the
  * guard's configuration. Uses nothing.
  *
  * <p><b>What it may use is declared here and verified by Spring Modulith</b> ({@code
