@@ -184,6 +184,7 @@ same name; decision records written before that date keep the names they had.
 | A plugin's or an imported report's clean run resolves that tool's issues only — never the type's, another plugin's, an import's or a scanner's — and a new image version keeps the triage | `PluginIngestionDatabaseTest`, `ToolFingerprintTest`, `SarifImportRoutesTest` |
 | SARIF is read under a size ceiling, with no link, no location outside the tree, no expansion, and a run without results or that failed is never read as clean | `SarifReportTest`, `SarifPathsTest` |
 | A plugin is registered only by the platform governor and runs only for the projects it is switched on for; SARIF is imported only by a declared source's key, for its scope and its tools | `PluginsRoutesTest`, `SarifImportRoutesTest` |
+| Every plugin and dependency the build resolves — POMs and Gradle module files included — is signed by a key trusted for its group, or matches the sha256 recorded when nothing signs it; no key server is consulted, and CI refuses to build without the file rather than verifying nothing | Gradle's dependency verification over `gradle/verification-metadata.xml` and `gradle/verification-keyring.keys`; `ci.yml`'s `jvm` step and `release.yml` (`--dependency-verification=strict`, file present) |
 
 ### Two decisions worth knowing
 
@@ -223,6 +224,61 @@ The JCA is avoided for a separate reason. The JCA resolves an algorithm from wha
 what actually ran becomes a property of the host — unacceptable for a hash that decides whether
 an audit log was tampered with. Calling the engine directly also avoids registering a provider,
 which is global mutable state in a process that also serves HTTP.
+
+## Dependency verification
+
+The wrapper is validated and its distribution pinned by `distributionSha256Sum`; everything Gradle
+resolves after that — plugins, `buildSrc`'s Kotlin DSL, every configuration of the three modules, the
+engine campaign's Testcontainers, JaCoCo's agent, Jib — is checked against
+`gradle/verification-metadata.xml` before it is used. Before this, any artifact the resolver fetched
+was trusted, and the release signed whatever it had been handed. A missing or wrong entry fails the
+build naming the artifact, on a warm cache too: Gradle checks cached files on every run.
+
+**What vouches for what** (2026-09-27, over the 983 jars, POMs and module files a clean Gradle
+home downloads for the tasks CI runs):
+
+- **A signature, for almost everything.** 100 `<trusted-key>` entries over the 115 keys of the
+  keyring, each trusted for the group Gradle saw it sign — `48B086A7…` for `org.springframework`,
+  `io.micrometer`, `io.projectreactor`; `FF6E2C00…` for JUnit; `7B121B76…` for BouncyCastle — and
+  30 of them narrowed by Gradle to the one module and version it saw the key sign.
+  Sixteen parent and BOM POMs carry a per-file `<pgp>` instead, their key trusted for that file only.
+  **Trusted by group rather than by version, deliberately**: a bump signed by the same publisher
+  verifies with no edit, which is what a signature buys over a checksum, while the version itself
+  stays pinned by the lockfiles and Maven Central never replaces a published one. The checksum is not
+  recorded beside the signature: it would catch only the same version re-signed by the same key —
+  the publisher's key and the repository compromised at once — at the price of an entry per
+  artifact per version.
+- **A sha256, for the six artifacts nothing signs**: the Gradle Plugin Portal's Jib plugin (its jar,
+  its module file, its marker POM), the Spring Boot and `kotlin-dsl` plugin markers, and
+  `org.sonatype.oss:oss-parent:7`. A bump of Jib or of Spring Boot therefore always regenerates.
+- **Ignored keys: none.** Gradle's first generation could not download 22 of the keys and fell back
+  to checksums for their artifacts, Jackson, Hibernate, Flyway and BouncyCastle among them — a failed
+  download, not a missing key: all 22 were on `keyserver.ubuntu.com` minutes later. Each was fetched
+  from there, its owner compared with the group it signs, and added to the keyring.
+- **Key servers are off** (`<key-servers enabled="false"/>`): every key a build needs is in the
+  keyring, in ASCII armour so a diff shows who was added. A build never waits on a key server, and
+  a key that is not committed is a failure, not a fetch.
+- **No `<trusted-artifacts>`.** An IDE's sources download verifies through the group's key where the
+  sources jar is signed, and fails where it is not; that is accepted rather than exempting a file
+  pattern from verification.
+
+**Trust here is first use, and that is what the review is for.** Gradle trusts the key that signed
+the artifact it downloaded; what makes that more than a checksum is that someone read which key it
+was. That is why the file changes only through `gradle/update-verification-metadata.sh` — a fresh
+Gradle home (a warm one records fewer parent POMs than a clean runner resolves: `jakarta.platform`'s
+went missing that way, and the build failed on a clean home only), every task CI runs, key servers
+on for that run alone, and a failure when a key cannot be downloaded — followed by a reading of the
+diff: a new `<trusted-key>` is a publisher (its uid is in the keyring above its block when the key
+server served one — 46 of the 115 came without; look the fingerprint up on `keyserver.ubuntu.com`),
+a new `<sha256>` is bytes nobody signed. **Regeneration rewrites the XML and drops any comment in it**,
+which is why this reasoning is here and not there.
+
+**Dependabot updates the version and not the metadata.** A minor bump by a publisher already trusted
+for its group passes as it is; one bringing a new signer or an unsigned artifact fails `jvm`, and a
+person runs the script on the pull request's branch, reviews what it adds and pushes it. A workflow
+regenerating on the bot's behalf was rejected: it would re-trust whatever the pull request resolves —
+the attack this exists to stop — and needs a token writing to the branch in the job that runs the
+pull request's Gradle code, the combination `release.yml` was split into two jobs to avoid.
 
 ## Flyway, and dialect-specific native migrations
 
@@ -275,7 +331,8 @@ PostgreSQL and MySQL through Testcontainers, and on the SQLite fixture. CI runs 
 On push and pull request, the `engines` job of [`ci.yml`](../.github/workflows/ci.yml) runs it
 **when anything engine-sensitive changed** — a migration, a module's `core/<module>/persistence/`
 (every query, `Specification` and entity lives there, which `ArchitectureTest` enforces),
-`core/config/`, the integration sources, or the dependency catalogue and lockfiles — or when the diff
+`core/config/`, the integration sources, or the dependency catalogue, lockfiles and verification
+metadata — or when the diff
 range cannot be resolved.
 It used to watch migrations only, and a concurrency fix in `ScanQueue` reached `main` green before
 the nightly found it failing on SQLite. Every night, the `databases` job of

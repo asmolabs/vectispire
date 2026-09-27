@@ -304,6 +304,20 @@ and the method it documents — add the new one above the javadoc.
 **MySQL ignores a column-level `REFERENCES`.** Declare a foreign key as a named
 `alter table … add constraint fk_… foreign key …` on MySQL and PostgreSQL (see V19, V37).
 
+**A dependency or a plugin you add or bump is not resolved until you record it.** Gradle checks
+every artifact against `gradle/verification-metadata.xml` — a signature by a key in
+`gradle/verification-keyring.keys` trusted for that group, or the sha256 of an unsigned one (the
+Plugin Portal's) — and fails on anything else, so after the catalogue and `--write-locks`, run
+`./gradle/update-verification-metadata.sh` from `vectispire-java/` and read its diff: a new
+`<trusted-key>` is a publisher you now trust (its uid is in the keyring, or on `keyserver.ubuntu.com`
+when the key came without — does it own that group?), a
+new `<sha256>` pins bytes nobody signed. Never `--write-verification-metadata` on your own warm Gradle
+home (it records fewer parent POMs than a clean runner needs, and the build then fails in CI only),
+never `org.gradle.dependency.verification=lenient`, never a `<trusted-artifacts>` or a wider
+`<trusted-key>` to turn a build green — a verification failure you did not expect is the one this
+exists for. Regeneration drops comments from the XML, so the reasoning lives in
+`vectispire-java/README.md`, not in the file.
+
 **What crosses a wire is tested with the real `ObjectMapper`.** Remote agents' results never
 serialized — an `Optional` with no jdk8 module — while every unit test passed on objects.
 
@@ -338,7 +352,7 @@ makes two polls read different rows — latches, not luck — killed the mutant.
 
 **Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations, any
 `core/<module>/persistence/` (queries, `Specification`s, entities), `core/config/`, the integration
-sources, and the Gradle catalogue or lockfiles. CI's `engines` job fires on the same paths, but a push that turns it red
+sources, and the Gradle catalogue, lockfiles or verification metadata. CI's `engines` job fires on the same paths, but a push that turns it red
 has already reached `develop`.
 
 **A route whose shape changes regenerates the contract.** `ClientContractSpecTest` fails with the

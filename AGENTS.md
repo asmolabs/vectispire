@@ -83,7 +83,10 @@ release should not go out on a nightly that has not been green.
 A **`v*` tag** runs the `release` workflow in two jobs. `build` validates the Gradle wrapper, runs
 `./gradlew build`, builds the interface, the jar and both images as archives, and hands them over
 with their checksums — holding **no permission but reading the repository**, since it executes every
-plugin and package the tree depends on. `publish` checks out nothing and builds nothing: it verifies
+plugin and package the tree depends on. Each of those is first checked against
+`vectispire-java/gradle/verification-metadata.xml` — a signature by a key the keyring beside it
+carries, or a recorded sha256 where nothing is signed — so a dependency or plugin change regenerates
+that file and has its diff reviewed (`quality-gate`, step 2). `publish` checks out nothing and builds nothing: it verifies
 the checksums, signs with Sigstore keyless, and **verifies the signature it just made** before
 publishing anything, with the same command a consumer runs — a signature nobody has checked is a
 signature that does not work. The certificate identity is

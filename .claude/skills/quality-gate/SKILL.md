@@ -34,6 +34,30 @@ module place, and `access` used by the services of a module that uses it for its
 `CrossModuleQueriesTest` rejects a query string naming another module's table that its list does not
 carry.
 
+**Dependency verification** fails the build on any artifact `gradle/verification-metadata.xml` does
+not vouch for — signed by a key in `gradle/verification-keyring.keys` trusted for its group, or
+matching a recorded sha256. When the change adds or bumps a dependency or a plugin — a Dependabot
+Gradle pull request included, since Dependabot updates the version and not the metadata:
+
+```bash
+cd vectispire-java && ./gradle/update-verification-metadata.sh
+git diff -- gradle/verification-metadata.xml gradle/verification-keyring.keys
+```
+
+The script regenerates in a fresh Gradle home over every task CI runs, and fails when a key cannot
+be downloaded rather than falling back to a checksum. **Then review what it added before committing
+it** — this is the one step where trust is extended: a new `<trusted-key>` must belong to the group's
+publisher (the keyring carries its uid when the key server served one, `keyserver.ubuntu.com`
+otherwise; compare the fingerprint with the one the project publishes),
+a new `<sha256>` is an unsigned artifact pinned as downloaded. For a Dependabot pull request, check out
+its branch, run the script, review, and push the result to that branch yourself. **There is no
+workflow that does it for the bot, deliberately**: it would re-trust whatever the pull request
+resolves, which is the attack verification exists to stop, and it would need a token that writes to
+the branch in the job running the pull request's Gradle code — the combination `release.yml` was split
+into two jobs to avoid. Never answer a verification failure with `--dependency-verification=lenient`,
+`org.gradle.dependency.verification`, `<trusted-artifacts>` or a wider `<trusted-key>`: CI's `jvm` job
+passes `--dependency-verification=strict` and fails when the metadata file is missing.
+
 ## 3. Front end — on Node 24
 
 ```bash
@@ -48,7 +72,8 @@ and `typescript` in `package-lock.json`, and `npm audit`.
 ## 4. Engine campaign — when engine-sensitive files changed
 
 Migrations, any `core/<module>/persistence/`, `core/config/`, `src/integrationTest/`,
-`gradle/libs.versions.toml`, `gradle.lockfile`:
+`gradle/libs.versions.toml`, `gradle.lockfile`, `gradle/verification-metadata.xml`,
+`gradle/verification-keyring.keys`:
 
 ```bash
 cd vectispire-java && ./gradlew integrationTestAll
