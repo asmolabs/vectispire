@@ -949,7 +949,12 @@
     "unexamined": "Cibles non examinées :",
     "version_label": "version {{n}}",
     "aria_edit": "Modifier la dérogation de {{name}}",
-    "aria_remove": "Retirer la dérogation de {{name}}"
+    "aria_remove": "Retirer la dérogation de {{name}}",
+    "plugins": "Plugins et imports :",
+    "col_plugins": "Plugins",
+    "builtin_plugins_note": "non comptés — la « critique » d'un outil tiers ne doit pas faire échouer une construction sans prévenir",
+    "plugins_toggle": "Compter les constats des plugins et des imports",
+    "plugins_hint": "Désactivé par défaut : les constats d'un plugin ou d'un import SARIF viennent d'un outil que vous avez enregistré ou d'une source que vous avez déclarée, et leurs sévérités sont celles de cet outil. Activez-le pour une politique qui doit échouer sur eux."
   },
   "gate_verdicts": {
     "title": "Registre des verdicts",

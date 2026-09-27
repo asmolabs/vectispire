@@ -130,7 +130,47 @@ describe('the gate policy screen', () => {
         expect(request.request.body.include_triaged).toBe(false);
         expect(request.request.body.include_ai_review).toBe(false);
         expect(request.request.body.fail_on_uncovered_languages).toBe(false);
+        expect(request.request.body.include_plugins).toBe(false);
         request.flush({ ...GLOBAL, version: 1 });
+    });
+
+    /**
+     * Plugin and imported findings count only when a policy includes them (decision 0017), and the
+     * server reads an **absent** flag as off. The form used not to send it at all: a policy saved
+     * with plugins switched on went back to "not counted" under a new version number, silently.
+     */
+    it('sends include_plugins, and keeps the stored value when a policy is edited', () => {
+        load([{ ...GLOBAL, include_plugins: true }]);
+
+        fixture.componentInstance.editGlobal();
+        expect(fixture.componentInstance.draft.includePlugins).toBe(true);
+        fixture.componentInstance.save();
+
+        const request = http.expectOne({ method: 'PUT', url: '/api/v1/gate/policies/global' });
+        expect(request.request.body.include_plugins).toBe(true);
+        request.flush({ ...GLOBAL, include_plugins: true, version: 4 });
+    });
+
+    it('offers the plugins switch in the form, off for a new override', () => {
+        load([GLOBAL]);
+
+        fixture.componentInstance.addOverride();
+        for (const request of http.match(() => true)) request.flush([]);
+        fixture.detectChanges();
+
+        // Through the DOM: a draft field no control is bound to would pass every component test.
+        const toggle = document.querySelector('#policy-plugins');
+        expect(toggle).not.toBeNull();
+        expect(fixture.componentInstance.draft.includePlugins).toBe(false);
+        expect(document.body.textContent).toContain('gate_policies.plugins_toggle');
+    });
+
+    it('says on the card whether plugin findings are counted', () => {
+        load([{ ...GLOBAL, include_plugins: true }]);
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('gate_policies.plugins');
+        expect(text).toContain('gate_policies.builtin_plugins_note');
     });
 
     /**

@@ -64,6 +64,12 @@
                         }}
                     </li>
                     <li>
+                        <span class="font-medium">{{ 'gate_policies.plugins' | translate }}</span>
+                        {{
+                            (policy.include_plugins ? 'gate_policies.counted' : 'gate_policies.not_counted') | translate
+                        }}
+                    </li>
+                    <li>
                         <span class="font-medium">{{ 'gate_policies.unexamined' | translate }}</span>
                         {{
                             (policy.fail_on_uncovered_languages ? 'gate_policies.fail_build' : 'gate_policies.pass')
@@ -126,6 +132,10 @@
                         <span class="font-medium">{{ 'gate_policies.model_review' | translate }}</span>
                         {{ 'gate_policies.builtin_model_note' | translate }}
                     </li>
+                    <li>
+                        <span class="font-medium">{{ 'gate_policies.plugins' | translate }}</span>
+                        {{ 'gate_policies.builtin_plugins_note' | translate }}
+                    </li>
                 </ul>
             }
         </p-card>
@@ -145,6 +155,7 @@
                 <th>{{ 'gate_policies.col_fixable' | translate }}</th>
                 <th>{{ 'gate_policies.col_triaged' | translate }}</th>
                 <th>{{ 'gate_policies.col_model' | translate }}</th>
+                <th>{{ 'gate_policies.col_plugins' | translate }}</th>
                 <th>{{ 'gate_policies.col_unexamined' | translate }}</th>
                 <th>{{ 'common.version' | translate }}</th>
                 <th class="text-right">{{ 'common.actions' | translate }}</th>
@@ -163,6 +174,7 @@
                 <td>{{ policy.fixable_only ? ('common.yes' | translate) : '—' }}</td>
                 <td>{{ policy.include_triaged ? ('gate_policies.counted' | translate) : '—' }}</td>
                 <td>{{ policy.include_ai_review ? ('gate_policies.counted' | translate) : '—' }}</td>
+                <td>{{ policy.include_plugins ? ('gate_policies.counted' | translate) : '—' }}</td>
                 <td>{{ policy.fail_on_uncovered_languages ? ('gate_policies.fails_short' | translate) : '—' }}</td>
                 <td><p-tag severity="info" [value]="'v' + policy.version" /></td>
                 <td class="text-right whitespace-nowrap">
@@ -191,7 +203,7 @@
         </ng-template>
         <ng-template #emptymessage>
             <tr>
-                <td colspan="9">{{ 'gate_policies.no_overrides' | translate }}</td>
+                <td colspan="10">{{ 'gate_policies.no_overrides' | translate }}</td>
             </tr>
         </ng-template>
     </p-table>
@@ -274,6 +286,16 @@
                 {{ 'gate_policies.ai_toggle' | translate }}
                 <span class="block text-surface-500 dark:text-surface-400 text-sm">
                     {{ 'gate_policies.ai_hint' | translate }}
+                </span>
+            </label>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <p-toggleswitch inputId="policy-plugins" [(ngModel)]="draft.includePlugins" />
+            <label for="policy-plugins" class="m-0">
+                {{ 'gate_policies.plugins_toggle' | translate }}
+                <span class="block text-surface-500 dark:text-surface-400 text-sm">
+                    {{ 'gate_policies.plugins_hint' | translate }}
                 </span>
             </label>
         </div>

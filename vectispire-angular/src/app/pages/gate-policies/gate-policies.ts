@@ -30,6 +30,8 @@ interface Draft {
     fixableOnly: boolean;
     includeTriaged: boolean;
     includeAiReview: boolean;
+    /** Plugin and imported findings (decision 0017) — off unless a policy says otherwise. */
+    includePlugins: boolean;
     failOnUncoveredLanguages: boolean;
     note: string;
 }
@@ -192,6 +194,9 @@ export class GatePolicies {
                 fixable_only: this.draft.fixableOnly,
                 include_triaged: this.draft.includeTriaged,
                 include_ai_review: this.draft.includeAiReview,
+                // Sent always: the server reads an absent flag as off, so a form that left it out
+                // stored "plugins not counted" under a version claiming somebody had chosen it.
+                include_plugins: this.draft.includePlugins,
                 fail_on_uncovered_languages: this.draft.failOnUncoveredLanguages,
                 note: this.draft.note.trim() || null
             })
@@ -240,6 +245,7 @@ function blank(): Draft {
         fixableOnly: false,
         includeTriaged: false,
         includeAiReview: false,
+        includePlugins: false,
         failOnUncoveredLanguages: false,
         note: ''
     };
@@ -253,6 +259,7 @@ function draftOf(policy: GatePolicy | null): Draft {
         fixableOnly: policy.fixable_only,
         includeTriaged: policy.include_triaged,
         includeAiReview: policy.include_ai_review,
+        includePlugins: policy.include_plugins,
         failOnUncoveredLanguages: policy.fail_on_uncovered_languages,
         note: policy.note ?? ''
     };

@@ -949,7 +949,12 @@
     "unexamined": "Unexamined targets:",
     "version_label": "version {{n}}",
     "aria_edit": "Edit the override for {{name}}",
-    "aria_remove": "Remove the override for {{name}}"
+    "aria_remove": "Remove the override for {{name}}",
+    "plugins": "Plugins and imports:",
+    "col_plugins": "Plugins",
+    "builtin_plugins_note": "not counted — a third-party tool's “critical” must not fail a build nobody warned",
+    "plugins_toggle": "Count plugin and imported findings",
+    "plugins_hint": "Off by default: findings from a plugin or a SARIF import come from a tool you registered or a source you declared, and the severities are that tool's own. Turn it on for a policy that should fail on them."
   },
   "gate_verdicts": {
     "title": "Verdict register",
