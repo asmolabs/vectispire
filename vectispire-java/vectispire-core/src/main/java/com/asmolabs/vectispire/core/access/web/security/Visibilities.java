@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.web.security;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 
@@ -22,7 +23,7 @@ public final class Visibilities {
 
     private Visibilities() {}
 
-    public static void requireVisible(ScanTarget target, Visibility visibility) {
-        RowVisibility.requireVisible(target, visibility);
+    public static <T extends ScanTarget> VisibleTarget<T> requireVisible(T target, Visibility visibility) {
+        return RowVisibility.requireVisible(target, visibility);
     }
 }

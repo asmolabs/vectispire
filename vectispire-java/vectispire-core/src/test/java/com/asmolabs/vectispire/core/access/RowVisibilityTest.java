@@ -32,6 +32,13 @@ class RowVisibilityTest {
     }
 
     @Test
+    @DisplayName("a permitted target comes back as the proof a service takes, naming that target")
+    void aPermittedTargetIsProven() {
+        ScanTarget.Repository eight = new ScanTarget.Repository(8L);
+        assertThat(RowVisibility.requireVisible(eight, ONLY_EIGHT).target()).isEqualTo(eight);
+    }
+
+    @Test
     @DisplayName("a visible row comes back")
     void aVisibleRowIsReturned() {
         assertThat(RowVisibility.requireVisible(Optional.of("row"), SEVEN, Visibility.everything())).isEqualTo("row");

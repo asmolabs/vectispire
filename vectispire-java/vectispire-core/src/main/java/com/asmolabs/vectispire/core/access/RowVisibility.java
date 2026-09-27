@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.function.Function;
@@ -88,8 +89,13 @@ public final class RowVisibility {
         return row.get();
     }
 
-    /** A target named by its identifier, refused before anything is read about it. */
-    public static void requireVisible(ScanTarget target, Visibility visibility) {
+    /**
+     * A target named by its identifier, refused before anything is read about it.
+     *
+     * @return the proof a service that may not decide takes in place of the bare target — see {@link
+     *     VisibleTarget}, which only this method builds
+     */
+    public static <T extends ScanTarget> VisibleTarget<T> requireVisible(T target, Visibility visibility) {
         // `null` is left to `permits`, deliberately, and that is not the same as waving it
         // through: an unrestricted caller sees an unclassifiable row, a restricted one does not,
         // which is exactly what the issue guard beside this one already does. Deciding it here
@@ -98,5 +104,6 @@ public final class RowVisibility {
         if (!visibility.permits(target)) {
             throw new NotFoundException(TARGET_NOT_FOUND);
         }
+        return new VisibleTarget<>(target);
     }
 }
