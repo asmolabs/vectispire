@@ -98,6 +98,10 @@ The destination project is chosen from a list grouped by solution. Names are lim
 characters and descriptions to 255, in the form as on the server. Other accounts see the same tree
 without any of these actions; the server would refuse them anyway.
 
+The governance roles also get **Plugins** on each project: the registry with a switch per plugin,
+live for administrators, the CISO and the governor, read-only for an auditor (see
+[Plugins and SARIF imports](plugins.md)).
+
 **Repositories** shows, on each repository, the project it is filed in — a link to that project in
 the tree — or "—" when it is in none.
 

@@ -54,6 +54,9 @@ the record has to be able to tell the difference.
 
 ## Filters worth knowing
 
+- **Type** — includes **Plugin (analysed by Vectispire)** and **Imported (declared by CI)**, the two
+  kinds of finding another tool produced (see [Plugins and SARIF imports](../administration/plugins.md)).
+  The row says which plugin or which source, and the issue's page has a **Provenance** card.
 - **Fixable only** — hides everything with no published fix version.
 - **Direct dependencies** — hides what an upstream release, not you, has to fix.
 - **Actively exploited (KEV)** — the shortest list, and the one to read first.

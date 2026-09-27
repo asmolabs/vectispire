@@ -101,6 +101,10 @@ Le projet de destination se choisit dans une liste groupée par solution. Les no
 100 caractères et les descriptions à 255, dans le formulaire comme sur le serveur. Les autres comptes
 voient le même arbre sans aucune de ces actions ; le serveur les refuserait de toute façon.
 
+Les rôles de gouvernance ont aussi **Plugins** sur chaque projet : le registre avec un interrupteur
+par plugin, actif pour les administrateurs, le RSSI et le gouverneur, en lecture seule pour un
+auditeur (voir [Plugins et imports SARIF](plugins.md)).
+
 La liste des dépôts indique sur chaque dépôt le projet où il est rangé — un lien vers ce projet dans
 l'arbre — ou « — » s'il n'est dans aucun.
 

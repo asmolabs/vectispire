@@ -39,6 +39,11 @@ catalogueur l'a produit, et la sortie brute du moteur de rapprochement — à fi
 ce que vous remettez à quelqu'un qui veut re-dériver vos conclusions plutôt que les prendre
 pour argent comptant.
 
+Quand des [plugins](../administration/plugins.md) ont tourné, une carte **Plugins** liste chacun dans
+l'un de trois états, dessinés distinctement : **produit** (vert, avec le nombre de constats de son
+rapport), **non applicable** (gris — aucun de ses langages n'est dans l'arbre ; pas un échec) et
+**absent — échec** (rouge, avec la raison). Seul le dernier est le problème de quelqu'un.
+
 ## Un scan échoué n'est pas un scan propre
 
 Un scan qui a échoué ne produit aucun constat, et une cible sans constat passe toutes les

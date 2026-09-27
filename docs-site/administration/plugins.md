@@ -100,6 +100,17 @@ Only the **platform governor** registers, updates, enables or disables a plugin:
 code that will read the source of every project it is switched on for. Every change is in the audit
 log with the manifest's digest, and forwarded to the SIEM (`ZAN-SEC-021`).
 
+**On screen**, **Plugins** — in the sidebar under Configuration, for every account — lists each plugin
+with its state, languages, network exception and the start of its manifest digest; the eye opens its
+detail: the image, the digest in full, the arguments in order, the report file, the exit codes, the
+network and its justification, the timeout, and who registered and last changed it. Governance readers
+also see the projects it is switched on for. The governor alone gets **Register a plugin**, the pencil
+that edits the manifest, and **Enable** / **Disable**. The form says where the id is typed that it can
+never be renamed or reused, and locks it when editing; a refusal — an id already taken, a tag beside
+the digest, a justification too short — stays in the form with the server's reason.
+
+Through the API:
+
 - `POST /api/v1/plugins` with the manifest registers it.
 - `PUT /api/v1/plugins/{id}` with a new manifest updates it. **A new image version keeps the id, and
   keeps every issue and its triage.** The id itself never changes.
@@ -120,6 +131,12 @@ A plugin runs on nothing until it is switched on for a
 administrators, the CISO and the governor. A repository filed in no project runs no plugin.
 `DELETE` switches it off; its open issues stay as they are.
 
+**On screen**, in [Solutions & projects](solutions-and-projects.md) each project offers **Plugins** to
+the governance roles: every registered plugin with its languages and a switch, on for those running on
+the project, with who switched it on and when. The switches work for administrators, the CISO and the
+governor; an auditor reads them. A plugin disabled on the platform says so on its row — its activation
+is kept and runs nothing until it is enabled again.
+
 ## What a scan says about each plugin
 
 Each plugin of a scan ends in one of three states:
@@ -131,7 +148,11 @@ Each plugin of a scan ends in one of three states:
 | **absent** | It should have run and gave no usable report (pull failed, undeclared exit code, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
 
 The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings,
-`not_applicable` with the languages it looked for, `absent` with the reason).
+`not_applicable` with the languages it looked for, `absent` with the reason). On the scan's page, the
+**Plugins** card shows the three apart on purpose: **produced** in green with the number of findings in
+its report, **not applicable** in grey with the languages it looked for, **absent — failed** in red with
+the reason. Each names its plugin, linked to the registry, and its manifest digest. A plugin's findings
+say which tool and version reported them.
 
 Languages are detected from file names and manifests (`pom.xml`, `package.json`, `pyproject.toml`,
 `go.mod`…), within a bound; a repository too large to count runs every plugin rather than skipping
@@ -182,6 +203,12 @@ curl -X POST https://vectispire.example/api/v1/sarif-sources \
 The slug is part of every imported issue's identity: name the producer, not the key. Declaring the same
 slug again with a new key — to rotate it — continues the same backlog.
 
+**On screen**, **SARIF sources**, in the Administration section for the governance roles, lists the
+declarations — slug and name, the scope by project or repository name, the tools, the key, who declared
+it. The governor has **Declare a source**: the key is chosen among the unexpired keys holding
+`sarif_import`, the scope is a project *or* a repository, the tools are separated by commas. Disabling
+stops a source's imports; removing it keeps the issues it imported, under its slug.
+
 ### 3. Upload
 
 ```bash
@@ -206,9 +233,16 @@ CI is unknown to Vectispire, so an absolute path is refused. Each run's tool is 
 report from the same tool resolves what it no longer reports on that repository, and touches nothing
 else — no other tool's issues, no plugin's, no scanner's.
 
+Every repository row on [Repositories](../guide/repositories.md) has **SARIF**, which opens that
+repository's import history, read-only: when and by which source and account, the tools, the counts
+opened, resolved and reopened, and the document's SHA-256. Nothing is uploaded from the interface.
+
 Imported issues say where they came from: type **imported**, the source, and the tool's name and
 version. An auditor tells "analysed by Vectispire" (types `plugin`, `sast`…) from "declared by the CI"
-(`imported`) at a glance. Every import is kept with its document hash and in the audit log; a refused
+(`imported`) at a glance: the backlog says it under the type ("analysed by Vectispire · acme-lint",
+"declared by payments-ci · SonarQube"), its type filter offers both, and an issue's page has a
+**Provenance** card with the plugin or the source, the tool and version, and the tool key that scopes
+its resolution. Every import is kept with its document hash and in the audit log; a refused
 one is a SIEM event (`ZAN-SEC-023`).
 
 ### Example: GitLab CI running Semgrep

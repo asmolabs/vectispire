@@ -102,6 +102,18 @@ Seul le **gouverneur de la plateforme** enregistre, met à jour, active ou désa
 du code tiers qui lira le source de chaque projet pour lequel il sera activé. Chaque changement est au
 journal d'audit avec le digest du manifeste, et transmis au SIEM (`ZAN-SEC-021`).
 
+**À l'écran**, **Plugins** — dans la barre latérale sous Configuration, pour tout compte — liste chaque
+plugin avec son état, ses langages, son exception réseau et le début du digest de son manifeste ; l'œil
+ouvre son détail : l'image, le digest complet, les arguments dans l'ordre, le fichier du rapport, les
+codes de sortie, le réseau et sa justification, le délai, et qui l'a enregistré et modifié en dernier.
+Les rôles de gouvernance voient aussi les projets pour lesquels il est activé. Seul le gouverneur a
+**Enregistrer un plugin**, le crayon qui modifie le manifeste, et **Activer** / **Désactiver**. Le
+formulaire dit, là où l'id se saisit, qu'il ne pourra jamais être renommé ni réutilisé, et le verrouille
+en modification ; un refus — id déjà pris, tag à côté du digest, justification trop courte — reste dans
+le formulaire avec la raison donnée par le serveur.
+
+Par l'API :
+
 - `POST /api/v1/plugins` avec le manifeste l'enregistre.
 - `PUT /api/v1/plugins/{id}` avec un nouveau manifeste le met à jour. **Une nouvelle version d'image
   garde l'id, et garde chaque issue et son triage.** L'id lui-même ne change jamais.
@@ -122,6 +134,12 @@ Un plugin ne tourne sur rien tant qu'il n'est pas activé pour un
 administrateurs, RSSI et gouverneur. Un dépôt rangé dans aucun projet ne lance aucun plugin.
 `DELETE` le désactive ; ses issues ouvertes restent telles quelles.
 
+**À l'écran**, dans [Solutions et projets](solutions-and-projects.md), chaque projet propose **Plugins**
+aux rôles de gouvernance : chaque plugin enregistré avec ses langages et un interrupteur, allumé pour
+ceux qui tournent sur le projet, avec qui l'a activé et quand. Les interrupteurs fonctionnent pour les
+administrateurs, le RSSI et le gouverneur ; un auditeur les lit. Un plugin désactivé sur la plateforme
+le dit sur sa ligne — son activation est conservée et ne lance rien tant qu'il n'est pas réactivé.
+
 ## Ce qu'un scan dit de chaque plugin
 
 Chaque plugin d'un scan finit dans l'un de trois états :
@@ -133,7 +151,11 @@ Chaque plugin d'un scan finit dans l'un de trois états :
 | **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (pull en échec, code de sortie non déclaré, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 
 Le détail du scan liste chaque plugin avec son état (`plugins` : `produced` avec son nombre de
-constats, `not_applicable` avec les langages qu'il cherchait, `absent` avec la raison).
+constats, `not_applicable` avec les langages qu'il cherchait, `absent` avec la raison). Sur la page du
+scan, la carte **Plugins** montre les trois distinctement, à dessein : **produit** en vert avec le nombre
+de constats de son rapport, **non applicable** en gris avec les langages qu'il cherchait, **absent —
+échec** en rouge avec la raison. Chacun nomme son plugin, lié au registre, et le digest de son
+manifeste. Les constats d'un plugin disent quel outil et quelle version les ont rapportés.
 
 Les langages sont détectés à partir des noms de fichiers et des manifestes (`pom.xml`, `package.json`,
 `pyproject.toml`, `go.mod`…), dans une borne ; un dépôt trop grand pour être recensé lance tous les
@@ -186,6 +208,13 @@ curl -X POST https://vectispire.example/api/v1/sarif-sources \
 Le slug fait partie de l'identité de chaque issue importée : nommez le producteur, pas la clé. Déclarer à
 nouveau le même slug avec une nouvelle clé — pour la faire tourner — prolonge le même backlog.
 
+**À l'écran**, **Sources SARIF**, dans la section Administration pour les rôles de gouvernance, liste
+les déclarations — identifiant et nom, la portée par nom de projet ou de dépôt, les outils, la clé, qui
+l'a déclarée. Le gouverneur a **Déclarer une source** : la clé se choisit parmi les clés non expirées
+portant `sarif_import`, la portée est un projet *ou* un dépôt, les outils sont séparés par des virgules.
+Désactiver arrête les imports d'une source ; la retirer conserve les issues qu'elle a importées, sous son
+identifiant.
+
 ### 3. Téléverser
 
 ```bash
@@ -215,6 +244,14 @@ Les issues importées disent d'où elles viennent : type **imported**, la source
 l'outil. Un auditeur distingue d'un coup d'œil « analysé par Vectispire » (types `plugin`, `sast`…) de
 « déclaré par la CI » (`imported`). Chaque import est conservé avec l'empreinte de son document et au
 journal d'audit ; un import refusé est un événement SIEM (`ZAN-SEC-023`).
+
+Chaque ligne de [Dépôts](../guide/repositories.md) a **SARIF**, qui ouvre l'historique des imports de
+ce dépôt, en lecture seule : quand et par quelle source et quel compte, les outils, les nombres
+d'issues ouvertes, résolues et rouvertes, et le SHA-256 du document. Rien n'est téléversé depuis
+l'interface. Dans le backlog, une issue importée dit d'où elle vient sous son type (« déclaré par
+payments-ci · SonarQube »), le filtre par type propose **plugin** et **importé**, et la page d'une issue
+a une carte **Provenance** avec le plugin ou la source, l'outil et sa version, et la clé d'outil qui
+borne sa résolution.
 
 ### Exemple : GitLab CI lançant Semgrep
 

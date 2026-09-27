@@ -35,6 +35,11 @@ The raw outputs are kept alongside the normalised findings — the SBOM as the c
 produced it, and the raw matcher output — for audit purposes. They are what you hand to
 somebody who wants to re-derive your conclusions rather than take them.
 
+When [plugins](../administration/plugins.md) ran, a **Plugins** card lists each one in one of three
+states, drawn apart: **produced** (green, with the number of findings in its report), **not
+applicable** (grey — none of its languages is in the tree; not a failure) and **absent — failed** (red,
+with the reason). Only the last is somebody's problem.
+
 ## A failed scan is not a clean scan
 
 A scan that failed produces no findings, and a target with no findings passes every

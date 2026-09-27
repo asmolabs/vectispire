@@ -56,6 +56,9 @@ différence.
 
 ## Filtres à connaître
 
+- **Type** — comprend **Plugin (analysé par Vectispire)** et **Importé (déclaré par la CI)**, les deux
+  sortes de constats produits par un autre outil (voir [Plugins et imports SARIF](../administration/plugins.md)).
+  La ligne dit quel plugin ou quelle source, et la page de l'issue a une carte **Provenance**.
 - **Corrigeables seulement** — masque tout ce dont aucune version correctrice n'est publiée.
 - **Dépendances directes** — masque ce qu'une publication en amont, et non vous, doit corriger.
 - **Activement exploitées (KEV)** — la liste la plus courte, et celle à lire en premier.
