@@ -84,6 +84,12 @@ public final class IssueRows {
             Boolean isKev) {}
 
     /**
+     * What the EPSS refresh reads of an open issue: which row, which CVE, and the score it carries,
+     * so an unchanged one is not written again.
+     */
+    public record EpssCandidate(Long id, String identifier, Double epssScore) {}
+
+    /**
      * The three columns a security grade is computed from.
      *
      * <p>A scorecard subtracts on severity and on whether the issue is actively exploited, and

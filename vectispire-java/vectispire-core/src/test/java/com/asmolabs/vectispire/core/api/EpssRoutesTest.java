@@ -5,13 +5,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.threatintel.EpssFile;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.EpssScoreRepository;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncRepository;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +32,12 @@ class EpssRoutesTest extends ApiTestBase {
 
     @Autowired
     private ThreatIntelRepository intel;
+
+    @Autowired
+    private EpssScoreRepository scores;
+
+    @Autowired
+    private ThreatIntelSyncRepository syncs;
 
     /**
      * The field is called {@code topPriorities}, and it used to return the whole estate.
@@ -144,14 +155,22 @@ class EpssRoutesTest extends ApiTestBase {
         ThreatIntelEntity listed = new ThreatIntelEntity();
         listed.setCveId("CVE-2021-44228");
         listed.setKev(true);
-        listed.setEpssScore(0.975);
         listed.setDateAdded(Instant.parse("2021-12-10T00:00:00Z"));
         intel.save(listed);
+        // The score from the stored EPSS file — the generation the sync row names — and the flag from
+        // the catalogue: one record from the two feeds.
+        long generation = 42;
+        scores.insertAll(generation, List.of(new EpssFile.Score("CVE-2021-44228", 0.975, 0.9998)));
+        Instant now = Instant.now();
+        syncs.save(new ThreatIntelSyncEntity());
+        syncs.claimEpss(ThreatIntelSyncEntity.SINGLETON_ID, now, now.plusSeconds(60), generation);
+        syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, now, "v2025.03.14", now, 1);
         mvc.perform(authenticated(get("/api/v1/epss/cve/cve-2021-44228"), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cveId").value("CVE-2021-44228"))
                 .andExpect(jsonPath("$.isKev").value(true))
-                .andExpect(jsonPath("$.epssScore").value(0.975));
+                .andExpect(jsonPath("$.epssScore").value(0.975))
+                .andExpect(jsonPath("$.epssPercentile").value(0.9998));
 
         // No test reaches CISA (the suite's catalogue address cannot resolve): the sync answers, and
         // says it failed and why, rather than claiming a catalogue it never read.

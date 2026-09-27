@@ -1,22 +1,19 @@
 package com.asmolabs.vectispire.common.domain.enrichment;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Reading the two public catalogs Vectispire enriches findings from.
+ * The public catalogues Vectispire enriches findings from, and the batching their lookups share.
  *
- * <p>Metadata only leaves the machine: CVE identifiers, never code and never a SBOM.
+ * <p><b>Both are synchronised and stored; a scan asks neither.</b> The EPSS scores were asked of
+ * {@code api.first.org} per scan, ninety CVE at a time — which told FIRST which vulnerabilities each
+ * repository carried. They are FIRST's daily file now ({@code EpssFile}), read by the control plane
+ * as a whole, like CISA's catalogue.
  */
 public final class Catalogs {
 
     private Catalogs() {}
-
-    /** The EPSS API. Nothing but CVE identifiers is sent there. */
-    public static final String EPSS_API_URL = "https://api.first.org/data/v1/epss";
 
     /**
      * The catalog of actively exploited vulnerabilities, published by CISA — the default of
@@ -27,52 +24,9 @@ public final class Catalogs {
             "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
 
     /**
-     * The size of an EPSS query batch.
-     *
-     * <p>Under the limit the API documents: too large a batch ends in a refusal which, here,
-     * would be swallowed — hence enrichment silently absent rather than a visible error.
+     * Splits a list into batches of at most {@code size} — a local lookup's {@code in} list, kept
+     * under every engine's bind-parameter ceiling.
      */
-    public static final int EPSS_BATCH_SIZE = 90;
-
-    /**
-     * A response's EPSS scores, indexed by CVE.
-     *
-     * <p><b>The API returns the score as a string</b>, {@code "0.00042"}, not as a number. The
-     * type check comes before the conversion, and that is not decorative caution: an absent or
-     * empty field converts to <b>zero</b>, which is a perfectly legitimate EPSS score. Without
-     * the guard, absence reads as "zero probability of exploitation" — absence disguised as
-     * good news, on the field an operator uses to decide what to leave alone.
-     */
-    public static Map<String, Double> parseEpss(JsonNode payload) {
-        Map<String, Double> scores = new HashMap<>();
-        JsonNode data = payload == null ? null : payload.path("data");
-        if (data == null || !data.isArray()) {
-            return scores;
-        }
-
-        for (JsonNode entry : data) {
-            JsonNode cve = entry.path("cve");
-            if (!cve.isTextual() || cve.asText().isEmpty()) {
-                continue;
-            }
-            JsonNode epss = entry.path("epss");
-            if (!epss.isNumber() && !(epss.isTextual() && !epss.asText().isBlank())) {
-                continue;
-            }
-            try {
-                double value = epss.isNumber() ? epss.asDouble() : Double.parseDouble(epss.asText().trim());
-                if (Double.isFinite(value)) {
-                    scores.put(cve.asText(), value);
-                }
-            } catch (NumberFormatException notANumber) {
-                // A score that cannot be read is left absent rather than defaulted. Zero would
-                // be a claim; absence is the truth.
-            }
-        }
-        return scores;
-    }
-
-    /** Splits a list of CVEs into queryable batches. */
     public static <T> List<List<T>> batches(List<T> items, int size) {
         List<List<T>> batches = new ArrayList<>();
         for (int index = 0; index < items.size(); index += size) {

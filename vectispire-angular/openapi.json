@@ -2058,6 +2058,45 @@
         },
         "type" : "object"
       },
+      "EpssFeedStatus" : {
+        "properties" : {
+          "backlogUpdatedCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "inProgress" : {
+            "type" : "boolean"
+          },
+          "lastAttemptAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastError" : {
+            "type" : "string"
+          },
+          "lastSyncedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "modelVersion" : {
+            "type" : "string"
+          },
+          "scoreDate" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "NEVER_SYNCED", "SYNCED", "FAILED" ],
+            "type" : "string"
+          },
+          "totalScored" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "backlogUpdatedCount", "inProgress", "totalScored" ],
+        "type" : "object"
+      },
       "EpssFleetSummary" : {
         "properties" : {
           "activeKevCount" : {
@@ -6963,6 +7002,9 @@
           "backlogUpdatedCount" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "epss" : {
+            "$ref" : "#/components/schemas/EpssFeedStatus"
           },
           "kevCatalogVersion" : {
             "type" : "string"

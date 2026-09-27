@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The CISA KEV catalogue's status, and the synchronisation a lead can ask for between the scheduled
- * ones.
+ * Where the CISA KEV catalogue and FIRST's EPSS file stand, and the synchronisation a lead can ask
+ * for between the scheduled ones.
  */
 @RestController
 @RequestMapping("/api/v1/threat-intel")

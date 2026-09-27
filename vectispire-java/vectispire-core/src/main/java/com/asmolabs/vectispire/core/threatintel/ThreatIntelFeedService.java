@@ -1,18 +1,22 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.EpssFeedStatus;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.State;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
+import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogSource;
+import com.asmolabs.vectispire.core.threatintel.persistence.KnownEpssScore;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
@@ -38,17 +42,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The CISA KEV catalogue, synchronised and stored, and the backlog's exploitation re-evaluated
- * against it.
+ * The two synchronised feeds — the CISA KEV catalogue and FIRST's EPSS file — and the backlog
+ * re-evaluated against them. The catalogue is written here; the EPSS file by {@link EpssFeed}, which
+ * this class calls and audits.
  *
- * <p><b>It was a list of ten records typed into this class</b>, upserted by a "synchronisation"
- * that fetched nothing — KEV flags dated 2024-01-01 whatever the day CISA listed them, EPSS figures
- * no feed published, a placeholder identifier — and served as a fallback by every lookup. {@code
- * CRITICAL_KEV_DETECTED} could only ever fire for those ten, and a CVE CISA added yesterday was
- * never announced. The list is gone rather than kept as a fallback: a fallback to stale data is
- * silent by construction, and an installation that cannot reach CISA says so — {@link
- * State#NEVER_SYNCED} or {@link State#FAILED}, with the reason — and reads a mirror instead
- * ({@code vectispire.threat-intel.kev-url}).
+ * <p><b>The catalogue was a list of ten records typed into this class</b>, upserted by a
+ * "synchronisation" that fetched nothing — KEV flags dated 2024-01-01 whatever the day CISA listed
+ * them, EPSS figures no feed published, a placeholder identifier — and served as a fallback by every
+ * lookup. {@code CRITICAL_KEV_DETECTED} could only ever fire for those ten, and a CVE CISA added
+ * yesterday was never announced. The list is gone rather than kept as a fallback: a fallback to
+ * stale data is silent by construction, and an installation that cannot reach CISA says so — {@link
+ * State#NEVER_SYNCED} or {@link State#FAILED}, with the reason — and reads a mirror instead ({@code
+ * vectispire.threat-intel.kev-url}). The EPSS file follows the same rules ({@code epss-url}).
  *
  * <p><b>The catalogue is a replacement, not a delta.</b> A CVE it does not list is not exploited
  * as far as this feed knows, and an open issue flagged exploited is un-flagged when its CVE leaves
@@ -77,6 +82,9 @@ public class ThreatIntelFeedService {
     /** The column {@code last_error} is 500. */
     private static final int ERROR_MAX = 500;
 
+    /** Identifiers per lookup, under every engine's bind-parameter ceiling. */
+    private static final int LOOKUP_BATCH = 1_000;
+
     /** The actor of a synchronisation nobody asked for, as the audit log names it. */
     private static final RequestActor SCHEDULE = new RequestActor("system", null, null);
 
@@ -99,6 +107,7 @@ public class ThreatIntelFeedService {
     private final SiemEvents siemEvents;
     private final AuditLogService audit;
     private final KevCatalogSource catalogue;
+    private final EpssFeed epss;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
@@ -109,6 +118,7 @@ public class ThreatIntelFeedService {
             SiemEvents siemEvents,
             AuditLogService audit,
             KevCatalogSource catalogue,
+            EpssFeed epss,
             TransactionTemplate transactions,
             Clock clock) {
         this.intelRepo = intelRepo;
@@ -117,6 +127,7 @@ public class ThreatIntelFeedService {
         this.siemEvents = siemEvents;
         this.audit = audit;
         this.catalogue = catalogue;
+        this.epss = epss;
         this.transactions = transactions;
         this.clock = clock;
     }
@@ -124,30 +135,38 @@ public class ThreatIntelFeedService {
     public ThreatIntelSyncStatus getStatus() {
         return syncRepo.findById(ThreatIntelSyncEntity.SINGLETON_ID)
                 .map(sync -> status(sync, 0))
-                .orElseGet(() -> new ThreatIntelSyncStatus(null, 0, 0, State.NEVER_SYNCED, 0, null, null, null, null));
+                .orElseGet(() -> new ThreatIntelSyncStatus(
+                        null, 0, 0, State.NEVER_SYNCED, 0, null, null, null, null, EpssFeedStatus.never()))
+                .withEpss(epss.status());
     }
 
     /**
-     * A synchronisation somebody asked for, audited once it has committed.
+     * A synchronisation somebody asked for — the catalogue, then the EPSS file — each audited once it
+     * has committed.
      *
-     * <p><b>No transaction is open while the catalogue is fetched.</b> The fetch reads a megabyte and
-     * a half from CISA or a mirror, ten seconds at worst; the write that follows is one short
-     * transaction. The audit entry opens its own transaction, and inside the sync's it would wait on
-     * the parent's lock on SQLite, where the lock is the file; so it is written after both.
+     * <p><b>No transaction is open while a feed is fetched.</b> The catalogue is a megabyte and a
+     * half, the EPSS file some three; the writes that follow are short transactions. The audit entry
+     * opens its own transaction, and inside the sync's it would wait on the parent's lock on SQLite,
+     * where the lock is the file; so it is written after.
      *
      * <p><b>The one way in.</b> The EPSS screen's sync called the unaudited body directly, so the same
      * outbound call and the same re-evaluation of the backlog left an entry from one screen and none
-     * from the other. The body is private; both routes and the schedule come through here, and a
-     * failed attempt is audited as one — the outbound call was made either way.
+     * from the other. The bodies are private or internal; both routes and the schedule come through
+     * here, and a failed attempt is audited as one — the outbound call was made either way.
+     *
+     * <p><b>Both feeds, one entry each.</b> They are fetched from different places and fail for
+     * different reasons; one entry per feed says which was read, and why the other was not.
      */
     public ThreatIntelSyncStatus syncThreatIntel(RequestActor actor, Origin origin) {
-        ThreatIntelSyncStatus result = synchronize();
-        audit.record(actor.entry(AuditOperation.THREAT_INTEL_SYNCED, "threat_intel", describe(result, origin)));
-        return result;
+        ThreatIntelSyncStatus kev = synchronize();
+        audit.record(actor.entry(AuditOperation.THREAT_INTEL_SYNCED, "threat_intel", describe(kev, origin)));
+        EpssFeed.Attempt scored = epss.sync();
+        audit.record(actor.entry(AuditOperation.THREAT_INTEL_SYNCED, "threat_intel", describe(scored, origin)));
+        return kev.withEpss(scored.status());
     }
 
     /**
-     * The scheduled synchronisation, when one is due and this instance won it.
+     * The scheduled catalogue synchronisation, when one is due and this instance won it.
      *
      * <p>Called every hourly turn on every instance; the claim decides whether anything happens
      * ({@link ThreatIntelSyncRepository#claimScheduled}). Empty when not due, or due and taken by
@@ -161,7 +180,21 @@ public class ThreatIntelFeedService {
         if (!claimed && syncRepo.existsById(ThreatIntelSyncEntity.SINGLETON_ID)) {
             return Optional.empty();
         }
-        return Optional.of(syncThreatIntel(SCHEDULE, Origin.SCHEDULE));
+        ThreatIntelSyncStatus kev = synchronize();
+        audit.record(SCHEDULE.entry(AuditOperation.THREAT_INTEL_SYNCED, "threat_intel", describe(kev, Origin.SCHEDULE)));
+        return Optional.of(kev.withEpss(epss.status()));
+    }
+
+    /**
+     * The scheduled EPSS synchronisation, when one is due and this instance won it — daily, where the
+     * catalogue's is every six hours: FIRST publishes once a day. Audited as a lead's is.
+     */
+    public Optional<ThreatIntelSyncStatus> syncEpssIfDue() {
+        return epss.syncIfDue().map(scored -> {
+            audit.record(SCHEDULE.entry(
+                    AuditOperation.THREAT_INTEL_SYNCED, "threat_intel", describe(scored, Origin.SCHEDULE)));
+            return getStatus().withEpss(scored.status());
+        });
     }
 
     /** The fetch, outside any transaction, then the write, in one. */
@@ -251,7 +284,10 @@ public class ThreatIntelFeedService {
      *
      * <p><b>Absent from the catalogue is not exploited</b>, since the catalogue applied is whole: an
      * issue flagged by an older catalogue, or by the typed-in list this replaced, is un-flagged.
-     * The EPSS score is only ever replaced by a known one, as on a scan.
+     *
+     * <p><b>The flag only.</b> The EPSS score used to ride along, read here and written back at the
+     * end of this transaction — which would put back a score the EPSS feed refreshed meanwhile. The
+     * EPSS feed writes its own column ({@code EpssFeed}).
      */
     private long reevaluate(Map<String, ThreatIntelEntity> intel) {
         List<IssueView> open = issuesRepo.notInStates(List.of("closed", "resolved"));
@@ -265,11 +301,10 @@ public class ThreatIntelFeedService {
             }
             ThreatIntelEntity match = intel.get(issue.identifier().trim().toUpperCase(Locale.ROOT));
             boolean kev = match != null && match.isKev();
-            Double epss = match != null && match.getEpssScore() != null ? match.getEpssScore() : issue.epssScore();
-            if (kev == issue.isKev() && Objects.equals(epss, issue.epssScore())) {
+            if (kev == issue.isKev()) {
                 continue;
             }
-            updates.add(new IssueCatalog.Exploitation(issue.id(), kev, epss));
+            updates.add(new IssueCatalog.Exploitation(issue.id(), kev));
 
             if (kev && !issue.isKev()) {
                 log.warn("CVE {} newly listed as actively exploited in the CISA KEV catalogue. Notifying SOC/SIEM.",
@@ -304,6 +339,7 @@ public class ThreatIntelFeedService {
         return syncRepo.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
     }
 
+    /** The catalogue's state; the EPSS feed's is added by the caller, which knows what it just did. */
     private static ThreatIntelSyncStatus status(ThreatIntelSyncEntity sync, long backlogUpdated) {
         return new ThreatIntelSyncStatus(
                 sync.getLastSyncedAt(),
@@ -314,7 +350,8 @@ public class ThreatIntelFeedService {
                 sync.getKevCatalogVersion(),
                 sync.getKevReleasedAt(),
                 sync.getLastAttemptAt(),
-                sync.getLastError());
+                sync.getLastError(),
+                EpssFeedStatus.never());
     }
 
     private static String describe(ThreatIntelSyncStatus result, Origin origin) {
@@ -324,6 +361,24 @@ public class ThreatIntelFeedService {
                         + ", KEV=" + result.totalKev() + ", updated=" + result.backlogUpdatedCount() + ")"
                 : "CISA KEV catalogue synchronization from " + origin.phrase + " failed: " + result.lastError()
                         + " (catalogue in use kept, KEV=" + result.totalKev() + ")";
+    }
+
+    /** The EPSS feed's entry: what was read, from where, and what it left in use. */
+    private static String describe(EpssFeed.Attempt attempt, Origin origin) {
+        EpssFeedStatus feed = attempt.status();
+        String inUse = feed.modelVersion() == null
+                ? "none"
+                : "model " + feed.modelVersion() + ", scores of " + feed.scoreDate() + ", " + feed.totalScored() + " CVE";
+        return switch (attempt.outcome()) {
+            case APPLIED -> "EPSS scores synchronized from " + origin.phrase + " (" + inUse
+                    + ", updated=" + feed.backlogUpdatedCount() + ")";
+            case UNCHANGED -> "EPSS scores confirmed from " + origin.phrase
+                    + ": the file read is the one in use (" + inUse + ")";
+            case FAILED -> "EPSS scores synchronization from " + origin.phrase + " failed: " + attempt.reason()
+                    + " (scores in use kept: " + inUse + ")";
+            case BUSY -> "EPSS scores synchronization from " + origin.phrase
+                    + " not run: another one is in progress (scores in use: " + inUse + ")";
+        };
     }
 
     private static String reason(RuntimeException failure) {
@@ -342,23 +397,27 @@ public class ThreatIntelFeedService {
         return issue.containerId() == null ? null : "container " + issue.containerId();
     }
 
-    /** What the feed recorded about one CVE; empty when it recorded nothing — which is not "not exploited" before a sync. */
+    /**
+     * What the two feeds recorded about one CVE; empty when neither recorded anything — which is not
+     * "not exploited" before a sync, nor a probability of zero.
+     */
     public Optional<ThreatIntelRecord> lookupCve(String cveId) {
         if (cveId == null || cveId.isBlank()) return Optional.empty();
-        return intelRepo.findByCveIdIgnoreCase(cveId.trim()).map(ThreatIntelFeedService::record);
+        return Optional.ofNullable(lookupCves(List.of(cveId)).get(cveId.trim().toLowerCase(Locale.ROOT)));
     }
 
     /**
-     * The intel for many CVE ids in one query.
+     * The intel for many CVE ids, in one query per feed and per thousand ids.
      *
      * <p><b>Why this exists.</b> The fleet summary asked {@code lookupCve} once per open issue,
      * which is one {@code select} per row: 468 queries for 620 issues, measured. The answer was
      * always the same shape — a map from id to record — so the loop was paying per item for a
      * lookup that a single {@code in} clause answers. Keyed lower-case because the feed and the
      * scanners do not agree on case — the same reason {@code findByCveIdInIgnoreCase} is
-     * hand-written JPQL.
+     * hand-written JPQL. In batches, because the list is the backlog's and the engines bound a
+     * statement's parameters.
      *
-     * <p>What the table holds and nothing else: the ten typed-in records this used to fall back to
+     * <p>What the tables hold and nothing else: the ten typed-in records this used to fall back to
      * are gone, with the reasons the class comment gives.
      */
     public Map<String, ThreatIntelRecord> lookupCves(Collection<String> cveIds) {
@@ -371,20 +430,42 @@ public class ThreatIntelFeedService {
             return Map.of();
         }
 
+        Map<String, ThreatIntelEntity> listed = new HashMap<>();
+        for (List<String> batch : Catalogs.batches(List.copyOf(wanted), LOOKUP_BATCH)) {
+            for (ThreatIntelEntity e : intelRepo.findByCveIdInIgnoreCase(batch)) {
+                listed.put(e.getCveId().toLowerCase(Locale.ROOT), e);
+            }
+        }
+        Map<String, KnownEpssScore> scored = epss.scoresOf(wanted);
+        boolean catalogueRead = syncRepo.findById(ThreatIntelSyncEntity.SINGLETON_ID)
+                .map(ThreatIntelSyncEntity::getLastSyncedAt)
+                .isPresent();
+
         Map<String, ThreatIntelRecord> found = new HashMap<>();
-        for (ThreatIntelEntity e : intelRepo.findByCveIdInIgnoreCase(wanted)) {
-            found.put(e.getCveId().toLowerCase(Locale.ROOT), record(e));
+        for (String id : wanted) {
+            ThreatIntelEntity kev = listed.get(id);
+            KnownEpssScore score = scored.get(id.toUpperCase(Locale.ROOT));
+            if (kev != null || score != null) {
+                found.put(id, record(kev, score, id, catalogueRead));
+            }
         }
         return Map.copyOf(found);
     }
 
-    private static ThreatIntelRecord record(ThreatIntelEntity e) {
+    private static ThreatIntelRecord record(ThreatIntelEntity kev, KnownEpssScore score, String id, boolean catalogueRead) {
+        String notes;
+        if (kev != null) {
+            notes = kev.isKev() ? "Listed in the CISA KEV catalogue" : "No longer listed in the CISA KEV catalogue";
+        } else {
+            // Not "not exploited" before the catalogue was ever read: nobody asked yet.
+            notes = catalogueRead ? "Not listed in the CISA KEV catalogue" : "CISA KEV catalogue never synchronised";
+        }
         return new ThreatIntelRecord(
-                e.getCveId(),
-                e.isKev(),
-                e.getEpssScore(),
-                e.getEpssPercentile(),
-                e.getDateAdded(),
-                e.isKev() ? "Listed in the CISA KEV catalogue" : "No longer listed in the CISA KEV catalogue");
+                kev != null ? kev.getCveId() : score.cveId(),
+                kev != null && kev.isKev(),
+                score == null ? null : score.score(),
+                score == null ? null : score.percentile(),
+                kev == null ? null : kev.getDateAdded(),
+                notes);
     }
 }

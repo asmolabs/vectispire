@@ -42,6 +42,7 @@ import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetDeletionService;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
 import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.threatintel.internal.EpssScoresSyncTask;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogueSyncTask;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
 import com.asmolabs.vectispire.core.tickets.internal.TicketSweepTask;
@@ -97,6 +98,7 @@ class MaintenanceJobsTest {
             SnapshotRetentionTask.class,
             AbandonedReviewsTask.class,
             KevCatalogueSyncTask.class,
+            EpssScoresSyncTask.class,
             OrphanedTargetRowsTask.class);
 
     private RetentionService retention;
@@ -141,6 +143,7 @@ class MaintenanceJobsTest {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
         when(triage.expireStale()).thenReturn(List.of());
         when(feed.syncIfDue()).thenReturn(java.util.Optional.empty());
+        when(feed.syncEpssIfDue()).thenReturn(java.util.Optional.empty());
         when(backlog.unserved()).thenReturn(CredentialedBacklog.Unserved.NONE);
 
         tasks = List.of(
@@ -159,6 +162,7 @@ class MaintenanceJobsTest {
                 new SnapshotRetentionTask(snapshots, settings, clock),
                 new AbandonedReviewsTask(reviews),
                 new KevCatalogueSyncTask(feed),
+                new EpssScoresSyncTask(feed),
                 new OrphanedTargetRowsTask(targetDeletion));
         jobs = new MaintenanceJobs(tasks);
     }
@@ -207,6 +211,8 @@ class MaintenanceJobsTest {
         turn.verify(reviews).settleAbandoned();
         // The only thing that keeps the KEV catalogue from being as old as the last button press.
         turn.verify(feed).syncIfDue();
+        // And the EPSS scores from being as old as that, or as the per-scan question they replace.
+        turn.verify(feed).syncEpssIfDue();
         turn.verify(targetDeletion).purgeOrphanedTargetData();
     }
 

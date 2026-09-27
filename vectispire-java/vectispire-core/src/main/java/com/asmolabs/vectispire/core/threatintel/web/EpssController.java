@@ -57,7 +57,7 @@ public class EpssController {
     // Outbound, repeatable at will, and rate-limited by whoever serves it. Not destructive,
     // which is why it is a lead's rather than an administrator's, but not a reader's. Audited as
     // the threat intelligence screen's sync is, with the same fallback name: it is the same sync —
-    // the CISA KEV catalogue; EPSS scores are asked per scan, not synchronised.
+    // the CISA KEV catalogue and FIRST's EPSS file, one audit entry each.
     @RequiresSecurityLead
     @PostMapping("/sync")
     public ThreatIntelSyncStatus sync(

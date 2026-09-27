@@ -67,6 +67,8 @@ public abstract class VectispireContextTest {
             // and a status test read "SYNCED" before anything had been synchronised.
             "t_threat_intel_feed",
             "t_threat_intel_sync",
+            // The same for the EPSS file: a generation a test applied would score the next test's CVE.
+            "t_epss_score",
             "t_finding",
             "t_issue",
             "t_scan",

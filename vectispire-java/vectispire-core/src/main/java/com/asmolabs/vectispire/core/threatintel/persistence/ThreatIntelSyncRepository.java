@@ -50,4 +50,98 @@ public interface ThreatIntelSyncRepository extends JpaRepository<ThreatIntelSync
             @Param("now") Instant now,
             @Param("staleBefore") Instant staleBefore,
             @Param("retryBefore") Instant retryBefore);
+
+    /**
+     * Claims an EPSS synchronisation somebody asked for, unless one holds the lease.
+     *
+     * <p><b>A lease rather than the row lock the KEV sync holds.</b> The KEV catalogue is written in
+     * one transaction, so the row's write lock serialises two syncs for free. The EPSS file is written
+     * in many short ones — 380,000 rows in one would hold their locks, and SQLite's whole-file lock,
+     * for as long as the engine takes — so exclusivity has to outlive a transaction: whoever claims
+     * writes {@code generation} into {@code epss_claim} until {@code leaseUntil}, and every write
+     * that follows is conditional on it still being there.
+     *
+     * @return 1 when claimed; 0 when another synchronisation holds the lease, or the row is missing
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ThreatIntelSyncEntity s
+               set s.epssAttemptAt = :now, s.epssLeaseUntil = :leaseUntil, s.epssClaim = :generation
+             where s.id = :id
+               and (s.epssLeaseUntil is null or s.epssLeaseUntil < :now)""")
+    int claimEpss(
+            @Param("id") long id,
+            @Param("now") Instant now,
+            @Param("leaseUntil") Instant leaseUntil,
+            @Param("generation") long generation);
+
+    /**
+     * Claims the scheduled EPSS synchronisation, when one is due — the file in use older than {@code
+     * staleBefore}, or none — nobody tried since {@code retryBefore}, and the lease is free. As
+     * {@link #claimScheduled} does for the catalogue, the conditional update is the election.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ThreatIntelSyncEntity s
+               set s.epssAttemptAt = :now, s.epssLeaseUntil = :leaseUntil, s.epssClaim = :generation
+             where s.id = :id
+               and (s.epssSyncedAt is null or s.epssSyncedAt < :staleBefore)
+               and (s.epssAttemptAt is null or s.epssAttemptAt < :retryBefore)
+               and (s.epssLeaseUntil is null or s.epssLeaseUntil < :now)""")
+    int claimEpssScheduled(
+            @Param("id") long id,
+            @Param("now") Instant now,
+            @Param("leaseUntil") Instant leaseUntil,
+            @Param("generation") long generation,
+            @Param("staleBefore") Instant staleBefore,
+            @Param("retryBefore") Instant retryBefore);
+
+    /**
+     * Puts a whole, checked file in use: its generation, what its header said, and the lease given
+     * back — only if this synchronisation still holds the claim.
+     *
+     * @return 0 when the claim was lost — the lease ran out and another synchronisation took it
+     */
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update ThreatIntelSyncEntity s
+               set s.epssGeneration = :generation, s.epssStatus = 'SYNCED', s.epssSyncedAt = :now,
+                   s.epssModelVersion = :modelVersion, s.epssScoreDate = :scoreDate, s.epssCount = :count,
+                   s.epssError = null, s.epssLeaseUntil = null, s.epssClaim = null
+             where s.id = :id and s.epssClaim = :generation""")
+    int applyEpss(
+            @Param("id") long id,
+            @Param("generation") long generation,
+            @Param("now") Instant now,
+            @Param("modelVersion") String modelVersion,
+            @Param("scoreDate") Instant scoreDate,
+            @Param("count") long count);
+
+    /**
+     * Records that the file read is the one in use already — same model, same score date — and gives
+     * the lease back: synchronised, with nothing rewritten.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ThreatIntelSyncEntity s
+               set s.epssStatus = 'SYNCED', s.epssSyncedAt = :now, s.epssError = null,
+                   s.epssLeaseUntil = null, s.epssClaim = null
+             where s.id = :id and s.epssClaim = :generation""")
+    int confirmEpss(@Param("id") long id, @Param("generation") long generation, @Param("now") Instant now);
+
+    /**
+     * Records a failed attempt and gives the lease back. The file in use, its generation and its
+     * date are left as they are: an outage, or a refused file, is not a file without scores.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ThreatIntelSyncEntity s
+               set s.epssStatus = 'FAILED', s.epssError = :error, s.epssLeaseUntil = null, s.epssClaim = null
+             where s.id = :id and s.epssClaim = :generation""")
+    int failEpss(@Param("id") long id, @Param("generation") long generation, @Param("error") String error);
 }

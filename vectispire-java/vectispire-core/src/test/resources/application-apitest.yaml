@@ -40,9 +40,11 @@ vectispire:
     username: ""
     password: ""
   threat-intel:
-    # A name that cannot resolve, so no test reaches CISA: a sync nobody replaced fails at once and
-    # says so, and a test that needs a catalogue stands one in for `KevCatalogSource`.
+    # Names that cannot resolve, so no test reaches CISA or FIRST: a sync nobody replaced fails at
+    # once and says so, and a test that needs a feed stands one in for `KevCatalogSource` or
+    # `EpssFileSource`.
     kev-url: https://kev-catalogue.invalid/known_exploited_vulnerabilities.json
+    epss-url: https://epss-file.invalid/epss_scores-current.csv.gz
   encryption:
     key: ${ENCRYPTION_KEY:vectispire-test-encryption-passphrase-placeholder}
 

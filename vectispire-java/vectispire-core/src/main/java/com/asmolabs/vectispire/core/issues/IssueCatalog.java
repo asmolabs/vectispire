@@ -7,9 +7,11 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueSpecifications;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueAggregates;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,8 +56,14 @@ public class IssueCatalog {
     /** Open issues per target, severity, type and exploitation — the compliance table's breakdown. */
     public record TargetBreakdown(Long repoId, Long containerId, String severity, String type, boolean kev, long count) {}
 
-    /** The exploitation figures the threat-intel feed decided for one issue. */
-    public record Exploitation(long issueId, boolean kev, Double epssScore) {}
+    /**
+     * Whether the KEV catalogue lists one issue's CVE, as the threat-intel feed decided.
+     *
+     * <p>The flag alone. It carried the EPSS score too, read at the start of the catalogue's
+     * transaction and written back at its end — which would put back a score the EPSS feed had
+     * refreshed in between; each feed writes its own column now ({@link #recordEpss}).
+     */
+    public record Exploitation(long issueId, boolean kev) {}
 
     // ------------------------------------------------------------------ by criteria
 
@@ -294,7 +302,7 @@ public class IssueCatalog {
     // ------------------------------------------------------------------ threat intelligence
 
     /**
-     * Writes the exploitation figures the feed re-evaluated — {@code threatintel}'s decision — onto the
+     * Writes the exploitation flags the feed re-evaluated — {@code threatintel}'s decision — onto the
      * issues, in the feed's transaction: one read of the rows named, one batch write.
      */
     @Transactional
@@ -308,9 +316,39 @@ public class IssueCatalog {
         rows.forEach(row -> {
             Exploitation update = byIssue.get(row.getId());
             row.setKev(update.kev());
-            row.setEpssScore(update.epssScore());
         });
         issues.saveAll(rows);
+    }
+
+    /**
+     * A page of the open issues that name an identifier, in id order after {@code afterId} — the EPSS
+     * refresh walks the backlog with these, a bounded page per transaction, rather than reading every
+     * open issue at once.
+     */
+    public List<IssueRows.EpssCandidate> openIdentifiedAfter(long afterId, Collection<String> closedStates, int limit) {
+        return issues.findByIdGreaterThanAndStateNotInAndIdentifierIsNotNullOrderByIdAsc(
+                afterId, closedStates, Limit.of(limit), IssueRows.EpssCandidate.class);
+    }
+
+    /**
+     * Writes the EPSS scores the feed decided — {@code threatintel}'s decision — onto these issues, in
+     * one transaction of its own, one update per distinct score — the issues of one CVE across the
+     * estate share one. A targeted update rather than rows saved whole: a scan refreshing the same
+     * issue meanwhile would otherwise lose its {@code lastSeenAt} and its count to a row read before
+     * it.
+     */
+    @Transactional
+    public int recordEpss(Map<Long, Double> scores) {
+        if (scores.isEmpty()) {
+            return 0;
+        }
+        Map<Double, List<Long>> byScore = new LinkedHashMap<>();
+        scores.forEach((id, score) -> byScore.computeIfAbsent(score, key -> new ArrayList<>()).add(id));
+        int updated = 0;
+        for (Map.Entry<Double, List<Long>> group : byScore.entrySet()) {
+            updated += issues.setEpssScore(group.getValue(), group.getKey());
+        }
+        return updated;
     }
 
     private static List<KeyCount> keyed(List<Object[]> rows) {

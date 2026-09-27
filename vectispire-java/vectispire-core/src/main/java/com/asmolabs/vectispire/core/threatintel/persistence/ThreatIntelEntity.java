@@ -6,6 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
+/**
+ * One CVE the CISA KEV catalogue lists, or listed. The EPSS scores are not here: they are FIRST's
+ * file, stored whole in {@code t_epss_score} ({@link EpssScoreEntity}).
+ */
 @Entity
 @Table(name = "t_threat_intel_feed")
 public class ThreatIntelEntity {
@@ -16,12 +20,6 @@ public class ThreatIntelEntity {
 
     @Column(name = "is_kev", nullable = false)
     private boolean isKev;
-
-    @Column(name = "epss_score")
-    private Double epssScore;
-
-    @Column(name = "epss_percentile")
-    private Double epssPercentile;
 
     @Column(name = "date_added")
     private Instant dateAdded;
@@ -43,22 +41,6 @@ public class ThreatIntelEntity {
 
     public void setKev(boolean kev) {
         isKev = kev;
-    }
-
-    public Double getEpssScore() {
-        return epssScore;
-    }
-
-    public void setEpssScore(Double epssScore) {
-        this.epssScore = epssScore;
-    }
-
-    public Double getEpssPercentile() {
-        return epssPercentile;
-    }
-
-    public void setEpssPercentile(Double epssPercentile) {
-        this.epssPercentile = epssPercentile;
     }
 
     public Instant getDateAdded() {

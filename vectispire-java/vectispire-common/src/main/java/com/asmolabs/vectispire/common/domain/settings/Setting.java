@@ -35,10 +35,10 @@ import java.util.Optional;
 public enum Setting {
 
     ENRICHMENT_ENABLED("enrichment_enabled", SettingType.BOOLEAN, Section.ENRICHMENT,
-            "Query EPSS and the KEV catalog",
-            "Only CVE identifiers leave the machine — never code, never a SBOM. Switched off, the "
-                    + "\"actively exploited\" counter stays at zero, which then means \"we did not ask\" and not "
-                    + "\"there are none\".",
+            "Apply the EPSS scores and the KEV catalog",
+            "Scans read the copies the control plane synchronises; nothing about a scan leaves the machine. "
+                    + "Switched off, the \"actively exploited\" counter stays at zero, which then means \"we did "
+                    + "not ask\" and not \"there are none\".",
             "true"),
 
     EOL_ENABLED("eol_detection_enabled", SettingType.BOOLEAN, Section.END_OF_LIFE,

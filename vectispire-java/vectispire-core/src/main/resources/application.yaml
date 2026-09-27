@@ -124,6 +124,13 @@ vectispire:
     # A mirror inside the estate resolves to a private address, which the outbound guard refuses
     # unless this says otherwise. Link-local — the cloud metadata endpoint — stays refused regardless.
     kev-allow-private: ${VECTISPIRE_KEV_ALLOW_PRIVATE:false}
+    # **Where FIRST's daily EPSS file is read from**, once a day and on a lead's demand. Blank reads
+    # FIRST's own (`epss_scores-current.csv.gz`, which redirects once to the day's file on the same
+    # host); set it to a mirror for an estate that cannot reach it. Scans read the stored scores and
+    # ask nobody. The file must be whole and not older than the one in use, or it is refused.
+    epss-url: ${VECTISPIRE_EPSS_URL:}
+    # As `kev-allow-private`, for the EPSS mirror.
+    epss-allow-private: ${VECTISPIRE_EPSS_ALLOW_PRIVATE:false}
 
   branding:
     # **The two nested chains in this file are the only real ones, and they are here on purpose.**

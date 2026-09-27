@@ -275,6 +275,20 @@ public interface IssueRepository
     List<IssueEntity> findByStateNotIn(java.util.Collection<String> states);
 
     /**
+     * A page of the issues in none of {@code states} that name an identifier, after {@code afterId}
+     * in id order — keyset, so each page costs the same however deep the walk is — read in {@code
+     * shape}, a record whose components are the entity's property names.
+     */
+    <R> List<R> findByIdGreaterThanAndStateNotInAndIdentifierIsNotNullOrderByIdAsc(
+            long afterId, Collection<String> states, Limit limit, Class<R> shape);
+
+    /** Sets one EPSS score on these issues, and nothing else of their rows. */
+    @Transactional
+    @Modifying
+    @Query("update IssueEntity i set i.epssScore = :score where i.id in :ids")
+    int setEpssScore(@Param("ids") Collection<Long> ids, @Param("score") Double score);
+
+    /**
      * Every issue in one state. <b>The whole estate</b> — for the security overview, which shows
      * every target, and for nothing that wants one.
      */

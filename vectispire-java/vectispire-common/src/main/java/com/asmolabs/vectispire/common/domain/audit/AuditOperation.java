@@ -87,12 +87,13 @@ public enum AuditOperation {
     CERTIFIED_SCOPE_CHANGED,
 
     /**
-     * Somebody asked for the threat-intelligence feeds to be synchronised — from the threat
-     * intelligence screen or the EPSS one, which run the same synchronisation.
+     * A threat-intelligence feed was synchronised — the CISA KEV catalogue or FIRST's EPSS file, one
+     * entry per feed — asked from the threat intelligence screen or the EPSS one, which run the same
+     * synchronisation, or run by the maintenance schedule under the actor {@code system}.
      *
-     * <p>An outbound call on demand, and one that re-evaluates the exploitation of the whole backlog.
-     * The first route recorded it as {@link #SETTING_UPDATED}, which it is not, and the second recorded
-     * nothing. The scheduled run is not a gesture and writes no entry.
+     * <p>An outbound call, and one that re-evaluates the whole open backlog; a failed attempt is
+     * recorded as one, with its reason. The first route recorded it as {@link #SETTING_UPDATED}, which
+     * it is not, and the second recorded nothing.
      */
     THREAT_INTEL_SYNCED,
 

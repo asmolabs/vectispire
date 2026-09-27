@@ -3828,6 +3828,23 @@ export interface components {
             name?: string;
             version?: string;
         };
+        EpssFeedStatus: {
+            /** Format: int64 */
+            backlogUpdatedCount: number;
+            inProgress: boolean;
+            /** Format: date-time */
+            lastAttemptAt?: string;
+            lastError?: string;
+            /** Format: date-time */
+            lastSyncedAt?: string;
+            modelVersion?: string;
+            /** Format: date-time */
+            scoreDate?: string;
+            /** @enum {string} */
+            status?: "NEVER_SYNCED" | "SYNCED" | "FAILED";
+            /** Format: int64 */
+            totalScored: number;
+        };
         EpssFleetSummary: {
             /** Format: int32 */
             activeKevCount: number;
@@ -5660,6 +5677,7 @@ export interface components {
         ThreatIntelSyncStatus: {
             /** Format: int64 */
             backlogUpdatedCount: number;
+            epss?: components["schemas"]["EpssFeedStatus"];
             kevCatalogVersion?: string;
             /** Format: date-time */
             kevReleasedAt?: string;
