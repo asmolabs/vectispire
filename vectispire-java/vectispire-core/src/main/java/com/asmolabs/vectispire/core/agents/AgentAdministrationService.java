@@ -21,7 +21,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanView;
-import com.asmolabs.vectispire.core.scanning.WorkerProperties;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
 import java.time.Duration;
@@ -71,17 +70,17 @@ public class AgentAdministrationService {
     private final ScanCatalog scans;
     private final TargetCatalog targets;
     private final AuditLogService audit;
-    private final WorkerProperties worker;
+    private final BuiltInWorker worker;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    public AgentAdministrationService(
+    AgentAdministrationService(
             AgentRepository agents,
             AgentKeys keys,
             ScanCatalog scans,
             TargetCatalog targets,
             AuditLogService audit,
-            WorkerProperties worker,
+            BuiltInWorker worker,
             TransactionTemplate transactions,
             Clock clock) {
         this.agents = agents;
@@ -172,7 +171,7 @@ public class AgentAdministrationService {
                 }
             }
         }
-        activeAgentLabels.addAll(AgentLabels.parse(worker.labels()));
+        activeAgentLabels.addAll(worker.labels());
 
         Map<Long, String> repoNames = new HashMap<>();
         targets.repositories().forEach(r -> {
@@ -521,8 +520,10 @@ public class AgentAdministrationService {
         Set<String> served = new HashSet<>();
         agents.findByEnabledTrue().forEach(agent -> served.addAll(AgentLabels.parse(agent.getLabels())));
         // The built-in worker is not a row in the table: its labels come from configuration, and
-        // forgetting them here would report as blocked what is in fact running.
-        served.addAll(AgentLabels.parse(worker.labels()));
+        // forgetting them here would report as blocked what is in fact running. Only when it runs,
+        // though — switched off, or without a runner, it takes nothing, and counting its labels
+        // anyway hid the scans that wait for ever behind a label only it carries.
+        served.addAll(worker.labels());
 
         List<Unroutable> unroutable = new ArrayList<>();
         for (Map.Entry<String, Long> row : scans.countByRequiredLabel(ScanStatus.PENDING.wireName()).entrySet()) {

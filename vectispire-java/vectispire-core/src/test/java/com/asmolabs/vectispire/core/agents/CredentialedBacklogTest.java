@@ -86,7 +86,7 @@ class CredentialedBacklogTest extends VectispireContextTest {
 
     /** The built-in worker off, as on a control plane whose executors are all remote. */
     private CredentialedBacklog withoutWorker() {
-        return new CredentialedBacklog(agents, scanCatalog, targetCatalog, new WorkerProperties(false, 2, ""), dispatcher);
+        return new CredentialedBacklog(agents, scanCatalog, targetCatalog, new BuiltInWorker(new WorkerProperties(false, 2, ""), dispatcher));
     }
 
     @Test
@@ -133,11 +133,11 @@ class CredentialedBacklogTest extends VectispireContextTest {
         ScanDispatcher running = mock(ScanDispatcher.class);
         when(running.runsScansHere()).thenReturn(true);
 
-        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new WorkerProperties(true, 2, ""), running)
+        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new BuiltInWorker(new WorkerProperties(true, 2, ""), running))
                         .unserved())
                 .isEqualTo(CredentialedBacklog.Unserved.NONE);
         // Switched on, but no runner: it claims nothing (ScanDispatcher.dispatch), so it serves nothing.
-        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new WorkerProperties(true, 2, ""), dispatcher)
+        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new BuiltInWorker(new WorkerProperties(true, 2, ""), dispatcher))
                         .unserved().scans())
                 .isEqualTo(1);
     }
@@ -156,7 +156,7 @@ class CredentialedBacklogTest extends VectispireContextTest {
 
         ScanDispatcher running = mock(ScanDispatcher.class);
         when(running.runsScansHere()).thenReturn(true);
-        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new WorkerProperties(true, 2, "dmz"), running)
+        assertThat(new CredentialedBacklog(agents, scanCatalog, targetCatalog, new BuiltInWorker(new WorkerProperties(true, 2, "dmz"), running))
                         .unserved())
                 .isEqualTo(CredentialedBacklog.Unserved.NONE);
     }

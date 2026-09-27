@@ -6,7 +6,6 @@ import com.asmolabs.vectispire.core.agents.internal.AgentViews;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
-import com.asmolabs.vectispire.core.scanning.WorkerProperties;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.util.Collection;
 import java.util.HashSet;
@@ -47,20 +46,13 @@ public class CredentialedBacklog {
     private final AgentRepository agents;
     private final ScanCatalog scans;
     private final TargetCatalog targets;
-    private final WorkerProperties worker;
-    private final ScanDispatcher dispatcher;
+    private final BuiltInWorker worker;
 
-    public CredentialedBacklog(
-            AgentRepository agents,
-            ScanCatalog scans,
-            TargetCatalog targets,
-            WorkerProperties worker,
-            ScanDispatcher dispatcher) {
+    CredentialedBacklog(AgentRepository agents, ScanCatalog scans, TargetCatalog targets, BuiltInWorker worker) {
         this.agents = agents;
         this.scans = scans;
         this.targets = targets;
         this.worker = worker;
-        this.dispatcher = dispatcher;
     }
 
     /**
@@ -77,13 +69,10 @@ public class CredentialedBacklog {
     public Unserved unserved() {
         List<AgentView> enabled = agents.findByEnabledTrue().stream().map(AgentViews::of).toList();
         List<AgentView> capable = enabled.stream().filter(ScanDispatcher::canBeHandedCredentials).toList();
-        boolean workerRuns = worker.enabled() && dispatcher.runsScansHere();
+        boolean workerRuns = worker.runs();
 
-        Set<String> servedLabels = new HashSet<>();
+        Set<String> servedLabels = new HashSet<>(worker.labels());
         capable.forEach(agent -> servedLabels.addAll(AgentLabels.parse(agent.labels())));
-        if (workerRuns) {
-            servedLabels.addAll(AgentLabels.parse(worker.labels()));
-        }
         // A scan requiring no label goes to anybody, so any capable executor serves it; one requiring a
         // label goes only to an executor carrying it — the claim's own `is null or in :labels`.
         boolean anyCapable = workerRuns || !capable.isEmpty();
