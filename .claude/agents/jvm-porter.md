@@ -162,6 +162,18 @@ mode onto a tmpfs mounted over it: the matcher's image ships a root-only `/tmp`,
 workspace's owner every match was absent ("unable to create listing temp file"). The scratch mounts
 carry `mode=1777`; a fake scanner in the integration suite ships a root-only `/tmp` to keep it so.
 
+**A path handed to the daemon is a path on the daemon's host.** A workspace, an exported image, the
+matcher's database are created under `java.io.tmpdir` and bound into scanners, so a containerised
+executor needs that directory mounted from the host **at the same absolute path**
+(`VECTISPIRE_WORK_DIR` in `docker-compose.yml`): at the container's own `/tmp` the shipped composition
+failed every scan, the daemon handing each scanner an empty directory it had just created. Every
+scanner runs as the workspace's owner (`ContainerRun.runningAsOwnerOf`), never as root — root with
+every capability dropped has no `CAP_DAC_OVERRIDE` and cannot read the 0700 workspace; Docker Desktop's
+file sharing hides both defects, a Linux daemon does not. Through the socket proxy a pooled connection
+dies after ten idle seconds, so every request closes its own (`OneRequestPerConnection`). A change to
+the composition, the images or the scanners' shape runs `scripts/composition-scan-check.sh` — the one
+check that scans through the file as shipped.
+
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
 triage, across every target. For plugin and imported findings that includes the tool key (in the
