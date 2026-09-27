@@ -79,7 +79,11 @@ COPY LICENSE NOTICE ./
 
 # An unprivileged user. It still has to belong to the group that owns the Docker socket on the
 # host, which the deployment grants with `--group-add`.
-RUN addgroup -S vectispire && adduser -S -G vectispire vectispire
+# **1000:1000, the published image's user.** Jib builds that one with a numeric user, and the
+# composition hands its scan directory to 1000:1000 (`work-dir`); a system account picked by
+# `adduser -S` got whatever id was free, and an image built from this file could then create no
+# workspace in the directory the composition prepared for it.
+RUN addgroup -S -g 1000 vectispire && adduser -S -u 1000 -G vectispire vectispire
 
 # **Where the audit mirror lands, created here so the volume inherits its owner.**
 # The mirror is off by default in `application.yaml` — writing to a path by default fails on a

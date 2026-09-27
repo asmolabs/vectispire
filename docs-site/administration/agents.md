@@ -145,7 +145,9 @@ So, for each `delegated` agent:
    repositories carrying a credential that no executor able to be handed it serves — an enabled
    `local` agent, a `delegated` one with a verified key, or the built-in worker when it runs — and
    its log warns, at most every fifteen minutes and again when the count grows, naming the labels
-   and the agents that would take them but hold no verified key.
+   and the agents that would take them but hold no verified key. The **Agents** screen shows the
+   same figure as a warning above the queue, with those labels, those agents and what to do
+   (`GET /api/v1/admin/agents/credentialed-backlog`).
 
 **Rotation is automatic.** Each start makes a new pair, stamped with its creation time; the control
 plane keeps the newest key signed with the pinned key and refuses an older one (**409**, audited).

@@ -74,6 +74,27 @@ docker compose --profile with-agent up -d
       de SIEM ou de tracker qui nomme l'un d'eux est refusée, quelle que soit la politique de
       destination.
 
+!!! warning "Les analyses vivent dans un répertoire de l'hôte, au même chemin dans le conteneur"
+    Chaque analyseur est un conteneur que lance le **démon**, et le démon résout les répertoires
+    qu'il y monte **sur son propre hôte** — pas dans le conteneur du plan de contrôle. L'espace de
+    travail d'une analyse (le clone, le SBOM, le rapport de secrets le temps qu'elle tourne) et la
+    base de vulnérabilités sont donc créés dans `VECTISPIRE_WORK_DIR` — `/var/lib/vectispire/work`
+    par défaut — que la composition monte dans le plan de contrôle **au même chemin absolu** et
+    remet à l'utilisateur de l'image (1000:1000, mode 0700) par le service ponctuel `work-dir` avant
+    que le plan de contrôle démarre. Le profil `with-agent` fait de même pour l'agent avec
+    `VECTISPIRE_AGENT_WORK_DIR` (`/var/lib/vectispire/agent-work`).
+
+    - Le disque qui le porte contient la base du rapprocheur, quelque 3 Go, et le clone de chaque
+      analyse en cours.
+    - Changez le chemin dans `.env` si vous le souhaitez, jamais à un seul des deux endroits : le
+      montage est `chemin:chemin` à dessein.
+    - **Hors de cette composition** — votre propre fichier Compose, Kubernetes, `docker run` —
+      montez un répertoire de l'hôte au même chemin et faites-y pointer le répertoire temporaire de
+      la JVM (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<chemin>`). Laissé au `/tmp` du conteneur, chaque
+      analyseur reçoit un répertoire vide et chaque analyse échoue.
+    - Sous Docker Desktop, le chemin est dans sa machine virtuelle, pas sur votre Mac ou votre PC,
+      et c'est ce qu'il faut : les deux côtés du montage s'y trouvent.
+
 La composition tire deux images publiées : rien ici ne demande de JDK ni de cache Gradle.
 
 ```

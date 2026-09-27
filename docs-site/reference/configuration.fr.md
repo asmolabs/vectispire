@@ -91,11 +91,24 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
 
+## Espaces de travail des analyses
+
+L'espace de travail d'une analyse — et, sauf réglage ci-dessous, la base de vulnérabilités — est
+créé dans le répertoire temporaire de la JVM, puis monté dans chaque analyseur **par le démon
+Docker, qui résout le chemin sur son propre hôte**. Quand Vectispire tourne lui-même dans un
+conteneur, ce répertoire doit donc être un répertoire de l'hôte monté **au même chemin absolu**,
+sans quoi chaque analyseur reçoit un répertoire vide.
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` seulement. Le répertoire de l'hôte monté dans le plan de contrôle au même chemin, préparé pour son utilisateur (1000:1000, 0700) par le service `work-dir`, et donné comme `-Djava.io.tmpdir` par `JDK_JAVA_OPTIONS`. Contient le clone de chaque analyse en cours et la base du rapprocheur (quelque 3 Go). Hors de la composition, faites de même à la main. |
+| `VECTISPIRE_AGENT_WORK_DIR` | `/var/lib/vectispire/agent-work` | `docker-compose.yml`, profil `with-agent` : la même chose pour l'agent, dans un répertoire à lui. |
+
 ## Base de vulnérabilités
 
 | Variable | Défaut | Notes |
 |---|---|---|
-| `VECTISPIRE_VULNERABILITY_DB_DIR` | *un répertoire du répertoire temporaire* | Où la base du rapprocheur de vulnérabilités — quelque 3 Go — est téléchargée **une fois pour l'hôte** et partagée, en lecture seule, par toutes les analyses ; chaque analyse téléchargeait la sienne. Un seul téléchargement à la fois sous un verrou sur ce répertoire, publié en entier par un renommage atomique, vérifié toutes les heures, et les générations remplacées supprimées dès qu'aucune analyse ne peut plus les lire. Le rapprocheur lui-même tourne sans réseau. Un chemin de l'hôte du démon Docker, comme les espaces de travail ; un disque qui survit à un redémarrage épargne le téléchargement à la première analyse qui suit. |
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | *un répertoire du répertoire temporaire — `VECTISPIRE_WORK_DIR` dans la composition* | Où la base du rapprocheur de vulnérabilités — quelque 3 Go — est téléchargée **une fois pour l'hôte** et partagée, en lecture seule, par toutes les analyses ; chaque analyse téléchargeait la sienne. Un seul téléchargement à la fois sous un verrou sur ce répertoire, publié en entier par un renommage atomique, vérifié toutes les heures, et les générations remplacées supprimées dès qu'aucune analyse ne peut plus les lire. Le rapprocheur lui-même tourne sans réseau. Un chemin de l'hôte du démon Docker, comme les espaces de travail ; un disque qui survit à un redémarrage épargne le téléchargement à la première analyse qui suit. |
 
 ## Plugins
 

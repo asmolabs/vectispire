@@ -72,6 +72,26 @@ docker compose --profile with-agent up -d
     - **No setting may point at the daemon's proxy or at the database.** An Ollama, webhook, SIEM
       or tracker URL naming either is refused, whatever the destination policy.
 
+!!! warning "Scans live in a directory of the host, at the same path inside the container"
+    Every scanner is a container the **daemon** starts, and the daemon resolves the directories it
+    mounts into it **on its own host** — not inside the control plane's container. A scan's
+    workspace (the clone, the SBOM, the secrets report while it runs) and the vulnerability
+    database are therefore created in `VECTISPIRE_WORK_DIR` — `/var/lib/vectispire/work` by
+    default — which the composition mounts into the control plane **at that same absolute path**
+    and hands to the image's user (1000:1000, mode 0700) with the one-shot `work-dir` service before
+    the control plane starts. The `with-agent` profile does the same for the agent with
+    `VECTISPIRE_AGENT_WORK_DIR` (`/var/lib/vectispire/agent-work`).
+
+    - The disk under it holds the matcher's database, some 3 GB, and each running scan's clone.
+    - Change the path in `.env` if you like, never in one of the two places only: the bind is
+      `path:path` on purpose.
+    - **Outside this composition** — your own Compose file, Kubernetes, `docker run` — mount a host
+      directory at the same path and point the JVM's temporary directory at it
+      (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<path>`). Left at the container's own `/tmp`, every
+      scanner is handed an empty directory and every scan fails.
+    - On Docker Desktop the path is in its virtual machine, not on your Mac or PC, which is what
+      you want: both sides of the mount are there.
+
 The composition pulls two published images, so nothing here needs a JDK or a Gradle cache:
 
 ```

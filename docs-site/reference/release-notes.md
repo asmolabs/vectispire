@@ -54,6 +54,22 @@ first synchronisation, the status says *never synchronized* and a scan marks not
 exploited. That first synchronisation also **un-flags** open issues whose CVE the catalogue does not
 list, including those the typed-in list had flagged.
 
+**Scans need a host directory mounted at the same path — the shipped composition now makes one.**
+The scanners are containers the Docker daemon starts, and it resolves what it mounts into them on
+its own host; the composition kept the scans' workspaces in the control plane's own `/tmp`, so every
+scanner received an empty directory and **no scan of the shipped `docker-compose.yml` ever
+succeeded**. It now mounts `VECTISPIRE_WORK_DIR` (default `/var/lib/vectispire/work`, some 3 GB for
+the vulnerability database) at the same path and prepares it with a one-shot `work-dir` service;
+`docker compose up` does it, nothing to do but have the disk. If you run **your own composition or
+manifests**, mount a host directory at the same absolute path and set
+`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<path>` — see [Installation](../getting-started/installation.md)
+and [Configuration](configuration.md#scan-workspaces). Scanners now run as the workspace's owner
+rather than as root, which could not read it.
+
+**Images built from the `Dockerfile` run as 1000:1000**, like the published ones. If you built your
+own and its audit mirror volume already exists, hand it over once:
+`docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
+
 **Schema migrations V32 to V43 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 

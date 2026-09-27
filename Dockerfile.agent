@@ -33,7 +33,11 @@ WORKDIR /app
 COPY --from=build /src/vectispire-agent/build/libs/*.jar app.jar
 COPY LICENSE NOTICE ./
 
-RUN addgroup -S vectispire && adduser -S -G vectispire vectispire
+# **1000:1000, the published image's user.** Jib builds that one with a numeric user, and the
+# composition hands its scan directory to 1000:1000 (`work-dir`); a system account picked by
+# `adduser -S` got whatever id was free, and an image built from this file could then create no
+# workspace in the directory the composition prepared for it.
+RUN addgroup -S -g 1000 vectispire && adduser -S -u 1000 -G vectispire vectispire
 USER vectispire
 
 # checkov:skip=CKV_DOCKER_2: the agent listens on nothing. It reaches the control plane by

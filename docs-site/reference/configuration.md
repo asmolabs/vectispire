@@ -90,11 +90,23 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
 
+## Scan workspaces
+
+A scan's workspace — and, unless set below, the vulnerability database — is created in the JVM's
+temporary directory, then mounted into each scanner **by the Docker daemon, which resolves the path
+on its own host**. When Vectispire itself runs in a container, that directory must therefore be a
+host directory mounted at the **same absolute path**, or every scanner receives an empty directory.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` only. The host directory mounted into the control plane at the same path, prepared for its user (1000:1000, 0700) by the `work-dir` service, and set as `-Djava.io.tmpdir` through `JDK_JAVA_OPTIONS`. Holds each running scan's clone and the matcher's database (some 3 GB). Outside the composition, do the same by hand. |
+| `VECTISPIRE_AGENT_WORK_DIR` | `/var/lib/vectispire/agent-work` | `docker-compose.yml`, `with-agent` profile: the same for the agent, a directory of its own. |
+
 ## Vulnerability database
 
 | Variable | Default | Notes |
 |---|---|---|
-| `VECTISPIRE_VULNERABILITY_DB_DIR` | *a directory in the temporary directory* | Where the vulnerability matcher's database — some 3 GB — is downloaded **once for the host** and shared, read-only, by every scan; each scan used to download its own. One download at a time under a lock on this directory, published whole by an atomic rename, checked for updates hourly, and replaced generations deleted once no scan can still be reading them. The matcher itself runs with no network. A path on the Docker daemon's host, like the workspaces; a disk that survives a restart spares the first scan after one the download. |
+| `VECTISPIRE_VULNERABILITY_DB_DIR` | *a directory in the temporary directory — `VECTISPIRE_WORK_DIR` in the composition* | Where the vulnerability matcher's database — some 3 GB — is downloaded **once for the host** and shared, read-only, by every scan; each scan used to download its own. One download at a time under a lock on this directory, published whole by an atomic rename, checked for updates hourly, and replaced generations deleted once no scan can still be reading them. The matcher itself runs with no network. A path on the Docker daemon's host, like the workspaces; a disk that survives a restart spares the first scan after one the download. |
 
 ## Plugins
 

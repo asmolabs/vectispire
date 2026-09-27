@@ -61,6 +61,24 @@ activement exploité. Cette première synchronisation **retire** aussi le marqua
 ouverts dont la CVE ne figure pas au catalogue, y compris ceux que la liste écrite en dur avait
 marqués.
 
+**Les analyses demandent un répertoire de l'hôte monté au même chemin — la composition livrée en
+crée un désormais.** Les analyseurs sont des conteneurs que lance le démon Docker, et il résout ce
+qu'il y monte sur son propre hôte ; la composition gardait les espaces de travail dans le `/tmp` du
+plan de contrôle, si bien que chaque analyseur recevait un répertoire vide et **qu'aucune analyse du
+`docker-compose.yml` livré n'a jamais abouti**. Elle monte maintenant `VECTISPIRE_WORK_DIR` (par
+défaut `/var/lib/vectispire/work`, quelque 3 Go pour la base de vulnérabilités) au même chemin et le
+prépare par un service ponctuel `work-dir` ; `docker compose up` s'en charge, il suffit d'avoir le
+disque. Si vous utilisez **votre propre composition ou vos propres manifestes**, montez un
+répertoire de l'hôte au même chemin absolu et réglez `JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<chemin>` —
+voir [Installation](../getting-started/installation.md) et
+[Configuration](configuration.md#espaces-de-travail-des-analyses). Les analyseurs tournent
+désormais sous le propriétaire de l'espace de travail et non plus sous root, qui ne pouvait pas le
+lire.
+
+**Les images construites depuis le `Dockerfile` tournent en 1000:1000**, comme les images publiées.
+Si vous avez construit la vôtre et que son volume du miroir d'audit existe déjà, remettez-le une
+fois : `docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
+
 **Les migrations V32 à V43 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 

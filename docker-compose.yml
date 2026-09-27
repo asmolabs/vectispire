@@ -153,7 +153,7 @@ services:
     # apart the day one of them is republished. Not pinned by digest, unlike the third-party images
     # below, because this file ships inside the release that builds them — a digest here would have
     # to be rewritten by the release job, and nothing does that.
-    image: ghcr.io/asmolabs/vectispire:0.9.0
+    image: &control-plane-image ghcr.io/asmolabs/vectispire:0.9.0
     container_name: vectispire-control-plane
     ports:
       - "${VECTISPIRE_PORT:-3180}:3180"
@@ -203,6 +203,16 @@ services:
       # honours `DOCKER_HOST` before any autodetection, so nothing changes in the code: there is no
       # socket left to detect in this container.
       DOCKER_HOST: tcp://docker-proxy:2375
+      # **The temporary directory is where every scan lives, so it has to be the host's.** A scan's
+      # workspace, an exported image and the matcher's database are all created under
+      # `java.io.tmpdir` and then handed to the daemon as bind mounts — and the daemon resolves a
+      # bind's source on *its* host, not in this container. Left at the container's own `/tmp`,
+      # every scanner was given a directory the daemon created empty on the host: the shipped
+      # composition failed every scan ("no source providers were able to resolve the input
+      # /repo/source", "open /repo/rules/gitleaks/gitleaks.toml: no such file or directory").
+      # `JDK_JAVA_OPTIONS` rather than `JAVA_TOOL_OPTIONS`: the launcher reads it, and an operator
+      # who sets the other one for a proxy does not silently take this away.
+      JDK_JAVA_OPTIONS: -Djava.io.tmpdir=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
     secrets:
       - source: mysql_password
         target: VECTISPIRE_DB_PASSWORD
@@ -226,6 +236,11 @@ services:
       # entries, and the image creates the directory owned by its unprivileged user so the
       # volume inherits that owner instead of arriving root-owned.
       - vectispire_audit:/var/lib/vectispire/audit
+      # **The same absolute path on both sides, and a bind rather than a named volume.** What this
+      # process creates at `…/vectispire-scan-123/source` is what the daemon mounts into a scanner
+      # under that very name; any other target path, or a volume whose host path is Docker's, and
+      # the two sides name different directories again. Prepared by `work-dir` below.
+      - ${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}:${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
     # `group_add: docker` went with the socket mount: there is no longer a file whose group has to
     # be held. It is also one less piece of host configuration to guess — it was a name on some
     # hosts and a numeric GID on others.
@@ -245,6 +260,8 @@ services:
         condition: service_healthy
       docker-proxy:
         condition: service_started
+      work-dir:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - vectispire-net
@@ -252,6 +269,28 @@ services:
       - vectispire-docker
       # Where the agent reaches the API, and the only thing the agent reaches.
       - vectispire-agent
+
+  # **The scans' directory on the host, handed to the control plane's user before it starts.** The
+  # daemon creates a missing bind source itself, owned by root and mode 755, and the control plane
+  # runs as 1000:1000 — it could then create no workspace at all. This one-shot container gives the
+  # directory to that user, at 0700: it holds cloned trees and, while a scan runs, the secrets report
+  # in the clear, so nobody else on the host has to be able to list it.
+  #
+  # Root, because a chown is; and nothing else. It is the control plane's own image (already pulled,
+  # no third image to pin), with no network, every capability dropped but the two a chown and a
+  # chmod of a directory it does not own need, and nothing mounted but that one directory.
+  work-dir:
+    image: *control-plane-image
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chmod 0700 /work && chown 1000:1000 /work"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}:/work
+    restart: "no"
 
   # --- Optional: Remote Agent (for isolated container worker nodes) --------------------------
   # **Keycloak, behind a profile and for evaluation.** `docker compose --profile sso up`.
@@ -292,7 +331,7 @@ services:
       dockerfile: Dockerfile.agent
     # Same reasoning as the control plane above, and the same version: an agent from one release
     # talking to a plane from another is a protocol mismatch nobody set out to test.
-    image: ghcr.io/asmolabs/vectispire-agent:0.9.0
+    image: &agent-image ghcr.io/asmolabs/vectispire-agent:0.9.0
     container_name: vectispire-agent
     profiles:
       - with-agent
@@ -317,13 +356,21 @@ services:
       # another machine and talks to that machine's daemon, which holds neither the database nor
       # `ENCRYPTION_KEY` — that is its whole purpose.
       DOCKER_HOST: tcp://agent-docker-proxy:2375
+      # The agent creates its workspaces the way the built-in worker does, and hands them to its
+      # daemon the same way: same defect, same cure — see the control plane's.
+      JDK_JAVA_OPTIONS: -Djava.io.tmpdir=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
     volumes:
       - ${HOME}/.ssh:/home/vectispire/.ssh:ro
+      # **Its own directory, not the control plane's.** Sharing one would let each side read the
+      # other's clones; the agent exists to be another trust domain, even on one host.
+      - ${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}:${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
     depends_on:
       control-plane:
         condition: service_healthy
       agent-docker-proxy:
         condition: service_started
+      agent-work-dir:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       # Not `vectispire-net`, and above all not `vectispire-db`: the agent needs the API and its own
@@ -331,6 +378,22 @@ services:
       # takes away at compile time.
       - vectispire-agent
       - vectispire-agent-docker
+
+  # The agent's directory, prepared like the control plane's by `work-dir` above.
+  agent-work-dir:
+    image: *agent-image
+    profiles:
+      - with-agent
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chmod 0700 /work && chown 1000:1000 /work"]
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}:/work
+    restart: "no"
 
   # **The agent's daemon endpoint, apart from the control plane's.** Same filter, same pin.
   #

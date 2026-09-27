@@ -155,7 +155,9 @@ Donc, pour chaque agent `delegated` :
    de dépôts portant un identifiant qu'aucun exécuteur capable de le recevoir ne sert — un agent
    `local` activé, un agent `delegated` à la clé vérifiée, ou le worker intégré quand il tourne — et
    son journal avertit, au plus toutes les quinze minutes et de nouveau quand le nombre augmente, en
-   nommant les étiquettes et les agents qui les prendraient mais n'ont pas de clé vérifiée.
+   nommant les étiquettes et les agents qui les prendraient mais n'ont pas de clé vérifiée. L'écran
+   **Agents** affiche le même chiffre en avertissement au-dessus de la file, avec ces étiquettes,
+   ces agents et ce qu'il faut faire (`GET /api/v1/admin/agents/credentialed-backlog`).
 
 **La rotation est automatique.** Chaque démarrage fabrique une paire neuve, datée de sa création ;
 le plan de contrôle garde la plus récente signée par la clé épinglée et refuse une plus ancienne
