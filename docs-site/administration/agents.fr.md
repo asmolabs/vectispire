@@ -151,11 +151,15 @@ le plan de contrôle garde la plus récente signée par la clé épinglée et re
 (**409**, audité). Un `hello` sans clé, ou avec une clé que personne n'a signée, ne remplace ni
 n'efface jamais la clé acceptée.
 
-**La réinitialiser est un acte d'administrateur.** `DELETE /api/v1/admin/agents/{id}/sealing-key`
-oublie la clé — pour un hôte d'agent dont l'horloge a reculé, si bien que toutes ses nouvelles clés
-paraissent plus anciennes, ou soupçonné d'avoir laissé fuir la sienne. Épingler, remplacer ou
-retirer la clé de signature l'oublie aussi. Les deux sont audités, et l'agent annonce une nouvelle
-clé à son prochain démarrage, ou à sa prochaine prise en charge.
+**La réinitialiser est un acte d'administrateur.** Sur `/agents`, l'icône de gomme sur la ligne
+d'un agent qui indique *Scellé de bout en bout* oublie sa clé, après confirmation — ou
+`DELETE /api/v1/admin/agents/{id}/sealing-key`. À utiliser pour un hôte d'agent dont l'horloge a
+reculé, si bien que toutes ses nouvelles clés paraissent plus anciennes, ou pour une clé soupçonnée
+d'avoir fui ; pour le reste, les clés plus récentes suffisent. Épingler, remplacer ou retirer la clé
+de signature l'oublie aussi. Les deux sont audités. **Tant que l'agent n'a pas prouvé une nouvelle
+clé, il ne reçoit aucun identifiant délégué** : la ligne indique de nouveau *identifiants retenus*
+et ses analyses déléguées attendent dans la file qu'il annonce une nouvelle clé signée, à son
+prochain démarrage ou à sa prochaine prise en charge.
 
 Une signature qui ne se vérifie pas est refusée en **403**, écrite au journal d'audit sous
 `AGENT_SEALING_KEY_REFUSED` et envoyée au SIEM sous `ZAN-SEC-020` : la clé configurée sur l'agent

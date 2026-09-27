@@ -140,10 +140,14 @@ So, for each `delegated` agent:
 plane keeps the newest key signed with the pinned key and refuses an older one (**409**, audited).
 A `hello` without a key, or with one nobody signed, never replaces or clears the accepted key.
 
-**Resetting it is an administrator's act.** `DELETE /api/v1/admin/agents/{id}/sealing-key` forgets
-the key — for an agent host whose clock went back, so that its new keys all read as older, or one
-suspected of having leaked. Pinning, replacing or removing the signing key forgets it too. Both are
-audited, and the agent announces a new key at its next start, or at its next claim.
+**Resetting it is an administrator's act.** On `/agents`, the eraser icon on the row of an agent
+that reads *Sealed end to end* forgets its key, after a confirmation — or
+`DELETE /api/v1/admin/agents/{id}/sealing-key`. Use it for an agent host whose clock went back, so
+that its new keys all read as older, or for a key suspected of having leaked; newer keys fix
+everything else on their own. Pinning, replacing or removing the signing key forgets it too. Both
+are audited. **Until the agent proves a new key, it is handed no delegated credential**: the row
+reads *credentials withheld* again and its delegated scans wait in the queue until it announces a
+new signed key, at its next start or its next claim.
 
 A signature that does not verify is refused with **403**, written to the audit log as
 `AGENT_SEALING_KEY_REFUSED` and sent to the SIEM as `ZAN-SEC-020`: the agent's configured key is not
