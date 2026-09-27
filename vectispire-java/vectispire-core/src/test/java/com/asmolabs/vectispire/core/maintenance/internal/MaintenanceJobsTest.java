@@ -213,19 +213,35 @@ class MaintenanceJobsTest {
     }
 
     @Test
-    @DisplayName("a job that throws ends its turn, and the next turn runs")
+    @DisplayName("a job that throws ends its own run only: the jobs after it run, and so does the next turn")
     void aFailureIsContainedButTheTurnGoesOn() {
         when(retention.prune()).thenThrow(new IllegalStateException("disk full"));
+        when(triage.expireStale()).thenThrow(new IllegalStateException("lock timeout"));
 
         // Swallowed by design — housekeeping must not bring down the process serving requests.
-        // What matters is the consequence nobody would notice otherwise: the guard resets, so the
-        // next turn runs, and one failing job does not silence the tick for ever. The jobs after
-        // the failing one wait for that next turn, as they did when the turn was a single method.
-        jobs.hourlyMaintenance();
+        // The first job failing used to end the turn, so a purge failing every hour kept every
+        // job after it from running at all: acceptances never lapsed, the digest never left. Two
+        // failures, the first and one in the middle, and every other job still runs, in order.
         jobs.hourlyMaintenance();
 
+        InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
+                verdicts, snapshots, targetDeletion);
+        turn.verify(retention).prune();
+        turn.verify(outbox).pruneSent();
+        turn.verify(tickets).sweep();
+        turn.verify(backfill).runOnce();
+        turn.verify(triage).expireStale();
+        turn.verify(digest).runOnce();
+        turn.verify(complianceHistory).capture();
+        turn.verify(sessions).prune();
+        turn.verify(verdicts).deleteBefore(any());
+        turn.verify(snapshots).deleteBefore(any());
+        turn.verify(targetDeletion).purgeOrphanedTargetData();
+
+        // And the guard resets, so one failing job does not silence the tick for ever.
+        jobs.hourlyMaintenance();
         verify(retention, times(2)).prune();
-        verify(outbox, never()).pruneSent();
+        verify(targetDeletion, times(2)).purgeOrphanedTargetData();
     }
 
     @Test

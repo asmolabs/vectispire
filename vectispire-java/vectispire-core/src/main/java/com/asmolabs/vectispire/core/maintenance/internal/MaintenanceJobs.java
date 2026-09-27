@@ -73,14 +73,20 @@ public class MaintenanceJobs {
     }
 
     /**
-     * Runs a cadence's tasks unless its turn is already running, and swallows what they throw.
+     * Runs a cadence's tasks unless its turn is already running, each apart from the others.
      *
      * <p>Logged and swallowed: a housekeeping failure must not bring down the process serving
      * requests, and an exception escaping a scheduled method stops nothing here but would make
      * the next turn's log unreadable. Each task's own service already decides what a failure
-     * costs it. <b>A task that throws ends its turn</b> — the tasks after it wait for the next one,
-     * as they did when the turn was a single method; the guard is released either way, so one
-     * failing task never silences the tick for ever.
+     * costs it.
+     *
+     * <p><b>A task that throws ends its own run, not the turn.</b> It used to end the turn, as when
+     * the turn was a single method: a scan-retention purge failing on one database error left the
+     * triage decisions unexpired, the weekly digest unsent and the sessions unpurged, every hour,
+     * for as long as the error lasted — twelve jobs of seven modules hostage to the first. The
+     * order still holds for the tasks that run; a task after a failed one reads what the failed
+     * one did not change, which is what it would have read had the failure been the next hour's.
+     * The guard is released either way, so one failing task never silences the tick for ever.
      */
     private void turn(Cadence cadence) {
         AtomicBoolean guard = running.get(cadence);
@@ -88,9 +94,14 @@ public class MaintenanceJobs {
             return;
         }
         try {
-            tasks.get(cadence).forEach(MaintenanceTask::run);
-        } catch (RuntimeException failed) {
-            log.error("{} failed: {}", cadence.label(), failed.getMessage(), failed);
+            for (MaintenanceTask task : tasks.get(cadence)) {
+                try {
+                    task.run();
+                } catch (RuntimeException failed) {
+                    log.error("{}: {} failed, the turn goes on: {}",
+                            cadence.label(), task.getClass().getSimpleName(), failed.getMessage(), failed);
+                }
+            }
         } finally {
             guard.set(false);
         }

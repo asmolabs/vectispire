@@ -83,6 +83,6 @@ public interface MaintenanceTask {
 
     Cadence cadence();
 
-    /** Runs once. What it throws ends its turn, is logged, and does not stop the next turn. */
+    /** Runs once. What it throws is logged, and stops neither the tasks after it nor the next turn. */
     void run();
 }
