@@ -267,7 +267,10 @@ goes into a comment, not into `triagedBy` or the audit actor — both have been 
 **Audit entries are written after the transaction commits.** `AuditLogService.record` opens its own
 `REQUIRES_NEW` transaction; inside another write transaction it waits on SQLite's file lock until it
 times out. Use a `TransactionTemplate` for the writes and record afterwards
-(`ScimProvisioningService`, `VexIngestorService`).
+(`ScimProvisioningService`, `VexIngestorService`). **An audited wrapper beside a public unaudited
+body is an unaudited route waiting to be written**: the EPSS sync called `syncThreatIntel()` while
+the threat-intelligence sync called `syncThreatIntel(actor)`, and one gesture left an entry from
+one screen and none from the other. Keep the body private and the wrapper the only way in.
 
 **Every outbound call goes through `OutboundJson`/`OutboundPost` → `PinnedHttpSender`**, which
 resolves, pins and classifies the address and refuses redirects. Never build an `HttpClient` of
