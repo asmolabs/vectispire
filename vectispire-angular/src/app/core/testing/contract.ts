@@ -98,7 +98,19 @@ const ROLES = ['SUPERUSER', 'ADMIN', 'CISO', 'SECURITY_CHAMPION', 'AUDITOR', 'US
 const SCAN_STATUSES = ['pending', 'scanning', 'completed', 'failed']; // ScanStatus
 const ISSUE_STATES = ['open', 'resolved']; // IssueState
 const ISSUE_SEVERITIES = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']; // Severity
-const FINDING_TYPES = ['vulnerability', 'secret', 'iac', 'license', 'eol', 'sast', 'ai_review', 'quality']; // FindingType
+const FINDING_TYPES = [
+    'vulnerability',
+    'secret',
+    'iac',
+    'license',
+    'eol',
+    'sast',
+    'ai_review',
+    'plugin',
+    'imported',
+    'quality'
+]; // FindingType
+const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome.PRODUCED, NOT_APPLICABLE, ABSENT
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
 
 const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
@@ -117,6 +129,8 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     IssueView: ISSUE,
     ObservedIssue: ISSUE,
     BacklogEntry: ISSUE,
+    FindingView: { type: FINDING_TYPES },
+    PluginOutcome: { state: PLUGIN_STATES },
     TriageRequest: { status: TRIAGE_STATUSES },
     BulkTriageRequest: { status: TRIAGE_STATUSES }
 };

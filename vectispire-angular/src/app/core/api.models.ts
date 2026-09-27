@@ -309,6 +309,16 @@ export type Issue = Refine<
         /** Days until due, **negative when late**. One signed field: "3 days late" and "due in 12
          *  days" are one measurement read from opposite sides. */
         slaDays: number | null;
+        /**
+         * Where a `plugin` or `imported` issue came from (decision 0017): `tool` is the key that
+         * scopes its resolution (`plugin:<id>`, `import:<source>/<tool>`), `toolName` and
+         * `toolVersion` what the report's driver said, `importSource` the declared source's slug —
+         * kept after the source is deleted. All four null for what Vectispire's own scanners found.
+         */
+        tool: string | null;
+        toolName: string | null;
+        toolVersion: string | null;
+        importSource: string | null;
     }
 >;
 
@@ -915,6 +925,10 @@ export type ScanFinding = Refine<
         line: number | null;
         description: string | null;
         link: string | null;
+        /** Set for a plugin's findings: `plugin:<id>`, and what the report's driver said it was. */
+        tool: string | null;
+        toolName: string | null;
+        toolVersion: string | null;
     }
 >;
 
@@ -940,6 +954,12 @@ export type ScanDetail = Refine<
          * may carry no manifest, or one that names its ecosystem without stating a version.
          */
         projectVersion: string | null;
+        /**
+         * Each plugin of the scan in one of its three states; empty for a scan that ran none. A
+         * plugin the scan should have run and that is missing here was not examined — the list is
+         * not a claim that everything expected ran.
+         */
+        plugins: PluginOutcome[];
     }
 >;
 
@@ -1217,6 +1237,11 @@ export type IssueDetail = Refine<
         reachableSymbols?: string | null;
         sightings: IssueSighting[];
         decisions: HistoryDecision[];
+        /** The provenance of a `plugin` or `imported` issue — see {@link Issue}. */
+        tool: string | null;
+        toolName: string | null;
+        toolVersion: string | null;
+        importSource: string | null;
     }
 >;
 
@@ -1274,6 +1299,11 @@ export type GatePolicies = Refine<
  * `fail_on_uncovered_languages` is the exception: it did not exist before, so absent means "the
  * behaviour you already had". It is still sent here so the form says what it does, but the type
  * allows it absent as the server does.
+ *
+ * `include_plugins` is the same kind of late field, and **absent reads as off** on the server. The
+ * form did not send it, so a policy saved with plugin findings switched on would have been stored
+ * with them off, under a version number claiming somebody chose that. It is claimed here, so a
+ * form that forgets it no longer compiles.
  */
 export type GatePolicyRequest = Refine<
     Schema<'PolicyRequest'>,
@@ -1283,6 +1313,7 @@ export type GatePolicyRequest = Refine<
         fixable_only: boolean;
         include_triaged: boolean;
         include_ai_review: boolean;
+        include_plugins: boolean;
         fail_on_uncovered_languages: boolean;
         note: string | null;
     }
@@ -1970,3 +2001,126 @@ export type ComplianceStep = Refine<
 >;
 
 export type ComplianceSeries = Refine<Schema<'Series'>, { framework: ComplianceFramework; steps: ComplianceStep[] }>;
+
+/**
+ * A language a plugin can declare — the Semgrep catalogue's directories, read from the document so a
+ * language added on the server reaches the form without being retyped here.
+ */
+export type PluginLanguage = NonNullable<Schema<'PluginManifest'>['languages']>[number];
+
+/**
+ * A plugin's manifest (decision 0017), **as the governor wrote it and the server stored it.**
+ *
+ * The id enters every issue fingerprint the plugin produces, and the digest the server computes
+ * covers every field, so nothing here is cosmetic: an argument edited is a new manifest.
+ */
+export type PluginManifest = Refine<
+    Schema<'PluginManifest'>,
+    {
+        id: string;
+        name: string;
+        /** `repository@sha256:<64 hex>`, never a tag. */
+        image: string;
+        languages: PluginLanguage[];
+        arguments: string[];
+        output: string | null;
+        exit_codes: number[];
+        network_justification: string | null;
+        /** Null: the scanner limits' own timeout. */
+        timeout_seconds: number | null;
+    }
+>;
+
+/** A registered plugin: the manifest it runs now, and who registered and last changed it. */
+export type Plugin = Refine<
+    Schema<'PluginView'>,
+    {
+        id: string;
+        name: string;
+        manifest: PluginManifest;
+        manifestDigest: string;
+        createdAt: string | null;
+        createdBy: string | null;
+        updatedAt: string | null;
+        updatedBy: string | null;
+    }
+>;
+
+/** A plugin switched on for one project. */
+export type PluginActivation = Refine<
+    Schema<'PluginActivationView'>,
+    { id: number; pluginId: string; projectId: number; activatedAt: string | null; activatedBy: string | null }
+>;
+
+/**
+ * The three ends of a plugin's step (`PluginOutcome.PRODUCED`, `NOT_APPLICABLE`, `ABSENT`).
+ *
+ * The document types `state` as a plain string; the server writes one of these three constants and
+ * nothing else. **`not_applicable` is not a failure and `absent` is** — the screens must not blur
+ * the two, because one of them is somebody's problem and the other would be noise on every scan.
+ */
+export type PluginState = 'produced' | 'not_applicable' | 'absent';
+
+export type PluginOutcome = Refine<
+    Schema<'PluginOutcome'>,
+    {
+        pluginId: string;
+        manifestDigest: string | null;
+        state: PluginState;
+        /** Produced only: how many findings the report carried. */
+        findings: number | null;
+        /** Not applicable only: the languages it looked for and did not find. */
+        languages: string[];
+        /** Absent only: why no usable report came back. */
+        reason: string | null;
+    }
+>;
+
+/**
+ * A declared internal source of SARIF (decision 0017 §7): one integration key, exactly one scope —
+ * a project or a repository, never both, never the estate — and the tools it may deliver.
+ */
+export type SarifSource = Refine<
+    Schema<'SarifSourceView'>,
+    {
+        id: number;
+        slug: string;
+        name: string;
+        apiKeyId: string;
+        projectId: number | null;
+        repositoryId: number | null;
+        tools: string[];
+        createdAt: string | null;
+        createdBy: string | null;
+    }
+>;
+
+/** The body declaring a source. Exactly one of `project_id` and `repository_id`. */
+export type SarifSourceDeclaration = Refine<
+    Schema<'SourceDeclaration'>,
+    {
+        slug: string;
+        name: string;
+        api_key_id: string;
+        tools: string[];
+    }
+>;
+
+/**
+ * One accepted import: the imported issue's dated evidence, where a scanned issue has its scan.
+ * `tools` is the report's tools as one string, joined by the server.
+ */
+export type SarifImport = Refine<
+    Schema<'SarifImportView'>,
+    {
+        id: number;
+        sourceId: number | null;
+        sourceSlug: string;
+        repoId: number;
+        tools: string;
+        documentSha256: string;
+        importedAt: string;
+        importedBy: string | null;
+        apiKeyId: string | null;
+    }
+>;
