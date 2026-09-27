@@ -313,7 +313,7 @@ public class AgentsController {
         };
     }
 
-    private static AgentView authenticate(VectispirePrincipal principal) {
+    private AgentView authenticate(VectispirePrincipal principal) {
         AgentView agent = principal == null
                 ? null
                 : principal.agent().orElse(null);
@@ -321,7 +321,7 @@ public class AgentsController {
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED, "API key absent, invalid, or without the \"agent\" scope.");
         }
-        if (!agent.enabled()) {
+        if (!protocol.admits(agent)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Agent \"" + agent.name() + "\" is disabled.");
         }
         return agent;

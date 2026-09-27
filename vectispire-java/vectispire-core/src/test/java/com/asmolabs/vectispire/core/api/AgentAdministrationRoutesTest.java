@@ -113,6 +113,46 @@ class AgentAdministrationRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("a disabled agent's key still authenticates, and the protocol refuses it with 401 until it is enabled again")
+    void aDisabledAgentTakesNoPart() throws Exception {
+        // Nothing pinned this refusal while it sat in the controller's guard; it is
+        // AgentProtocolService.admits since, and every protocol route asks it.
+        JsonNode declared = json.readTree(mvc.perform(authenticated(post("/api/v1/admin/agents"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\": \"edge-4\"}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        UUID id = UUID.fromString(declared.get("id").asText());
+        String bearer = "Bearer " + declared.get("secret").asText();
+        String hello = "{\"contract_version\": \"" + AgentContract.VERSION + "\"}";
+
+        mvc.perform(authenticated(patch("/api/v1/admin/agents/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\": false}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/v1/agent/hello")
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(hello))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/agent/jobs/1/heartbeat").header("Authorization", bearer))
+                .andExpect(status().isUnauthorized());
+        assertThat(agents.findById(id).orElseThrow().getLastSeenAt()).isNull();
+
+        mvc.perform(authenticated(patch("/api/v1/admin/agents/" + id), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"enabled\": true}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/v1/agent/hello")
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(hello))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("refuses an unknown credentials mode without writing anything")
     void refusesUnknownMode() throws Exception {
         mvc.perform(authenticated(post("/api/v1/admin/agents"), asAdmin())

@@ -107,6 +107,21 @@ public class AgentProtocolService {
     }
 
     /**
+     * Whether this agent takes part in the protocol at all — every route of it asks first.
+     *
+     * <p><b>Disabling an agent is how an administrator stops it without destroying its key</b>: its
+     * row, labels and pinned keys stay, so it can be turned back on. The key still authenticates, so
+     * this is the one place that stops a disabled agent claiming work, fetching rules or handing back
+     * a result. It sat in the controller as a line of its guard; a second entry point to the
+     * protocol would have had to know to copy it.
+     *
+     * @param agent as the principal carries it, read from its row on this request
+     */
+    public boolean admits(AgentView agent) {
+        return agent.enabled();
+    }
+
+    /**
      * An agent's announcement, recorded as its heartbeat.
      *
      * <p>If this call answers, the URL, the key, the scope and the agent row are all correct —
