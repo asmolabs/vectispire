@@ -58,7 +58,7 @@ public class VexController {
             @PathVariable("scanId") Long scanId) {
         requireVisibleScan(principal, scanId);
         OpenVexDocument doc = vexService.generateForScan(scanId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found: " + scanId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + scanId + "-openvex.json\"")

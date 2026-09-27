@@ -19,7 +19,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -110,7 +109,7 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
         // **Read without creating.** A bucket appears the first time an address fails, so an
         // estate of well-configured agents leaves this map empty and pays one hash lookup.
         if (bucket != null && bucket.getAvailableTokens() <= 0) {
-            refuse(response, bucket);
+            refuse(request, response, bucket);
             return;
         }
 
@@ -146,14 +145,12 @@ public class BearerRateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private void refuse(HttpServletResponse response, Bucket bucket) throws IOException {
+    private void refuse(HttpServletRequest request, HttpServletResponse response, Bucket bucket) throws IOException {
         long retryAfter = Math.max(1, secondsUntilRefill(bucket));
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfter));
-        response.getWriter().write(
-                "{\"message\":\"Too many refused credentials from this address. Try again in %d seconds.\"}"
-                        .formatted(retryAfter));
+        ProblemResponses.write(request, response, HttpStatus.TOO_MANY_REQUESTS,
+                "Too many refused credentials from this address. Try again in %d seconds.".formatted(retryAfter),
+                Map.of("retryAfterSeconds", retryAfter));
     }
 
     private long secondsUntilRefill(Bucket bucket) {

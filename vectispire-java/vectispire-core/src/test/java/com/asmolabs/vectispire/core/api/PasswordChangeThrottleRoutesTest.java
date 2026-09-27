@@ -116,11 +116,11 @@ class PasswordChangeThrottleRoutesTest extends ApiTestBase {
         // The challenge went with the refusal: reactivating the account does not revive it.
         saved.setIsActive(true);
         users.save(saved);
-        String again = mvc.perform(post("/api/v1/auth/mfa/verify")
+        String again = detailOf(mvc.perform(post("/api/v1/auth/mfa/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(new AuthController.MfaVerifyRequest(challenge, backup))))
                 .andExpect(status().isUnauthorized())
-                .andReturn().getResponse().getErrorMessage();
+                .andReturn());
         assertThat(again).contains("expired or is invalid");
     }
 }

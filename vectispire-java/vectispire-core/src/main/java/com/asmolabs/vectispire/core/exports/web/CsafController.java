@@ -45,7 +45,7 @@ public class CsafController {
             @PathVariable("scanId") Long scanId) {
         requireVisibleScan(principal, scanId);
         CsafDocument doc = csafService.generateForScan(scanId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found: " + scanId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + scanId + "-csaf.json\"")

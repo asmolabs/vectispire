@@ -341,7 +341,7 @@ public class AuthController {
      */
     private static ResponseStatusException throttled(java.time.Duration retryAfter) {
         long seconds = Math.max(1, retryAfter.toSeconds());
-        return new ResponseStatusException(
+        ResponseStatusException refusal = new ResponseStatusException(
                 HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Try again in " + seconds + "s.") {
             @Override
             public org.springframework.http.HttpHeaders getHeaders() {
@@ -351,6 +351,9 @@ public class AuthController {
                 return headers;
             }
         };
+        // And in the problem, where the sign-in screen reads it — as the address limiter now sends it.
+        refusal.getBody().setProperty("retryAfterSeconds", seconds);
+        return refusal;
     }
 
 }

@@ -185,6 +185,23 @@ abstract class ApiTestBase extends VectispireContextTest {
         return request.header("Authorization", "Bearer " + token);
     }
 
+    /**
+     * The problem's {@code detail}: the sentence a client reads.
+     *
+     * <p><b>Not {@code getErrorMessage()}.</b> That is the reason passed to {@code sendError}, which
+     * MockMvc records and a real container drops on its way to the error page — these tests read it
+     * and passed while no client ever received the sentence they checked.
+     */
+    protected String detailOf(org.springframework.test.web.servlet.MvcResult result) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode detail =
+                    json.readTree(result.getResponse().getContentAsString()).get("detail");
+            return detail == null || detail.isNull() ? null : detail.asText();
+        } catch (Exception unreadable) {
+            throw new IllegalStateException("not a problem document: " + unreadable.getMessage(), unreadable);
+        }
+    }
+
     protected String write(Object body) {
         try {
             return json.writeValueAsString(body);

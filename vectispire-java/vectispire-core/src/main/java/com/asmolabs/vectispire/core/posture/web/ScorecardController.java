@@ -59,8 +59,11 @@ public class ScorecardController {
         // A scorecard is a target's posture in a number, and the number is the interesting part
         // to somebody who was not given the target: it says how exposed a neighbouring team is.
         requireVisible(principal, new ScanTarget.Repository(repoId));
+        // The guard's own sentence, not "Repository not found: 7": since a reason reaches the
+        // client as the problem's detail, a second wording on this route would tell an absent
+        // repository from a hidden one.
         return scorecardService.getRepositoryScorecard(repoId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found."));
     }
 
     @Operation(summary = "Get container scorecard", description = "Calculates security grade and risk posture for a container image.")
@@ -72,7 +75,7 @@ public class ScorecardController {
             @Parameter(description = "Container ID", required = true) @PathVariable("containerId") Long containerId) {
         requireVisible(principal, new ScanTarget.Container(containerId));
         return scorecardService.getContainerScorecard(containerId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Container not found: " + containerId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Target not found."));
     }
 
     @Operation(summary = "Get global scorecard", description = "Calculates cross-organizational aggregate security posture grade.")
@@ -131,7 +134,7 @@ public class ScorecardController {
             @Parameter(description = "Repository ID", required = true) @PathVariable("repoId") Long repoId) {
 
         return stateOf(badges.state(repoId, allowed(principal))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found.")));
     }
 
     /**
@@ -153,7 +156,7 @@ public class ScorecardController {
             HttpServletRequest request) {
 
         return stateOf(badges.publish(repoId, allowed(principal), RequestActors.of(principal, request))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found.")));
     }
 
     /** Revokes the badge. Every README carrying the old URL starts answering 404. */
@@ -166,7 +169,7 @@ public class ScorecardController {
             HttpServletRequest request) {
 
         return stateOf(badges.revoke(repoId, allowed(principal), RequestActors.of(principal, request))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found: " + repoId)));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Repository not found.")));
     }
 
     private static BadgeState stateOf(ScorecardBadgeService.Badge badge) {

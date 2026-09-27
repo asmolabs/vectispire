@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.UriUtils;
@@ -156,13 +155,15 @@ public class LoginRateLimitFilter extends OncePerRequestFilter {
             if (!probe.isConsumed()) {
                 long retryAfterSeconds = Math.max(1, probe.getNanosToWaitForRefill() / 1_000_000_000L);
 
-                response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
                 response.setHeader("X-Rate-Limit-Retry-After-Seconds", String.valueOf(retryAfterSeconds));
-                response.getWriter().write("""
-                        {"message":"Rate limit exceeded. Too many login attempts. Please try again in %d seconds."}
-                        """.formatted(retryAfterSeconds).trim());
+                // `retryAfterSeconds` in the body as well as the header: the sign-in screen reads it
+                // there to say how long to wait, and no limiter had ever sent it — the screen showed
+                // "the server answered 429" instead, from the day it was written.
+                ProblemResponses.write(request, response, HttpStatus.TOO_MANY_REQUESTS,
+                        "Rate limit exceeded. Too many login attempts. Please try again in %d seconds."
+                                .formatted(retryAfterSeconds),
+                        Map.of("retryAfterSeconds", retryAfterSeconds));
                 return;
             }
         }

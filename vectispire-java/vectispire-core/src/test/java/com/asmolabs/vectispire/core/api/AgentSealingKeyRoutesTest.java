@@ -166,7 +166,8 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
 
         announce(agent, pair.publicKey(), 1_000L, selfSigned)
                 .andExpect(status().isPreconditionFailed())
-                .andExpect(status().reason(org.hamcrest.Matchers.containsString("No signing key is pinned")));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.detail")
+                        .value(org.hamcrest.Matchers.containsString("No signing key is pinned")));
 
         assertThat(row(agent).getSealingPublicKey()).isNull();
     }

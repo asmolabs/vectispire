@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -107,11 +106,8 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             // RFC 9457, the shape `ApiExceptionHandler` gives the same refusal found while reading:
             // the client reads `detail`, and one 413 must not answer in two shapes depending on
             // which of the two checks caught the body.
-            response.setStatus(HttpStatus.CONTENT_TOO_LARGE.value());
-            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-            response.getWriter().write(
-                    "{\"type\":\"about:blank\",\"title\":\"Content Too Large\",\"status\":413,\"detail\":\"%s\"}"
-                            .formatted(new RequestBodyTooLargeException(ceiling).getMessage()));
+            ProblemResponses.write(request, response, HttpStatus.CONTENT_TOO_LARGE,
+                    new RequestBodyTooLargeException(ceiling).getMessage());
             return;
         }
         chain.doFilter(new Bounded(request, ceiling), response);

@@ -46,7 +46,7 @@ public class CycloneDxController {
             @PathVariable("scanId") Long scanId) {
         requireVisibleScan(principal, scanId);
         CycloneDxDocument doc = cycloneDxService.generateForScan(scanId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found: " + scanId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"scan-" + scanId + "-cyclonedx-vex.json\"")

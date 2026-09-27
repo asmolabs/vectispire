@@ -5,33 +5,53 @@ import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
 import com.asmolabs.vectispire.common.domain.scheduling.InvalidCronExpressionException;
+import com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException;
+import com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException;
 import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
+import com.asmolabs.vectispire.core.plugins.PluginConflictException;
+import com.asmolabs.vectispire.core.plugins.SarifImportRefusedException;
+import com.asmolabs.vectispire.core.plugins.SarifTooLargeException;
 import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import java.util.NoSuchElementException;
+import org.jspecify.annotations.Nullable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
- * How a domain refusal becomes an HTTP status.
+ * How a refusal becomes an HTTP answer: an RFC 9457 problem, always with a {@code detail}.
  *
  * <p><b>The mapping is here and nowhere else.</b> Scattering it across the controllers is how
  * the same refusal comes to answer 400 on one route and 500 on another — and a 500 is what an
  * operator reports as a bug in Vectispire rather than as a mistake in their own request.
+ *
+ * <p><b>One shape for every error, the framework's included.</b> Only the exceptions listed below
+ * used to answer a problem. A {@code ResponseStatusException} — forty-three of them, each with a
+ * sentence written for the caller — and every refusal Spring MVC makes on its own (an unknown route,
+ * a wrong method or media type, a body that is not JSON) went to the container's error page instead:
+ * {@code {timestamp, status, error, path}}, no {@code detail}, so the interface's {@code messageOf}
+ * found nothing to show and fell back to its generic sentence. Extending {@link
+ * ResponseEntityExceptionHandler} makes Spring's own refusals problems; a {@code
+ * ResponseStatusException} is one of them, and its reason becomes the {@code detail}.
  *
  * <p>Every message below is meant to be shown as it stands. These exceptions carry text written
  * for the person who triggered them; replacing it with a generic sentence would throw away the
  * only part that helps.
  */
 @RestControllerAdvice
-public class ApiExceptionHandler {
+public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     /** A malformed request: the caller can fix it and try again. */
     @ExceptionHandler({
@@ -76,23 +96,25 @@ public class ApiExceptionHandler {
      * A SARIF upload refused for who sent it or what it claims — a session, an undeclared key, an
      * undeclared tool. 403: the route exists for a declared source, and saying so names no repository.
      */
-    @ExceptionHandler(com.asmolabs.vectispire.core.plugins.SarifImportRefusedException.class)
-    ProblemDetail sarifImportRefused(com.asmolabs.vectispire.core.plugins.SarifImportRefusedException error) {
+    @ExceptionHandler(SarifImportRefusedException.class)
+    ProblemDetail sarifImportRefused(SarifImportRefusedException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
     }
 
     /** A key or an agent credential on a route that did not invite it (decision 0024). */
-    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException.class)
-    ProblemDetail credentialNotAccepted(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException error) {
+    @ExceptionHandler(CredentialNotAcceptedException.class)
+    ProblemDetail credentialNotAccepted(CredentialNotAcceptedException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
     }
 
-    @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException.class)
-    org.springframework.http.ResponseEntity<ProblemDetail> apiKeyRateLimited(
-            com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedException error) {
-        return org.springframework.http.ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", String.valueOf(Math.max(1, error.retryAfter().toSeconds())))
-                .body(ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage()));
+    @ExceptionHandler(ApiKeyRateLimitedException.class)
+    ResponseEntity<ProblemDetail> apiKeyRateLimited(ApiKeyRateLimitedException error) {
+        long seconds = Math.max(1, error.retryAfter().toSeconds());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, error.getMessage());
+        problem.setProperty("retryAfterSeconds", seconds);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem);
     }
 
     /**
@@ -119,7 +141,7 @@ public class ApiExceptionHandler {
         ScanTriggerService.AlreadyQueuedException.class,
         AttestationService.NotAttestableException.class,
         SolutionAdministrationService.SolutionNotEmptyException.class,
-        com.asmolabs.vectispire.core.plugins.PluginConflictException.class
+        PluginConflictException.class
     })
     ProblemDetail conflict(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
@@ -130,7 +152,7 @@ public class ApiExceptionHandler {
      * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
      * itself, before this point.
      */
-    @ExceptionHandler({RequestBodyTooLargeException.class, com.asmolabs.vectispire.core.plugins.SarifTooLargeException.class})
+    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class})
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }
@@ -139,5 +161,60 @@ public class ApiExceptionHandler {
     @ExceptionHandler(NoSuchElementException.class)
     ProblemDetail notFound(NoSuchElementException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, error.getMessage());
+    }
+
+    /**
+     * An unmapped path, in Vectispire's words.
+     *
+     * <p>Spring's own detail is "No static resource api/v1/…": the dispatcher looked for a file after
+     * no controller matched, and says so. True of the implementation, and misleading to a client of
+     * an API, which asked for a route.
+     */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleNoResourceFoundException(
+            NoResourceFoundException error, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "Nothing is served at this path.");
+        return handleExceptionInternal(error, problem, headers, status, request);
+    }
+
+    /**
+     * A body that is not the JSON this route reads — or that is, and a value in it was refused.
+     *
+     * <p><b>The second case keeps its sentence.</b> A record that refuses a value in its constructor
+     * is reached through Jackson, which wraps the refusal; Spring then reports the wrapper, and its
+     * detail is "Failed to read request". Before this handler extended {@link
+     * ResponseEntityExceptionHandler}, the {@code IllegalArgumentException} mapping above caught the
+     * wrapped cause and its message reached the client; this keeps it doing so.
+     */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
+            org.springframework.http.converter.HttpMessageNotReadableException error,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        String detail = "The request body could not be read: it is not JSON, or not the shape this route expects.";
+        for (Throwable cause = error.getCause(); cause != null; cause = cause.getCause()) {
+            if (cause instanceof IllegalArgumentException refused && refused.getMessage() != null) {
+                detail = refused.getMessage();
+                break;
+            }
+        }
+        return handleExceptionInternal(error, ProblemDetail.forStatusAndDetail(status, detail), headers, status, request);
+    }
+
+    /**
+     * Every problem this class answers carries a {@code detail}.
+     *
+     * <p>A {@code ResponseStatusException} built without a reason, or a framework refusal whose
+     * message source has nothing for it, would otherwise answer a problem with no sentence at all —
+     * which the interface renders as its generic fallback, the defect this class exists to end. The
+     * status's own phrase is a poor sentence and still a better one than nothing.
+     */
+    @Override
+    protected ResponseEntity<Object> createResponseEntity(
+            @Nullable Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        if (body instanceof ProblemDetail problem && (problem.getDetail() == null || problem.getDetail().isBlank())) {
+            HttpStatus known = HttpStatus.resolve(statusCode.value());
+            problem.setDetail(known == null ? "The request was refused." : known.getReasonPhrase() + ".");
+        }
+        return super.createResponseEntity(body, headers, statusCode, request);
     }
 }

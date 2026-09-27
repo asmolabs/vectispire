@@ -14,7 +14,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -187,9 +186,12 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 .addFilterBefore(bearerRateLimit, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bearer, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(handling -> handling
-                        // 401 with no body and no `WWW-Authenticate` challenge: a browser
-                        // prompting for basic credentials over a token API helps nobody.
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        // 401 with no `WWW-Authenticate` challenge: a browser prompting for basic
+                        // credentials over a token API helps nobody. A problem body, like every
+                        // other refusal — it used to have none, the one error a client could
+                        // not read a sentence from.
+                        .authenticationEntryPoint((request, response, refused) -> ProblemResponses.write(
+                                request, response, HttpStatus.UNAUTHORIZED, UNAUTHENTICATED))
                         .accessDeniedHandler(auditingDeniedHandler()))
                 .authorizeHttpRequests(requests -> requests
                         // **The error dispatch is not a request.** When a handler throws, the
@@ -291,6 +293,11 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 .build();
     }
 
+    private static final String UNAUTHENTICATED =
+            "Authentication required: sign in, or send a valid credential as a bearer token.";
+
+    private static final String FORBIDDEN = "This credential is not allowed to call this route.";
+
     /**
      * A refusal is audited, and that is the point of overriding the default handler.
      *
@@ -309,7 +316,11 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                     who,
                     com.asmolabs.vectispire.core.access.web.security.TrustedProxies.resolvedClientAddress(request),
                     request.getHeader("User-Agent")));
-            response.sendError(HttpStatus.FORBIDDEN.value());
+            // Written here rather than by `sendError`, which re-dispatched to the container's error
+            // page and answered `{timestamp, status, error, path}` — the only 403 without a
+            // `detail`. The sentence names no role: a list of the roles a route admits is a map of
+            // whose credentials to go after.
+            ProblemResponses.write(request, response, HttpStatus.FORBIDDEN, FORBIDDEN);
         };
     }
 }

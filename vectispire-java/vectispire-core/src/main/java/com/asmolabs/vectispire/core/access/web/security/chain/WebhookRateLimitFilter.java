@@ -17,7 +17,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -98,26 +97,25 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
         Bucket bucket = buckets.computeIfAbsent(address, ignored -> newBucket());
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (!probe.isConsumed()) {
-            refuse(response, probe.getNanosToWaitForRefill() / 1_000_000_000L);
+            refuse(request, response, probe.getNanosToWaitForRefill() / 1_000_000_000L);
             return;
         }
         RateWindows.Outcome counted = shared.hit(RateWindows.Limit.TICKET_WEBHOOK, address, capacity, window);
         if (!counted.admitted()) {
-            refuse(response, counted.retryAfter().toSeconds());
+            refuse(request, response, counted.retryAfter().toSeconds());
             return;
         }
 
         chain.doFilter(request, response);
     }
 
-    private static void refuse(HttpServletResponse response, long seconds) throws IOException {
+    private static void refuse(HttpServletRequest request, HttpServletResponse response, long seconds)
+            throws IOException {
         long retryAfter = Math.max(1, seconds);
-        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfter));
-        response.getWriter().write(
-                "{\"message\":\"Too many webhook deliveries from this address. Try again in %d seconds.\"}"
-                        .formatted(retryAfter));
+        ProblemResponses.write(request, response, HttpStatus.TOO_MANY_REQUESTS,
+                "Too many webhook deliveries from this address. Try again in %d seconds.".formatted(retryAfter),
+                Map.of("retryAfterSeconds", retryAfter));
     }
 
     /** Matched on the routed path, so an encoded spelling of the route cannot step around it. */

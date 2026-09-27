@@ -110,7 +110,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
         for (int attempt = 1; attempt <= 2; attempt++) {
             MvcResult result = attempt(mfaToken, "00000" + attempt);
             assertThat(result.getResponse().getStatus()).isEqualTo(401);
-            assertThat(result.getResponse().getErrorMessage())
+            assertThat(detailOf(result))
                     .as("attempt %d must still be answered as a wrong code", attempt)
                     .contains("Invalid verification code");
         }
@@ -119,13 +119,13 @@ class MfaVerificationRoutesTest extends ApiTestBase {
         // many tries are left is telling an attacker.
         MvcResult third = attempt(mfaToken, "000003");
         assertThat(third.getResponse().getStatus()).isEqualTo(401);
-        assertThat(third.getResponse().getErrorMessage()).contains("Invalid verification code");
+        assertThat(detailOf(third)).contains("Invalid verification code");
 
         // The fourth finds no challenge at all: the token is spent, and the only way forward is
         // the password step again.
         MvcResult fourth = attempt(mfaToken, "000004");
         assertThat(fourth.getResponse().getStatus()).isEqualTo(401);
-        assertThat(fourth.getResponse().getErrorMessage())
+        assertThat(detailOf(fourth))
                 .as("the challenge must be gone, not merely refusing codes")
                 .contains("expired or is invalid");
     }
@@ -147,7 +147,7 @@ class MfaVerificationRoutesTest extends ApiTestBase {
 
         MvcResult result = attempt(second, "111111");
         assertThat(result.getResponse().getStatus()).isEqualTo(401);
-        assertThat(result.getResponse().getErrorMessage())
+        assertThat(detailOf(result))
                 .as("the new challenge must accept attempts, not inherit the old one's count")
                 .contains("Invalid verification code");
     }
