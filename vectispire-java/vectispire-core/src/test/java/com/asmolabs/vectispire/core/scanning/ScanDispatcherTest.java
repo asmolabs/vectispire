@@ -342,6 +342,34 @@ class ScanDispatcherTest {
         verify(queue, never()).claim(anyInt(), anyString(), any());
     }
 
+    /**
+     * {@code VECTISPIRE_SCAN_MAX_CONCURRENT} was compared with every scan running anywhere, so forty
+     * scans on remote agents left the built-in worker with no room at all on a machine doing nothing.
+     */
+    @Test
+    @DisplayName("the built-in worker's room is its limit less its own scans, whatever the agents run")
+    void theWorkersRoomIgnoresTheAgentsScans() {
+        when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
+        when(queue.countRunning()).thenReturn(40L);
+        when(queue.countHeld("worker-1")).thenReturn(1L);
+        when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of());
+
+        new ScanDispatcher(
+                        queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys),
+                        mock(ScanIngestor.class),
+                        new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
+                        settings, ruleSets, plugins, envelopes,
+                        new ScanningProperties(Optional.of("linux/amd64")),
+                        Optional.of(mock(ScanRunner.class)),
+                        mock(AuditLogService.class),
+                        mock(PlatformMetrics.class),
+                        new TransactionTemplate(mock(PlatformTransactionManager.class)),
+                        com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
+                .dispatch("worker-1", 3, List.of());
+
+        verify(queue).claim(2, "worker-1", List.of());
+    }
+
     @Test
     @DisplayName("a scan whose every step failed is recorded failed, not completed")
     void aScanThatExaminedNothingIsNotCompleted() {
@@ -386,7 +414,7 @@ class ScanDispatcherTest {
         ScanEntity scan = repositoryScan();
         queueHolds(scan);
         when(queue.renewLease(anyLong(), anyString())).thenReturn(false);
-        when(queue.countRunning()).thenReturn(0L);
+        when(queue.countHeld(anyString())).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
         ScanRunner runner = mock(ScanRunner.class);
 
@@ -417,7 +445,7 @@ class ScanDispatcherTest {
         when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
         when(queue.lease()).thenReturn(Duration.ofMinutes(20));
         when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
-        when(queue.countRunning()).thenReturn(0L);
+        when(queue.countHeld(anyString())).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
         ScanIngestor ingestor = mock(ScanIngestor.class);
         when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), Optional.empty(), java.time.Instant.EPOCH));
@@ -461,7 +489,7 @@ class ScanDispatcherTest {
         when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
         when(queue.lease()).thenReturn(Duration.ofMinutes(20));
         when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
-        when(queue.countRunning()).thenReturn(0L);
+        when(queue.countHeld(anyString())).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
 
         ScanIngestor ingestor = mock(ScanIngestor.class);

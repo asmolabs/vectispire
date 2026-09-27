@@ -165,6 +165,7 @@ Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses 
 sur la ligne de l'agent dans le plan de contrôle, de 1 à 16, et l'agent le lit dans chaque réponse à
 ses interrogations — voir
 [Mener plusieurs analyses en parallèle](../administration/agents.md#running-several-scans-at-once).
-`VECTISPIRE_SCAN_MAX_CONCURRENT` est celle du worker intégré, et n'a aucun effet sur un agent distant.
+`VECTISPIRE_SCAN_MAX_CONCURRENT` est celle du worker intégré, et n'a aucun effet sur un agent distant :
+elle compte les analyses que tient le worker de cette instance, jamais celles des agents.
 
 Voir [Agents](../administration/agents.md).

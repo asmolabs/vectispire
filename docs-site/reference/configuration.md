@@ -162,6 +162,7 @@ Then `http://localhost:3180/swagger-ui.html`.
 How many scans an agent runs at once is **not** one of its variables: it is set on the agent's row
 in the control plane, 1 to 16, and the agent reads it from every answer to its polls — see
 [Running several scans at once](../administration/agents.md#running-several-scans-at-once).
-`VECTISPIRE_SCAN_MAX_CONCURRENT` is the built-in worker's, and has no effect on a remote agent.
+`VECTISPIRE_SCAN_MAX_CONCURRENT` is the built-in worker's, and has no effect on a remote agent: it
+counts the scans this instance's worker holds, never those the agents run.
 
 See [Agents](../administration/agents.md).

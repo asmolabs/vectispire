@@ -166,8 +166,13 @@ public class ScanDispatcher {
             return Dispatched.NOTHING;
         }
 
+        // **This worker's own scans, not the queue's.** `maxConcurrent` is what this host can run,
+        // and it used to be compared with every scan running anywhere: a fleet of remote agents
+        // holding two scans left the built-in worker idle on a machine doing nothing, and one holding
+        // a hundred kept it idle until they finished. `countHeld` also leaves out a lapsed lease,
+        // which the reclaim above has just handed back anyway.
         int room = com.asmolabs.vectispire.common.domain.scans.ScanQueue.capacity(
-                maxConcurrent, (int) queue.countRunning());
+                maxConcurrent, (int) queue.countHeld(worker));
         if (room == 0) {
             return Dispatched.NOTHING;
         }
