@@ -155,7 +155,10 @@ class PluginsRoutesTest extends ApiTestBase {
 
             Map<String, Object> unknownLanguage = manifest("acme-lint", DIGEST);
             unknownLanguage.put("languages", List.of("cobol"));
-            register(governor(), unknownLanguage).andExpect(status().isBadRequest());
+            // The refusal is thrown inside Jackson, which wraps it; the sentence still has to arrive.
+            register(governor(), unknownLanguage)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(Matchers.startsWith("Unknown language \"cobol\"")));
         }
 
         @Test

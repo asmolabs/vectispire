@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.platform.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
@@ -17,13 +19,15 @@ import com.asmolabs.vectispire.core.plugins.SarifTooLargeException;
 import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
-import java.util.NoSuchElementException;
+import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -53,13 +57,22 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
-    /** A malformed request: the caller can fix it and try again. */
+    /**
+     * A malformed request: the caller can fix it and try again.
+     *
+     * <p><b>{@link InvalidInputException}, not {@link IllegalArgumentException}.</b> The second was
+     * mapped here, so every one answered 400 with its message — the sentences written for an
+     * operator, and alongside them Spring Data's "The given id must not be null", a JDK parser's
+     * "For input string", a crypto library's complaint about a key: internals on the wire, and a
+     * programming error reported as the caller's fault. A deliberate refusal now says so by its type;
+     * anything else is {@link #unexpected}.
+     */
     @ExceptionHandler({
         InvalidTriageException.class,
         InvalidRuleSetException.class,
         InvalidApiKeyException.class,
         InvalidCronExpressionException.class,
-        IllegalArgumentException.class
+        InvalidInputException.class
     })
     ProblemDetail badRequest(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, error.getMessage());
@@ -157,10 +170,37 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }
 
-    /** A row that is not there. Thrown by the {@code orElseThrow} of a lookup. */
-    @ExceptionHandler(NoSuchElementException.class)
-    ProblemDetail notFound(NoSuchElementException error) {
+    /**
+     * A row that is not there, or not the caller's — in the one sentence both get.
+     *
+     * <p>{@link NotFoundException} and not {@link java.util.NoSuchElementException}, which {@code
+     * Optional.orElseThrow()} throws: a lookup that cannot fail — the row a service has just saved —
+     * answered 404 "No value present" when it did, and the defect read as the absence of what the
+     * caller had asked for.
+     */
+    @ExceptionHandler(NotFoundException.class)
+    ProblemDetail notFound(NotFoundException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, error.getMessage());
+    }
+
+    /**
+     * Whatever nobody mapped: a 500 that quotes a reference, and the failure in the log under it.
+     *
+     * <p><b>Spring Security's own are handed back.</b> A {@code @PreAuthorize} refusal is thrown from
+     * the handler; answered here it would be a 500, and it would never reach the chain's denied
+     * handler, which is what audits it. Rethrowing the exception the resolver was given makes it
+     * pass this resolver silently, as if nothing had matched.
+     */
+    @ExceptionHandler(Exception.class)
+    ResponseEntity<ProblemDetail> unexpected(Exception error, HttpServletRequest request) throws Exception {
+        if (error instanceof AccessDeniedException || error instanceof AuthenticationException) {
+            throw error;
+        }
+        String reference = UnexpectedFailure.record(request.getMethod(), request.getRequestURI(), error);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR, UnexpectedFailure.detail(reference));
+        problem.setProperty(UnexpectedFailure.REFERENCE, reference);
+        return ResponseEntity.internalServerError().body(problem);
     }
 
     /**
@@ -183,8 +223,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * <p><b>The second case keeps its sentence.</b> A record that refuses a value in its constructor
      * is reached through Jackson, which wraps the refusal; Spring then reports the wrapper, and its
      * detail is "Failed to read request". Before this handler extended {@link
-     * ResponseEntityExceptionHandler}, the {@code IllegalArgumentException} mapping above caught the
-     * wrapped cause and its message reached the client; this keeps it doing so.
+     * ResponseEntityExceptionHandler}, the {@code IllegalArgumentException} mapping caught the
+     * wrapped cause and its message reached the client; this keeps it doing so for a refusal
+     * written as one, and for nothing else — Jackson's own messages quote the parser's position and
+     * the Java type it was building.
      */
     @Override
     protected @Nullable ResponseEntity<Object> handleHttpMessageNotReadable(
@@ -192,7 +234,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         String detail = "The request body could not be read: it is not JSON, or not the shape this route expects.";
         for (Throwable cause = error.getCause(); cause != null; cause = cause.getCause()) {
-            if (cause instanceof IllegalArgumentException refused && refused.getMessage() != null) {
+            if (cause instanceof InvalidInputException refused && refused.getMessage() != null) {
                 detail = refused.getMessage();
                 break;
             }

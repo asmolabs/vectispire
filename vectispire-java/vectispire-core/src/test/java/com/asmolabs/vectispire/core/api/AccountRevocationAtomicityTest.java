@@ -1,7 +1,6 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -66,13 +65,19 @@ class AccountRevocationAtomicityTest extends ApiTestBase {
                 .when(sessions)
                 .deleteByUserId(eq(target.getId()));
 
-        assertThatThrownBy(() -> mvc.perform(authenticated(
+        // A 500 answered by the handler, which quotes a reference and not the database's message —
+        // the failure escaped to the container before there was one.
+        var failed = mvc.perform(authenticated(
                         patch("/api/v1/users/" + target.getId())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"password\":\"" + NEW_PASSWORD + "\"}"),
-                        admin)))
-                .rootCause()
-                .isInstanceOf(QueryTimeoutException.class);
+                        admin))
+                .andReturn();
+        assertThat(failed.getResponse().getStatus()).isEqualTo(500);
+        assertThat(failed.getResponse().getContentAsString())
+                .contains("correlationId")
+                .doesNotContain("lock wait timeout")
+                .doesNotContain("t_session");
 
         UserEntity after = users.findById(target.getId()).orElseThrow();
 
