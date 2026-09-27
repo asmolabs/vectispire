@@ -96,6 +96,7 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 | Variable | Défaut | Notes |
 |---|---|---|
 | `VECTISPIRE_PLUGIN_REGISTRY` | *aucun* | Le registre interne depuis lequel chaque image de [plugin](../administration/plugins.md) est tirée — `registry.corp.example:5000/mirror`. L'hôte du registre de l'image est remplacé, son chemin et son digest conservés : le miroir peut servir un plugin mais pas en substituer un autre. Ni schéma, ni identifiant. Positionnez la même valeur sur chaque agent. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `false` | `true` : le worker intégré ne lance aucun plugin dont le manifeste ne déclare pas de [signataire](../administration/plugins.md#signer-limage) — il est absent du scan, et rien de lui n'est démarré. Un signataire déclaré est vérifié avec cosign avant le pull quoi que dise ce réglage. Positionnez-le aussi sur chaque agent : c'est la décision propre à chaque exécuteur. |
 
 ## Audit
 
@@ -142,6 +143,7 @@ Puis `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
 | `VECTISPIRE_PLUGIN_REGISTRY` | Le registre interne depuis lequel cet agent tire les images de plugins — hôte relogé, chemin et digest conservés. Vide, chacune est tirée de son propre registre, qu'un agent sur réseau fermé ne peut pas atteindre : le plugin est alors absent du scan et ses issues restent telles quelles. |
+| `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED` | `true` : cet agent ne lance aucun plugin dont le manifeste ne déclare pas de signataire, quoi qu'ait enregistré le plan de contrôle. Désactivé par défaut ; un signataire déclaré est vérifié avant le pull dans tous les cas. |
 
 Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses variables : il se règle
 sur la ligne de l'agent dans le plan de contrôle, de 1 à 16, et l'agent le lit dans chaque réponse à

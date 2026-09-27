@@ -33,7 +33,11 @@ records why they work the way they do.
   "exit_codes": [0, 1],
   "network": false,
   "network_justification": null,
-  "timeout_seconds": 600
+  "timeout_seconds": 600,
+  "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
 }
 ```
 
@@ -48,6 +52,7 @@ records why they work the way they do.
 | `exit_codes` | The exit codes that mean "analysed", findings or not. Default `[0]`. Any other code fails the plugin's step. |
 | `network` | `false` unless the plugin genuinely needs to reach something — an internal rule mirror. `true` requires `network_justification`, 20 to 500 characters, recorded in the audit log. |
 | `timeout_seconds` | 10 to 900. It can shorten the scanners' fifteen minutes, never extend them. |
+| `signature` | Optional: who must have signed the image — see [Signing the image](#signing-the-image). |
 
 ### What the plugin runs under
 
@@ -55,8 +60,13 @@ Exactly what every scanner Vectispire ships runs under — there is no option to
 
 - **the analysed tree only, read-only**, at `/repo/source` (the repository's sub-path, when it has
   one). Not the rest of the workspace;
-- **one empty writable directory**, `/repo/output`, where the report goes. Write logs to stdout or
-  stderr as you like — the report is read from the file;
+- **one empty writable directory**, `/repo/output`, where the report goes, **holding at most 256 MiB
+  and 4,096 files** — in memory, never on the scanning machine's disk. Write logs to stdout or stderr
+  as you like — the report is read from the file. **A plugin that fills the directory is absent**, even
+  if it then writes a valid report: a write was refused, so the report may be missing what it could not
+  write;
+- **no file larger than 256 MiB anywhere**, `/tmp` included: past it the write fails (`File too
+  large`) or the process is stopped;
 - **no network** unless the manifest declares it; **no Docker socket**, no capability,
   `no-new-privileges`, a **read-only root filesystem**, `/tmp` and `$HOME` as small `noexec` scratch
   space;
@@ -74,9 +84,45 @@ Try it with the same confinement before you register it:
 ```bash
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
   --read-only --tmpfs /tmp:rw,noexec,nosuid --user "$(id -u):$(id -g)" \
-  -v "$PWD:/repo/source:ro" -v "$PWD/out:/repo/output" \
+  --ulimit fsize=268435456 --tmpfs "/repo/output:rw,noexec,nosuid,size=256m,uid=$(id -u),gid=$(id -g)" \
+  -v "$PWD:/repo/source:ro" \
   registry.acme.internal/sec/acme-lint@sha256:… --sarif /repo/output/results.sarif /repo/source
 ```
+
+(Append `; cat /repo/output/results.sarif` to your command, or run it through a shell, to see the
+report: a tmpfs does not outlive the container.)
+
+### Signing the image
+
+The digest says **what** runs; a signature says **who built it**. Declare the signer in the manifest
+and every executor verifies the image with cosign **before pulling it**; an image that does not verify
+is never run, and the plugin is **absent** with cosign's reason.
+
+- **Keyless** (Sigstore): `identity` is the signing certificate's identity — for a GitHub Actions
+  workflow, `https://github.com/<owner>/<repo>/.github/workflows/<file>@refs/tags/<tag>` — and `issuer`
+  its OIDC issuer (`https://token.actions.githubusercontent.com` for GitHub Actions). **Both are
+  required and compared exactly**; there is no pattern matching. The executor needs to reach the
+  registry and Sigstore's public trust root.
+- **With your own key**: `"signature": {"public_key": "-----BEGIN PUBLIC KEY-----\n…"}`, the
+  `cosign.pub` of `cosign generate-key-pair`, and sign with `cosign sign --key cosign.key <image>@<digest>`.
+  The transparency log is not consulted: the executor needs your registry and nothing of Sigstore, and
+  your internal image names are published nowhere.
+
+Check your signature the way Vectispire will before you register:
+
+```bash
+cosign verify --certificate-identity "<identity>" --certificate-oidc-issuer "<issuer>" <image>@<digest>
+cosign verify --key cosign.pub --insecure-ignore-tlog=true <image>@<digest>
+```
+
+Changing the signer is a new manifest, audited like any other change. The verifier does not log in to
+your registry: the signature must be readable without credentials. A mirror set with
+`VECTISPIRE_PLUGIN_REGISTRY` must carry the signatures as well (`cosign copy` copies both).
+
+**Requiring a signature.** Set `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=true` on the control plane (for its
+built-in worker) and on each agent that should refuse unsigned code: a plugin whose manifest declares no
+signer is then absent on that executor, and nothing of it is started. It is each executor's own
+setting, because it is that machine that runs the code.
 
 ### What the report must say
 
@@ -122,7 +168,9 @@ Every signed-in account can read the registry (`GET /api/v1/plugins`).
 
 **An internal registry.** Set `VECTISPIRE_PLUGIN_REGISTRY` (and the same on each agent) to pull every
 plugin image from your mirror: the registry host is replaced, the path and the digest are kept, so the
-mirror can serve the image but not substitute another.
+mirror can serve the image but not substitute another. The mirror must also carry `library/busybox`,
+which holds each plugin's output directory, and — for signed plugins — `sigstore/cosign/cosign`, at the
+digests Vectispire pins.
 
 ## Switching it on for a project
 
@@ -145,7 +193,7 @@ Each plugin of a scan ends in one of three states:
 |---|---|---|
 | **produced** | It ran and its report was read. | Opened for what it reports; **resolved for what it no longer reports** — its own issues only. |
 | **not applicable** | None of its languages is in the repository; it was not started. | Left as they are. Not a failure. |
-| **absent** | It should have run and gave no usable report (pull failed, undeclared exit code, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
+| **absent** | It should have run and gave no usable report (signature not verified, pull failed, undeclared exit code, output directory full, no report, refused report, failed run). | Left as they are, and the scan lists the failure under `plugin <id>`. |
 
 The scan's detail lists each plugin with its state (`plugins`: `produced` with its number of findings,
 `not_applicable` with the languages it looked for, `absent` with the reason). On the scan's page, the

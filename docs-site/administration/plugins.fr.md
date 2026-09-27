@@ -33,7 +33,11 @@ consigne pourquoi ils fonctionnent ainsi.
   "exit_codes": [0, 1],
   "network": false,
   "network_justification": null,
-  "timeout_seconds": 600
+  "timeout_seconds": 600,
+  "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
 }
 ```
 
@@ -48,6 +52,7 @@ consigne pourquoi ils fonctionnent ainsi.
 | `exit_codes` | Les codes de sortie qui signifient « analysé », constats ou non. `[0]` par défaut. Tout autre code fait échouer l'étape du plugin. |
 | `network` | `false` sauf si le plugin doit vraiment atteindre quelque chose — un miroir interne de règles. `true` exige `network_justification`, de 20 à 500 caractères, inscrite au journal d'audit. |
 | `timeout_seconds` | 10 à 900. Il peut raccourcir les quinze minutes des scanners, jamais les allonger. |
+| `signature` | Facultatif : qui doit avoir signé l'image — voir [Signer l'image](#signer-limage). |
 
 ### Ce sous quoi le plugin tourne
 
@@ -56,8 +61,13 @@ l'assouplir :
 
 - **l'arbre analysé seulement, en lecture seule**, sur `/repo/source` (le sous-chemin du dépôt, s'il
   en a un). Pas le reste de l'espace de travail ;
-- **un seul répertoire accessible en écriture, vide**, `/repo/output`, où va le rapport. Écrivez vos
-  journaux sur la sortie standard ou d'erreur à votre guise — le rapport est lu dans le fichier ;
+- **un seul répertoire accessible en écriture, vide**, `/repo/output`, où va le rapport, **qui contient
+  au plus 256 Mio et 4 096 fichiers** — en mémoire, jamais sur le disque de la machine qui analyse.
+  Écrivez vos journaux sur la sortie standard ou d'erreur à votre guise — le rapport est lu dans le
+  fichier. **Un plugin qui remplit le répertoire est absent**, même s'il écrit ensuite un rapport valide :
+  une écriture a été refusée, le rapport peut donc manquer de ce qu'il n'a pas pu écrire ;
+- **aucun fichier de plus de 256 Mio nulle part**, `/tmp` compris : au-delà, l'écriture échoue (`File
+  too large`) ou le processus est arrêté ;
 - **pas de réseau** sauf si le manifeste le déclare ; **pas de socket Docker**, aucune capacité,
   `no-new-privileges`, un **système de fichiers racine en lecture seule**, `/tmp` et `$HOME` comme
   petits espaces temporaires `noexec` ;
@@ -75,9 +85,45 @@ Essayez-le sous le même confinement avant de l'enregistrer :
 ```bash
 docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
   --read-only --tmpfs /tmp:rw,noexec,nosuid --user "$(id -u):$(id -g)" \
-  -v "$PWD:/repo/source:ro" -v "$PWD/out:/repo/output" \
+  --ulimit fsize=268435456 --tmpfs "/repo/output:rw,noexec,nosuid,size=256m,uid=$(id -u),gid=$(id -g)" \
+  -v "$PWD:/repo/source:ro" \
   registry.acme.internal/sec/acme-lint@sha256:… --sarif /repo/output/results.sarif /repo/source
 ```
+
+(Ajoutez `; cat /repo/output/results.sarif` à votre commande, ou lancez-la par un shell, pour voir le
+rapport : un tmpfs ne survit pas au conteneur.)
+
+### Signer l'image
+
+Le digest dit **ce qui** tourne ; une signature dit **qui l'a construit**. Déclarez le signataire dans le
+manifeste et chaque exécuteur vérifie l'image avec cosign **avant de la tirer** ; une image qui ne se
+vérifie pas n'est jamais lancée, et le plugin est **absent** avec la raison donnée par cosign.
+
+- **Sans clé** (Sigstore) : `identity` est l'identité du certificat de signature — pour un workflow
+  GitHub Actions, `https://github.com/<owner>/<repo>/.github/workflows/<fichier>@refs/tags/<tag>` — et
+  `issuer` son émetteur OIDC (`https://token.actions.githubusercontent.com` pour GitHub Actions). **Les
+  deux sont obligatoires et comparés à l'identique** ; il n'y a pas de motif. L'exécuteur doit atteindre
+  le registre et la racine de confiance publique de Sigstore.
+- **Avec votre propre clé** : `"signature": {"public_key": "-----BEGIN PUBLIC KEY-----\n…"}`, le
+  `cosign.pub` de `cosign generate-key-pair`, et signez avec `cosign sign --key cosign.key <image>@<digest>`.
+  Le journal de transparence n'est pas consulté : l'exécuteur a besoin de votre registre et de rien de
+  Sigstore, et les noms de vos images internes ne sont publiés nulle part.
+
+Vérifiez votre signature comme Vectispire le fera avant d'enregistrer :
+
+```bash
+cosign verify --certificate-identity "<identité>" --certificate-oidc-issuer "<émetteur>" <image>@<digest>
+cosign verify --key cosign.pub --insecure-ignore-tlog=true <image>@<digest>
+```
+
+Changer de signataire est un nouveau manifeste, audité comme tout autre changement. Le vérificateur ne
+s'authentifie pas auprès de votre registre : la signature doit être lisible sans identifiants. Un miroir
+réglé par `VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` copie les deux).
+
+**Exiger une signature.** Positionnez `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED=true` sur le plan de contrôle
+(pour son worker intégré) et sur chaque agent qui doit refuser du code non signé : un plugin dont le
+manifeste ne déclare aucun signataire y est alors absent, et rien de lui n'est démarré. C'est le réglage
+propre à chaque exécuteur, parce que c'est cette machine-là qui lance le code.
 
 ### Ce que le rapport doit dire
 
@@ -126,6 +172,8 @@ Tout compte connecté peut lire le registre (`GET /api/v1/plugins`).
 **Un registre interne.** Positionnez `VECTISPIRE_PLUGIN_REGISTRY` (et la même chose sur chaque agent)
 pour tirer chaque image de plugin depuis votre miroir : l'hôte du registre est remplacé, le chemin et
 le digest sont conservés, de sorte que le miroir peut servir l'image mais pas en substituer une autre.
+Le miroir doit aussi porter `library/busybox`, qui tient le répertoire de sortie de chaque plugin, et —
+pour les plugins signés — `sigstore/cosign/cosign`, aux digests qu'épingle Vectispire.
 
 ## L'activer pour un projet
 
@@ -148,7 +196,7 @@ Chaque plugin d'un scan finit dans l'un de trois états :
 |---|---|---|
 | **produit** | Il a tourné et son rapport a été lu. | Ouvertes pour ce qu'il rapporte ; **résolues pour ce qu'il ne rapporte plus** — ses propres issues seulement. |
 | **non applicable** | Aucun de ses langages n'est dans le dépôt ; il n'a pas été lancé. | Laissées telles quelles. Pas un échec. |
-| **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (pull en échec, code de sortie non déclaré, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
+| **absent** | Il aurait dû tourner et n'a donné aucun rapport exploitable (signature non vérifiée, pull en échec, code de sortie non déclaré, répertoire de sortie plein, pas de rapport, rapport refusé, run en échec). | Laissées telles quelles, et le scan liste l'échec sous `plugin <id>`. |
 
 Le détail du scan liste chaque plugin avec son état (`plugins` : `produced` avec son nombre de
 constats, `not_applicable` avec les langages qu'il cherchait, `absent` avec la raison). Sur la page du

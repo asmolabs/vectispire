@@ -131,9 +131,14 @@ import's issues the first time one of them came back clean.
 **A plugin runs in the scanners' closed shape, and nothing loosens it.** Through `ContainerRunner`
 and `ContainerRun.of` — no network unless the manifest declares it with a justification, not root
 (the workspace owner, never `runningAsRoot`), the analysed tree read-only and **never the workspace
-root** (it holds the secrets report in the clear), one writable output directory, the report read as
-a regular file up to the scanner output ceiling. A task names a plugin by id **and manifest digest**,
-and the executor refuses a manifest that does not hash to it. Registration is the platform
+root** (it holds the secrets report in the clear), one writable output that **cannot outgrow the
+ceiling** (`ContainerRun.withBoundedOutput`: a tmpfs volume kept by a holder, `fsize`, `nr_inodes` —
+never a bind of a host directory, which carries no size, and never `HostConfig.Tmpfs`, which the
+archive API cannot read back), the report read as a regular file up to the scanner output ceiling. A
+task names a plugin by id **and manifest digest**, and the executor refuses a manifest that does not
+hash to it. A declared signer is verified by the pinned cosign **before the pull**, and anything but its
+exit 0 is absent; a field added to the manifest joins the digest only when present, or every stored
+manifest stops hashing to its key. Registration is the platform
 governor's (`@RequiresPlatformGovernor`); activation is per project; SARIF is imported only through
 a declared source's `sarif_import` key, for its scope and its declared tools.
 
