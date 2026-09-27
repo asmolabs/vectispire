@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,9 @@ class EpssRoutesTest extends ApiTestBase {
 
     @Autowired
     private IssueRepository issuesRepo;
+
+    @Autowired
+    private ThreatIntelRepository intel;
 
     /**
      * The field is called {@code topPriorities}, and it used to return the whole estate.
@@ -130,14 +135,27 @@ class EpssRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.topPriorities[0].priorityTier").value("CRITICAL_ARMED"))
                 .andExpect(jsonPath("$.topPriorities[0].priorityScore").isNumber());
 
+        // What the feed table holds, and nothing else: the lookup used to fall back on ten records
+        // typed into the service, so this answered on an installation that had read no catalogue.
         mvc.perform(authenticated(get("/api/v1/epss/cve/CVE-2021-44228"), token))
+                .andExpect(status().isNotFound());
+        ThreatIntelEntity listed = new ThreatIntelEntity();
+        listed.setCveId("CVE-2021-44228");
+        listed.setKev(true);
+        listed.setEpssScore(0.975);
+        listed.setDateAdded(Instant.parse("2021-12-10T00:00:00Z"));
+        intel.save(listed);
+        mvc.perform(authenticated(get("/api/v1/epss/cve/cve-2021-44228"), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cveId").value("CVE-2021-44228"))
                 .andExpect(jsonPath("$.isKev").value(true))
                 .andExpect(jsonPath("$.epssScore").value(0.975));
 
+        // No test reaches CISA (the suite's catalogue address cannot resolve): the sync answers, and
+        // says it failed and why, rather than claiming a catalogue it never read.
         mvc.perform(authenticated(post("/api/v1/epss/sync"), token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("SYNCED"));
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.lastError").isString());
     }
 }

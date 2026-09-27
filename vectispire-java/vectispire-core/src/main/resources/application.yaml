@@ -109,6 +109,16 @@ vectispire:
     # The agent has the same setting for its own host (decision 0017).
     plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:false}
 
+  threat-intel:
+    # **Where the CISA KEV catalogue is read from**, every six hours and on a lead's demand. Blank
+    # reads CISA's own (`known_exploited_vulnerabilities.json`); set it to a mirror for an estate that
+    # cannot reach cisa.gov. The document must be the whole catalogue, in CISA's format: a partial one
+    # is refused, because what it leaves out would be read as "no longer exploited".
+    kev-url: ${VECTISPIRE_KEV_URL:}
+    # A mirror inside the estate resolves to a private address, which the outbound guard refuses
+    # unless this says otherwise. Link-local — the cloud metadata endpoint — stays refused regardless.
+    kev-allow-private: ${VECTISPIRE_KEV_ALLOW_PRIVATE:false}
+
   branding:
     # **The two nested chains in this file are the only real ones, and they are here on purpose.**
     # Each name is an earlier spelling kept working for deployments that already set it, tried in

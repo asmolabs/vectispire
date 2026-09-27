@@ -5626,9 +5626,16 @@ export interface components {
         ThreatIntelSyncStatus: {
             /** Format: int64 */
             backlogUpdatedCount: number;
+            kevCatalogVersion?: string;
+            /** Format: date-time */
+            kevReleasedAt?: string;
+            /** Format: date-time */
+            lastAttemptAt?: string;
+            lastError?: string;
             /** Format: date-time */
             lastSyncedAt?: string;
-            status?: string;
+            /** @enum {string} */
+            status?: "NEVER_SYNCED" | "SYNCED" | "FAILED";
             /** Format: int64 */
             totalCves: number;
             /** Format: int64 */

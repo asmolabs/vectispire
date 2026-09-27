@@ -6966,11 +6966,26 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "kevCatalogVersion" : {
+            "type" : "string"
+          },
+          "kevReleasedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastAttemptAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "lastError" : {
+            "type" : "string"
+          },
           "lastSyncedAt" : {
             "format" : "date-time",
             "type" : "string"
           },
           "status" : {
+            "enum" : [ "NEVER_SYNCED", "SYNCED", "FAILED" ],
             "type" : "string"
           },
           "totalCves" : {

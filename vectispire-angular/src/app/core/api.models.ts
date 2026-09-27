@@ -106,9 +106,21 @@ export type SiemConfig = Refine<
 
 export type SiemTestResult = Refine<Schema<'TestResult'>, { message: string }>;
 
+/**
+ * Where the CISA KEV catalogue stands. `lastSyncedAt` is when the catalogue in use was read, and a
+ * failed attempt leaves it where it was; `kevReleasedAt` is how old that catalogue is, which a
+ * mirror refreshed rarely makes different.
+ */
 export type ThreatIntelSyncStatus = Refine<
     Schema<'ThreatIntelSyncStatus'>,
-    { status: string; lastSyncedAt: string | null }
+    {
+        status: 'NEVER_SYNCED' | 'SYNCED' | 'FAILED';
+        lastSyncedAt: string | null;
+        kevCatalogVersion: string | null;
+        kevReleasedAt: string | null;
+        lastAttemptAt: string | null;
+        lastError: string | null;
+    }
 >;
 
 /** A product a statement is about, as the standard names it: an object, never a string. */
@@ -1152,7 +1164,8 @@ export type OwaspReport = Refine<
     Schema<'Report'>,
     {
         id: number;
-        status: 'completed' | 'failed';
+        /** `running` while another request waits for the model: a review is recorded before it is asked. */
+        status: 'completed' | 'failed' | 'running';
         /** The model that wrote it: comparing two reports without knowing this is a trap. */
         model: string;
         /** The model's answer as it came. Kept so nothing renders a report the raw text contradicts. */

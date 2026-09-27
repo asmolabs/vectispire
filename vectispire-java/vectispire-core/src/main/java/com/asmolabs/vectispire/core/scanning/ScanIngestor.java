@@ -52,9 +52,9 @@ public class ScanIngestor {
     /**
      * The collaborators that reach outside this process.
      *
-     * <p>Optional on purpose. Enrichment calls two public catalogues and end-of-life consults a
-     * remote one, so an ingestion test that leaves them out stays offline and deterministic
-     * instead of depending on somebody else's availability.
+     * <p>Optional on purpose. Enrichment calls the EPSS API and reads the stored KEV catalogue, and
+     * end-of-life consults a remote catalogue, so an ingestion test that leaves them out stays
+     * offline and deterministic instead of depending on somebody else's availability.
      */
     public interface Enricher {
         /**

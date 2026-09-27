@@ -63,6 +63,10 @@ public abstract class VectispireContextTest {
             "t_plugin_manifest",
             "t_plugin",
             "t_ai_review_result",
+            // No foreign key either. Left out, the catalogue a test synchronised was the next test's,
+            // and a status test read "SYNCED" before anything had been synchronised.
+            "t_threat_intel_feed",
+            "t_threat_intel_sync",
             "t_finding",
             "t_issue",
             "t_scan",

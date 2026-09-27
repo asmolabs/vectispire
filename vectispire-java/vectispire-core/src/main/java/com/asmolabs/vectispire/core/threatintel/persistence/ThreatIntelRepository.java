@@ -1,8 +1,11 @@
 package com.asmolabs.vectispire.core.threatintel.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -16,8 +19,14 @@ public interface ThreatIntelRepository extends JpaRepository<ThreatIntelEntity, 
      * {@code findByCveIdIn} because the ids in {@code t_issue} and the ids from the feed do not
      * agree on case, and a derived {@code In} compares them as given.
      */
-    @org.springframework.data.jpa.repository.Query(
-            "select t from ThreatIntelEntity t where lower(t.cveId) in :ids")
-    List<ThreatIntelEntity> findByCveIdInIgnoreCase(
-            @org.springframework.data.repository.query.Param("ids") java.util.Collection<String> ids);
+    @Query("select t from ThreatIntelEntity t where lower(t.cveId) in :ids")
+    List<ThreatIntelEntity> findByCveIdInIgnoreCase(@Param("ids") Collection<String> ids);
+
+    /**
+     * Those of these identifiers the stored KEV catalogue lists, as stored (upper-case).
+     *
+     * @param ids lower-case, for the reason {@link #findByCveIdInIgnoreCase} gives
+     */
+    @Query("select t.cveId from ThreatIntelEntity t where t.isKev = true and lower(t.cveId) in :ids")
+    List<String> exploitedAmong(@Param("ids") Collection<String> ids);
 }

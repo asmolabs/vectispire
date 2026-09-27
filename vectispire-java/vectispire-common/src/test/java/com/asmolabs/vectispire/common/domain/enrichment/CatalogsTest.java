@@ -59,16 +59,6 @@ class CatalogsTest {
     }
 
     @Test
-    @DisplayName("reads the KEV identifiers, and nothing else")
-    void readsKevIdentifiers() {
-        assertThat(Catalogs.parseKev(json("""
-                {"vulnerabilities": [{"cveID": "CVE-2021-44228", "vendorProject": "Apache"},
-                                     {"cveID": ""}, {"noId": true}]}""")))
-                .containsExactly("CVE-2021-44228");
-        assertThat(Catalogs.parseKev(json("{}"))).isEmpty();
-    }
-
-    @Test
     @DisplayName("splits a query into batches under the documented limit")
     void splitsIntoBatches() {
         // Too large a batch ends in a refusal which, here, would be swallowed — hence

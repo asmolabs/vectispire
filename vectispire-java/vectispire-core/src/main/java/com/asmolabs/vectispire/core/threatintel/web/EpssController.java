@@ -56,11 +56,13 @@ public class EpssController {
 
     // Outbound, repeatable at will, and rate-limited by whoever serves it. Not destructive,
     // which is why it is a lead's rather than an administrator's, but not a reader's. Audited as
-    // the threat intelligence screen's sync is, with the same fallback name: it is the same sync.
+    // the threat intelligence screen's sync is, with the same fallback name: it is the same sync —
+    // the CISA KEV catalogue; EPSS scores are asked per scan, not synchronised.
     @RequiresSecurityLead
     @PostMapping("/sync")
     public ThreatIntelSyncStatus sync(
             @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
-        return threatIntelFeedService.syncThreatIntel(RequestActors.of(principal, request, "system"), "EPSS");
+        return threatIntelFeedService.syncThreatIntel(
+                RequestActors.of(principal, request, "system"), ThreatIntelFeedService.Origin.EPSS_SCREEN);
     }
 }

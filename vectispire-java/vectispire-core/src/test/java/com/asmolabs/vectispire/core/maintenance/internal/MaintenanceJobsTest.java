@@ -39,6 +39,8 @@ import com.asmolabs.vectispire.core.scanning.internal.SchedulingTickTask;
 import com.asmolabs.vectispire.core.settings.SettingsService;
 import com.asmolabs.vectispire.core.targets.TargetDeletionService;
 import com.asmolabs.vectispire.core.targets.internal.OrphanedTargetRowsTask;
+import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
+import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogueSyncTask;
 import com.asmolabs.vectispire.core.tickets.TicketSweepService;
 import com.asmolabs.vectispire.core.tickets.internal.TicketSweepTask;
 import java.time.Clock;
@@ -91,6 +93,7 @@ class MaintenanceJobsTest {
             VerdictRetentionTask.class,
             SnapshotRetentionTask.class,
             AbandonedReviewsTask.class,
+            KevCatalogueSyncTask.class,
             OrphanedTargetRowsTask.class);
 
     private RetentionService retention;
@@ -106,6 +109,7 @@ class MaintenanceJobsTest {
     private GateVerdictRepository verdicts;
     private ComplianceSnapshotRepository snapshots;
     private OwaspReviewService reviews;
+    private ThreatIntelFeedService feed;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -124,12 +128,14 @@ class MaintenanceJobsTest {
         verdicts = mock(GateVerdictRepository.class);
         snapshots = mock(ComplianceSnapshotRepository.class);
         reviews = mock(OwaspReviewService.class);
+        feed = mock(ThreatIntelFeedService.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
         when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0));
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
         when(triage.expireStale()).thenReturn(List.of());
+        when(feed.syncIfDue()).thenReturn(java.util.Optional.empty());
 
         tasks = List.of(
                 new NotificationRelayTask(outbox),
@@ -145,6 +151,7 @@ class MaintenanceJobsTest {
                 new VerdictRetentionTask(verdicts, settings, clock),
                 new SnapshotRetentionTask(snapshots, settings, clock),
                 new AbandonedReviewsTask(reviews),
+                new KevCatalogueSyncTask(feed),
                 new OrphanedTargetRowsTask(targetDeletion));
         jobs = new MaintenanceJobs(tasks);
     }
@@ -179,7 +186,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
-                verdicts, snapshots, reviews, targetDeletion);
+                verdicts, snapshots, reviews, feed, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -191,6 +198,8 @@ class MaintenanceJobsTest {
         turn.verify(verdicts).deleteBefore(any());
         turn.verify(snapshots).deleteBefore(any());
         turn.verify(reviews).settleAbandoned();
+        // The only thing that keeps the KEV catalogue from being as old as the last button press.
+        turn.verify(feed).syncIfDue();
         turn.verify(targetDeletion).purgeOrphanedTargetData();
     }
 

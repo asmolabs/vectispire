@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Controller exposing live Threat Intelligence feed synchronization and status.
+ * The CISA KEV catalogue's status, and the synchronisation a lead can ask for between the scheduled
+ * ones.
  */
 @RestController
 @RequestMapping("/api/v1/threat-intel")
@@ -38,6 +39,7 @@ public class ThreatIntelController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        return threatIntelService.syncThreatIntel(RequestActors.of(principal, request, "system"), "threat intelligence");
+        return threatIntelService.syncThreatIntel(
+                RequestActors.of(principal, request, "system"), ThreatIntelFeedService.Origin.THREAT_INTELLIGENCE_SCREEN);
     }
 }

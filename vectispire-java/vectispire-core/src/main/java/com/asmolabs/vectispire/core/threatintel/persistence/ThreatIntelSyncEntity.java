@@ -6,6 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 
+/**
+ * The one row saying where the CISA KEV catalogue stands — see {@code ThreatIntelSyncStatus} for
+ * what each column means to a reader.
+ */
 @Entity
 @Table(name = "t_threat_intel_sync")
 public class ThreatIntelSyncEntity {
@@ -26,7 +30,19 @@ public class ThreatIntelSyncEntity {
     private long kevCount = 0;
 
     @Column(name = "status", length = 32, nullable = false)
-    private String status = "SYNCED";
+    private String status = "NEVER_SYNCED";
+
+    @Column(name = "kev_catalog_version", length = 32)
+    private String kevCatalogVersion;
+
+    @Column(name = "kev_released_at")
+    private Instant kevReleasedAt;
+
+    @Column(name = "last_attempt_at")
+    private Instant lastAttemptAt;
+
+    @Column(name = "last_error", length = 500)
+    private String lastError;
 
     public Long getId() {
         return id;
@@ -65,6 +81,38 @@ public class ThreatIntelSyncEntity {
     }
 
     public void setStatus(String status) {
-        this.status = status != null ? status : "SYNCED";
+        this.status = status != null ? status : "NEVER_SYNCED";
+    }
+
+    public String getKevCatalogVersion() {
+        return kevCatalogVersion;
+    }
+
+    public void setKevCatalogVersion(String kevCatalogVersion) {
+        this.kevCatalogVersion = kevCatalogVersion;
+    }
+
+    public Instant getKevReleasedAt() {
+        return kevReleasedAt;
+    }
+
+    public void setKevReleasedAt(Instant kevReleasedAt) {
+        this.kevReleasedAt = kevReleasedAt;
+    }
+
+    public Instant getLastAttemptAt() {
+        return lastAttemptAt;
+    }
+
+    public void setLastAttemptAt(Instant lastAttemptAt) {
+        this.lastAttemptAt = lastAttemptAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
     }
 }
