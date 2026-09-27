@@ -64,6 +64,15 @@ jobs:
       # The audit mirror's directory must exist and belong to the user the image runs as, which is
       # the difference between this route and Jib's.
       - run: docker run --rm --entrypoint sh vectispire:nightly -c 'ls -ld /var/lib/vectispire/audit'
+      # The composition's scan check on this route's images, and through the `with-agent` profile:
+      # `docker compose build` produces these, and the push pipeline only runs the Jib ones with the
+      # built-in worker. Both images run as 1000:1000, which is who `work-dir` hands the directory to.
+      - name: the composition scans, through its agent, on the Dockerfile images
+        env:
+          MODE: agent
+          CONTROL_PLANE_IMAGE: vectispire:nightly
+          AGENT_IMAGE: vectispire-agent:nightly
+        run: ./scripts/composition-scan-check.sh
 
   # The interface, driven the way an analyst drives it: sign-in including MFA, four-eyes approval,
   # the settings audit trail, and VEX triage.
