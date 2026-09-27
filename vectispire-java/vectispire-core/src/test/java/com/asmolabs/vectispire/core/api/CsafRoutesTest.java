@@ -23,6 +23,9 @@ class CsafRoutesTest extends ApiTestBase {
     private ScanRepository scansRepo;
 
     @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Autowired
     private GitRepositoryRepository repositoriesRepo;
 
     @Autowired
@@ -55,9 +58,10 @@ class CsafRoutesTest extends ApiTestBase {
         finding.setPurl("pkg:maven/io.netty/netty-codec-http2@4.1.99.Final");
         finding.setSource("trivy");
         finding.setSeverity("HIGH");
-        finding.setReachability("UNREACHABLE");
         finding.setCreatedAt(Instant.now());
-        findingsRepo.save(finding);
+        finding = findingsRepo.save(finding);
+        // Behind the entity's back, which has no setter for a column nothing computes.
+        jdbc.update("update t_finding set reachability = 'UNREACHABLE' where id = ?", finding.getId());
 
         mvc.perform(authenticated(get("/api/v1/csaf/scans/" + scan.getId() + "/csaf.json"), token))
                 .andExpect(status().isOk())

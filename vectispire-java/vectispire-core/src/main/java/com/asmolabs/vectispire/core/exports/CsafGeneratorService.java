@@ -84,9 +84,10 @@ public class CsafGeneratorService {
                     new CsafDocument.ProductIdentificationHelper(
                             issue.purl() != null ? issue.purl() : "pkg:generic/" + pkg + "@" + version, null)));
 
-            // A person's triage clears a product. The reachability column does not: it was set
+            // A person's triage clears a product. The reachability column does not: it was once set
             // by a substring search that did not match, and this line published that as
-            // `known_not_affected` in a document nobody approved.
+            // `known_not_affected` in a document nobody approved. Nothing writes it any more; a
+            // real analysis returning would still not clear a product here.
             boolean notAffected = "not_affected".equalsIgnoreCase(issue.triageStatus());
             boolean fixed = "resolved".equalsIgnoreCase(issue.state()) || "fixed".equalsIgnoreCase(issue.triageStatus());
             boolean underInvestigation = "under_review".equalsIgnoreCase(issue.triageStatus())
@@ -154,7 +155,7 @@ public class CsafGeneratorService {
                     new CsafDocument.ProductIdentificationHelper(
                             finding.purl() != null ? finding.purl() : "pkg:generic/" + pkg + "@" + version, null)));
 
-            // **Never from reachability.** That column was set by a substring search that did not
+            // **Never from reachability.** That column was once set by a substring search that did not
             // match, and this line put the product in the CSAF `known_not_affected` list on the
             // strength of it — a machine-readable exoneration nobody approved. A component is
             // cleared here only when a person triaged it as such.

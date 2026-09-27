@@ -2,7 +2,6 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.VexJustification;
-import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexStatement;
 import com.asmolabs.vectispire.common.domain.vex.VexStatus;
@@ -22,7 +21,13 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
- * Generates OpenVEX v0.2.0 documents from scan findings, reachability traces, and triage decisions.
+ * Generates OpenVEX v0.2.0 documents from scan findings and triage decisions.
+ *
+ * <p><b>Reachability is not read.</b> A finding or an issue reading {@code REACHABLE} was stated
+ * {@code affected} with "active invocation in call path" and its traces — a claim about the call
+ * graph in a document handed to customers. Nothing computes that column, so the sentence was never
+ * true when written, and every other statement said it was "awaiting reachability confirmation",
+ * a confirmation nothing would ever give.
  */
 @Service
 public class VexGeneratorService {
@@ -87,24 +92,15 @@ public class VexGeneratorService {
                 ? finding.purl()
                 : "pkg:generic/" + (finding.packageName() != null ? finding.packageName() : "unknown") + "@" + (finding.packageVersion() != null ? finding.packageVersion() : "latest");
 
-        String reachability = finding.reachability();
-        // No `not_affected` from reachability — see the note on the issue-level statement below.
-
-        if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(reachability)) {
-            String traces = finding.reachableSymbols() != null ? " Traces: " + finding.reachableSymbols() : "";
-            return OpenVexStatement.affected(
-                    cve,
-                    purl,
-                    "Active invocation in call path." + traces + " Upgrade or apply security patch.");
-        }
-
+        // No `not_affected` from a finding: clearing a component is a person's triage, which a
+        // finding does not carry — see the issue-level statement below.
         return new OpenVexStatement(
                 Map.of("name", cve),
                 List.of(OpenVexStatement.Product.of(purl)),
                 VexStatus.UNDER_INVESTIGATION,
                 null,
                 null,
-                "Awaiting reachability confirmation and contextual triage.",
+                "Awaiting contextual triage.",
                 null,
                 null);
     }
@@ -122,13 +118,6 @@ public class VexGeneratorService {
         if ("false_positive".equalsIgnoreCase(issue.triageStatus()) || "accepted_risk".equalsIgnoreCase(issue.triageStatus())) {
             String justification = issue.triageJustification() != null ? issue.triageJustification() : "Accepted under documented security exception.";
             return OpenVexStatement.notAffected(cve, purl, VexJustification.INLINE_MITIGATIONS_ALREADY_EXIST, justification);
-        }
-
-        if (ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.reachability())) {
-            return OpenVexStatement.affected(
-                    cve,
-                    purl,
-                    "Active invocation in call path. Remediation prioritized under SLA.");
         }
 
         return OpenVexStatement.affected(

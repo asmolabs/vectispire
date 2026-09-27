@@ -55,7 +55,6 @@ class CycloneDxRoutesTest extends ApiTestBase {
         finding.setPurl("pkg:maven/io.netty/netty-codec-http2@4.1.99.Final");
         finding.setSource("trivy");
         finding.setSeverity("HIGH");
-        finding.setReachability("UNREACHABLE");
         finding.setCreatedAt(Instant.now());
         findingsRepo.save(finding);
 

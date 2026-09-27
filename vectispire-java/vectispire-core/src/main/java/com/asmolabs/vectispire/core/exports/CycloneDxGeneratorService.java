@@ -183,7 +183,7 @@ public class CycloneDxGeneratorService {
                 "CVSSv31",
                 null));
 
-        Analysis analysis = mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.reachability(), issue.state());
+        Analysis analysis = mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.state());
 
         return new Vulnerability(
                 "vuln-" + cve + "-" + Math.abs(purl.hashCode()),
@@ -210,7 +210,7 @@ public class CycloneDxGeneratorService {
                 null));
 
         Analysis analysis = issue != null
-                ? mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.reachability(), issue.state())
+                ? mapAnalysis(issue.triageStatus(), issue.triageJustification(), issue.triageComment(), issue.state())
                 : new Analysis("in_triage", null, "Discovered during automated scan", List.of());
 
         return new Vulnerability(
@@ -225,9 +225,10 @@ public class CycloneDxGeneratorService {
                 List.of(new Affects(purl)));
     }
 
-    private Analysis mapAnalysis(String triageStatus, String triageJustification, String comment, String reachability, String state) {
+    private Analysis mapAnalysis(String triageStatus, String triageJustification, String comment, String state) {
         // Triage clears a component; reachability does not — same reason as the CSAF and OpenVEX
-        // generators. `reachability` is still read below, to *raise* concern, never to remove it.
+        // generators. The column was handed over here and read nowhere below; nothing computes it
+        // now, and a real analysis returning would still only raise concern, never remove it.
         boolean notAffected = "not_affected".equalsIgnoreCase(triageStatus);
         boolean fixed = "resolved".equalsIgnoreCase(state) || "fixed".equalsIgnoreCase(triageStatus);
         boolean underReview = "under_review".equalsIgnoreCase(triageStatus)

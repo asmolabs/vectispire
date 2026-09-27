@@ -33,6 +33,9 @@ class VexRoutesTest extends ApiTestBase {
     @Autowired
     private IssueRepository issuesRepo;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     @DisplayName("generates valid OpenVEX v0.2.0 advisory for completed scan")
     void generatesScanOpenVex() throws Exception {
@@ -60,9 +63,11 @@ class VexRoutesTest extends ApiTestBase {
         finding.setPurl("pkg:maven/org.apache.commons/commons-text@1.9");
         finding.setSource("trivy");
         finding.setSeverity("HIGH");
-        finding.setReachability("UNREACHABLE");
         finding.setCreatedAt(Instant.now());
-        findingsRepo.save(finding);
+        finding = findingsRepo.save(finding);
+        // Behind the entity's back, which has no setter for a column nothing computes: a value
+        // there is somebody's hand, and the document must not state it as a call graph.
+        jdbc.update("update t_finding set reachability = 'REACHABLE' where id = ?", finding.getId());
 
         mvc.perform(authenticated(get("/api/v1/vex/scans/" + scan.getId() + "/openvex.json"), token))
                 .andExpect(status().isOk())
@@ -76,7 +81,11 @@ class VexRoutesTest extends ApiTestBase {
                 // approved that path. Clearing is now a triage decision, and the absence of a
                 // finding means "under investigation".
                 .andExpect(jsonPath("$.statements[0].status").value("under_investigation"))
-                .andExpect(jsonPath("$.statements[0].justification").doesNotExist());
+                .andExpect(jsonPath("$.statements[0].justification").doesNotExist())
+                // And the other way: REACHABLE was stated `affected`, "active invocation in call
+                // path", and every other statement awaited a reachability confirmation nothing
+                // would ever give.
+                .andExpect(jsonPath("$.statements[0].action_statement").value("Awaiting contextual triage."));
     }
 
     @Test
