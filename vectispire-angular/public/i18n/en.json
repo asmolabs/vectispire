@@ -99,7 +99,13 @@
     "token_modal_desc": "Provide this bootstrap token to the remote agent daemon. It will not be shown again.",
     "token_modal_title": "Agent Credentials",
     "unlabelled_targets": "Unlabelled targets",
-    "unroutable_notice": "{{count}} scan(s) require the label \"{{label}}\", which no enabled agent carries. They will wait until somebody declares it.",
+    "unroutable_notice": "{{count}} scan(s) require the label \"{{label}}\", which no enabled agent carries and the built-in worker does not serve. They will wait until somebody declares it.",
+    "credentialed_backlog": {
+        "notice": "{{count}} scan(s) of repositories with a deployment key or an HTTPS token are waiting for an executor that may be handed it (label: {{labels}}), and none can take them.",
+        "kept": "{{agents}} would take them but holds no sealing key verified with its pinned signing key: pin a signing key on its row (the lock icon), set the private half as VECTISPIRE_AGENT_SIGNING_KEY in its configuration, then run an agent of this version and restart it.",
+        "nobody": "No enabled executor carries that label: declare a local agent, or a delegated one with a pinned signing key, that does — or switch the built-in worker on with that label.",
+        "no_label": "none"
+    },
     "wait_time": "Wait Time",
     "error_load": "Could not load the agent list.",
     "error_operation": "The operation failed.",

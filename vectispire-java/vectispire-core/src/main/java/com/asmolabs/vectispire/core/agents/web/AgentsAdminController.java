@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentAdministrationService;
+import com.asmolabs.vectispire.core.agents.CredentialedBacklog;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
@@ -39,9 +40,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AgentsAdminController {
 
     private final AgentAdministrationService administration;
+    private final CredentialedBacklog credentialedBacklog;
 
-    public AgentsAdminController(AgentAdministrationService administration) {
+    public AgentsAdminController(AgentAdministrationService administration, CredentialedBacklog credentialedBacklog) {
         this.administration = administration;
+        this.credentialedBacklog = credentialedBacklog;
     }
 
     /**
@@ -91,6 +94,14 @@ public class AgentsAdminController {
     public record DeclaredAgent(UUID id, String name, String secret) {}
 
     public record UnroutableLabel(String label, long queued) {}
+
+    /**
+     * @param scans how many waiting scans need a credential no executor able to be handed one can take
+     * @param labels the labels they require, sorted, the empty string standing for "no label"
+     * @param keptAgents the enabled agents that would take them but hold no sealing key signed by
+     *     their pinned key — the ones a pinned signing key and an updated agent bring back
+     */
+    public record UnservedCredentialedScans(long scans, List<String> labels, List<String> keptAgents) {}
 
     public record RunningScanItem(
             Long scanId,
@@ -308,5 +319,19 @@ public class AgentsAdminController {
         return administration.unroutable().stream()
                 .map(label -> new UnroutableLabel(label.label(), label.queued()))
                 .toList();
+    }
+
+    /**
+     * The scans that need a credential and that no executor able to be handed one can take.
+     *
+     * <p><b>The same figure as the gauge {@code vectispire.scans.credential.unserved}</b>, on the
+     * screen where the operator can act on it. A delegated agent without a verified sealing key no
+     * longer claims those scans (decision 0031): with no other capable executor they wait for ever,
+     * and the only trace was a 412 in the agent's own log, on another machine.
+     */
+    @GetMapping("/credentialed-backlog")
+    public UnservedCredentialedScans credentialedBacklog() {
+        CredentialedBacklog.Unserved unserved = credentialedBacklog.unserved();
+        return new UnservedCredentialedScans(unserved.scans(), unserved.labels(), unserved.keptAgents());
     }
 }

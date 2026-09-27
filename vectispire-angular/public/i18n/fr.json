@@ -99,7 +99,13 @@
     "token_modal_desc": "Transmettez ce jeton d'initialisation au démon distant. Il ne sera plus réaffiché.",
     "token_modal_title": "Identifiants de l'agent",
     "unlabelled_targets": "Cibles sans étiquette",
-    "unroutable_notice": "{{count}} analyse(s) requièrent le label « {{label}} », qu'aucun agent actif ne possède. Elles attendront qu'un agent compatible soit déclaré.",
+    "unroutable_notice": "{{count}} analyse(s) requièrent le label « {{label}} », qu'aucun agent actif ne possède et que le worker intégré ne sert pas. Elles attendront qu'un agent compatible soit déclaré.",
+    "credentialed_backlog": {
+        "notice": "{{count}} analyse(s) de dépôts portant une clé de déploiement ou un jeton HTTPS attendent un exécuteur à qui le confier (étiquette : {{labels}}), et aucun ne peut les prendre.",
+        "kept": "{{agents}} les prendrait mais n'a pas de clé de scellement vérifiée par sa clé de signature épinglée : épinglez une clé de signature sur sa ligne (l'icône cadenas), placez la moitié privée dans VECTISPIRE_AGENT_SIGNING_KEY dans sa configuration, puis lancez un agent de cette version et redémarrez-le.",
+        "nobody": "Aucun exécuteur actif ne porte cette étiquette : déclarez un agent local, ou un agent délégué avec une clé de signature épinglée, qui la porte — ou activez le worker intégré avec cette étiquette.",
+        "no_label": "aucune"
+    },
     "wait_time": "Temps d'attente",
     "error_load": "Impossible de charger la liste des agents.",
     "error_operation": "L'opération a échoué.",

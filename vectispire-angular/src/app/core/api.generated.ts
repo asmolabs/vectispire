@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/agents/credentialed-backlog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["credentialedBacklog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/agents/non-routables": {
         parameters: {
             query?: never;
@@ -5735,6 +5751,12 @@ export interface components {
             /** Format: int64 */
             queued: number;
         };
+        UnservedCredentialedScans: {
+            keptAgents?: string[];
+            labels?: string[];
+            /** Format: int64 */
+            scans: number;
+        };
         UploadRequest: {
             files?: components["schemas"]["UploadedFile"][];
             name?: string;
@@ -5945,6 +5967,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AgentActivitySummary"];
+                };
+            };
+        };
+    };
+    credentialedBacklog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UnservedCredentialedScans"];
                 };
             };
         };

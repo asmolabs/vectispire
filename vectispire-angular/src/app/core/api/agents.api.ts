@@ -1,7 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AgentSummary, AgentActivitySummary, NewAgent, UnroutableLabel, PinnedSigningKey } from '../api.models';
+import {
+    AgentSummary,
+    AgentActivitySummary,
+    NewAgent,
+    UnroutableLabel,
+    PinnedSigningKey,
+    UnservedCredentialedScans
+} from '../api.models';
 
 /**
  * The remote scan agents: enrolment, signing keys, activity and the labels nothing can route.
@@ -32,6 +39,18 @@ export class AgentsApi {
      */
     unroutableLabels(): Observable<UnroutableLabel[]> {
         return this.http.get<UnroutableLabel[]>('/api/v1/admin/agents/non-routables');
+    }
+
+    /**
+     * The waiting scans that need a deployment key or an HTTPS token and that no executor able to be
+     * handed one can take — the gauge `vectispire.scans.credential.unserved`, on the screen where the
+     * operator can do something about it.
+     *
+     * A delegated agent without a verified sealing key no longer claims those scans (ADR 0031); with
+     * no other capable executor they wait for ever, and the only trace was the agent's own log.
+     */
+    credentialedBacklog(): Observable<UnservedCredentialedScans> {
+        return this.http.get<UnservedCredentialedScans>('/api/v1/admin/agents/credentialed-backlog');
     }
 
     createAgent(agent: NewAgent): Observable<{ id: string; name: string; secret: string }> {

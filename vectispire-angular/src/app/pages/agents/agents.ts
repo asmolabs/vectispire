@@ -14,7 +14,13 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { AgentsApi } from '../../core/api/agents.api';
 import { SessionStore } from '../../core/session.store';
-import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
+import type {
+    AgentActivitySummary,
+    AgentSummary,
+    RunningScanItem,
+    UnroutableLabel,
+    UnservedCredentialedScans
+} from '../../core/api.models';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { pollWhile } from '@/app/core/poll-while';
@@ -64,6 +70,13 @@ export class Agents implements OnInit {
     readonly agents = signal<AgentSummary[]>([]);
     readonly activity = signal<AgentActivitySummary | null>(null);
     readonly unroutable = signal<UnroutableLabel[]>([]);
+    readonly credentialedBacklog = signal<UnservedCredentialedScans | null>(null);
+    /** The labels those scans require, `''` — no label — said in words. */
+    readonly credentialedLabels = computed(() =>
+        (this.credentialedBacklog()?.labels ?? [])
+            .map((label) => (label === '' ? this.i18n.t('agents.credentialed_backlog.no_label') : label))
+            .join(', ')
+    );
     readonly loading = signal(true);
     readonly saving = signal(false);
     readonly busy = signal<string | null>(null);
@@ -153,6 +166,11 @@ export class Agents implements OnInit {
         this.agentsApi.unroutableLabels().subscribe({
             next: (blocked) => this.unroutable.set(blocked),
             error: () => this.unroutable.set([])
+        });
+
+        this.agentsApi.credentialedBacklog().subscribe({
+            next: (backlog) => this.credentialedBacklog.set(backlog),
+            error: () => this.credentialedBacklog.set(null)
         });
 
         this.agentsApi.getAgentActivity().subscribe({

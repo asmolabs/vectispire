@@ -7,6 +7,7 @@ import { Agents } from './agents';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { SessionStore } from '@/app/core/session.store';
+import type { UnservedCredentialedScans } from '@/app/core/api.models';
 
 /**
  * How many scans an agent runs at once, as the agents screen shows and changes it.
@@ -244,5 +245,87 @@ describe('the agents screen, on forgetting a sealing key', () => {
         );
         flushLoad([]);
         expect(fixture.nativeElement.textContent).toContain('This agent no longer exists.');
+    });
+});
+
+/**
+ * The scans that need a credential and that nobody able to be handed it can take, said on the
+ * screen where an operator can act on it. The server computes the figure (`CredentialedBacklog`);
+ * what is tested here is that the banner says it, names what waits and says what to do.
+ */
+describe('the agents screen, on credentialed scans nobody can take', () => {
+    let fixture: ComponentFixture<Agents>;
+    let http: HttpTestingController;
+
+    const NONE: UnservedCredentialedScans = asSchema('UnservedCredentialedScans', {
+        scans: 0,
+        labels: [],
+        keptAgents: []
+    });
+
+    async function open(backlog: UnservedCredentialedScans): Promise<void> {
+        await TestBed.configureTestingModule({
+            imports: [Agents],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+
+        useEnglish();
+        fixture = TestBed.createComponent(Agents);
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        flushLoad(backlog);
+    }
+
+    function flushLoad(backlog: UnservedCredentialedScans): void {
+        for (const request of http.match(() => true)) {
+            const url = request.request.url;
+            if (url.endsWith('/credentialed-backlog')) {
+                request.flush(backlog);
+            } else if (url.endsWith('/activity')) {
+                request.flush(null, { status: 500, statusText: 'unavailable' });
+            } else {
+                request.flush([]);
+            }
+        }
+        fixture.detectChanges();
+    }
+
+    function banner(): string | null {
+        const found = fixture.nativeElement.querySelector('[data-testid="credentialed-backlog"]') as HTMLElement | null;
+        return found ? (found.textContent ?? '').replace(/\s+/g, ' ').trim() : null;
+    }
+
+    it('says nothing when every such scan has an executor', async () => {
+        await open(NONE);
+        expect(banner()).toBeNull();
+    });
+
+    it('names the waiting scans, their labels and the agents to fix, and how', async () => {
+        await open({ scans: 3, labels: ['', 'dmz'], keptAgents: ['edge-01', 'edge-02'] });
+
+        const text = banner();
+        expect(text).toContain('3 scan(s)');
+        // "No label" in words, not an empty slot before the comma.
+        expect(text).toContain('label: none, dmz');
+        expect(text).toContain('edge-01, edge-02 would take them');
+        expect(text).toContain('pin a signing key');
+        expect(text).toContain('VECTISPIRE_AGENT_SIGNING_KEY');
+    });
+
+    it('says that nobody carries the label when no agent would take them at all', async () => {
+        await open({ scans: 1, labels: ['dmz'], keptAgents: [] });
+
+        expect(banner()).toContain('No enabled executor carries that label');
+        expect(banner()).not.toContain('would take them');
+    });
+
+    it('reads it again on a refresh, from the route the gauge is computed by', async () => {
+        await open(NONE);
+        fixture.componentInstance.reload();
+        const request = http.expectOne('/api/v1/admin/agents/credentialed-backlog');
+        expect(request.request.method).toBe('GET');
+        request.flush({ scans: 2, labels: ['dmz'], keptAgents: ['edge-01'] });
+        flushLoad(NONE);
+        expect(banner()).toContain('2 scan(s)');
     });
 });

@@ -7200,6 +7200,28 @@
         "required" : [ "queued" ],
         "type" : "object"
       },
+      "UnservedCredentialedScans" : {
+        "properties" : {
+          "keptAgents" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "labels" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "scans" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "scans" ],
+        "type" : "object"
+      },
       "UploadRequest" : {
         "properties" : {
           "files" : {
@@ -7679,6 +7701,24 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/AgentActivitySummary"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agents-admin-controller" ]
+      }
+    },
+    "/api/v1/admin/agents/credentialed-backlog" : {
+      "get" : {
+        "operationId" : "credentialedBacklog",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UnservedCredentialedScans"
                 }
               }
             },

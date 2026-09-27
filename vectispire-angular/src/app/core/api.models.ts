@@ -895,6 +895,12 @@ export type NewAgent = Refine<Schema<'AgentCreateRequest'>, { name: string; cred
 
 export type UnroutableLabel = Refine<Schema<'UnroutableLabel'>, { label: string }>;
 
+/** The credentialed scans nobody able to be handed their credential can take; `''` is "no label". */
+export type UnservedCredentialedScans = Refine<
+    Schema<'UnservedCredentialedScans'>,
+    { scans: number; labels: string[]; keptAgents: string[] }
+>;
+
 export type IssuedAgent = Refine<
     Schema<'DeclaredAgent'>,
     {

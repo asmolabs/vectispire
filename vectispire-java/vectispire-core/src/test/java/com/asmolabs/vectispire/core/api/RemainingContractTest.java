@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
+import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +45,9 @@ class RemainingContractTest extends ApiTestBase {
 
     @Autowired
     private FindingRepository findings;
+
+    @Autowired
+    private SshKeyRepository sshKeys;
 
     @Test
     @DisplayName("a rule set says isActive, and its size is a string")
@@ -161,6 +166,32 @@ class RemainingContractTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].label").value("nobody-has-this"))
                 .andExpect(jsonPath("$[0].queued").value(1));
+    }
+
+    @Test
+    @DisplayName("the credentialed scans nobody can take are counted, with their labels and the agents kept")
+    void theCredentialedBacklog() throws Exception {
+        SshKeyEntity key = new SshKeyEntity();
+        key.setId(java.util.UUID.randomUUID());
+        key.setName("deploy");
+        key.setPrivateKey("v2:not-read-by-this-test");
+        key.setCreatedAt(Instant.now());
+        sshKeys.save(key);
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl("https://example.invalid/keyed.git");
+        repository.setBranch("main");
+        repository.setRequiredAgentLabel("dmz");
+        repository.setSshKeyId(key.getId());
+        long id = repositories.save(repository).getId();
+        mvc.perform(authenticated(post("/api/v1/repositories/" + id + "/scan"), asAdmin()));
+
+        // The three names the agents screen reads, and "" standing for no label never appearing
+        // where a label was required.
+        mvc.perform(authenticated(get("/api/v1/admin/agents/credentialed-backlog"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scans").value(1))
+                .andExpect(jsonPath("$.labels[0]").value("dmz"))
+                .andExpect(jsonPath("$.keptAgents").isArray());
     }
 
     @Test

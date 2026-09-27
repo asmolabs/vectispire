@@ -29,6 +29,21 @@
     </p-message>
 }
 
+@if (credentialedBacklog(); as backlog) {
+    @if (backlog.scans > 0) {
+        <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full" data-testid="credentialed-backlog">
+            {{
+                'agents.credentialed_backlog.notice' | translate: { count: backlog.scans, labels: credentialedLabels() }
+            }}
+            @if (backlog.keptAgents.length > 0) {
+                {{ 'agents.credentialed_backlog.kept' | translate: { agents: backlog.keptAgents.join(', ') } }}
+            } @else {
+                {{ 'agents.credentialed_backlog.nobody' | translate }}
+            }
+        </p-message>
+    }
+}
+
 <!-- KPI Cards -->
 @if (activity()?.stats; as stats) {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
