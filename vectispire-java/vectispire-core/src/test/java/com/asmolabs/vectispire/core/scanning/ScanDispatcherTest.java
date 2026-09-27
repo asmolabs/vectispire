@@ -76,6 +76,7 @@ class ScanDispatcherTest {
     private com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository gitTokens;
     private SettingsService settings;
     private ScanRuleSets ruleSets;
+    private ScanPlugins plugins;
     private ScanDispatcher dispatcher;
     private AuditLogService audit;
 
@@ -88,6 +89,7 @@ class ScanDispatcherTest {
         gitTokens = mock(com.asmolabs.vectispire.core.targets.persistence.GitTokenRepository.class);
         settings = mock(SettingsService.class);
         ruleSets = mock(ScanRuleSets.class);
+        plugins = mock(ScanPlugins.class);
         audit = mock(AuditLogService.class);
 
         when(ruleSets.activeHash()).thenReturn(Optional.empty());
@@ -106,7 +108,7 @@ class ScanDispatcherTest {
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                 settings,
                 ruleSets,
-                mock(ScanPlugins.class),
+                plugins,
                 envelopes,
                 new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(),
@@ -391,7 +393,7 @@ class ScanDispatcherTest {
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
+                        settings, ruleSets, plugins, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -428,7 +430,7 @@ class ScanDispatcherTest {
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
+                        settings, ruleSets, plugins, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -445,7 +447,15 @@ class ScanDispatcherTest {
 
     /** Runs one scan through the dispatcher with a stubbed runner, and returns the row written. */
     private ScanEntity withRunner(ScanArtifacts artifacts) {
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.run(any())).thenReturn(artifacts);
         ScanEntity scan = repositoryScan();
+        onTheWorker(scan, runner);
+        return scan;
+    }
+
+    /** Runs {@code scan} through a dispatch round of the built-in worker, with {@code runner} as its runner. */
+    private void onTheWorker(ScanEntity scan, ScanRunner runner) {
         queueHolds(scan);
         when(queue.renewLease(anyLong(), anyString())).thenReturn(true);
         when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
@@ -458,16 +468,13 @@ class ScanDispatcherTest {
         when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), java.time.Instant.EPOCH));
         when(ingestor.ingest(any(), any(), any())).thenReturn(new ScanIngestor.Reconciliation(0, 0, 0, 0, List.of()));
 
-        ScanRunner runner = mock(ScanRunner.class);
-        when(runner.run(any())).thenReturn(artifacts);
-
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
         when(manager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
 
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
+                        settings, ruleSets, plugins, envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -475,8 +482,6 @@ class ScanDispatcherTest {
                         new TransactionTemplate(manager),
                         com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse(""))
                 .dispatch("worker-1", 2, List.of());
-
-        return scan;
     }
 
     /**
@@ -585,7 +590,7 @@ class ScanDispatcherTest {
         ScanDispatcher restricted = new ScanDispatcher(
                 queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                settings, ruleSets, mock(ScanPlugins.class), envelopes, new ScanningProperties(Optional.of("linux/amd64")),
+                settings, ruleSets, plugins, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));
@@ -607,6 +612,111 @@ class ScanDispatcherTest {
 
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
         verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("Repository URL refused"));
+    }
+
+    private static final List<com.asmolabs.vectispire.common.domain.plugins.PluginRef> PLUGINS = List.of(
+            new com.asmolabs.vectispire.common.domain.plugins.PluginRef("acme-lint", "a".repeat(64)),
+            new com.asmolabs.vectispire.common.domain.plugins.PluginRef("acme-sarif", "b".repeat(64)));
+
+    /** Which credentials repository 1 carries. */
+    private enum Carries {
+        SSH_KEY,
+        HTTPS_TOKEN,
+        BOTH
+    }
+
+    /**
+     * Repository 1 with every field of its task set to something other than its default — a rule
+     * set, SAST, a sub-path, a branch asked by the scan, two plugins — and the credentials asked for.
+     * Returns the task the built-in worker must receive: the clear one, written out here rather than
+     * read off the dispatcher, so that a rebuild dropping a field cannot also drop it from the
+     * expectation.
+     */
+    private ScanTask everyFieldCarrying(Carries carries) {
+        repositoryUsesAnHttpsToken();
+        RepositoryEntity repository = repositories.findById(1L).orElseThrow();
+        repository.setSubPath("services/api");
+        if (carries == Carries.SSH_KEY) {
+            repository.setHttpsTokenId(null);
+        }
+        if (carries != Carries.HTTPS_TOKEN) {
+            repository.setSshKeyId(KEY_ID);
+        }
+        when(ruleSets.activeHash()).thenReturn(Optional.of("f".repeat(64)));
+        when(settings.isEnabled(Setting.SAST_ENABLED)).thenReturn(true);
+        when(plugins.forRepository(1L)).thenReturn(PLUGINS);
+        return new ScanTask(
+                new ScanTask.Target.Repository(
+                        "https://gitlab.example.com/team/service.git",
+                        "release",
+                        "services/api",
+                        carries == Carries.HTTPS_TOKEN ? null : PRIVATE_KEY,
+                        carries == Carries.SSH_KEY
+                                ? null
+                                : new ScanTask.Target.HttpsCredential("gitlab.example.com", null, "glpat-secret")),
+                "f".repeat(64),
+                Set.of(ScanTask.Step.DEPENDENCIES, ScanTask.Step.SECRETS, ScanTask.Step.IAC, ScanTask.Step.SAST),
+                PLUGINS);
+    }
+
+    private static ScanEntity scanOfBranch(String branch) {
+        ScanEntity scan = repositoryScan();
+        scan.setBranch(branch);
+        return scan;
+    }
+
+    /**
+     * Sealing a credential rebuilds the task, and a rebuild names the fields it copies: one that
+     * forgot the plugins would have a credentialed repository scanned by a remote agent run none of
+     * them, and every plugin read as absent — a failure — on a scan that never tried it. So the
+     * whole record is compared, the sealed fields aside: the next field added to the task is dropped
+     * in exactly the same way.
+     */
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.EnumSource(Carries.class)
+    @DisplayName("sealing a credential for an agent keeps the rest of the task, its plugins included")
+    void sealingKeepsTheWholeTask(Carries carries) {
+        ScanTask clear = everyFieldCarrying(carries);
+        queueHolds(scanOfBranch("release"));
+        SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
+
+        ScanTask delivered = dispatcher
+                .claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))
+                .orElseThrow()
+                .task();
+
+        assertThat(delivered.plugins()).containsExactlyElementsOf(PLUGINS);
+        assertThat(delivered)
+                .usingRecursiveComparison()
+                .ignoringFields("target.privateKey", "target.https.token")
+                .isEqualTo(clear);
+        ScanTask.Target.Repository target = repositoryTarget(delivered);
+        ScanTask.Target.Repository expected = repositoryTarget(clear);
+        if (expected.privateKey() != null) {
+            assertThat(envelopes.open(recipient, target.privateKey())).contains(PRIVATE_KEY);
+        } else {
+            assertThat(target.privateKey()).isNull();
+        }
+        if (expected.https() != null) {
+            assertThat(envelopes.open(recipient, target.https().token())).contains("glpat-secret");
+        } else {
+            assertThat(target.https()).isNull();
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0}")
+    @org.junit.jupiter.params.provider.EnumSource(Carries.class)
+    @DisplayName("the built-in worker receives the whole task in the clear, its plugins included")
+    void theWorkerRunsTheWholeTask(Carries carries) {
+        ScanTask clear = everyFieldCarrying(carries);
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.run(any())).thenReturn(ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(1)));
+
+        onTheWorker(scanOfBranch("release"), runner);
+
+        org.mockito.ArgumentCaptor<ScanTask> ran = org.mockito.ArgumentCaptor.forClass(ScanTask.class);
+        verify(runner).run(ran.capture());
+        assertThat(ran.getValue()).isEqualTo(clear);
     }
 
     private static RepositoryEntity repository() {
