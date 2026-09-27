@@ -12,10 +12,13 @@ import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.internal.ScanQueue;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -83,10 +86,41 @@ class ScanQueueIntegrationTest {
     @Autowired
     private AgentRepository agents;
 
+    @Autowired
+    private GitRepositoryRepository repositories;
+
     @BeforeEach
     void emptyQueue() {
         scans.deleteAll();
         agents.deleteAll();
+        repositories.deleteAll();
+    }
+
+    /** A repository row, which a scan naming it needs: {@code repo_id} is a foreign key. */
+    private long repository(String name) {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl("https://example.invalid/" + name + ".git");
+        repository.setName(name);
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
+    /** {@code count} scans of one repository, queued after everything already waiting. */
+    private void enqueueFor(long repoId, int count, String requiredLabel) {
+        Instant after = Instant.parse("2026-08-13T11:00:00Z").plusSeconds(scans.count());
+        List<ScanEntity> pending = IntStream.range(0, count)
+                .mapToObj(i -> {
+                    ScanEntity scan = new ScanEntity();
+                    scan.setRepoId(repoId);
+                    scan.setBranch("main");
+                    scan.setStatus(ScanStatus.PENDING.wireName());
+                    scan.setCreatedAt(after.plusSeconds(i));
+                    scan.setAttempts(0);
+                    scan.setRequiredAgentLabel(requiredLabel);
+                    return scan;
+                })
+                .toList();
+        scans.saveAll(pending);
     }
 
     /** A remote agent's row: the claim takes it as its lock, so it has to exist. */
@@ -228,7 +262,7 @@ class ScanQueueIntegrationTest {
                 List<Callable<Optional<ScanEntity>>> claims = IntStream.range(0, polls)
                         .mapToObj(poll -> (Callable<Optional<ScanEntity>>) () -> {
                             together.await(10, TimeUnit.SECONDS);
-                            return queue.claimWithin(edge, limit, List.of());
+                            return queue.claimWithin(edge, limit, List.of(), Set.of());
                         })
                         .toList();
                 for (Future<Optional<ScanEntity>> claim : pool.invokeAll(claims)) {
@@ -241,7 +275,7 @@ class ScanQueueIntegrationTest {
         }
 
         // The limit is the agent's, not the queue's: another agent still finds work.
-        assertThat(queue.claimWithin(other, 1, List.of())).isPresent();
+        assertThat(queue.claimWithin(other, 1, List.of(), Set.of())).isPresent();
     }
 
     @Test
@@ -275,7 +309,7 @@ class ScanQueueIntegrationTest {
                 return took;
             }));
             assertThat(holding.await(10, TimeUnit.SECONDS)).isTrue();
-            Future<Optional<ScanEntity>> claim = pool.submit(() -> queue.claimWithin(edge, 1, List.of()));
+            Future<Optional<ScanEntity>> claim = pool.submit(() -> queue.claimWithin(edge, 1, List.of(), Set.of()));
 
             assertThat(competitor.get(30, TimeUnit.SECONDS)).isTrue();
             assertThat(claim.get(30, TimeUnit.SECONDS)).as("a claim past a limit of one").isEmpty();
@@ -290,8 +324,8 @@ class ScanQueueIntegrationTest {
         enqueue(3, null);
         UUID edge = agent("edge");
 
-        long held = queue.claimWithin(edge, 1, List.of()).orElseThrow().getId();
-        assertThat(queue.claimWithin(edge, 1, List.of())).as("a live lease fills a limit of one").isEmpty();
+        long held = queue.claimWithin(edge, 1, List.of(), Set.of()).orElseThrow().getId();
+        assertThat(queue.claimWithin(edge, 1, List.of(), Set.of())).as("a live lease fills a limit of one").isEmpty();
 
         // The agent died mid-scan: its lease runs out before any reclaim has put the row back.
         // Counting it would keep the restarted agent idle until somebody else's timer fired.
@@ -299,7 +333,126 @@ class ScanQueueIntegrationTest {
         stored.setLeaseExpiresAt(Instant.now().minusSeconds(60));
         scans.save(stored);
 
-        assertThat(queue.claimWithin(edge, 1, List.of())).isPresent();
+        assertThat(queue.claimWithin(edge, 1, List.of(), Set.of())).isPresent();
+    }
+
+    /**
+     * The selection of an agent that cannot be handed a delegated credential (decision 0031): the
+     * repositories carrying one are left out, and their scans wait untouched — no claim, so no
+     * attempt counted — while what the agent can run behind them is taken. Both shapes of the
+     * selection, with and without labels, because each is its own statement on every engine.
+     */
+    @Test
+    @DisplayName("an excluded repository's scans stay pending and unclaimed, and what follows them is taken")
+    void anExclusionLeavesTheScansWhereTheyAre() {
+        for (String label : new String[] {null, "dmz"}) {
+            scans.deleteAll();
+            long keyed = repository("keyed-" + label);
+            long open = repository("open-" + label);
+            List<String> labels = label == null ? List.of() : List.of(label);
+            enqueueFor(keyed, 2, label);
+            enqueue(1, label);
+            enqueueFor(open, 1, label);
+            // Routed to other agents: not this one's to take, so not among what it is asked to leave out.
+            enqueueFor(repository("routed-" + label), 1, "elsewhere");
+            UUID edge = agent("edge-" + label);
+
+            assertThat(queue.claimableRepositories(labels)).containsExactlyInAnyOrder(keyed, open);
+
+            List<ScanEntity> taken = new ArrayList<>();
+            for (int poll = 0; poll < 4; poll++) {
+                queue.claimWithin(edge, 16, labels, Set.of(keyed)).ifPresent(taken::add);
+            }
+
+            assertThat(taken).as("with label %s", label).hasSize(2)
+                    .allSatisfy(scan -> assertThat(scan.getRepoId()).isNotEqualTo(Long.valueOf(keyed)));
+            assertThat(scans.findAll())
+                    .filteredOn(scan -> Long.valueOf(keyed).equals(scan.getRepoId()))
+                    .hasSize(2)
+                    .allSatisfy(scan -> {
+                        assertThat(scan.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
+                        assertThat(scan.getClaimedBy()).isNull();
+                        assertThat(scan.getAttempts()).isZero();
+                    });
+            // Nothing excluded: the same agent takes them, which is what a verified one does.
+            assertThat(queue.claimWithin(edge, 16, labels, Set.of())).get()
+                    .extracting(ScanEntity::getRepoId).isEqualTo(keyed);
+        }
+    }
+
+    @Test
+    @DisplayName("a refunded requeue gives back the claim's attempt, and only to the claim's owner")
+    void aRefundGivesBackTheClaimsAttempt() {
+        enqueue(1, null);
+        UUID edge = agent("edge");
+        long id = queue.claimWithin(edge, 1, List.of(), Set.of()).orElseThrow().getId();
+        assertThat(scans.findById(id).orElseThrow().getAttempts()).isEqualTo(1);
+
+        assertThat(queue.requeueRefunded(id, "somebody-else")).isFalse();
+        assertThat(scans.findById(id).orElseThrow().getAttempts()).isEqualTo(1);
+
+        assertThat(queue.requeueRefunded(id, edge.toString())).isTrue();
+        ScanEntity after = scans.findById(id).orElseThrow();
+        assertThat(after.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
+        assertThat(after.getClaimedBy()).isNull();
+        assertThat(after.getLeaseExpiresAt()).isNull();
+        assertThat(after.getAttempts()).isZero();
+
+        // The plain requeue keeps the attempt: a scan that keeps going undelivered reaches its limit.
+        queue.claimWithin(edge, 1, List.of(), Set.of()).orElseThrow();
+        assertThat(queue.requeue(id, edge.toString())).isTrue();
+        assertThat(scans.findById(id).orElseThrow().getAttempts()).isEqualTo(1);
+    }
+
+    /**
+     * Agents that must leave a repository out and agents that need not, polling at once, round after
+     * round. The take is the conditional update it always was; what this pins is that narrowing the
+     * selection neither hands a scan to two of them nor strands one — every scan claimed exactly once,
+     * each at its first attempt, and none of the excluded repository's scans by an agent that
+     * excluded it.
+     */
+    @Test
+    @DisplayName("agents excluding a repository and agents that do not, at once: each scan once, to one allowed")
+    void exclusionsUnderConcurrency() throws Exception {
+        long keyed = repository("keyed");
+        long open = repository("open");
+        enqueueFor(keyed, 10, null);
+        enqueueFor(open, 5, null);
+        enqueue(5, null);
+        List<UUID> withholding = IntStream.range(0, 4).mapToObj(i -> agent("unverified-" + i)).toList();
+        List<UUID> capable = IntStream.range(0, 4).mapToObj(i -> agent("verified-" + i)).toList();
+        record Claim(UUID agent, boolean excluding, ScanEntity scan) {}
+        List<Claim> served = new ArrayList<>();
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(8)) {
+            for (int round = 0; round < 20 && served.size() < 20; round++) {
+                CyclicBarrier together = new CyclicBarrier(8);
+                List<Callable<Optional<Claim>>> polls = new ArrayList<>();
+                for (UUID agent : withholding) {
+                    polls.add(() -> {
+                        together.await(10, TimeUnit.SECONDS);
+                        return queue.claimWithin(agent, 16, List.of(), Set.of(keyed)).map(scan -> new Claim(agent, true, scan));
+                    });
+                }
+                for (UUID agent : capable) {
+                    polls.add(() -> {
+                        together.await(10, TimeUnit.SECONDS);
+                        return queue.claimWithin(agent, 16, List.of(), Set.of()).map(scan -> new Claim(agent, false, scan));
+                    });
+                }
+                for (Future<Optional<Claim>> poll : pool.invokeAll(polls)) {
+                    poll.get().ifPresent(served::add);
+                }
+            }
+        }
+
+        assertThat(served).extracting(claim -> claim.scan().getId()).doesNotHaveDuplicates().hasSize(20);
+        assertThat(served).filteredOn(Claim::excluding)
+                .allSatisfy(claim -> assertThat(claim.scan().getRepoId()).isNotEqualTo(Long.valueOf(keyed)));
+        assertThat(scans.findAll()).allSatisfy(scan -> {
+            assertThat(scan.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+            assertThat(scan.getAttempts()).as("scan %d", scan.getId()).isEqualTo(1);
+        });
     }
 
     /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */

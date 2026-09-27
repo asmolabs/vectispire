@@ -414,6 +414,35 @@ class AgentSealingKeyRoutesTest extends ApiTestBase {
                         && entry.getDescription().contains("sealing key is forgotten"));
     }
 
+    /**
+     * The claim that used to cost what it did not try. Each poll of an agent that cannot be handed
+     * the key took the scan, counted an attempt, withheld the key and put it back: by the time a
+     * verified agent took it, a scan nothing had run had its takeovers spent, and the first lapsed
+     * lease failed it for good.
+     */
+    @Test
+    @DisplayName("polls of an agent that cannot be handed the key cost the scan nothing; a verified agent then takes it")
+    void withheldPollsCostNoAttempt() throws Exception {
+        Enrolled unverified = delegatedAgent(true);
+        hello(unverified, null).andExpect(status().isOk());
+        long scanId = pendingScanWithDeployKey();
+
+        for (int poll = 0; poll < 5; poll++) {
+            poll(unverified).andExpect(status().isPreconditionFailed());
+        }
+
+        ScanEntity waiting = scans.findById(scanId).orElseThrow();
+        assertThat(waiting.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
+        assertThat(waiting.getAttempts()).isZero();
+        assertThat(waiting.getClaimedBy()).isNull();
+
+        Enrolled verified = delegatedAgent(true);
+        announceSigned(verified, envelopes.generateKeyPair(), 1_000L).andExpect(status().isNoContent());
+        JsonNode task = json.readTree(poll(verified).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(task.at("/scanId").asLong()).isEqualTo(scanId);
+        assertThat(scans.findById(scanId).orElseThrow().getAttempts()).isEqualTo(1);
+    }
+
     private long pendingScanWithDeployKey() throws Exception {
         JsonNode key = json.readTree(mvc.perform(authenticated(post("/api/v1/ssh-keys"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)

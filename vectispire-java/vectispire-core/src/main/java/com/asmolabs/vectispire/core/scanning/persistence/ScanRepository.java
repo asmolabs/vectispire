@@ -104,6 +104,55 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     List<ScanEntity> findClaimableUnlabelled(@Param("status") String status, Limit limit);
 
     /**
+     * The claimable selection for an agent that cannot be handed a delegated credential, less the
+     * scans of the repositories that would need one (decision 0031).
+     *
+     * <p><b>Left out of the selection, not claimed and handed back.</b> Claimed, such a scan spent one
+     * of its attempts per poll although nothing had been tried; refunded, the same agent would take
+     * it again at every poll and keep it from an executor that can run it.
+     * An image scan, or a repository with no key and no token, stays the agent's to take.
+     *
+     * <p>{@code excluded} is never empty: {@code not in ()} is a syntax error on several engines,
+     * and the caller asks {@link #findClaimable} when there is nothing to exclude.
+     */
+    @Query("""
+            select s from ScanEntity s
+             where s.status = :status
+               and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
+               and (s.repoId is null or s.repoId not in :excluded)
+             order by s.createdAt asc, s.id asc""")
+    List<ScanEntity> findClaimableExcept(
+            @Param("status") String status,
+            @Param("labels") Collection<String> labels,
+            @Param("excluded") Collection<Long> excluded,
+            Limit limit);
+
+    @Query("""
+            select s from ScanEntity s
+             where s.status = :status and s.requiredAgentLabel is null
+               and (s.repoId is null or s.repoId not in :excluded)
+             order by s.createdAt asc, s.id asc""")
+    List<ScanEntity> findClaimableUnlabelledExcept(
+            @Param("status") String status, @Param("excluded") Collection<Long> excluded, Limit limit);
+
+    /**
+     * The repositories whose scans this claimant could take, among the waiting ones.
+     *
+     * <p>What {@link #findClaimableExcept} is asked to leave out is chosen among these, so the list
+     * it carries is as long as the part of the queue the agent is entitled to — not the estate.
+     */
+    @Query("""
+            select distinct s.repoId from ScanEntity s
+             where s.status = :status and s.repoId is not null
+               and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)""")
+    List<Long> findClaimableRepositories(@Param("status") String status, @Param("labels") Collection<String> labels);
+
+    @Query("""
+            select distinct s.repoId from ScanEntity s
+             where s.status = :status and s.repoId is not null and s.requiredAgentLabel is null""")
+    List<Long> findClaimableRepositoriesUnlabelled(@Param("status") String status);
+
+    /**
      * Takes one row, and says whether it was still there to take.
      *
      * <p>{@code status = :from} in the {@code where} is what makes this safe without a lock:
@@ -167,6 +216,30 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("owner") String owner,
             @Param("to") String to,
             @Param("error") String error);
+
+    /**
+     * Hands a scan back to the queue as {@link #releaseOwned} does, and gives back the attempt its
+     * claim counted.
+     *
+     * <p>For a claim that turned out to be one nobody could have honoured — a delegated credential
+     * withheld from an agent whose selection did not know the repository needed one. Its own
+     * statement rather than a flag on {@code releaseOwned}, so that no failure path can refund by a
+     * wrong argument: a refund on a path that can repeat is a scan that circulates for ever. Never
+     * below zero, although the claim being refunded counted one: the release must not depend on it.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ScanEntity s
+               set s.status = :to, s.error = null, s.claimedBy = null,
+                   s.claimedAt = null, s.leaseExpiresAt = null,
+                   s.attempts = case when s.attempts > 0 then s.attempts - 1 else 0 end
+             where s.id = :id and s.status = :running and s.claimedBy = :owner""")
+    int releaseOwnedRefunded(
+            @Param("id") Long id,
+            @Param("running") String running,
+            @Param("owner") String owner,
+            @Param("to") String to);
 
     /**
      * The same, for the reclaim: releases a scan only while its lease is still lapsed.

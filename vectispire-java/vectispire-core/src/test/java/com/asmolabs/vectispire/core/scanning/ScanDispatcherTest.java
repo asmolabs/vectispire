@@ -43,6 +43,7 @@ import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -149,33 +150,96 @@ class ScanDispatcherTest {
      * agent with no sealing key received the key in the clear over an encrypted link. A link that a
      * proxy terminates is encrypted up to the proxy, and from here an agent whose announcement was
      * removed on the way looks exactly like an agent that never made one.
+     *
+     * <p>And since, not even claimed: each claim counted one of the scan's attempts, and a few polls
+     * of such an agent spent the retries of a scan that nothing had tried.
      */
     @Test
-    @DisplayName("a delegated agent with no verified sealing key is handed nothing, and the scan goes back")
+    @DisplayName("a delegated agent with no verified sealing key is handed nothing, and the scan is not even claimed")
     void withoutAVerifiedKeyNothingLeaves() {
-        queueHolds(repositoryScan());
+        queueWaitsForRepositoryOne();
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
                 .isInstanceOf(CredentialWithheldException.class)
                 .hasMessageContaining("no signing key is pinned");
 
-        // Put back before refusing: otherwise the scan stays claimed by an agent that received
-        // nothing, and waits out the whole lease before anybody can take it.
-        verify(queue).requeue(eq(7L), anyString());
+        // Left out of the selection: the queue was asked for nothing of repository 1, so nothing
+        // was taken, no attempt counted, and there is nothing to put back.
+        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+        verify(queue, never()).requeue(anyLong(), anyString());
+        verify(queue, never()).requeueRefunded(anyLong(), anyString());
+        verify(sshKeys, never()).findById(any());
         verify(audit, never()).record(any());
     }
 
     @Test
     @DisplayName("a pinned agent that has proved no sealing key is told to announce one, not to pin")
     void pinnedButNotProvedIsWithheldToo() {
-        queueHolds(repositoryScan());
+        queueWaitsForRepositoryOne();
         AgentEntity row = agentRow(CredentialsMode.DELEGATED, null);
         row.setSigningPublicKey(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.generate().publicKey());
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(row)))
                 .isInstanceOf(CredentialWithheldException.class)
                 .hasMessageContaining("announced none that verified");
-        verify(queue).requeue(eq(7L), anyString());
+        verify(queue, never()).requeueRefunded(anyLong(), anyString());
+    }
+
+    @Test
+    @DisplayName("an agent kept from the scans that need a key still takes an image scan behind them")
+    void keptFromKeyedScansButNotFromTheRest() {
+        queueWaitsForRepositoryOne();
+        when(containers.findById(4L)).thenReturn(Optional.of(container()));
+        org.mockito.Mockito.doReturn(Optional.of(imageScan())).when(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)).orElseThrow().task();
+
+        assertThat(task.target()).isInstanceOf(ScanTask.Target.Image.class);
+    }
+
+    @Test
+    @DisplayName("a full agent kept from a scan is answered 'nothing', not told about a key")
+    void aFullAgentIsNotToldAboutAKey() {
+        queueWaitsForRepositoryOne();
+        when(queue.countHeld(anyString())).thenReturn(1L);
+
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an agent that can take every scan has nothing left out, and its poll asks nothing more")
+    void aCapableAgentExcludesNothing() {
+        queueWaitsForRepositoryOne();
+        SealedEnvelope.KeyPair recipient = envelopes.generateKeyPair();
+
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))).isPresent();
+        assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isPresent();
+
+        verify(queue, org.mockito.Mockito.times(2)).claimWithin(any(), anyInt(), any(), eq(Set.of()));
+        verify(queue, never()).claimableRepositories(any());
+    }
+
+    /**
+     * The race the selection cannot close: the repository had no key when the agent's selection read
+     * it, and has one by the time the task is built. Put back, and refunded — nothing was tried, and
+     * the next selection reads the key and leaves the repository out, so the refund is paid once.
+     */
+    @Test
+    @DisplayName("a key added between the selection and the delivery: put back with its attempt refunded")
+    void aKeyAddedSinceTheSelectionIsRefunded() {
+        RepositoryEntity keyless = repository();
+        keyless.setSshKeyId(null);
+        when(queue.claimableRepositories(any())).thenReturn(Set.of(1L));
+        when(repositories.findAllById(any())).thenReturn(List.of(keyless));
+        queueHolds(repositoryScan());
+
+        assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
+                .isInstanceOf(CredentialWithheldException.class);
+
+        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of()));
+        verify(queue).requeueRefunded(eq(7L), anyString());
+        verify(queue, never()).requeue(anyLong(), anyString());
+        verify(audit, never()).record(any());
     }
 
     @Test
@@ -241,17 +305,17 @@ class ScanDispatcherTest {
 
         agent.setMaxConcurrent(4);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 4, List.of());
+        verify(queue).claimWithin(agent.getId(), 4, List.of(), Set.of());
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 16, List.of());
+        verify(queue).claimWithin(agent.getId(), 16, List.of(), Set.of());
 
         agent.setMaxConcurrent(0);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 1, List.of());
+        verify(queue).claimWithin(agent.getId(), 1, List.of(), Set.of());
     }
 
     @Test
@@ -415,9 +479,21 @@ class ScanDispatcherTest {
         return scan;
     }
 
+    /**
+     * Repository 1's scan waits, and the queue honours an exclusion as the real one does: left out,
+     * nothing comes back; not left out, the scan is taken. So a dispatcher that forgot to exclude
+     * takes it — and the test sees a claim where there should have been none.
+     */
+    private void queueWaitsForRepositoryOne() {
+        when(queue.claimableRepositories(any())).thenReturn(Set.of(1L));
+        when(repositories.findAllById(any())).thenAnswer(call -> List.of(repositories.findById(1L).orElseThrow()));
+        when(queue.claimWithin(any(), anyInt(), any(), any())).thenAnswer(call ->
+                call.<Set<Long>>getArgument(3).contains(1L) ? Optional.empty() : Optional.of(repositoryScan()));
+    }
+
     private void queueHolds(ScanEntity scan) {
         when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of(scan));
-        when(queue.claimWithin(any(), anyInt(), any())).thenReturn(Optional.of(scan));
+        when(queue.claimWithin(any(), anyInt(), any(), any())).thenReturn(Optional.of(scan));
     }
 
     private static ScanTask.Target.Repository repositoryTarget(ScanTask task) {
@@ -490,11 +566,12 @@ class ScanDispatcherTest {
     @DisplayName("a token with no verified sealing key to seal it for is withheld, like a key")
     void anUnsealedTokenIsWithheld() {
         repositoryUsesAnHttpsToken();
-        queueHolds(repositoryScan());
+        queueWaitsForRepositoryOne();
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
                 .isInstanceOf(CredentialWithheldException.class);
-        verify(queue).requeue(eq(7L), anyString());
+        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+        verify(gitTokens, never()).findById(any());
     }
 
     @Test

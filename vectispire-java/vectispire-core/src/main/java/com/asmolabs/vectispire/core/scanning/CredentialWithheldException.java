@@ -4,7 +4,9 @@ package com.asmolabs.vectispire.core.scanning;
  * Raised when a delegated credential would leave without a sealing key the agent proved.
  *
  * <p>Its own class so the API answers 412 rather than 500: the queue is healthy and the scan is
- * back in it — what is missing is an operator's step, and the message names which. It replaced
+ * still in it, unclaimed and with its attempts intact — what is missing is an operator's step, and
+ * the message names which. Raised when an agent's poll finds only scans it was kept from, not when
+ * it takes one: see {@code ScanDispatcher.claimForAgent}. It replaced
  * {@code InsecureCredentialTransportException}, which accepted TLS as a substitute; decision 0031
  * says why it is not one.
  */

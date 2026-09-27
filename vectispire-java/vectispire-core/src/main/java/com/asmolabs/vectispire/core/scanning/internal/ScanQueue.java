@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
@@ -117,9 +118,17 @@ public class ScanQueue {
      * reclaim, but the agent that held it has stopped renewing — dead, or cut off — and counting
      * it would leave a restarted agent unable to claim until somebody else's timer ran.
      *
+     * <p><b>An exclusion narrows the selection, never the take.</b> The repositories left out are
+     * read before the loop and not re-checked by the conditional update: a repository given a key
+     * between the two is taken all the same, and the caller, which reads the repository again to
+     * build the task, is what notices — see {@link #requeueRefunded}.
+     *
      * @param limit the agent's limit as the queue applies it — see {@code AgentConcurrency}
+     * @param excludedRepositories repositories whose scans this agent must not take — for an agent
+     *     that cannot be handed a delegated credential, those that carry one (decision 0031)
      */
-    public Optional<ScanEntity> claimWithin(UUID agentId, int limit, Collection<String> agentLabels) {
+    public Optional<ScanEntity> claimWithin(
+            UUID agentId, int limit, Collection<String> agentLabels, Set<Long> excludedRepositories) {
         String worker = agentId.toString();
         if (limit <= 0) {
             return Optional.empty();
@@ -133,7 +142,7 @@ public class ScanQueue {
             if (countHeld(worker) >= limit) {
                 return Optional.empty();
             }
-            List<ScanEntity> candidates = candidates(1, agentLabels);
+            List<ScanEntity> candidates = candidates(1, agentLabels, excludedRepositories);
             if (candidates.isEmpty()) {
                 return Optional.empty();
             }
@@ -215,9 +224,33 @@ public class ScanQueue {
     }
 
     private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels) {
+        return candidates(wanted, agentLabels, Set.of());
+    }
+
+    private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels, Set<Long> excluded) {
+        String pending = ScanStatus.PENDING.wireName();
+        if (excluded.isEmpty()) {
+            return agentLabels.isEmpty()
+                    ? scans.findClaimableUnlabelled(pending, Limit.of(wanted))
+                    : scans.findClaimable(pending, agentLabels, Limit.of(wanted));
+        }
         return agentLabels.isEmpty()
-                ? scans.findClaimableUnlabelled(ScanStatus.PENDING.wireName(), Limit.of(wanted))
-                : scans.findClaimable(ScanStatus.PENDING.wireName(), agentLabels, Limit.of(wanted));
+                ? scans.findClaimableUnlabelledExcept(pending, excluded, Limit.of(wanted))
+                : scans.findClaimableExcept(pending, agentLabels, excluded, Limit.of(wanted));
+    }
+
+    /**
+     * The repositories with a scan waiting that an executor carrying these labels could take.
+     *
+     * <p>What an exclusion is chosen among: asking the owner of the repositories which of <em>these</em>
+     * carry a credential keeps the list as short as the queue, where asking for every repository that
+     * carries one would make it as long as the estate.
+     */
+    public Set<Long> claimableRepositories(Collection<String> agentLabels) {
+        String pending = ScanStatus.PENDING.wireName();
+        return Set.copyOf(agentLabels.isEmpty()
+                ? scans.findClaimableRepositoriesUnlabelled(pending)
+                : scans.findClaimableRepositories(pending, agentLabels));
     }
 
     public Optional<ScanEntity> byId(long scanId) {
@@ -270,6 +303,23 @@ public class ScanQueue {
     public boolean requeue(long scanId, String worker) {
         return scans.releaseOwned(
                 scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.PENDING.wireName(), null) > 0;
+    }
+
+    /**
+     * Puts this worker's scan back in the queue <b>and refunds the attempt its claim counted</b>.
+     * False when it was no longer this worker's.
+     *
+     * <p>Only for a claim that could never have been honoured, on a path that cannot repeat for the
+     * same scan and executor: a delegated credential withheld from an agent whose selection excluded
+     * the repositories carrying one, when the repository gained its key between the selection and the
+     * delivery. The next selection excludes it, so the refund is paid once. Anywhere else, a refund
+     * turns a scan that keeps going undelivered into one that circulates for ever — which is why
+     * {@link #requeue} does not refund.
+     */
+    @Transactional
+    public boolean requeueRefunded(long scanId, String worker) {
+        return scans.releaseOwnedRefunded(
+                scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.PENDING.wireName()) > 0;
     }
 
     /** Ends this worker's scan in failure, lease included. False when it was no longer this worker's. */

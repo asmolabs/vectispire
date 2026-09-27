@@ -201,19 +201,49 @@ public class ScanDispatcher {
      *
      * <p><b>The deployment key only leaves sealed, for a key the agent proved.</b> An agent in {@link
      * CredentialsMode#DELEGATED} receives the repository's private key or HTTPS token; without a
-     * sealing key signed by its pinned key the scan is put back in the queue rather than entrusted.
-     * Whether the link is encrypted no longer enters into it: TLS that a proxy terminates protects
-     * nothing from that proxy, and whether one does cannot be seen from here.
+     * sealing key signed by its pinned key it is handed no such scan at all. Whether the link is
+     * encrypted no longer enters into it: TLS that a proxy terminates protects nothing from that
+     * proxy, and whether one does cannot be seen from here.
+     *
+     * <p><b>Such an agent does not claim a scan it could not be handed.</b> It used to: the claim
+     * counted an attempt, the credential was withheld and the scan put back — once per poll, every
+     * few seconds, for as long as the agent ran. A scan nothing had tried reached the executor that
+     * could run it with its takeovers spent, so its first lapsed lease failed it for good, and the
+     * screen counted attempts that never happened: the claim the {@link #runner} field refuses for
+     * the built-in worker. The repositories carrying a credential are left out of its selection
+     * instead, so the scan waits for an executor that can run it and costs nothing meanwhile.
+     * Refunding the attempt on the old path would have been the smaller change and the worse one:
+     * the same agent would take the same scan at every poll, give it back, and keep it from a
+     * verified agent or the built-in worker — a scan that neither runs nor fails.
+     *
+     * <p><b>It is still told, and that is not only courtesy.</b> When the agent is left with nothing
+     * but scans it was kept from, the poll answers 412 as the withheld credential did: the agent logs
+     * the step that is missing, which is where its operator reads it, and an agent whose key an
+     * administrator reset announces a new one on that answer. A silent 204 would say "no work" to an
+     * agent kept from a queue of it.
      */
     public Optional<AgentTask> claimForAgent(AgentView agent) {
+        List<String> labels = AgentLabels.parse(agent.labels());
+        int limit = AgentConcurrency.effective(agent.maxConcurrent());
+        // Asked only of an agent that cannot be handed a credential: every other poll — a verified
+        // agent's, a local one's — costs what it cost before, and the two reads are the price of the
+        // misconfiguration alone.
+        Set<Long> kept = sealsCredentials(agent)
+                ? Set.of()
+                : targets.carryingCredentials(queue.claimableRepositories(labels));
+
         // **Within the agent's limit, counted by the database.** The agent stops polling at its
         // limit too, but that is courtesy: two processes sharing a key, or an older agent that
         // never read the setting, would each believe they had room. The count is the one both
         // cannot get wrong, and a lowered limit therefore applies to the next claim while the
         // scans already running finish.
-        Optional<ScanEntity> claimed = queue.claimWithin(
-                agent.id(), AgentConcurrency.effective(agent.maxConcurrent()), AgentLabels.parse(agent.labels()));
+        Optional<ScanEntity> claimed = queue.claimWithin(agent.id(), limit, labels, kept);
         if (claimed.isEmpty()) {
+            // Not when the agent is full: it would have been handed nothing anyway, and the answer
+            // would name a missing key as the reason for a limit.
+            if (!kept.isEmpty() && queue.countHeld(agent.id().toString()) < limit) {
+                throw withheld(agent);
+            }
             return Optional.empty();
         }
 
@@ -233,11 +263,15 @@ public class ScanDispatcher {
                 // key is exactly what removing the announcement would look like from here.
                 String sealingKey = agent.sealingPublicKey();
                 if (!SealedEnvelope.isUsablePublicKey(sealingKey)) {
-                    // Put back in the queue *before* refusing: otherwise the scan stays claimed by
-                    // an agent that received nothing, until the lease lapses.
-                    queue.requeue(scan.getId(), agent.id().toString());
-                    throw new CredentialWithheldException(agent.signingPublicKey() == null
-                            || agent.signingPublicKey().isBlank());
+                    // Reached through a race only: the selection left out every repository that
+                    // carried a credential when it read them, and this one gained its key since.
+                    // Put back *before* refusing, or the scan stays claimed by an agent that received
+                    // nothing until the lease lapses — and with its attempt refunded, since nothing
+                    // was tried. The refund is paid once, because the next selection reads the key
+                    // and leaves the repository out; that is what makes it safe here and nowhere
+                    // else (see `returnUndelivered`).
+                    queue.requeueRefunded(scan.getId(), agent.id().toString());
+                    throw withheld(agent);
                 }
                 // The token is sealed exactly as the key is (decision 0022); its host and user
                 // name are not secrets and travel in the clear, so the agent can enforce the
@@ -260,6 +294,24 @@ public class ScanDispatcher {
             queue.fail(scan.getId(), agent.id().toString(), String.valueOf(error.getMessage()));
             return Optional.empty();
         }
+    }
+
+    /**
+     * Whether a scan needing a delegated credential may be claimed for this agent.
+     *
+     * <p>True for an agent that is never handed one — {@code local}, or a mode this version cannot
+     * read — since the credential then stays here and the agent clones with its own. The one
+     * predicate the selection and the delivery both come down to: two tests that could disagree
+     * would hand an agent a scan it is then refused, or keep it from one it could have run.
+     */
+    private static boolean sealsCredentials(AgentView agent) {
+        return !credentialsMode(agent).deliversCredentials()
+                || SealedEnvelope.isUsablePublicKey(agent.sealingPublicKey());
+    }
+
+    private static CredentialWithheldException withheld(AgentView agent) {
+        return new CredentialWithheldException(
+                agent.signingPublicKey() == null || agent.signingPublicKey().isBlank());
     }
 
     /**

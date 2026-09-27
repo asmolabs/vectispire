@@ -3,10 +3,13 @@ package com.asmolabs.vectispire.core.targets;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +66,25 @@ public class TargetCatalog {
     @Transactional(readOnly = true)
     public List<RepositoryView> repositories(Collection<Long> ids) {
         return repositories.findAllById(ids).stream().map(RepositoryView::of).toList();
+    }
+
+    /**
+     * Those of these repositories that are cloned with a credential of their own — an SSH key or an
+     * HTTPS token — which an executor in {@code delegated} mode would be handed.
+     *
+     * <p>The same two columns the dispatcher reads to decide what to send, and nothing more: a
+     * repository counted here and not there, or the reverse, is an agent kept from a scan it could
+     * run, or one handed a scan whose credential is then withheld.
+     */
+    @Transactional(readOnly = true)
+    public Set<Long> carryingCredentials(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+        return repositories.findAllById(ids).stream()
+                .filter(repository -> repository.getSshKeyId() != null || repository.getHttpsTokenId() != null)
+                .map(RepositoryEntity::getId)
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /** The images with these identifiers that exist — one query, whatever the count. */
