@@ -119,6 +119,9 @@ public class AgentRunner implements ApplicationRunner {
         // to scan. The runner cannot speak HTTP itself: it is shared with the built-in worker,
         // which reads the database.
         RulePlacement.RuleSetProvider ruleSets = protocol::ruleSet;
+        // The plugin provider, wired the same way: the control plane decides which plugins a scan
+        // runs and names each by digest; the agent fetches exactly that manifest.
+        com.asmolabs.vectispire.common.scanning.PluginProvider plugins = protocol::plugin;
         ScanRunner runner = new ScanRunner(
                 new ContainerRunner(),
                 ScannerImages.PINNED.withOverrides(
@@ -132,6 +135,8 @@ public class AgentRunner implements ApplicationRunner {
                 // directory ships with it.
                 BundledRules.materialise(),
                 ruleSets,
+                plugins,
+                properties.images().pluginRegistry(),
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
                 // **What `CredentialsMode.LOCAL` has always promised.** An agent in that mode
                 // receives no deployment key, and until now the session was built with an empty

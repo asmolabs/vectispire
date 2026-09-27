@@ -25,6 +25,30 @@ class AgentWireFormatTest {
     private final ObjectMapper json = new VectispireAgentApplication().objectMapper();
 
     @Test
+    @DisplayName("a plugin's three states leave the agent with their discriminator, and a task's plugins are read")
+    void pluginsOnTheWire() throws Exception {
+        String digest = "e".repeat(64);
+        JsonNode written = json.readTree(json.writeValueAsString(ScanArtifacts.builder()
+                .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Produced("a", digest, "t", "1", java.util.List.of()))
+                .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.NotApplicable("b", digest,
+                        java.util.Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.GO)))
+                .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Absent("c", digest, "exit 2"))
+                .build(Duration.ZERO)));
+
+        assertThat(written.path("plugins")).extracting(node -> node.path("state").asText())
+                .containsExactly("produced", "not_applicable", "absent");
+        assertThat(written.path("plugins").path(0).path("findings").isArray())
+                .as("an empty list is written as one: it is the claim \"ran, found nothing\"")
+                .isTrue();
+
+        com.asmolabs.vectispire.common.scanning.ScanTask task = json.readValue(
+                "{\"target\":{\"kind\":\"repository\",\"url\":\"https://h/p.git\",\"branch\":\"main\"},"
+                        + "\"steps\":[],\"plugins\":[{\"id\":\"a\",\"digest\":\"" + digest + "\"}]}",
+                com.asmolabs.vectispire.common.scanning.ScanTask.class);
+        assertThat(task.plugins()).containsExactly(new com.asmolabs.vectispire.common.domain.plugins.PluginRef("a", digest));
+    }
+
+    @Test
     @DisplayName("a scan's duration leaves the agent as ISO-8601 text, the contract's \"format: duration\"")
     void aDurationIsIsoText() throws Exception {
         JsonNode written = json.readTree(json.writeValueAsString(

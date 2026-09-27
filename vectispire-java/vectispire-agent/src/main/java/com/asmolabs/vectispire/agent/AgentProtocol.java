@@ -5,6 +5,8 @@ import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
+import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
@@ -123,6 +125,9 @@ public class AgentProtocol {
 
     /** Keyed by hash, therefore never to invalidate — see {@link #ruleSet}. */
     private final Map<String, List<StoredFile>> ruleSetCache = new ConcurrentHashMap<>();
+
+    /** Keyed by id and digest, therefore never to invalidate either — see {@link #plugin}. */
+    private final Map<PluginRef, PluginManifest> pluginCache = new ConcurrentHashMap<>();
 
     /**
      * When {@link #keyPair} was made, in epoch milliseconds — the generation the sealing key's
@@ -379,6 +384,30 @@ public class AgentProtocol {
             return json.convertValue(files, json.getTypeFactory()
                     .constructCollectionType(List.class, StoredFile.class));
         });
+    }
+
+    /**
+     * A plugin's manifest, by the id and digest the task named, cached by both.
+     *
+     * <p>The rule set's reasoning again: a reference names a content, never a state, so what was
+     * fetched once stays correct and a new version is simply a digest not yet held. The runner checks
+     * that what comes back hashes to the digest before running it; only a manifest that does is kept,
+     * so a bad answer is not cached. A 404 is thrown, which leaves the plugin absent — never replaced by
+     * something else.
+     */
+    public PluginManifest plugin(PluginRef reference) {
+        PluginManifest cached = pluginCache.get(reference);
+        if (cached != null) {
+            return cached;
+        }
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/plugins/" + reference.id() + "/" + reference.digest(), "GET", null, Duration.ofSeconds(30));
+        refuseIfFailed(response, "Plugin " + reference.id() + " refused");
+        PluginManifest manifest = json.convertValue(response.body(), PluginManifest.class);
+        if (manifest != null && reference.digest().equals(manifest.digest())) {
+            pluginCache.put(reference, manifest);
+        }
+        return manifest;
     }
 
     /**

@@ -25,7 +25,9 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param images the scanner images, blank meaning "the pinned digest". <b>The agent needs these
  *     more than the control plane does</b>: it is the component deployed on somebody else's
  *     network, which is exactly where pulls go through an internal registry rather than to Docker
- *     Hub. An agent that cannot name its registry cannot run at all there
+ *     Hub. An agent that cannot name its registry cannot run at all there. {@code pluginRegistry}
+ *     is the one plugin images are relocated to — the host swapped, the path and digest kept — so
+ *     the mirror serves a plugin and cannot substitute another (decision 0017)
  */
 @ConfigurationProperties("vectispire.agent")
 public record AgentProperties(
@@ -44,7 +46,8 @@ public record AgentProperties(
             @DefaultValue("") String grype,
             @DefaultValue("") String gitleaks,
             @DefaultValue("") String checkov,
-            @DefaultValue("") String semgrep) {}
+            @DefaultValue("") String semgrep,
+            @DefaultValue("") String pluginRegistry) {}
 
     /** The pinned scanner digests, for a caller with no opinion about the registry. */
     public AgentProperties(
@@ -55,7 +58,7 @@ public record AgentProperties(
             Duration heartbeat,
             String scannerEngine) {
         this(url, token, claimWait, retryDelay, heartbeat, scannerEngine, "",
-                new Images("", "", "", "", ""));
+                new Images("", "", "", "", "", ""));
     }
 
     /**
@@ -74,7 +77,7 @@ public record AgentProperties(
         retryDelay = clamp(retryDelay, Duration.ofSeconds(1), Duration.ofMinutes(5));
         heartbeat = clamp(heartbeat, Duration.ofSeconds(5), Duration.ofMinutes(10));
         // Absent means "no override", which is the same thing every blank field means.
-        images = images == null ? new Images("", "", "", "", "") : images;
+        images = images == null ? new Images("", "", "", "", "", "") : images;
     }
 
     private static Duration clamp(Duration value, Duration min, Duration max) {

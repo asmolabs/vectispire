@@ -169,6 +169,49 @@ class AgentProtocolTest {
         verify(http, times(1)).call(contains("/rules/abc"), anyString(), any(), any());
     }
 
+    /** A manifest as the control plane serves it, and the reference naming it. */
+    private static com.asmolabs.vectispire.common.domain.plugins.PluginManifest manifest() {
+        return new com.asmolabs.vectispire.common.domain.plugins.PluginManifest("acme-lint", "ACME",
+                "registry.acme.internal/acme-lint@sha256:" + "a".repeat(64),
+                java.util.Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.JAVA),
+                java.util.List.of("{source}"), null, null, false, null, null);
+    }
+
+    @Test
+    @DisplayName("a plugin's manifest is fetched by id and digest, and cached once it hashes to that digest")
+    void pluginsAreFetchedByReferenceAndCached() throws Exception {
+        var manifest = manifest();
+        var reference = new com.asmolabs.vectispire.common.domain.plugins.PluginRef(manifest.id(), manifest.digest());
+        answers(200, JSON.writeValueAsString(manifest));
+
+        assertThat(protocol.plugin(reference)).isEqualTo(manifest);
+        assertThat(protocol.plugin(reference)).isEqualTo(manifest);
+
+        verify(http, times(1)).call(contains("/api/v1/agent/plugins/acme-lint/" + manifest.digest()), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("an answer that does not hash to the digest is not cached: the runner refuses it, and asks again next time")
+    void aWrongAnswerIsNotKept() throws Exception {
+        var manifest = manifest();
+        var reference = new com.asmolabs.vectispire.common.domain.plugins.PluginRef(manifest.id(), "b".repeat(64));
+        answers(200, JSON.writeValueAsString(manifest));
+
+        protocol.plugin(reference);
+        protocol.plugin(reference);
+
+        verify(http, times(2)).call(contains("/api/v1/agent/plugins/"), anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a plugin the control plane does not know is an error, never something else run in its place")
+    void anUnknownPluginIsRefused() {
+        answers(404, "{\"detail\":\"No plugin.\"}");
+
+        assertThatThrownBy(() -> protocol.plugin(new com.asmolabs.vectispire.common.domain.plugins.PluginRef("x1", "c".repeat(64))))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     @Test
     @DisplayName("409 on a heartbeat means the lease is gone, not that the call failed")
     void aTakenOverLeaseIsFalseNotAnError() {

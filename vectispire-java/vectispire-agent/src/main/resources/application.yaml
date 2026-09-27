@@ -38,3 +38,7 @@ vectispire:
       gitleaks: ${VECTISPIRE_IMAGE_GITLEAKS:}
       checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
+      # The internal registry plugin images are pulled from: the host relocated, the path and the
+      # digest kept, so the mirror serves a plugin and cannot substitute another. Blank pulls each
+      # from its own registry.
+      plugin-registry: ${VECTISPIRE_PLUGIN_REGISTRY:}
