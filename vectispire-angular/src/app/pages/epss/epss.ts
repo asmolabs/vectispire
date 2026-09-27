@@ -198,10 +198,4 @@ export class Epss implements OnInit {
                 return this.i18n.t('epss.tier_low');
         }
     }
-
-    getReachabilitySeverity(reachability: string): 'danger' | 'success' | 'info' {
-        if (reachability === 'REACHABLE') return 'danger';
-        if (reachability === 'UNREACHABLE') return 'success';
-        return 'info';
-    }
 }

@@ -63,7 +63,12 @@
 
     @if (!loading() && summary()) {
         <!-- KPI Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!--
+            Three cards, not four. The fourth counted "reachable and weaponised" issues: an EPSS of
+            20 % or more on an issue reading REACHABLE. Nothing computes reachability, so it read 0
+            on every installation, under a label promising an analysis of the code that runs.
+        -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <!-- Active CISA KEV -->
             <div
                 class="p-4 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 shadow-sm flex flex-col justify-between"
@@ -97,24 +102,6 @@
                     <span class="text-xs text-amber-600 dark:text-amber-300 ml-1">{{
                         'epss.high_probability' | translate
                     }}</span>
-                </div>
-            </div>
-
-            <!-- Reachable & Armed -->
-            <div
-                class="p-4 rounded-xl border border-surface-200 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-sm flex flex-col justify-between"
-            >
-                <div class="flex items-center justify-between text-surface-500 dark:text-surface-400">
-                    <span class="text-xs font-bold uppercase tracking-wider">{{
-                        'epss.reachable_weaponised' | translate
-                    }}</span>
-                    <i class="pi pi-shield text-indigo-500 text-lg"></i>
-                </div>
-                <div class="mt-3">
-                    <span class="text-3xl font-extrabold text-surface-900 dark:text-surface-0">{{
-                        summary()!.reachableEpssCount
-                    }}</span>
-                    <span class="text-xs text-surface-500 ml-1">{{ 'epss.in_executed_code' | translate }}</span>
                 </div>
             </div>
 
@@ -230,7 +217,6 @@
                         <th>{{ 'epss.severity_cvss' | translate }}</th>
                         <th>{{ 'epss.epss_score' | translate }}</th>
                         <th>{{ 'epss.source_kev' | translate }}</th>
-                        <th>{{ 'epss.col_reachability' | translate }}</th>
                         <th>{{ 'epss.target' | translate }}</th>
                         <th>{{ 'epss.recommended_action' | translate }}</th>
                     </tr>
@@ -307,12 +293,6 @@
                             } @else {
                                 <span class="text-xs text-surface-400">-</span>
                             }
-                        </td>
-                        <td>
-                            <p-tag
-                                [value]="p.reachability"
-                                [severity]="getReachabilitySeverity(p.reachability)"
-                            ></p-tag>
                         </td>
                         <td>
                             <span class="text-xs font-medium block truncate max-w-[150px]">{{ p.targetName }}</span>

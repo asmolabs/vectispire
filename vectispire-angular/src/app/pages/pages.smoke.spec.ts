@@ -206,7 +206,6 @@ describe('every screen', () => {
                 totalVulnerabilities: 0,
                 activeKevCount: 0,
                 highEpssCount: 0,
-                reachableEpssCount: 0,
                 averageFleetEpss: 0,
                 topPriorities: [],
                 breakdownByTier: {}

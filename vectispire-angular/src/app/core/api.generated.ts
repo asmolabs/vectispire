@@ -3816,8 +3816,6 @@ export interface components {
             };
             /** Format: int32 */
             highEpssCount: number;
-            /** Format: int32 */
-            reachableEpssCount: number;
             topPriorities?: components["schemas"]["EpssPrioritizedIssue"][];
             /** Format: int32 */
             totalVulnerabilities: number;
@@ -3836,7 +3834,6 @@ export interface components {
             /** Format: int32 */
             priorityScore: number;
             priorityTier?: string;
-            reachability?: string;
             /** @enum {string} */
             recommendedAction?: "P0_KEV_24H" | "P0_48H" | "P1_7D" | "P2_30D" | "P3_ROUTINE";
             severity?: string;

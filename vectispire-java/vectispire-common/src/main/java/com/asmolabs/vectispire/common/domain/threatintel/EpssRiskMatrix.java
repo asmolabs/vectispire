@@ -5,6 +5,13 @@ import java.util.Map;
 
 /**
  * Pure domain model for FIRST.org EPSS and CISA KEV exploitability prioritization.
+ *
+ * <p><b>CVSS × EPSS, with KEV on top, and nothing else.</b> The score carried a reachability
+ * multiplier (×1.25 reachable, ×0.75 unreachable) and the top tier a clause admitting a reachable
+ * EPSS ≥ 20 % critical. Nothing computes reachability: every issue reads {@code UNKNOWN}, so the
+ * multiplier was always 1 and the clause never fired — the terms promised a distinction the ranking
+ * could not make, and the screen spent a column and a card showing it. Removing them changes no
+ * figure a deployment has shown. A real analysis would come back as its own input, measured.
  */
 public final class EpssRiskMatrix {
 
@@ -19,7 +26,6 @@ public final class EpssRiskMatrix {
             Double epssScore,
             Double epssPercentile,
             boolean isKev,
-            String reachability,
             String targetName,
             String targetKind,
             int priorityScore,
@@ -30,15 +36,13 @@ public final class EpssRiskMatrix {
             int totalVulnerabilities,
             int activeKevCount,
             int highEpssCount,
-            int reachableEpssCount,
             double averageFleetEpss,
             List<EpssPrioritizedIssue> topPriorities,
             Map<String, Integer> breakdownByTier) {}
 
-    public static int calculatePriorityScore(Double cvss, Double epss, boolean isKev, String reachability) {
+    public static int calculatePriorityScore(Double cvss, Double epss, boolean isKev) {
         double cvssVal = cvss != null ? cvss : 5.0;
         double epssVal = epss != null ? epss : 0.01;
-        boolean reachable = "REACHABLE".equalsIgnoreCase(reachability);
 
         // CVSS weight: up to 30 pts
         double cvssComponent = (cvssVal / 10.0) * 30.0;
@@ -51,22 +55,14 @@ public final class EpssRiskMatrix {
 
         double baseScore = cvssComponent + epssComponent + kevComponent;
 
-        // Reachability multiplier
-        if (reachable) {
-            baseScore *= 1.25;
-        } else if ("UNREACHABLE".equalsIgnoreCase(reachability)) {
-            baseScore *= 0.75;
-        }
-
         return (int) Math.round(Math.min(100.0, Math.max(0.0, baseScore)));
     }
 
-    public static String determineTier(Double cvss, Double epss, boolean isKev, String reachability) {
+    public static String determineTier(Double cvss, Double epss, boolean isKev) {
         double cvssVal = cvss != null ? cvss : 5.0;
         double epssVal = epss != null ? epss : 0.01;
-        boolean reachable = "REACHABLE".equalsIgnoreCase(reachability);
 
-        if (isKev || (epssVal >= 0.50 && cvssVal >= 7.0) || (epssVal >= 0.20 && reachable && cvssVal >= 7.0)) {
+        if (isKev || (epssVal >= 0.50 && cvssVal >= 7.0)) {
             return "CRITICAL_ARMED";
         }
         if (epssVal >= 0.20 || (epssVal >= 0.05 && cvssVal >= 7.0)) {
@@ -101,7 +97,7 @@ public final class EpssRiskMatrix {
         P3_ROUTINE
     }
 
-    public static RecommendedAction determineAction(String tier, boolean isKev, String reachability) {
+    public static RecommendedAction determineAction(String tier, boolean isKev) {
         return switch (tier) {
             case "CRITICAL_ARMED" -> isKev ? RecommendedAction.P0_KEV_24H : RecommendedAction.P0_48H;
             case "HIGH_PROBABLE" -> RecommendedAction.P1_7D;

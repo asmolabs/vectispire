@@ -54,7 +54,6 @@ describe('EPSS prioritisation', () => {
                 totalVulnerabilities: 0,
                 activeKevCount: 0,
                 highEpssCount: 0,
-                reachableEpssCount: 0,
                 averageFleetEpss: 0,
                 topPriorities: [],
                 breakdownByTier: {}

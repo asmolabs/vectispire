@@ -3,7 +3,6 @@ package com.asmolabs.vectispire.core.posture;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
-import com.asmolabs.vectispire.common.domain.reachability.ReachabilityStatus;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityGrade;
 import com.asmolabs.vectispire.common.domain.scorecard.SecurityScorecard;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -158,7 +157,6 @@ public class SecurityScorecardService {
         for (IssueRows.Posture issue : issues) {
             String sev = issue.severity() != null ? issue.severity().toUpperCase(Locale.ROOT) : "UNKNOWN";
             boolean isKev = Boolean.TRUE.equals(issue.isKev());
-            boolean isReachable = ReachabilityStatus.REACHABLE.name().equalsIgnoreCase(issue.reachability());
 
             if (isKev) {
                 kevCount++;
@@ -166,7 +164,13 @@ public class SecurityScorecardService {
             }
             if ("CRITICAL".equals(sev)) {
                 criticalCount++;
-                score -= isReachable ? 15 : 8;
+                // **One weight for every critical, since nothing measures reachability.** A
+                // reachable critical cost 15 and any other 8, read off a column no analysis
+                // writes: every issue reads UNKNOWN, so the 15 was never charged and the term only
+                // promised a distinction the grade could not make. Were it charged — a row edited
+                // by hand, an import that one day sets the column — it would move a public badge
+                // on a claim nobody established.
+                score -= 8;
             } else if ("HIGH".equals(sev)) {
                 highCount++;
                 score -= 4;

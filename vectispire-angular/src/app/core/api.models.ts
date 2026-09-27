@@ -1460,7 +1460,6 @@ export type EpssPrioritizedIssue = Refine<
         identifier: string;
         title: string;
         severity: string;
-        reachability: string;
         targetName: string;
         targetKind: string;
         recommendedAction: NonNullable<Schema<'EpssPrioritizedIssue'>['recommendedAction']>;

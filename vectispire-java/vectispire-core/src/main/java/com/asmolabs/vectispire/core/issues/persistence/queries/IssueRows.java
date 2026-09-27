@@ -38,9 +38,9 @@ public final class IssueRows {
      * Everything the quality gate weighs, and nothing else.
      *
      * <p>Wider than the others because the gate genuinely reads ten fields per issue — but still a
-     * projection, because it reads exactly these ten and never the description, the CVSS vector or
-     * the reachability payload that travel with a row. {@code repoId} and {@code containerId} are
-     * here to attribute the issue to a target, not to be reported.
+     * projection, because it reads exactly these ten and never the description or the CVSS vector
+     * that travel with a row. {@code repoId} and {@code containerId} are here to attribute the
+     * issue to a target, not to be reported.
      */
     public record GateRow(
             Long id,
@@ -59,9 +59,10 @@ public final class IssueRows {
      * What an exploitation-probability ranking weighs, and nothing else.
      *
      * <p>Wide, like {@link GateRow}, because the ranking genuinely reads twelve fields — a CVE id,
-     * the two scores it combines, whether it is actively exploited, whether it is reachable, and
-     * enough to name the target and label the row. It still excludes what travels with an issue
-     * and is never ranked on: the CVSS vector string, the file path, the triage history, the
+     * the two scores it combines, whether it is actively exploited, and enough to name the target
+     * and label the row. Not the reachability column: nothing computes it, and the ranking stopped
+     * weighing a value that always reads {@code UNKNOWN}. It still excludes what travels with an
+     * issue and is never ranked on: the CVSS vector string, the file path, the triage history, the
      * fix versions.
      *
      * <p>{@code state} is here because the caller filters {@code closed} and {@code resolved} in
@@ -80,28 +81,26 @@ public final class IssueRows {
             String packageName,
             Double cvssScore,
             Double epssScore,
-            Boolean isKev,
-            String reachability) {}
+            Boolean isKev) {}
 
     /**
      * The three columns a security grade is computed from.
      *
-     * <p>A scorecard subtracts on severity, on whether the issue is actively exploited and on
-     * whether it is reachable, and reports counts. It never names an issue, which is why nothing
-     * identifying is here — and why the portfolio grade was materialising 624 managed rows to read
-     * four fields off each.
+     * <p>A scorecard subtracts on severity and on whether the issue is actively exploited, and
+     * reports counts. It never names an issue, which is why nothing identifying is here — and why
+     * the portfolio grade was materialising 624 managed rows to read four fields off each.
      *
      * <p>{@code state} rides along because the three callers narrow {@code closed} and
      * {@code resolved} in Java after the specification has run, rather than in it.
      */
-    public record Posture(String state, String severity, Boolean isKev, String reachability) {}
+    public record Posture(String state, String severity, Boolean isKev) {}
 
     /**
      * What an attack graph draws a node from.
      *
      * <p>The widest shape here, because a graph node is genuinely labelled, badged and annotated:
-     * the CVE, the package and version it sits in, the two scores, whether it is exploited,
-     * whether it is reachable, and the file for a secret. It still leaves behind the triage
+     * the CVE, the package and version it sits in, the two scores, whether it is exploited, and
+     * the file for a secret. It still leaves behind the triage
      * history, the fix versions, the CVSS vector and the timestamps, which no node shows.
      *
      * <p>{@code repoId} is here to group rows by target on the overview, not to be drawn.
@@ -118,8 +117,7 @@ public final class IssueRows {
             String filePath,
             Double cvssScore,
             Double epssScore,
-            Boolean isKev,
-            String reachability) {}
+            Boolean isKev) {}
 
     /** What a posture trend plots: which target, how bad, and over which window. */
     public record Observation(

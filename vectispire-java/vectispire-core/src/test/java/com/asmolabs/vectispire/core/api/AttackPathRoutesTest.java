@@ -16,6 +16,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @DisplayName("the Attack Path Visualizer REST routes")
 class AttackPathRoutesTest extends ApiTestBase {
@@ -31,6 +32,9 @@ class AttackPathRoutesTest extends ApiTestBase {
 
     @Autowired
     private IssueRepository issuesRepo;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("generates attack path graph correlating unauthenticated API, critical vulnerability, and secrets")
@@ -72,7 +76,6 @@ class AttackPathRoutesTest extends ApiTestBase {
         vuln.setSeverity("CRITICAL");
         vuln.setState("open");
         vuln.setTriageStatus("under_review");
-        vuln.setReachability("REACHABLE");
         vuln.setCvssScore(10.0);
         vuln.setDescription("Remote Code Execution in Log4j JNDI lookup");
         vuln.setFirstSeenAt(Instant.now());
@@ -103,6 +106,8 @@ class AttackPathRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.nodes[?(@.type == 'API_ENDPOINT')]").exists())
                 .andExpect(jsonPath("$.nodes[?(@.type == 'VULNERABLE_COMPONENT')]").exists())
                 .andExpect(jsonPath("$.nodes[?(@.type == 'SECRET')]").exists())
+                // Not computed, so not published: every node said UNKNOWN.
+                .andExpect(jsonPath("$.nodes[?(@.type == 'VULNERABLE_COMPONENT')].metadata.reachability").isEmpty())
                 .andExpect(jsonPath("$.attackPaths").isArray());
 
         mvc.perform(authenticated(get("/api/v1/attack-paths/overview"), token))
@@ -161,6 +166,44 @@ class AttackPathRoutesTest extends ApiTestBase {
                 // min(3, 40) * 10, with no unauthenticated endpoint and no secret in the fixture.
                 // The same number the uncut graph produced.
                 .andExpect(jsonPath("$.riskScore").value(30));
+    }
+
+    /**
+     * The reachability column is dormant: nothing computes it, and the graph no longer reads it.
+     *
+     * <p>A medium vulnerability behind no route at all. It used to become a node, rank ahead of its
+     * peers and be flagged exploitable as soon as the column read {@code REACHABLE} — a value no
+     * analysis writes, so the only way it gets there is somebody's hand, and the graph drew an
+     * attack path on it. Written here behind the entity's back, as that hand would.
+     */
+    @Test
+    @DisplayName("a reachability value in the dormant column draws no node and flags nothing exploitable")
+    void theDormantColumnDrawsNothing() throws Exception {
+        RepositoryEntity repo = new RepositoryEntity();
+        repo.setName("corp/ledger");
+        repo.setUrl("https://github.com/corp/ledger.git");
+        repo.setBranch("main");
+        repo = repositoriesRepo.save(repo);
+
+        IssueEntity medium = new IssueEntity();
+        medium.setRepoId(repo.getId());
+        medium.setFingerprint("fp-attackpath-medium");
+        medium.setIdentifier("CVE-2023-0001");
+        medium.setPackageName("left-pad");
+        medium.setType("vulnerability");
+        medium.setSeverity("MEDIUM");
+        medium.setState("open");
+        medium.setTriageStatus("under_review");
+        medium.setFirstSeenAt(Instant.now());
+        medium.setLastSeenAt(Instant.now());
+        medium.setTimesSeen(1);
+        medium = issuesRepo.save(medium);
+        jdbc.update("update t_issue set reachability = 'REACHABLE' where id = ?", medium.getId());
+
+        mvc.perform(authenticated(get("/api/v1/attack-paths/repositories/" + repo.getId()), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes[?(@.type == 'VULNERABLE_COMPONENT')]").isEmpty())
+                .andExpect(jsonPath("$.criticalExploitablePaths").value(0));
     }
 
     @Test

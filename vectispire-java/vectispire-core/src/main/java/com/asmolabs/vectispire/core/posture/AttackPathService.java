@@ -28,8 +28,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service that correlates ingress entrypoints, unauthenticated APIs, reachable critical vulnerabilities,
- * and high-value secret/data sinks into actionable Attack Path graphs.
+ * Service that correlates ingress entrypoints, unauthenticated APIs, critical or actively exploited
+ * vulnerabilities, and high-value secret/data sinks into actionable Attack Path graphs.
+ *
+ * <p><b>No hop is drawn on reachability.</b> The graph used to admit a vulnerability, rank it and
+ * mark it exploitable when the issue's reachability column read {@code REACHABLE}. Nothing computes
+ * that column — every issue reads {@code UNKNOWN} — so those three terms never fired, and a value
+ * written there by hand would have drawn a path on a claim no analysis made. An exploitable hop is
+ * an unauthenticated route in front of the component, which the API inventory does establish.
  */
 @Service
 public class AttackPathService {
@@ -58,7 +64,7 @@ public class AttackPathService {
     private static final int NODES_PER_TARGET = 10;
 
     /**
-     * Actively exploited first, then severity, then reachable ahead of unknown.
+     * Actively exploited first, then severity.
      *
      * <p>The same order the ranking elsewhere uses, and the reason the cut is defensible: what
      * survives it is what an operator would have looked at first anyway.
@@ -72,7 +78,6 @@ public class AttackPathService {
                 case "LOW" -> 3;
                 default -> 4;
             })
-            .thenComparing(i -> "REACHABLE".equalsIgnoreCase(i.reachability()) ? 0 : 1)
             // Ties broken on the id so two runs of the same estate draw the same picture.
             .thenComparing(i -> i.id() == null ? Long.MAX_VALUE : i.id());
 
@@ -177,7 +182,7 @@ public class AttackPathService {
             }
         }
 
-        // 3. Map Vulnerable Components (Critical / High / Reachable / KEV)
+        // 3. Map Vulnerable Components (Critical / High / KEV)
         List<IssueRows.GraphNode> criticalVulns = new ArrayList<>();
         List<IssueRows.GraphNode> secrets = new ArrayList<>();
 
@@ -187,7 +192,7 @@ public class AttackPathService {
 
             if (type.contains("secret") || type.contains("gitleaks") || "secret".equals(type)) {
                 secrets.add(issue);
-            } else if ("CRITICAL".equals(sev) || "HIGH".equals(sev) || Boolean.TRUE.equals(issue.isKev()) || "REACHABLE".equalsIgnoreCase(issue.reachability())) {
+            } else if ("CRITICAL".equals(sev) || "HIGH".equals(sev) || Boolean.TRUE.equals(issue.isKev())) {
                 criticalVulns.add(issue);
             }
         }
@@ -212,7 +217,7 @@ public class AttackPathService {
                     + (vuln.packageName() != null ? " (" + vuln.packageName() + ")" : "");
 
             boolean isRceOrCritical = "CRITICAL".equalsIgnoreCase(vuln.severity()) || Boolean.TRUE.equals(vuln.isKev()) || (vuln.description() != null && vuln.description().toLowerCase(Locale.ROOT).contains("remote code execution"));
-            boolean isExploitable = !unauthEndpoints.isEmpty() || "REACHABLE".equalsIgnoreCase(vuln.reachability());
+            boolean isExploitable = !unauthEndpoints.isEmpty();
 
             Map<String, String> meta = new LinkedHashMap<>();
             if (vuln.identifier() != null) meta.put("cve", vuln.identifier());
@@ -221,7 +226,6 @@ public class AttackPathService {
             if (vuln.cvssScore() != null) meta.put("cvss", String.valueOf(vuln.cvssScore()));
             if (vuln.epssScore() != null) meta.put("epss", String.format(Locale.ROOT, "%.2f%%", vuln.epssScore() * 100));
             meta.put("isKev", String.valueOf(Boolean.TRUE.equals(vuln.isKev())));
-            meta.put("reachability", vuln.reachability() != null ? vuln.reachability() : "UNKNOWN");
             if (vuln.filePath() != null) meta.put("filePath", vuln.filePath());
 
             nodes.add(new AttackPathNode(

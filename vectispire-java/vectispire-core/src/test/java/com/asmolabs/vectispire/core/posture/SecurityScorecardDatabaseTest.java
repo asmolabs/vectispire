@@ -28,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
@@ -55,6 +56,9 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
     @Autowired
     private ScanRepository scans;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @MockitoBean
     private LicenseGovernanceService licences;
@@ -89,12 +93,12 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         completedScan();
         Instant longAgo = Instant.now().minus(Duration.ofDays(40));
         // Past the 30-day high window, and past the 15-day critical one.
-        aged(issue("high", false, "UNKNOWN", "open"), longAgo);
-        aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        aged(issue("high", false, "open"), longAgo);
+        aged(issue("critical", false, "open"), longAgo);
         // Inside its window.
-        issue("high", false, "UNKNOWN", "open");
+        issue("high", false, "open");
         // Old, but settled by a triage decision: that is not lateness.
-        IssueEntity settled = aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        IssueEntity settled = aged(issue("critical", false, "open"), longAgo);
         settled.setTriageStatus("not_affected");
         issues.save(settled);
         // Old and late, but another target's.
@@ -103,7 +107,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         other.setUrl("https://example.invalid/corp/other.git");
         other.setBranch("main");
         other = repositories.save(other);
-        IssueEntity theirs = aged(issue("critical", false, "UNKNOWN", "open"), longAgo);
+        IssueEntity theirs = aged(issue("critical", false, "open"), longAgo);
         theirs.setRepoId(other.getId());
         issues.save(theirs);
 
@@ -117,21 +121,23 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     }
 
     @Test
-    @DisplayName("each weight applies as documented: KEV 25, reachable critical 15, other critical 8, high 4, licence 5, evidence +5")
+    @DisplayName("each weight applies as documented: KEV 25, critical 8, high 4, licence 5, evidence +5")
     void theWeights() {
         completedScan();
-        issue("critical", false, "REACHABLE", "open"); // -15
-        issue("critical", false, "UNKNOWN", "open"); // -8
-        issue("high", false, "UNKNOWN", "open"); // -4
-        issue("medium", true, "UNKNOWN", "open"); // -25, and a KEV is counted whatever its severity
+        // Marked reachable in the dormant column, as a hand edit or a future import would: it
+        // cost 15 instead of 8 while the scorecard read the column, on a claim nothing established.
+        markedReachable(issue("critical", false, "open")); // -8
+        issue("critical", false, "open"); // -8
+        issue("high", false, "open"); // -4
+        issue("medium", true, "open"); // -25, and a KEV is counted whatever its severity
         when(licences.getInventory(checked(new ScanTarget.Repository(repository.getId())))).thenReturn(List.of(
                 licence(repository.getId(), "repository", false), licence(repository.getId(), "repository", true)));
 
         SecurityScorecard card = scorecard();
 
-        // 100 - 15 - 8 - 4 - 25 - 5 + 5
-        assertThat(card.score()).isEqualTo(48);
-        assertThat(card.grade()).isEqualTo(SecurityGrade.D);
+        // 100 - 8 - 8 - 4 - 25 - 5 + 5
+        assertThat(card.score()).isEqualTo(55);
+        assertThat(card.grade()).isEqualTo(SecurityGrade.C);
         assertThat(card.openCriticalCount()).isEqualTo(2);
         assertThat(card.openHighCount()).isEqualTo(1);
         assertThat(card.openKevCount()).isEqualTo(1);
@@ -143,12 +149,12 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @DisplayName("a settled triage weighs nothing; a dismissal awaiting approval, or a status nobody recognizes, still does")
     void settledTriageIsFree() {
         completedScan();
-        triaged(issue("critical", true, "REACHABLE", "open"), "not_affected");
-        triaged(issue("critical", false, "UNKNOWN", "open"), "fixed");
-        triaged(issue("high", false, "UNKNOWN", "open"), "pending_approval");
-        triaged(issue("high", false, "UNKNOWN", "open"), "affected");
+        triaged(issue("critical", true, "open"), "not_affected");
+        triaged(issue("critical", false, "open"), "fixed");
+        triaged(issue("high", false, "open"), "pending_approval");
+        triaged(issue("high", false, "open"), "affected");
         // A status this version does not know is nobody's decision, so it still counts.
-        triaged(issue("critical", false, "UNKNOWN", "open"), "untriaged");
+        triaged(issue("critical", false, "open"), "untriaged");
 
         SecurityScorecard card = scorecard();
 
@@ -164,7 +170,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @DisplayName("a resolved issue weighs nothing")
     void resolvedIssuesAreFree() {
         completedScan();
-        issue("critical", true, "REACHABLE", "resolved");
+        issue("critical", true, "resolved");
 
         assertThat(scorecard().score()).isEqualTo(100);
     }
@@ -177,7 +183,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         other.setUrl("https://example.invalid/corp/other.git");
         other.setBranch("main");
         other = repositories.save(other);
-        IssueEntity theirs = issue("critical", true, "REACHABLE", "open");
+        IssueEntity theirs = issue("critical", true, "open");
         theirs.setRepoId(other.getId());
         issues.save(theirs);
         // Returned by the inventory anyway: the service must not trust the filter it asked for.
@@ -194,7 +200,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
     @DisplayName("the score floors at zero rather than going negative")
     void theScoreFloors() {
         for (int i = 0; i < 5; i++) {
-            issue("critical", true, "REACHABLE", "open");
+            issue("critical", true, "open");
         }
 
         SecurityScorecard card = scorecard();
@@ -210,11 +216,11 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         container.setImageName("registry.example.invalid/shop");
         container.setTag("1.4.2");
         container = containers.save(container);
-        IssueEntity high = issue("high", false, "UNKNOWN", "open");
+        IssueEntity high = issue("high", false, "open");
         high.setRepoId(null);
         high.setContainerId(container.getId());
         issues.save(high);
-        issue("critical", false, "UNKNOWN", "open"); // the repository's, not the container's
+        issue("critical", false, "open"); // the repository's, not the container's
 
         SecurityScorecard card = scorecards.getContainerScorecard(container.getId(), Visibility.everything()).orElseThrow();
 
@@ -245,7 +251,7 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
 
     private int fingerprints;
 
-    private IssueEntity issue(String severity, boolean kev, String reachability, String state) {
+    private IssueEntity issue(String severity, boolean kev, String state) {
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repository.getId());
         issue.setType("vulnerability");
@@ -254,11 +260,15 @@ class SecurityScorecardDatabaseTest extends VectispireContextTest {
         issue.setState(state);
         issue.setFingerprint("fp-" + fingerprints++);
         issue.setKev(kev);
-        issue.setReachability(reachability);
         issue.setTriageStatus("under_review");
         issue.setFirstSeenAt(Instant.now());
         issue.setLastSeenAt(Instant.now());
         return issues.save(issue);
+    }
+
+    /** Written behind the entity's back: it has no setter for a column nothing computes. */
+    private void markedReachable(IssueEntity issue) {
+        jdbc.update("update t_issue set reachability = 'REACHABLE' where id = ?", issue.getId());
     }
 
     private void triaged(IssueEntity issue, String status) {

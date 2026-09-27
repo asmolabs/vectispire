@@ -2079,10 +2079,6 @@
             "format" : "int32",
             "type" : "integer"
           },
-          "reachableEpssCount" : {
-            "format" : "int32",
-            "type" : "integer"
-          },
           "topPriorities" : {
             "items" : {
               "$ref" : "#/components/schemas/EpssPrioritizedIssue"
@@ -2094,7 +2090,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "activeKevCount", "averageFleetEpss", "highEpssCount", "reachableEpssCount", "totalVulnerabilities" ],
+        "required" : [ "activeKevCount", "averageFleetEpss", "highEpssCount", "totalVulnerabilities" ],
         "type" : "object"
       },
       "EpssPrioritizedIssue" : {
@@ -2126,9 +2122,6 @@
             "type" : "integer"
           },
           "priorityTier" : {
-            "type" : "string"
-          },
-          "reachability" : {
             "type" : "string"
           },
           "recommendedAction" : {

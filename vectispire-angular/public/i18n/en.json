@@ -829,7 +829,6 @@
     "explain_fix": "Fix:",
     "high_epss": "High EPSS (&gt; 20%)",
     "high_probability": "flaws with a high probability",
-    "in_executed_code": "in code that runs",
     "kev_active": "CISA KEV active",
     "kev_weaponised": "KEV, weaponised",
     "lookup_none": "No EPSS or KEV record for {{cve}}.",
@@ -846,7 +845,6 @@
     "q3": "Quadrant 3 — P2, theoretical",
     "q3_help": "CVSS ≥ 7.0 but EPSS &lt; 5%. Schedule within thirty days.",
     "q4_help": "EPSS &lt; 5% and a moderate CVSS. Ordinary handling, no urgency.",
-    "reachable_weaponised": "Reachable and weaponised",
     "recommended_action": "Recommended action",
     "severity_cvss": "Severity / CVSS",
     "subtitle_before": "Order the work by the real chance of exploitation within thirty days (",
@@ -869,7 +867,6 @@
     "q2": "Quadrant 2 — P1, probable",
     "q4": "Quadrant 4 — P3, low",
     "queue_title": "Triage queue ordered by the real risk of exploitation ({{count}} open vulnerabilities)",
-    "col_reachability": "Reachability",
     "percentile_short": "pctl {{value}}",
     "cve_reference": "CVE Reference"
   },

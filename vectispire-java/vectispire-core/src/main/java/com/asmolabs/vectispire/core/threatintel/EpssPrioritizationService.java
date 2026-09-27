@@ -102,7 +102,6 @@ public class EpssPrioritizationService {
 
         int activeKevCount = 0;
         int highEpssCount = 0;
-        int reachableEpssCount = 0;
         double totalEpss = 0.0;
         int epssCount = 0;
 
@@ -124,22 +123,18 @@ public class EpssPrioritizationService {
                     : intel.map(ThreatIntelRecord::epssScore).orElse(null);
             Double epssPercentile = intel.map(ThreatIntelRecord::epssPercentile).orElse(null);
 
-            String reachability = issue.reachability() != null ? issue.reachability() : "UNKNOWN";
-            boolean isReachable = "REACHABLE".equalsIgnoreCase(reachability);
-
             if (isKev) activeKevCount++;
             if (epssScore != null && epssScore >= 0.20) {
                 highEpssCount++;
-                if (isReachable) reachableEpssCount++;
             }
             if (epssScore != null) {
                 totalEpss += epssScore;
                 epssCount++;
             }
 
-            int score = EpssRiskMatrix.calculatePriorityScore(cvss, epssScore, isKev, reachability);
-            String tier = EpssRiskMatrix.determineTier(cvss, epssScore, isKev, reachability);
-            EpssRiskMatrix.RecommendedAction action = EpssRiskMatrix.determineAction(tier, isKev, reachability);
+            int score = EpssRiskMatrix.calculatePriorityScore(cvss, epssScore, isKev);
+            String tier = EpssRiskMatrix.determineTier(cvss, epssScore, isKev);
+            EpssRiskMatrix.RecommendedAction action = EpssRiskMatrix.determineAction(tier, isKev);
 
             tierBreakdown.put(tier, tierBreakdown.getOrDefault(tier, 0) + 1);
 
@@ -160,7 +155,6 @@ public class EpssPrioritizationService {
                     epssScore,
                     epssPercentile,
                     isKev,
-                    reachability,
                     targetName,
                     targetKind,
                     score,
@@ -176,7 +170,6 @@ public class EpssPrioritizationService {
                 openIssues.size(),
                 activeKevCount,
                 highEpssCount,
-                reachableEpssCount,
                 Math.round(avgEpss * 1000.0) / 1000.0,
                 // Ranked over everything, returned as the top of the ranking. Cutting before the
                 // sort would return fifty arbitrary issues and call them the worst.

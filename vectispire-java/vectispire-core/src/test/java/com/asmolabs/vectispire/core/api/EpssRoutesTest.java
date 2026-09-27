@@ -119,7 +119,6 @@ class EpssRoutesTest extends ApiTestBase {
         issue.setCvssScore(10.0);
         issue.setKev(true);
         issue.setEpssScore(0.975);
-        issue.setReachability("REACHABLE");
         issue.setState("open");
         issue.setTriageStatus("untriaged");
         issue.setFingerprint("fp-log4shell-test");
@@ -133,7 +132,10 @@ class EpssRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.activeKevCount").isNumber())
                 .andExpect(jsonPath("$.topPriorities[0].identifier").value("CVE-2021-44228"))
                 .andExpect(jsonPath("$.topPriorities[0].priorityTier").value("CRITICAL_ARMED"))
-                .andExpect(jsonPath("$.topPriorities[0].priorityScore").isNumber());
+                .andExpect(jsonPath("$.topPriorities[0].priorityScore").isNumber())
+                // Nothing computes reachability, so the ranking neither weighs nor publishes it.
+                .andExpect(jsonPath("$.reachableEpssCount").doesNotExist())
+                .andExpect(jsonPath("$.topPriorities[0].reachability").doesNotExist());
 
         // What the feed table holds, and nothing else: the lookup used to fall back on ten records
         // typed into the service, so this answered on an installation that had read no catalogue.

@@ -829,7 +829,6 @@
     "explain_fix": "Correctif :",
     "high_epss": "EPSS Élevé (&gt; 20%)",
     "high_probability": "failles à haute probabilité",
-    "in_executed_code": "dans le code exécuté",
     "kev_active": "CISA KEV actif",
     "kev_weaponised": "ARMÉE KEV",
     "lookup_none": "Aucun enregistrement EPSS ou KEV pour {{cve}}.",
@@ -846,7 +845,6 @@
     "q3": "Quadrant 3 : P2 Théoriques",
     "q3_help": "CVSS &ge; 7.0 mais EPSS &lt; 5% (Remédiation planifiée sous 30 jours)",
     "q4_help": "EPSS &lt; 5% et CVSS modéré (Traitement standard sans urgence)",
-    "reachable_weaponised": "Appelables & Armées (Reachable)",
     "recommended_action": "Action Recommandée",
     "severity_cvss": "Sévérité / CVSS",
     "subtitle_before": "Priorisez vos remédiations par la probabilité réelle d'exploitation dans les 30 jours (",
@@ -869,7 +867,6 @@
     "q2": "Quadrant 2 : P1 Probables",
     "q4": "Quadrant 4 : P3 Faibles",
     "queue_title": "File de triage priorisée par risque réel d'exploitation ({{count}} vulnérabilités ouvertes)",
-    "col_reachability": "Atteignabilité",
     "percentile_short": "{{value}}e pctl",
     "cve_reference": "Référence CVE"
   },
