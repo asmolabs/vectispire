@@ -222,7 +222,30 @@
                             {{ issue.filePath ?? '—' }}
                         </div>
                     </td>
-                    <td><p-tag [value]="typeLabel(issue.type)" severity="secondary" /></td>
+                    <td>
+                        <p-tag
+                            [value]="typeLabel(issue.type)"
+                            [severity]="
+                                issue.type === 'imported' ? 'warn' : issue.type === 'plugin' ? 'info' : 'secondary'
+                            "
+                        />
+                        <!--
+                            Provenance on the row, not only on the detail: an auditor scanning the
+                            backlog tells what Vectispire analysed from what a CI declared here.
+                        -->
+                        @if (issue.type === 'imported') {
+                            <div class="text-xs text-muted-color mt-1" data-testid="issue-provenance">
+                                {{
+                                    'issues.provenance_imported_short'
+                                        | translate: { source: issue.importSource ?? '—', tool: issue.toolName ?? '—' }
+                                }}
+                            </div>
+                        } @else if (issue.type === 'plugin') {
+                            <div class="text-xs text-muted-color mt-1" data-testid="issue-provenance">
+                                {{ 'issues.provenance_plugin_short' | translate: { tool: issue.toolName ?? '—' } }}
+                            </div>
+                        }
+                    </td>
                     <td>
                         <div class="text-sm">{{ issue.targetName ?? '—' }}</div>
                         <div class="text-xs text-muted-color">

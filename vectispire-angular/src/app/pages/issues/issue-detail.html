@@ -130,6 +130,55 @@
     </p-card>
 
     <!--
+        **Where this issue came from (decision 0017).** "Analysed by Vectispire" and "declared by a
+        CI" are different claims, and an auditor weighs them differently: a plugin ran under
+        Vectispire's confinement on a tree it cloned, an import is a document a declared key sent.
+        The tool key is shown as it stands, because it is the issue's resolution scope — a later
+        report from that tool, and from no other, may resolve it.
+    -->
+    @if (detail.type === 'plugin' || detail.type === 'imported') {
+        <p-card styleClass="mb-4" data-testid="issue-provenance">
+            <ng-template #title>{{ 'issues.provenance' | translate }}</ng-template>
+            @if (detail.type === 'plugin') {
+                <p class="mt-0">{{ 'issues.provenance_plugin' | translate }}</p>
+            } @else {
+                <p class="mt-0">{{ 'issues.provenance_imported' | translate }}</p>
+            }
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                @if (pluginIdOf(detail.tool); as pluginId) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_plugin_label' | translate }}</span> ·
+                        <a class="font-mono" [routerLink]="['/plugins']" [queryParams]="{ id: pluginId }">{{
+                            pluginId
+                        }}</a>
+                    </div>
+                }
+                @if (detail.importSource) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_source' | translate }}</span> ·
+                        <span class="font-mono">{{ detail.importSource }}</span>
+                    </div>
+                }
+                @if (detail.toolName) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_tool' | translate }}</span> ·
+                        {{ detail.toolName }}
+                        @if (detail.toolVersion) {
+                            {{ detail.toolVersion }}
+                        }
+                    </div>
+                }
+                @if (detail.tool) {
+                    <div>
+                        <span class="text-muted-color">{{ 'issues.provenance_scope' | translate }}</span> ·
+                        <span class="font-mono">{{ detail.tool }}</span>
+                    </div>
+                }
+            </div>
+        </p-card>
+    }
+
+    <!--
         **The ticket tracking this finding.** The sweep opens them for findings that breach the
         gate; for all the others, nobody could say "this one is tracked in SEC-1234". It is the
         reference the tracker's webhook looks up to close the finding, so attaching it does more

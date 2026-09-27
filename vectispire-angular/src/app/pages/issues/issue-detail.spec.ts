@@ -103,6 +103,46 @@ describe('the issue detail', () => {
         fixture.detectChanges();
     });
 
+    /**
+     * The provenance card, for the two types another tool produced. An imported issue must read as
+     * declared by its source — not as analysed — with the source that sent it and the tool key
+     * that scopes its resolution; a plugin's names the plugin, linked to the registry.
+     */
+    describe('provenance', () => {
+        it('says an imported issue was declared by its source, with the tool and its scope', async () => {
+            await load({
+                ...ISSUE,
+                type: 'imported',
+                tool: 'import:payments-ci/sonarqube',
+                toolName: 'SonarQube',
+                toolVersion: '10.6',
+                importSource: 'payments-ci'
+            });
+
+            const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]');
+            const text = card?.textContent ?? '';
+            expect(text).toContain('Declared by a CI');
+            expect(text).not.toContain('Analysed by Vectispire');
+            expect(text).toContain('payments-ci');
+            expect(text).toContain('SonarQube');
+            expect(text).toContain('10.6');
+            expect(text).toContain('import:payments-ci/sonarqube');
+        });
+
+        it("names a plugin issue's plugin and links it to the registry", async () => {
+            await load({ ...ISSUE, type: 'plugin', tool: 'plugin:acme-lint', toolName: 'acme-lint' });
+
+            const card = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]');
+            expect(card?.textContent).toContain('Analysed by Vectispire');
+            expect(card?.querySelector('a')?.getAttribute('href')).toBe('/plugins?id=acme-lint');
+        });
+
+        it("shows no provenance card for Vectispire's own scanners", async () => {
+            await load();
+            expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="issue-provenance"]')).toBeNull();
+        });
+    });
+
     async function load(issue: Record<string, unknown> = ISSUE): Promise<void> {
         // The request is queued on a microtask so the required input is set before it fires.
         await Promise.resolve();

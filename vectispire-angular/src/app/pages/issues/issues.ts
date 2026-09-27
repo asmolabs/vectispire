@@ -20,6 +20,7 @@ import { TargetsApi } from '@/app/core/api/targets.api';
 import { IssuesApi } from '@/app/core/api/issues.api';
 import { SessionStore } from '@/app/core/session.store';
 import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.models';
+import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
 
@@ -177,17 +178,10 @@ export class Issues {
             value
         }));
     });
+    /** Written once, in `shared/finding-types`, so the filter and the row's label cannot disagree. */
     readonly types = computed(() => {
         this.i18n.translations();
-        return [
-            { label: this.i18n.t('issues.types.vulnerability'), value: 'vulnerability' },
-            { label: this.i18n.t('issues.types.secret'), value: 'secret' },
-            { label: this.i18n.t('issues.types.iac'), value: 'iac' },
-            { label: this.i18n.t('issues.types.license'), value: 'license' },
-            { label: this.i18n.t('issues.types.eol'), value: 'eol' },
-            { label: this.i18n.t('issues.types.sast'), value: 'sast' },
-            { label: this.i18n.t('issues.types.quality'), value: 'quality' }
-        ];
+        return findingTypeOptions(this.i18n);
     });
 
     triageOpen = false;
@@ -366,7 +360,8 @@ export class Issues {
      * a type Vectispire does not know is a type somebody added and nobody wired to this screen.
      */
     typeLabel(type: string): string {
-        return this.types().find((option) => option.value === type)?.label ?? type;
+        this.types();
+        return findingTypeLabel(this.i18n, type);
     }
 
     severityColour(severity: string | null): 'danger' | 'warn' | 'info' | 'secondary' {

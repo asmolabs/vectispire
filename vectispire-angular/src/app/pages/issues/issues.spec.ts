@@ -83,6 +83,57 @@ describe('the issue backlog', () => {
         expect(fixture.nativeElement.textContent).toContain('1–50 of 228');
     });
 
+    /**
+     * **Provenance is read on the row** (decision 0017): an auditor scanning the backlog must tell
+     * "analysed by Vectispire" from "declared by a CI" without opening each issue, and filter by it.
+     */
+    it('offers the plugin and imported types in the filter, and names where each row came from', () => {
+        const values = fixture.componentInstance.types().map((option) => option.value);
+        expect(values).toContain('plugin');
+        expect(values).toContain('imported');
+
+        http.expectOne((call) => call.url === '/api/v1/issues').flush({
+            items: [
+                {
+                    ...issue(1, 'acme.no-internal-http'),
+                    type: 'plugin',
+                    tool: 'plugin:acme-lint',
+                    toolName: 'acme-lint',
+                    toolVersion: '1.4.0'
+                },
+                {
+                    ...issue(2, 'java:S2076'),
+                    type: 'imported',
+                    tool: 'import:payments-ci/sonarqube',
+                    toolName: 'SonarQube',
+                    toolVersion: '10.6',
+                    importSource: 'payments-ci'
+                }
+            ].map((row) => asSchema('BacklogEntry', row)),
+            total: 2,
+            limit: 50,
+            offset: 0
+        });
+        fixture.detectChanges();
+
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="issue-provenance"]')
+        ).map((cell) => cell.textContent?.trim());
+        expect(rows).toEqual(['analysed by Vectispire · acme-lint', 'declared by payments-ci · SonarQube']);
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Plugin (analysed by Vectispire)');
+        expect(text).toContain('Imported (declared by CI)');
+    });
+
+    it('sends the chosen type to the server', () => {
+        firstPage(1);
+        fixture.componentInstance.type = 'imported';
+        fixture.componentInstance.reload(0);
+        const request = http.expectOne((call) => call.url === '/api/v1/issues');
+        expect(request.request.params.get('type')).toBe('imported');
+        request.flush({ items: [], total: 0, limit: 50, offset: 0 });
+    });
+
     it('asks the server for the next window rather than slicing what it holds', () => {
         firstPage(228);
 

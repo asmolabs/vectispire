@@ -13,6 +13,7 @@ import { IssuesApi } from '../../core/api/issues.api';
 import { SessionStore } from '../../core/session.store';
 import { I18nService } from '../../core/i18n/i18n.service';
 import type { IssueDetail } from '../../core/api.models';
+import { findingTypeLabel } from '../../shared/finding-types';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     critical: 'danger',
@@ -111,7 +112,12 @@ export class IssueDetailPage {
     }
 
     typeLabel(type: string): string {
-        return type === 'sast' ? this.i18n.t('issues.types.sast') : type;
+        return findingTypeLabel(this.i18n, type);
+    }
+
+    /** `plugin:<id>` → the id, which names the plugin in the registry. */
+    pluginIdOf(tool: string | null): string | null {
+        return tool?.startsWith('plugin:') ? tool.slice('plugin:'.length) : null;
     }
 
     /** Opens the form, pre-filled with what is already attached. */
