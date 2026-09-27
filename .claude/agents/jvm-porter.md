@@ -367,6 +367,11 @@ has already reached `develop`.
 command; run it with `-Dvectispire.openapi.write=true`, then `npm run generate:api`, and commit both
 files together.
 
+**A change that reaches `vectispire-angular/` passes the `frontend` job's whole list, not only
+`npm test`.** That is `npm run lint`, `npm run format:check -w vectispire-angular`, `npm run build`
+and `npm test`, on Node 24. The plugin registry form gained its signer fields with tests, build and
+mutations green, and the push failed on Prettier alone — `npm test` does not run it.
+
 **Never skip silently.** There is no "skip if Docker is missing" guard anywhere, deliberately: a
 suite that skips itself reports green without checking anything.
 
