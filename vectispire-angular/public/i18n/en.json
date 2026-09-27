@@ -1396,7 +1396,8 @@
     "compliance_history": "Compliance progression",
     "git_tokens": "HTTPS tokens",
     "solutions": "Solutions & projects",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "sarif_sources": "SARIF sources"
   },
   "mfa": {
     "title": "Two-Factor Authentication (2FA)",
@@ -1660,7 +1661,10 @@
     "https_token_link": "HTTPS tokens page",
     "https_token_hint": "Only the tokens bound to this URL’s host are offered: a token is never sent to another host.",
     "grade_tag": "Grade {{grade}}",
-    "project": "Project:"
+    "project": "Project:",
+    "sarif_imports_btn": "SARIF",
+    "aria_sarif_imports": "SARIF imports of {{name}}",
+    "header_sarif_imports": "SARIF imports — {{name}}"
   },
   "roles": {
     "user": "User",
@@ -2249,7 +2253,8 @@
     "error": "Error",
     "notfound": "Page not found",
     "solutions": "Solutions & projects",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "sarif_sources": "SARIF sources"
   },
   "topbar": {
     "account": "My account",
@@ -2396,5 +2401,60 @@
     "updated_notice": "{{id}} updated, manifest {{digest}}. Its issues and their triage are kept.",
     "enabled_notice": "{{id}} enabled: it runs from the next scan wherever it is switched on.",
     "disabled_notice": "{{id}} disabled: it runs nowhere from the next scan; its activations are kept."
+  },
+  "sarif_imports": {
+    "explain": "Reports deposited by a declared internal source, with its integration key. Uploads come from CI; nothing is uploaded from here. Each row is the dated evidence of the imported issues it opened.",
+    "col_when": "Imported",
+    "col_source": "Source",
+    "col_tools": "Tools",
+    "col_results": "Results",
+    "col_created": "Opened",
+    "col_resolved": "Resolved",
+    "col_reopened": "Reopened",
+    "col_document": "Document SHA-256",
+    "none": "No SARIF report was imported into this repository.",
+    "not_visible": "This repository does not exist or is not visible to you.",
+    "error_load": "Could not load the SARIF imports."
+  },
+  "sarif_sources": {
+    "title": "SARIF sources",
+    "subtitle": "The internal tools allowed to deposit SARIF into a backlog — an on-premise SonarQube, your own CI. Never a hosted service outside the organisation. Only the platform governor declares one.",
+    "declare_btn": "Declare a source",
+    "col_slug": "Slug",
+    "col_scope": "Scope",
+    "col_tools": "Tools",
+    "col_key": "Integration key",
+    "col_state": "State",
+    "col_declared": "Declared",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable_btn": "Enable",
+    "disable_btn": "Disable",
+    "aria_remove": "Remove source {{slug}}",
+    "none": "No SARIF source declared.",
+    "upload_hint": "A source uploads with POST /api/v1/repositories/{id}/sarif-imports and its key; a session cannot import.",
+    "header_declare": "Declare a SARIF source",
+    "internal_only": "Declare only a producer inside the organisation, which already has the code. The tool list is compared with each run's tool.driver.name: a report from any other tool is refused.",
+    "field_name": "Name",
+    "slug_placeholder": "payments-ci",
+    "slug_hint": "Part of every imported issue's identity: name the producer, not the key. Declaring the same slug again with a new key continues the same backlog.",
+    "key_placeholder": "Choose a key holding sarif_import",
+    "key_hint": "One key, one source: the key names the source when it uploads.",
+    "no_key": "No usable key holds the sarif_import scope. Issue one on the API keys screen, from an account that can act.",
+    "scope_project": "Project",
+    "scope_repository": "Repository",
+    "scope_placeholder": "Choose",
+    "scope_hint": "Exactly one scope — a project or a repository, never the whole estate.",
+    "scope_project_named": "Project {{name}}",
+    "scope_repository_named": "Repository {{name}}",
+    "tools_placeholder": "Semgrep OSS, SonarQube",
+    "tools_hint": "Separated by commas, compared without regard to case.",
+    "header_remove": "Remove the source",
+    "remove_consequence": "{{slug}} will no longer be able to import. The issues it imported stay, and keep {{slug}} as their source.",
+    "declared_notice": "{{slug}} declared.",
+    "removed_notice": "{{slug}} removed.",
+    "error_load": "Could not load the SARIF sources.",
+    "error_declare": "The source could not be declared.",
+    "error_change": "The source could not be changed."
   }
 }

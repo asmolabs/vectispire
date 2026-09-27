@@ -130,6 +130,19 @@
                             (onClick)="openCicd(repository)"
                         />
 
+                        <p-button
+                            icon="pi pi-file-import"
+                            [label]="'repositories.sarif_imports_btn' | translate"
+                            severity="secondary"
+                            [outlined]="true"
+                            size="small"
+                            [ariaLabel]="
+                                'repositories.aria_sarif_imports' | translate: { name: repository.displayName }
+                            "
+                            data-testid="sarif-imports-btn"
+                            (onClick)="openSarifImports(repository)"
+                        />
+
                         @if (repository.lastScan; as scan) {
                             <a [routerLink]="['/scans', scan.id]"><app-last-scan [scan]="scan" /></a>
                         } @else {
@@ -457,6 +470,19 @@
     <ng-template #footer>
         <p-button [label]="'common.close' | translate" [text]="true" (onClick)="scorecardVisible.set(false)" />
     </ng-template>
+</p-dialog>
+
+<!-- A repository's SARIF imports: read-only, the uploads come from CI with a declared key. -->
+<p-dialog
+    [visible]="sarifVisible()"
+    (visibleChange)="sarifVisible.set($event)"
+    [header]="'repositories.header_sarif_imports' | translate: { name: sarifRepo()?.displayName || '' }"
+    [modal]="true"
+    [style]="{ width: '960px', maxWidth: '95vw' }"
+>
+    @if (sarifVisible() && sarifRepo(); as repo) {
+        <app-sarif-imports [repositoryId]="repo.id" />
+    }
 </p-dialog>
 
 <!-- CI/CD Integration Snippet Dialog -->

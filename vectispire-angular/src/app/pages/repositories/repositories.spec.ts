@@ -91,6 +91,20 @@ describe('the repository list', () => {
         expect(link.getAttribute('href')).toBe('/solutions#project-11');
     });
 
+    /** The imported issues' evidence is per repository; the row must offer a way to it, for every account. */
+    it("opens the repository's SARIF import history from its row", () => {
+        load();
+
+        const button = fixture.nativeElement.querySelector('[data-testid="sarif-imports-btn"] button') as HTMLElement;
+        expect(button).not.toBeNull();
+        button.click();
+        fixture.detectChanges();
+
+        http.expectOne('/api/v1/repositories/5/sarif-imports').flush([]);
+        fixture.detectChanges();
+        expect(document.body.textContent).toContain('sarif_imports.none');
+    });
+
     it('shows a dash, and no link, for a repository in no project', () => {
         load();
 

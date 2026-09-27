@@ -118,6 +118,12 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/gate-policies/gate-policies').then((m) => m.GatePolicies)
             },
             {
+                path: 'sarif-sources',
+                title: 'titles.sarif_sources',
+                canActivate: [requires('governance-read')],
+                loadComponent: () => import('./app/pages/sarif-sources/sarif-sources').then((m) => m.SarifSources)
+            },
+            {
                 path: 'rule-sets',
                 title: 'titles.rule_sets',
                 canActivate: [requires('governance-read')],

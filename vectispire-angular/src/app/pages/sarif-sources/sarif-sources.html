@@ -1,0 +1,223 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">{{ 'sarif_sources.title' | translate }}</h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'sarif_sources.subtitle' | translate }}</p>
+    </div>
+    @if (governs()) {
+        <p-button
+            id="declare-source"
+            [label]="'sarif_sources.declare_btn' | translate"
+            icon="pi pi-plus"
+            (onClick)="openDeclare()"
+        />
+    }
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+
+<p-card>
+    <p-table [value]="sources()" [loading]="loading()" dataKey="id" styleClass="p-datatable-sm">
+        <ng-template #header>
+            <tr>
+                <th>{{ 'sarif_sources.col_slug' | translate }}</th>
+                <th>{{ 'sarif_sources.col_scope' | translate }}</th>
+                <th>{{ 'sarif_sources.col_tools' | translate }}</th>
+                <th>{{ 'sarif_sources.col_key' | translate }}</th>
+                <th>{{ 'sarif_sources.col_state' | translate }}</th>
+                <th>{{ 'sarif_sources.col_declared' | translate }}</th>
+                <th class="text-right">{{ 'common.actions' | translate }}</th>
+            </tr>
+        </ng-template>
+        <ng-template #body let-source>
+            <tr [attr.data-testid]="'source-' + source.slug">
+                <td>
+                    <div class="font-mono font-medium">{{ source.slug }}</div>
+                    <div class="text-sm text-muted-color">{{ source.name }}</div>
+                </td>
+                <td>{{ scopeLabel(source) }}</td>
+                <td>
+                    <div class="flex flex-wrap gap-1">
+                        @for (tool of source.tools; track tool) {
+                            <p-tag severity="secondary" [value]="tool" />
+                        }
+                    </div>
+                </td>
+                <td class="text-sm">{{ keyLabel(source) }}</td>
+                <td>
+                    @if (source.enabled) {
+                        <p-tag severity="success" [value]="'sarif_sources.enabled' | translate" />
+                    } @else {
+                        <p-tag severity="secondary" [value]="'sarif_sources.disabled' | translate" />
+                    }
+                </td>
+                <td class="text-sm">
+                    {{ source.createdBy ?? '—' }}
+                    <div class="text-muted-color">{{ source.createdAt | date: 'dd/MM/yyyy' }}</div>
+                </td>
+                <td class="text-right whitespace-nowrap">
+                    @if (governs()) {
+                        <p-button
+                            icon="pi pi-power-off"
+                            [text]="true"
+                            size="small"
+                            [severity]="source.enabled ? 'danger' : 'success'"
+                            [label]="
+                                (source.enabled ? 'sarif_sources.disable_btn' : 'sarif_sources.enable_btn') | translate
+                            "
+                            [loading]="busy() === source.id"
+                            (onClick)="setEnabled(source, !source.enabled)"
+                        />
+                        <p-button
+                            icon="pi pi-trash"
+                            severity="danger"
+                            [text]="true"
+                            [rounded]="true"
+                            [ariaLabel]="'sarif_sources.aria_remove' | translate: { slug: source.slug }"
+                            (onClick)="askRemove(source)"
+                        />
+                    }
+                </td>
+            </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+            <tr>
+                <td colspan="7" class="text-center text-muted-color py-6">{{ 'sarif_sources.none' | translate }}</td>
+            </tr>
+        </ng-template>
+    </p-table>
+    <p class="text-muted-color text-sm mb-0 mt-3">{{ 'sarif_sources.upload_hint' | translate }}</p>
+</p-card>
+
+<p-dialog
+    [header]="'sarif_sources.header_declare' | translate"
+    [(visible)]="formVisible"
+    [modal]="true"
+    [style]="{ width: '38rem', maxWidth: '95vw' }"
+>
+    <div class="flex flex-col gap-4">
+        <p-message severity="info" [closable]="false">{{ 'sarif_sources.internal_only' | translate }}</p-message>
+
+        <div class="flex flex-col gap-2">
+            <label for="source-slug" class="font-medium">{{ 'sarif_sources.col_slug' | translate }}</label>
+            <input
+                pInputText
+                id="source-slug"
+                name="source-slug"
+                class="font-mono"
+                [(ngModel)]="draft.slug"
+                [placeholder]="'sarif_sources.slug_placeholder' | translate"
+            />
+            <small class="text-muted-color">{{ 'sarif_sources.slug_hint' | translate }}</small>
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="source-name" class="font-medium">{{ 'sarif_sources.field_name' | translate }}</label>
+            <input pInputText id="source-name" name="source-name" [(ngModel)]="draft.name" />
+        </div>
+
+        <div class="flex flex-col gap-2">
+            <label for="source-key" class="font-medium">{{ 'sarif_sources.col_key' | translate }}</label>
+            <p-select
+                inputId="source-key"
+                name="source-key"
+                [options]="keyOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="draft.apiKeyId"
+                [placeholder]="'sarif_sources.key_placeholder' | translate"
+                appendTo="body"
+                styleClass="w-full"
+            />
+            @if (keyOptions().length === 0) {
+                <small class="text-orange-600" data-testid="no-sarif-key">{{
+                    'sarif_sources.no_key' | translate
+                }}</small>
+            } @else {
+                <small class="text-muted-color">{{ 'sarif_sources.key_hint' | translate }}</small>
+            }
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-[12rem_1fr] gap-4">
+            <div class="flex flex-col gap-2">
+                <label for="source-scope-kind" class="font-medium">{{ 'sarif_sources.col_scope' | translate }}</label>
+                <p-select
+                    inputId="source-scope-kind"
+                    name="source-scope-kind"
+                    [options]="scopeKinds()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModel]="draft.scopeKind"
+                    (ngModelChange)="setScopeKind($event)"
+                    appendTo="body"
+                    styleClass="w-full"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="source-scope" class="font-medium">{{
+                    (draft.scopeKind === 'project' ? 'sarif_sources.scope_project' : 'sarif_sources.scope_repository')
+                        | translate
+                }}</label>
+                <p-select
+                    inputId="source-scope"
+                    name="source-scope"
+                    [options]="draft.scopeKind === 'project' ? projectOptions() : repositoryOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [(ngModel)]="draft.scopeId"
+                    [filter]="true"
+                    appendTo="body"
+                    [placeholder]="'sarif_sources.scope_placeholder' | translate"
+                    styleClass="w-full"
+                />
+            </div>
+        </div>
+        <small class="text-muted-color -mt-2">{{ 'sarif_sources.scope_hint' | translate }}</small>
+
+        <div class="flex flex-col gap-2">
+            <label for="source-tools" class="font-medium">{{ 'sarif_sources.col_tools' | translate }}</label>
+            <input
+                pInputText
+                id="source-tools"
+                name="source-tools"
+                [(ngModel)]="draft.tools"
+                [placeholder]="'sarif_sources.tools_placeholder' | translate"
+            />
+            <small class="text-muted-color">{{ 'sarif_sources.tools_hint' | translate }}</small>
+        </div>
+
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false" data-testid="source-form-error">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="formVisible.set(false)" />
+        <p-button
+            [label]="'sarif_sources.declare_btn' | translate"
+            [loading]="saving()"
+            [disabled]="!canDeclare()"
+            (onClick)="declare()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'sarif_sources.header_remove' | translate"
+    [(visible)]="removeVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (pendingRemove(); as source) {
+        <p class="m-0" data-testid="remove-consequence">
+            {{ 'sarif_sources.remove_consequence' | translate: { slug: source.slug } }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="removeVisible.set(false)" />
+        <p-button [label]="'common.delete' | translate" severity="danger" (onClick)="confirmRemove()" />
+    </ng-template>
+</p-dialog>

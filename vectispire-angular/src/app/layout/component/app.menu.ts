@@ -203,7 +203,18 @@ export class AppMenu {
                         icon: 'pi pi-fw pi-flag',
                         routerLink: ['/gate-policies']
                     },
-                    { label: this.i18n.t('menu.semgrep_rules'), icon: 'pi pi-fw pi-shield', routerLink: ['/rule-sets'] }
+                    {
+                        label: this.i18n.t('menu.semgrep_rules'),
+                        icon: 'pi pi-fw pi-shield',
+                        routerLink: ['/rule-sets']
+                    },
+                    // Beside the rule sets: both decide what enters the backlog. Declaring a source
+                    // is the governor's; reading the declarations is governance, like the route.
+                    {
+                        label: this.i18n.t('menu.sarif_sources'),
+                        icon: 'pi pi-fw pi-file-import',
+                        routerLink: ['/sarif-sources']
+                    }
                 );
             }
 

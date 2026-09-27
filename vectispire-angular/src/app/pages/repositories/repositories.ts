@@ -26,6 +26,7 @@ import type {
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
+import { SarifImports } from '../../shared/sarif-imports';
 
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -103,7 +104,8 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
         LastScanTag,
         ScheduleFields,
         TranslatePipe,
-        RuleCoverageBanner
+        RuleCoverageBanner,
+        SarifImports
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './repositories.html'
@@ -501,6 +503,15 @@ export class Repositories {
                 this.error.set(this.i18n.t('repositories.badge_revoke_failed'));
             }
         });
+    }
+
+    /** The repository whose SARIF import history is open; the history loads itself from the id. */
+    readonly sarifRepo = signal<MonitoredRepository | null>(null);
+    readonly sarifVisible = signal(false);
+
+    openSarifImports(repository: MonitoredRepository): void {
+        this.sarifRepo.set(repository);
+        this.sarifVisible.set(true);
     }
 
     openCicd(repository: MonitoredRepository): void {

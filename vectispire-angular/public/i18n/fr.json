@@ -1396,7 +1396,8 @@
     "compliance_history": "Progression de la conformité",
     "git_tokens": "Jetons HTTPS",
     "solutions": "Solutions et projets",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "sarif_sources": "Sources SARIF"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1660,7 +1661,10 @@
     "https_token_link": "page Jetons HTTPS",
     "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte.",
     "grade_tag": "Note {{grade}}",
-    "project": "Projet :"
+    "project": "Projet :",
+    "sarif_imports_btn": "SARIF",
+    "aria_sarif_imports": "Imports SARIF de {{name}}",
+    "header_sarif_imports": "Imports SARIF — {{name}}"
   },
   "roles": {
     "user": "Utilisateur",
@@ -2363,7 +2367,8 @@
     "error": "Erreur",
     "notfound": "Page non trouvée",
     "solutions": "Solutions et projets",
-    "plugins": "Plugins"
+    "plugins": "Plugins",
+    "sarif_sources": "Sources SARIF"
   },
   "topbar": {
     "account": "Mon compte",
@@ -2510,5 +2515,60 @@
     "updated_notice": "{{id}} mis à jour, manifeste {{digest}}. Ses issues et leur triage sont conservés.",
     "enabled_notice": "{{id}} activé : il s'exécute dès le prochain scan partout où il est activé.",
     "disabled_notice": "{{id}} désactivé : il ne s'exécute plus nulle part dès le prochain scan ; ses activations sont conservées."
+  },
+  "sarif_imports": {
+    "explain": "Rapports déposés par une source interne déclarée, avec sa clé d'intégration. Les envois viennent de la CI ; rien n'est envoyé d'ici. Chaque ligne est la preuve datée des issues importées qu'elle a ouvertes.",
+    "col_when": "Importé",
+    "col_source": "Source",
+    "col_tools": "Outils",
+    "col_results": "Résultats",
+    "col_created": "Ouvertes",
+    "col_resolved": "Résolues",
+    "col_reopened": "Rouvertes",
+    "col_document": "SHA-256 du document",
+    "none": "Aucun rapport SARIF n'a été importé dans ce dépôt.",
+    "not_visible": "Ce dépôt n'existe pas ou ne vous est pas visible.",
+    "error_load": "Impossible de charger les imports SARIF."
+  },
+  "sarif_sources": {
+    "title": "Sources SARIF",
+    "subtitle": "Les outils internes autorisés à déposer du SARIF dans un backlog — un SonarQube sur site, votre propre CI. Jamais un service hébergé hors de l'organisation. Seul le gouverneur de la plateforme en déclare une.",
+    "declare_btn": "Déclarer une source",
+    "col_slug": "Identifiant",
+    "col_scope": "Portée",
+    "col_tools": "Outils",
+    "col_key": "Clé d'intégration",
+    "col_state": "État",
+    "col_declared": "Déclarée",
+    "enabled": "Activée",
+    "disabled": "Désactivée",
+    "enable_btn": "Activer",
+    "disable_btn": "Désactiver",
+    "aria_remove": "Retirer la source {{slug}}",
+    "none": "Aucune source SARIF déclarée.",
+    "upload_hint": "Une source envoie avec POST /api/v1/repositories/{id}/sarif-imports et sa clé ; une session ne peut pas importer.",
+    "header_declare": "Déclarer une source SARIF",
+    "internal_only": "Ne déclarez qu'un producteur interne à l'organisation, qui dispose déjà du code. La liste d'outils est comparée au tool.driver.name de chaque exécution : un rapport de tout autre outil est refusé.",
+    "field_name": "Nom",
+    "slug_placeholder": "payments-ci",
+    "slug_hint": "Fait partie de l'identité de chaque issue importée : nommez le producteur, pas la clé. Redéclarer le même identifiant avec une nouvelle clé prolonge le même backlog.",
+    "key_placeholder": "Choisissez une clé portant sarif_import",
+    "key_hint": "Une clé, une source : la clé désigne la source lorsqu'elle envoie.",
+    "no_key": "Aucune clé utilisable ne porte la portée sarif_import. Émettez-en une sur l'écran des clés d'API, depuis un compte qui peut agir.",
+    "scope_project": "Projet",
+    "scope_repository": "Dépôt",
+    "scope_placeholder": "Choisir",
+    "scope_hint": "Exactement une portée — un projet ou un dépôt, jamais tout le parc.",
+    "scope_project_named": "Projet {{name}}",
+    "scope_repository_named": "Dépôt {{name}}",
+    "tools_placeholder": "Semgrep OSS, SonarQube",
+    "tools_hint": "Séparés par des virgules, comparés sans tenir compte de la casse.",
+    "header_remove": "Retirer la source",
+    "remove_consequence": "{{slug}} ne pourra plus importer. Les issues qu'elle a importées restent et gardent {{slug}} comme source.",
+    "declared_notice": "{{slug}} déclarée.",
+    "removed_notice": "{{slug}} retirée.",
+    "error_load": "Impossible de charger les sources SARIF.",
+    "error_declare": "La source n'a pas pu être déclarée.",
+    "error_change": "La source n'a pas pu être modifiée."
   }
 }
