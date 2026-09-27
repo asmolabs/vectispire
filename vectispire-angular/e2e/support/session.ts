@@ -148,7 +148,11 @@ const LINKS: Record<string, string> = {
 
     // The coverage banner has no screen of its own: it sits on the ones where its absence would
     // produce a false conclusion. This is the only one of the two with a menu entry.
-    '/rule-sets': 'Semgrep rules'
+    '/rule-sets': 'Semgrep rules',
+
+    // Decision 0017: the registry is every account's, the SARIF sources are governance's.
+    '/plugins': 'Plugins',
+    '/sarif-sources': 'SARIF sources'
 };
 
 /** The role accounts' password, and the one the first use rotates it to. */
