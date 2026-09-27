@@ -75,6 +75,14 @@ checks native elements, not `<p-button>`, so nothing catches the omission: look 
 to the i18n check and ship a raw key when a new value appears; map a generated union to literal keys
 (`Record<Union, 'a.b'>`) instead (decision 0019).
 
+**A finding type has one list: `shared/finding-types.ts`.** Three screens spelt it, none alike — the
+scan detail built `issues.types.${type}`, the issue detail translated `sast` alone — so a new type
+(`plugin`, `imported`) shipped as a raw word on two of them. Add a type there, and to `FINDING_TYPES`
+in `core/testing/contract.ts`.
+
+**Plugin states are three, and two must never look alike** (decision 0017): `not_applicable` is not a
+failure, `absent` is. A screen rendering both as an error puts a red row on every scan.
+
 **No `innerHTML`, no `bypassSecurityTrust*`, no markdown renderer.** Scanner output, AI advice and
 repository names are rendered as text. The session token lives in memory only.
 
@@ -97,6 +105,8 @@ been missing for a month. **Mutation-check what you add**: break the code, see t
 
 The Playwright suite needs a running control plane; reproduce the `e2e` job of
 `.github/workflows/ci.yml` (boot jar on SQLite, `VECTISPIRE_DB_URL` exported to Playwright too). The
+A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clicking it — click the
+`p-multiselect` that has it (`page.locator('p-multiselect', { has: page.locator('#id') })`). The
 screenshot campaign (`screens-en`, `screens-fr` projects) regenerates `docs-site/assets/screens/`;
 commit regenerated screenshots in a commit of their own so the visual diff can be reviewed.
 
