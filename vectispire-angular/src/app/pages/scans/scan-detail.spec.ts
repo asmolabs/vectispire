@@ -60,8 +60,37 @@ describe('the scan detail', () => {
                 description: 'A flaw in the parser.',
                 link: null
             }
-        ]
+        ],
+        plugins: []
     });
+
+    /** One plugin in each of its three states, as `PluginOutcome.of` writes them. */
+    const PLUGINS = [
+        asSchema('PluginOutcome', {
+            pluginId: 'acme-lint',
+            manifestDigest: 'c'.repeat(64),
+            state: 'produced',
+            findings: 4,
+            languages: [],
+            reason: null
+        }),
+        asSchema('PluginOutcome', {
+            pluginId: 'kotlin-rules',
+            manifestDigest: 'd'.repeat(64),
+            state: 'not_applicable',
+            findings: null,
+            languages: ['kotlin'],
+            reason: null
+        }),
+        asSchema('PluginOutcome', {
+            pluginId: 'house-secrets',
+            manifestDigest: 'e'.repeat(64),
+            state: 'absent',
+            findings: null,
+            languages: [],
+            reason: 'exit code 2 is not a declared exit code'
+        })
+    ];
 
     const COVERED = asSchema('Assessment', {
         state: 'COVERED',
@@ -166,6 +195,71 @@ describe('the scan detail', () => {
         );
 
         expect(fixture.nativeElement.textContent as string).toContain('Code analysis covers one pattern, in Python.');
+    });
+
+    /**
+     * **Not applicable is not a failure, absent is** (decision 0017 §4). Rendered alike, every scan
+     * of a Python repository would carry a red row for the Java plugin, and the one plugin that did
+     * fail would be one red row among many. Each state is read here from the DOM: its own marker,
+     * its own tag, its own detail — and the not-applicable row carries nothing of a failure.
+     */
+    it("renders each plugin's state distinctly, and only absent as a failure", async () => {
+        await load({ ...DETAIL, plugins: PLUGINS });
+
+        const rows = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="plugin-outcome"]')
+        );
+        expect(rows.map((row) => row.getAttribute('data-state'))).toEqual(['produced', 'not_applicable', 'absent']);
+
+        const [produced, skipped, absent] = rows.map((row) => row.textContent ?? '');
+        expect(produced).toContain('scans.plugin_state.produced');
+        expect(produced).toContain('scans.plugin_findings');
+        expect(skipped).toContain('scans.plugin_state.not_applicable');
+        expect(skipped).not.toContain('scans.plugin_state.absent');
+        expect(absent).toContain('scans.plugin_state.absent');
+        expect(absent).toContain('exit code 2 is not a declared exit code');
+
+        // The tag's colour is the other half of "distinct": only the absent one is danger.
+        expect(rows[2].querySelector('.p-tag-danger')).not.toBeNull();
+        expect(rows[1].querySelector('.p-tag-danger')).toBeNull();
+        expect(rows[0].querySelector('.p-tag-danger')).toBeNull();
+    });
+
+    it("links each plugin to the registry and shows the manifest's digest", async () => {
+        await load({ ...DETAIL, plugins: PLUGINS });
+
+        const link = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="plugin-outcome"] a');
+        expect(link?.getAttribute('href')).toBe('/plugins?id=acme-lint');
+        expect(fixture.nativeElement.textContent as string).toContain('c'.repeat(12));
+    });
+
+    it('shows no plugin card for a scan that ran none', async () => {
+        await load();
+
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="scan-plugins"]')).toBeNull();
+    });
+
+    it("names the tool that reported a plugin's finding", async () => {
+        await load({
+            ...DETAIL,
+            findings: [
+                asSchema('FindingView', {
+                    ...DETAIL.findings[0],
+                    id: 2,
+                    type: 'plugin',
+                    identifier: 'acme.no-internal-http',
+                    tool: 'plugin:acme-lint',
+                    toolName: 'acme-lint',
+                    toolVersion: '1.4.0'
+                })
+            ]
+        });
+
+        const tool = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="finding-tool"]');
+        expect(tool?.textContent).toContain('scans.reported_by');
+        // The type's own label, a literal key: the dynamic `issues.types.${type}` it replaces was
+        // invisible to the i18n check.
+        expect(fixture.nativeElement.textContent as string).toContain('issues.types.plugin');
     });
 
     it('stays quiet when the estate is covered, so the one that matters stays visible', async () => {

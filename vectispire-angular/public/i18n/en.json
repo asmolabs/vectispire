@@ -1180,7 +1180,10 @@
       "license": "License",
       "eol": "End of life",
       "sast": "Vulnerable code",
-      "quality": "Code quality"
+      "quality": "Code quality",
+      "plugin": "Plugin (analysed by Vectispire)",
+      "imported": "Imported (declared by CI)",
+      "ai_review": "Model review"
     },
     "vex": {
       "component_not_present": "Component not present",
@@ -1237,7 +1240,16 @@
     "expires_hint": "A decision is a statement about a context, and contexts change. Leave empty to schedule no review.",
     "sightings_title": "Seen by",
     "sightings_subtitle": "— which scan, on which version of the project",
-    "sightings_empty": "No sighting recorded."
+    "sightings_empty": "No sighting recorded.",
+    "provenance": "Provenance",
+    "provenance_plugin": "Analysed by Vectispire: a plugin registered by the platform governor ran on a tree Vectispire cloned, under the scanners' confinement.",
+    "provenance_imported": "Declared by a CI: a SARIF report sent by a declared internal source with its integration key. Vectispire did not run this tool; the import, with the document's SHA-256, is in the repository's SARIF import history.",
+    "provenance_plugin_label": "Plugin",
+    "provenance_source": "Declared source",
+    "provenance_tool": "Tool",
+    "provenance_scope": "Resolution scope",
+    "provenance_plugin_short": "analysed by Vectispire · {{tool}}",
+    "provenance_imported_short": "declared by {{source}} · {{tool}}"
   },
   "layout": {
     "menu_mode": {
@@ -1755,7 +1767,19 @@
     "findings_title": "Findings from this scan",
     "findings_subtitle": "— what this scan observed, not the target's backlog",
     "findings_truncated": "{{total}} findings in total; the first {{shown}} are shown.",
-    "fixed_in": "fixed in {{versions}}"
+    "fixed_in": "fixed in {{versions}}",
+    "plugins_title": "Plugins",
+    "plugins_explain": "Not applicable is not a failure: none of the plugin's languages is in this tree, it was not started, and its issues are left as they were. Absent is a failure: the plugin should have run and gave no usable report; its issues are left as they were and the scan lists the failure.",
+    "plugin_state": {
+      "produced": "Produced",
+      "not_applicable": "Not applicable",
+      "absent": "Absent — failed"
+    },
+    "plugin_findings": "{{count}} finding(s) in its report",
+    "plugin_not_applicable_detail": "looked for {{languages}}, none present",
+    "plugin_absent_no_reason": "no usable report, no reason recorded",
+    "plugin_manifest": "manifest",
+    "reported_by": "reported by {{tool}}"
   },
   "schedule": {
     "cron_hint": "Five fields — minute, hour, day of month, month, day of week. 0 2 * * * is every day at 02:00, 0 */6 * * * every six hours. The server refuses an expression it cannot read, so a mistake here is reported rather than saved.",

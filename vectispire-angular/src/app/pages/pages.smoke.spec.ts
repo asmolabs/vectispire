@@ -405,7 +405,9 @@ describe('every screen', () => {
                     hasSbom: false,
                     findings: [],
                     findingsTotal: 0,
-                    findingsTruncated: false
+                    findingsTruncated: false,
+                    // Always sent since plugins exist: an empty list for a scan that ran none.
+                    plugins: []
                 })
             );
         }

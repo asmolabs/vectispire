@@ -94,6 +94,81 @@
     </div>
 
     <!--
+        **Each plugin's end, in one of three states (decision 0017).** Not applicable and absent both
+        leave the plugin's issues as they were, and are told apart because only one of them is
+        somebody's problem: a Java plugin on a Python tree is not a failure, a plugin whose report
+        never came back is. They must not look alike, or every scan would carry a red row nobody
+        reads, and the real failure would be one of them.
+    -->
+    @if (detail.plugins.length > 0) {
+        <p-card styleClass="mb-4" data-testid="scan-plugins">
+            <ng-template #title>{{ 'scans.plugins_title' | translate }}</ng-template>
+            <p class="text-muted-color text-sm mt-0">{{ 'scans.plugins_explain' | translate }}</p>
+            <ul class="list-none p-0 m-0 flex flex-col gap-2">
+                @for (outcome of detail.plugins; track outcome.pluginId) {
+                    <li
+                        class="flex flex-wrap items-center gap-3 border rounded-md p-2"
+                        style="border-color: var(--surface-border)"
+                        data-testid="plugin-outcome"
+                        [attr.data-state]="outcome.state"
+                    >
+                        @switch (outcome.state) {
+                            @case ('produced') {
+                                <p-tag
+                                    severity="success"
+                                    icon="pi pi-check-circle"
+                                    [value]="'scans.plugin_state.produced' | translate"
+                                />
+                            }
+                            @case ('not_applicable') {
+                                <p-tag
+                                    severity="secondary"
+                                    icon="pi pi-minus-circle"
+                                    [value]="'scans.plugin_state.not_applicable' | translate"
+                                />
+                            }
+                            @default {
+                                <p-tag
+                                    severity="danger"
+                                    icon="pi pi-times-circle"
+                                    [value]="'scans.plugin_state.absent' | translate"
+                                />
+                            }
+                        }
+                        <a
+                            class="font-mono font-medium"
+                            [routerLink]="['/plugins']"
+                            [queryParams]="{ id: outcome.pluginId }"
+                            >{{ outcome.pluginId }}</a
+                        >
+                        <span class="text-sm">
+                            @switch (outcome.state) {
+                                @case ('produced') {
+                                    {{ 'scans.plugin_findings' | translate: { count: outcome.findings ?? 0 } }}
+                                }
+                                @case ('not_applicable') {
+                                    {{
+                                        'scans.plugin_not_applicable_detail'
+                                            | translate: { languages: outcome.languages.join(', ') }
+                                    }}
+                                }
+                                @default {
+                                    <span class="text-red-600 dark:text-red-400">{{
+                                        outcome.reason ?? ('scans.plugin_absent_no_reason' | translate)
+                                    }}</span>
+                                }
+                            }
+                        </span>
+                        <span class="text-xs text-muted-color font-mono ml-auto" [title]="outcome.manifestDigest ?? ''">
+                            {{ 'scans.plugin_manifest' | translate }} {{ shortDigest(outcome.manifestDigest) }}
+                        </span>
+                    </li>
+                }
+            </ul>
+        </p-card>
+    }
+
+    <!--
         **Directly above the list, because that is where the emptiness is read.** An empty list of
         findings on a repository whose language no rule covers says "this scan found nothing" where
         it must be read as "this scan looked for nothing".
@@ -149,6 +224,19 @@
                         </div>
                         @if (finding.description) {
                             <div class="text-sm text-muted-color">{{ finding.description }}</div>
+                        }
+                        @if (finding.toolName) {
+                            <div class="text-xs text-muted-color" data-testid="finding-tool">
+                                {{
+                                    'scans.reported_by'
+                                        | translate
+                                            : {
+                                                  tool:
+                                                      finding.toolName +
+                                                      (finding.toolVersion ? ' ' + finding.toolVersion : '')
+                                              }
+                                }}
+                            </div>
                         }
                         @if (finding.packageName) {
                             <div class="text-sm text-muted-color">

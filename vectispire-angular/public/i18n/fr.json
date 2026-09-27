@@ -1180,7 +1180,10 @@
       "license": "Licence",
       "eol": "Fin de support",
       "sast": "Code vulnérable",
-      "quality": "Qualité du code"
+      "quality": "Qualité du code",
+      "plugin": "Plugin (analysé par Vectispire)",
+      "imported": "Importé (déclaré par la CI)",
+      "ai_review": "Revue du modèle"
     },
     "vex": {
       "component_not_present": "Composant absent",
@@ -1237,7 +1240,16 @@
     "expires_hint": "Une décision porte sur un contexte, et les contextes changent. Laissez vide pour ne programmer aucun réexamen.",
     "sightings_title": "Vu par",
     "sightings_subtitle": "— quel scan, sur quelle version du projet",
-    "sightings_empty": "Aucune détection enregistrée."
+    "sightings_empty": "Aucune détection enregistrée.",
+    "provenance": "Provenance",
+    "provenance_plugin": "Analysé par Vectispire : un plugin enregistré par le gouverneur de la plateforme s'est exécuté sur un arbre cloné par Vectispire, sous le confinement des scanners.",
+    "provenance_imported": "Déclaré par une CI : un rapport SARIF envoyé par une source interne déclarée avec sa clé d'intégration. Vectispire n'a pas exécuté cet outil ; l'import, avec l'empreinte SHA-256 du document, figure dans l'historique des imports SARIF du dépôt.",
+    "provenance_plugin_label": "Plugin",
+    "provenance_source": "Source déclarée",
+    "provenance_tool": "Outil",
+    "provenance_scope": "Portée de résolution",
+    "provenance_plugin_short": "analysé par Vectispire · {{tool}}",
+    "provenance_imported_short": "déclaré par {{source}} · {{tool}}"
   },
   "layout": {
     "menu_mode": {
@@ -1755,7 +1767,19 @@
     "findings_title": "Constats de ce scan",
     "findings_subtitle": "— ce que ce scan a observé, et non le backlog de la cible",
     "findings_truncated": "{{total}} constats au total ; les {{shown}} premiers sont affichés.",
-    "fixed_in": "corrigé en {{versions}}"
+    "fixed_in": "corrigé en {{versions}}",
+    "plugins_title": "Plugins",
+    "plugins_explain": "Non applicable n'est pas un échec : aucun des langages du plugin n'est présent dans cet arbre, il n'a pas été lancé, et ses issues restent en l'état. Absent est un échec : le plugin aurait dû s'exécuter et n'a rendu aucun rapport exploitable ; ses issues restent en l'état et le scan signale l'échec.",
+    "plugin_state": {
+      "produced": "Produit",
+      "not_applicable": "Non applicable",
+      "absent": "Absent — échec"
+    },
+    "plugin_findings": "{{count}} constat(s) dans son rapport",
+    "plugin_not_applicable_detail": "cherchait {{languages}}, aucun présent",
+    "plugin_absent_no_reason": "aucun rapport exploitable, aucune raison enregistrée",
+    "plugin_manifest": "manifeste",
+    "reported_by": "signalé par {{tool}}"
   },
   "schedule": {
     "cron_hint": "Cinq champs — minute, heure, jour du mois, mois, jour de la semaine. 0 2 * * * correspond à chaque jour à 02h00, 0 */6 * * * toutes les 6 heures. Les erreurs sont signalées immédiatement.",

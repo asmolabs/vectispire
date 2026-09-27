@@ -13,12 +13,7 @@ import { saveDocument } from '../../core/download';
 import type { ScanDetail } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
-
-/**
- * Finding types, in words — the keys of `issues.types`, read at render time because the language
- * changes at runtime. Open table: an unknown type is shown raw.
- */
-const KNOWN_TYPES = new Set(['vulnerability', 'secret', 'iac', 'license', 'eol', 'sast', 'quality']);
+import { findingTypeLabel } from '../../shared/finding-types';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     critical: 'danger',
@@ -70,7 +65,12 @@ export class ScanDetailPage {
     }
 
     typeLabel(type: string): string {
-        return KNOWN_TYPES.has(type) ? this.i18n.t(`issues.types.${type}`) : type;
+        return findingTypeLabel(this.i18n, type);
+    }
+
+    /** A digest shortened like an image's: enough to compare two scans, not enough to crush a row. */
+    shortDigest(digest: string | null): string {
+        return digest ? digest.slice(0, 12) : '—';
     }
 
     severityOf(severity: string): 'danger' | 'warn' | 'secondary' {
