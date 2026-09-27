@@ -42,7 +42,7 @@ module, and Spring Modulith verifies the boundaries between modules against the 
 declares. That is a genuine step down: a rule, or a line in a list, can be changed by the same commit
 that needs it; a missing dependency cannot.
 
-**Inside `vectispire-core`, twenty-four modules.** The control plane is divided into domains over a
+**Inside `vectispire-core`, twenty-five modules.** The control plane is divided into domains over a
 foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
 `maintenance`), with `platform` on top — the settings screen that composes four domains, the
 foundation's routes, the error handler and the OpenAPI configuration; it may use any module and none
@@ -83,7 +83,7 @@ and listed in `MaintenanceJobsTest.COMPOSITION`: the tick knows none of the work
 
 **Spring Modulith is the authority on the module boundaries.** `ModularityTest` calls `verify()` and
 fails the build on a cycle between modules, a reach into another module's internals, or a dependency a
-list does not carry; it sees twenty-five modules (the twenty-four above, seven of them shared, and
+list does not carry; it sees twenty-six modules (the twenty-five above, seven of them shared, and
 `config`) and writes their canvases and diagrams into `build/modulith-docs/`
 ([05](../docs/architecture/en/05-modularity.md)). `ArchitectureTest` keeps what Modulith cannot say:
 the layers inside a module, and the six modules that use `access` for their routes only. A JPQL string
@@ -177,6 +177,12 @@ same name; decision records written before that date keep the names they had.
 | A delegated credential leaves only sealed for a sealing key the agent's pinned signing key vouched for — never in the clear; an unsigned, stale or absent announcement neither replaces nor clears the accepted key | `SealingKeyAttestationTest`, `AgentSealingKeyRoutesTest`, `ScanDispatcherTest`, `AgentSealingKeyIntegrationTest` (MySQL, PostgreSQL), `AgentSealingKeyAnnouncementTest` |
 | An agent never holds more scans than its `max_concurrent`, even with two polls at once, and a lapsed lease does not count | `ScanQueueIntegrationTest` (MySQL, PostgreSQL), `AgentConcurrencyRoutesTest` |
 | An agent runs its limit in parallel, not one more, and a stop waits for the running scans | `AgentLoopConcurrencyTest` |
+| A plugin runs in the scanners' closed shape — not root, no network unless declared, the analysed tree read-only and nothing else of the workspace, one writable output, no socket — and reports produced, not applicable or absent, never empty for a failure | `PluginScannerIntegrationTest`, `PluginStepsTest`, `ScanRunnerTest` |
+| A plugin's manifest is what its task named: the executor refuses one that does not hash to the digest, and a stored row edited in place is served to nobody | `PluginStepsTest`, `PluginsRoutesTest`, `AgentProtocolTest` |
+| The language census reads names only, in linear time, follows no link, and an incomplete census runs every plugin | `LanguageTest`, `LanguageCensusTest` |
+| A plugin's or an imported report's clean run resolves that tool's issues only — never the type's, another plugin's, an import's or a scanner's — and a new image version keeps the triage | `PluginIngestionDatabaseTest`, `ToolFingerprintTest`, `SarifImportRoutesTest` |
+| SARIF is read under a size ceiling, with no link, no location outside the tree, no expansion, and a run without results or that failed is never read as clean | `SarifReportTest`, `SarifPathsTest` |
+| A plugin is registered only by the platform governor and runs only for the projects it is switched on for; SARIF is imported only by a declared source's key, for its scope and its tools | `PluginsRoutesTest`, `SarifImportRoutesTest` |
 
 ### Two decisions worth knowing
 
@@ -248,7 +254,7 @@ historically experienced with abstractions:
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all forty-one tables are created by name, and that the twenty-seven foreign keys of the
+that all forty-six tables are created by name, and that the twenty-seven foreign keys of the
 seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on

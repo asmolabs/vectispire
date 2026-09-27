@@ -20,7 +20,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0014](0014-two-engines-and-a-test-fixture.md) | Deux moteurs déployables, et SQLite comme fixture de test | acceptée |
 | [0015](0015-one-secrets-engine.md) | Un seul moteur de secrets | acceptée |
 | [0016](0016-no-spdx-document.md) | CycloneDX est le SBOM généré ; SPDX n'est pas produit | acceptée |
-| [0017](0017-custom-checks-as-container-images.md) | Checks personnalisés en images de conteneur, pas en JAR | proposée |
+| [0017](0017-custom-checks-as-container-images.md) | Checks personnalisés en images de conteneur émettant du SARIF, et SARIF seulement de sources internes déclarées | acceptée |
 | [0018](0018-the-docker-socket-is-never-mounted.md) | Le socket Docker n'est jamais monté dans le plan de contrôle | acceptée |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | Le serveur envoie un jeton ; l'écran détient la phrase | acceptée |
 | [0020](0020-screenshots-stay-png.md) | Les captures restent en PNG, et le déclencheur qui changera cela est nommé | acceptée |

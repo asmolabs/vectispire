@@ -335,6 +335,7 @@ Chacun est un conteneur éphémère, épinglé **par digest**, avec `cap_drop: A
 | Licences | *(aucune)* | — | dérivé du SBOM |
 | Fin de vie | endoflife.date | sortant, sur activation | anomalies `eol` |
 | Revue IA | Ollama local | local, sur activation | anomalies `ai_review` |
+| Plugins | les vôtres, épinglés par digest, par projet | **coupé** sauf déclaration justifiée | anomalies `plugin` — produit, non applicable ou absent |
 
 Il y a **un** exécuteur, [`ScanRunner`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java), et il
 lance Docker. Une conception antérieure avait une interface `ScannerEngine` avec trois
@@ -342,6 +343,15 @@ implémentations ; le portage n'a gardé que celle sur Docker et la
 [décision 0010](../architecture/fr/decisions/0010-one-scan-runner.md) abandonne la couture plutôt
 que de la reconstruire autour d'une implémentation unique. Déplacer l'exécution ailleurs se fait
 en lançant un agent ailleurs.
+
+**Un plugin est un scanner de plus, pas une exception aux scanners**
+([décision 0017](../architecture/fr/decisions/0017-custom-checks-as-container-images.md)) : le même
+`ContainerRunner` et la même forme fermée, sous le propriétaire de l'espace de travail, l'arbre analysé
+en lecture seule et rien d'autre de l'espace de travail, un seul répertoire accessible en écriture pour
+son SARIF. Il ne tourne que là où l'un de ses langages déclarés est présent ; sinon il est *non
+applicable*, un troisième état à côté de « a tourné » et « n'a pas tourné », qui ne résout rien et ne
+fait rien échouer. Le SARIF d'un outil interne — jamais d'un service hors de l'organisation — est
+importé par une source déclarée.
 
 **Aucun conteneur d'analyse ne voit la socket Docker.** L'étape de SBOM d'image la montait
 autrefois pour que Syft tire l'image lui-même — ce qui revient à donner root sur l'hôte à un

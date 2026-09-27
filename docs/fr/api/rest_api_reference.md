@@ -74,6 +74,18 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **SMSI** | `PUT` | `/api/v1/compliance/scope/repositories/{id}` | Responsable/Admin | Marque un dépôt comme dans ou hors du périmètre certifié. |
 | **SMSI** | `PUT` | `/api/v1/compliance/scope/containers/{id}` | Responsable/Admin | Marque une image comme dans ou hors du périmètre certifié. |
 | **OWASP** | `GET` | `/api/v1/owasp/coverage` | Compte | Le Top 10 répondu par règle, en quatre états. Sept catégories ne sont couvertes par aucun scanner ici, et cette route le dit au lieu de les montrer vertes. |
+| **Plugins** | `GET` | `/api/v1/plugins` | Compte | Plugins enregistrés, chacun avec le manifeste qu'il exécute (image épinglée par digest, langages, arguments, exception réseau). |
+| **Plugins** | `POST` | `/api/v1/plugins` | Gouverneur | Enregistrer un plugin à partir de son manifeste. L'id n'est jamais réutilisé. |
+| **Plugins** | `PUT` | `/api/v1/plugins/{id}` | Gouverneur | Un nouveau manifeste sous le même id — une nouvelle version d'image garde le triage de chaque issue. |
+| **Plugins** | `PUT` | `/api/v1/plugins/{id}/enabled` | Gouverneur | Activer ou désactiver un plugin partout, en gardant ses activations. |
+| **Plugins** | `GET` | `/api/v1/plugins/{id}/projects` | Gouvernance | Les projets pour lesquels un plugin est activé. |
+| **Plugins** | `GET` | `/api/v1/projects/{id}/plugins` | Gouvernance | Les plugins activés pour un projet. |
+| **Plugins** | `PUT` / `DELETE` | `/api/v1/projects/{id}/plugins/{pluginId}` | Lead/Admin | Activer ou désactiver un plugin pour un projet. |
+| **Import SARIF** | `GET` / `POST` | `/api/v1/sarif-sources` | Gouvernance / Gouverneur | Les sources SARIF internes déclarées : une clé d'intégration, un projet ou un dépôt, les outils qu'elle peut livrer. |
+| **Import SARIF** | `PUT` / `DELETE` | `/api/v1/sarif-sources/{id}[/enabled]` | Gouverneur | Suspendre, reprendre ou supprimer une source déclarée. |
+| **Import SARIF** | `POST` | `/api/v1/repositories/{id}/sarif-imports` | Clé `sarif_import` | Déposer le rapport SARIF 2.1.0 d'une source déclarée dans le backlog d'un dépôt ; voir [Plugins et imports SARIF](../../../docs-site/administration/plugins.fr.md). |
+| **Import SARIF** | `GET` | `/api/v1/repositories/{id}/sarif-imports` | Compte | Les derniers imports du dépôt, avec l'empreinte de leur document et ce que chacun a fait. |
+| **Agent** | `GET` | `/api/v1/agent/plugins/{id}/{digest}` | Clé d'agent | Le manifeste qu'une tâche a nommé, par id et digest ; l'agent refuse celui qui ne correspond pas au digest. |
 | **Cryptographie** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Clé publique ECDSA pour vérification des signatures Cosign / Sigstore. |
 
 ---

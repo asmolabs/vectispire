@@ -74,6 +74,18 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **ISMS** | `PUT` | `/api/v1/compliance/scope/repositories/{id}` | Lead/Admin | Mark one repository as inside or outside the certified scope. |
 | **ISMS** | `PUT` | `/api/v1/compliance/scope/containers/{id}` | Lead/Admin | Mark one container image as inside or outside the certified scope. |
 | **OWASP** | `GET` | `/api/v1/owasp/coverage` | Account | The Top 10 answered by rule, in four states. Seven categories are covered by no scanner here, and this route says so rather than showing them green. |
+| **Plugins** | `GET` | `/api/v1/plugins` | Account | Registered plugins, each with the manifest it runs (image pinned by digest, languages, arguments, network exception). |
+| **Plugins** | `POST` | `/api/v1/plugins` | Governor | Register a plugin from its manifest. The id is never reused. |
+| **Plugins** | `PUT` | `/api/v1/plugins/{id}` | Governor | A new manifest under the same id — a new image version keeps every issue's triage. |
+| **Plugins** | `PUT` | `/api/v1/plugins/{id}/enabled` | Governor | Enable or disable a plugin everywhere, keeping its activations. |
+| **Plugins** | `GET` | `/api/v1/plugins/{id}/projects` | Governance | The projects a plugin is switched on for. |
+| **Plugins** | `GET` | `/api/v1/projects/{id}/plugins` | Governance | The plugins switched on for a project. |
+| **Plugins** | `PUT` / `DELETE` | `/api/v1/projects/{id}/plugins/{pluginId}` | Lead/Admin | Switch a plugin on or off for a project. |
+| **SARIF import** | `GET` / `POST` | `/api/v1/sarif-sources` | Governance / Governor | The declared internal SARIF sources: one integration key, one project or repository, the tools it may deliver. |
+| **SARIF import** | `PUT` / `DELETE` | `/api/v1/sarif-sources/{id}[/enabled]` | Governor | Suspend, resume or remove a declared source. |
+| **SARIF import** | `POST` | `/api/v1/repositories/{id}/sarif-imports` | `sarif_import` key | Deposit a declared source's SARIF 2.1.0 report into a repository's backlog; see [Plugins and SARIF imports](../../../docs-site/administration/plugins.md). |
+| **SARIF import** | `GET` | `/api/v1/repositories/{id}/sarif-imports` | Account | The repository's latest imports, with their document hashes and what each did. |
+| **Agent** | `GET` | `/api/v1/agent/plugins/{id}/{digest}` | Agent key | The manifest a task named, by id and digest; the agent refuses one that does not hash to the digest. |
 | **Crypto** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Instance ECDSA public key for Sigstore / Cosign signature verification. |
 
 ---

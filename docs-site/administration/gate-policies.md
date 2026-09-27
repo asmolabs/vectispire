@@ -37,6 +37,7 @@ behave identically today and diverge the moment the default changes.
 | **Triaged findings** | whether a triaged issue still counts |
 | **License violations** | fail on a blocked license |
 | **Model review** | whether an AI review verdict participates |
+| **Plugins** (`include_plugins`) | whether findings from [plugins and SARIF imports](plugins.md) participate — off by default |
 
 ## Overrides
 

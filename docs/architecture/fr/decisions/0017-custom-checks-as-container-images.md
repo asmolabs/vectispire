@@ -1,157 +1,339 @@
-# 0017 — Les checks propres à une organisation arrivent en images de conteneur, pas en JAR téléversé
+# 0017 — Les checks propres à une organisation arrivent en images de conteneur émettant du SARIF, et le SARIF n'est importé que de sources internes déclarées
 
-**Date :** 2026-08-29 · **Statut :** proposé · **Décideur :** Laurent Boucher
+**Date :** 2026-09-27 · **Statut :** accepté · **Décideur :** Laurent Boucher
+
+*Proposée le 2026-08-29 sous le titre « checks personnalisés en images de conteneur, pas en JAR » ;
+amendée et acceptée le 2026-09-27, quand les plugins ont été construits. Ce qui a changé depuis la
+proposition est listé à la fin.*
 
 ## Contexte
 
-La question posée était de savoir si Vectispire devait accepter le téléversement d'un JAR pour
-qu'une société puisse ajouter des checks propres à son organisation — un paquet interne proscrit,
-une convention de configuration que personne à l'extérieur ne reconnaîtrait, une règle de nommage
-qui n'a de sens que contre le registre de cette société.
+La question posée était de savoir si Vectispire devait accepter un JAR téléversé pour qu'une
+entreprise ajoute des contrôles propres à son organisation — un paquet interne interdit, une
+convention de configuration que personne d'extérieur ne reconnaîtrait, une règle de nommage qui n'a
+de sens que face au registre de cette entreprise. Une seconde question est arrivée le 2026-09-25 : une
+équipe qui fait déjà tourner un analyseur — un SonarQube sur site, un job de CI qui lance Semgrep ou
+CodeQL — veut ses résultats dans le même backlog, triés une seule fois.
 
-**Le besoin est réel et n'est aujourd'hui pas servi.** Le téléversement de règles Semgrep couvre ce
-que Semgrep sait exprimer, et [`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/rules/RuleSetService.java)
-résout déjà la moitié difficile du problème — stocker un artefact centralement et le servir à tous
-les exécuteurs, pour que deux agents ne puissent pas diverger sur ce qui a été cherché. Rien ne
-couvre un check qui doit *exécuter du code* : lire un fichier de verrouillage dans un format maison,
-appliquer une convention interne, croiser un manifeste avec un catalogue interne.
+**Le besoin est réel.** Le téléversement de jeux de règles Semgrep couvre ce que Semgrep sait
+exprimer, et
+[`RuleSetService`](../../../../vectispire-java/vectispire-core/src/main/java/com/asmolabs/vectispire/core/rules/RuleSetService.java)
+résout déjà la moitié difficile — stocker un artefact au centre et le servir à chaque exécuteur par
+empreinte, pour que deux agents ne puissent pas diverger sur ce qui a été cherché. Rien ne couvrait un
+contrôle qui doit *exécuter du code*, ni un rapport que l'outil de quelqu'un d'autre a déjà produit.
 
-C'est le véhicule qui pose question, pas le besoin.
+La question, c'est le véhicule, pas le besoin.
 
 ### Pourquoi pas un JAR
 
-**Il n'y a plus de bac à sable dans la JVM.** Le `SecurityManager` a été supprimé définitivement, et
-ce projet tourne sur JDK 25. Un JAR chargé dans le process obtient ce que le process a : le pool de
-connexions, la clé qui chiffre les clés de déploiement et les jetons tracker, le socket Docker, le
-réseau, le système de fichiers. Toutes les contraintes que
+**Il n'y a plus de bac à sable dans la JVM.** Le `SecurityManager` a été retiré pour de bon, et ce
+projet tourne sur JDK 25. Un JAR chargé dans le processus obtient ce que le processus a : le pool de
+connexions, la clé qui chiffre les clés de déploiement et les jetons de tracker, le point d'accès
+Docker, le réseau, le système de fichiers. Toutes les contraintes que
 [`ContainerRunner`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ContainerRunner.java)
-construit délibérément — réseau coupé, montage en lecture seule, conteneur éphémère,
-`cap_drop: ALL` — seraient contournées par n'importe quel plugin. Un produit dont l'objet est
-d'auditer une chaîne d'approvisionnement offrirait l'exécution de code tiers arbitraire au cœur de
-son propre control plane.
+construit délibérément seraient contournées par n'importe quel plugin. Un produit dont le but est
+d'auditer une chaîne d'approvisionnement offrirait l'exécution de code tiers arbitraire dans son propre
+plan de contrôle.
 
-**Cela casse l'architecture à deux côtés.**
+**Il casse l'architecture à deux côtés.**
 [`ScanRunner`](../../../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java)
-s'exécute à l'identique dans le control plane et sur un agent distant, et il lui est interdit
-d'atteindre la persistance — `ArchitectureTest` le vérifie. Un JAR devrait donc être provisionné sur
-le système de fichiers de chaque agent, ce qui est exactement l'asymétrie que `RuleSetService` a été
-écrit pour supprimer : deux agents, l'un provisionné et l'autre non, alternant sur la même cible
-font résoudre puis réapparaître le backlog à chaque tour, silencieusement, parce que l'étape *a
-tourné* les deux fois. Un JAR reproduit cela en pire — non pas présent contre absent, mais version A
-contre version B.
+tourne à l'identique dans le worker intégré et sur un agent distant, sans accès à la persistance. Un
+JAR devrait être provisionné sur le disque de chaque agent — deux agents qui se relaient sur une même
+cible, l'un en version A, l'autre en version B, résolvent et rouvrent le backlog à chaque tour.
 
-**Cela gèle l'API interne.** Un plugin compilé contre `IacFinding`, `Workspace` et `ContainerRun`
-fait de ces types un contrat public, et chaque refactorisation devient le JAR cassé de quelqu'un
-d'autre. Le Jackson du client rencontre celui de Spring Boot 4.1 sur le même classpath.
-
-**Cela se trompe en silence sur la [décision 0007](0007-none-is-not-an-empty-list.md).** Une liste
-vide signifie « analysé, propre » et autorise l'ingestion à résoudre les issues de ce type sur la
-cible. Un plugin tiers qui renvoie `List.of()` depuis une exception avalée déclare la cible
-réparée. Cette distinction est subtile, porteuse, et précisément ce qu'un auteur de check écrivant
-son premier plugin ignore.
+**Il fige l'API interne** — `Workspace`, `ContainerRun` et les records de constat deviennent le contrat
+de compilation de quelqu'un d'autre — et **il se trompe sur [0007](0007-none-is-not-an-empty-list.md)
+en silence** : un plugin qui renvoie `List.of()` depuis une exception avalée déclare la cible corrigée.
 
 ### Pourquoi cela ne rouvre pas 0010
 
-La [décision 0010](0010-one-scan-runner.md) dit qu'un registre de moteurs d'analyse, chacun avec son
-gabarit d'arguments et son fichier de règles, serait une décision différente qui devrait la
-remplacer. **Ce n'est pas cela.** Aucune interface `ScannerEngine` ne revient, et aucun gabarit
-d'arguments par moteur n'est introduit : ce qui est ajouté est un scanner concret de plus à côté
-d'`IacScanner` et de `SastScanner`, avec une forme de commande fixe et un format de sortie fixe,
-paramétré par un digest d'image — ce que `ScannerImages` fait déjà pour chaque scanner ici. 0010
-reste inchangée.
+[0010](0010-one-scan-runner.md) dit qu'un registre de moteurs d'analyse, chacun avec son modèle
+d'arguments et son fichier de règles, la remplacerait. **Ce n'est pas cela.** Aucune interface
+`ScannerEngine` ne revient : on ajoute un scanner concret de plus, `PluginScanner`, avec un format de
+sortie fixe (SARIF 2.1.0) et un confinement fixe, paramétré par un manifeste que le gouverneur a écrit.
+Les arguments d'un manifeste sont la ligne de commande du plugin lui-même, pas un modèle Vectispire par
+moteur. 0010 reste inchangée.
 
 ## Décision
 
-Un check personnalisé est **une image OCI plus une déclaration**, exécutée par le `ContainerRunner`
-existant, produisant du **SARIF 2.1.0 sur stdout**.
+### 1. Un plugin est un conteneur, lancé exactement comme les scanners livrés avec Vectispire
 
-### Le contrat d'exécution
+Un plugin est **une image OCI épinglée par digest plus un manifeste**, exécutée par le
+`ContainerRunner` existant, via le même point d'accès Docker (`DOCKER_HOST`, le proxy interne — jamais
+un socket monté, jamais un démon propre au plugin), et il écrit **du SARIF 2.1.0 dans un fichier**.
 
-Exécution via `ContainerRun.of(...)`, qui est la forme fermée : réseau coupé, système de fichiers
-racine en lecture seule, 512 Mo de tmpfs pour les écritures, `cap_drop: ALL`, `no-new-privileges`,
-l'arbre analysé monté en lecture seule au chemin source habituel. Le socket Docker est hors
-d'atteinte — `ContainerRunner` ne porte aucune option pour le monter, et cette capacité absente
-*est* l'isolation.
+- **La forme fermée, sans exception** : `ContainerRun.of(...)` — `cap_drop: ALL`, `no-new-privileges`,
+  système de fichiers racine en lecture seule, espace temporaire tmpfs `noexec`, les plafonds de
+  mémoire, de processus et de CPU des scanners, une étiquette, le conteneur supprimé dans un `finally`.
+- **Pas root** : il tourne sous l'`uid:gid` du propriétaire de l'espace de travail, la leçon du montage
+  de la base Grype — ce que root écrit dans un montage appartient à root sur l'hôte. Un hôte qui ne
+  rapporte aucun propriétaire ne lance pas de plugin du tout plutôt que de le lancer en root.
+- **Seul l'arbre analysé est monté**, en lecture seule, sur `/repo/source` (le sous-chemin du dépôt
+  s'il en a un, après que `SourceFiles.within` a prouvé qu'il est dans le clone). **Pas l'espace de
+  travail** : sa racine contient le rapport de secrets en clair et le SBOM.
+- **Un seul répertoire accessible en écriture**, vide, créé pour l'exécution, sur `/repo/output` ; le
+  rapport est lu dans `/repo/output/<output>`, pas sur la sortie standard, pour que le plugin puisse
+  journaliser librement. Il est lu comme un fichier ordinaire, pas à travers un lien, et seulement
+  jusqu'au plafond de sortie des scanners (`ScannerLimits.outputBytes`, celui ajouté le 2026-09-26),
+  appliqué pendant la lecture.
+- **Réseau `none`.** Un plugin qui a besoin du réseau le dit dans son manifeste avec une justification
+  écrite (20 à 500 caractères), que le gouverneur enregistre et que le journal d'audit porte — le
+  précédent de Grype rendu explicite. Il n'y a pas d'autre moyen de l'ouvrir.
+- **Les arguments sont une liste**, passée au point d'entrée de l'image sans aucun shell du côté de
+  Vectispire ; `{source}` et `{output}` sont remplacés par les deux chemins du conteneur.
+- **Durée bornée** : le manifeste peut demander moins que les quinze minutes des scanners, jamais plus.
+- **Il tourne partout où tournent les scanners** : le worker intégré ou un agent distant, par le même
+  `ScanRunner` ; un plugin ne voit donc jamais la base de données ni `ENCRYPTION_KEY`.
+- **Les bases de règles et de vulnérabilités** sont embarquées dans l'image épinglée, ou atteintes par
+  l'exception réseau déclarée vers un miroir interne (le modèle Grype). Jamais un téléchargement libre
+  au démarrage : le réseau est coupé sauf déclaration.
 
-**SARIF, parce que c'est déjà dans la maison.** `SarifExport` en produit et `SastScanner` en analyse
-déjà de cette famille : aucun format n'est inventé et aucun parseur supplémentaire n'est à
-maintenir. L'analyse SARIF est extraite de `SastScanner` vers un composant que les deux appellent.
-Un auteur de check peut tester son image avec `docker run` seul, sans instance Vectispire.
+La campagne conteneurs lance un busybox épinglé qui rapporte son propre confinement depuis l'intérieur
+— pas l'uid 0, pas d'ethernet ni de route, image et arbre en lecture seule, espace temporaire `noexec`,
+pas de socket, et `/repo` ne contenant que `source` et `output` (`PluginScannerIntegrationTest`).
 
-**Le code de sortie 0 signifie « analysé », avec ou sans findings. Tout autre code est un échec**,
-remonte en `ScannerFailureException`, et laisse l'artefact absent — ce que l'ingestion lit comme
-« pas regardé » et qui laisse le backlog intact, conformément à
-[0007](0007-none-is-not-an-empty-list.md). C'est le seul endroit où un auteur de check peut se
-tromper dangereusement : une image qui sort 0 avec un SARIF vide après un plantage déclare la cible
-propre et résout tout son backlog personnalisé. **La documentation du plugin s'ouvre sur ce
-paragraphe.**
+### 2. Le manifeste
 
-### Digest, jamais tag
+```json
+{
+  "id": "acme-lint",
+  "name": "ACME house rules",
+  "image": "registry.acme.internal/sec/acme-lint@sha256:<64 hex>",
+  "languages": ["java", "kotlin"],
+  "arguments": ["--sarif", "{output}", "{source}"],
+  "output": "results.sarif",
+  "exit_codes": [0, 1],
+  "network": false,
+  "network_justification": null,
+  "timeout_seconds": 600
+}
+```
 
-Le control plane résout le tag en `sha256:…` à l'enregistrement, et `ScanTask` transporte le digest.
-`ScanTask` transporte déjà `rulesHash` pour exactement cette raison : un exécuteur qui lit « le set
-actif » pour lui-même analyse avec ce qu'il a trouvé au moment où il a demandé, et deux exécuteurs
-divergent. Un tag `latest` reproduit cette défaillance à l'identique.
+| Champ | Règle |
+|---|---|
+| `id` | 2 à 40 lettres minuscules, chiffres, tirets intérieurs. **Entre dans l'empreinte de chaque issue ; jamais renommé, jamais réutilisé** — il n'y a pas de suppression. |
+| `name` | 1 à 100 caractères, affichage seulement. |
+| `image` | `dépôt@sha256:<64 hex minuscules>`, **sans tag, pas même à côté du digest**. |
+| `languages` | Au moins un, parmi les répertoires du catalogue Semgrep (`Language`). |
+| `arguments` | Au plus 32 entrées d'au plus 4 096 caractères ; retour à la ligne et tabulation admis (un script `sh -c` dans l'image), tout autre caractère de contrôle refusé. |
+| `output` | Un nom de fichier nu dans `/repo/output`, `results.sarif` par défaut. |
+| `exit_codes` | Les codes qui signifient « analysé », constats ou non ; `[0]` par défaut. Tout autre code fait échouer l'étape. |
+| `network` / `network_justification` | Coupé par défaut ; ouvert seulement avec une justification, et une justification sans lui est refusée. |
+| `timeout_seconds` | 10 à 900, ou absent pour la durée des scanners. |
 
-### Le type de finding n'appartient pas au plugin
+Le **digest** du manifeste (`PluginManifest.digest`) couvre tous les champs. Mémoire, processus et CPU
+sont ceux des scanners et ne se négocient pas plugin par plugin.
 
-Un nouveau `FindingType.CUSTOM` avec `GateParticipation.ON_REQUEST` — l'argument est celui
-d'`AI_REVIEW`, inchangé : du code tiers qui inventerait un « critical » ferait échouer le build de
-quelqu'un d'autre. Un administrateur peut le promouvoir en `ALWAYS` par politique. **C'est le choix
-le plus lourd de conséquences ici après le bac à sable**, parce que le défaut décide de ce qu'un
-check erroné ou hostile peut faire à une chaîne que personne n'a prévenue.
+**Un registre interne** : `vectispire.scanning.plugin-registry` (`VECTISPIRE_PLUGIN_REGISTRY`, et
+`vectispire.agent.images.plugin-registry` côté agent) reloge chaque image de plugin — l'hôte du
+registre remplacé, le chemin du dépôt et le digest conservés — pour qu'un miroir puisse servir l'image
+sans pouvoir en substituer une autre. C'est plus strict que la surcharge des images de scanners, qui
+accepte n'importe quelle référence, parce qu'un plugin est du code tiers qui lit chaque fichier qu'on
+lui donne.
 
-### Les empreintes sont préfixées par l'identifiant du check
+### 3. Le plan de contrôle fait autorité ; les exécuteurs récupèrent par id et digest
 
-Le `ruleId` SARIF entre dans l'empreinte de l'issue — c'est la raison du `--no-rewrite-rule-ids` de
-`SastScanner`. Deux checks émettant tous deux `CKV_AWS_20` fusionneraient sinon en une seule issue.
-L'empreinte est donc `identifiant du check + ruleId + fichier + …`, et la documentation dit
-clairement que renommer une règle perd le triage qui y est attaché.
+Le dispatcher décide des plugins d'une analyse quand il construit la tâche — les plugins activés pour
+le projet du dépôt et non désactivés — et la tâche porte chacun sous la forme `{id, digest}`, comme elle
+porte l'empreinte du jeu de règles. L'exécuteur récupère le manifeste par ses deux moitiés (le worker
+intégré dans ses propres tables, un agent via `GET /api/v1/agent/plugins/{id}/{digest}`), **recalcule le
+digest et refuse un manifeste qui ne correspond pas**. Tous les manifestes qu'un plugin a eus sont
+conservés, par digest, et jamais réécrits : une tâche mise en file avant une mise à jour obtient le
+manifeste avec lequel elle a été construite. Une ligne modifiée dans la base ne correspond plus à sa
+clé et n'est servie à personne.
 
-### L'enregistrement est un acte d'administrateur
+Un agent plus ancien que les plugins ignore le champ et ne rapporte aucune étape de plugin ; c'est lu
+comme absent et ne résout rien, donc la version du contrat d'agent ne bouge pas.
 
-Le pull est la seule opération réseau et il a lieu sur l'hôte, hors du conteneur. Il n'exécute rien,
-mais laisser n'importe quel utilisateur faire tirer une image arbitraire sur le démon Docker reste
-une décision d'opérateur, pas de lecteur. L'enregistrement est réservé aux administrateurs et
-contraint par une liste blanche de registres ; une vérification cosign optionnelle avant le pull
-réutilise l'infrastructure DSSE déjà présente.
+### 4. Les langages, et le troisième état
 
-**Stockage et activation restent séparés**, comme dans `RuleSetService` : l'activation change ce que
-la prochaine analyse cherche, et l'opérateur voit l'impact sur le triage avant de décider.
+Un plugin ne tourne que si l'un des langages qu'il déclare est présent dans l'arbre analysé.
+`LanguageCensus` en décide : **les noms de fichiers seulement, jamais le contenu** — une copie en
+minuscules, un `lastIndexOf`, deux recherches dans une table par fichier, les manifestes (`pom.xml`,
+`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`…) comptés comme indices — liens ni suivis ni
+comptés, `.git` et `node_modules` ignorés. Linéaire dans les noms, sans motif qui puisse revenir en
+arrière (l'audit du 2026-09-26), et borné : 200 000 entrées ou soixante secondes, et plus tôt dès que
+chaque langage demandé par un plugin a été vu. **Un recensement qui a atteint une borne ne peut pas
+prouver l'absence d'un langage, et tous les plugins tournent alors.**
+
+Chaque plugin d'une analyse finit dans exactement un de trois états, portés par
+`ScanArtifacts.plugins` sous forme d'un `PluginStep` scellé avec un discriminant sur le fil :
+
+| État | Sens | Ce que fait l'ingestion |
+|---|---|---|
+| `produced` | Il a tourné, est sorti sur un code déclaré, et son rapport a été lu : chaque run a réussi et porte un tableau `results`. | Ses constats deviennent des issues `plugin` ; **ses propres** issues ouvertes sur la cible qu'il n'a pas rapportées sont résolues — un rapport vide les résout toutes, et rien d'autre. |
+| `not_applicable` | Aucun de ses langages n'est dans l'arbre ; il n'a pas été lancé. | Ses issues restent telles quelles. **Pas un échec** : l'analyse dit « non applicable », pas « échoué ». |
+| `absent` | Il aurait dû tourner et n'a produit aucun rapport exploitable — définition non obtenue ou ne correspondant pas à son digest, code de sortie non déclaré, pas de rapport, rapport refusé (taille, lien, emplacement hors de l'arbre, mal formé), un run qui dit `executionSuccessful: false`, un run sans `results`, ou aucun run. | Ses issues restent telles quelles, **et la raison est un échec de l'analyse**, sous `plugin <id>`. |
+
+Absent et non applicable laissent le backlog en paix pour la même raison — rien n'a été examiné — et
+sont distingués parce qu'un seul des deux est le problème de quelqu'un. Rapporter un plugin Java sur un
+dépôt Python comme absent mettrait un échec sur chaque analyse jusqu'à ce que plus personne ne lise les
+échecs ; le rapporter vide résoudrait ses issues le jour où le Java part et les rouvrirait, triage
+effacé, quand il revient. Un plugin manquant de la liste est absent ; une étape `produced` dont les
+constats ne sont pas arrivés est lue comme absente, jamais comme « a tourné, n'a rien trouvé ».
+
+SARIF le dit déjà : un run dont la propriété `results` est absente n'a pas calculé de résultats ; un
+tableau vide signifie qu'il n'en a trouvé aucun. `SarifReport` le garde sous forme d'`Optional`.
+
+### 5. Le contrat d'empreinte
+
+Un constat de plugin ou importé est identifié par l'unique formule, avec la **clé d'outil à la place du
+paquet** :
+
+```
+SHA-256(cible NUL type NUL id de règle NUL clé d'outil NUL chemin normalisé)
+```
+
+- **type** : `plugin` pour un plugin que Vectispire a lancé, `imported` pour le rapport d'une source
+  déclarée — deux types, pour que la provenance soit la première chose que montrent chaque écran,
+  chaque filtre et chaque export.
+- **clé d'outil** : `plugin:<id>`, ou `import:<slug de la source>/<nom de l'outil, épuré et en
+  minuscules>`. **Ni l'image, ni son digest, ni la version de l'outil** : un plugin passé à une nouvelle
+  image garde son id et tout son triage. Renommer le plugin, la source ou l'outil résout et recrée le
+  backlog ; la documentation le dit.
+- **id de règle** : le `ruleId` SARIF (ou la règle vers laquelle pointe le résultat), entier. Un
+  résultat qui ne nomme aucune règle fait refuser le rapport — sans elle, il n'a pas d'identité d'un
+  run à l'autre.
+- **chemin** : l'emplacement normalisé par `SarifPaths` — `%XX` décodés en UTF-8, barres obliques
+  inverses comme séparateurs, `file:` retiré, le `/repo/source` du conteneur retiré, segments vides et
+  `.` supprimés, joints par `/`. Un `..`, un autre schéma, un chemin absolu hors de la racine connue ou
+  un caractère de contrôle fait refuser le rapport. La ligne n'y entre pas.
+
+La clé d'outil est aussi le **périmètre de résolution** : un rapport propre résout les issues de cet
+outil et jamais celles du type ; un plugin revenu vide ne dit donc rien d'un autre plugin, d'un import
+ou d'un scanner. Elle est épinglée par valeur dans `ToolFingerprintTest`.
+
+### 6. L'enregistrement revient au gouverneur de la plateforme ; l'activation se fait par projet
+
+- **Enregistrer, mettre à jour, activer et désactiver un plugin exigent `@RequiresPlatformGovernor`**
+  (`Role.governsPlatform`, SUPERUSER seul). Décider que du code tiers qui lira le source du parc peut
+  exister sur la plateforme est une règle que tous les autres suivent. Chaque changement est audité
+  (`PLUGIN_REGISTERED`, `PLUGIN_UPDATED`, `PLUGIN_ENABLED_CHANGED`) avec le digest du manifeste,
+  l'image, les langages et l'exception réseau, et signalé au SIEM en `ZAN-SEC-021`.
+- **Activer un plugin pour un projet exige `@RequiresSecurityLead`** — les rôles qui
+  `canWriteGovernance` et voient tout le parc : la décision qu'est l'activation d'un jeu de règles,
+  restreinte à un projet. `PLUGIN_ACTIVATED` / `PLUGIN_DEACTIVATED`, `ZAN-SEC-021` aussi.
+- **Rien n'est global.** Un dépôt rangé dans aucun projet (décision 0023) ne lance aucun plugin ; un
+  plugin désactivé garde ses activations et n'en lance aucune ; supprimer un projet emporte ses
+  activations (`ProjectDeleted`, publié par `targets` dans la transaction de suppression).
+- **Pas de suppression** : un id nomme chaque issue ouverte par le plugin, et un autre code enregistré
+  sous cet id hériterait de leur triage.
+- Lire le registre est ouvert à tout compte connecté — une image, des arguments et des langages ne
+  nomment aucune cible ; les projets qu'un plugin lit sont réservés aux rôles de gouvernance.
+
+**La barrière** : les constats de plugin et importés sont `GateParticipation.ON_REQUEST`, comme la revue
+IA — le « critique » d'un outil tiers ne doit pas faire échouer un build que personne n'a prévenu — sur
+leur propre drapeau de politique, `include_plugins`, qu'une politique enregistrée ou un appelant peut
+activer. Le drapeau de revue IA n'admet que les constats IA. Ils restent hors des indicateurs de
+sécurité, de l'estimation d'effort et du total de remédiation, pour la même raison.
+
+### 7. Du SARIF de sources internes seulement
+
+La politique décidée le 2026-09-25 : **externe veut dire hors de l'organisation.** Les résultats d'un
+service hors de l'organisation, à qui le code aurait été remis — SonarCloud hébergé, CodeQL hébergé, un
+scanner SaaS — ne sont pas importés. Le SARIF produit par un outil interne qui a déjà le code — un
+SonarQube sur site, la CI de l'équipe — l'est.
+
+**Une source est déclarée**, par le gouverneur de la plateforme (c'est la plateforme qui dit « ce
+producteur est dans l'organisation ») : un slug, une clé d'API d'intégration portant le scope
+`sarif_import` (jamais accordé par défaut), **exactement un périmètre — un projet ou un dépôt, jamais
+tout le parc** — et les noms d'outils qu'elle peut livrer. Une clé, une source : la clé nomme la
+source. `SARIF_SOURCE_CHANGED`, `ZAN-SEC-022`.
+
+**Un import** (`POST /api/v1/repositories/{id}/sarif-imports`, `@AcceptsApiKey(SARIF_IMPORT)`,
+`@RequiresWriteAccount`) n'est accepté que si :
+
+1. il vient avec une clé d'intégration — une session n'est pas une source (403) ;
+2. la clé est déclarée pour une source active — sinon 403, audité `SARIF_IMPORT_REFUSED` et signalé
+   `ZAN-SEC-023` ;
+3. le dépôt est visible par la clé (la visibilité de son compte intersectée avec la restriction propre
+   de la clé, décision 0024) **et** dans le périmètre de la source — sinon 404, dans les termes d'un
+   dépôt qui n'existe pas (le cas hors périmètre est audité et signalé aussi) ;
+4. le corps tient dans `vectispire.http.max-body.sarif-import` (32 Mo, `RequestBodyLimitFilter`, 413),
+   et se lit sous les gardes de `SarifReport` — imbrication 64, chaînes de 1 Mo, 20 runs, 100 000
+   résultats, clés dupliquées et contenu après la fin refusés, `externalPropertyFileReferences` et
+   `inlineExternalProperties` refusés, **tout emplacement relatif** (la copie de travail du producteur
+   est inconnue ici, donc un chemin absolu est hors de l'arbre) (400) ;
+5. chaque run a réussi, porte `results`, et a été produit par un outil que la source déclare — un run
+   en échec ou sans résultats est refusé (400) plutôt que lu comme propre ; un outil non déclaré donne
+   403, audité et signalé.
+
+Ensuite, les mêmes règles qu'un plugin : l'outil de chaque run est son propre périmètre et sa propre
+clé d'empreinte ; le rapport résout ce que cet outil ne rapporte plus sur ce dépôt, et rien d'autre.
+Les issues importées portent leur provenance — type `imported`, `tool` (la clé), `toolName` et
+`toolVersion` issus de `tool.driver`, et `importSource`, le slug de la source déclarée, conservé après
+la suppression de la source. L'import lui-même est une ligne (`t_sarif_import` : source, clé, dépôt,
+outils, SHA-256 du document, compteurs) et une entrée d'audit `SARIF_IMPORTED` : la preuve datée d'une
+issue importée, là où une issue analysée a son analyse.
+
+**Les limites, honnêtement.** Rien dans un fichier SARIF ne prouve où il a été fabriqué ; la clé d'une
+source déclarée peut téléverser ce que son détenteur possède. Ce qui rend la politique *suffisamment*
+applicable :
+
+- la déclaration est un acte nommé et audité de l'unique rôle qui fixe les règles de la plateforme, et
+  lie une clé à un producteur et à un périmètre — un import est attribuable à une clé et à une personne ;
+- la liste d'outils autorisés par source attrape une CI qui se met à déposer la sortie d'un autre outil
+  — y compris celle d'un service hébergé, qui se nomme lui-même (`SonarCloud` n'est pas `SonarQube`) ;
+- l'empreinte de chaque document accepté est enregistrée, pour rapprocher un rapport de l'exécution de
+  CI qui l'a produit ;
+- un import refusé est un événement SIEM : une clé utilisée pour autre chose que ce pour quoi elle a été
+  déclarée se voit.
+
+**Une liste noire de noms de pilotes SaaS a été envisagée et écartée.** Ce serait du théâtre dans un
+sens — un pilote renommé passe — et faux dans l'autre : CodeQL CLI lancé dans la CI de l'organisation
+et CodeQL hébergé par GitHub disent tous deux `CodeQL`. La liste autorisée par source est le même
+contrôle tourné dans le bon sens : elle nomme ce que ce producteur est censé envoyer. Ce qui reste est la
+discipline de l'organisation sur qui détient une clé déclarée, que la piste d'audit rend vérifiable au
+lieu d'invisible.
+
+### 8. Les analyseurs qui compilent — conçus, pas construits
+
+CodeQL pour Java, SpotBugs et leurs semblables doivent construire le code, ce que la forme fermée
+interdit : l'arbre est en lecture seule et le réseau coupé. La conception, consignée pour la suite :
+
+- **un volume de travail dédié, accessible en écriture et jetable**, copie de l'arbre (jamais l'arbre
+  lui-même, jamais l'espace de travail), monté sur `/repo/work` et supprimé avec l'espace de travail —
+  le source reste en lecture seule ;
+- **un réseau limité à un miroir interne de dépendances déclaré par plugin** (Nexus, Artifactory) : le
+  manifeste nomme l'hôte du miroir, la justification dit pourquoi, et le conteneur rejoint un réseau dont
+  la seule route est ce miroir (un proxy de sortie à liste autorisée, ou un réseau Docker sans route par
+  défaut) — jamais le réseau ouvert ;
+- les mêmes plafonds, avec une durée plus longue seulement comme champ de manifeste explicite et audité.
+
+Pas construit maintenant : il faut un réseau Docker par miroir et un proxy de sortie qui n'existent pas
+encore, et une version à moitié faite ouvrirait le réseau plus largement que le manifeste ne le dit.
+**Le seul point d'accroche qui existe** est l'exception réseau déclarée, qu'un tel plugin peut utiliser
+dès aujourd'hui — avec tout le réseau, et c'est exactement pour cela que la justification est exigée et
+auditée.
 
 ## Conséquences
 
-**Un agent sur un réseau fermé échoue au pull**, ce qui lève une `ScannerFailureException`, ce qui
-laisse l'artefact absent et le backlog intact. Correct par défaut, et documenté : pré-tirer l'image
-sur chaque agent, ou utiliser un registre que les agents peuvent joindre.
+- Une migration, `V41`, écrite une fois dans `common` : `t_plugin`, `t_plugin_manifest`,
+  `t_plugin_activation`, `t_sarif_source`, `t_sarif_import`, des colonnes de provenance sur `t_issue` et
+  `t_finding`, `include_plugins` sur `t_gate_policy`. Pas de clé étrangère : les écouteurs du module
+  `plugins` purgent ses lignes sur `TargetDeleted` et `ProjectDeleted`.
+- Un nouveau module, `core.plugins`, qui utilise `access`, `access::security`, `issues`, `scanning` et
+  `targets` ; `scanning` déclare le port `ScanPlugins` qu'il implémente. La route des agents vit dans
+  `agents`, par ce port.
+- **Un agent sur un réseau fermé échoue au pull**, ce qui laisse le plugin absent et son backlog intact.
+  Pré-télécharger, ou pointer `VECTISPIRE_PLUGIN_REGISTRY` vers un registre que les agents atteignent.
+- **Ce qui est abandonné** : l'extension dans le processus ; un plugin voit un arbre et émet des
+  constats sur cet arbre, et un contrôle qui a besoin du corpus est une règle sur les données ingérées,
+  pas un plugin.
+- **Non borné** : le disque dans lequel le plugin écrit sous `/repo/output` — un montage de répertoire ne
+  peut pas porter de limite de taille. Le rapport est lu jusqu'au plafond, le conteneur jusqu'à sa
+  durée ; un volume à taille limitée est une suite à donner. La vérification cosign de l'image avant le
+  pull aussi.
 
-**Ce à quoi on renonce.** L'extension in-process, et avec elle la possibilité pour un check de
-consulter la base, l'historique des issues ou une autre cible. Un check voit un arbre et émet des
-findings sur cet arbre. Tout ce qui a besoin du corpus est une règle sur des données déjà ingérées —
-une autre fonctionnalité, sur l'écran des politiques de gate, sans aucun code non fiable dedans.
+## Ce qui a changé depuis la proposition du 2026-08-29
 
-**Si un JAR est malgré tout exigé** — un acheteur le demandera nommément — la réponse est un process
-séparé, jamais la JVM de l'application : un module `vectispire-plugin-sdk` avec une interface
-stable, le plugin lancé en `java -jar` à travers ce même `ContainerRunner` réseau coupé, dialoguant
-en JSON sur stdin/stdout, vérifié par cosign au téléversement, version de SDK épinglée, timeout par
-check. C'est-à-dire cette décision avec un emballage en forme de Java — ce qui démontre que le JAR
-était un détail de packaging et jamais une architecture.
-
-## Ce que cela touche
-
-| Module | Travail |
+| Proposé | Décidé |
 |---|---|
-| `vectispire-common` | `CustomScanner` à côté d'`IacScanner` ; analyse SARIF extraite de `SastScanner` ; `ScanTask.Step.CUSTOM` et les checks déclarés portés par la task ; `ScanArtifacts.custom(...)` en `Optional` |
-| `vectispire-core` | entité et `CustomCheckService` calqués sur `RuleSetService` ; contrôleur d'administration ; résolution tag vers digest ; ingestion et `FindingType.CUSTOM` |
-| `vectispire-angular` | Administration → Checks personnalisés |
-| tests | `ScannerContractTest` étendu plutôt que dupliqué — c'est là que le contrat `Optional` est verrouillé |
-| docs | ce document, et le guide de l'auteur de plugin dont le premier paragraphe est le contrat de code de sortie |
-
-## Découpage
-
-1. **Le contrat.** `CustomScanner`, analyse SARIF partagée, un seul check déclaré globalement, gated
-   en `ON_REQUEST`. Rien dans l'interface pour l'instant.
-2. **La réalité du déploiement.** Checks par cible, liste blanche de registres, épinglage par
-   digest, documentation du pré-tirage sur les agents.
-3. **L'exploitation.** L'écran d'administration, la vérification cosign, l'impact triage avant
-   activation.
+| SARIF sur la sortie standard | SARIF dans un fichier sous `/repo/output` : le plugin peut journaliser, et le rapport est lu avec les gardes des fichiers. |
+| Enregistrement par un administrateur, une liste de registres autorisés | Enregistrement par le gouverneur de la plateforme ; images relogées vers un registre interne, digest conservé. |
+| Un type de constat `CUSTOM` | `PLUGIN` et `IMPORTED`, pour que la provenance se voie au type ; tous deux sur demande, par `include_plugins`. |
+| Empreinte `id du check + ruleId + fichier` | L'unique formule avec la clé d'outil à la place du paquet, la clé étant `plugin:<id>` ou `import:<source>/<outil>`. |
+| Contrôles globaux d'abord, par cible ensuite | Activation par projet dès le départ ; rien de global. |
+| Aucun modèle de langages | Langages déclarés, recensement borné, et un troisième état : non applicable. |
+| — | Import de SARIF depuis des sources internes déclarées. |
+| Vérification cosign en phase 3 | Toujours une suite à donner. |

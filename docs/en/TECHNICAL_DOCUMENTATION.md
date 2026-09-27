@@ -330,6 +330,7 @@ to fetch.
 | Licenses | *(none)* | — | derived from the SBOM |
 | End of life | endoflife.date | outbound, opt-in | `eol` findings |
 | AI review | local Ollama | local, opt-in | `ai_review` findings |
+| Plugins | yours, pinned by digest, per project | **cut off** unless declared with a justification | `plugin` findings — produced, not applicable or absent |
 
 There is **one** runner, [`ScanRunner`](../../vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/ScanRunner.java), and it runs
 Docker. An earlier design had a `ScannerEngine` interface with three implementations; the
@@ -337,6 +338,14 @@ port kept only the Docker one and
 [decision 0010](../architecture/en/decisions/0010-one-scan-runner.md) abandons the seam rather
 than rebuilding it around a single implementation. Moving execution elsewhere is done by
 running an agent elsewhere.
+
+**A plugin is one more scanner, not an exception to them**
+([decision 0017](../architecture/en/decisions/0017-custom-checks-as-container-images.md)): the same
+`ContainerRunner` and closed shape, as the workspace owner, the analysed tree read-only and nothing
+else of the workspace, one writable output directory for its SARIF. It runs only where one of its
+declared languages is present; otherwise it is *not applicable*, a third state beside "ran" and "did
+not run" that resolves nothing and fails nothing. SARIF from an internal tool — never a service
+outside the organisation — is imported through a declared source instead.
 
 **No analysis container sees the Docker socket.** The image SBOM step used to mount it so
 Syft could pull the image itself — handing root on the host to a process whose input is

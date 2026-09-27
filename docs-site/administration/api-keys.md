@@ -21,6 +21,7 @@ A key then passes only on the routes that accept a key, and only with a scope it
 | `read` | listing and reading repositories, containers, scans, issues, gate verdicts and the compliance summary |
 | `scan` | triggering a scan of a repository or container, and asking the [CI gate](../integrations/ci-gate.md) for a verdict |
 | `export` | SBOM, VEX, CSAF and CycloneDX documents, compliance PDF and evidence bundle, exports |
+| `sarif_import` | depositing an internal tool's SARIF report into a repository — **only once the platform governor has declared the key as a SARIF source**, see [Plugins and SARIF imports](plugins.md). Never granted by default |
 
 Anything else — administration, triage, settings, users — refuses a key with `403`, whatever the
 account's role. That is the point: an administrator's key used by a pipeline is not an

@@ -124,6 +124,9 @@ change meaning.
 | `ZAN-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
 | `ZAN-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
 | `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
+| `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, or switched on or off for a project — third-party code gains or loses read access to some of the source |
+| `ZAN-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |
+| `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | a SARIF upload is refused for what it claims — a key no source is declared for, a repository outside its source's scope, a tool its source is not declared for |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | the connection test |
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by

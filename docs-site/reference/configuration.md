@@ -78,12 +78,19 @@ posted to by anyone. Past these limits they answer `413`.
 | `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — a VEX document for a large product |
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — the result carries the SBOM |
 | `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | every `POST /api/v1/auth/…` — a login, a one-time code or a session exchange is a few hundred bytes |
+| `VECTISPIRE_MAX_BODY_SARIF_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/sarif-imports` — an internal tool's SARIF report for one repository; see [Plugins and SARIF imports](../administration/plugins.md) |
 
 ## Cloning
 
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
+
+## Plugins
+
+| Variable | Default | Notes |
+|---|---|---|
+| `VECTISPIRE_PLUGIN_REGISTRY` | *none* | The internal registry every [plugin](../administration/plugins.md) image is pulled from — `registry.corp.example:5000/mirror`. The image's registry host is replaced and its path and digest are kept, so the mirror can serve a plugin but cannot substitute another. No scheme, no credential. Set the same on each agent. |
 
 ## Audit
 
@@ -129,6 +136,7 @@ Then `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_URL` | The control plane the agent polls. |
 | `VECTISPIRE_AGENT_TOKEN` | An API key with the `agent` scope, shown once at creation. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | The private half of the Ed25519 key an administrator pinned for this agent, base64. Blank means results are accepted on the API key alone. Pinning one is what stops a stolen key from declaring a target clean — the empty result that resolves a whole backlog. |
+| `VECTISPIRE_PLUGIN_REGISTRY` | The internal registry plugin images are pulled from on this agent — host relocated, path and digest kept. Blank pulls each from its own registry, which an agent on a closed network cannot reach: the plugin is then absent from the scan and its issues stay as they were. |
 
 How many scans an agent runs at once is **not** one of its variables: it is set on the agent's row
 in the control plane, 1 to 16, and the agent reads it from every answer to its polls — see

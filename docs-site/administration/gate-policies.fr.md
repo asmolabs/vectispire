@@ -41,6 +41,7 @@ ils se comportent identiquement aujourd'hui et divergent à l'instant où le dé
 | **Constats triés** | si une issue triée compte encore |
 | **Violations de licence** | échouer sur une licence bloquée |
 | **Revue par modèle** | si un verdict de revue IA participe |
+| **Plugins** (`include_plugins`) | si les constats des [plugins et imports SARIF](plugins.md) participent — désactivé par défaut |
 
 ## Redéfinitions
 

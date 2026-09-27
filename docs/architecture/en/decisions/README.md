@@ -20,7 +20,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture | accepted |
 | [0015](0015-one-secrets-engine.md) | One secrets engine | accepted |
 | [0016](0016-no-spdx-document.md) | CycloneDX is the generated SBOM; SPDX is not produced | accepted |
-| [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images, not uploaded JARs | proposed |
+| [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images emitting SARIF, and SARIF only from declared internal sources | accepted |
 | [0018](0018-the-docker-socket-is-never-mounted.md) | The Docker socket is never mounted into the control plane | accepted |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | The server sends a token; the screen holds the sentence | accepted |
 | [0020](0020-screenshots-stay-png.md) | Screenshots stay PNG, and the trigger to change that is named | accepted |

@@ -53,6 +53,7 @@ qui est stocké, pour que « non posé » et « posé à la même valeur » ne s
 | **Constats triés** | si une issue triée compte encore |
 | **Violations de licence** | échouer sur une licence bloquée |
 | **Revue par modèle** | si un verdict de revue IA participe |
+| **Plugins** (`include_plugins`) | si les constats des [plugins et imports SARIF](../administration/plugins.md) participent — désactivé par défaut |
 
 ## La qualité ne fait jamais échouer une construction
 

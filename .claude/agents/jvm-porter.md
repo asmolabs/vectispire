@@ -37,7 +37,7 @@ Jackson — no Spring, no JPA, no Docker client.
 Every domain is a vertical module — the foundation any domain may use, `settings`, `outbound`,
 `crypto`, `audit`, `outbox`, `reporting`, `maintenance`, declared shared on `VectispireApplication`;
 `access`, `targets`, `scanning`, `issues`, `agents`, `ai`, `compliance`, `exports`, `gate`,
-`inventory`, `notifications`, `posture`, `rules`, `siem`, `threatintel`, `tickets`; and `platform` on
+`inventory`, `notifications`, `plugins`, `posture`, `rules`, `siem`, `threatintel`, `tickets`; and `platform` on
 top, the shell (the settings screen, the foundation's routes, the error handler, the OpenAPI
 configuration) that may use any module and that none may use. Each has four places and no fifth:
 
@@ -99,7 +99,7 @@ publisher, and an owner below it that must act in the same transaction is called
 before the first phase (`TargetGrants.revokeAll`).
 
 **Spring Modulith verifies the module boundaries, and does nothing at runtime** (decision 0030).
-`ModularityTest` calls `verify()` over twenty-five modules (twenty-four domains, seven shared, and
+`ModularityTest` calls `verify()` over twenty-six modules (twenty-five domains, seven shared, and
 `config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
 just added: answer it with the owner's API or a port, never by moving a class to wherever the message
 stops. A new module is a package under `core`, a `package-info` with its list, a line in
@@ -118,9 +118,31 @@ for exactly this. An empty list means "ran, found nothing", which resolves the b
 means "did not look". Getting it the wrong way round destroys triage silently — no exception,
 no log line, and a dashboard that looks better afterwards.
 
+**A plugin has three states, not two** (decision 0017). `PluginStep` is `produced` (ran; an empty
+list resolves *its* issues), `not_applicable` (none of its languages in the tree: resolves nothing,
+and is not a failure) or `absent` (should have run and did not: resolves nothing, and is a failure).
+A plugin missing from `ScanArtifacts.plugins` is absent; a `produced` step whose findings did not
+arrive is absent. A SARIF run without `results`, or with `executionSuccessful: false`, is never read
+as clean — SARIF itself says absent is not empty. And a tool-scoped type (`PLUGIN`, `IMPORTED`) is
+**never resolved by type**: only by the tool keys that produced (`plugin:<id>`,
+`import:<source>/<tool>`). Adding the type to `scannedTypes` would close every plugin's and every
+import's issues the first time one of them came back clean.
+
+**A plugin runs in the scanners' closed shape, and nothing loosens it.** Through `ContainerRunner`
+and `ContainerRun.of` — no network unless the manifest declares it with a justification, not root
+(the workspace owner, never `runningAsRoot`), the analysed tree read-only and **never the workspace
+root** (it holds the secrets report in the clear), one writable output directory, the report read as
+a regular file up to the scanner output ceiling. A task names a plugin by id **and manifest digest**,
+and the executor refuses a manifest that does not hash to it. Registration is the platform
+governor's (`@RequiresPlatformGovernor`); activation is per project; SARIF is imported only through
+a declared source's `sarif_import` key, for its scope and its declared tools.
+
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
-triage, across every target.
+triage, across every target. For plugin and imported findings that includes the tool key (in the
+package's slot — `IssueFingerprint.ofTool`) and `SarifPaths`' normalisation; the plugin's image, its
+digest and the tool's version stay **out**, which is what lets a plugin be upgraded without losing
+triage.
 
 **Hibernate never writes the schema, and the migrations are not portable by accident.**
 `ddl-auto: validate`, and Flyway runs hand-written native SQL. There is no single changelog and no

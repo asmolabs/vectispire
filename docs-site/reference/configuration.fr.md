@@ -79,12 +79,19 @@ connexion acceptent un envoi de n'importe qui. Au-delà de ces limites, elles r�
 | `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — un document VEX pour un gros produit |
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — le résultat porte le SBOM |
 | `VECTISPIRE_MAX_BODY_SIGN_IN` | `16KB` | chaque `POST /api/v1/auth/…` — une connexion, un code à usage unique ou un échange de session pèse quelques centaines d'octets |
+| `VECTISPIRE_MAX_BODY_SARIF_IMPORT` | `32MB` | `POST /api/v1/repositories/{id}/sarif-imports` — le rapport SARIF d'un outil interne pour un dépôt ; voir [Plugins et imports SARIF](../administration/plugins.md) |
 
 ## Clonage
 
 | Variable | Défaut | Notes |
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
+
+## Plugins
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_PLUGIN_REGISTRY` | *aucun* | Le registre interne depuis lequel chaque image de [plugin](../administration/plugins.md) est tirée — `registry.corp.example:5000/mirror`. L'hôte du registre de l'image est remplacé, son chemin et son digest conservés : le miroir peut servir un plugin mais pas en substituer un autre. Ni schéma, ni identifiant. Positionnez la même valeur sur chaque agent. |
 
 ## Audit
 
@@ -130,6 +137,7 @@ Puis `http://localhost:3180/swagger-ui.html`.
 | `VECTISPIRE_URL` | Le plan de contrôle que l'agent interroge. |
 | `VECTISPIRE_AGENT_TOKEN` | Une clé d'API avec la portée `agent`, affichée une seule fois à la création. |
 | `VECTISPIRE_AGENT_SIGNING_KEY` | La moitié privée de la clé Ed25519 qu'un administrateur a épinglée pour cet agent, en base64. Vide : les résultats sont acceptés sur la seule clé API. L'épingler est ce qui empêche une clé volée de déclarer une cible propre — le résultat vide qui résout tout un backlog. |
+| `VECTISPIRE_PLUGIN_REGISTRY` | Le registre interne depuis lequel cet agent tire les images de plugins — hôte relogé, chemin et digest conservés. Vide, chacune est tirée de son propre registre, qu'un agent sur réseau fermé ne peut pas atteindre : le plugin est alors absent du scan et ses issues restent telles quelles. |
 
 Le nombre d'analyses qu'un agent mène en parallèle n'est **pas** l'une de ses variables : il se règle
 sur la ligne de l'agent dans le plan de contrôle, de 1 à 16, et l'agent le lit dans chaque réponse à

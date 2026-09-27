@@ -51,6 +51,7 @@ what is stored, so that "not set" and "set to the same thing" do not look alike.
 | **Triaged findings** | whether a triaged issue still counts |
 | **License violations** | fail on a blocked license |
 | **Model review** | whether an AI review verdict participates |
+| **Plugins** (`include_plugins`) | whether findings from [plugins and SARIF imports](../administration/plugins.md) participate — off by default |
 
 ## Quality never fails a build
 

@@ -133,6 +133,9 @@ changera pas de sens.
 | `ZAN-SEC-018` | Audit log integrity verification failed | 10 | une vérification trouve la chaîne de hachage rompue ou des entrées manquantes dans la table |
 | `ZAN-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change |
 | `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | l'annonce de la clé de scellement d'un agent est refusée : sa signature ne se vérifie pas contre la clé de signature épinglée, ou elle est plus ancienne que la clé déjà acceptée ; aucun identifiant n'est scellé pour elle |
+| `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | un plugin est enregistré, mis à jour, activé ou désactivé par le gouverneur de la plateforme, ou activé ou désactivé pour un projet — du code tiers gagne ou perd l'accès en lecture à une partie du source |
+| `ZAN-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |
+| `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | un téléversement SARIF est refusé pour ce qu'il prétend — une clé pour laquelle aucune source n'est déclarée, un dépôt hors du périmètre de sa source, un outil pour lequel sa source n'est pas déclarée |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.

@@ -22,6 +22,7 @@ qu'elle détient :
 | `read` | lister et lire dépôts, conteneurs, scans, issues, verdicts de barrière et synthèse de conformité |
 | `scan` | déclencher le scan d'un dépôt ou d'un conteneur, et demander un verdict à la [barrière CI](../integrations/ci-gate.md) |
 | `export` | documents SBOM, VEX, CSAF et CycloneDX, PDF et dossier de preuves de conformité, exports |
+| `sarif_import` | déposer le rapport SARIF d'un outil interne dans un dépôt — **seulement une fois que le gouverneur de la plateforme a déclaré la clé comme source SARIF**, voir [Plugins et imports SARIF](plugins.md). Jamais accordée par défaut |
 
 Tout le reste — administration, triage, réglages, utilisateurs — refuse une clé avec `403`, quel que
 soit le rôle du compte. C'est le but : la clé d'un administrateur utilisée par un pipeline n'est pas
