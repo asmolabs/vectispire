@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import java.time.Instant;
@@ -27,14 +28,23 @@ import org.springframework.stereotype.Service;
 public class VexGeneratorService {
 
     private final ScanCatalog scansRepo;
+    private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
 
-    public VexGeneratorService(ScanCatalog scansRepo, IssueCatalog issuesRepo) {
+    public VexGeneratorService(ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo) {
         this.scansRepo = scansRepo;
+        this.documents = documents;
         this.issuesRepo = issuesRepo;
     }
 
-    public Optional<OpenVexDocument> generateForScan(Long scanId) {
+    /**
+     * The statements of a scan the caller may see, refused as {@code CycloneDxGeneratorService}'s
+     * document is: here, in {@code scanning}'s words, absent and hidden alike.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Scan not found."
+     */
+    public Optional<OpenVexDocument> generateForScan(long scanId, Visibility allowed) {
+        documents.requireVisible(scanId, allowed);
         return scansRepo.scan(scanId).map(this::buildVexForScan);
     }
 

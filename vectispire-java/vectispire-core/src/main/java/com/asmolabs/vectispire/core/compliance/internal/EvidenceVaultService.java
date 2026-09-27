@@ -203,7 +203,7 @@ public class EvidenceVaultService {
             // anything else fails the export, which is what a broken signing path should do.
             for (Long scanId : completedScans) {
                 try {
-                    InTotoAttestation attestation = attestationService.generateAttestation(scanId);
+                    InTotoAttestation attestation = attestationService.generateAttestation(scanId, allowed);
                     byte[] attestationBytes = json.writeValueAsBytes(attestation);
                     addZipEntry(zip, entries, "04_attestations/scan_" + scanId + "_in_toto.json",
                             "in-toto v0.1 supply chain provenance and gate verdict for scan " + scanId,

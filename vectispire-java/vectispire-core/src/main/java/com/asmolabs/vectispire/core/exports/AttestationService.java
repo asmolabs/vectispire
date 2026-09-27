@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.exports;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
@@ -10,6 +11,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.gate.GateRegisterService;
 import com.asmolabs.vectispire.core.gate.GateVerdictView;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
 import com.asmolabs.vectispire.core.targets.ContainerView;
@@ -34,16 +36,19 @@ import org.springframework.stereotype.Service;
 public class AttestationService {
 
     private final ScanCatalog scans;
+    private final ScanDocumentService documents;
     private final TargetCatalog targets;
     private final GateRegisterService verdicts;
     private final String version;
 
     public AttestationService(
             ScanCatalog scans,
+            ScanDocumentService documents,
             TargetCatalog targets,
             GateRegisterService verdicts,
             ProductVersion version) {
         this.scans = scans;
+        this.documents = documents;
         this.targets = targets;
         this.verdicts = verdicts;
         // The version every export states. It was the literal "0.9.0", which every release after
@@ -63,7 +68,19 @@ public class AttestationService {
         }
     }
 
-    public InTotoAttestation generateAttestation(long scanId) {
+    /**
+     * The statement of a scan the caller may see.
+     *
+     * <p><b>Refused here, not at the route.</b> An attestation names its target's provenance and gate
+     * verdict. The route asked first and the evidence bundle filtered its twenty scans itself, so the
+     * method answered anyone who called it without either. The refusal is {@code scanning}'s ({@link
+     * ScanDocumentService}) — this module uses {@code access} from its routes only — and reads an
+     * absent scan and a hidden one alike.
+     *
+     * @throws NotFoundException "Scan not found." for a scan absent or hidden
+     */
+    public InTotoAttestation generateAttestation(long scanId, Visibility allowed) {
+        documents.requireVisible(scanId, allowed);
         ScanView scan = scans.scan(scanId)
                 .orElseThrow(() -> new NotFoundException("Scan not found."));
 

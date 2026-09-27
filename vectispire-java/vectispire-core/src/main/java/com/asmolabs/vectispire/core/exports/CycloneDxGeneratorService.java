@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
@@ -28,19 +29,30 @@ import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument.*;
 public class CycloneDxGeneratorService {
 
     private final ScanCatalog scansRepo;
+    private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
     private final String toolVersion;
 
     public CycloneDxGeneratorService(
-            ScanCatalog scansRepo, IssueCatalog issuesRepo, ProductVersion version) {
+            ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
+        this.documents = documents;
         this.issuesRepo = issuesRepo;
         // The same version every other export states, or none: the tool entry's version is
         // optional in CycloneDX, and it was the literal "0.9.0".
         this.toolVersion = version.get();
     }
 
-    public Optional<CycloneDxDocument> generateForScan(Long scanId) {
+    /**
+     * The document of a scan the caller may see — refused here, in {@code scanning}'s words, rather
+     * than trusted to a route that asked first: the same scan under another format is the same
+     * question, and which caller reached this method used to decide whether it was asked.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Scan not found." for a
+     *     scan absent or hidden
+     */
+    public Optional<CycloneDxDocument> generateForScan(long scanId, Visibility allowed) {
+        documents.requireVisible(scanId, allowed);
         return scansRepo.scan(scanId).map(this::buildForScan);
     }
 

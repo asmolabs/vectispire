@@ -8,7 +8,6 @@ import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.exports.CycloneDxGeneratorService;
-import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,13 +28,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class CycloneDxController {
 
     private final CycloneDxGeneratorService cycloneDxService;
-    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
-    public CycloneDxController(
-            CycloneDxGeneratorService cycloneDxService, ScanDocumentService scans, VisibilityService visibility) {
+    public CycloneDxController(CycloneDxGeneratorService cycloneDxService, VisibilityService visibility) {
         this.cycloneDxService = cycloneDxService;
-        this.scans = scans;
         this.visibility = visibility;
     }
 
@@ -44,8 +40,8 @@ public class CycloneDxController {
     public ResponseEntity<CycloneDxDocument> getScanCycloneDx(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable("scanId") Long scanId) {
-        requireVisibleScan(principal, scanId);
-        CycloneDxDocument doc = cycloneDxService.generateForScan(scanId)
+        // Refused by the service, beside the read, for a scan the caller may not see.
+        CycloneDxDocument doc = cycloneDxService.generateForScan(scanId, allowanceOf(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
 
         return ResponseEntity.ok()
@@ -62,19 +58,6 @@ public class CycloneDxController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"vectispire-aggregate-cyclonedx-vex.json\"")
                 .body(doc);
     }
-
-    /**
-     * The same scan under a different format is the same authorization question.
-     *
-     * <p>{@code ScansController} has always asked it for the SBOM; this route did not ask it at
-     * all, so which document a caller requested decided whether the check happened.
-     */
-    private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
-        scans.requireVisible(
-                scanId,
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-    }
-
 
     private Visibility allowanceOf(VectispirePrincipal principal) {
         return visibility.of(principal.user().orElse(null), principal.credentialRestriction());

@@ -12,7 +12,6 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.exports.VexGeneratorService;
 import com.asmolabs.vectispire.core.issues.IssueDecisionService;
 import com.asmolabs.vectispire.core.issues.VexIngestorService;
-import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -37,17 +36,14 @@ public class VexController {
 
     private final VexGeneratorService vexService;
     private final VexIngestorService vexIngestor;
-    private final ScanDocumentService scans;
     private final VisibilityService visibility;
 
     public VexController(
             VexGeneratorService vexService,
             VexIngestorService vexIngestor,
-            ScanDocumentService scans,
             VisibilityService visibility) {
         this.vexService = vexService;
         this.vexIngestor = vexIngestor;
-        this.scans = scans;
         this.visibility = visibility;
     }
 
@@ -56,8 +52,9 @@ public class VexController {
     public ResponseEntity<OpenVexDocument> getScanVex(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable("scanId") Long scanId) {
-        requireVisibleScan(principal, scanId);
-        OpenVexDocument doc = vexService.generateForScan(scanId)
+        // The service refuses a scan the caller may not see: the same scan under another format is
+        // the same authorization question, and asking it beside the read is what keeps it asked.
+        OpenVexDocument doc = vexService.generateForScan(scanId, allowanceOf(principal))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Scan not found."));
 
         return ResponseEntity.ok()
@@ -92,19 +89,6 @@ public class VexController {
                 TrustedProxies.resolvedClientAddress(request),
                 request.getHeader("User-Agent")));
     }
-
-    /**
-     * The same scan under a different format is the same authorization question.
-     *
-     * <p>{@code ScansController} has always asked it for the SBOM; this route did not ask it at
-     * all, so which document a caller requested decided whether the check happened.
-     */
-    private void requireVisibleScan(VectispirePrincipal principal, Long scanId) {
-        scans.requireVisible(
-                scanId,
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-    }
-
 
     private Visibility allowanceOf(VectispirePrincipal principal) {
         return visibility.of(principal.user().orElse(null), principal.credentialRestriction());

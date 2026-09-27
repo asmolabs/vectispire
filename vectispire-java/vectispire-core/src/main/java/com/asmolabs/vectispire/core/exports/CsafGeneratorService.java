@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.scanning.ScanDocumentService;
 import com.asmolabs.vectispire.core.scanning.ScanFindingView;
 import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.ProductVersion;
@@ -36,16 +37,26 @@ import org.springframework.stereotype.Service;
 public class CsafGeneratorService {
 
     private final ScanCatalog scansRepo;
+    private final ScanDocumentService documents;
     private final IssueCatalog issuesRepo;
     private final ProductVersion version;
 
-    public CsafGeneratorService(ScanCatalog scansRepo, IssueCatalog issuesRepo, ProductVersion version) {
+    public CsafGeneratorService(
+            ScanCatalog scansRepo, ScanDocumentService documents, IssueCatalog issuesRepo, ProductVersion version) {
         this.scansRepo = scansRepo;
+        this.documents = documents;
         this.issuesRepo = issuesRepo;
         this.version = version;
     }
 
-    public Optional<CsafDocument> generateForScan(Long scanId) {
+    /**
+     * The advisory of a scan the caller may see, refused as {@code CycloneDxGeneratorService}'s
+     * document is: here, in {@code scanning}'s words, absent and hidden alike.
+     *
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException "Scan not found."
+     */
+    public Optional<CsafDocument> generateForScan(long scanId, Visibility allowed) {
+        documents.requireVisible(scanId, allowed);
         return scansRepo.scan(scanId).map(this::buildCsafForScan);
     }
 
