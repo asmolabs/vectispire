@@ -28,6 +28,7 @@
     "aria_reenable": "Réactiver {{name}}",
     "aria_concurrency": "Modifier le nombre d'analyses que {{name}} mène en parallèle",
     "aria_require_signatures": "Exiger des résultats signés de {{name}}",
+    "aria_reset_sealing": "Oublier la clé de scellement de {{name}}",
     "aria_stop_requiring_signatures": "Ne plus exiger de résultats signés de {{name}}",
     "assigned_agent": "Agent assigné",
     "branch": "Branche",
@@ -107,7 +108,13 @@
     "error_signing_key": "Impossible de modifier la clé de signature des résultats.",
     "error_delete": "Impossible de supprimer l'agent.",
     "error_concurrency": "Impossible de modifier le nombre d'analyses simultanées.",
-    "error_concurrency_range": "Le nombre d'analyses simultanées doit être un entier entre 1 et 16."
+    "error_concurrency_range": "Le nombre d'analyses simultanées doit être un entier entre 1 et 16.",
+    "reset_sealing_title": "Oublier la clé de scellement ?",
+    "reset_sealing_consequence": "ne recevra plus d'identifiants délégués : ses analyses déléguées attendent qu'il annonce une nouvelle clé signée avec sa clé épinglée, à son prochain démarrage ou à sa prochaine prise de tâche. À utiliser quand l'horloge de la machine de l'agent a été reculée, ou quand sa clé a pu fuiter.",
+    "reset_sealing_confirm": "Oublier la clé",
+    "reset_sealing_notice": "La clé de scellement de {{name}} est oubliée. Il ne reçoit plus d'identifiant délégué tant qu'il n'en a pas prouvé une nouvelle.",
+    "error_reset_sealing": "Impossible d'oublier la clé de scellement.",
+    "error_not_found": "Cet agent n'existe plus."
   },
   "ai": {
     "exposure_mentioned": "À regarder en premier : un contrôle de code a produit un constat qui mentionne ce composant. C'est un endroit où regarder, pas une preuve d'appel : cette corrélation rapproche des textes, elle ne suit pas le graphe d'appels.",

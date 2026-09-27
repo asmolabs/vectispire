@@ -28,6 +28,7 @@
     "aria_reenable": "Re-enable {{name}}",
     "aria_concurrency": "Change how many scans {{name}} runs at once",
     "aria_require_signatures": "Require signed results from {{name}}",
+    "aria_reset_sealing": "Forget the sealing key of {{name}}",
     "aria_stop_requiring_signatures": "Stop requiring signed results from {{name}}",
     "assigned_agent": "Assigned Agent",
     "branch": "Branch",
@@ -107,7 +108,13 @@
     "error_signing_key": "Could not change the result-signing key.",
     "error_delete": "Could not delete the agent.",
     "error_concurrency": "Could not change the number of concurrent scans.",
-    "error_concurrency_range": "Concurrent scans must be a whole number between 1 and 16."
+    "error_concurrency_range": "Concurrent scans must be a whole number between 1 and 16.",
+    "reset_sealing_title": "Forget the sealing key?",
+    "reset_sealing_consequence": "will stop receiving delegated credentials: its delegated scans wait until it announces a new key signed with its pinned key, at its next start or its next claim. Use this when the agent host's clock was put back, or when its key may have leaked.",
+    "reset_sealing_confirm": "Forget the key",
+    "reset_sealing_notice": "The sealing key of {{name}} is forgotten. It receives no delegated credential until it proves a new one.",
+    "error_reset_sealing": "Could not forget the sealing key.",
+    "error_not_found": "This agent no longer exists."
   },
   "ai": {
     "exposure_mentioned": "Look here first: a code check produced a finding that mentions this component. It is a place to look, not proof of a call: this correlation matches text, it does not follow the call graph.",

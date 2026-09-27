@@ -50,6 +50,18 @@ export class AgentsApi {
     }
 
     /**
+     * Forgets the sealing key this agent proved, and its generation.
+     *
+     * The way back for what a newer announcement cannot fix — a host whose clock was put back, or a
+     * key suspected of having leaked (ADR 0031). Until the agent proves a new key, at its next start
+     * or its next claim, it is handed no delegated credential. There is no way to set a key here:
+     * the control plane learns one from the agent only.
+     */
+    resetAgentSealingKey(id: string): Observable<void> {
+        return this.http.delete<void>(`/api/v1/admin/agents/${id}/sealing-key`);
+    }
+
+    /**
      * How many scans this agent may run at once, 1 to 16 — refused with a 400 outside that.
      *
      * Applies to the agent's next claim: scans already running are left to finish, even when the

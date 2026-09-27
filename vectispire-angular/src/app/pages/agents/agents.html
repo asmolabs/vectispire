@@ -19,6 +19,9 @@
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
 
 @for (blocked of unroutable(); track blocked.label) {
     <p-message severity="warn" [closable]="false" styleClass="mb-4 w-full">
@@ -420,6 +423,19 @@
                         [disabled]="busy() === agent.id"
                         (onClick)="toggleSigning(agent)"
                     />
+                    <!-- Only when there is a key to forget; the server refuses a non-administrator anyway. -->
+                    @if (isAdmin() && agent.sealsCredentials) {
+                        <p-button
+                            icon="pi pi-eraser"
+                            severity="warn"
+                            [text]="true"
+                            [rounded]="true"
+                            data-testid="reset-sealing-key"
+                            [ariaLabel]="'agents.aria_reset_sealing' | translate: { name: agent.name }"
+                            [disabled]="busy() === agent.id"
+                            (onClick)="askResetSealing(agent)"
+                        />
+                    }
                     <p-button
                         [icon]="agent.enabled ? 'pi pi-ban' : 'pi pi-check'"
                         [text]="true"
@@ -606,6 +622,34 @@
             severity="danger"
             [loading]="saving()"
             (onClick)="confirmDelete()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'agents.reset_sealing_title' | translate"
+    [(visible)]="resetSealingVisible"
+    [modal]="true"
+    [style]="{ width: '30rem' }"
+>
+    @if (pendingResetSealing(); as agent) {
+        <p class="m-0">
+            <span class="font-medium">{{ agent.name }}</span> {{ 'agents.reset_sealing_consequence' | translate }}
+        </p>
+    }
+    <ng-template #footer>
+        <p-button
+            [label]="'common.cancel' | translate"
+            [text]="true"
+            data-testid="reset-sealing-cancel"
+            (onClick)="resetSealingVisible.set(false)"
+        />
+        <p-button
+            [label]="'agents.reset_sealing_confirm' | translate"
+            severity="warn"
+            data-testid="reset-sealing-confirm"
+            [loading]="busy() !== null"
+            (onClick)="confirmResetSealing()"
         />
     </ng-template>
 </p-dialog>

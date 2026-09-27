@@ -13,6 +13,7 @@ import { TableModule } from '@openng/optimus-ui/table';
 import { TagModule } from '@openng/optimus-ui/tag';
 import { messageOf } from '../../core/api-error';
 import { AgentsApi } from '../../core/api/agents.api';
+import { SessionStore } from '../../core/session.store';
 import type { AgentActivitySummary, AgentSummary, RunningScanItem, UnroutableLabel } from '../../core/api.models';
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -41,6 +42,9 @@ import { pollWhile } from '@/app/core/poll-while';
 export class Agents implements OnInit {
     private readonly i18n = inject(I18nService);
     private readonly agentsApi = inject(AgentsApi);
+    private readonly session = inject(SessionStore);
+    /** Cosmetic: the route and every admin endpoint already refuse anyone else. */
+    readonly isAdmin = this.session.isAdmin;
     readonly credentials = computed(() => {
         this.i18n.translations();
         return [
@@ -79,6 +83,9 @@ export class Agents implements OnInit {
     readonly issuedSigningKey = signal<string | null>(null);
     readonly deleteVisible = signal(false);
     readonly pendingDelete = signal<AgentSummary | null>(null);
+    readonly resetSealingVisible = signal(false);
+    readonly pendingResetSealing = signal<AgentSummary | null>(null);
+    readonly notice = signal<string | null>(null);
 
     form = { name: '', description: '', credentialsMode: 'local', labels: '', maxConcurrent: 1 };
 
@@ -311,6 +318,45 @@ export class Agents implements OnInit {
                 this.deleteVisible.set(false);
                 this.pendingDelete.set(null);
                 this.error.set(messageOf(response, this.i18n.t('agents.error_delete')));
+            }
+        });
+    }
+
+    /**
+     * Asks before forgetting an agent's sealing key, because the effect is not visible where it is
+     * clicked: the agent's delegated scans stop — withheld, not failed — until it proves a new key.
+     */
+    askResetSealing(agent: AgentSummary): void {
+        this.pendingResetSealing.set(agent);
+        this.resetSealingVisible.set(true);
+    }
+
+    confirmResetSealing(): void {
+        const agent = this.pendingResetSealing();
+        if (!agent) return;
+        this.busy.set(agent.id);
+        this.error.set(null);
+        this.notice.set(null);
+        this.agentsApi.resetAgentSealingKey(agent.id).subscribe({
+            next: () => {
+                this.busy.set(null);
+                this.resetSealingVisible.set(false);
+                this.pendingResetSealing.set(null);
+                this.notice.set(this.i18n.t('agents.reset_sealing_notice', { name: agent.name }));
+                this.reload();
+            },
+            error: (response) => {
+                this.busy.set(null);
+                this.resetSealingVisible.set(false);
+                this.pendingResetSealing.set(null);
+                // A 404 is an agent deleted meanwhile, in another tab: said as such, and the list
+                // reloaded so the row it was clicked on goes away.
+                this.error.set(
+                    (response as { status?: number } | null)?.status === 404
+                        ? this.i18n.t('agents.error_not_found')
+                        : messageOf(response, this.i18n.t('agents.error_reset_sealing'))
+                );
+                this.reload(true);
             }
         });
     }
