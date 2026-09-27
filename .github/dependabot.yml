@@ -34,6 +34,13 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
 
+  # **Dependabot does not update `gradle/verification-metadata.xml`.** A bump signed by a key
+  # already trusted for its group verifies as it is; one bringing a new signer, a new group or an
+  # unsigned artifact (every Gradle Plugin Portal one) fails `jvm` with the artifacts named. The
+  # answer is `vectispire-java/gradle/update-verification-metadata.sh` on the pull request's
+  # branch and a review of what it adds, pushed by a person — never a workflow regenerating on the
+  # bot's behalf, which would trust whatever the pull request resolves, and would need a token
+  # that writes to a branch in the job running the pull request's build (`quality-gate`, step 2).
   - package-ecosystem: gradle
     directory: /vectispire-java
     target-branch: develop

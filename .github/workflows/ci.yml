@@ -185,7 +185,17 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles('vectispire-java/gradle/libs.versions.toml') }}
-      - run: cd vectispire-java && ./gradlew build
+      # **Every artifact the build resolves is checked against `gradle/verification-metadata.xml`**
+      # — a signature by a trusted key, or the sha256 recorded for an unsigned one — and a missing
+      # entry fails the build. A restored cache does not skip it: Gradle checks the cached files on
+      # every run. Two one-line changes outside that file would switch it off: a
+      # `org.gradle.dependency.verification=lenient` (or `off`) in `gradle.properties`, and deleting
+      # the file, which disables verification rather than failing it. The flag overrides the first
+      # and the test refuses the second, on the check `main` requires.
+      - run: |
+          cd vectispire-java
+          test -s gradle/verification-metadata.xml || { echo "gradle/verification-metadata.xml is missing: dependency verification would be off."; exit 1; }
+          ./gradlew build --dependency-verification=strict
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -473,7 +483,11 @@ jobs:
           #                      the migration type placeholders)
           #   src/integrationTest/  the campaign itself
           #   libs.versions.toml, gradle.lockfile  a driver, Hibernate or Testcontainers bump
-          ENGINE_PATHS='src/main/resources/db/migration/|/core/([a-z]+/)?persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile'
+          #   verification-metadata.xml, verification-keyring.keys  what may be resolved at all:
+          #                      the campaign resolves Testcontainers, which `./gradlew build`
+          #                      never does, so an entry dropped for it fails here or not until
+          #                      the nightly
+          ENGINE_PATHS='src/main/resources/db/migration/|/core/([a-z]+/)?persistence/|/core/config/|src/integrationTest/|gradle/libs.versions.toml|gradle.lockfile|gradle/verification-metadata.xml|gradle/verification-keyring.keys'
           changed=$(git diff --name-only "$BASE" HEAD | grep -E "$ENGINE_PATHS" || true)
           if [ -n "$changed" ]; then
             echo "des fichiers sensibles au moteur ont changé — la campagne est exécutée :"
