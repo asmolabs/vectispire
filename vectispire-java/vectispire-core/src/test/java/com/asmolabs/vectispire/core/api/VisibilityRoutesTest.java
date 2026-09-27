@@ -641,6 +641,40 @@ class VisibilityRoutesTest extends ApiTestBase {
     }
 
     @Test
+    @DisplayName("the licence summary and conflicts refuse a restricted reader the estate's, and answer their own target")
+    void theLicenceAggregatesAreScoped() throws Exception {
+        // A summary is counts and a conflict names its target without an id: neither can be narrowed
+        // row by row, so a restricted reader asking for the estate's is refused rather than handed it.
+        // The refusal sat in the controller until it moved into LicenseGovernanceService.
+        restrict();
+        long mine = repository("https://example.invalid/mine.git");
+        long theirs = repository("https://example.invalid/theirs.git");
+        licenseFinding(mine, "my-gpl-lib");
+        licenseFinding(theirs, "gpl-lib");
+        String reader = assignedReader(mine);
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary"), reader)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts"), reader)).andExpect(status().isNotFound());
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts?repo_id=" + theirs), reader))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary?repo_id=" + mine), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDependencies").value(1));
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts?repo_id=" + mine), reader))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'my-gpl-lib')]").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isEmpty());
+
+        mvc.perform(authenticated(get("/api/v1/licenses/summary"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalDependencies").value(2));
+        mvc.perform(authenticated(get("/api/v1/licenses/conflicts"), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.packageName == 'gpl-lib')]").isNotEmpty());
+    }
+
+    @Test
     @DisplayName("an issue the reader may not see has no visible tickets")
     void theTicketListIsScoped() throws Exception {
         // The twenty-third: ticket keys, URLs and statuses of somebody else's backlog, listed by

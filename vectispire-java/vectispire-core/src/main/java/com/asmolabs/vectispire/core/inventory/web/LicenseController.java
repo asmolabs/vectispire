@@ -44,13 +44,9 @@ public class LicenseController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId) {
-        // A component inventory is a map of someone's dependencies and their licences. A named
-        // target must be one the caller may see; an unfiltered call is narrowed to their allowance
-        // because the service takes a target, not an allowance.
-        Visibility allowed = requireTargetVisible(principal, repoId, containerId);
-        return licenseService.getInventory(repoId, containerId).stream()
-                .filter(e -> permits(allowed, e.targetKind(), e.targetId()))
-                .toList();
+        // A named target must be one the caller may see; an unfiltered call is narrowed to their
+        // allowance by the service.
+        return licenseService.getInventory(requireTargetVisible(principal, repoId, containerId), repoId, containerId);
     }
 
     @GetMapping("/summary")
@@ -58,10 +54,9 @@ public class LicenseController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId) {
-        // The summary aggregates the inventory into counts. It takes a target, not an allowance,
-        // so a restricted reader is given their own target's figures or none — never the estate's.
-        requireEstateOrVisibleTarget(principal, repoId, containerId);
-        return licenseService.getSummary(repoId, containerId);
+        // A restricted reader is given their own target's figures or none — never the estate's,
+        // which the service refuses them.
+        return licenseService.getSummary(requireTargetVisible(principal, repoId, containerId), repoId, containerId);
     }
 
     @GetMapping("/policy")
@@ -85,11 +80,10 @@ public class LicenseController {
             @RequestParam(name = "repo_id", required = false) Long repoId,
             @RequestParam(name = "container_id", required = false) Long containerId,
             @RequestParam(name = "proprietary", defaultValue = "true") boolean proprietary) {
-        // A conflict carries a target name but no id, so it cannot be filtered per row the way the
-        // inventory is. Handled on the same terms as the summary: a named target the caller may
-        // see, or — for a restricted reader — refused rather than answered with the estate's.
-        requireEstateOrVisibleTarget(principal, repoId, containerId);
-        return licenseService.evaluateConflicts(repoId, containerId, proprietary);
+        // On the summary's terms: a named target the caller may see, or — for a restricted reader —
+        // refused by the service rather than answered with the estate's.
+        return licenseService.evaluateConflicts(
+                requireTargetVisible(principal, repoId, containerId), repoId, containerId, proprietary);
     }
 
     @GetMapping("/matrix")
@@ -100,8 +94,10 @@ public class LicenseController {
     /**
      * The allowance in force, having refused a named target the caller cannot see.
      *
-     * <p>404 rather than 403, as everywhere else: a refusal distinguishable from an absence
-     * answers the enumeration it was meant to prevent.
+     * <p>Here rather than in the service because the refusal's one sentence is {@code access}'s,
+     * and this module uses {@code access} from its routes only. 404 rather than 403, as everywhere
+     * else: a refusal distinguishable from an absence answers the enumeration it was meant to
+     * prevent.
      */
     private Visibility requireTargetVisible(VectispirePrincipal principal, Long repoId, Long containerId) {
         Visibility allowed = visibility.of(principal.user().orElse(null), principal.credentialRestriction());
@@ -113,28 +109,4 @@ public class LicenseController {
         }
         return allowed;
     }
-
-    /**
-     * Refuses an aggregate a restricted reader must not receive whole.
-     *
-     * <p>A named target is checked normally. A call with no target is fine for a reader who sees
-     * everything and refused for one who does not, because these two routes aggregate an inventory
-     * they cannot narrow themselves.
-     */
-    private void requireEstateOrVisibleTarget(VectispirePrincipal principal, Long repoId, Long containerId) {
-        Visibility allowed = requireTargetVisible(principal, repoId, containerId);
-        if (repoId == null && containerId == null && !(allowed instanceof Visibility.Everything)) {
-            throw new java.util.NoSuchElementException("Not found.");
-        }
-    }
-
-    private static boolean permits(Visibility allowed, String targetKind, Long targetId) {
-        if (targetId == null) {
-            return allowed.permits(null);
-        }
-        return allowed.permits("container".equalsIgnoreCase(targetKind)
-                ? new ScanTarget.Container(targetId)
-                : new ScanTarget.Repository(targetId));
-    }
-
 }

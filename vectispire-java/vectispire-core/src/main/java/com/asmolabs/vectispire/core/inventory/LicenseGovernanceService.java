@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -321,12 +322,49 @@ public class LicenseGovernanceService {
         return new ArrayList<>(entryMap.values());
     }
 
-    public LicenseSummary getSummary() {
-        return getSummary(null, null);
+    /**
+     * The inventory a reader may see: a named target's, or the estate's narrowed to their allowance.
+     *
+     * <p><b>A component inventory is a map of someone's dependencies and their licences.</b> The
+     * route used to narrow it itself, after asking this service for the unfiltered one; the
+     * narrowing is the decision, and it belongs beside the read. A named target the reader may not
+     * see is still the route's to refuse first, with the one sentence {@code Visibilities} gives —
+     * this module's services do not use {@code access} — and a route that forgot would get it
+     * answered empty here rather than whole.
+     */
+    public List<LicenseEntry> getInventory(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
+        return visibleOnly(allowed, getInventory(repoIdFilter, containerIdFilter));
     }
 
-    public LicenseSummary getSummary(Long repoIdFilter, Long containerIdFilter) {
-        return summarize(getInventory(repoIdFilter, containerIdFilter));
+    /**
+     * The summary of a named target, or of the estate for a reader who sees all of it.
+     *
+     * <p><b>Refused, not narrowed, for a restricted reader asking about the estate</b>: the route
+     * has always answered that with a 404 rather than with their own targets' figures. The evidence
+     * bundle, which narrows, reads {@link #getSummary(Visibility)}.
+     *
+     * @throws NoSuchElementException for a restricted reader naming no target — 404, never 403
+     */
+    public LicenseSummary getSummary(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
+        requireEstateOrTarget(allowed, repoIdFilter, containerIdFilter);
+        return summarize(getInventory(allowed, repoIdFilter, containerIdFilter));
+    }
+
+    /**
+     * Refuses an aggregate a restricted reader must not receive whole.
+     *
+     * <p>A call with no target is fine for a reader who sees everything and refused for one who does
+     * not. The summary is counts and a conflict names its target without an id, so neither can be
+     * narrowed by the route after the fact; answering the estate's is the leak.
+     */
+    private static void requireEstateOrTarget(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
+        if (repoIdFilter == null && containerIdFilter == null && !(allowed instanceof Visibility.Everything)) {
+            throw new NoSuchElementException("Not found.");
+        }
+    }
+
+    private static List<LicenseEntry> visibleOnly(Visibility allowed, List<LicenseEntry> inventory) {
+        return inventory.stream().filter(entry -> allowed.permits(targetOf(entry))).toList();
     }
 
     /**
@@ -337,9 +375,7 @@ public class LicenseGovernanceService {
      * only, which is how {@link Visibility#permits} treats a missing target everywhere else.
      */
     public LicenseSummary getSummary(Visibility allowed) {
-        return summarize(getInventory(null, null).stream()
-                .filter(entry -> allowed.permits(targetOf(entry)))
-                .toList());
+        return summarize(visibleOnly(allowed, getInventory(null, null)));
     }
 
     private static ScanTarget targetOf(LicenseEntry entry) {
@@ -444,9 +480,17 @@ public class LicenseGovernanceService {
         return new LicensePolicy(disallowed, allowed, dis);
     }
 
+    /**
+     * The licence conflicts of a named target, or of the estate for a reader who sees all of it —
+     * refused otherwise, on the summary's terms.
+     *
+     * @throws NoSuchElementException for a restricted reader naming no target
+     */
     @Transactional(readOnly = true)
-    public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(Long repoId, Long containerId, boolean isProprietaryTarget) {
-        List<LicenseEntry> inventory = getInventory(repoId, containerId);
+    public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(
+            Visibility allowed, Long repoId, Long containerId, boolean isProprietaryTarget) {
+        requireEstateOrTarget(allowed, repoId, containerId);
+        List<LicenseEntry> inventory = getInventory(allowed, repoId, containerId);
         List<LicenseConflictMatrix.LicenseConflict> conflicts = new ArrayList<>();
 
         for (LicenseEntry entry : inventory) {
