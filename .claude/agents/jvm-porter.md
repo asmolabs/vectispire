@@ -217,7 +217,15 @@ controller — lookups, rules, writes, transactions and audit entries live in a 
 the controller keeps parameters, status codes and DTOs. `ArchitectureTest` enforces the parts that
 can be enforced: repositories are reached by services only, the `api` layer — every module's `web` —
 opens no transaction, and only the security web layer (`core.access.web.security`) writes the audit
-log.
+log. `controllersDecideNoVisibility` keeps a `Visibility` from being read in a controller.
+
+Two consequences found by moving code out of controllers. **Parsing a request into a domain value
+— a severity, a flag, a target kind — is the service's**: the gate's verdict route and policy
+route each had a severity parser, and they had drifted (one trimmed, the other refused `" none "`).
+**A gesture that writes several rows is one service method in one transaction**, never a handler
+calling three services that each commit: the SSO sign-in linked the account and changed its teams
+in commits of their own, so a session that then failed to open left both behind for somebody who
+was never signed in.
 
 **No JPA entity crosses a route, in either direction.** Services hand back records whose
 components are the entity's property names (`IssueView`, `AuditEntryView`…), so the wire does not
