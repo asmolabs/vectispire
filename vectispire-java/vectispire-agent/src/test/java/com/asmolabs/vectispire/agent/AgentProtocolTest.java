@@ -272,6 +272,55 @@ class AgentProtocolTest {
                 .hasMessageContaining("HTTPS token arrived unsealed");
     }
 
+    /**
+     * A task with every field set to something other than its default, as the control plane builds
+     * it before sealing: the key and the token given here are the clear ones.
+     */
+    private static ScanTask everyField(String privateKey, ScanTask.Target.HttpsCredential https) {
+        return new ScanTask(
+                new ScanTask.Target.Repository("https://gitlab.example.com/t/s.git", "release", "services/api", privateKey, https),
+                "f".repeat(64),
+                java.util.Set.of(ScanTask.Step.DEPENDENCIES, ScanTask.Step.SAST),
+                java.util.List.of(
+                        new com.asmolabs.vectispire.common.domain.plugins.PluginRef("acme-lint", "a".repeat(64)),
+                        new com.asmolabs.vectispire.common.domain.plugins.PluginRef("acme-sarif", "b".repeat(64))));
+    }
+
+    @Test
+    @DisplayName("opening the credentials keeps every other field of the task, its plugins included")
+    void unsealingKeepsTheWholeTask() throws Exception {
+        // The rebuild that opened the envelopes named the fields it copied, and the plugins were not
+        // among them: every credentialed repository a remote agent scanned ran no plugin, and each
+        // plugin read as absent — a failure — on a scan that never tried it.
+        var token = new ScanTask.Target.HttpsCredential("gitlab.example.com", "ci", "glpat-secret");
+        ScanTask clear = everyField(PRIVATE_KEY, token);
+        ScanTask sealed = everyField(
+                envelopes.seal(keyPair.publicKey(), PRIVATE_KEY),
+                new ScanTask.Target.HttpsCredential(token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token())));
+        answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, sealed)));
+
+        // The whole record, not the plugins alone: a field added to the task later is dropped by a
+        // rebuild in exactly this way.
+        assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow())
+                .isEqualTo(new AgentProtocol.AssignedTask(7L, clear));
+    }
+
+    @Test
+    @DisplayName("a task with only one sealed credential keeps its plugins too")
+    void unsealingOneCredentialKeepsThePlugins() throws Exception {
+        ScanTask keyOnly = everyField(envelopes.seal(keyPair.publicKey(), PRIVATE_KEY), null);
+        answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, keyOnly)));
+        assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task())
+                .isEqualTo(everyField(PRIVATE_KEY, null));
+
+        var token = new ScanTask.Target.HttpsCredential("gitlab.example.com", null, "glpat-secret");
+        ScanTask tokenOnly = everyField(null, new ScanTask.Target.HttpsCredential(
+                token.host(), token.username(), envelopes.seal(keyPair.publicKey(), token.token())));
+        answers(200, JSON.writeValueAsString(new AgentProtocol.AssignedTask(7L, tokenOnly)));
+        assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().task())
+                .isEqualTo(everyField(null, token));
+    }
+
     private static AgentProtocol.AssignedTask assignedWith(String privateKey) {
         return new AgentProtocol.AssignedTask(
                 7L,

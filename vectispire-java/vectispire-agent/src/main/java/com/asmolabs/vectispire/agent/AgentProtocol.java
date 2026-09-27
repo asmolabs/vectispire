@@ -315,13 +315,10 @@ public class AgentProtocol {
         if (java.util.Objects.equals(key, repository.privateKey()) && https == repository.https()) {
             return assigned;
         }
+        // Through the task's own `with…`, never a copy made here: this one named the fields it
+        // copied and left the plugins out, so a credentialed repository ran none of them.
         return new AssignedTask(
-                assigned.scanId(),
-                new ScanTask(
-                        new ScanTask.Target.Repository(
-                                repository.url(), repository.branch(), repository.subPath(), key, https),
-                        assigned.task().rulesHash(),
-                        assigned.task().steps()));
+                assigned.scanId(), assigned.task().withTarget(repository.withPrivateKey(key).withHttps(https)));
     }
 
     /**

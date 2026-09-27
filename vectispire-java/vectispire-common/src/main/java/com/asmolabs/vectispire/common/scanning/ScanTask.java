@@ -57,6 +57,16 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps, List<Pl
             public Repository(String url, String branch, String subPath, String privateKey) {
                 this(url, branch, subPath, privateKey, null);
             }
+
+            /** This repository with {@code privateKey} in place of its own — sealed, or opened. */
+            public Repository withPrivateKey(String privateKey) {
+                return new Repository(url, branch, subPath, privateKey, https);
+            }
+
+            /** This repository with {@code https} in place of its own — sealed, or opened. */
+            public Repository withHttps(HttpsCredential https) {
+                return new Repository(url, branch, subPath, privateKey, https);
+            }
         }
 
         /**
@@ -99,6 +109,22 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps, List<Pl
 
     public boolean runs(Step step) {
         return steps.contains(step);
+    }
+
+    /**
+     * This task aimed at {@code target}, everything else kept — how a credential is sealed on the
+     * way to an agent and opened on arrival.
+     *
+     * <p><b>The one place a task is rebuilt from another.</b> The agent opened its envelopes into a
+     * task built field by field through the three-argument constructor, which exists for tasks that
+     * run no plugin: every credentialed repository a remote agent scanned ran none of its plugins,
+     * and each read as absent — a failure — on a scan that never tried it. The compiler does not
+     * catch that copy: a field arrives with a constructor of the old arity, as {@code plugins} did,
+     * and every copy through it keeps compiling. So there is one copy, here beside the components,
+     * and a component added to the record is added to this line.
+     */
+    public ScanTask withTarget(Target target) {
+        return new ScanTask(target, rulesHash, steps, plugins);
     }
 
     public Optional<String> subPath() {

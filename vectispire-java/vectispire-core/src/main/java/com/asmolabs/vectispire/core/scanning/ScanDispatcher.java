@@ -649,13 +649,7 @@ public class ScanDispatcher {
     }
 
     private static ScanTask withPrivateKey(ScanTask task, String privateKey) {
-        ScanTask.Target.Repository repository = (ScanTask.Target.Repository) task.target();
-        return new ScanTask(
-                new ScanTask.Target.Repository(
-                        repository.url(), repository.branch(), repository.subPath(), privateKey, repository.https()),
-                task.rulesHash(),
-                task.steps(),
-                task.plugins());
+        return task.withTarget(((ScanTask.Target.Repository) task.target()).withPrivateKey(privateKey));
     }
 
     private static ScanTask.Target.HttpsCredential httpsOf(ScanTask task) {
@@ -663,13 +657,7 @@ public class ScanDispatcher {
     }
 
     private static ScanTask withHttps(ScanTask task, ScanTask.Target.HttpsCredential https) {
-        ScanTask.Target.Repository repository = (ScanTask.Target.Repository) task.target();
-        return new ScanTask(
-                new ScanTask.Target.Repository(
-                        repository.url(), repository.branch(), repository.subPath(), repository.privateKey(), https),
-                task.rulesHash(),
-                task.steps(),
-                task.plugins());
+        return task.withTarget(((ScanTask.Target.Repository) task.target()).withHttps(https));
     }
 
     /**
