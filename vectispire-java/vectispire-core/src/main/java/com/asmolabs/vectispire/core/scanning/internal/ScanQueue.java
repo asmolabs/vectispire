@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
+import com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import java.time.Clock;
@@ -16,9 +17,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
@@ -119,32 +122,36 @@ public class ScanQueue {
      * it would leave a restarted agent unable to claim until somebody else's timer ran.
      *
      * <p><b>An exclusion narrows the selection, never the take.</b> The repositories left out are
-     * read before the loop and not re-checked by the conditional update: a repository given a key
-     * between the two is taken all the same, and the caller, which reads the repository again to
-     * build the task, is what notices — see {@link #requeueRefunded}.
+     * decided while the candidates are read and not re-checked by the conditional update: a
+     * repository given a key between the two is taken all the same, and the caller, which reads the
+     * repository again to build the task, is what notices — see {@link #requeueRefunded}.
      *
      * @param limit the agent's limit as the queue applies it — see {@code AgentConcurrency}
-     * @param excludedRepositories repositories whose scans this agent must not take — for an agent
-     *     that cannot be handed a delegated credential, those that carry one (decision 0031)
+     * @param exclusion the repositories whose scans this agent must not take — for an agent that
+     *     cannot be handed a delegated credential, those that carry one (decision 0031)
      */
-    public Optional<ScanEntity> claimWithin(
-            UUID agentId, int limit, Collection<String> agentLabels, Set<Long> excludedRepositories) {
+    public AgentClaim claimWithin(UUID agentId, int limit, Collection<String> agentLabels, Exclusion exclusion) {
         String worker = agentId.toString();
         if (limit <= 0) {
-            return Optional.empty();
+            return AgentClaim.NOTHING;
         }
 
+        boolean kept = false;
         for (int attempt = 0; attempt < policy.claimAttempts(); attempt++) {
             // **Both cheap checks first, unlocked.** A poll re-checks once a second for as long as
             // it waits; taking the agent's row each time would be a write per second per idle agent
             // for an answer these two reads already give. They decide nothing on their own: the
             // count is repeated behind the lock before anything is taken.
             if (countHeld(worker) >= limit) {
-                return Optional.empty();
+                return new AgentClaim(Optional.empty(), kept);
             }
-            List<ScanEntity> candidates = candidates(1, agentLabels, excludedRepositories);
+            Selection selection = exclusion.excludesNothing()
+                    ? new Selection(candidates(1, agentLabels).stream().map(ScanEntity::getId).toList(), false)
+                    : eligible(agentLabels, exclusion);
+            kept |= selection.kept();
+            List<Long> candidates = selection.candidates();
             if (candidates.isEmpty()) {
-                return Optional.empty();
+                return new AgentClaim(Optional.empty(), kept);
             }
 
             Taken outcome;
@@ -158,10 +165,10 @@ public class ScanQueue {
             }
             switch (outcome) {
                 case Taken.Scan(long id) -> {
-                    return scans.findById(id);
+                    return new AgentClaim(scans.findById(id), kept);
                 }
                 case Taken.Full full -> {
-                    return Optional.empty();
+                    return new AgentClaim(Optional.empty(), kept);
                 }
                 case Taken.Lost lost -> {
                     // Another claimant took the candidate between our read and our update: read
@@ -169,7 +176,114 @@ public class ScanQueue {
                 }
             }
         }
-        return Optional.empty();
+        return new AgentClaim(Optional.empty(), kept);
+    }
+
+    /**
+     * The repositories an agent must be kept from, asked of whoever knows which carry a credential.
+     *
+     * <p>Asked a page at a time, never of the whole queue: see {@link #eligible}.
+     */
+    @FunctionalInterface
+    public interface Exclusion {
+
+        /** Nothing left out: the agent can be handed whatever a scan needs, and no page is walked. */
+        Exclusion NONE = new Exclusion() {
+            @Override
+            public Set<Long> among(Set<Long> repositories) {
+                return Set.of();
+            }
+
+            @Override
+            public boolean excludesNothing() {
+                return true;
+            }
+        };
+
+        /** Which of these repositories — at most {@link ScanQueue#PAGE} of them — the agent must not take. */
+        Set<Long> among(Set<Long> repositories);
+
+        default boolean excludesNothing() {
+            return false;
+        }
+    }
+
+    /**
+     * What {@link #claimWithin} came back with.
+     *
+     * @param kept whether the exclusion left a scan this agent could otherwise have taken for another
+     *     executor — what the caller tells the agent when nothing else was there for it
+     */
+    public record AgentClaim(Optional<ScanEntity> scan, boolean kept) {
+
+        static final AgentClaim NOTHING = new AgentClaim(Optional.empty(), false);
+    }
+
+    /** The candidates an attempt tries, and whether the exclusion skipped any on the way. */
+    private record Selection(List<Long> candidates, boolean kept) {}
+
+    /**
+     * How many waiting scans one read of {@link #eligible} carries, and so the most repositories an
+     * {@link Exclusion} is asked about at once — far below every engine's bind-parameter limit, and
+     * a size at which the question costs one indexed read on each side.
+     */
+    public static final int PAGE = 256;
+
+    /**
+     * How many pages one attempt walks before giving up. <b>A cost bound, not a correctness one</b>:
+     * past four thousand scans the agent may not take, a scan it may take behind them waits for the
+     * queue ahead of it to drain — it is not lost — while a poll that re-checks every second never
+     * walks an unbounded queue.
+     */
+    static final int PAGES = 16;
+
+    /**
+     * The first scan in claim order that the exclusion does not keep from this agent.
+     *
+     * <p><b>Walked a page at a time instead of excluding a list</b>, which the selection used to
+     * carry as {@code not in :excluded}: one bind parameter per waiting repository that carries a
+     * credential, bounded only by the queue, and past the engines' limits — 65,535 parameters for the
+     * PostgreSQL driver and a MySQL server-side statement, 32,766 in SQLite's default build — a claim
+     * that failed on every poll. Each page is read in the claim's own order, from where the last one
+     * ended, and only its repositories are asked about, so no statement here or in the exclusion's
+     * owner carries more than {@link #PAGE}, however large the queue.
+     */
+    private Selection eligible(Collection<String> agentLabels, Exclusion exclusion) {
+        String pending = ScanStatus.PENDING.wireName();
+        boolean kept = false;
+        ClaimCandidate last = null;
+        for (int page = 0; page < PAGES; page++) {
+            List<ClaimCandidate> rows = page(pending, agentLabels, last);
+            Set<Long> repositories = rows.stream()
+                    .map(ClaimCandidate::repoId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Set<Long> excluded = repositories.isEmpty() ? Set.of() : exclusion.among(repositories);
+            for (ClaimCandidate row : rows) {
+                // An image scan, or a repository with no key and no token, stays the agent's to take.
+                if (row.repoId() == null || !excluded.contains(row.repoId())) {
+                    return new Selection(List.of(row.id()), kept);
+                }
+                kept = true;
+            }
+            if (rows.size() < PAGE) {
+                break;
+            }
+            last = rows.getLast();
+        }
+        return new Selection(List.of(), kept);
+    }
+
+    private List<ClaimCandidate> page(String pending, Collection<String> agentLabels, ClaimCandidate after) {
+        Limit page = Limit.of(PAGE);
+        if (after == null) {
+            return agentLabels.isEmpty()
+                    ? scans.findClaimableUnlabelledPage(pending, page)
+                    : scans.findClaimablePage(pending, agentLabels, page);
+        }
+        return agentLabels.isEmpty()
+                ? scans.findClaimableUnlabelledPageAfter(pending, after.createdAt(), after.id(), page)
+                : scans.findClaimablePageAfter(pending, agentLabels, after.createdAt(), after.id(), page);
     }
 
     /** What one attempt of {@link #claimWithin} came back with. */
@@ -187,7 +301,7 @@ public class ScanQueue {
         record Lost() implements Taken {}
     }
 
-    private Taken takeWithinLimit(UUID agentId, String worker, int limit, List<ScanEntity> candidates) {
+    private Taken takeWithinLimit(UUID agentId, String worker, int limit, List<Long> candidates) {
         Instant claimedAt = clock.instant();
         // The lock, and it has to come first — see `claimWithin`. Zero rows means the agent was
         // deleted while it polled: nothing to claim for.
@@ -198,16 +312,16 @@ public class ScanQueue {
             return Taken.FULL;
         }
         Instant leaseUntil = leaseUntil(claimedAt, policy);
-        for (ScanEntity candidate : candidates) {
+        for (long candidate : candidates) {
             int affected = scans.take(
-                    candidate.getId(),
+                    candidate,
                     ScanStatus.PENDING.wireName(),
                     ScanStatus.SCANNING.wireName(),
                     worker,
                     claimedAt,
                     leaseUntil);
             if (affected == 1) {
-                return new Taken.Scan(candidate.getId());
+                return new Taken.Scan(candidate);
             }
         }
         return Taken.LOST;
@@ -224,33 +338,10 @@ public class ScanQueue {
     }
 
     private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels) {
-        return candidates(wanted, agentLabels, Set.of());
-    }
-
-    private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels, Set<Long> excluded) {
         String pending = ScanStatus.PENDING.wireName();
-        if (excluded.isEmpty()) {
-            return agentLabels.isEmpty()
-                    ? scans.findClaimableUnlabelled(pending, Limit.of(wanted))
-                    : scans.findClaimable(pending, agentLabels, Limit.of(wanted));
-        }
         return agentLabels.isEmpty()
-                ? scans.findClaimableUnlabelledExcept(pending, excluded, Limit.of(wanted))
-                : scans.findClaimableExcept(pending, agentLabels, excluded, Limit.of(wanted));
-    }
-
-    /**
-     * The repositories with a scan waiting that an executor carrying these labels could take.
-     *
-     * <p>What an exclusion is chosen among: asking the owner of the repositories which of <em>these</em>
-     * carry a credential keeps the list as short as the queue, where asking for every repository that
-     * carries one would make it as long as the estate.
-     */
-    public Set<Long> claimableRepositories(Collection<String> agentLabels) {
-        String pending = ScanStatus.PENDING.wireName();
-        return Set.copyOf(agentLabels.isEmpty()
-                ? scans.findClaimableRepositoriesUnlabelled(pending)
-                : scans.findClaimableRepositories(pending, agentLabels));
+                ? scans.findClaimableUnlabelled(pending, Limit.of(wanted))
+                : scans.findClaimable(pending, agentLabels, Limit.of(wanted));
     }
 
     public Optional<ScanEntity> byId(long scanId) {

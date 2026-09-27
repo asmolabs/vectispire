@@ -231,22 +231,23 @@ public class ScanDispatcher {
         List<String> labels = AgentLabels.parse(agent.labels());
         int limit = AgentConcurrency.effective(agent.maxConcurrent());
         // Asked only of an agent that cannot be handed a credential: every other poll — a verified
-        // agent's, a local one's — costs what it cost before, and the two reads are the price of the
-        // misconfiguration alone.
-        Set<Long> kept = sealsCredentials(agent)
-                ? Set.of()
-                : targets.carryingCredentials(queue.claimableRepositories(labels));
+        // agent's, a local one's — costs what it cost before, and the pages the queue walks, each
+        // asking which of its repositories carry a credential, are the misconfiguration's price alone.
+        ScanQueue.Exclusion exclusion = sealsCredentials(agent)
+                ? ScanQueue.Exclusion.NONE
+                : targets::carryingCredentials;
 
         // **Within the agent's limit, counted by the database.** The agent stops polling at its
         // limit too, but that is courtesy: two processes sharing a key, or an older agent that
         // never read the setting, would each believe they had room. The count is the one both
         // cannot get wrong, and a lowered limit therefore applies to the next claim while the
         // scans already running finish.
-        Optional<ScanEntity> claimed = queue.claimWithin(agent.id(), limit, labels, kept);
+        ScanQueue.AgentClaim claim = queue.claimWithin(agent.id(), limit, labels, exclusion);
+        Optional<ScanEntity> claimed = claim.scan();
         if (claimed.isEmpty()) {
             // Not when the agent is full: it would have been handed nothing anyway, and the answer
             // would name a missing key as the reason for a limit.
-            if (!kept.isEmpty() && queue.countHeld(agent.id().toString()) < limit) {
+            if (claim.kept() && queue.countHeld(agent.id().toString()) < limit) {
                 throw withheld(agent);
             }
             return Optional.empty();

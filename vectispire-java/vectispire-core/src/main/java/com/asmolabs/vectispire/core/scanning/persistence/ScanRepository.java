@@ -104,53 +104,63 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     List<ScanEntity> findClaimableUnlabelled(@Param("status") String status, Limit limit);
 
     /**
-     * The claimable selection for an agent that cannot be handed a delegated credential, less the
-     * scans of the repositories that would need one (decision 0031).
+     * The claimable selection in claim order, a page at a time, for an agent that cannot be handed a
+     * delegated credential (decision 0031) — see {@code ScanQueue.claimWithin}.
      *
-     * <p><b>Left out of the selection, not claimed and handed back.</b> Claimed, such a scan spent one
-     * of its attempts per poll although nothing had been tried; refunded, the same agent would take
-     * it again at every poll and keep it from an executor that can run it.
-     * An image scan, or a repository with no key and no token, stays the agent's to take.
+     * <p><b>A page of columns, not a list of exclusions.</b> This used to be the same selection with
+     * {@code and s.repoId not in :excluded}, the list being every waiting repository that carries a
+     * credential: bounded by nothing but the queue, and one bind parameter per repository. Past the
+     * engines' limits — 65,535 for the PostgreSQL driver and a MySQL server-side statement, 32,766 in
+     * SQLite's default build — the claim itself failed, at every poll of every such agent. The caller
+     * now reads a page, asks which of <em>its</em> repositories carry a credential, and goes on past
+     * the page's last row; no statement carries more than a page.
      *
-     * <p>{@code excluded} is never empty: {@code not in ()} is a syntax error on several engines,
-     * and the caller asks {@link #findClaimable} when there is nothing to exclude.
+     * <p>The position is the order's own key, {@code (createdAt, id)}, so the next page starts
+     * exactly after the last row read whatever was taken or queued in between. Two statements rather
+     * than a null position, which PostgreSQL cannot type when it is bound as null.
      */
     @Query("""
-            select s from ScanEntity s
+            select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
+              from ScanEntity s
              where s.status = :status
                and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
-               and (s.repoId is null or s.repoId not in :excluded)
              order by s.createdAt asc, s.id asc""")
-    List<ScanEntity> findClaimableExcept(
+    List<ClaimCandidate> findClaimablePage(
+            @Param("status") String status, @Param("labels") Collection<String> labels, Limit limit);
+
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
+              from ScanEntity s
+             where s.status = :status
+               and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
+               and (s.createdAt > :afterAt or (s.createdAt = :afterAt and s.id > :afterId))
+             order by s.createdAt asc, s.id asc""")
+    List<ClaimCandidate> findClaimablePageAfter(
             @Param("status") String status,
             @Param("labels") Collection<String> labels,
-            @Param("excluded") Collection<Long> excluded,
+            @Param("afterAt") Instant afterAt,
+            @Param("afterId") Long afterId,
             Limit limit);
 
+    /** The two pages for an agent that carries no label — {@code in ()} is not valid everywhere. */
     @Query("""
-            select s from ScanEntity s
+            select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
+              from ScanEntity s
              where s.status = :status and s.requiredAgentLabel is null
-               and (s.repoId is null or s.repoId not in :excluded)
              order by s.createdAt asc, s.id asc""")
-    List<ScanEntity> findClaimableUnlabelledExcept(
-            @Param("status") String status, @Param("excluded") Collection<Long> excluded, Limit limit);
-
-    /**
-     * The repositories whose scans this claimant could take, among the waiting ones.
-     *
-     * <p>What {@link #findClaimableExcept} is asked to leave out is chosen among these, so the list
-     * it carries is as long as the part of the queue the agent is entitled to — not the estate.
-     */
-    @Query("""
-            select distinct s.repoId from ScanEntity s
-             where s.status = :status and s.repoId is not null
-               and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)""")
-    List<Long> findClaimableRepositories(@Param("status") String status, @Param("labels") Collection<String> labels);
+    List<ClaimCandidate> findClaimableUnlabelledPage(@Param("status") String status, Limit limit);
 
     @Query("""
-            select distinct s.repoId from ScanEntity s
-             where s.status = :status and s.repoId is not null and s.requiredAgentLabel is null""")
-    List<Long> findClaimableRepositoriesUnlabelled(@Param("status") String status);
+            select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
+              from ScanEntity s
+             where s.status = :status and s.requiredAgentLabel is null
+               and (s.createdAt > :afterAt or (s.createdAt = :afterAt and s.id > :afterId))
+             order by s.createdAt asc, s.id asc""")
+    List<ClaimCandidate> findClaimableUnlabelledPageAfter(
+            @Param("status") String status,
+            @Param("afterAt") Instant afterAt,
+            @Param("afterId") Long afterId,
+            Limit limit);
 
     /**
      * Takes one row, and says whether it was still there to take.

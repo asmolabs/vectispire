@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -167,7 +168,7 @@ class ScanDispatcherTest {
 
         // Left out of the selection: the queue was asked for nothing of repository 1, so nothing
         // was taken, no attempt counted, and there is nothing to put back.
-        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
         verify(queue, never()).requeue(anyLong(), anyString());
         verify(queue, never()).requeueRefunded(anyLong(), anyString());
         verify(sshKeys, never()).findById(any());
@@ -192,7 +193,8 @@ class ScanDispatcherTest {
     void keptFromKeyedScansButNotFromTheRest() {
         queueWaitsForRepositoryOne();
         when(containers.findById(4L)).thenReturn(Optional.of(container()));
-        org.mockito.Mockito.doReturn(Optional.of(imageScan())).when(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+        org.mockito.Mockito.doReturn(new ScanQueue.AgentClaim(Optional.of(imageScan()), true))
+                .when(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
 
         ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)).orElseThrow().task();
 
@@ -217,8 +219,8 @@ class ScanDispatcherTest {
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, recipient.publicKey()))).isPresent();
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isPresent();
 
-        verify(queue, org.mockito.Mockito.times(2)).claimWithin(any(), anyInt(), any(), eq(Set.of()));
-        verify(queue, never()).claimableRepositories(any());
+        verify(queue, org.mockito.Mockito.times(2)).claimWithin(any(), anyInt(), any(), eq(ScanQueue.Exclusion.NONE));
+        verify(repositories, never()).findAllById(any());
     }
 
     /**
@@ -231,14 +233,15 @@ class ScanDispatcherTest {
     void aKeyAddedSinceTheSelectionIsRefunded() {
         RepositoryEntity keyless = repository();
         keyless.setSshKeyId(null);
-        when(queue.claimableRepositories(any())).thenReturn(Set.of(1L));
         when(repositories.findAllById(any())).thenReturn(List.of(keyless));
         queueHolds(repositoryScan());
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
                 .isInstanceOf(CredentialWithheldException.class);
 
-        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of()));
+        // The selection read no key on repository 1, so it kept the agent from nothing.
+        verify(queue).claimWithin(any(), anyInt(), any(),
+                argThat(exclusion -> !exclusion.excludesNothing() && exclusion.among(Set.of(1L)).isEmpty()));
         verify(queue).requeueRefunded(eq(7L), anyString());
         verify(queue, never()).requeue(anyLong(), anyString());
         verify(audit, never()).record(any());
@@ -307,17 +310,17 @@ class ScanDispatcherTest {
 
         agent.setMaxConcurrent(4);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 4, List.of(), Set.of());
+        verify(queue).claimWithin(agent.getId(), 4, List.of(), ScanQueue.Exclusion.NONE);
 
         // A row from before the bound: 50 is applied as 16, and nothing — null or zero — as a
         // paused agent.
         agent.setMaxConcurrent(50);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 16, List.of(), Set.of());
+        verify(queue).claimWithin(agent.getId(), 16, List.of(), ScanQueue.Exclusion.NONE);
 
         agent.setMaxConcurrent(0);
         dispatcher.claimForAgent(com.asmolabs.vectispire.core.agents.internal.AgentViews.of(agent));
-        verify(queue).claimWithin(agent.getId(), 1, List.of(), Set.of());
+        verify(queue).claimWithin(agent.getId(), 1, List.of(), ScanQueue.Exclusion.NONE);
     }
 
     @Test
@@ -518,15 +521,21 @@ class ScanDispatcherTest {
      * takes it — and the test sees a claim where there should have been none.
      */
     private void queueWaitsForRepositoryOne() {
-        when(queue.claimableRepositories(any())).thenReturn(Set.of(1L));
         when(repositories.findAllById(any())).thenAnswer(call -> List.of(repositories.findById(1L).orElseThrow()));
         when(queue.claimWithin(any(), anyInt(), any(), any())).thenAnswer(call ->
-                call.<Set<Long>>getArgument(3).contains(1L) ? Optional.empty() : Optional.of(repositoryScan()));
+                call.<ScanQueue.Exclusion>getArgument(3).among(Set.of(1L)).contains(1L)
+                        ? new ScanQueue.AgentClaim(Optional.empty(), true)
+                        : new ScanQueue.AgentClaim(Optional.of(repositoryScan()), false));
+    }
+
+    /** An exclusion that, asked about repository 1 as the queue's walk would ask, keeps it out. */
+    private static org.mockito.ArgumentMatcher<ScanQueue.Exclusion> keepsRepositoryOne() {
+        return exclusion -> exclusion != null && exclusion.among(Set.of(1L)).contains(1L);
     }
 
     private void queueHolds(ScanEntity scan) {
         when(queue.claim(anyInt(), anyString(), any())).thenReturn(List.of(scan));
-        when(queue.claimWithin(any(), anyInt(), any(), any())).thenReturn(Optional.of(scan));
+        when(queue.claimWithin(any(), anyInt(), any(), any())).thenReturn(new ScanQueue.AgentClaim(Optional.of(scan), false));
     }
 
     private static ScanTask.Target.Repository repositoryTarget(ScanTask task) {
@@ -603,7 +612,7 @@ class ScanDispatcherTest {
 
         assertThatThrownBy(() -> dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null)))
                 .isInstanceOf(CredentialWithheldException.class);
-        verify(queue).claimWithin(any(), anyInt(), any(), eq(Set.of(1L)));
+        verify(queue).claimWithin(any(), anyInt(), any(), argThat(keepsRepositoryOne()));
         verify(gitTokens, never()).findById(any());
     }
 

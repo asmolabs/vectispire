@@ -75,17 +75,32 @@ public class TargetCatalog {
      * <p>The same two columns the dispatcher reads to decide what to send, and nothing more: a
      * repository counted here and not there, or the reverse, is an agent kept from a scan it could
      * run, or one handed a scan whose credential is then withheld.
+     *
+     * <p><b>Asked in batches</b>, because {@code findAllById} is one {@code in (…)} with a bind
+     * parameter per identifier, and the engines stop somewhere: the PostgreSQL driver refuses a
+     * statement past 65,535 (measured, with 70,003: "PreparedStatement can have at most 65 535
+     * parameters"), a MySQL server-side statement stops at the same, SQLite's default build at 32,766.
+     * The claim asks a page at a time, but the figure of the scans nobody can take asks about every
+     * waiting repository at once, and an estate is allowed to be large.
      */
     @Transactional(readOnly = true)
     public Set<Long> carryingCredentials(Collection<Long> ids) {
         if (ids.isEmpty()) {
             return Set.of();
         }
-        return repositories.findAllById(ids).stream()
-                .filter(repository -> repository.getSshKeyId() != null || repository.getHttpsTokenId() != null)
-                .map(RepositoryEntity::getId)
-                .collect(Collectors.toUnmodifiableSet());
+        List<Long> distinct = List.copyOf(Set.copyOf(ids));
+        Set<Long> carrying = new java.util.HashSet<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            repositories.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))).stream()
+                    .filter(repository -> repository.getSshKeyId() != null || repository.getHttpsTokenId() != null)
+                    .map(RepositoryEntity::getId)
+                    .forEach(carrying::add);
+        }
+        return Set.copyOf(carrying);
     }
+
+    /** How many identifiers one lookup binds: far under every engine's limit. */
+    static final int LOOKUP_BATCH = 1_000;
 
     /** The images with these identifiers that exist — one query, whatever the count. */
     @Transactional(readOnly = true)
