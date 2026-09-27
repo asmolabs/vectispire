@@ -39,6 +39,8 @@ import java.util.stream.Collectors;
  *     leaves the plugin's issues untouched (decision 0007)
  * @param networkJustification required with {@code network}, refused without it
  * @param timeoutSeconds {@code null} for the scanner limits' timeout, otherwise shorter than it
+ * @param signature who the image must be signed by, or {@code null} for an image trusted by its
+ *     digest alone — which an executor may refuse ({@code VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED})
  */
 public record PluginManifest(
         String id,
@@ -50,7 +52,8 @@ public record PluginManifest(
         @JsonProperty("exit_codes") Set<Integer> exitCodes,
         boolean network,
         @JsonProperty("network_justification") String networkJustification,
-        @JsonProperty("timeout_seconds") Integer timeoutSeconds) {
+        @JsonProperty("timeout_seconds") Integer timeoutSeconds,
+        PluginSignature signature) {
 
     /** Where the analysed tree is mounted, read-only. */
     public static final String SOURCE = "/repo/source";
@@ -74,6 +77,12 @@ public record PluginManifest(
     static final int MAX_EXIT_CODES = 8;
     static final int MIN_JUSTIFICATION = 20;
     static final int MAX_JUSTIFICATION = 500;
+
+    /** A manifest trusting its image by digest alone. */
+    public PluginManifest(String id, String name, String image, Set<Language> languages, List<String> arguments,
+            String output, Set<Integer> exitCodes, boolean network, String networkJustification, Integer timeoutSeconds) {
+        this(id, name, image, languages, arguments, output, exitCodes, network, networkJustification, timeoutSeconds, null);
+    }
 
     /** Absent collections become empty, absent exit codes {@code [0]}, a blank output the default. */
     public PluginManifest {
@@ -142,6 +151,9 @@ public record PluginManifest(
             throw new InvalidPluginException("The timeout is between " + MIN_TIMEOUT_SECONDS + " and "
                     + MAX_TIMEOUT_SECONDS + " seconds: a plugin may ask for less time than a scanner, never more.");
         }
+        if (signature != null) {
+            signature.validated();
+        }
         return this;
     }
 
@@ -150,11 +162,19 @@ public record PluginManifest(
      *
      * <p>Every field, in a fixed order, sets sorted by value rather than by enum position, lists
      * joined with a separator no field may contain. A change of anything an executor would do
-     * differently — the image, an argument, the network — is a new digest.
+     * differently — the image, an argument, the network, the signer — is a new digest.
+     *
+     * <p><b>The signer is appended only when there is one</b>, so a manifest without it hashes as it
+     * did before the field existed: every manifest a {@code t_plugin_manifest} row keeps is keyed by
+     * that digest, and a changed formula would have left each of them hashing to nothing its task
+     * names — served to nobody, every plugin absent until re-registered. The two forms cannot
+     * collide: the last field without a signer is the timeout, digits or nothing, and with one it is
+     * followed by the signer's fields; no field may contain the separator.
      */
     @JsonIgnore
     public String digest() {
-        return Digests.sha256Fields(
+        // `Arrays.asList`, not `List.of`: a justification is null on most manifests.
+        List<String> fields = new ArrayList<>(java.util.Arrays.asList(
                 "vectispire-plugin-manifest/1",
                 id,
                 name,
@@ -165,7 +185,11 @@ public record PluginManifest(
                 exitCodes.stream().sorted().map(String::valueOf).collect(Collectors.joining(",")),
                 network ? "network" : "no-network",
                 networkJustification,
-                timeoutSeconds == null ? "" : String.valueOf(timeoutSeconds));
+                timeoutSeconds == null ? "" : String.valueOf(timeoutSeconds)));
+        if (signature != null) {
+            fields.addAll(signature.digestFields());
+        }
+        return Digests.sha256Fields(fields.toArray(String[]::new));
     }
 
     /** The arguments with the two placeholders replaced by the paths the container sees. */
