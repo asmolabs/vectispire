@@ -77,7 +77,11 @@ Deux gestes révoquent des clés d'eux-mêmes :
   détenait le compte ; une clé émise entre-temps continuerait sinon d'agir pour lui. L'entrée d'audit
   de la réinitialisation dit combien de clés sont parties. Émettez-en de nouvelles ensuite.
 - **Supprimer un dépôt ou un conteneur révoque les clés restreintes à cette cible**, avec les droits
-  qui la nomment — une clé ne survit jamais à sa cible, même à une restauration qui renumérote.
+  qui la nomment — une clé ne survit jamais à sa cible, même à une restauration qui renumérote. C'est
+  la clé qui part, jamais sa seule restriction : une clé sans restriction agirait avec toute la
+  visibilité de son compte. Chaque clé révoquée ainsi est une entrée d'audit à part, sous
+  l'identifiant de la clé, et un événement de révocation pour le SIEM ; l'entrée de la suppression
+  dit combien de droits et de clés sont partis avec la cible.
 
 Émettre une clé ne redemande pas le mot de passe. Seul un administrateur en émet, chaque émission
 figure au journal d'audit et part vers le SIEM, et un compte qui se connecte par authentification

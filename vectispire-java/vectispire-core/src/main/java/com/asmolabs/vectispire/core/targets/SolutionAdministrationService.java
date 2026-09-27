@@ -218,7 +218,7 @@ public class SolutionAdministrationService {
 
         Removed removed = transactions.execute(status -> {
             int detached = repositories.detachProject(id);
-            int revoked = grants.revokeAll(TeamRules.KIND_PROJECT, id);
+            int revoked = grants.revokeAll(TeamRules.KIND_PROJECT, id).grants();
             // Modules above that keep rows naming the project drop theirs here, in this transaction
             // (ProjectDeleted): the plugins activated for it, the SARIF sources scoped to it.
             events.publishEvent(new ProjectDeleted(id));

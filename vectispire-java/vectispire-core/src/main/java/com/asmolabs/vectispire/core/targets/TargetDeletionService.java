@@ -52,24 +52,29 @@ public class TargetDeletionService {
         this.events = events;
     }
 
+    /** @return the grants and keys that went with it, for the caller to audit once this has committed */
     @Transactional
-    public void deleteContainer(long containerId) {
-        purge(new TargetDeleted(new ScanTarget.Container(containerId)));
+    public TargetGrants.Revoked deleteContainer(long containerId) {
+        TargetGrants.Revoked revoked = purge(new TargetDeleted(new ScanTarget.Container(containerId)));
         containers.deleteById(containerId);
         log.info("Container {} deleted.", containerId);
+        return revoked;
     }
 
+    /** @return the grants and keys that went with it, for the caller to audit once this has committed */
     @Transactional
-    public void deleteRepository(long repoId) {
-        purge(new TargetDeleted(new ScanTarget.Repository(repoId)));
+    public TargetGrants.Revoked deleteRepository(long repoId) {
+        TargetGrants.Revoked revoked = purge(new TargetDeleted(new ScanTarget.Repository(repoId)));
         repositories.deleteById(repoId);
         log.info("Repository {} deleted.", repoId);
+        return revoked;
     }
 
     /** Every row naming the target, grants first, then each owner's listeners in phase order. */
-    private void purge(TargetDeleted deleted) {
-        grants.revokeAll(deleted.kind(), deleted.id());
+    private TargetGrants.Revoked purge(TargetDeleted deleted) {
+        TargetGrants.Revoked revoked = grants.revokeAll(deleted.kind(), deleted.id());
         events.publishEvent(deleted);
+        return revoked;
     }
 
     /**

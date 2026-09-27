@@ -10,6 +10,7 @@ import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
@@ -278,9 +279,9 @@ public class RepositoryAdministrationService {
     public void delete(long id, RequestActor actor) {
         RepositoryEntity repository = repositories.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Repository not found."));
-        targetDeletion.deleteRepository(id);
-        audit.record(actor.entry(
-                AuditOperation.SETTING_UPDATED, String.valueOf(id), "Repository deleted: " + RepositoryUrl.redact(repository.getUrl())));
+        TargetGrants.Revoked revoked = targetDeletion.deleteRepository(id);
+        TargetDeletionAudit.record(audit, actor, id, "repository " + id,
+                "Repository deleted: " + RepositoryUrl.redact(repository.getUrl()), revoked);
     }
 
     /**

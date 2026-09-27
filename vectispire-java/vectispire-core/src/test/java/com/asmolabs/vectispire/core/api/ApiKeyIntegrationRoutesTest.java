@@ -1,12 +1,15 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.users.Role;
+import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ContainerEntity;
@@ -36,6 +39,9 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
 
     @Autowired
     private ContainerRepository containers;
+
+    @Autowired
+    private AuditLogRepository auditLog;
 
     private long repository(String name) {
         RepositoryEntity repository = new RepositoryEntity();
@@ -125,6 +131,50 @@ class ApiKeyIntegrationRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(post("/api/v1/gate"), governors)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("deleting its target revokes a restricted key — never widens it — and the log names the key")
+    void aDeletedTargetTakesItsKeysWithIt() throws Exception {
+        long doomed = repository("doomed");
+        long other = repository("still-here");
+        String response = mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "doomed-pipeline", "scopes", List.of("read"),
+                                "target_kind", "repository", "target_id", doomed))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String restricted = json.readTree(response).get("secret").asText();
+        String keyId = json.readTree(response).path("key").path("id").asText();
+        String unrestricted = issue(asAdmin(), Map.of("name", "whole-estate", "scopes", List.of("read")));
+
+        mvc.perform(authenticated(delete("/api/v1/repositories/" + doomed), asAdmin()))
+                .andExpect(status().isNoContent());
+
+        // The wrong answer would be a 200 listing `other`: a key whose restriction went and whose
+        // account sees everything.
+        mvc.perform(authenticated(get("/api/v1/repositories"), restricted)).andExpect(status().isUnauthorized());
+        String listed = mvc.perform(authenticated(get("/api/v1/repositories"), unrestricted))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(json.readTree(listed).findValues("id").stream().map(node -> node.asLong()).toList())
+                .as("a key restricted to nothing that went keeps working")
+                .contains(other);
+
+        assertThat(auditLog.findAll())
+                .filteredOn(entry -> keyId.equals(entry.getResourceId())
+                        && AuditOperation.API_KEY_DELETED.wireName().equals(entry.getOperationType()))
+                .singleElement()
+                .satisfies(entry -> {
+                    assertThat(entry.getDescription())
+                            .contains("doomed-pipeline")
+                            .contains("repository " + doomed);
+                });
+        assertThat(auditLog.findAll())
+                .filteredOn(entry -> entry.getDescription().startsWith("Repository deleted:")
+                        && String.valueOf(doomed).equals(entry.getResourceId()))
+                .singleElement()
+                .satisfies(entry -> assertThat(entry.getDescription()).contains("1 API key(s) revoked"));
     }
 
     @Test

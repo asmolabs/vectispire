@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.core.access.TargetGrants;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.targets.TargetScans.LatestScan;
@@ -185,9 +186,9 @@ public class ContainerAdministrationService {
     public void delete(long id, RequestActor actor) {
         ContainerEntity container = containers.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Image not found."));
-        targetDeletion.deleteContainer(id);
-        audit.record(actor.entry(
-                AuditOperation.SETTING_UPDATED, String.valueOf(id), "Image deleted: " + referenceOf(container).format()));
+        TargetGrants.Revoked revoked = targetDeletion.deleteContainer(id);
+        TargetDeletionAudit.record(audit, actor, id, "image " + id,
+                "Image deleted: " + referenceOf(container).format(), revoked);
     }
 
     /**

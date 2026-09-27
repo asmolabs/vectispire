@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.access.persistence;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -47,11 +48,15 @@ public interface ApiKeyRepository extends JpaRepository<ApiKeyEntity, UUID> {
     int revokeOwnedBy(@Param("owner") long owner);
 
     /**
-     * Revokes the integration keys restricted to one target, with the target — see
-     * {@code TargetGrants#revokeAll}.
+     * The integration keys restricted to one target, to be revoked with it — see
+     * {@code TargetGrants#revokeAll}. An agent's key has no owner and is not among them.
      */
+    @Query("select k from ApiKeyEntity k where k.targetKind = :kind and k.targetId = :targetId and k.ownerUserId is not null")
+    List<ApiKeyEntity> findRestrictedTo(@Param("kind") String kind, @Param("targetId") long targetId);
+
+    /** Revokes these keys: the row goes, as for a revocation by hand. Never asked with an empty list. */
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("delete from ApiKeyEntity k where k.targetKind = :kind and k.targetId = :targetId and k.ownerUserId is not null")
-    int revokeRestrictedTo(@Param("kind") String kind, @Param("targetId") long targetId);
+    @Query("delete from ApiKeyEntity k where k.id in :ids")
+    int revokeByIds(@Param("ids") Collection<UUID> ids);
 }

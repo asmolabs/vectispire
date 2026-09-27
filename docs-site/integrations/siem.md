@@ -114,9 +114,9 @@ change meaning.
 | `ZAN-SEC-008` | MFA failure ceiling reached | 7 | a second-factor challenge is destroyed after too many wrong codes, or the account's second factor locks |
 | `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens — bearer or `X-API-Key` (once per window) |
 | `ZAN-SEC-010` | Account privileges or credentials changed | 6 | an account is created, deleted, changes role, activation, password, second factor or visible targets — from the screen or SCIM |
-| `ZAN-SEC-011` | Team access grant changed | 6 | a team's members or targets change |
+| `ZAN-SEC-011` | Team access grant changed | 6 | a team's members or targets change, a repository is filed into a project or moved, or a project, repository or image that held grants is deleted |
 | `ZAN-SEC-012` | API key issued | 5 | an integration key is issued |
-| `ZAN-SEC-013` | API key revoked | 4 | an integration key is revoked |
+| `ZAN-SEC-013` | API key revoked | 4 | an integration key is revoked — by hand, or with the repository or image it was restricted to (one event per key) |
 | `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | an agent is declared, enabled, disabled, deleted, its signing key pinned or removed, or its sealing key reset by an administrator |
 | `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | an agent's signed result fails verification |
 | `ZAN-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |

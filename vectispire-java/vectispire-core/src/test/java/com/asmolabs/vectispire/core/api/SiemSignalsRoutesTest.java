@@ -312,6 +312,37 @@ class SiemSignalsRoutesTest extends ApiTestBase {
                 .satisfies(event -> assertThat(event.at("/message").asText()).contains("grant(s) revoked"));
     }
 
+    @Test
+    @DisplayName("deleting a repository that held a grant and a key revokes both, and each is announced")
+    void targetDeletionRevocations() throws Exception {
+        exportTo("127.0.0.1:9");
+        String admin = asAdmin();
+        long bare = repository();
+        long held = repository();
+        tokenFor("siem-repository-grantee", Role.USER, false);
+        long grantee = users.findByUsername("siem-repository-grantee").orElseThrow().getId();
+        mvc.perform(authenticated(put("/api/v1/users/" + grantee + "/targets"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(List.of(Map.of("kind", "repository", "id", held)))))
+                .andExpect(status().isOk());
+        mvc.perform(authenticated(post("/api/v1/api-keys"), admin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "held-pipeline", "scopes", List.of("read"),
+                                "target_kind", "repository", "target_id", held))))
+                .andExpect(status().isOk());
+        outbox.deleteAll();
+
+        mvc.perform(authenticated(delete("/api/v1/repositories/" + bare), admin)).andExpect(status().isNoContent());
+        assertThat(queuedTypes()).as("nothing named the bare repository")
+                .doesNotContain("ACCESS_GRANT_CHANGED", "API_KEY_REVOKED");
+
+        mvc.perform(authenticated(delete("/api/v1/repositories/" + held), admin)).andExpect(status().isNoContent());
+        assertThat(queued("ACCESS_GRANT_CHANGED")).singleElement()
+                .satisfies(event -> assertThat(event.at("/message").asText()).contains("1 grant(s)"));
+        assertThat(queued("API_KEY_REVOKED")).singleElement()
+                .satisfies(event -> assertThat(event.at("/message").asText()).contains("held-pipeline"));
+    }
+
     private long projectIn(long solution, String admin) throws Exception {
         return json.readTree(mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), admin)
                                 .contentType(MediaType.APPLICATION_JSON)

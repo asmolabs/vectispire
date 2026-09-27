@@ -75,7 +75,10 @@ Two gestures revoke keys on their own:
   they minted meanwhile would otherwise keep acting for it. The audit entry of the reset says how
   many keys went. Issue new ones afterwards.
 - **Deleting a repository or a container revokes the keys restricted to it**, with the grants that
-  name it — a key never outlives its target, even through a restore that renumbers.
+  name it — a key never outlives its target, even through a restore that renumbers. The key itself
+  goes, never only its restriction: a key without one would act with its account's whole
+  visibility. Each key revoked this way is its own audit entry, under the key's id, and a revocation
+  event for the SIEM; the deletion's entry says how many grants and keys went with the target.
 
 Issuing a key does not ask for the password again. Only an administrator issues one, each issuance
 is in the audit log and forwarded to the SIEM, and an account signing in through single sign-on
