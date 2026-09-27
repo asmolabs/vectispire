@@ -41,6 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IssueCatalog {
 
+    /** Issues per flag update, under every engine's bind-parameter ceiling. */
+    private static final int FLAG_BATCH = 1_000;
+
     private final IssueRepository issues;
 
     public IssueCatalog(IssueRepository issues) {
@@ -303,21 +306,22 @@ public class IssueCatalog {
 
     /**
      * Writes the exploitation flags the feed re-evaluated — {@code threatintel}'s decision — onto the
-     * issues, in the feed's transaction: one read of the rows named, one batch write.
+     * issues, in the feed's transaction: the flag and nothing else, a thousand issues a statement.
+     *
+     * <p><b>Not the rows saved whole.</b> The feed reads the open issues at the start of its
+     * transaction and wrote them back at its end, every column as it had read them: an EPSS score the
+     * EPSS refresh committed in between, or a scan's {@code lastSeenAt}, was put back to its old value.
+     * And the lookup of every flagged row was one {@code in} list, which the engines bound.
      */
     @Transactional
     public void recordExploitation(Collection<Exploitation> updates) {
-        if (updates.isEmpty()) {
-            return;
-        }
-        Map<Long, Exploitation> byIssue = new LinkedHashMap<>();
-        updates.forEach(update -> byIssue.put(update.issueId(), update));
-        List<IssueEntity> rows = issues.findAllById(byIssue.keySet());
-        rows.forEach(row -> {
-            Exploitation update = byIssue.get(row.getId());
-            row.setKev(update.kev());
+        Map<Boolean, List<Long>> byFlag = new LinkedHashMap<>();
+        updates.forEach(update -> byFlag.computeIfAbsent(update.kev(), flag -> new ArrayList<>()).add(update.issueId()));
+        byFlag.forEach((kev, ids) -> {
+            for (int from = 0; from < ids.size(); from += FLAG_BATCH) {
+                issues.setKev(ids.subList(from, Math.min(from + FLAG_BATCH, ids.size())), kev);
+            }
         });
-        issues.saveAll(rows);
     }
 
     /**

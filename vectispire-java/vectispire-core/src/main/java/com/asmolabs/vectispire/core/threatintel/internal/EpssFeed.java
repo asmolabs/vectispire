@@ -47,7 +47,12 @@ import org.springframework.stereotype.Component;
  * <p><b>The generation is random, not the next number.</b> It is also the claim's token: a
  * synchronisation whose lease ran out while it was still writing must not share a generation with the
  * one that took the lease over, or its late rows would land in — and its clean-up would delete — the
- * other's. Sixty-three random bits never meet twice.
+ * other's. Two draws of sixty-three random bits do not meet in practice; a sequence would, the
+ * moment a stale synchronisation computed the same next number as its successor.
+ *
+ * <p><b>Not audited here.</b> {@link #sync()} and {@link #syncIfDue()} are called by {@code
+ * ThreatIntelFeedService} alone, which records each attempt; nothing outside this module can reach
+ * them, and a controller of this module calls the service.
  *
  * <p><b>Nothing here is ever silently replaced by less.</b> A file that is not whole, is older than
  * the one in use, or is markedly smaller than it ({@link EpssFile}) is refused, recorded as {@link

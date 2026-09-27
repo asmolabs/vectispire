@@ -282,6 +282,12 @@ public interface IssueRepository
     <R> List<R> findByIdGreaterThanAndStateNotInAndIdentifierIsNotNullOrderByIdAsc(
             long afterId, Collection<String> states, Limit limit, Class<R> shape);
 
+    /** Sets the exploited-in-the-wild flag on these issues, and nothing else of their rows. */
+    @Transactional
+    @Modifying
+    @Query("update IssueEntity i set i.isKev = :kev where i.id in :ids")
+    int setKev(@Param("ids") Collection<Long> ids, @Param("kev") boolean kev);
+
     /** Sets one EPSS score on these issues, and nothing else of their rows. */
     @Transactional
     @Modifying

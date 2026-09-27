@@ -52,7 +52,7 @@ public class ScanIngestor {
     /**
      * The collaborators that reach outside this process.
      *
-     * <p>Optional on purpose. Enrichment calls the EPSS API and reads the stored KEV catalogue, and
+     * <p>Optional on purpose. Enrichment reads the stored EPSS scores and KEV catalogue, and
      * end-of-life consults a remote catalogue, so an ingestion test that leaves them out stays
      * offline and deterministic instead of depending on somebody else's availability.
      */
@@ -194,9 +194,9 @@ public class ScanIngestor {
     /**
      * Performs the remote lookups, <b>outside any transaction</b>.
      *
-     * <p>End of life consults a public catalogue, one request per product on a cold cache, and
-     * enrichment asks the EPSS API once per ninety identifiers. Done inside {@link #ingest}, those
-     * requests ran while the scan's writing transaction held its rows — the lock that fences a
+     * <p>End of life consults a public catalogue, one request per product on a cold cache; enrichment
+     * asked the EPSS API once per ninety identifiers, and reads the stored scores now. Done inside
+     * {@link #ingest}, those requests ran while the scan's writing transaction held its rows — the lock that fences a
      * concurrent reclaim included — for as long as the catalogues took to answer: ten seconds per
      * request at worst, and a scan of a large image sends a dozen. The class promises never to hold
      * a transaction during slow work; this is where that promise is kept.
@@ -400,8 +400,9 @@ public class ScanIngestor {
         // enriching them afterwards would need a second write outside the scan's transaction, and
         // would leave a window in which the gate sees findings without their exploited-in-the-wild
         // flag — that is, a green verdict on an actively exploited vulnerability. What is applied was
-        // looked up by `prepare`, before this transaction opened: the lookups are network calls, and
-        // made here they held the scan's row lock for as long as the EPSS API took to answer.
+        // looked up by `prepare`, before this transaction opened: the end-of-life lookups are network
+        // calls, and made here — as the EPSS ones were — they held the scan's row lock for as long as
+        // the catalogue took to answer.
         prepared.enrichment().ifPresent(found -> enrich(found, findings));
 
         // The backlog folds the whole values — the fingerprint's inputs — and queues its delta inside
