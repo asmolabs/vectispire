@@ -137,6 +137,14 @@ and the executor refuses a manifest that does not hash to it. Registration is th
 governor's (`@RequiresPlatformGovernor`); activation is per project; SARIF is imported only through
 a declared source's `sarif_import` key, for its scope and its declared tools.
 
+**A claim the executor cannot honour is not made.** Taking a scan counts one of its attempts; a
+refusal after the take — no runner, a credential withheld — spends the scan's retries on nothing,
+and a refund instead makes the same executor retake it at every poll and keep it from one that
+could run it. Decide before the take: `ScanDispatcher.dispatch` claims nothing without a runner,
+and an agent without a verified sealing key has the repositories carrying a credential left out of
+its selection (`ScanQueue.claimWithin`). A refund (`ScanQueue.requeueRefunded`) is for a race the
+next selection closes, never for a path that can repeat.
+
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
 triage, across every target. For plugin and imported findings that includes the tool key (in the
