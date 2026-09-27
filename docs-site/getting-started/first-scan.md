@@ -42,10 +42,10 @@ What happens, in order:
 5. Results are normalised into `Finding` rows, enriched with EPSS scores and CISA KEV
    status, evaluated against the license blocklist, and reconciled against existing issues.
 
-Steps 2–4 run with **the network disabled**. The only outbound calls a scan makes are the
-EPSS lookups, which carry CVE identifiers and nothing else, and the end-of-life catalogue,
-which carries product names and versions. KEV status comes from the CISA catalogue the control
-plane downloads every six hours.
+Steps 2–4 run with **the network disabled**. The only outbound call a scan makes is the
+end-of-life catalogue, which carries product names and versions. EPSS scores and KEV status come
+from FIRST's daily file and CISA's catalogue, which the control plane downloads whole — once a day
+and every six hours — so which CVE a repository carries is never sent anywhere.
 
 ## 4. Schedule it
 

@@ -70,9 +70,10 @@ that has no database credentials.
 
 Every scanner runs in an ephemeral container with **the network disabled**, a read-only
 mount, `cap_drop: ALL` and `no-new-privileges`. Nothing about the scanned code leaves the
-machine. The only outbound calls a scan makes are the EPSS and CISA KEV lookups, which
-carry CVE identifiers and nothing else — and the end-of-life catalogue, which carries
-product names and versions.
+machine. The only outbound call a scan makes is the end-of-life catalogue, which carries
+product names and versions: EPSS scores and CISA KEV status are read from FIRST's daily file and
+CISA's catalogue, which the control plane downloads whole and stores, so no third party learns
+which CVE a repository carries.
 
 Results are normalized into a single `Finding` table (type, severity, identifier, package, source, EPSS/CVSS scores, KEV status, fix version), in addition to the raw JSON blobs (`Scan.sbom`, `Scan.cves`) kept for audit purposes.
 

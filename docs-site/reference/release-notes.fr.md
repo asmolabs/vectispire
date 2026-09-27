@@ -79,7 +79,21 @@ lire.
 Si vous avez construit la vôtre et que son volume du miroir d'audit existe déjà, remettez-le une
 fois : `docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
 
-**Les migrations V32 à V43 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les scores EPSS viennent du fichier quotidien du FIRST, et les scans n'appellent plus
+`api.first.org`.** Chaque scan envoyait les CVE trouvées à l'API du FIRST — ce qui apprenait à un
+tiers à quoi chaque dépôt était vulnérable — et, sur un parc sans accès sortant, tous les scores
+restaient inconnus. Le plan de contrôle télécharge désormais `epss_scores-current.csv.gz` une fois
+par jour et depuis l'onglet **Threat Intelligence**, le stocke (quelque 380 000 lignes, quelques
+secondes sur MySQL et PostgreSQL), en rafraîchit les scores des constats ouverts, et les scans lisent
+la copie stockée. Il doit joindre `epss.empiricalsecurity.com` — ou `VECTISPIRE_EPSS_URL` doit
+désigner un miroir (et `VECTISPIRE_EPSS_ALLOW_PRIVATE=true` sur un réseau privé), voir
+[Configuration](configuration.md#threat-intelligence) ; une liste d'autorisation qui ouvrait
+`api.first.org` aux scans peut le refermer. Jusqu'à la première synchronisation, que la première
+tâche de maintenance lance une demi-minute après le démarrage, un nouveau constat n'a pas de score EPSS —
+inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le fichier
+les remplace.
+
+**Les migrations V32 à V45 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -115,7 +129,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `NEVER_SYNCED`, `SYNCED` ou `FAILED`. Une synchronisation qui ne peut pas lire le catalogue répond
   **200** avec `FAILED` et la raison, conserve le catalogue en usage, et est auditée comme un
   `THREAT_INTEL_SYNCED` en échec. `GET /api/v1/epss/cve/{id}` ne répond plus que depuis le catalogue
-  stocké — un **404** pour une CVE qu'il ne contient pas.
+  et le fichier EPSS stockés — un **404** pour une CVE qu'aucun des deux ne contient.
+- Les mêmes routes renvoient l'état du fichier EPSS sous `epss` : son statut, la version du modèle,
+  la date des scores, les CVE notées, la dernière tentative et son erreur, et `inProgress` pendant
+  qu'une synchronisation tourne. Les deux routes de synchronisation lisent le catalogue et le fichier
+  EPSS, et écrivent une entrée `THREAT_INTEL_SYNCED` pour chacun. `epss_score` et
+  `epss_percentile` quittent `t_threat_intel_feed` (V45).
 - Une revue OWASP est enregistrée avant que le modèle soit interrogé : `GET …/owasp-review` peut
   répondre `status: running` pendant qu'une autre demande attend, et se lit `failed` une fois le
   délai du modèle dépassé sans personne pour la clore.

@@ -70,7 +70,20 @@ rather than as root, which could not read it.
 own and its audit mirror volume already exists, hand it over once:
 `docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
 
-**Schema migrations V32 to V43 run at start**, on MySQL and PostgreSQL. Back up the database
+**EPSS scores come from FIRST's daily file, and scans no longer call `api.first.org`.** Each scan
+used to send the CVE it had found to FIRST's API — which told a third party what each repository was
+vulnerable to — and on an estate without outbound access every score stayed unknown. The control
+plane now downloads `epss_scores-current.csv.gz` once a day and from the **Threat Intelligence**
+tab, stores it (some 380,000 rows, a few seconds on MySQL and PostgreSQL), refreshes the open
+issues' scores from it, and scans read the stored copy. It needs to reach
+`epss.empiricalsecurity.com` — or set `VECTISPIRE_EPSS_URL` to a mirror (and
+`VECTISPIRE_EPSS_ALLOW_PRIVATE=true` on a private network), see
+[Configuration](configuration.md#threat-intelligence); an allow-list that opened `api.first.org` for
+scans can close it. Until the first synchronisation, which the first maintenance turn runs half a
+minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already on issues
+stay until the file replaces them.
+
+**Schema migrations V32 to V45 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -101,7 +114,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   release date, the last attempt and its error; `status` is `NEVER_SYNCED`, `SYNCED` or `FAILED`.
   A sync that cannot read the catalogue answers **200** with `FAILED` and the reason, keeps the
   catalogue in use, and is audited as a failed `THREAT_INTEL_SYNCED`. `GET /api/v1/epss/cve/{id}`
-  answers from the stored catalogue only — a **404** for a CVE it does not hold.
+  answers from the stored catalogue and EPSS file only — a **404** for a CVE neither holds.
+- The same routes answer the EPSS file's state under `epss`: its status, model version, score
+  date, the CVE it scores, the last attempt and its error, and `inProgress` while a synchronisation
+  runs. Both sync routes read the catalogue and the EPSS file, and write one `THREAT_INTEL_SYNCED`
+  entry for each. `epss_score` and `epss_percentile` leave `t_threat_intel_feed` (V45).
 - An OWASP review is recorded before the model is asked: `GET …/owasp-review` may answer
   `status: running` while another request waits, and reads `failed` once the model's timeout has
   passed with nobody left to settle it.

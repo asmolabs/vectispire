@@ -37,16 +37,16 @@ environ ne pouvait pas être enregistré du tout.
 
 ## Enrichissement
 
-Scores EPSS et statut CISA KEV. Les consultations EPSS sont, avec le catalogue de fin de support,
-les seuls appels sortants d'un scan, et elles transportent des identifiants CVE et rien d'autre. Le
-statut KEV est lu dans le catalogue que le plan de contrôle synchronise toutes les six heures — un
-téléchargement du catalogue de la CISA, ou du miroir que désigne `VECTISPIRE_KEV_URL`
-([Configuration](../reference/configuration.md#threat-intelligence)), affiché avec sa date dans
-l'onglet **Threat Intelligence**.
+Scores EPSS et statut CISA KEV, tous deux lus dans des copies que le plan de contrôle synchronise —
+le catalogue de la CISA toutes les six heures, le fichier EPSS quotidien du FIRST une fois par jour,
+ou les miroirs que désignent `VECTISPIRE_KEV_URL` et `VECTISPIRE_EPSS_URL`
+([Configuration](../reference/configuration.md#threat-intelligence)) — chacun affiché avec sa date
+dans l'onglet **Threat Intelligence**. Un scan n'interroge ni l'un ni l'autre : la liste des CVE
+d'un dépôt ne quitte jamais le plan de contrôle.
 
-Les désactiver est une option pour un déploiement isolé du réseau. Cela vous coûte la capacité
-de classer par exploitabilité, qui est le classement qui fonctionne — voir
-[Lire les résultats](../getting-started/reading-results.md).
+Un déploiement isolé du réseau garde l'enrichissement actif et pointe les deux variables vers des
+miroirs internes au parc. Le désactiver vous coûte la capacité de classer par exploitabilité, qui
+est le classement qui fonctionne — voir [Lire les résultats](../getting-started/reading-results.md).
 
 ## Fin de support
 

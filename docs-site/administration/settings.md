@@ -35,15 +35,15 @@ all.
 
 ## Enrichment
 
-EPSS scores and CISA KEV status. The EPSS lookups are, with the end-of-life catalogue, the only
-outbound calls a scan makes, and they carry CVE identifiers and nothing else. The KEV status is read
-from the catalogue the control plane synchronises every six hours — one download of CISA's
-catalogue, or of the mirror `VECTISPIRE_KEV_URL` names ([Configuration](../reference/configuration.md#threat-intelligence)),
-shown with its date on the **Threat Intelligence** tab.
+EPSS scores and CISA KEV status, both read from copies the control plane synchronises — CISA's
+catalogue every six hours, FIRST's daily EPSS file once a day, or the mirrors `VECTISPIRE_KEV_URL`
+and `VECTISPIRE_EPSS_URL` name ([Configuration](../reference/configuration.md#threat-intelligence)) —
+each shown with its date on the **Threat Intelligence** tab. A scan asks neither: the list of CVE a
+repository carries never leaves the control plane.
 
-Turning them off is an option for an air-gapped deployment. It costs you the ability to
-rank by exploitability, which is the ranking that works — see
-[Reading the results](../getting-started/reading-results.md).
+An air-gapped deployment keeps enrichment on and points both variables at mirrors inside the
+estate. Turning it off costs you the ability to rank by exploitability, which is the ranking that
+works — see [Reading the results](../getting-started/reading-results.md).
 
 ## End of life
 

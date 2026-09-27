@@ -24,10 +24,10 @@ Les étapes 2 à 6 s'exécutent dans des conteneurs éphémères avec **le rése
 montage en lecture seule, `cap_drop: ALL` et `no-new-privileges`. Chaque image est épinglée par
 empreinte.
 
-Les seuls appels sortants d'un scan sont les consultations EPSS, qui transportent des
-identifiants CVE et rien d'autre, et le catalogue de fin de support, qui transporte des noms de
-produits et des versions — tous deux faits avant l'écriture des résultats du scan, jamais pendant.
-Le statut KEV est lu dans le catalogue que le plan de contrôle synchronise toutes les six heures. Le code analysé ne quitte pas la machine.
+Le seul appel sortant d'un scan est le catalogue de fin de support, qui transporte des noms de
+produits et des versions — fait avant l'écriture des résultats du scan, jamais pendant. Les scores
+EPSS et le statut KEV sont lus dans le fichier quotidien du FIRST et le catalogue de la CISA, que le
+plan de contrôle synchronise en entier, si bien qu'aucun tiers n'apprend quelles CVE porte un dépôt. Le code analysé ne quitte pas la machine.
 
 ## Lire un scan
 

@@ -21,6 +21,15 @@ flagged when its CVE is listed and un-flagged when the catalogue stops listing i
 one is sent to the SIEM as `ZAN-SEC-002`. Before the first synchronisation nothing is flagged, and
 the tab says *never synchronized* rather than a reassuring zero.
 
+The EPSS scores come from FIRST's daily file as the control plane last read it: once a day, and
+with the catalogue when a lead presses **Synchronize**. The same tab says which model produced the
+scores in use and the day they are for, and why the last attempt failed if it did. A file is taken
+only whole: one cut short, older than the one in use, or with a tenth fewer CVE is refused and the
+scores in use are kept. Once a file is applied, the open issues' scores are refreshed from it —
+which is what the ranking, the gate and the scorecards read. No scan asks FIRST anything, so which
+CVE your repositories carry is never sent to a third party. Before the first synchronisation no CVE
+has a score, and the ranking shows none rather than a measured zero.
+
 The ranking covers open vulnerabilities whose triage is not settled: one triaged **not affected**
 or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
 approval stays ranked — a request is not a decision.

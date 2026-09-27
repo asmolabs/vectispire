@@ -117,18 +117,23 @@ host directory mounted at the **same absolute path**, or every scanner receives 
 
 ## Threat intelligence
 
-The CISA KEV catalogue is read every six hours by the maintenance tick, and on demand from the
-**Threat Intelligence** settings tab; a scan reads the stored copy and never downloads it. The EPSS
-scores are asked per scan from `api.first.org` and are not part of this.
+The CISA KEV catalogue is read every six hours by the maintenance tick, FIRST's daily EPSS file once
+a day, and both on demand from the **Threat Intelligence** settings tab. A scan reads the stored
+copies and asks nobody: nothing about what a repository contains leaves the control plane, and an
+estate without outbound access scans the same way once a mirror serves the two feeds.
 
 | Variable | Default | Notes |
 |---|---|---|
 | `VECTISPIRE_KEV_URL` | CISA's `known_exploited_vulnerabilities.json` | A mirror for an estate that cannot reach `www.cisa.gov`. It must serve the whole catalogue in CISA's format: a document without its list, listing nothing, carrying fewer entries than its `count`, or older than the catalogue in use is refused, and the catalogue in use is kept — what a partial one leaves out would read as "no longer exploited". |
 | `VECTISPIRE_KEV_ALLOW_PRIVATE` | `false` | `true` lets that URL resolve to a private or loopback address — a mirror inside the estate. Link-local (the cloud metadata endpoint) stays refused. A deployment property rather than a setting, so no session can point this call at the internal network. |
+| `VECTISPIRE_EPSS_URL` | FIRST's `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` | A mirror for an estate that cannot reach it — the file as FIRST publishes it, gzip or plain CSV, first line `#model_version:…,score_date:…`. One redirect to the same host is followed (FIRST's own address redirects to the day's file); any other is refused. A file that is cut short, has a malformed row or a score outside [0, 1], carries fewer than 100,000 scores or a tenth fewer than the file in use, inflates past 128 MiB, or is older than the file in use is refused, and the scores in use are kept. |
+| `VECTISPIRE_EPSS_ALLOW_PRIVATE` | `false` | As `VECTISPIRE_KEV_ALLOW_PRIVATE`, for the EPSS mirror — each feed has its own switch, so opening the private network to one does not open it to the other. |
 
-The tab shows when the catalogue was last read, CISA's version and release date of the one in use,
-and the last failed attempt with its reason. Never synchronised, a scan marks nothing as actively
-exploited — the log says so at each scan.
+The tab shows, for each feed, when it was last read, what is in use — CISA's version and release
+date of the catalogue, the EPSS model and the day its scores are for — and the last failed attempt
+with its reason. Never synchronised, a scan marks nothing as actively exploited and gives no EPSS
+score: unknown, never zero — the log says so at each scan. After an EPSS file is applied, the open
+issues' scores are refreshed from it, so the gate, the scorecards and the EPSS ranking read today's.
 
 ## Audit
 

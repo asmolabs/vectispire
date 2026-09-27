@@ -119,19 +119,25 @@ sans quoi chaque analyseur reçoit un répertoire vide.
 
 ## Threat intelligence
 
-Le catalogue KEV de la CISA est lu toutes les six heures par la tâche de maintenance, et à la
-demande depuis l'onglet **Threat Intelligence** des paramètres ; un scan lit la copie stockée et ne
-le télécharge jamais. Les scores EPSS sont demandés à chaque scan à `api.first.org` et n'en font pas
-partie.
+Le catalogue KEV de la CISA est lu toutes les six heures par la tâche de maintenance, le fichier
+EPSS quotidien du FIRST une fois par jour, et les deux à la demande depuis l'onglet **Threat
+Intelligence** des paramètres. Un scan lit les copies stockées et n'interroge personne : rien de ce
+que contient un dépôt ne quitte le plan de contrôle, et un parc sans accès sortant scanne de la même
+façon dès qu'un miroir sert les deux flux.
 
 | Variable | Défaut | Notes |
 |---|---|---|
 | `VECTISPIRE_KEV_URL` | le `known_exploited_vulnerabilities.json` de la CISA | Un miroir, pour un parc qui ne joint pas `www.cisa.gov`. Il doit servir le catalogue entier au format de la CISA : un document sans sa liste, qui ne liste rien, qui porte moins d'entrées que son `count`, ou plus ancien que le catalogue en usage est refusé, et le catalogue en usage est conservé — ce qu'un catalogue partiel omet se lirait comme « n'est plus exploité ». |
 | `VECTISPIRE_KEV_ALLOW_PRIVATE` | `false` | `true` autorise cette URL à se résoudre vers une adresse privée ou de bouclage — un miroir interne au parc. Le lien local (le point de métadonnées du cloud) reste refusé. Une propriété du déploiement plutôt qu'un paramètre, pour qu'aucune session ne puisse diriger cet appel vers le réseau interne. |
+| `VECTISPIRE_EPSS_URL` | le `https://epss.empiricalsecurity.com/epss_scores-current.csv.gz` du FIRST | Un miroir, pour un parc qui ne le joint pas — le fichier tel que le FIRST le publie, gzip ou CSV brut, première ligne `#model_version:…,score_date:…`. Une redirection vers le même hôte est suivie (l'adresse du FIRST redirige vers le fichier du jour) ; toute autre est refusée. Un fichier tronqué, qui a une ligne mal formée ou un score hors de [0, 1], qui porte moins de 100 000 scores ou un dixième de moins que le fichier en usage, qui dépasse 128 Mio une fois décompressé, ou plus ancien que le fichier en usage est refusé, et les scores en usage sont conservés. |
+| `VECTISPIRE_EPSS_ALLOW_PRIVATE` | `false` | Comme `VECTISPIRE_KEV_ALLOW_PRIVATE`, pour le miroir EPSS — chaque flux a son propre interrupteur, pour qu'ouvrir le réseau privé à l'un ne l'ouvre pas à l'autre. |
 
-L'onglet indique quand le catalogue a été lu pour la dernière fois, la version et la date de
-publication CISA de celui en usage, et la dernière tentative en échec avec sa raison. Jamais
-synchronisé, un scan ne marque rien comme activement exploité — le journal le dit à chaque scan.
+L'onglet indique, pour chaque flux, quand il a été lu pour la dernière fois, ce qui est en usage — la
+version et la date de publication CISA du catalogue, le modèle EPSS et le jour dont ses scores
+relèvent — et la dernière tentative en échec avec sa raison. Jamais synchronisé, un scan ne marque
+rien comme activement exploité et ne donne aucun score EPSS : inconnu, jamais zéro — le journal le dit
+à chaque scan. Une fois un fichier EPSS appliqué, les scores des constats ouverts en sont rafraîchis,
+si bien que la barrière, les scorecards et le classement EPSS lisent ceux du jour.
 
 ## Audit
 

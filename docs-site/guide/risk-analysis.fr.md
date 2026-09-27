@@ -24,6 +24,16 @@ l'est plus quand le catalogue cesse de la lister ; un constat nouvellement marqu
 sous `ZAN-SEC-002`. Avant la première synchronisation rien n'est marqué, et l'onglet indique
 *jamais synchronisé* plutôt qu'un zéro rassurant.
 
+Les scores EPSS viennent du fichier quotidien du FIRST tel que le plan de contrôle l'a lu en dernier :
+une fois par jour, et avec le catalogue quand un responsable clique **Synchroniser**. Le même onglet
+indique quel modèle a produit les scores en usage et le jour dont ils relèvent, et pourquoi la
+dernière tentative a échoué le cas échéant. Un fichier n'est pris qu'entier : tronqué, plus ancien
+que celui en usage, ou avec un dixième de CVE en moins, il est refusé et les scores en usage sont
+conservés. Une fois un fichier appliqué, les scores des constats ouverts en sont rafraîchis — c'est
+ce que lisent le classement, la barrière et les scorecards. Aucun scan n'interroge le FIRST : les
+CVE que portent vos dépôts ne sont jamais envoyées à un tiers. Avant la première synchronisation
+aucune CVE n'a de score, et le classement n'en montre aucun plutôt qu'un zéro mesuré.
+
 Le classement porte sur les vulnérabilités ouvertes dont le triage n'est pas réglé : une
 vulnérabilité triée **non affecté** ou **corrigé** en sort, comme elle sort de la barrière et du
 scorecard. Une exclusion encore en attente d'approbation reste classée — une demande n'est pas une

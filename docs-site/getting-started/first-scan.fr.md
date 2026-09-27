@@ -46,10 +46,11 @@ Ce qui se passe, dans l'ordre :
    CISA KEV, évalués contre la liste de blocage de licences, et réconciliés avec les issues
    existantes.
 
-Les étapes 2 à 4 s'exécutent **réseau désactivé**. Les seuls appels sortants d'un scan sont
-les consultations EPSS, qui transportent des identifiants CVE et rien d'autre, et le catalogue de
-fin de support, qui transporte des noms de produits et des versions. Le statut KEV vient du
-catalogue de la CISA que le plan de contrôle télécharge toutes les six heures.
+Les étapes 2 à 4 s'exécutent **réseau désactivé**. Le seul appel sortant d'un scan est le
+catalogue de fin de support, qui transporte des noms de produits et des versions. Les scores EPSS
+et le statut KEV viennent du fichier quotidien du FIRST et du catalogue de la CISA, que le plan de
+contrôle télécharge en entier — une fois par jour et toutes les six heures — si bien que les CVE
+d'un dépôt ne sont jamais envoyées nulle part.
 
 ## 4. Le planifier
 
