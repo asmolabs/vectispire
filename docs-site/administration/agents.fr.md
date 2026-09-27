@@ -234,8 +234,10 @@ d'être analysée quand cet unique agent est indisponible.
 ## Lire la page
 
 Chaque agent affiche ses analyses en cours face à sa limite — voir
-[Mener plusieurs analyses en parallèle](#running-several-scans-at-once) — et la date de sa dernière annonce. Un
-agent qui **ne s'est jamais annoncé** n'a pas atteint le plan de contrôle du tout : vérifiez
-l'URL, le jeton, et que le HTTPS sortant est autorisé.
+[Mener plusieurs analyses en parallèle](#running-several-scans-at-once) — et la dernière fois qu'il s'est
+manifesté : son `hello`, chaque demande de travail — servie ou non — et chaque renouvellement de bail
+pendant une analyse, écrit au plus toutes les quinze secondes. Deux minutes sans rien de cela, et il
+apparaît hors ligne. Un agent qui **ne s'est jamais annoncé** n'a pas atteint le plan de contrôle du
+tout : vérifiez l'URL, le jeton, et que le HTTPS sortant est autorisé.
 
 ![Les agents enregistrés : l'agent intégré sur clés locales, un agent distant scellé et attestant ses résultats, et un troisième délégué en clair, non signé et silencieux depuis 12:41.](../assets/screens/fr/agents.png)

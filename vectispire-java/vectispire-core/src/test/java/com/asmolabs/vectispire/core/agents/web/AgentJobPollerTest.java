@@ -91,6 +91,7 @@ class AgentJobPollerTest {
             recheck.set(call.getArgument(0));
             return null;
         });
-        return new AgentJobPoller(dispatcher, mock(com.asmolabs.vectispire.core.agents.AgentMetrics.class), scheduler);
+        return new AgentJobPoller(dispatcher, mock(com.asmolabs.vectispire.core.agents.AgentMetrics.class),
+                mock(com.asmolabs.vectispire.core.agents.AgentProtocolService.class), scheduler);
     }
 }

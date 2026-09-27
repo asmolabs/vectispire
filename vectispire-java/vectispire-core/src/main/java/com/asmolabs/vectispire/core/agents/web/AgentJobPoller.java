@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.agents.web;
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
 import com.asmolabs.vectispire.core.access.AgentView;
 import com.asmolabs.vectispire.core.agents.AgentMetrics;
+import com.asmolabs.vectispire.core.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,6 +42,7 @@ public class AgentJobPoller {
 
     private final ScanDispatcher dispatcher;
     private final AgentMetrics metrics;
+    private final AgentProtocolService protocol;
 
     /**
      * <b>The agents' scheduler, not the jobs' one.</b> These two used to be the same bean, which
@@ -52,9 +54,11 @@ public class AgentJobPoller {
     public AgentJobPoller(
             ScanDispatcher dispatcher,
             AgentMetrics metrics,
+            AgentProtocolService protocol,
             @Qualifier("agentPollScheduler") TaskScheduler scheduler) {
         this.dispatcher = dispatcher;
         this.metrics = metrics;
+        this.protocol = protocol;
         this.scheduler = scheduler;
     }
 
@@ -72,6 +76,10 @@ public class AgentJobPoller {
         String limit = String.valueOf(AgentConcurrency.effective(agent.maxConcurrent()));
         DeferredResult<ResponseEntity<Object>> result =
                 new DeferredResult<>(bounded.plusSeconds(5).toMillis(), noJob(limit));
+
+        // Once per poll, at its start: the re-checks below are this same request, and an agent that
+        // polls is alive whether or not the queue has anything for it.
+        protocol.heardFrom(agent);
 
         Optional<ScanDispatcher.AgentTask> immediate = dispatcher.claimForAgent(agent);
         if (immediate.isPresent() || bounded.isZero()) {

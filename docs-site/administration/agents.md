@@ -217,8 +217,10 @@ that one agent is down.
 ## Reading the page
 
 Each agent shows its running scans against its limit — see
-[Running several scans at once](#running-several-scans-at-once) — and when it last announced itself. An agent
-that has **never announced** has not reached the control plane at all: check the URL, the
-token, and that outbound HTTPS is allowed.
+[Running several scans at once](#running-several-scans-at-once) — and when it was last heard from: its
+`hello`, each poll for work — found or not — and each lease renewal during a scan, written at most
+every fifteen seconds. Two minutes without any of them and it reads as offline. An agent that has
+**never announced** has not reached the control plane at all: check the URL, the token, and that
+outbound HTTPS is allowed.
 
 ![The registered agents: the built-in one on local keys, a remote agent sealed and attesting its results, and a third delegated in the clear, unsigned and silent since 12:41.](../assets/screens/en/agents.png)

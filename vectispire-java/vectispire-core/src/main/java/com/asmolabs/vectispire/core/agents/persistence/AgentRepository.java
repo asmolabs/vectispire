@@ -38,6 +38,23 @@ public interface AgentRepository extends JpaRepository<AgentEntity, UUID> {
     int lockForClaim(@Param("id") UUID id, @Param("at") Instant at);
 
     /**
+     * Records that an agent was heard from, <b>unless it already was since {@code staleBefore}</b>.
+     *
+     * <p>Conditional so that a fleet polling every few seconds does not write its rows at the same
+     * rate: the column feeds "online", a two-minute window, and a write per poll per agent would buy
+     * nothing it does not already say. The condition is in the statement rather than read first, so
+     * two polls of one agent racing on it write once or twice, never an older instant over a newer.
+     *
+     * @return 0 when the row was recent enough, or the agent no longer exists
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update AgentEntity a set a.lastSeenAt = :at
+             where a.id = :id and (a.lastSeenAt is null or a.lastSeenAt < :staleBefore)""")
+    int recordSeen(@Param("id") UUID id, @Param("at") Instant at, @Param("staleBefore") Instant staleBefore);
+
+    /**
      * Records that an agent has just been heard from, and what it said about itself.
      *
      * <p><b>Not the sealing key</b>, which this statement wrote until decision 0031 — from every

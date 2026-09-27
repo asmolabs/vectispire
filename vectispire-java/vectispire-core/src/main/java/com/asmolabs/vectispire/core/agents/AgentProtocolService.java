@@ -16,6 +16,8 @@ import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import org.springframework.stereotype.Service;
 
 /**
@@ -35,6 +37,13 @@ public class AgentProtocolService {
     private final AuditLogService audit;
     private final ObjectMapper json;
     private final Clock clock;
+
+    /**
+     * How old the last sign of life may be before a poll writes a new one. Well inside the two
+     * minutes after which an agent reads as offline, with a thirty-second poll in between: the
+     * column is at most forty-five seconds behind an agent that is polling.
+     */
+    static final Duration SEEN_GRANULARITY = Duration.ofSeconds(15);
 
     public AgentProtocolService(
             AgentRepository agents, ScanDispatcher dispatcher, AuditLogService audit, ObjectMapper json, Clock clock) {
@@ -153,6 +162,39 @@ public class AgentProtocolService {
                 announced.trim());
 
         return new Hello.Accepted(AgentConcurrency.effective(agent.maxConcurrent()));
+    }
+
+    /**
+     * Notes that the agent spoke — a poll for work, a lease renewal — without a write per request.
+     *
+     * <p><b>The hello and the claim used to be the only writers</b>, so an agent that was up,
+     * polling every thirty seconds and simply finding no work, stopped being heard from at its last
+     * claim: two minutes later the agents screen called a healthy agent offline, and an operator
+     * reading it restarted something that was not broken. A poll is the sign of life an idle agent
+     * gives, so it counts.
+     *
+     * <p><b>Once per {@link #SEEN_GRANULARITY} at most.</b> The principal was read from the row by
+     * this very request, so a recent enough value is known without asking; the statement that
+     * follows repeats the condition, so two polls racing on it cannot put an older instant back.
+     */
+    public void heardFrom(AgentView agent) {
+        Instant now = clock.instant();
+        Instant staleBefore = now.minus(SEEN_GRANULARITY);
+        if (agent.lastSeenAt() != null && !agent.lastSeenAt().isBefore(staleBefore)) {
+            return;
+        }
+        agents.recordSeen(agent.id(), now, staleBefore);
+    }
+
+    /**
+     * Extends the lease of a scan entrusted to this agent, and counts the renewal as a sign of life:
+     * an agent busy with one long scan polls nothing, and its heartbeats are all it says.
+     *
+     * @return false when the lease was taken over
+     */
+    public boolean renewLease(AgentView agent, long scanId) {
+        heardFrom(agent);
+        return dispatcher.renewAgentLease(scanId, agent);
     }
 
     /**

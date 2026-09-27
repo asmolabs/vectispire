@@ -13,7 +13,6 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresAgentKey;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
-import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
 import com.asmolabs.vectispire.core.scanning.ScanPlugins;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,19 +53,16 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiresAgentKey
 public class AgentsController {
 
-    private final ScanDispatcher dispatcher;
     private final AgentJobPoller poller;
     private final RuleSetService ruleSets;
     private final ScanPlugins plugins;
     private final AgentProtocolService protocol;
 
     public AgentsController(
-            ScanDispatcher dispatcher,
             AgentJobPoller poller,
             RuleSetService ruleSets,
             ScanPlugins plugins,
             AgentProtocolService protocol) {
-        this.dispatcher = dispatcher;
         this.poller = poller;
         this.ruleSets = ruleSets;
         this.plugins = plugins;
@@ -255,7 +251,7 @@ public class AgentsController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void heartbeat(@PathVariable long scanId, @AuthenticationPrincipal VectispirePrincipal principal) {
         AgentView agent = authenticate(principal);
-        if (!dispatcher.renewAgentLease(scanId, agent)) {
+        if (!protocol.renewLease(agent, scanId)) {
             // 409: the lease was taken over while the agent worked. It has to give up rather than
             // hand back a result that would overwrite its successor's.
             throw new ResponseStatusException(
