@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
@@ -76,23 +75,30 @@ public class ThreatIntelFeedService {
     /**
      * A synchronization somebody asked for, audited once it has committed.
      *
-     * <p><b>The boundary is a {@link TransactionTemplate}, not the annotation below.</b> The audit
-     * entry opens its own transaction, and inside the sync's it would wait on the parent's lock on
-     * SQLite, where the lock is the file; calling the annotated method through {@code this} would
-     * bypass the proxy and run it with no transaction at all. The template opens the same boundary
-     * the annotation does, and closes it before the entry is written.
+     * <p><b>The boundary is a {@link TransactionTemplate}, not an annotation.</b> The audit entry
+     * opens its own transaction, and inside the sync's it would wait on the parent's lock on SQLite,
+     * where the lock is the file; an annotated body called through {@code this} would bypass the
+     * proxy and run with no transaction at all. The template opens the boundary and closes it before
+     * the entry is written.
+     *
+     * <p><b>The one way in.</b> The EPSS screen's sync called the unaudited body directly, so the same
+     * outbound call and the same re-evaluation of the backlog left an entry from one screen and none
+     * from the other. The body is private now; both routes come through here.
+     *
+     * @param origin which screen asked, for the entry: "threat intelligence" or "EPSS"
      */
-    public ThreatIntelSyncStatus syncThreatIntel(RequestActor actor) {
-        ThreatIntelSyncStatus result = transactions.execute(status -> syncThreatIntel());
+    public ThreatIntelSyncStatus syncThreatIntel(RequestActor actor, String origin) {
+        ThreatIntelSyncStatus result = transactions.execute(status -> synchronize());
         audit.record(actor.entry(
-                AuditOperation.SETTING_UPDATED,
+                AuditOperation.THREAT_INTEL_SYNCED,
                 "threat_intel",
-                "Live Threat Intel feed synchronized (KEV=" + result.totalKev() + ", updated=" + result.backlogUpdatedCount() + ")"));
+                "Live Threat Intel feed synchronized from the " + origin + " screen (KEV=" + result.totalKev()
+                        + ", updated=" + result.backlogUpdatedCount() + ")"));
         return result;
     }
 
-    @Transactional
-    public ThreatIntelSyncStatus syncThreatIntel() {
+    /** Within the transaction {@link #syncThreatIntel(RequestActor, String)} opens. */
+    private ThreatIntelSyncStatus synchronize() {
         // Seed/Ingest prominent threat intelligence entries
         List<ThreatIntelRecord> catalog = getKnownThreatIntelFeed();
 

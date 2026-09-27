@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -43,16 +46,19 @@ public class CertifiedScopeService {
     private final ScanCatalog scans;
     private final SettingsService settings;
     private final Clock clock;
+    private final AuditLogService audit;
 
     public CertifiedScopeService(
             TargetCatalog targets,
             ScanCatalog scans,
             SettingsService settings,
-            Clock clock) {
+            Clock clock,
+            AuditLogService audit) {
         this.targets = targets;
         this.scans = scans;
         this.settings = settings;
         this.clock = clock;
+        this.audit = audit;
     }
 
     /** What the scope statement says, verbatim, or empty when nobody has written one. */
@@ -111,13 +117,38 @@ public class CertifiedScopeService {
     }
 
     /**
-     * Puts one target in or out of the certified scope.
+     * Puts one target in or out of the certified scope, and records who did when the flag moved.
      *
-     * @return whether the flag changed, so a caller can stay silent about a no-op
+     * <p><b>No transaction here</b>, and that is the point: the write commits in {@code
+     * TargetCatalog}'s own before the entry is written, since the audit log opens its own and on
+     * SQLite would wait on the write's file lock. A no-op leaves no entry, as a setting saved
+     * unchanged leaves none.
+     *
+     * @return whether the flag changed
      */
-    @Transactional
-    public boolean setInScope(ScanTarget target, boolean inScope) {
-        return targets.setInCertifiedScope(target, inScope);
+    public boolean setInScope(ScanTarget target, boolean inScope, RequestActor actor) {
+        boolean changed = targets.setInCertifiedScope(target, inScope);
+        if (changed) {
+            audit.record(actor.entry(
+                    AuditOperation.CERTIFIED_SCOPE_CHANGED,
+                    String.valueOf(idOf(target)),
+                    describe(target) + (inScope ? " put in the certified scope" : " taken out of the certified scope")));
+        }
+        return changed;
+    }
+
+    private static long idOf(ScanTarget target) {
+        return switch (target) {
+            case ScanTarget.Repository repository -> repository.id();
+            case ScanTarget.Container container -> container.id();
+        };
+    }
+
+    private static String describe(ScanTarget target) {
+        return switch (target) {
+            case ScanTarget.Repository repository -> "Repository " + repository.id();
+            case ScanTarget.Container container -> "Image " + container.id();
+        };
     }
 
     private int freshnessDays() {

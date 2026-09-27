@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
@@ -13,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -87,8 +89,9 @@ public class CertifiedScopeController {
     public ScopeView setRepository(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable long id,
-            @RequestParam("in_scope") boolean inScope) {
-        return set(principal, new ScanTarget.Repository(id), inScope);
+            @RequestParam("in_scope") boolean inScope,
+            HttpServletRequest request) {
+        return set(principal, new ScanTarget.Repository(id), inScope, request);
     }
 
     @Operation(summary = "Set an image's scope membership", description = "Marks one container image as inside or outside the certified scope.")
@@ -98,14 +101,15 @@ public class CertifiedScopeController {
     public ScopeView setContainer(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable long id,
-            @RequestParam("in_scope") boolean inScope) {
-        return set(principal, new ScanTarget.Container(id), inScope);
+            @RequestParam("in_scope") boolean inScope,
+            HttpServletRequest request) {
+        return set(principal, new ScanTarget.Container(id), inScope, request);
     }
 
-    private ScopeView set(VectispirePrincipal principal, ScanTarget target, boolean inScope) {
+    private ScopeView set(VectispirePrincipal principal, ScanTarget target, boolean inScope, HttpServletRequest request) {
         Visibility allowed = allowed(principal);
         Visibilities.requireVisible(target, allowed);
-        scope.setInScope(target, inScope);
+        scope.setInScope(target, inScope, RequestActors.of(principal, request));
         return scope(principal);
     }
 

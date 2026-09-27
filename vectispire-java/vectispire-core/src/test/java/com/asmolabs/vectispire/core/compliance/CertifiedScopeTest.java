@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.compliance.ScopeCoverage;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -148,7 +149,7 @@ class CertifiedScopeTest extends VectispireContextTest {
     }
 
     private void inScope(long repoId) {
-        assertThat(scope.setInScope(new ScanTarget.Repository(repoId), true)).isTrue();
+        assertThat(scope.setInScope(new ScanTarget.Repository(repoId), true, new RequestActor("scope-test", null, null))).isTrue();
     }
 
     private long repository(String name) {

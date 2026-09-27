@@ -194,6 +194,9 @@ public enum SecurityEventType {
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
                     SCAN_TRIGGERED, AI_REVIEW_REQUESTED, REPORT_EXPORTED, TICKET_CREATED, TICKET_LINKED,
                     TICKET_CLOSED, TICKET_SYNCED, CONTROL_DECLARED, TEAM_UPDATED, ACCESS_DENIED,
+                    // Compliance's record, like a declaration: who drew the scope, not an access
+                    // change; and a feed refresh anybody with the lead role may ask for at will.
+                    CERTIFIED_SCOPE_CHANGED, THREAT_INTEL_SYNCED,
                     AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED,
                     // Every restart of every agent: the refusal is the event, the rotation is routine.
                     AGENT_SEALING_KEY_ACCEPTED, RULE_SET_UPLOADED,

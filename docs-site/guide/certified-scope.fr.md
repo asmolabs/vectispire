@@ -34,6 +34,12 @@ La distinction compte plus qu'il n'y paraît : zéro actif manquant et une couve
 produisent le même chiffre, et les distinguer est toute la valeur de cet écran. Un périmètre non
 déclaré ne rapporte aucun écart pour la même raison qu'une pièce vide ne rapporte aucun bruit.
 
+Mettre un dépôt ou une image dans le périmètre, ou l'en retirer, est inscrit au
+[journal d'audit](../administration/audit-log.fr.md) sous `CERTIFIED_SCOPE_CHANGED`, avec son
+auteur. Retirer une cible est la façon la plus discrète d'améliorer le chiffre de couverture : c'est
+le changement qu'un évaluateur voudra voir. Enregistrer une cible là où elle était déjà n'inscrit
+rien.
+
 ## La preuve fraîche, rapportée au déclaré
 
 La part de couverture se calcule contre le nombre **déclaré**, jamais contre ce que l'instance

@@ -4,11 +4,13 @@ import com.asmolabs.vectispire.common.domain.threatintel.EpssRiskMatrix.EpssFlee
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.threatintel.EpssPrioritizationService;
 import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -53,10 +55,12 @@ public class EpssController {
     }
 
     // Outbound, repeatable at will, and rate-limited by whoever serves it. Not destructive,
-    // which is why it is a lead's rather than an administrator's, but not a reader's.
+    // which is why it is a lead's rather than an administrator's, but not a reader's. Audited as
+    // the threat intelligence screen's sync is, with the same fallback name: it is the same sync.
     @RequiresSecurityLead
     @PostMapping("/sync")
-    public ThreatIntelSyncStatus sync() {
-        return threatIntelFeedService.syncThreatIntel();
+    public ThreatIntelSyncStatus sync(
+            @AuthenticationPrincipal VectispirePrincipal principal, HttpServletRequest request) {
+        return threatIntelFeedService.syncThreatIntel(RequestActors.of(principal, request, "system"), "EPSS");
     }
 }

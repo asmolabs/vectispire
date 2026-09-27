@@ -77,6 +77,26 @@ public enum AuditOperation {
     CONTROL_DECLARED,
 
     /**
+     * A repository or an image was put in or taken out of the certified scope.
+     *
+     * <p>Audited for the reason a declaration is: the scope is what an assessment measures the
+     * evidence against, and taking a target out of it is the quietest way to improve the coverage
+     * figure — the target that had no current scan stops counting against it. Nothing recorded who
+     * did it until this; the flag changed on the target's row and left no trace.
+     */
+    CERTIFIED_SCOPE_CHANGED,
+
+    /**
+     * Somebody asked for the threat-intelligence feeds to be synchronised — from the threat
+     * intelligence screen or the EPSS one, which run the same synchronisation.
+     *
+     * <p>An outbound call on demand, and one that re-evaluates the exploitation of the whole backlog.
+     * The first route recorded it as {@link #SETTING_UPDATED}, which it is not, and the second recorded
+     * nothing. The scheduled run is not a gesture and writes no entry.
+     */
+    THREAT_INTEL_SYNCED,
+
+    /**
      * A team was created, renamed or deleted.
      *
      * <p>Audited for the same reason as a role change: it decides what a group of people can

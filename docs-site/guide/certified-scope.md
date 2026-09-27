@@ -32,6 +32,11 @@ That distinction matters more than it looks: zero missing assets and complete co
 same number, and telling them apart is this screen's entire value. An undeclared scope reports no
 gap for the same reason an empty room reports no noise.
 
+Putting a repository or an image in or out of the scope is recorded in the
+[audit log](../administration/audit-log.md) as `CERTIFIED_SCOPE_CHANGED`, with who did it. Taking
+a target out is the quietest way to improve the coverage figure, so it is the change an assessor
+will want to see; saving a target where it already was records nothing.
+
 ## Fresh evidence, against the declared total
 
 The coverage share is computed against the **declared** count, never against what the instance

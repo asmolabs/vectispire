@@ -38,6 +38,6 @@ public class ThreatIntelController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
 
-        return threatIntelService.syncThreatIntel(RequestActors.of(principal, request, "system"));
+        return threatIntelService.syncThreatIntel(RequestActors.of(principal, request, "system"), "threat intelligence");
     }
 }
