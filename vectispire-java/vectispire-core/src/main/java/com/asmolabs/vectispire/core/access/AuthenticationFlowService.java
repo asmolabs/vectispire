@@ -14,11 +14,13 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * The steps between a person and a session: password, second factor, single sign-on hand-off,
@@ -31,9 +33,10 @@ import org.springframework.stereotype.Service;
  * code and for the code that destroyed the challenge, and it can only do that if it is told the
  * difference without being asked to phrase it.
  *
- * <p><b>No transaction spans a flow here, deliberately.</b> Each repository write carries its
- * own, which is how the flows behaved when they lived in the controller, and the attempt counter
- * in particular relies on the database's increment rather than on a surrounding boundary.
+ * <p><b>No transaction spans a password or second-factor flow, deliberately.</b> Each repository
+ * write carries its own, which is how the flows behaved when they lived in the controller, and the
+ * attempt counter in particular relies on the database's increment rather than on a surrounding
+ * boundary. The federated sign-in is the exception, and says why at {@link #completeFederatedSignIn}.
  */
 @Service
 public class AuthenticationFlowService {
@@ -68,6 +71,9 @@ public class AuthenticationFlowService {
     private final UserRepository users;
     private final SessionRepository sessions;
     private final MfaChallengeRepository mfaChallenges;
+    private final ExternalIdentityService identities;
+    private final FederatedSecondFactorPolicy secondFactors;
+    private final TransactionTemplate transactions;
     private final Clock clock;
 
     public AuthenticationFlowService(
@@ -79,6 +85,9 @@ public class AuthenticationFlowService {
             UserRepository users,
             SessionRepository sessions,
             MfaChallengeRepository mfaChallenges,
+            ExternalIdentityService identities,
+            FederatedSecondFactorPolicy secondFactors,
+            TransactionTemplate transactions,
             Clock clock) {
         this.providers = providers;
         this.methods = methods;
@@ -88,6 +97,9 @@ public class AuthenticationFlowService {
         this.users = users;
         this.sessions = sessions;
         this.mfaChallenges = mfaChallenges;
+        this.identities = identities;
+        this.secondFactors = secondFactors;
+        this.transactions = transactions;
         this.clock = clock;
     }
 
@@ -317,6 +329,82 @@ public class AuthenticationFlowService {
         challenge.setIpAddress(ip);
         mfaChallenges.save(challenge);
         return true;
+    }
+
+    /**
+     * What an identity provider vouched for, as far as a sign-in goes.
+     *
+     * @param issuer the provider that vouched, as its URL reads; required, and not part of the lookup
+     * @param amr the {@code amr} claim, null when absent
+     * @param acr the {@code acr} claim, null when absent
+     * @param groups the {@code groups} claim, null when absent — and absent or empty revokes nothing
+     */
+    public record FederatedIdentity(
+            String subject,
+            String issuer,
+            ExternalIdentityService.Claimed claimed,
+            List<String> amr,
+            String acr,
+            List<String> groups) {}
+
+    /** What a single sign-on came to. */
+    public sealed interface FederatedSignIn {
+        /** Refused, and audited before returning; the code is what the login screen translates. */
+        record Refused(ExternalIdentityService.Refusal refusal) implements FederatedSignIn {}
+
+        /** @param issued the clear token is its only copy: the row holds the hash */
+        record SignedIn(AuthService.IssuedSession issued, UserView user) implements FederatedSignIn {}
+    }
+
+    /**
+     * Signs somebody in on a provider's word: the second factor it states, the account it binds to,
+     * the teams its groups claim, and the session — then the audit entry.
+     *
+     * <p><b>The second factor is checked before the account is resolved</b>: a refused sign-on must
+     * not bind a subject to an account on its way out.
+     *
+     * <p><b>The binding, the teams and the session in one transaction.</b> They were three, opened
+     * one after the other by the success handler: a session that failed to open — the database
+     * refusing the insert, the pool exhausted — left the subject bound to the account and its teams
+     * reconciled, for a person who was never signed in and who, on their next try, met a binding they
+     * had not been told existed. Either all three hold or none does.
+     *
+     * <p><b>The audit entry follows the commit</b>, a refusal's included: it opens its own
+     * transaction, and inside this one it would wait on SQLite's file lock until it timed out.
+     *
+     * @param ipAddress the client's address, already resolved against the trusted proxies
+     */
+    public FederatedSignIn completeFederatedSignIn(FederatedIdentity identity, String userAgent, String ipAddress) {
+        try {
+            String secondFactor = secondFactors.require(identity.amr(), identity.acr());
+            FederatedSignIn.SignedIn signedIn = transactions.execute(status -> {
+                UserView user = identities.resolve(identity.subject(), identity.issuer(), identity.claimed());
+                if (identity.groups() != null && !identity.groups().isEmpty()) {
+                    identities.syncGroups(user, identity.groups());
+                }
+                return new FederatedSignIn.SignedIn(auth.openFederatedSession(user, userAgent, ipAddress), user);
+            });
+
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_SUCCESS,
+                    signedIn.user().username(),
+                    "Signed in through " + identity.issuer() + ", " + secondFactor,
+                    signedIn.user().username(),
+                    ipAddress,
+                    userAgent));
+            return signedIn;
+        } catch (ExternalIdentityService.SignInRefusedException refused) {
+            // Audited like any refused login: a token from the realm that maps to no account is
+            // exactly the attempt somebody should be able to find afterwards.
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.LOGIN_FAILURE,
+                    identity.subject(),
+                    "Single sign-on refused: " + refused.getMessage(),
+                    null,
+                    ipAddress,
+                    userAgent));
+            return new FederatedSignIn.Refused(refused.refusal());
+        }
     }
 
     /** What trading a single sign-on hand-off token came to. */

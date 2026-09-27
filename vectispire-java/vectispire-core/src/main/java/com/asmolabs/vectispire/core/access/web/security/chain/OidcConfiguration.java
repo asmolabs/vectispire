@@ -1,15 +1,10 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
-import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
-import com.asmolabs.vectispire.core.access.AuthService;
+import com.asmolabs.vectispire.core.access.AuthenticationFlowService;
 import com.asmolabs.vectispire.core.access.ExternalIdentityService;
-import com.asmolabs.vectispire.core.access.FederatedSecondFactorPolicy;
-import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
-import com.asmolabs.vectispire.core.audit.AuditLogService;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -105,23 +100,10 @@ public class OidcConfiguration {
         return new InMemoryClientRegistrationRepository(registration);
     }
 
-    private final ExternalIdentityService identities;
-    private final AuthService auth;
-    private final AuditLogService audit;
     private final TrustedProxies proxies;
-    private final FederatedSecondFactorPolicy secondFactors;
 
-    public OidcConfiguration(
-            ExternalIdentityService identities,
-            AuthService auth,
-            AuditLogService audit,
-            TrustedProxies proxies,
-            FederatedSecondFactorPolicy secondFactors) {
-        this.identities = identities;
-        this.auth = auth;
-        this.audit = audit;
+    public OidcConfiguration(TrustedProxies proxies) {
         this.proxies = proxies;
-        this.secondFactors = secondFactors;
     }
 
     /**
@@ -131,16 +113,19 @@ public class OidcConfiguration {
      * code flow needs a servlet session to hold the state and nonce between the redirect out and
      * the redirect back. It is created here and nowhere else, and it carries no application
      * identity — the identity is the Vectispire session the success handler mints.
+     *
+     * <p>The flow service arrives here rather than through the constructor: it reads the provider
+     * registration this class declares, so a constructor asking for it would ask for itself.
      */
     @Bean
     @Order(1)
-    SecurityFilterChain oidcSecurity(HttpSecurity http) throws Exception {
+    SecurityFilterChain oidcSecurity(HttpSecurity http, AuthenticationFlowService flows) throws Exception {
         return http.securityMatcher("/oauth2/**", "/login/oauth2/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
                 .oauth2Login(login -> login
-                        .successHandler(onSuccess())
+                        .successHandler(onSuccess(flows))
                         // A refusal goes back to the login screen with a reason, rather than to
                         // a white page whose only content is a stack trace.
                         .failureHandler((request, response, exception) -> {
@@ -153,70 +138,50 @@ public class OidcConfiguration {
     /**
      * What happens once the provider has vouched for somebody.
      *
-     * <p>Resolve the account, mint a Vectispire session, hand the token over in a one-time cookie,
-     * and send the browser to the application. A refusal is redirected with its reason rather
-     * than thrown: the person is in a browser, mid-redirect, and a 500 tells them nothing.
+     * <p>The sign-in itself — second factor, account, teams, session, audit entry — is {@link
+     * AuthenticationFlowService#completeFederatedSignIn}'s, in one transaction; this adapts HTTP to
+     * it: the claims out of the token, the client's address from the trusted proxies, the token into
+     * a one-time cookie. A refusal is redirected with its reason rather than thrown: the person is in
+     * a browser, mid-redirect, and a 500 tells them nothing.
      */
-    private AuthenticationSuccessHandler onSuccess() {
+    private AuthenticationSuccessHandler onSuccess(AuthenticationFlowService flows) {
         return (request, response, authentication) -> {
             if (!(authentication.getPrincipal() instanceof OidcUser oidc)) {
                 redirectRefused(response, ExternalIdentityService.Refusal.NO_IDENTITY);
                 return;
             }
 
-            try {
-                // Checked before the account is resolved: a refused sign-on must not bind a
-                // subject to an account on its way out.
-                String secondFactor = secondFactors.require(
-                        oidc.getClaimAsStringList("amr"), oidc.getClaimAsString("acr"));
-                UserView user = identities.resolve(
-                        oidc.getSubject(),
-                        oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
-                        new ExternalIdentityService.Claimed(
-                                oidc.getPreferredUsername(),
-                                oidc.getEmail(),
-                                Boolean.TRUE.equals(oidc.getEmailVerified())));
+            AuthenticationFlowService.FederatedSignIn outcome = flows.completeFederatedSignIn(
+                    new AuthenticationFlowService.FederatedIdentity(
+                            oidc.getSubject(),
+                            oidc.getIssuer() == null ? null : oidc.getIssuer().toString(),
+                            new ExternalIdentityService.Claimed(
+                                    oidc.getPreferredUsername(),
+                                    oidc.getEmail(),
+                                    Boolean.TRUE.equals(oidc.getEmailVerified())),
+                            oidc.getClaimAsStringList("amr"),
+                            oidc.getClaimAsString("acr"),
+                            oidc.getClaimAsStringList("groups")),
+                    request.getHeader("User-Agent"),
+                    proxies.clientAddress(request));
 
-                // Synchronize team memberships from IdP groups claim if present
-                List<String> groups = oidc.getClaimAsStringList("groups");
-                if (groups != null && !groups.isEmpty()) {
-                    identities.syncGroups(user, groups);
+            switch (outcome) {
+                case AuthenticationFlowService.FederatedSignIn.Refused refused ->
+                    redirectRefused(response, refused.refusal());
+                case AuthenticationFlowService.FederatedSignIn.SignedIn signedIn -> {
+                    // The clear token, straight from the mint into the one-time cookie: the row it
+                    // belongs to holds only its hash, so this is the sole copy in existence.
+                    // The client's leg, not ours: behind a TLS-terminating proxy `isSecure()` is false —
+                    // no forward-headers strategy is set — and the session token went out in a cookie
+                    // without `Secure`. The trusted proxy's `X-Forwarded-Proto` is what says HTTPS.
+                    response.addCookie(handoff(signedIn.issued().token(), proxies.isSecureTransport(request)));
+                    // Back to the sign-in screen rather than to the application, and the marker says
+                    // why: that screen is where the browser would land anyway — the token is not in
+                    // memory yet, so the first API call answers 401 and the interceptor sends it
+                    // there. Naming the case turns a bounce into a step, and saves the application
+                    // attempting an exchange on every visit to a page nobody signed on from.
+                    response.sendRedirect("/login?sso=complete");
                 }
-
-                AuthService.IssuedSession session = auth.openFederatedSession(
-                        user, request.getHeader("User-Agent"), proxies.clientAddress(request));
-
-                audit.record(new AuditLogService.Record(
-                        AuditOperation.LOGIN_SUCCESS,
-                        user.username(),
-                        "Signed in through " + oidc.getIssuer() + ", " + secondFactor,
-                        user.username(),
-                        proxies.clientAddress(request),
-                        request.getHeader("User-Agent")));
-
-                // The clear token, straight from the mint into the one-time cookie: the row it
-                // belongs to holds only its hash, so this is the sole copy in existence.
-                // The client's leg, not ours: behind a TLS-terminating proxy `isSecure()` is false —
-                // no forward-headers strategy is set — and the session token went out in a cookie
-                // without `Secure`. The trusted proxy's `X-Forwarded-Proto` is what says HTTPS.
-                response.addCookie(handoff(session.token(), proxies.isSecureTransport(request)));
-                // Back to the sign-in screen rather than to the application, and the marker says
-                // why: that screen is where the browser would land anyway — the token is not in
-                // memory yet, so the first API call answers 401 and the interceptor sends it
-                // there. Naming the case turns a bounce into a step, and saves the application
-                // attempting an exchange on every visit to a page nobody signed on from.
-                response.sendRedirect("/login?sso=complete");
-            } catch (ExternalIdentityService.SignInRefusedException refused) {
-                // Audited like any refused login: a token from the realm that maps to no account
-                // is exactly the attempt somebody should be able to find afterwards.
-                audit.record(new AuditLogService.Record(
-                        AuditOperation.LOGIN_FAILURE,
-                        oidc.getSubject(),
-                        "Single sign-on refused: " + refused.getMessage(),
-                        null,
-                        proxies.clientAddress(request),
-                        request.getHeader("User-Agent")));
-                redirectRefused(response, refused.refusal());
             }
         };
     }
