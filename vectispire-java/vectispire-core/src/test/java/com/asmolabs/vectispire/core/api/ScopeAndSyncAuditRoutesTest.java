@@ -51,9 +51,14 @@ class ScopeAndSyncAuditRoutesTest extends ApiTestBase {
         assertThat(entries(AuditOperation.THREAT_INTEL_SYNCED, "threat_intel"))
                 .filteredOn(entry -> lead.equals(entry.getUserId()))
                 .extracting(AuditLogEntity::getDescription)
-                .hasSize(2)
-                .anySatisfy(epss -> assertThat(epss).contains("from the EPSS screen").contains("KEV="))
-                .anySatisfy(intel -> assertThat(intel).contains("from the threat intelligence screen"));
+                // One entry per feed and per request: each route reads the catalogue and the EPSS file.
+                .hasSize(4)
+                .anySatisfy(epss -> assertThat(epss).contains("CISA KEV catalogue").contains("from the EPSS screen")
+                        .contains("KEV="))
+                .anySatisfy(epss -> assertThat(epss).contains("EPSS scores").contains("from the EPSS screen"))
+                .anySatisfy(intel -> assertThat(intel).contains("CISA KEV catalogue")
+                        .contains("from the threat intelligence screen"))
+                .anySatisfy(intel -> assertThat(intel).contains("EPSS scores").contains("from the threat intelligence screen"));
     }
 
     @Test
