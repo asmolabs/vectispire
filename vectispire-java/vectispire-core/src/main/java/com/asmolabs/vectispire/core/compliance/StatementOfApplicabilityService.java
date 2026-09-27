@@ -9,6 +9,8 @@ import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.EvidenceSource;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.Implementation;
 import com.asmolabs.vectispire.common.domain.compliance.StatementOfApplicability.SoaStatement;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
@@ -17,7 +19,6 @@ import com.asmolabs.vectispire.core.compliance.persistence.ControlDeclarationRep
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -127,7 +128,7 @@ public class StatementOfApplicabilityService {
         // that does not exist.
         boolean known = framework.getControls().stream().anyMatch(control -> control.id().equals(controlId));
         if (!known) {
-            throw new NoSuchElementException(controlId + " is not a control of " + framework.getTitle() + ".");
+            throw new NotFoundException(controlId + " is not a control of " + framework.getTitle() + ".");
         }
         return declare(framework.name(), controlId, submission, actor);
     }
@@ -151,22 +152,22 @@ public class StatementOfApplicabilityService {
         // line and be reported as a divergence — a document defect dressed up as a disagreement
         // with the estate.
         if (submission.applicability() == null || submission.evidenceSource() == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "A declaration says two things at minimum: whether the control applies, and where its "
                             + "evidence lives.");
         }
         if (submission.applicability() == Applicability.APPLICABLE && submission.implementation() == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "An applicable control needs an implementation state: claiming it applies and saying "
                             + "nothing about whether it is in place is the omission the document exists to close.");
         }
         if (submission.applicability() == Applicability.EXCLUDED && isBlank(submission.justification())) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "An excluded control needs a justification: ISO 27001 clause 6.1.3 d requires one.");
         }
         if (submission.evidenceSource() != EvidenceSource.VECTISPIRE
                 && isBlank(submission.externalEvidence())) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "Evidence held outside Vectispire must say where: name the document, register or review.");
         }
         // Each against its column, before the row is read: past them the database refused the
@@ -185,7 +186,7 @@ public class StatementOfApplicabilityService {
         Instant due = submission.reviewDueAt();
         if (due != null && (due.isAfter(Triage.latestReview(now))
                 || due.isBefore(now.atZone(java.time.ZoneOffset.UTC).minusDays(Triage.MAX_REVIEW_DAYS).toInstant()))) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "The review date is at most " + Triage.MAX_REVIEW_DAYS + " days from today, either way.");
         }
         ControlDeclarationEntity row = declarations

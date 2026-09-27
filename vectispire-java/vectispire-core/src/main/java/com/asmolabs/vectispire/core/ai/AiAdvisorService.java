@@ -28,7 +28,7 @@ public class AiAdvisorService {
     }
 
     /**
-     * @throws java.util.NoSuchElementException for a hidden or absent issue, in the same words.
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException for a hidden or absent issue, in the same words.
      *     <b>An absent row goes to the same guard as a hidden one.</b> It had its own 404, worded
      *     "Issue not found: 42" against the guard's "Issue not found.", so the message alone told a
      *     restricted reader which sequential ids existed

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.compliance;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.core.access.RowVisibility;
@@ -17,7 +18,6 @@ import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Clock;
-import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -58,11 +58,11 @@ public class OwaspReportService {
         this.clock = clock;
     }
 
-    /** @throws NoSuchElementException for a hidden or absent repository, or one never reviewed */
+    /** @throws NotFoundException for a hidden or absent repository, or one never reviewed */
     public AiReviewResultView latest(long repositoryId, Visibility allowed) {
         visible(repositoryId, allowed);
         return reviews.latest(repositoryId).map(row -> AiReviewResultView.of(row, clock.instant()))
-                .orElseThrow(() -> new NoSuchElementException(NO_REPORT));
+                .orElseThrow(() -> new NotFoundException(NO_REPORT));
     }
 
     /**
@@ -102,7 +102,7 @@ public class OwaspReportService {
     public byte[] pdf(long repositoryId, Visibility allowed) {
         RepositoryView repository = visible(repositoryId, allowed);
         AiReviewResultEntity row =
-                reviews.latest(repositoryId).orElseThrow(() -> new NoSuchElementException(NO_REPORT));
+                reviews.latest(repositoryId).orElseThrow(() -> new NotFoundException(NO_REPORT));
         AiReviewResultView result = AiReviewResultView.of(row, clock.instant());
 
         if (AiReviewStatus.RUNNING.wireName().equals(result.status())) {

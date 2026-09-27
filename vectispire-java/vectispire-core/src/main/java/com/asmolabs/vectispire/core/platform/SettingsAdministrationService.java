@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.platform;
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -148,14 +149,14 @@ public class SettingsAdministrationService {
      */
     public Applied update(Map<String, String> body, Optional<UserView> writer, RequestActor actor) {
         if (body == null || body.isEmpty()) {
-            throw new IllegalArgumentException("No setting supplied.");
+            throw new InvalidInputException("No setting supplied.");
         }
 
         record Change(Setting setting, String value) {}
         List<Change> changes = new ArrayList<>();
         for (Map.Entry<String, String> entry : body.entrySet()) {
             Setting setting = Setting.byKey(entry.getKey())
-                    .orElseThrow(() -> new IllegalArgumentException("Unknown setting: \"" + entry.getKey() + "\"."));
+                    .orElseThrow(() -> new InvalidInputException("Unknown setting: \"" + entry.getKey() + "\"."));
             String value = entry.getValue() == null ? "" : entry.getValue().trim();
             // **The acceptance record is written by this server or not at all.** It is in the
             // catalog so a screen can display it; accepting it on the wire would let the person
@@ -163,7 +164,7 @@ public class SettingsAdministrationService {
             // decision, which is the one thing the record exists to prevent.
             if (setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_BY
                     || setting == Setting.AI_REVIEW_RISK_ACKNOWLEDGED_AT) {
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         setting.label() + " is recorded by the server when the public endpoint is turned on, "
                                 + "and cannot be set here.");
             }
@@ -200,7 +201,7 @@ public class SettingsAdministrationService {
             // nobody can empty — a control that blocks instead of controlling, and whose failure
             // shows only at the first triage.
             if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value) && noApproverExists()) {
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         "No active account can approve a triage: switching four-eyes on would put "
                                 + "every decision in a queue nobody can empty. Create an "
                                 + "administrator, a CISO or a security lead first.");
@@ -211,12 +212,12 @@ public class SettingsAdministrationService {
             // clear — 200 OK, no warning — and the audit description would then have carried the
             // value itself into a log that is deliberately never purged.
             if (setting.isEncrypted()) {
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         setting.label() + " is a credential and is written by its own route, which encrypts it. "
                                 + "Setting it here would store it in the clear.");
             }
             setting.validate(value).ifPresent(problem -> {
-                throw new IllegalArgumentException(setting.label() + " — " + problem);
+                throw new InvalidInputException(setting.label() + " — " + problem);
             });
             changes.add(new Change(setting, value));
         }

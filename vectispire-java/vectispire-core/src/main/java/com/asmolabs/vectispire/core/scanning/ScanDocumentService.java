@@ -27,7 +27,7 @@ public class ScanDocumentService {
         this.scans = scans;
     }
 
-    /** @throws java.util.NoSuchElementException absent and hidden alike, as {@link RowVisibility} words it */
+    /** @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException absent and hidden alike, as {@link RowVisibility} words it */
     public void requireVisible(long scanId, Visibility visibility) {
         RowVisibility.requireVisibleScan(scans.findById(scanId).orElse(null), ScanEntity::target, visibility);
     }

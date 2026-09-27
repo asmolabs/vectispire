@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.rules;
 
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.rules.InvalidRuleSetException;
@@ -19,7 +20,6 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -177,7 +177,7 @@ public class RuleSetService {
         // request was malformed, and a client retried it with a different body.
         SemgrepRuleSetEntity target = ruleSets
                 .findById(id)
-                .orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + "."));
+                .orElseThrow(() -> new NotFoundException("No rule set with id " + id + "."));
 
         // What the operator was shown when they confirmed, kept as the activation's record — and a
         // `text` column, so bounded like every other stored text.
@@ -190,7 +190,7 @@ public class RuleSetService {
 
         // Re-read rather than mutating the object in hand: the two statements above bypass the
         // persistence context, so the entity loaded before them still says what it said.
-        return ruleSets.findById(id).orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + "."));
+        return ruleSets.findById(id).orElseThrow(() -> new NotFoundException("No rule set with id " + id + "."));
     }
 
     /** Returns to the bundled rules alone. */

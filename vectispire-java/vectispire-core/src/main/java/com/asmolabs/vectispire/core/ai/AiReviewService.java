@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
@@ -116,7 +117,7 @@ public class AiReviewService {
     /** Stores the URL after validating it — the entry point is where a mistake costs least. */
     public void setOllamaUrl(String url) {
         if (url == null || url.isBlank()) {
-            throw new IllegalArgumentException("The Ollama service URL cannot be empty.");
+            throw new InvalidInputException("The Ollama service URL cannot be empty.");
         }
         post.validate(url.trim(), policy(), "Ollama URL");
         settings.set(Setting.AI_REVIEW_OLLAMA_URL, url.trim());

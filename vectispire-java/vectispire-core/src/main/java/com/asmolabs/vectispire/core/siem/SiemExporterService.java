@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.siem;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.SettingType;
@@ -81,7 +82,7 @@ public class SiemExporterService {
                 : SettingType.THRESHOLDS.stream()
                         .filter(candidate -> candidate.wireName().equalsIgnoreCase(minSeverity.trim()))
                         .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException(
+                        .orElseThrow(() -> new InvalidInputException(
                                 "Unknown minimum severity \"" + minSeverity.trim()
                                         + "\". Expected one of: CRITICAL, HIGH, MEDIUM, LOW."));
         BoundedText.within(endpoint == null ? null : endpoint.trim(), MAX_ENDPOINT_LENGTH, "The endpoint");
@@ -93,13 +94,13 @@ public class SiemExporterService {
         if (hasEndpoint) {
             SiemEndpoint.parse(parsedProtocol, endpoint);
         } else if (enabled) {
-            throw new IllegalArgumentException("An enabled SIEM export needs an endpoint.");
+            throw new InvalidInputException("An enabled SIEM export needs an endpoint.");
         }
         if (authHeader != null && !authHeader.isBlank()) {
             if (!parsedProtocol.carriesHeaders()) {
                 // Refused rather than stored: a credential kept for a transport that cannot send it
                 // is a secret at rest with no purpose, and the screen would claim it was in use.
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         "The authorization header applies to the webhook protocol only: a syslog frame has "
                                 + "nowhere to carry it.");
             }
@@ -163,7 +164,7 @@ public class SiemExporterService {
     private static void requireUsableHeader(String header) {
         BoundedText.within(header, MAX_AUTH_HEADER_LENGTH, "The authorization header");
         if (!header.chars().allMatch(c -> c >= 0x20 && c < 0x7f)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "The authorization header may hold printable ASCII only: no line break, no control or "
                             + "accented character.");
         }
@@ -222,7 +223,7 @@ public class SiemExporterService {
             + "not accept it. The cause is in the server log.";
 
     private static SiemProtocol parseProtocol(String protocol) {
-        return SiemProtocol.byName(protocol).orElseThrow(() -> new IllegalArgumentException(
+        return SiemProtocol.byName(protocol).orElseThrow(() -> new InvalidInputException(
                 "Unknown SIEM protocol \"" + protocol.trim() + "\". Expected one of: "
                         + String.join(", ", Arrays.stream(SiemProtocol.values()).map(Enum::name).toList()) + "."));
     }

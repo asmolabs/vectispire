@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.gate;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.PolicyFlag;
 import com.asmolabs.vectispire.common.domain.gate.RequestedPolicy;
@@ -58,7 +59,7 @@ public record GatePolicyFields(
      */
     public GatePolicy asReplacement() {
         if (failOnSeverity == null || failOnSeverity.isBlank()) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "\"fail_on_severity\" is required — a severity, or \"none\" to switch the rule off.");
         }
         return new GatePolicy(
@@ -99,14 +100,14 @@ public record GatePolicyFields(
         }
         Severity severity = Severity.of(value);
         if (severity == Severity.UNKNOWN) {
-            throw new IllegalArgumentException("Unknown severity: \"" + value + "\".");
+            throw new InvalidInputException("Unknown severity: \"" + value + "\".");
         }
         return new SeverityRequest.Threshold(severity);
     }
 
     private static boolean required(Boolean value, String field) {
         if (value == null) {
-            throw new IllegalArgumentException("\"" + field + "\" is required.");
+            throw new InvalidInputException("\"" + field + "\" is required.");
         }
         return value;
     }

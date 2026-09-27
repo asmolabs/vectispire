@@ -40,8 +40,8 @@ public class ExceptionReviewService {
      * @param reviewer who reviewed; empty for a caller that is not an account, which may not review
      * @throws AccessDeniedException for a reviewer whose role may not approve a triage decision —
      *     the platform governor among them
-     * @throws java.util.NoSuchElementException for a hidden or absent issue, in the same words
-     * @throws IllegalArgumentException when the issue carries no exception, or an extension names
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException for a hidden or absent issue, in the same words
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException when the issue carries no exception, or an extension names
      *     no date — see {@link IssueTriageService#review}
      */
     public ExceptionsRegisterService.Register review(

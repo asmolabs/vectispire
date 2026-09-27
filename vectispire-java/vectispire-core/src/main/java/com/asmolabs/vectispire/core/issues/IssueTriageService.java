@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.issues;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.InvalidTriageException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
@@ -253,7 +254,7 @@ public class IssueTriageService {
      * disagree. The origin is what separates a review from a decision.
      *
      * @param newExpiry required to extend, ignored otherwise
-     * @throws IllegalArgumentException when the issue carries no exception to review
+     * @throws InvalidInputException when the issue carries no exception to review
      */
     @Transactional
     public IssueEntity review(
@@ -262,27 +263,27 @@ public class IssueTriageService {
         // Before anything is read: a body without an outcome reached the switch below and answered
         // 500 with a NullPointerException, which told the reviewer nothing about what was missing.
         if (outcome == null) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "A review needs an outcome: " + java.util.Arrays.stream(ReviewOutcome.values())
                             .map(Enum::name).collect(java.util.stream.Collectors.joining(", ")) + ".");
         }
         if (comment != null && comment.length() > Triage.MAX_COMMENT_LENGTH) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "The comment is longer than " + Triage.MAX_COMMENT_LENGTH + " characters.");
         }
 
         IssueEntity issue = issues.findById(issueId)
-                .orElseThrow(() -> new IllegalArgumentException("No such issue: " + issueId));
+                .orElseThrow(() -> new InvalidInputException("No such issue: " + issueId));
 
         TriageStatus current = TriageStatus.fromWireName(issue.getTriageStatus()).orElse(null);
         if (current != TriageStatus.NOT_AFFECTED && current != TriageStatus.PENDING_APPROVAL) {
             // Reviewing an issue nobody excepted would put a row in the register for something
             // that is not an exception, which is exactly the noise the register exists to avoid.
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "Nothing to review: this issue carries no exception.");
         }
         if (outcome == ReviewOutcome.EXTENDED && newExpiry == null) {
-            throw new IllegalArgumentException("Extending an exception needs the date it now runs to.");
+            throw new InvalidInputException("Extending an exception needs the date it now runs to.");
         }
 
         Instant now = clock.instant();
@@ -292,10 +293,10 @@ public class IssueTriageService {
         // the write, as a 500. The ceiling is the one a triage's own review delay has.
         if (outcome == ReviewOutcome.EXTENDED) {
             if (!newExpiry.isAfter(now)) {
-                throw new IllegalArgumentException("An extension runs to a date in the future.");
+                throw new InvalidInputException("An extension runs to a date in the future.");
             }
             if (newExpiry.isAfter(Triage.latestReview(now))) {
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         "An extension runs at most " + Triage.MAX_REVIEW_DAYS + " days from today.");
             }
         }

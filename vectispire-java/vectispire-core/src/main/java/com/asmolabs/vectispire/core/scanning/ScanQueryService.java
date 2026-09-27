@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.core.access.RowVisibility;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
@@ -8,7 +9,6 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 
@@ -73,7 +73,7 @@ public class ScanQueryService {
     public String sbom(long id, Visibility allowed) {
         String document = visible(id, allowed).getSbom();
         if (document == null) {
-            throw new NoSuchElementException("This scan produced no SBOM.");
+            throw new NotFoundException("This scan produced no SBOM.");
         }
         return document;
     }

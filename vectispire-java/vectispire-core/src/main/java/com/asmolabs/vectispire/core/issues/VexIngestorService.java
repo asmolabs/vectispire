@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.cyclonedx.CycloneDxDocument;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.Triage;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -107,7 +108,7 @@ public class VexIngestorService {
         try {
             root = json.readTree(payload);
         } catch (Exception notJson) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "This is not a JSON document: " + firstLineOf(notJson), notJson);
         }
 
@@ -181,7 +182,7 @@ public class VexIngestorService {
 
         // A document nobody could read is the case this method exists to report, not to hide.
         // An empty result and an unreadable file used to be the same answer.
-        throw new IllegalArgumentException(refusals.isEmpty()
+        throw new InvalidInputException(refusals.isEmpty()
                 ? "No VEX statement was found: the document declares neither CycloneDX nor OpenVEX."
                 : "No VEX format could read this document — " + String.join("; ", refusals));
     }

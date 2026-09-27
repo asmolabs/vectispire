@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseConflictMatrix;
 import com.asmolabs.vectispire.common.domain.licenses.LicenseEntry;
 import com.asmolabs.vectispire.common.domain.licenses.LicensePolicy;
@@ -31,7 +33,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -90,7 +91,7 @@ public class LicenseGovernanceService {
      */
     public LicensePolicy updatePolicy(LicensePolicy policy, RequestActor actor) {
         if (policy == null) {
-            throw new IllegalArgumentException("A licence policy is required.");
+            throw new InvalidInputException("A licence policy is required.");
         }
         // The record has already dropped nulls and upper-cased the identifiers. What it cannot
         // decide is what the storage can hold: the lists are stored comma-joined, so an entry
@@ -107,7 +108,7 @@ public class LicenseGovernanceService {
 
     private static void requireStorable(Set<String> licences, String which) {
         licences.stream().filter(licence -> licence.contains(",")).findFirst().ifPresent(licence -> {
-            throw new IllegalArgumentException("\"" + licence + "\" contains a comma: list each "
+            throw new InvalidInputException("\"" + licence + "\" contains a comma: list each "
                     + which + " licence as an entry of its own.");
         });
         BoundedText.within(String.join(",", licences), BoundedText.TEXT_MAX, "The " + which + " licence list");
@@ -343,7 +344,7 @@ public class LicenseGovernanceService {
      * has always answered that with a 404 rather than with their own targets' figures. The evidence
      * bundle, which narrows, reads {@link #getSummary(Visibility)}.
      *
-     * @throws NoSuchElementException for a restricted reader naming no target — 404, never 403
+     * @throws NotFoundException for a restricted reader naming no target — 404, never 403
      */
     public LicenseSummary getSummary(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
         requireEstateOrTarget(allowed, repoIdFilter, containerIdFilter);
@@ -359,7 +360,7 @@ public class LicenseGovernanceService {
      */
     private static void requireEstateOrTarget(Visibility allowed, Long repoIdFilter, Long containerIdFilter) {
         if (repoIdFilter == null && containerIdFilter == null && !(allowed instanceof Visibility.Everything)) {
-            throw new NoSuchElementException("Not found.");
+            throw new NotFoundException("Not found.");
         }
     }
 
@@ -484,7 +485,7 @@ public class LicenseGovernanceService {
      * The licence conflicts of a named target, or of the estate for a reader who sees all of it —
      * refused otherwise, on the summary's terms.
      *
-     * @throws NoSuchElementException for a restricted reader naming no target
+     * @throws NotFoundException for a restricted reader naming no target
      */
     @Transactional(readOnly = true)
     public List<LicenseConflictMatrix.LicenseConflict> evaluateConflicts(

@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.rules;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.rules.RuleCatalogue;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.TriageImpact;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.UploadedFile;
@@ -8,7 +10,6 @@ import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.rules.persistence.SemgrepRuleSetEntity;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -54,7 +55,7 @@ public class RuleSetAdministrationService {
     /** What activating this set would cost, or a 404 for a set that does not exist. */
     public TriageImpact impact(long id) {
         return ruleSets.impactOf(
-                ruleSets.byId(id).orElseThrow(() -> new NoSuchElementException("No rule set with id " + id + ".")));
+                ruleSets.byId(id).orElseThrow(() -> new NotFoundException("No rule set with id " + id + ".")));
     }
 
     /** Stores an upload, attributed to the actor. Does not activate it. */
@@ -92,12 +93,12 @@ public class RuleSetAdministrationService {
         // acceptance that silently applied to a different commit would be worth nothing, and
         // this is the one place where "it probably did not change" is not good enough.
         if (!fetched.commit().equalsIgnoreCase(commit)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "The upstream moved between the preview and this request: you read " + commit
                             + ", it is now " + fetched.commit() + ". Read the catalogue again.");
         }
         if (!fetched.licenceSha256().equals(licenceSha256)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "The licence changed between the preview and this request. Read it again before accepting: "
                             + "what you agreed to is not what this commit carries.");
         }

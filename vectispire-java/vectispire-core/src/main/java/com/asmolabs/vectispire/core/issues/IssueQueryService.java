@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.RemediationSla;
@@ -149,7 +150,7 @@ public class IssueQueryService {
         }
         return IssueState.byWireName(value)
                 .map(IssueState::wireName)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new InvalidInputException(
                         "Unknown state \"" + raw.trim() + "\". Expected open, resolved or all."));
     }
 
@@ -163,7 +164,7 @@ public class IssueQueryService {
                 .map(Severity::wireName)
                 .filter(value::equals)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown severity \"" + raw.trim() + "\". Expected one of: "
+                .orElseThrow(() -> new InvalidInputException("Unknown severity \"" + raw.trim() + "\". Expected one of: "
                         + java.util.Arrays.stream(Severity.values()).map(Severity::wireName)
                                 .collect(java.util.stream.Collectors.joining(", ")) + "."));
     }
@@ -175,7 +176,7 @@ public class IssueQueryService {
         }
         return FindingType.fromWireName(raw.trim().toLowerCase(Locale.ROOT))
                 .map(FindingType::wireName)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown finding type \"" + raw.trim() + "\". Expected one of: "
+                .orElseThrow(() -> new InvalidInputException("Unknown finding type \"" + raw.trim() + "\". Expected one of: "
                         + java.util.Arrays.stream(FindingType.values()).map(FindingType::wireName)
                                 .collect(java.util.stream.Collectors.joining(", ")) + "."));
     }
@@ -215,7 +216,7 @@ public class IssueQueryService {
     /**
      * One issue, with what a row cannot carry — where it was seen, and what was decided.
      *
-     * @throws java.util.NoSuchElementException when it does not exist <em>or</em> is not visible,
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException when it does not exist <em>or</em> is not visible,
      *     in the same words, so a refusal reads as an absence
      */
     public IssueDetail detail(long id, Visibility allowed) {

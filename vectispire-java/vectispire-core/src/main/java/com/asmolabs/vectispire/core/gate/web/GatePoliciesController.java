@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.gate.web;
 
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresGovernanceRead;
@@ -17,7 +18,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -162,7 +162,7 @@ public class GatePoliciesController {
             @PathVariable long id) {
 
         if (!administration.clear(PolicyScope.of(kind, id), actor(principal, request))) {
-            throw new NoSuchElementException("No policy stored for " + kind + " " + id + ".");
+            throw new NotFoundException("No policy stored for " + kind + " " + id + ".");
         }
     }
 

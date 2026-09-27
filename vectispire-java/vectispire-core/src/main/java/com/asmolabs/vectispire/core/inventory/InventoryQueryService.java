@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.inventory;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentEntity;
 import com.asmolabs.vectispire.core.inventory.persistence.ComponentRepository;
@@ -85,10 +86,10 @@ public class InventoryQueryService {
         return components.distinctContainersWithComponents();
     }
 
-    /** @throws IllegalArgumentException for a blank name: searching for everything is not a search */
+    /** @throws InvalidInputException for a blank name: searching for everything is not a search */
     public Results search(String name, String version, Visibility allowed) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("A component name is required.");
+            throw new InvalidInputException("A component name is required.");
         }
 
         TargetNaming.Names names = naming.all();

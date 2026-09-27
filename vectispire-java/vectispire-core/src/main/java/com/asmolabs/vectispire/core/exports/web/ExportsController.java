@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.exports.web;
 
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
@@ -158,7 +159,7 @@ public class ExportsController {
         if ("container".equals(kind)) {
             return new ScanTarget.Container(id);
         }
-        throw new IllegalArgumentException("Unknown target kind: " + kind + ". Expected \"repository\" or \"container\".");
+        throw new InvalidInputException("Unknown target kind: " + kind + ". Expected \"repository\" or \"container\".");
     }
 
     /**

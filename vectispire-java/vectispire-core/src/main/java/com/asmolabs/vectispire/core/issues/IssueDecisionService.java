@@ -104,7 +104,7 @@ public class IssueDecisionService {
     /**
      * Records one triage decision.
      *
-     * @throws java.util.NoSuchElementException absent and hidden alike — see {@link RowVisibility}
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException absent and hidden alike — see {@link RowVisibility}
      */
     public IssueView triage(long id, Decision decision, Caller caller) {
         String actor = caller.actor();
@@ -194,7 +194,7 @@ public class IssueDecisionService {
      * answers 404 whatever was sent — the order the route has always had, and one a client may
      * already rely on.
      *
-     * @throws java.util.NoSuchElementException absent and hidden alike
+     * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException absent and hidden alike
      * @throws InvalidTicketException a reference missing or too long, a URL too long
      */
     public IssueView attachTicket(long id, String rawReference, String rawUrl, Caller caller) {

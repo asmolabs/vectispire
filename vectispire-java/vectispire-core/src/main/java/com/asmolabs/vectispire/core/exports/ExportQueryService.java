@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.CsafExport;
 import com.asmolabs.vectispire.common.domain.exports.ExportableIssue;
@@ -24,7 +25,6 @@ import com.asmolabs.vectispire.core.targets.TargetNaming;
 import java.time.Clock;
 import java.util.List;
 import java.util.Locale;
-import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 /**
@@ -36,7 +36,7 @@ import org.springframework.stereotype.Service;
  * the reader may not see, before any of these is reached, because an export is the widest read
  * in the API and the check belongs in front of it rather than somewhere inside.
  *
- * <p>A target that does not exist is a {@link NoSuchElementException}, worded as it always was:
+ * <p>A target that does not exist is a {@link NotFoundException}, worded as it always was:
  * "No repository with id 7."
  */
 @Service
@@ -187,8 +187,8 @@ public class ExportQueryService {
         return name;
     }
 
-    private static NoSuchElementException missing(ScanTarget target) {
-        return new NoSuchElementException("No " + kindOf(target) + " with id " + idOf(target) + ".");
+    private static NotFoundException missing(ScanTarget target) {
+        return new NotFoundException("No " + kindOf(target) + " with id " + idOf(target) + ".");
     }
 
     private static String kindOf(ScanTarget target) {

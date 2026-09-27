@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.attestation.InTotoAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
@@ -16,7 +17,6 @@ import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Instant;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -65,7 +65,7 @@ public class AttestationService {
 
     public InTotoAttestation generateAttestation(long scanId) {
         ScanView scan = scans.scan(scanId)
-                .orElseThrow(() -> new NoSuchElementException("Scan not found."));
+                .orElseThrow(() -> new NotFoundException("Scan not found."));
 
         if (!ScanStatus.COMPLETED.wireName().equals(scan.status())) {
             throw new NotAttestableException("Scan #" + scanId + " did not complete; there is no result to attest.");

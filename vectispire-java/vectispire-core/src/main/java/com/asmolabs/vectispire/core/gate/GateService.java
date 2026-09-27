@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
@@ -119,7 +121,7 @@ public class GateService {
             return of(switch (kind) {
                 case "repository" -> new ScanTarget.Repository(id);
                 case "container" -> new ScanTarget.Container(id);
-                default -> throw new IllegalArgumentException(
+                default -> throw new InvalidInputException(
                         "Unknown target kind: \"" + kind + "\". Use repository or container.");
             });
         }
@@ -139,7 +141,7 @@ public class GateService {
      */
     public static ScanTarget verdictTarget(Long repositoryId, Long containerId) {
         if ((repositoryId == null) == (containerId == null)) {
-            throw new IllegalArgumentException("Give exactly one of \"repository_id\" or \"container_id\".");
+            throw new InvalidInputException("Give exactly one of \"repository_id\" or \"container_id\".");
         }
         return repositoryId != null ? new ScanTarget.Repository(repositoryId) : new ScanTarget.Container(containerId);
     }
@@ -366,11 +368,11 @@ public class GateService {
             case SCOPE_GLOBAL -> true;
             case "repository" -> catalog.exists(new ScanTarget.Repository(scope.id()));
             case "container" -> catalog.exists(new ScanTarget.Container(scope.id()));
-            default -> throw new IllegalArgumentException(
+            default -> throw new InvalidInputException(
                     "Unknown policy scope: \"" + scope.kind() + "\". Use global, repository or container.");
         };
         if (!exists) {
-            throw new java.util.NoSuchElementException(
+            throw new NotFoundException(
                     "No " + scope.kind() + " with id " + scope.id() + ".");
         }
     }
