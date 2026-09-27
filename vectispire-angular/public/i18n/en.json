@@ -366,6 +366,7 @@
       "certified_scope_changed": "Certified scope changed",
       "threat_intel_synced": "Threat intelligence synchronised",
       "agent_credential_sent": "Credential sent to an agent",
+      "scan_attempts_repaired": "Scan attempts given back at upgrade",
       "agent_result_submitted": "Agent result submitted",
       "agent_result_refused": "Agent result refused",
       "agent_signing_key_pinned": "Agent signing key pinned",
