@@ -152,6 +152,7 @@ plugins:
             Reference: Référence
             Configuration: Configuration
             FAQ: FAQ
+            Release notes: Notes de version
 
 markdown_extensions:
   - admonition
@@ -228,3 +229,4 @@ nav:
   - Reference:
       - Configuration: reference/configuration.md
       - FAQ: reference/faq.md
+      - Release notes: reference/release-notes.md
