@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.aireview;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -80,7 +81,7 @@ public enum AiProvider {
         return Arrays.stream(values())
                 .filter(provider -> provider.wireName.equals(normalized))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new InvalidInputException(
                         "Unknown AI provider \"" + value + "\". Expected \"ollama\" or \"openai\"."));
     }
 }

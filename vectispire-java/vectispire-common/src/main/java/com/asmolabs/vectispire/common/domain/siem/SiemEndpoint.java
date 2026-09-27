@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.siem;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
@@ -34,12 +35,12 @@ public sealed interface SiemEndpoint {
     /**
      * Reads an endpoint for a protocol.
      *
-     * @throws IllegalArgumentException worded for the person who typed it
+     * @throws InvalidInputException worded for the person who typed it
      */
     static SiemEndpoint parse(SiemProtocol protocol, String endpoint) {
         String value = endpoint == null ? "" : endpoint.trim();
         if (value.isEmpty()) {
-            throw new IllegalArgumentException("The endpoint is required.");
+            throw new InvalidInputException("The endpoint is required.");
         }
         return switch (protocol) {
             case WEBHOOK -> webhook(value);
@@ -52,15 +53,15 @@ public sealed interface SiemEndpoint {
         try {
             uri = new URI(value);
         } catch (Exception unreadable) {
-            throw new IllegalArgumentException("The webhook endpoint is not a readable URL.");
+            throw new InvalidInputException("The webhook endpoint is not a readable URL.");
         }
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
         if (!scheme.equals("https") && !scheme.equals("http")) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "A webhook endpoint is an http(s) URL, for example https://collector.example.com/cef.");
         }
         if (uri.getHost() == null || uri.getHost().isBlank()) {
-            throw new IllegalArgumentException("The webhook endpoint names no host.");
+            throw new InvalidInputException("The webhook endpoint names no host.");
         }
         return new Webhook(value);
     }
@@ -68,7 +69,7 @@ public sealed interface SiemEndpoint {
     private static Syslog syslog(SiemProtocol protocol, String value) {
         String example = protocol == SiemProtocol.SYSLOG_TLS ? "collector.example.com:6514" : "collector.example.com:514";
         if (value.contains("://") || value.contains("/")) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "A syslog endpoint is host:port, for example " + example + " — no scheme and no path: the "
                             + "protocol field already says how events travel.");
         }
@@ -77,26 +78,26 @@ public sealed interface SiemEndpoint {
         if (value.startsWith("[")) {
             int close = value.indexOf(']');
             if (close < 0 || close + 1 >= value.length() || value.charAt(close + 1) != ':') {
-                throw new IllegalArgumentException("An IPv6 syslog endpoint is written [address]:port.");
+                throw new InvalidInputException("An IPv6 syslog endpoint is written [address]:port.");
             }
             host = value.substring(1, close);
             port = value.substring(close + 2);
             if (!isIpv6Literal(host)) {
-                throw new IllegalArgumentException("\"" + host + "\" is not an IPv6 address.");
+                throw new InvalidInputException("\"" + host + "\" is not an IPv6 address.");
             }
         } else {
             int colon = value.lastIndexOf(':');
             if (colon < 0) {
-                throw new IllegalArgumentException(
+                throw new InvalidInputException(
                         "A syslog endpoint needs its port, for example " + example + ".");
             }
             if (value.indexOf(':') != colon) {
-                throw new IllegalArgumentException("An IPv6 syslog endpoint is written [address]:port.");
+                throw new InvalidInputException("An IPv6 syslog endpoint is written [address]:port.");
             }
             host = value.substring(0, colon);
             port = value.substring(colon + 1);
             if (host.isEmpty() || !HOSTNAME.matcher(host).matches()) {
-                throw new IllegalArgumentException("\"" + host + "\" is not a host name or an IPv4 address.");
+                throw new InvalidInputException("\"" + host + "\" is not a host name or an IPv4 address.");
             }
         }
         return new Syslog(protocol, host, portOf(port));
@@ -112,11 +113,11 @@ public sealed interface SiemEndpoint {
 
     private static int portOf(String text) {
         if (text.isEmpty() || text.length() > 5 || !text.chars().allMatch(c -> c >= '0' && c <= '9')) {
-            throw new IllegalArgumentException("The port must be a number between 1 and 65535.");
+            throw new InvalidInputException("The port must be a number between 1 and 65535.");
         }
         int port = Integer.parseInt(text);
         if (port < 1 || port > 65_535) {
-            throw new IllegalArgumentException("The port must be a number between 1 and 65535.");
+            throw new InvalidInputException("The port must be a number between 1 and 65535.");
         }
         return port;
     }

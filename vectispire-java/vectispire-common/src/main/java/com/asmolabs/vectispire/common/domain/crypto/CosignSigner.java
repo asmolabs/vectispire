@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.crypto;
 
 import com.asmolabs.vectispire.common.domain.attestation.DsseEnvelope;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -94,7 +95,9 @@ public final class CosignSigner {
             KeyFactory kf = KeyFactory.getInstance(KEY_ALGORITHM);
             return kf.generatePublic(new X509EncodedKeySpec(encoded));
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid ECDSA public key format", e);
+            // A key a reviewer pasted into the verification form: theirs to correct. The private key
+            // below is the deployment's own configuration, and its refusal stays a failure.
+            throw new InvalidInputException("Invalid ECDSA public key format", e);
         }
     }
 

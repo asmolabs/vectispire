@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.targets;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.net.LinkLocalHosts;
 import java.net.URI;
 import java.util.Locale;
@@ -193,7 +194,7 @@ public final class RepositoryUrl {
     /**
      * A host as a token is bound to it: lower case, no trailing dot, no port, no scheme.
      *
-     * @throws IllegalArgumentException when it is not a host name or an IPv4 literal
+     * @throws InvalidInputException when it is not a host name or an IPv4 literal
      */
     public static String normalizeHost(String host) {
         String value = host == null ? "" : host.trim().toLowerCase(Locale.ROOT);
@@ -201,11 +202,11 @@ public final class RepositoryUrl {
             value = value.substring(0, value.length() - 1);
         }
         if (value.isEmpty() || value.length() > 253 || !HOST_NAME.matcher(value).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "Expected a host name such as gitlab.example.com — no scheme, port or path.");
         }
         if (LinkLocalHosts.isLinkLocalLiteral(value)) {
-            throw new IllegalArgumentException(LINK_LOCAL_REFUSED);
+            throw new InvalidInputException(LINK_LOCAL_REFUSED);
         }
         return value;
     }

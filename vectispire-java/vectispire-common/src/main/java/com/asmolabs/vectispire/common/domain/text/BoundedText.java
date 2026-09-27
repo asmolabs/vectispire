@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.text;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.Optional;
 
 /**
@@ -51,12 +52,12 @@ public final class BoundedText {
      * Trimmed, present, and no longer than {@code max}, or a refusal naming the field.
      *
      * @param what the field as the person who filled it knows it — "The repository name"
-     * @throws IllegalArgumentException blank or too long, with a message meant to be displayed
+     * @throws InvalidInputException blank or too long, with a message meant to be displayed
      */
     public static String required(String value, int max, String what) {
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.isEmpty()) {
-            throw new IllegalArgumentException(what + " is required.");
+            throw new InvalidInputException(what + " is required.");
         }
         return within(trimmed, max, what);
     }
@@ -67,7 +68,7 @@ public final class BoundedText {
      * <p>Blank becomes null rather than the empty string: an empty name and no name read the same
      * to everyone looking at the screen, and storing both would make them compare differently.
      *
-     * @throws IllegalArgumentException too long
+     * @throws InvalidInputException too long
      */
     public static String optional(String value, int max, String what) {
         String trimmed = value == null ? "" : value.trim();
@@ -80,11 +81,11 @@ public final class BoundedText {
      * <p>For the values whose whitespace is part of them: a secret, a comment whose indentation
      * the author meant.
      *
-     * @throws IllegalArgumentException too long
+     * @throws InvalidInputException too long
      */
     public static String within(String value, int max, String what) {
         tooLong(value, max, what).ifPresent(problem -> {
-            throw new IllegalArgumentException(problem);
+            throw new InvalidInputException(problem);
         });
         return value;
     }

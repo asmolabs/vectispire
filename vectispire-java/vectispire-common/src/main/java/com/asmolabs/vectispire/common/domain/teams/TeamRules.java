@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.teams;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.Locale;
 import java.util.Set;
 
@@ -53,10 +54,10 @@ public final class TeamRules {
     public static String validateName(String name) {
         String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
-            throw new IllegalArgumentException("A team name is required.");
+            throw new InvalidInputException("A team name is required.");
         }
         if (trimmed.length() > MAX_NAME_LENGTH) {
-            throw new IllegalArgumentException("A team name is at most " + MAX_NAME_LENGTH + " characters.");
+            throw new InvalidInputException("A team name is at most " + MAX_NAME_LENGTH + " characters.");
         }
         return trimmed;
     }
@@ -86,7 +87,7 @@ public final class TeamRules {
     public static String validateTargetKind(String kind) {
         String normalized = kind == null ? "" : kind.trim().toLowerCase(Locale.ROOT);
         if (!KINDS.contains(normalized)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "Unknown target kind \"" + kind + "\". Expected: " + KIND_REPOSITORY + ", " + KIND_CONTAINER
                             + ", " + KIND_PROJECT + ".");
         }

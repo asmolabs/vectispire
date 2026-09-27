@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.targets;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -48,11 +49,11 @@ public final class RepositorySubPath {
     /**
      * The value as stored and used: trimmed, without a trailing slash, empty for the root.
      *
-     * @throws IllegalArgumentException when {@link #validate} refuses it
+     * @throws InvalidInputException when {@link #validate} refuses it
      */
     public static String normalize(String subPath) {
         validate(subPath).ifPresent(problem -> {
-            throw new IllegalArgumentException(problem);
+            throw new InvalidInputException(problem);
         });
         return subPath == null ? "" : strip(subPath.trim());
     }

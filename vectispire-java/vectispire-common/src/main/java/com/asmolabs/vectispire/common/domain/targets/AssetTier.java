@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.targets;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Duration;
 import java.time.Instant;
@@ -80,13 +81,13 @@ public enum AssetTier {
      * with a deadline four times longer than the one the operator chose, and a screen that showed
      * "Tier 2" as if that had been the choice.
      *
-     * @throws IllegalArgumentException for a value that names no tier
+     * @throws InvalidInputException for a value that names no tier
      */
     public static AssetTier fromInput(String value) {
         if (value == null || value.isBlank()) {
             return TIER_2_BUSINESS_OPERATIONAL;
         }
-        return byName(value).orElseThrow(() -> new IllegalArgumentException(
+        return byName(value).orElseThrow(() -> new InvalidInputException(
                 "Unknown asset tier \"" + value.trim() + "\". Expected one of: "
                         + String.join(", ", Arrays.stream(values()).map(Enum::name).toList()) + "."));
     }

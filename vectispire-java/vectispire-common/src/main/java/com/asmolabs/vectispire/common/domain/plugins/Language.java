@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.plugins;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
@@ -80,7 +81,7 @@ public enum Language {
 
     @JsonCreator
     public static Language fromJson(String value) {
-        return fromWireName(value).orElseThrow(() -> new IllegalArgumentException(
+        return fromWireName(value).orElseThrow(() -> new InvalidInputException(
                 "Unknown language \"" + value + "\"; expected one of " + wireNames() + "."));
     }
 

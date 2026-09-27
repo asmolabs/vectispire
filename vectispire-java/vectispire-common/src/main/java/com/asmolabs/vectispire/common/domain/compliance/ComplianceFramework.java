@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.compliance;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import java.util.List;
 
 /**
@@ -187,7 +188,7 @@ public enum ComplianceFramework {
      * nothing — which is how the route that parsed this with a bare {@code toUpperCase()} would have
      * refused a framework depending on the server's locale.
      *
-     * @throws IllegalArgumentException for a value that names no framework, with the list of those
+     * @throws InvalidInputException for a value that names no framework, with the list of those
      *     that exist
      */
     public static ComplianceFramework fromIdentifier(String value) {
@@ -195,7 +196,7 @@ public enum ComplianceFramework {
         return java.util.Arrays.stream(values())
                 .filter(framework -> squeeze(framework.name()).equals(wanted))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown framework \"" + value + "\". Expected one of: "
+                .orElseThrow(() -> new InvalidInputException("Unknown framework \"" + value + "\". Expected one of: "
                         + String.join(", ", java.util.Arrays.stream(values()).map(Enum::name).toList()) + "."));
     }
 

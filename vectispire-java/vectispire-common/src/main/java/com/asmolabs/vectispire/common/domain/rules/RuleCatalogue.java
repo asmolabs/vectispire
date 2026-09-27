@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.common.domain.rules;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.owasp.OwaspTag;
 import java.util.Comparator;
 import java.util.List;
@@ -141,14 +142,14 @@ public final class RuleCatalogue {
      */
     public static void requireCommit(String commit) {
         if (commit == null || !COMMIT.matcher(commit.trim().toLowerCase(Locale.ROOT)).matches()) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "A full 40-character commit SHA is required, not \"" + commit + "\".");
         }
     }
 
     public static void requireAllowed(String repository) {
         if (FORBIDDEN.contains(repository)) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     repository + " is licensed under terms that forbid distributing its rules. "
                             + "Vectispire will not fetch it on anybody's behalf.");
         }
@@ -184,13 +185,13 @@ public final class RuleCatalogue {
      */
     public static List<RuleSet.UploadedFile> select(Contents contents, Set<String> languages) {
         if (languages == null || languages.isEmpty()) {
-            throw new IllegalArgumentException("Choose at least one language: a rule set with no rules resolves the backlog.");
+            throw new InvalidInputException("Choose at least one language: a rule set with no rules resolves the backlog.");
         }
         Set<String> unknown = languages.stream()
                 .filter(language -> !contents.languages().containsKey(language))
                 .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
         if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("No such language in this tag: " + String.join(", ", unknown) + ".");
+            throw new InvalidInputException("No such language in this tag: " + String.join(", ", unknown) + ".");
         }
 
         return contents.entries().stream()
