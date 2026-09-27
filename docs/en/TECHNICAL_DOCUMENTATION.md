@@ -252,7 +252,7 @@ Outside the main model, and each one load-bearing:
 | `setting` | key/value, including the four remediation windows | the `Setting` catalog decides what is exposed. A deadline is a setting and not a column: it is a policy an organisation writes, and storing it per issue would freeze each one at the policy in force the day it was found |
 | `audit_log` | entry hash, previous hash, IP, user agent | chained: makes **selective** editing detectable |
 | `outbox_message` | payload, `status`, `attempts`, `next_attempt_at`, `team_id` (null = the global webhook) | written in the transaction that produces the result, so a crash before the POST loses nothing |
-| `processed_message` | `message_id` UK, `agent_id` | deduplicates an at-least-once agent report; the fingerprint alone would still inflate `times_seen` |
+| `processed_message` | `message_id`, `agent_id` | **created by `V1` and never written**: nothing maps it any more. An agent's repeated report is refused by the scan itself — the result is recorded only while the scan is still `scanning` and leased to that agent (`ScanQueue.holdForWrite`), and recording it ends both, so a second copy writes nothing and `times_seen` does not move. The table stays because `V1` is never edited |
 | `leader_lease` | `name`, `holder`, `expires_at` | one instance holds the periodic tick; a table rather than an advisory lock because it is **observable** |
 
 ## 3. Scan pipeline

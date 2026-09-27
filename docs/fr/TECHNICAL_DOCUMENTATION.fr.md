@@ -255,7 +255,7 @@ Hors du modèle principal, et chacune porteuse :
 | `setting` | clé/valeur, dont les quatre fenêtres de remédiation | le catalogue `Setting` décide de ce qui est exposé. Une échéance est un réglage et non une colonne : c'est une politique qu'une organisation écrit, et la stocker par anomalie figerait chacune sur la politique en vigueur le jour de sa découverte |
 | `audit_log` | empreinte de l'entrée, empreinte précédente, IP, agent utilisateur | chaînée : rend détectable une modification **sélective** |
 | `outbox_message` | charge utile, `status`, `attempts`, `next_attempt_at`, `team_id` (nul = le webhook global) | écrite dans la transaction qui produit le résultat, de sorte qu'un plantage avant le POST ne perd rien |
-| `processed_message` | `message_id` UK, `agent_id` | déduplique un compte rendu d'agent au-moins-une-fois ; l'empreinte seule gonflerait quand même `times_seen` |
+| `processed_message` | `message_id`, `agent_id` | **créée par `V1` et jamais écrite** : plus rien ne la mappe. Le compte rendu répété d'un agent est refusé par le scan lui-même — le résultat n'est enregistré que tant que le scan est `scanning` et loué à cet agent (`ScanQueue.holdForWrite`), et l'enregistrer met fin aux deux, si bien qu'une seconde copie n'écrit rien et que `times_seen` ne bouge pas. La table reste parce que `V1` n'est jamais modifiée |
 | `leader_lease` | `name`, `holder`, `expires_at` | une seule instance porte le tic périodique ; une table plutôt qu'un verrou consultatif parce qu'elle est **observable** |
 
 ## 3. Pipeline d'analyse
