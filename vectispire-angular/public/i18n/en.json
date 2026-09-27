@@ -146,7 +146,9 @@
       "export": "Export",
       "export_hint": "Retrieve SARIF, OpenVEX, SBOM.",
       "agent": "Agent",
-      "agent_hint": "Claim and run scans. This scope executes code: grant it only to an agent."
+      "agent_hint": "Claim and run scans. This scope executes code: grant it only to an agent.",
+      "sarif_import": "SARIF import",
+      "sarif_import_hint": "Deposit an internal tool's SARIF report into a repository's backlog. Never granted by default, and not enough on its own: the platform governor must also declare this key as a SARIF source, bound to one project or repository. Issue it from an account that can act — not an auditor."
     },
     "subtitle": "The keys that authenticate automated calls.",
     "target": "Target",

@@ -146,7 +146,9 @@
       "export": "Export",
       "export_hint": "Récupérer SARIF, OpenVEX, SBOM.",
       "agent": "Agent",
-      "agent_hint": "Réclamer et exécuter des scans. Cette portée exécute du code : ne l'accordez qu'à un agent."
+      "agent_hint": "Réclamer et exécuter des scans. Cette portée exécute du code : ne l'accordez qu'à un agent.",
+      "sarif_import": "Import SARIF",
+      "sarif_import_hint": "Déposer le rapport SARIF d'un outil interne dans le backlog d'un dépôt. Jamais accordé par défaut, et insuffisant seul : le gouverneur de la plateforme doit aussi déclarer cette clé comme source SARIF, liée à un projet ou à un dépôt. Émettez-la depuis un compte qui peut agir — pas un auditeur."
     },
     "subtitle": "Jetons d'authentification programmatique pour pipelines CI/CD et scanners externes.",
     "target": "Cible",

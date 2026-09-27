@@ -33,7 +33,9 @@
                         @for (scope of key.scopes; track scope) {
                             <p-tag
                                 [value]="scopeLabel(scope)"
-                                [severity]="scope === 'agent' ? 'danger' : 'secondary'"
+                                [severity]="
+                                    scope === 'agent' ? 'danger' : scope === 'sarif_import' ? 'warn' : 'secondary'
+                                "
                             />
                         }
                     </div>

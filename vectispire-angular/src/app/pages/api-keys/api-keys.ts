@@ -69,6 +69,15 @@ export class ApiKeys {
                 label: this.i18n.t('api_keys.scopes_list.export'),
                 hint: this.i18n.t('api_keys.scopes_list.export_hint')
             },
+            // **Offered, never ticked by default.** It lets a pipeline deposit findings, and on its
+            // own it does nothing: the platform governor must also declare the key as a SARIF
+            // source, bound to one project or repository. The hint says both, because a key issued
+            // with it and never declared answers 403 and nobody would know why.
+            {
+                value: 'sarif_import',
+                label: this.i18n.t('api_keys.scopes_list.sarif_import'),
+                hint: this.i18n.t('api_keys.scopes_list.sarif_import_hint')
+            },
             {
                 value: 'agent',
                 label: this.i18n.t('api_keys.scopes_list.agent'),
