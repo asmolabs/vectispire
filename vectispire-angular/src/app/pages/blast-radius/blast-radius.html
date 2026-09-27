@@ -465,7 +465,6 @@
                         <th>{{ 'blast_radius.component_column' | translate }}</th>
                         <th>{{ 'common.version' | translate }}</th>
                         <th>{{ 'blast_radius.col_inclusion' | translate }}</th>
-                        <th>{{ 'blast_radius.col_reachability' | translate }}</th>
                         <th>{{ 'blast_radius.cves_found' | translate }}</th>
                     </tr>
                 </ng-template>
@@ -534,12 +533,6 @@
                                         : ('blast_radius.transitive' | translate)
                                 }}
                             </span>
-                        </td>
-                        <td>
-                            <p-tag
-                                [value]="t.reachability"
-                                [severity]="getReachabilitySeverity(t.reachability)"
-                            ></p-tag>
                         </td>
                         <td>
                             <div class="flex gap-1 flex-wrap">

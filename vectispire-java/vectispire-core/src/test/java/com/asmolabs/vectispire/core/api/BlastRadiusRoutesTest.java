@@ -56,7 +56,6 @@ class BlastRadiusRoutesTest extends ApiTestBase {
         finding.setSeverity("HIGH");
         finding.setCvssScore(9.8);
         finding.setIsDirectDependency(true);
-        finding.setReachability("REACHABLE");
         finding.setCreatedAt(Instant.now());
         findingsRepo.save(finding);
 
@@ -67,6 +66,8 @@ class BlastRadiusRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.directUsages").value(1))
                 .andExpect(jsonPath("$.blastRadiusScore").isNumber())
                 .andExpect(jsonPath("$.targets[0].targetName").value("corp/payment-service"))
+                // Nothing computes reachability: each row said UNKNOWN, in a column of its own.
+                .andExpect(jsonPath("$.targets[0].reachability").doesNotExist())
                 .andExpect(jsonPath("$.graph.nodes").isArray())
                 .andExpect(jsonPath("$.graph.edges").isArray());
 

@@ -27,7 +27,6 @@ public record BlastRadiusReport(
             String packageVersion,
             boolean isDirect,
             List<String> cves,
-            String reachability,
             Long scanId) {}
 
     public record TopImpactPackage(

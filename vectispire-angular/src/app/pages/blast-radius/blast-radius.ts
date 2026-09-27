@@ -106,10 +106,4 @@ export class BlastRadius implements OnInit {
         if (score >= 40) return 'warn';
         return 'success';
     }
-
-    getReachabilitySeverity(reachability: string): 'success' | 'warn' | 'danger' | 'info' {
-        if (reachability === 'REACHABLE') return 'danger';
-        if (reachability === 'UNREACHABLE') return 'success';
-        return 'info';
-    }
 }

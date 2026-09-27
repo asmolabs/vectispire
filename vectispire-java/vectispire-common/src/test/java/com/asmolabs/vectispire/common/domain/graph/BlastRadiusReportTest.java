@@ -33,7 +33,7 @@ class BlastRadiusReportTest {
         DependencyGraph graph = new DependencyGraph(List.of(targetNode, pkgNode), List.of(edge));
 
         BlastRadiusReport.TargetImpact targetImpact = new BlastRadiusReport.TargetImpact(
-                1L, "REPOSITORY", "corp/backend", "main", "pom.xml", "pkg:maven/org.apache.commons/commons-text@1.9", "commons-text", "1.9", true, List.of("CVE-2022-42889"), "REACHABLE", 42L);
+                1L, "REPOSITORY", "corp/backend", "main", "pom.xml", "pkg:maven/org.apache.commons/commons-text@1.9", "commons-text", "1.9", true, List.of("CVE-2022-42889"), 42L);
 
         BlastRadiusReport report = new BlastRadiusReport(
                 "commons-text",

@@ -6681,9 +6681,6 @@
           "purl" : {
             "type" : "string"
           },
-          "reachability" : {
-            "type" : "string"
-          },
           "scanId" : {
             "format" : "int64",
             "type" : "integer"

@@ -121,7 +121,6 @@ public class BlastRadiusService {
                     maxCvss = finding.cvssScore();
                 }
 
-                String reachability = finding.reachability() != null ? finding.reachability() : "UNKNOWN";
                 String sourceFile = finding.filePath() != null && !finding.filePath().isBlank()
                         ? finding.filePath()
                         : (finding.purl() != null ? extractEcosystem(finding.purl()) : "manifest");
@@ -137,7 +136,6 @@ public class BlastRadiusService {
                         finding.packageVersion() != null ? finding.packageVersion() : "latest",
                         isDirect,
                         (cveId != null && cveId.toUpperCase(Locale.ROOT).startsWith("CVE-")) ? List.of(cveId) : List.of(),
-                        reachability,
                         scan.id()));
 
                 // Add Target Node

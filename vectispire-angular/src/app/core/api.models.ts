@@ -1423,7 +1423,6 @@ export type TargetImpact = Refine<
         sourceFile: string;
         packageName: string;
         packageVersion: string;
-        reachability: string;
         scanId: number;
         cves: string[];
         purl: string | null;

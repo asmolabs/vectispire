@@ -501,7 +501,6 @@
     "occurrences_title": "Inventaire détaillé des dépendances & cibles impactées ({{count}} occurrences)",
     "col_source_file": "Emplacement source (fichier)",
     "col_inclusion": "Inclusion",
-    "col_reachability": "Atteignabilité",
     "context_branch": "Branche : {{value}}",
     "context_tag": "Tag : {{value}}",
     "direct": "Directe",

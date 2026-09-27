@@ -5515,7 +5515,6 @@ export interface components {
             packageName?: string;
             packageVersion?: string;
             purl?: string;
-            reachability?: string;
             /** Format: int64 */
             scanId?: number;
             sourceFile?: string;

@@ -501,7 +501,6 @@
     "occurrences_title": "Every place the dependency is found ({{count}} occurrences)",
     "col_source_file": "Source location (file)",
     "col_inclusion": "Inclusion",
-    "col_reachability": "Reachability",
     "context_branch": "Branch: {{value}}",
     "context_tag": "Tag: {{value}}",
     "direct": "Direct",
