@@ -89,9 +89,9 @@ la copie stockée. Il doit joindre `epss.empiricalsecurity.com` — ou `VECTISPI
 désigner un miroir (et `VECTISPIRE_EPSS_ALLOW_PRIVATE=true` sur un réseau privé), voir
 [Configuration](configuration.md#threat-intelligence) ; une liste d'autorisation qui ouvrait
 `api.first.org` aux scans peut le refermer. Jusqu'à la première synchronisation, que la première
-tâche de maintenance lance une demi-minute après le démarrage, un nouveau constat n'a pas de score EPSS —
-inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le fichier
-les remplace.
+tâche de maintenance lance une demi-minute après le démarrage, un nouveau constat n'a pas de score
+EPSS — inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le
+fichier les remplace.
 
 **Les migrations V32 à V45 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).

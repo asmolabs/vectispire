@@ -80,8 +80,8 @@ issues' scores from it, and scans read the stored copy. It needs to reach
 `VECTISPIRE_EPSS_ALLOW_PRIVATE=true` on a private network), see
 [Configuration](configuration.md#threat-intelligence); an allow-list that opened `api.first.org` for
 scans can close it. Until the first synchronisation, which the first maintenance turn runs half a
-minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already on issues
-stay until the file replaces them.
+minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already
+on issues stay until the file replaces them.
 
 **Schema migrations V32 to V45 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
