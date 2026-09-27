@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.security.chain;
 
+import com.asmolabs.vectispire.core.access.RateWindows;
 import com.asmolabs.vectispire.core.access.web.security.TrustedProxies;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -40,6 +41,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Bounded like the other limiters, for the reason {@link LoginRateLimitFilter} gives: the map of
  * addresses must not itself be the attack.
+ *
+ * <p><b>Counted twice: here, then across instances.</b> The bucket alone was per instance, so behind
+ * a load balancer of three an address had three ceilings. A delivery the bucket admits is then
+ * counted in {@link RateWindows}, which every instance shares, against the same ceiling. The bucket
+ * stays in front, so that a flood this instance already knows to refuse costs no statement at all;
+ * the shared count is what makes the configured figure the deployment's rather than each
+ * instance's.
  */
 @Component
 public class WebhookRateLimitFilter extends OncePerRequestFilter {
@@ -60,14 +68,17 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
             });
 
     private final TrustedProxies proxies;
+    private final RateWindows shared;
     private final int capacity;
     private final Duration window;
 
     public WebhookRateLimitFilter(
             TrustedProxies proxies,
+            RateWindows shared,
             @Value("${vectispire.security.webhook-requests-per-window:300}") int capacity,
             @Value("${vectispire.security.webhook-request-window:PT1M}") Duration window) {
         this.proxies = proxies;
+        this.shared = shared;
         // A ceiling of zero would refuse every delivery, so a misconfiguration falls back to the
         // shipped value rather than silently cutting the tracker off.
         this.capacity = capacity > 0 ? capacity : DEFAULT_CAPACITY;
@@ -83,20 +94,30 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        Bucket bucket = buckets.computeIfAbsent(proxies.clientAddress(request), address -> newBucket());
+        String address = proxies.clientAddress(request);
+        Bucket bucket = buckets.computeIfAbsent(address, ignored -> newBucket());
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
         if (!probe.isConsumed()) {
-            long retryAfter = Math.max(1, probe.getNanosToWaitForRefill() / 1_000_000_000L);
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfter));
-            response.getWriter().write(
-                    "{\"message\":\"Too many webhook deliveries from this address. Try again in %d seconds.\"}"
-                            .formatted(retryAfter));
+            refuse(response, probe.getNanosToWaitForRefill() / 1_000_000_000L);
+            return;
+        }
+        RateWindows.Outcome counted = shared.hit(RateWindows.Limit.TICKET_WEBHOOK, address, capacity, window);
+        if (!counted.admitted()) {
+            refuse(response, counted.retryAfter().toSeconds());
             return;
         }
 
         chain.doFilter(request, response);
+    }
+
+    private static void refuse(HttpServletResponse response, long seconds) throws IOException {
+        long retryAfter = Math.max(1, seconds);
+        response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfter));
+        response.getWriter().write(
+                "{\"message\":\"Too many webhook deliveries from this address. Try again in %d seconds.\"}"
+                        .formatted(retryAfter));
     }
 
     /** Matched on the routed path, so an encoded spelling of the route cannot step around it. */
@@ -111,8 +132,9 @@ public class WebhookRateLimitFilter extends OncePerRequestFilter {
                 .build();
     }
 
-    /** Clears the tracked addresses. For the tests. */
+    /** Clears the tracked addresses, here and in the shared count. For the tests. */
     public void reset() {
         buckets.clear();
+        shared.forget(RateWindows.Limit.TICKET_WEBHOOK);
     }
 }

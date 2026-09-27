@@ -15,11 +15,12 @@ import org.springframework.stereotype.Service;
  *
  * <p>It purged the gate's verdict register and the compliance captures too, through a port those
  * modules implemented; since step 5 each contributes its own periodic task, and this pass keeps the
- * three tables that are {@code access}'s (decision 0029).
+ * four tables that are {@code access}'s (decision 0029).
  *
  * <p><b>This is not a security control, and saying so matters.</b> An expired session is
- * already refused on read, and an attempt outside the window is already not counted. This pass
- * makes nothing safer: it only stops two tables accumulating rows nobody will ever read.
+ * already refused on read, an attempt outside the window is already not counted, and a closed rate
+ * window is never read again. This pass makes nothing safer: it only stops four tables accumulating
+ * rows nobody will ever read.
  *
  * <p>The practical consequence: it may fail, skip a turn, or not run at all with nothing bad
  * happening. Which is exactly why it is not allowed to fail the tick that calls it.
@@ -41,16 +42,19 @@ public class SessionCleanupService {
     private final SessionRepository sessions;
     private final LoginAttemptRepository attempts;
     private final MfaChallengeRepository challenges;
+    private final RateWindows rateWindows;
     private final Clock clock;
 
     public SessionCleanupService(
             SessionRepository sessions,
             LoginAttemptRepository attempts,
             MfaChallengeRepository challenges,
+            RateWindows rateWindows,
             Clock clock) {
         this.sessions = sessions;
         this.attempts = attempts;
         this.challenges = challenges;
+        this.rateWindows = rateWindows;
         this.clock = clock;
     }
 
@@ -58,8 +62,10 @@ public class SessionCleanupService {
      * @param challenges sign-ins abandoned between the password and the code. {@code
      *     AuthenticationFlowService} sweeps on write, which only clears what a <em>new</em> sign-in
      *     pays for; on an instance nobody signs into, the rows would sit until one did
+     * @param rateWindows the closed windows of the limits counted across instances — one row per
+     *     address and window, so a flood from rotating addresses leaves as many
      */
-    public record CleanupResult(int sessions, int attempts, int challenges) {}
+    public record CleanupResult(int sessions, int attempts, int challenges, int rateWindows) {}
 
     /**
      * Never throws: see the class note.
@@ -70,7 +76,16 @@ public class SessionCleanupService {
      * itself, where the proxy would be bypassed and the annotation would mean nothing.
      */
     public CleanupResult prune() {
-        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges());
+        return new CleanupResult(pruneSessions(), pruneAttempts(), pruneChallenges(), pruneRateWindows());
+    }
+
+    private int pruneRateWindows() {
+        try {
+            return rateWindows.purgeClosed();
+        } catch (RuntimeException failed) {
+            log.warn("Rate window purge skipped: {}", failed.getMessage());
+            return 0;
+        }
     }
 
     private int pruneSessions() {

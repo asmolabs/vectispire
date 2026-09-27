@@ -132,7 +132,7 @@ class MaintenanceJobsTest {
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
-        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0));
+        when(sessions.prune()).thenReturn(new SessionCleanupService.CleanupResult(0, 0, 0, 0));
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
         when(triage.expireStale()).thenReturn(List.of());
         when(feed.syncIfDue()).thenReturn(java.util.Optional.empty());

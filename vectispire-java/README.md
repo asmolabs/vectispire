@@ -318,7 +318,7 @@ historically experienced with abstractions:
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all forty-six tables are created by name, and that the twenty-seven foreign keys of the
+that all forty-seven tables are created by name, and that the twenty-seven foreign keys of the
 seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on

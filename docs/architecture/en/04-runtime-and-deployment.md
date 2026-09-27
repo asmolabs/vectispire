@@ -86,7 +86,15 @@ configured ceiling. That is deliberate and it is not the throttle that protects 
 per-address filter whose stated value is the audit entry written when the ceiling is reached, so
 approximating it across a fleet costs precision and not a control. Size them per instance, not per
 deployment. **Multi-factor sign-in used to be on this list and no longer is**: the challenge lives
-in `t_mfa_challenge` since `V23`, so no session affinity is required on `/api/v1/auth/**`.
+in `t_mfa_challenge` since `V23`, so no session affinity is required on `/api/v1/auth/**`. **Nor
+is the tracker webhook's ceiling** (`vectispire.security.webhook-requests-per-window`): it is the
+one limit whose figure an operator sizes against a tracker's bulk edit rather than against an
+attacker, and three instances used to give an address three of them. `WebhookRateLimitFilter` keeps
+its bucket in front, then counts each admitted delivery in `t_rate_window` (since `V42`), in fixed
+windows every instance shares, so the configured figure is the deployment's. A fixed window lets an
+address spend its allowance at the end of one window and again at the start of the next; a
+database that cannot be reached admits rather than refuses, the delivery behind it needing the
+database anyway.
 
 **Every job waits before its first run.** `fixedDelay` spaces out the runs that follow and does
 nothing about the first, which would otherwise fire while Flyway has just finished and the pool is

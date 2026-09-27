@@ -92,7 +92,15 @@ filtres-là sont un tamis grossier par adresse, dont la valeur annoncée est l'e
 quand le plafond est atteint : l'approximer sur une flotte coûte de la précision, pas un contrôle.
 Dimensionnez-les par instance, pas par déploiement. **La MFA figurait sur cette liste et n'y est
 plus** : le défi vit dans `t_mfa_challenge` depuis `V23`, donc aucune affinité de session n'est
-requise sur `/api/v1/auth/**`.
+requise sur `/api/v1/auth/**`. **Le plafond du webhook des trackers non plus**
+(`vectispire.security.webhook-requests-per-window`) : c'est la seule limite qu'un opérateur
+dimensionne d'après l'édition en masse d'un tracker plutôt que d'après un attaquant, et trois
+instances en donnaient trois à une adresse. `WebhookRateLimitFilter` garde son seau en tête, puis
+compte chaque livraison admise dans `t_rate_window` (depuis `V42`), par fenêtres fixes que toutes les
+instances partagent : le chiffre configuré est celui du déploiement. Une fenêtre fixe laisse une
+adresse dépenser son allocation à la fin d'une fenêtre puis au début de la suivante ; une base
+injoignable admet plutôt que de refuser, la livraison derrière elle ayant de toute façon besoin de
+la base.
 
 **Chaque tâche attend avant sa première exécution.** `fixedDelay` espace les exécutions suivantes
 et ne fait rien pour la première, qui partirait sinon alors que Flyway vient de terminer et que le
