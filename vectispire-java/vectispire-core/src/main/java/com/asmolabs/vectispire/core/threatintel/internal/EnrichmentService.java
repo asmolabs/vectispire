@@ -59,13 +59,19 @@ public class EnrichmentService implements ScanIngestor.Enricher {
      * The EPSS scores and the exploited identifiers among these — the vulnerabilities' of one scan,
      * sorted and distinct.
      *
-     * <p><b>Nothing is written here</b>, and nothing is even set: the ingestion is in the middle of
-     * its transaction and writes these values onto its own findings, a score only where one is known
-     * — overwriting with null would erase a score obtained on the previous scan, on the day the API
-     * happens to be unavailable. Writing from this service would impose its own transaction and make
-     * findings appear in the database before the scan concluded — visible half-way, with counters
-     * matching nothing. It used to set them on the scan's rows in place; the rows are {@code
-     * scanning}'s (decision 0029).
+     * <p><b>Called before the scan's transaction opens, never inside it</b> ({@code
+     * ScanIngestor.prepare}): these are network calls, ten seconds each at worst, and made inside the
+     * ingestion they held the scan's row lock — the one fencing a concurrent reclaim — for as long as
+     * the API took. {@code EnrichmentOutsideTransactionTest} runs a result through the dispatcher and
+     * fails if a transaction is open here.
+     *
+     * <p><b>Nothing is written here</b>, and nothing is even set: the ingestion writes these values
+     * onto its own findings, in its transaction, a score only where one is known — overwriting with
+     * null would erase a score obtained on the previous scan, on the day the API happens to be
+     * unavailable. Writing from this service would impose its own transaction and make findings
+     * appear in the database before the scan concluded — visible half-way, with counters matching
+     * nothing. It used to set them on the scan's rows in place; the rows are {@code scanning}'s
+     * (decision 0029).
      */
     @Override
     public Optional<ScanIngestor.Enrichment> enrich(List<String> identifiers) {

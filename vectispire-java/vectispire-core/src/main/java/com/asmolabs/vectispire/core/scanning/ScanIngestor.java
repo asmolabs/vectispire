@@ -183,28 +183,58 @@ public class ScanIngestor {
      *
      * @param endOfLife the end-of-life findings, or empty when the step did not run — no SBOM,
      *     detection off, or a failed lookup — in which case the type is not declared scanned
+     * @param enrichment the exploitation figures of the scan's vulnerabilities, or empty when
+     *     enrichment is off or there was nothing to look up — in which case the findings keep the
+     *     defaults they are built with
      * @param at when they were looked up: their rows are dated then, as they were when the source
      *     built the rows itself
      */
-    public record Prepared(Optional<List<ObservedFinding>> endOfLife, Instant at) {}
+    public record Prepared(Optional<List<ObservedFinding>> endOfLife, Optional<Enrichment> enrichment, Instant at) {}
 
     /**
      * Performs the remote lookups, <b>outside any transaction</b>.
      *
-     * <p>End of life consults a public catalogue, one request per product on a cold cache. Done
-     * inside {@link #ingest}, those requests ran while the scan's writing transaction held its
-     * rows — the lock that fences a concurrent reclaim included — for as long as the catalogue
-     * took to answer. The class promises never to hold a transaction during slow work; this is
-     * where that promise is kept.
+     * <p>End of life consults a public catalogue, one request per product on a cold cache, and
+     * enrichment asks the EPSS API once per ninety identifiers. Done inside {@link #ingest}, those
+     * requests ran while the scan's writing transaction held its rows — the lock that fences a
+     * concurrent reclaim included — for as long as the catalogues took to answer: ten seconds per
+     * request at worst, and a scan of a large image sends a dozen. The class promises never to hold
+     * a transaction during slow work; this is where that promise is kept.
+     *
+     * <p><b>What is looked up is what {@link #ingest} will write</b>: the identifiers of the
+     * dependency findings, which are the only vulnerabilities a scan produces. The findings are
+     * built from the same artifacts in the same order, so nothing is asked that is not applied and
+     * nothing applied was not asked.
      */
     public Prepared prepare(ScanEntity scan, ScanArtifacts artifacts) {
+        List<String> identifiers = vulnerabilityIdentifiers(artifacts);
         return new Prepared(
                 artifacts.sbom().flatMap(sbom -> endOfLife.filter(EndOfLifeSource::isEnabled)
                         .flatMap(source -> source.findings(sbom))),
+                identifiers.isEmpty() ? Optional.empty() : enricher.flatMap(source -> source.enrich(identifiers)),
                 clock.instant());
     }
 
-    /** Prepares and ingests in one go — for a caller with no transaction to keep short. */
+    /**
+     * The vulnerability identifiers a scan's findings will carry, sorted and distinct.
+     *
+     * <p>Only vulnerabilities: a secret's rule id has no meaning to either catalogue, and sending it
+     * would leak a rule name for no answer.
+     */
+    private static List<String> vulnerabilityIdentifiers(ScanArtifacts artifacts) {
+        return artifacts.dependencies()
+                .map(dependencies -> List.copyOf(new TreeSet<>(dependencies.stream()
+                        .map(dependency -> dependency.identifier())
+                        .filter(identifier -> identifier != null && !identifier.isBlank())
+                        .toList())))
+                .orElse(List.of());
+    }
+
+    /**
+     * Prepares and ingests in one go, <b>inside the caller's transaction</b> — for a fixture that
+     * has no row lock to keep short. The dispatcher never calls this: it prepares first, then opens
+     * the transaction, because the lookups {@link #prepare} makes are network calls.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     public Reconciliation ingest(ScanEntity scan, ScanArtifacts artifacts) {
         return ingest(scan, artifacts, prepare(scan, artifacts));
@@ -369,8 +399,10 @@ public class ScanIngestor {
         // **Before the write, not after.** The findings and the issues they open are written below;
         // enriching them afterwards would need a second write outside the scan's transaction, and
         // would leave a window in which the gate sees findings without their exploited-in-the-wild
-        // flag — that is, a green verdict on an actively exploited vulnerability.
-        enricher.ifPresent(source -> enrich(source, findings));
+        // flag — that is, a green verdict on an actively exploited vulnerability. What is applied was
+        // looked up by `prepare`, before this transaction opened: the lookups are network calls, and
+        // made here they held the scan's row lock for as long as the EPSS API took to answer.
+        prepared.enrichment().ifPresent(found -> enrich(found, findings));
 
         // The backlog folds the whole values — the fingerprint's inputs — and queues its delta inside
         // this transaction, never after: a notification written one line later is lost by the very
@@ -409,21 +441,14 @@ public class ScanIngestor {
      * unavailable — and the flag is what the catalogue says, {@code false} for an identifier it does
      * not list.
      */
-    private static void enrich(Enricher enricher, List<FindingEntity> findings) {
-        List<FindingEntity> vulnerabilities = findings.stream()
+    private static void enrich(Enrichment found, List<FindingEntity> findings) {
+        findings.stream()
                 .filter(finding -> FindingType.VULNERABILITY.wireName().equals(finding.getType()))
                 .filter(finding -> finding.getIdentifier() != null && !finding.getIdentifier().isBlank())
-                .toList();
-        if (vulnerabilities.isEmpty()) {
-            return;
-        }
-        List<String> identifiers = List.copyOf(new TreeSet<>(vulnerabilities.stream()
-                .map(FindingEntity::getIdentifier)
-                .toList()));
-        enricher.enrich(identifiers).ifPresent(found -> vulnerabilities.forEach(finding -> {
-            Optional.ofNullable(found.epssScores().get(finding.getIdentifier())).ifPresent(finding::setEpssScore);
-            finding.setIsKev(found.exploited().contains(finding.getIdentifier()));
-        }));
+                .forEach(finding -> {
+                    Optional.ofNullable(found.epssScores().get(finding.getIdentifier())).ifPresent(finding::setEpssScore);
+                    finding.setIsKev(found.exploited().contains(finding.getIdentifier()));
+                });
     }
 
     /** A finding another step built, as this scan's row: the scan, its instant, not yet exploited. */

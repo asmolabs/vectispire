@@ -420,7 +420,7 @@ class ScanDispatcherTest {
         when(queue.countRunning()).thenReturn(0L);
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
         ScanIngestor ingestor = mock(ScanIngestor.class);
-        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), java.time.Instant.EPOCH));
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), Optional.empty(), java.time.Instant.EPOCH));
         when(ingestor.ingest(any(), any(), any())).thenReturn(new ScanIngestor.Reconciliation(0, 0, 0, 0, List.of()));
         ScanRunner runner = mock(ScanRunner.class);
         when(runner.run(any())).thenReturn(ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(1)));
@@ -465,7 +465,7 @@ class ScanDispatcherTest {
         when(queue.reclaimLapsedLeases()).thenReturn(new ScanQueue.Reclaimed(List.of(), List.of()));
 
         ScanIngestor ingestor = mock(ScanIngestor.class);
-        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), java.time.Instant.EPOCH));
+        when(ingestor.prepare(any(), any())).thenReturn(new ScanIngestor.Prepared(Optional.empty(), Optional.empty(), java.time.Instant.EPOCH));
         when(ingestor.ingest(any(), any(), any())).thenReturn(new ScanIngestor.Reconciliation(0, 0, 0, 0, List.of()));
 
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);

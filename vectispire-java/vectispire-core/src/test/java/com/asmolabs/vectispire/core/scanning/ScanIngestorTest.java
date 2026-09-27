@@ -360,6 +360,34 @@ class ScanIngestorTest {
     }
 
     @Test
+    @DisplayName("the catalogues are asked while preparing, and ingesting only applies the answer")
+    void enrichmentIsLookedUpBeforeTheTransaction() {
+        // The dispatcher prepares, then opens the writing transaction, then ingests. A lookup made
+        // by `ingest` runs inside that transaction and holds the scan's row lock for as long as the
+        // EPSS API takes — which is what this pins: the enricher is asked by `prepare`, once, and
+        // `ingest` never reaches it.
+        ScanIngestor.Enricher enricher = mock(ScanIngestor.Enricher.class);
+        when(enricher.enrich(any())).thenReturn(Optional.of(new ScanIngestor.Enrichment(
+                Map.of("CVE-2024-3", 0.7), Set.of("CVE-2024-3"))));
+        ScanIngestor withEnricher = ingestor(Optional.of(enricher), Optional.empty(), Optional.empty());
+        ScanArtifacts artifacts = ScanArtifacts.builder()
+                .dependencies(List.of(vulnerability("CVE-2024-3"), vulnerability("CVE-2024-3")))
+                .build(Duration.ZERO);
+
+        ScanIngestor.Prepared prepared = withEnricher.prepare(scan(), artifacts);
+        org.mockito.Mockito.verify(enricher).enrich(List.of("CVE-2024-3"));
+        org.mockito.Mockito.clearInvocations(enricher);
+
+        withEnricher.ingest(scan(), artifacts, prepared);
+
+        org.mockito.Mockito.verifyNoInteractions(enricher);
+        assertThat(observation().findings()).hasSize(2).allSatisfy(finding -> {
+            assertThat(finding.epssScore()).isEqualTo(0.7);
+            assertThat(finding.kev()).isTrue();
+        });
+    }
+
+    @Test
     @DisplayName("the backlog folds the whole values; only the rows are clipped, after")
     void wholeValuesCrossAndRowsAreClipped() {
         // The path is a fingerprint input (AGENTS.md: a data contract). The backlog must see it
