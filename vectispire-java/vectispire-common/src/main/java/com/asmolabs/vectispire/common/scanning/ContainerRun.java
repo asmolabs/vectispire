@@ -18,9 +18,10 @@ import java.util.Optional;
  * @param network <b>cut off unless the tool genuinely has somewhere to look.</b> The
  *     vulnerability matcher needs its database and the cataloguer needs the registry; the
  *     secrets scanner, the IaC checker and a directory SBOM never do
- * @param asRoot needed by recent images that run as an unprivileged user: the workspace is a
- *     0700 temp directory owned by Vectispire's user, which a non-root process cannot read.
- *     {@code cap_drop: ALL} and {@code no-new-privileges} still apply
+ * @param asRoot root inside the container, with {@code cap_drop: ALL} and {@code no-new-privileges}
+ *     still applied — which means <b>without</b> {@code CAP_DAC_OVERRIDE}: such a root reads only what
+ *     the permission bits let it, and the workspace is a 0700 directory owned by Vectispire's user.
+ *     Kept as the fallback of {@link #runningAsOwnerOf} for a file system that reports no owner
  * @param user {@code uid:gid} to run as, or {@code null} for the image's own user (or root, with
  *     {@link #asRoot}). Set for a tool that <em>writes</em> into a mount: what root writes there is
  *     root's on the host, and Vectispire, unprivileged, cannot delete it afterwards
@@ -121,6 +122,22 @@ public record ContainerRun(
      */
     public ContainerRun runningAs(String uidGid) {
         return new ContainerRun(image, command, mounts, label, network, false, timeout, uidGid, output);
+    }
+
+    /**
+     * Runs as the owner of {@code directory} — the workspace, as a rule — and as root only where the
+     * file system reports no owner.
+     *
+     * <p><b>Not root, because root cannot read it.</b> Every scanner but the matcher used to run as
+     * root on the belief that root reads any directory; with every capability dropped it has no
+     * {@code CAP_DAC_OVERRIDE}, and the 0700 workspace of an unprivileged Vectispire refused it
+     * ("stat /repo/source: permission denied", "open /repo/rules/gitleaks/gitleaks.toml: permission
+     * denied") — measured on 2026-09-27 in the shipped composition, once its workspaces reached the
+     * daemon at all. Docker Desktop's file sharing grants that access where a Linux daemon does not,
+     * which is how it went unseen. The owner reads what it cloned and can delete what it wrote.
+     */
+    public ContainerRun runningAsOwnerOf(Path directory) {
+        return ownerOf(directory).map(this::runningAs).orElseGet(this::runningAsRoot);
     }
 
     public ContainerRun withTimeout(Duration value) {

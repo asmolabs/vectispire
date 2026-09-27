@@ -109,7 +109,7 @@ public final class SastScanner {
                                 ContainerPaths.source(subPath)),
                         List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                         LABEL)
-                .runningAsRoot());
+                .runningAsOwnerOf(workspace.root()));
 
         // **The refusal is read before the exit code is judged.** Semgrep reports a bad
         // configuration on *stdout*, inside the JSON, and leaves stderr empty — so the generic

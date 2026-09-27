@@ -94,7 +94,7 @@ public final class DependencyScanner {
                         List.of("dir:" + ContainerPaths.source(subPath), "-o", "json"),
                         List.of(ContainerRun.Mount.readOnly(workspace.root().toString(), ContainerPaths.MOUNT)),
                         label)
-                .runningAsRoot());
+                .runningAsOwnerOf(workspace.root()));
 
         return ContainerRunner.parseJson(result, label, List.of(0));
     }
@@ -123,7 +123,7 @@ public final class DependencyScanner {
                             label)
                     // **Neither network nor socket.** The image is already here as an archive,
                     // so there is nothing left for it to reach.
-                    .runningAsRoot());
+                    .runningAsOwnerOf(workspace.root()));
 
             return ContainerRunner.parseJson(result, label, List.of(0));
         } finally {
@@ -199,7 +199,7 @@ public final class DependencyScanner {
         // fetch — `GRYPE_DB_AUTO_UPDATE=false` stops it trying — so the one scanner that ran online no
         // longer does. As the workspace's owner rather than root: it reads the 0700 workspace and the
         // 0700 generation, both this process's.
-        ContainerRunner.ContainerResult result = runner.run(ContainerRun.ownerOf(mounted).map(run::runningAs).orElseGet(run::runningAsRoot));
+        ContainerRunner.ContainerResult result = runner.run(run.runningAsOwnerOf(mounted));
 
         return ContainerRunner.parseJson(result, label, List.of(0)).map(DependencyScanner::findings);
     }
