@@ -1457,6 +1457,7 @@
     "pick_repo": "Sélectionner un dépôt",
     "run_analysis": "Lancer l'analyse IA",
     "analysis_privacy_note": "Les constats sont transmis au modèle (identifiants, sévérités et chemins). Le code source n'est JAMAIS transmis. Le rapport est un document informatif : aucun élément n'altère les gates de sécurité.",
+    "running_notice": "Une autre demande attend que le modèle rédige ce rapport. Revenez une fois qu'il a répondu : une demande restée sans réponse au-delà du délai du modèle est signalée en échec.",
     "model_writing_notice": "Le modèle est en cours de rédaction. Un modèle local peut nécessiter plusieurs dizaines de secondes sur un backlog de cette taille.",
     "report_title": "Rapport d'analyse",
     "failed_badge": "échoué",
@@ -1989,7 +1990,7 @@
         "help": "Point d'accès de votre instance Jira, GitLab ou API GitHub."
       }
     },
-    "last_sync": "Dernière synchronisation",
+    "last_sync": "Dernière lecture du catalogue KEV",
     "loading": "Chargement…",
     "never": "Jamais",
     "save_btn": "Enregistrer",
@@ -2031,8 +2032,8 @@
       "governance": "Gouvernance"
     },
     "test_connection": "Tester la connexion",
-    "threat_intel_desc": "Ingestion continue des catalogues d'exploitation active (CISA Known Exploited Vulnerabilities) et scores de probabilité EPSS. Requalifie automatiquement les failles en incidents prioritaires P0.",
-    "threat_intel_title": "Flux Live Threat Intelligence (CISA KEV & EPSS)",
+    "threat_intel_desc": "Le catalogue des vulnérabilités activement exploitées (Known Exploited Vulnerabilities) de la CISA, lu toutes les six heures et à la demande — chez la CISA, ou sur le miroir que désigne le déploiement. Les constats ouverts dont la CVE y figure sont marqués activement exploités, et signalés au SIEM quand ils le deviennent ; ceux qu'il ne liste plus ne le sont plus. Les scores EPSS sont demandés à chaque scan et ne font pas partie de ce flux.",
+    "threat_intel_title": "Flux de threat intelligence (CISA KEV)",
     "ticket_token_title": "Jeton du gestionnaire de tickets",
     "ticket_webhook_help": "Configurez ces URLs de webhook dans vos gestionnaires de tickets (Jira, GitLab, GitHub, ServiceNow). Lorsqu'un lead ou développeur marque un ticket comme résolu, refusé ou faux positif dans son outil de ticketing, Vectispire applique automatiquement la décision de triage et consigne l'événement dans le journal d'audit.",
     "title": "Paramètres",
@@ -2054,7 +2055,7 @@
     "webhook_signing_label": "Secret",
     "webhook_signing_hint": "Signe chaque message de webhook sortant, global et par équipe, pour qu'un destinataire vérifie qu'il vient de Vectispire — un script, un bus ou votre propre passerelle le peuvent ; Slack, Teams et Discord l'ignorent. Chiffré au repos et jamais renvoyé. Enregistrer un champ vide l'efface, et les messages partent alors non signés — tout destinataire qui vérifie se mettra à les refuser.",
     "threat_intel_synced": "{{cves}} CVE synchronisées ({{kev}} CISA KEV actives). {{issues}} constats du backlog réévalués.",
-    "error_threat_intel_sync": "La synchronisation du flux de Threat Intelligence a échoué.",
+    "error_threat_intel_sync": "Le catalogue KEV n'a pas pu être lu. Le catalogue en usage est conservé.",
     "error_load": "Impossible de charger les paramètres.",
     "risk_confirm_header": "Accepter le risque de fuite de données",
     "risk_confirm_send": "Activer ce réglage autorise Vectispire à envoyer",
@@ -2094,7 +2095,13 @@
     "siem_sev_high": "Élevée et au-delà (par défaut)",
     "siem_sev_medium": "Moyenne et au-delà",
     "siem_sev_all": "Tous les événements de sécurité",
-    "kev_cve_count": "{{count}} CVE"
+    "kev_cve_count": "{{count}} CVE",
+    "feed_state_synced": "Synchronisé",
+    "feed_state_failed": "Dernière tentative en échec",
+    "feed_state_never_synced": "Jamais synchronisé",
+    "feed_state_unknown": "Inconnu",
+    "kev_catalogue_release": "Catalogue en usage : version {{version}}, publiée par la CISA le {{released}}.",
+    "kev_last_attempt_failed": "La tentative du {{at}} a échoué : {{reason}}. Le catalogue en usage est conservé, et rien n'est réévalué avant la prochaine lecture réussie."
   },
   "severities": {
     "critical": "Critique",

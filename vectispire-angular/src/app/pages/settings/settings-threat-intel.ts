@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, DestroyRef, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { CardModule } from '@openng/optimus-ui/card';
 import { MessageModule } from '@openng/optimus-ui/message';
@@ -10,7 +10,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SettingsState } from './settings-state';
 
 /**
- * The Threat Intelligence tab's feed card: its status, and the button that syncs it now.
+ * The Threat Intelligence tab's feed card: where the CISA KEV catalogue stands — when it was last
+ * read, how old it is, whether the last attempt worked — and the button that syncs it now.
  *
  * <p>Hidden with its tab rather than destroyed with it, so the feedback of a sync just run is
  * still there after a look at another tab, as it was when this was part of one component.
@@ -34,6 +35,35 @@ export class SettingsThreatIntel {
     readonly syncingThreatIntel = signal(false);
     readonly threatIntelFeedback = signal<string | null>(null);
 
+    /**
+     * The feed's state, as the control plane states it. It fell back to "SYNCED" when the status
+     * could not be read, which put a green word on the one tile that exists to say whether the
+     * exploitation flags can be trusted.
+     */
+    readonly stateLabel = computed(() => {
+        switch (this.threatIntelStatus()?.status) {
+            case 'SYNCED':
+                return this.i18n.t('settings.feed_state_synced');
+            case 'FAILED':
+                return this.i18n.t('settings.feed_state_failed');
+            case 'NEVER_SYNCED':
+                return this.i18n.t('settings.feed_state_never_synced');
+            default:
+                return this.i18n.t('settings.feed_state_unknown');
+        }
+    });
+
+    readonly stateClass = computed(() => {
+        switch (this.threatIntelStatus()?.status) {
+            case 'SYNCED':
+                return 'text-green-600 dark:text-green-400';
+            case 'FAILED':
+                return 'text-red-600 dark:text-red-400';
+            default:
+                return 'text-muted-color';
+        }
+    });
+
     constructor() {
         this.state.register(() => this.load(), inject(DestroyRef));
     }
@@ -45,12 +75,16 @@ export class SettingsThreatIntel {
             next: (status) => {
                 this.syncingThreatIntel.set(false);
                 this.threatIntelStatus.set(status);
+                // A failed attempt answers 200 with its reason: the catalogue in use is kept, and the
+                // warning under the tiles says why it was not replaced.
                 this.threatIntelFeedback.set(
-                    this.i18n.t('settings.threat_intel_synced', {
-                        cves: status.totalCves,
-                        kev: status.totalKev,
-                        issues: status.backlogUpdatedCount
-                    })
+                    status.status === 'SYNCED'
+                        ? this.i18n.t('settings.threat_intel_synced', {
+                              cves: status.totalCves,
+                              kev: status.totalKev,
+                              issues: status.backlogUpdatedCount
+                          })
+                        : this.i18n.t('settings.error_threat_intel_sync')
                 );
             },
             error: () => {

@@ -22,8 +22,8 @@
                     <span class="text-xs text-muted-color uppercase font-semibold">{{
                         'settings.feed_status' | translate
                     }}</span>
-                    <div class="text-base font-bold mt-1 text-green-600 dark:text-green-400">
-                        {{ threatIntelStatus()?.status ?? 'SYNCED' }}
+                    <div class="text-base font-bold mt-1" [ngClass]="stateClass()" data-testid="feed-state">
+                        {{ stateLabel() }}
                     </div>
                 </div>
 
@@ -44,7 +44,10 @@
                     <span class="text-xs text-muted-color uppercase font-semibold">{{
                         'settings.last_sync' | translate
                     }}</span>
-                    <div class="text-sm font-medium mt-1 text-surface-700 dark:text-surface-300">
+                    <div
+                        class="text-sm font-medium mt-1 text-surface-700 dark:text-surface-300"
+                        data-testid="kev-synced-at"
+                    >
                         {{
                             (threatIntelStatus()?.lastSyncedAt | date: 'dd/MM/yyyy HH:mm') ??
                                 ('settings.never' | translate)
@@ -52,6 +55,32 @@
                     </div>
                 </div>
             </div>
+
+            @if (threatIntelStatus()?.kevReleasedAt; as released) {
+                <p class="text-sm text-muted-color m-0" data-testid="kev-catalogue">
+                    {{
+                        'settings.kev_catalogue_release'
+                            | translate
+                                : {
+                                      version: threatIntelStatus()?.kevCatalogVersion ?? '—',
+                                      released: (released | date: 'dd/MM/yyyy HH:mm') ?? '—'
+                                  }
+                    }}
+                </p>
+            }
+
+            @if (threatIntelStatus()?.status === 'FAILED') {
+                <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="kev-failure">
+                    {{
+                        'settings.kev_last_attempt_failed'
+                            | translate
+                                : {
+                                      at: (threatIntelStatus()?.lastAttemptAt | date: 'dd/MM/yyyy HH:mm') ?? '—',
+                                      reason: threatIntelStatus()?.lastError ?? '—'
+                                  }
+                    }}
+                </p-message>
+            }
 
             @if (threatIntelFeedback(); as msg) {
                 <p-message severity="info" [closable]="true" styleClass="w-full">

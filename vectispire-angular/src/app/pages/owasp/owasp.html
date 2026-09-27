@@ -76,6 +76,10 @@
             <p-message severity="error" [closable]="false" styleClass="w-full">
                 {{ current.error }}
             </p-message>
+        } @else if (current.status === 'running') {
+            <p-message severity="info" [closable]="false" styleClass="w-full">
+                {{ 'owasp.running_notice' | translate }}
+            </p-message>
         } @else {
             <!--
                 What the model was shown, offered beside what it answered — and closed by default,

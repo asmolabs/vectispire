@@ -114,6 +114,27 @@ describe('the OWASP report screen', () => {
         expect(fixture.nativeElement.textContent).toContain('Ollama: request timed out');
     });
 
+    it('a review still being written says so, and renders no report', () => {
+        // Recorded before the model is asked: somebody opening the screen while another request
+        // waits sees it under way, not an empty report with an export button.
+        TestBed.inject(I18nService).translations.set({
+            owasp: { running_notice: 'Another request is waiting for the model to write this report.' }
+        });
+        runProducing({
+            id: 4,
+            status: 'running',
+            model: 'gemma4:e4b',
+            content: null,
+            blocks: [],
+            error: null,
+            scanId: 34,
+            createdAt: '2026-08-21T07:40:01Z'
+        });
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Another request is waiting for the model');
+    });
+
     it('offers the PDF only for a report that exists', () => {
         runProducing({
             id: 3,
