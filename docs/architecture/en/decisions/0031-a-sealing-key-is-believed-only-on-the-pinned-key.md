@@ -48,11 +48,21 @@ Concretely:
    read by nothing. The accepted key changes only through a correctly signed, newer announcement,
    written by one conditional statement, and the entity cannot write the column when a row is
    saved for another reason. A `hello` with no key, or with any unsigned key, leaves it in place.
-4. **No clear delivery, ever.** A delegated credential leaves sealed for the verified key, or the
-   claim answers 412 naming the step to take and the scan goes back to the queue. Whether the link
-   is encrypted is no longer consulted: TLS that a proxy terminates protects nothing from that
-   proxy, and from the control plane an announcement removed on the way looks exactly like an
-   agent that never made one.
+4. **No clear delivery, ever.** A delegated credential leaves sealed for the verified key, or not
+   at all. Whether the link is encrypted is no longer consulted: TLS that a proxy terminates
+   protects nothing from that proxy, and from the control plane an announcement removed on the way
+   looks exactly like an agent that never made one. **An agent that cannot be handed one does not
+   claim a scan that needs one**: the repositories carrying a key or a token are left out of its
+   selection, so the scan stays in the queue for an executor that can run it and **costs none of
+   its attempts**; the agent still takes image scans and repositories without a credential. When
+   such scans are all it has left, its poll answers 412 naming the step to take. The first version
+   of this decision claimed the scan, withheld the credential and put it back — each poll spent an
+   attempt, so a scan nothing had tried reached a capable executor with its takeovers used up,
+   and its first lapsed lease failed it for good. Refunding the attempt was
+   rejected: the same agent would have taken the same scan at every poll and kept it from a
+   verified agent or the built-in worker. The attempt is refunded only in the race where a
+   repository gains its key between the selection and the delivery, which the next selection
+   closes.
 5. **An agent with no pinned signing key is handed no delegated credential.** There is no trust on
    first use: the pair is remade at every start, so a key believed on first sight would have to be
    believed again, unsigned, after every restart — which is the finding again.
@@ -98,7 +108,8 @@ behaviour is unchanged. Bumping it would refuse older agents' `hello` outright, 
   have one without the other, and that is deliberate.
 - An upgrade stops delegated scans of existing agents until both are done and the agent is
   upgraded. The claim's 412 and the screen's "credentials withheld" say so; nothing is sent in the
-  clear meanwhile.
+  clear meanwhile, and the delegated scans wait without spending their attempts — for as long as no
+  executor able to run them polls, which only the agent's log and the screen's row reveal.
 - A host whose clock goes back produces keys the control plane refuses as older; the fix is the
   clock or an administrator's reset.
 - What this does **not** cover: whoever holds the agent's configuration — its signing key — can

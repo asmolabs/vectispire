@@ -142,9 +142,13 @@ Donc, pour chaque agent `delegated` :
 2. Faites tourner un agent de cette version et redémarrez-le. Après son `hello`, il annonce sa clé
    de scellement, signée ; son journal dit `Sealing key verified by the control plane`.
 3. La ligne indique alors *Scellé de bout en bout*. Jusque-là elle indique *Aucune clé de scellement
-   vérifiée : identifiants retenus*, et chaque prise en charge d'une analyse qui demande une clé ou
-   un jeton reçoit un **412** qui nomme l'étape manquante — l'analyse retourne dans la file, rien
-   n'est envoyé. Les analyses d'images, qui ne demandent aucun identifiant, tournent en attendant.
+   vérifiée : identifiants retenus* : l'agent ne reçoit pas les analyses qui demandent une clé ou un
+   jeton, qui restent dans la file pour un exécuteur capable de les mener — un agent vérifié ou le
+   worker intégré — **sans consommer aucune de leurs tentatives**. Les analyses d'images et les
+   dépôts sans identifiant lui reviennent toujours. Quand seules de telles analyses l'attendent,
+   sa demande reçoit un **412** qui nomme l'étape manquante, et son journal le dit à chaque nouvel
+   essai ; rien n'est envoyé. Si aucun autre exécuteur ne peut les prendre, elles attendent que cet
+   agent soit corrigé : c'est dans son journal et sur sa ligne que cela se voit.
 
 **La rotation est automatique.** Chaque démarrage fabrique une paire neuve, datée de sa création ;
 le plan de contrôle garde la plus récente signée par la clé épinglée et refuse une plus ancienne

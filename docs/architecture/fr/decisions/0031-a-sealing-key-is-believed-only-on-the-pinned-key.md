@@ -53,11 +53,22 @@ signature soit épinglée.** Concrètement :
    récente, écrite par une seule instruction conditionnelle, et l'entité ne peut pas écrire la colonne
    quand la ligne est enregistrée pour une autre raison. Un `hello` sans clé, ou avec une clé non
    signée quelle qu'elle soit, la laisse en place.
-4. **Jamais de remise en clair.** Un identifiant délégué part scellé pour la clé vérifiée, ou la
-   prise en charge répond 412 en nommant l'étape à accomplir et l'analyse retourne dans la file. Le
-   chiffrement du lien n'est plus consulté : un TLS qu'un proxy termine ne protège rien de ce proxy,
-   et, vue du plan de contrôle, une annonce retirée en chemin ressemble exactement à un agent qui n'en
-   a jamais fait.
+4. **Jamais de remise en clair.** Un identifiant délégué part scellé pour la clé vérifiée, ou ne
+   part pas. Le chiffrement du lien n'est plus consulté : un TLS qu'un proxy termine ne protège rien
+   de ce proxy, et, vue du plan de contrôle, une annonce retirée en chemin ressemble exactement à un
+   agent qui n'en a jamais fait. **Un agent à qui l'on ne peut pas en remettre ne prend pas en
+   charge une analyse qui en demande un** : les dépôts qui portent une clé ou un jeton sont écartés
+   de sa sélection, si bien que l'analyse reste dans la file pour un exécuteur capable de la mener et
+   **ne consomme aucune de ses tentatives** ; l'agent prend toujours les analyses d'images et les
+   dépôts sans identifiant. Quand il ne lui reste que de telles analyses, sa demande reçoit un 412
+   qui nomme l'étape à accomplir. La première version de cette décision prenait l'analyse en
+   charge, retenait l'identifiant et la remettait dans la file — chaque demande coûtait une
+   tentative, si bien qu'une analyse que rien n'avait tentée arrivait chez un exécuteur capable avec
+   ses reprises épuisées, et que son premier bail expiré la faisait échouer pour de bon. Rembourser la
+   tentative a été écarté : le même agent aurait repris la même analyse à chaque demande et l'aurait
+   soustraite à un agent vérifié ou au worker intégré. La tentative n'est remboursée que dans la
+   course où un dépôt reçoit sa clé entre la sélection et la remise, que la sélection suivante
+   referme.
 5. **Un agent sans clé de signature épinglée ne reçoit aucun identifiant délégué.** Pas de confiance
    au premier usage : la paire est refaite à chaque démarrage, si bien qu'une clé crue à première vue
    devrait être crue de nouveau, non signée, après chaque redémarrage — ce qui est le constat même.
@@ -104,7 +115,9 @@ agents plus anciens, les agents `local` compris.
   l'agent ; on ne peut pas avoir l'un sans l'autre, et c'est voulu.
 - Une mise à niveau arrête les analyses déléguées des agents existants tant que ces deux étapes ne
   sont pas faites et l'agent mis à niveau. Le 412 de la prise en charge et le « identifiants
-  retenus » de l'écran le disent ; rien n'est envoyé en clair entre-temps.
+  retenus » de l'écran le disent ; rien n'est envoyé en clair entre-temps, et les analyses
+  déléguées attendent sans consommer leurs tentatives — aussi longtemps qu'aucun exécuteur capable
+  de les mener ne se présente, ce que seuls le journal de l'agent et sa ligne à l'écran révèlent.
 - Un hôte dont l'horloge recule produit des clés que le plan de contrôle refuse comme plus
   anciennes ; le remède est l'horloge ou une réinitialisation par un administrateur.
 - Ce que cela ne couvre **pas** : qui détient la configuration de l'agent — sa clé de signature —

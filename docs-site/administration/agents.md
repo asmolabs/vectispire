@@ -132,9 +132,12 @@ So, for each `delegated` agent:
 2. Run an agent of this version and restart it. After its `hello` it announces its sealing key,
    signed; the log says `Sealing key verified by the control plane`.
 3. The row now reads *Sealed end to end*. Until then it reads *No verified sealing key: credentials
-   withheld*, and every claim of a scan that needs a key or token is answered **412** with the step
-   that is missing — the scan goes back to the queue, nothing is sent. Image scans, which need no
-   credential, run meanwhile.
+   withheld*: the agent is not handed the scans that need a key or token, which stay in the queue
+   for an executor that can run them — a verified agent or the built-in worker — **without spending
+   any of their attempts**. Image scans and repositories without a credential still go to it. When
+   those scans are all that is waiting for it, its poll is answered **412** with the step that is
+   missing, and its log says so on every retry; nothing is sent. If no other executor can take
+   them, they wait until this agent is fixed: the agent's log and its row are where that shows.
 
 **Rotation is automatic.** Each start makes a new pair, stamped with its creation time; the control
 plane keeps the newest key signed with the pinned key and refuses an older one (**409**, audited).
