@@ -339,9 +339,10 @@ class ArchitectureTest {
     @Test
     @DisplayName("no controller decides what a caller sees: it resolves a Visibility and hands it on")
     void controllersDecideNoVisibility() {
-        // A route resolves the allowance (`VisibilityService.of`) and refuses a target it names
-        // (`Visibilities.requireVisible`, 404 never 403); what the allowance lets through of a read
-        // is the service's. The licence routes narrowed the inventory row by row and refused the
+        // A route resolves the allowance (`VisibilityService.of`) and hands it on; what the allowance
+        // lets through of a read is the service's, and so is the refusal of a target it names, but
+        // where the module's services may not use `access` (`routesLeaveTheRefusalToTheirServices`
+        // below). The licence routes narrowed the inventory row by row and refused the
         // estate's summary with an `instanceof Visibility.Everything` of their own, beside a service
         // that already held the same filter for the evidence bundle — two copies of one decision,
         // and the next route over the same service would have had neither. Asking the allowance
@@ -359,6 +360,58 @@ class ArchitectureTest {
                         com.asmolabs.vectispire.common.domain.access.Visibility.Everything.class)
                 .orShould().dependOnClassesThat().areAssignableTo(
                         com.asmolabs.vectispire.common.domain.access.Visibility.Only.class)
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a route leaves the refusal of a target to the service it calls, where that service may refuse")
+    void routesLeaveTheRefusalToTheirServices() {
+        // Twenty routes refused a target (`Visibilities.requireVisible`) or a scan (`ScanDocumentService
+        // .requireVisible`) and then called a service by the bare id, so the service trusted whoever
+        // called it: the attack-path graph reached the API inventory that way, and the evidence bundle
+        // the attestation, each depending on a check it could not see. A module whose services may use
+        // `access` refuses in them, beside the read. Where they may not (`accessForRoutesOnly`), the
+        // route refuses and the service takes the proof, `VisibleTarget` — never a scan, whose refusal
+        // is `scanning`'s and reachable from any service.
+        String[] refusingModules = MODULES.stream()
+                .filter(module -> !ACCESS_FOR_ROUTES_ONLY.contains(module))
+                .map(module -> CORE + "." + module + ".web..")
+                .toArray(String[]::new);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(refusingModules)
+                .and().resideOutsideOfPackage(SECURITY_WEB)
+                .should().callMethod(
+                        com.asmolabs.vectispire.core.access.web.security.Visibilities.class,
+                        "requireVisible",
+                        com.asmolabs.vectispire.common.domain.targets.ScanTarget.class,
+                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                .because("this module's services may refuse the target themselves, and the next caller "
+                        + "of the same method would otherwise skip the check")
+                .check(classes);
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethod(
+                        com.asmolabs.vectispire.core.scanning.ScanDocumentService.class,
+                        "requireVisible",
+                        long.class,
+                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                .because("a scan is refused by the service that reads it, not by a route that then "
+                        + "hands the service its id")
+                .check(classes);
+    }
+
+    @Test
+    @DisplayName("a VisibleTarget is minted by the guard alone")
+    void visibleTargetsAreMintedByTheGuard() {
+        // Java cannot restrict a record's constructor to another package. `VisibleTarget` is worth
+        // something only because the one way to obtain it is to have been permitted — a `new
+        // VisibleTarget<>(target)` in a service is the check skipped under a name that says it ran.
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleTarget's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleTarget.class)))
                 .check(classes);
     }
 

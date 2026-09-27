@@ -231,6 +231,20 @@ can be enforced: repositories are reached by services only, the `api` layer — 
 opens no transaction, and only the security web layer (`core.access.web.security`) writes the audit
 log. `controllersDecideNoVisibility` keeps a `Visibility` from being read in a controller.
 
+**The refusal of a named target belongs to the service that serves it, not to the route in front
+of it.** Twenty routes refused a target or a scan and then called a service by the bare id, so the
+service trusted whoever called it — the attack-path graph reached the API inventory that way, the
+evidence bundle the attestation, each leaning on a check it could not see. A service method that
+serves one target takes the caller's `Visibility` and refuses through `RowVisibility` (a scan
+through `ScanDocumentService`, an issue through `RowVisibility.requireVisibleIssue`), absent and
+hidden in the same words. Where the module's services may not use `access` (`accessForRoutesOnly`:
+`exports`, `inventory`, `gate`…), the route refuses with `Visibilities.requireVisible` and hands
+the service what it returns, a `VisibleTarget` — never the bare `ScanTarget` or id — and only
+`RowVisibility` mints one (`ArchitectureTest.visibleTargetsAreMintedByTheGuard`).
+`routesLeaveTheRefusalToTheirServices` fails on a route of any other module that refuses a target
+itself, and on any route that refuses a scan. A caller with no session — the published badge —
+states its allowance as a `Visibility` of its own rather than reaching an unchecked form.
+
 Two consequences found by moving code out of controllers. **Parsing a request into a domain value
 — a severity, a flag, a target kind — is the service's**: the gate's verdict route and policy
 route each had a severity parser, and they had drifted (one trimmed, the other refused `" none "`).
@@ -252,7 +266,8 @@ until step 3, and each would have gone quiet on the first controller that moved.
 `ArchitectureTest.apiNeverTouchesPersistence` is firm, with no exception list. A service returns a
 `…View` record (`UserView`, `RepositoryView`, `ScanView`…); the principal holds `UserView`,
 `SessionView` and `AgentView`; a route that only needed a row to hand it back to a guard passes an
-id (`ScanDocumentService.requireVisible`, `TicketLinkService.requireVisibleIssue`). A service that
+id, and the service guards the row it reads (`ScanDocumentService.requireVisible`, called by the
+document services). A service that
 needs a secret — a password hash, a TOTP secret — reads the row by id itself.
 
 **A credential that is not a session is confined, and the confinement is not the visibility.**

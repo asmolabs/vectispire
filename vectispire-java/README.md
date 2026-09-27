@@ -177,7 +177,8 @@ same name; decision records written before that date keep the names they had.
 | A SIEM signature identifier does not change meaning | `SecurityEventTypeTest` |
 | A username cannot forge a second CEF event or a field | `CefEventTest`, `SiemSignalsRoutesTest` |
 | A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
-| No controller decides what a caller sees: it resolves a `Visibility`, refuses a target it names through `Visibilities`, and hands the allowance to the service — it asks it nothing and tests no kind of it | `ArchitectureTest.controllersDecideNoVisibility` |
+| No controller decides what a caller sees: it resolves a `Visibility` and hands the allowance to the service — it asks it nothing and tests no kind of it | `ArchitectureTest.controllersDecideNoVisibility` |
+| A service serving one target refuses a hidden one itself, whoever calls it, in the words an absent one gets; only where a module's services may not use `access` does the route refuse, and then the service takes the proof (`VisibleTarget`, minted by `RowVisibility` alone), never the bare target | `ServicesRefuseHiddenTargetsTest`, `ArchitectureTest.routesLeaveTheRefusalToTheirServices`, `ArchitectureTest.visibleTargetsAreMintedByTheGuard`, `VisibilityRoutesTest` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 | A delegated credential leaves only sealed for a sealing key the agent's pinned signing key vouched for — never in the clear; an unsigned, stale or absent announcement neither replaces nor clears the accepted key | `SealingKeyAttestationTest`, `AgentSealingKeyRoutesTest`, `ScanDispatcherTest`, `AgentSealingKeyIntegrationTest` (MySQL, PostgreSQL), `AgentSealingKeyAnnouncementTest` |

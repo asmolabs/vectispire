@@ -15,8 +15,12 @@ import org.springframework.stereotype.Service;
  * restricted reader enumerate every scan of the deployment.
  *
  * <p>It used to hand the row back for the controller to pass to that same guard, which put a
- * {@code ScanEntity} in {@code api} for the length of one call. The controller names the scan by
- * its id now, and the row stays here.
+ * {@code ScanEntity} in {@code api} for the length of one call. Then the controllers called it by id
+ * and passed the same id on to a document service that trusted them. <b>Its callers are those
+ * services now</b>, beside the read it guards: {@code exports} and {@code inventory} use {@code
+ * access} from their routes only, and this is {@code scanning}'s refusal, reached through {@code
+ * scanning}'s API. {@code ArchitectureTest.routesLeaveTheRefusalToTheirServices} keeps it off the
+ * routes.
  */
 @Service
 public class ScanDocumentService {
