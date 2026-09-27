@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.SarifLog;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.vex.OpenVexDocument;
 import com.asmolabs.vectispire.core.access.VisibilityService;
@@ -55,7 +56,7 @@ public class ExportsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String kind,
             @PathVariable long id) {
-        ScanTarget target = requireVisible(principal, kind, id);
+        VisibleTarget<?> target = requireVisible(principal, kind, id);
         SarifLog document = exports.sarif(target);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".sarif"))
@@ -71,7 +72,7 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
-        ScanTarget target = requireVisible(principal, kind, id);
+        VisibleTarget<?> target = requireVisible(principal, kind, id);
         OpenVexDocument document = exports.openVex(target, author);
 
         // Downloaded like the other three. It used to render in the tab, which is fine for a
@@ -93,7 +94,7 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String author) {
-        ScanTarget target = requireVisible(principal, kind, id);
+        VisibleTarget<?> target = requireVisible(principal, kind, id);
         CsafDocument document = exports.csaf(target, author);
 
         return ResponseEntity.ok()
@@ -115,7 +116,7 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
-        ScanTarget target = requireVisible(principal, kind, id);
+        VisibleTarget<?> target = requireVisible(principal, kind, id);
         byte[] document = exports.posturePdf(target, state);
 
         return ResponseEntity.ok()
@@ -131,7 +132,7 @@ public class ExportsController {
             @PathVariable String kind,
             @PathVariable long id,
             @RequestParam(required = false) String state) {
-        ScanTarget target = requireVisible(principal, kind, id);
+        VisibleTarget<?> target = requireVisible(principal, kind, id);
         String document = exports.csv(target, state);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, attachment("vectispire-" + kind + "-" + id + ".csv"))
@@ -143,13 +144,15 @@ public class ExportsController {
      * An export is the widest read in the API — the whole backlog of one target, in one file.
      * It is therefore the route where a missing check costs most, and the one a caller reaches
      * by guessing a number rather than by clicking a link.
+     *
+     * <p>The refusal is here and not in {@link ExportQueryService} because this module's services do
+     * not use {@code access}; what it hands back is the proof the service takes, so no caller of the
+     * service reaches the read with a target nobody checked.
      */
-    private ScanTarget requireVisible(VectispirePrincipal principal, String kind, long id) {
-        ScanTarget target = targetOf(kind, id);
-        Visibilities.requireVisible(
-                target,
+    private VisibleTarget<?> requireVisible(VectispirePrincipal principal, String kind, long id) {
+        return Visibilities.requireVisible(
+                targetOf(kind, id),
                 visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
-        return target;
     }
 
     private static ScanTarget targetOf(String kind, long id) {

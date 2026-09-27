@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.gate;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.gate.GateIssue;
@@ -160,7 +161,7 @@ public class GateService {
     }
 
     /** What a route sent, read by {@link GatePolicyFields#asRequest} — the one reading of it. */
-    public Decision evaluateAndRecord(ScanTarget target, GatePolicyFields requested, Caller caller) {
+    public Decision evaluateAndRecord(VisibleTarget<?> target, GatePolicyFields requested, Caller caller) {
         return evaluateAndRecord(target, requested.asRequest(), caller);
     }
 
@@ -180,8 +181,15 @@ public class GateService {
      * runs plainly and the write takes the repository's own transaction. Neither needs the other
      * to roll back: a verdict that was answered and not recorded is a gap in the register, and a
      * verdict recorded twice would be worse.
+     *
+     * <p><b>A target somebody checked</b> ({@link VisibleTarget}). A verdict is a summary of a
+     * target's backlog — counts, severities, the identifiers that violate — so answering one for a
+     * target the caller may not see hands over most of what the backlog would have said. This
+     * module's services do not use {@code access}, so the refusal is the route's; the parameter is
+     * its proof, where a bare target let any later caller ask about anything.
      */
-    public Decision evaluateAndRecord(ScanTarget target, RequestedPolicy requested, Caller caller) {
+    public Decision evaluateAndRecord(VisibleTarget<?> checked, RequestedPolicy requested, Caller caller) {
+        ScanTarget target = checked.target();
         Decision decision = evaluate(target, requested);
         record(target, decision, caller);
         if (!decision.verdict().passed()) {

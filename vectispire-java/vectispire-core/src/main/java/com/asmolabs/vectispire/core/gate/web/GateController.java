@@ -1,10 +1,10 @@
 package com.asmolabs.vectispire.core.gate.web;
 
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.common.domain.gate.GatePolicy;
 import com.asmolabs.vectispire.common.domain.gate.GateVerdict;
 import com.asmolabs.vectispire.common.domain.gate.PolicyFlag;
-import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -119,13 +119,13 @@ public class GateController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             @RequestBody GateRequest body,
             HttpServletRequest request) {
-        ScanTarget target = GateService.verdictTarget(body.repositoryId(), body.containerId());
-
         // A verdict is a summary of a target's backlog: counts, severities, the identifiers that
         // violate. Answering one for a target the caller may not see hands over most of what the
-        // backlog would have said.
-        Visibilities.requireVisible(
-                target, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+        // backlog would have said. Refused here, since this module's services do not use `access`,
+        // and handed on as the proof the service takes, so no other caller can skip it.
+        VisibleTarget<?> target = Visibilities.requireVisible(
+                GateService.verdictTarget(body.repositoryId(), body.containerId()),
+                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
 
         // **Recorded, not merely answered.** `evaluateAndRecord` is the only entry point this
         // layer can reach: the evaluation alone is package-private in the service, so a route

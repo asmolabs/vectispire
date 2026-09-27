@@ -17,7 +17,8 @@
  * ({@code VerdictRetentionTask}).
  *
  * <p>{@code access} for its routes only, which resolve a {@code Visibility} ({@code
- * ArchitectureTest.accessForRoutesOnly}).
+ * ArchitectureTest.accessForRoutesOnly}) and refuse the verdict's target, handing the service the
+ * proof of it ({@code VisibleTarget}) rather than the bare target.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},
  * which every controller needs. Only its {@code web} may name them — the layer rule keeps a

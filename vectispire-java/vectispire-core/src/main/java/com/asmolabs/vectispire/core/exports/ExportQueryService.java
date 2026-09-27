@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.exports;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.exports.CsafDocument;
 import com.asmolabs.vectispire.common.domain.exports.CsafExport;
@@ -32,9 +33,11 @@ import org.springframework.stereotype.Service;
  * platform, a downstream consumer, an auditor, a spreadsheet.
  *
  * <p>The documents themselves are built by the domain; this class picks the issues and the names
- * that go into them. <b>It does not check visibility</b> — the caller has already refused a target
- * the reader may not see, before any of these is reached, because an export is the widest read
- * in the API and the check belongs in front of it rather than somewhere inside.
+ * that go into them. <b>It does not check visibility, and it cannot be called without the check</b>:
+ * every method takes a {@link VisibleTarget}, the proof the route's refusal hands back. An export is
+ * the widest read in the API, and this module's services do not use {@code access}, so the refusal
+ * stays in front of it; what changed is that a bare target no longer reaches the read — "the caller
+ * has already refused" was a sentence in this comment, and the next caller would not have read it.
  *
  * <p>A target that does not exist is a {@link NotFoundException}, worded as it always was:
  * "No repository with id 7."
@@ -82,7 +85,8 @@ public class ExportQueryService {
      * <p>Quality findings carry their own tags: marking them "security" would raise them as
      * security alerts on the code host.
      */
-    public SarifLog sarif(ScanTarget target) {
+    public SarifLog sarif(VisibleTarget<?> checked) {
+        ScanTarget target = checked.target();
         String name = targetName(target);
         return SarifExport.build(
                 exportable(target, null),
@@ -96,7 +100,8 @@ public class ExportQueryService {
      * a VEX is an assertion about who said what, and when. The caller may therefore supply the
      * author; blank means the configured one.
      */
-    public OpenVexDocument openVex(ScanTarget target, String author) {
+    public OpenVexDocument openVex(VisibleTarget<?> checked, String author) {
+        ScanTarget target = checked.target();
         String name = targetName(target);
         return OpenVexExport.build(
                 exportable(target, null),
@@ -108,7 +113,8 @@ public class ExportQueryService {
     }
 
     /** The triage decisions as OASIS CSAF 2.0 (VEX profile). */
-    public CsafDocument csaf(ScanTarget target, String author) {
+    public CsafDocument csaf(VisibleTarget<?> checked, String author) {
+        ScanTarget target = checked.target();
         String name = targetName(target);
         return CsafExport.build(
                 exportable(target, null),
@@ -127,7 +133,8 @@ public class ExportQueryService {
      * every policy, and a document that outlives the screen must not let that read as a clean
      * bill of health.
      */
-    public byte[] posturePdf(ScanTarget target, String state) {
+    public byte[] posturePdf(VisibleTarget<?> checked, String state) {
+        ScanTarget target = checked.target();
         // The same construction the Security screen renders, narrowed to one target. Computing
         // the verdict a second way here would let the document and the screen disagree, which
         // is the one disagreement nobody would think to check.
@@ -150,7 +157,8 @@ public class ExportQueryService {
                 sla.policy());
     }
 
-    public String csv(ScanTarget target, String state) {
+    public String csv(VisibleTarget<?> checked, String state) {
+        ScanTarget target = checked.target();
         targetName(target);
         return IssueCsv.build(exportable(target, state));
     }

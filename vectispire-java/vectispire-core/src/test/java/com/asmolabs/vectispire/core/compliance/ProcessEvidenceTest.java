@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.core.compliance.internal.ProcessEvidenceService;
 import com.asmolabs.vectispire.core.gate.GateService;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
@@ -74,7 +76,7 @@ class ProcessEvidenceTest extends VectispireContextTest {
     @DisplayName("carries a refusal into the archive, with the policy that produced it")
     void refusalReachesTheArchive() {
         gate.evaluateAndRecord(
-                failing, tighten(Severity.HIGH), new GateService.Caller("ci-pipeline", "203.0.113.9"));
+                checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci-pipeline", "203.0.113.9"));
 
         ProcessEvidenceService.GateEvidence gateEvidence = evidence.gate(Visibility.everything());
 
@@ -93,8 +95,8 @@ class ProcessEvidenceTest extends VectispireContextTest {
     @Test
     @DisplayName("reports the month a verdict fell in, which is what shows the control did not lapse")
     void reportsMonthlyContinuity() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), GateService.Caller.unattributed());
-        gate.evaluateAndRecord(failing, tighten(Severity.HIGH), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(failing), tighten(Severity.HIGH), GateService.Caller.unattributed());
 
         String thisMonth = YearMonth.from(clock.instant().atZone(ZoneOffset.UTC)).toString();
 
@@ -111,8 +113,8 @@ class ProcessEvidenceTest extends VectispireContextTest {
     @Test
     @DisplayName("says on its face when the archive is one reader's slice of the estate")
     void scopedArchiveSaysSo() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), GateService.Caller.unattributed());
-        gate.evaluateAndRecord(failing, tighten(Severity.HIGH), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(failing), tighten(Severity.HIGH), GateService.Caller.unattributed());
 
         ProcessEvidenceService.GateEvidence slice = evidence.gate(Visibility.only(List.of(clean)));
 
@@ -127,7 +129,7 @@ class ProcessEvidenceTest extends VectispireContextTest {
     @Test
     @DisplayName("a whole-estate archive does not claim to be narrowed")
     void wholeEstateArchiveSaysSo() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), GateService.Caller.unattributed());
 
         ProcessEvidenceService.Coverage coverage =
                 evidence.gate(Visibility.everything()).coverage();
@@ -177,5 +179,10 @@ class ProcessEvidenceTest extends VectispireContextTest {
         issue.setLastSeenAt(clock.instant());
         issue.setTimesSeen(1);
         issues.save(issue);
+    }
+
+    /** The proof the gate takes, minted by the guard as its route does, for a caller who sees all. */
+    private static VisibleTarget<?> checked(ScanTarget target) {
+        return RowVisibility.requireVisible(target, Visibility.everything());
     }
 }

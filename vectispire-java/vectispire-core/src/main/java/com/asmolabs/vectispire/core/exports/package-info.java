@@ -11,12 +11,13 @@
  * target's export its posture ({@code GateService}). {@code issues} (and {@code issues::queries}'
  * {@code IssueFilters}): the documents state the backlog, its decisions and deadlines, and a VEX
  * document is imported through {@code VexIngestorService}. {@code scanning} since exports became a
- * module and took its controllers: a document is made for a scan, and its route first refuses a
- * scan the caller may not see. {@code targets}: a document names its target. None of them uses
+ * module and took its controllers: a document is made for a scan, and its service first refuses a
+ * scan the caller may not see ({@code ScanDocumentService}). {@code targets}: a document names its target. None of them uses
  * {@code exports}.
  *
  * <p>{@code access} for its routes only, which resolve a {@code Visibility} ({@code
- * ArchitectureTest.accessForRoutesOnly}).
+ * ArchitectureTest.accessForRoutesOnly}) and refuse a named target, handing the service the proof of
+ * it ({@code VisibleTarget}) rather than the bare target.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},
  * which every controller needs. Only its {@code web} may name them — the layer rule keeps a

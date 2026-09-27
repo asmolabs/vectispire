@@ -10,6 +10,9 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.issues.TriageStatus;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.VectispireContextTest;
+import com.asmolabs.vectispire.core.access.RowVisibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictEntity;
 import com.asmolabs.vectispire.core.gate.persistence.GateVerdictRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
@@ -72,7 +75,7 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     @DisplayName("records a refusal, which is the entry the whole register exists for")
     void records_a_refusal() {
         gate.evaluateAndRecord(
-                failing, tighten(Severity.HIGH), new GateService.Caller("ci-pipeline", "203.0.113.9"));
+                checked(failing), tighten(Severity.HIGH), new GateService.Caller("ci-pipeline", "203.0.113.9"));
 
         GateVerdictEntity row = onlyRow();
 
@@ -96,7 +99,7 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     @Test
     @DisplayName("records a pass too, because a register of refusals alone proves nothing")
     void records_a_pass() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), GateService.Caller.unattributed());
 
         GateVerdictEntity row = onlyRow();
 
@@ -116,7 +119,7 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         ScanTarget vanished = new ScanTarget.Repository(999_999L);
 
         GateService.Decision decision =
-                gate.evaluateAndRecord(vanished, RequestedPolicy.none(), GateService.Caller.unattributed());
+                gate.evaluateAndRecord(checked(vanished), RequestedPolicy.none(), GateService.Caller.unattributed());
 
         assertThat(decision.verdict().passed()).isTrue();
         assertThat(verdicts.findAllByOrderByDecidedAtDesc(Limit.of(10)))
@@ -127,8 +130,8 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     @Test
     @DisplayName("hands the register back newest first")
     void newest_first() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), new GateService.Caller("first", null));
-        gate.evaluateAndRecord(failing, tighten(Severity.HIGH), new GateService.Caller("second", null));
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), new GateService.Caller("first", null));
+        gate.evaluateAndRecord(checked(failing), tighten(Severity.HIGH), new GateService.Caller("second", null));
 
         assertThat(verdicts.findAllByOrderByDecidedAtDesc(Limit.of(10)))
                 .hasSize(2)
@@ -139,12 +142,12 @@ class GateVerdictRegisterTest extends VectispireContextTest {
     @Test
     @DisplayName("drops what is older than the retention window, and nothing newer")
     void purges_by_age() {
-        gate.evaluateAndRecord(clean, RequestedPolicy.none(), GateService.Caller.unattributed());
+        gate.evaluateAndRecord(checked(clean), RequestedPolicy.none(), GateService.Caller.unattributed());
         GateVerdictEntity aged = onlyRow();
         aged.setDecidedAt(clock.instant().minusSeconds(400L * 86_400));
         verdicts.save(aged);
 
-        gate.evaluateAndRecord(failing, RequestedPolicy.none(), new GateService.Caller("recent", null));
+        gate.evaluateAndRecord(checked(failing), RequestedPolicy.none(), new GateService.Caller("recent", null));
 
         int removed = verdicts.deleteBefore(clock.instant().minusSeconds(90L * 86_400));
 
@@ -188,5 +191,10 @@ class GateVerdictRegisterTest extends VectispireContextTest {
         issue.setLastSeenAt(clock.instant());
         issue.setTimesSeen(1);
         issues.save(issue);
+    }
+
+    /** The proof the gate takes, minted by the guard as its route does, for a caller who sees all. */
+    private static VisibleTarget<?> checked(ScanTarget target) {
+        return RowVisibility.requireVisible(target, Visibility.everything());
     }
 }
