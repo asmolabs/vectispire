@@ -5,6 +5,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.asmolabs.vectispire.core.scanning.ScanPlugins;
 import com.asmolabs.vectispire.core.scanning.ScanRuleSets;
@@ -77,6 +78,9 @@ public class ScanningConfiguration {
      * @param pluginRegistry the internal registry plugin images are pulled from — the registry host of
      *     each image replaced, its path and digest kept, so the mirror serves but cannot substitute.
      *     Blank pulls each from its own registry
+     * @param pluginSignatureRequired run no plugin whose manifest declares no signer. Off by default:
+     *     a declared signer is always verified, and requiring one of every plugin is this executor's
+     *     operator's decision — the agent has the same setting, for its own host (decision 0017)
      */
     @Bean
     ScanRunner scanRunner(
@@ -84,6 +88,7 @@ public class ScanningConfiguration {
             ScanPlugins plugins,
             Clock clock,
             @Value("${vectispire.scanning.plugin-registry:}") String pluginRegistry,
+            @Value("${vectispire.scanning.plugin-signature-required:false}") boolean pluginSignatureRequired,
             @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
             @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
             // Blank keeps the pinned digest — see ScannerImages.withOverrides. Named one by one
@@ -109,7 +114,7 @@ public class ScanningConfiguration {
                 bundledRules(bundledRulesOverride),
                 provider,
                 manifests,
-                pluginRegistry,
+                new PluginScanner.Settings(pluginRegistry, pluginSignatureRequired),
                 // Same policy as the agent: a changed host key blocks the scan rather than being
                 // accepted, which is the whole point of recording it in the first place.
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),

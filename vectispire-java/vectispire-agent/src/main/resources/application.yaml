@@ -42,3 +42,7 @@ vectispire:
       # digest kept, so the mirror serves a plugin and cannot substitute another. Blank pulls each
       # from its own registry.
       plugin-registry: ${VECTISPIRE_PLUGIN_REGISTRY:}
+      # Refuse a plugin whose manifest declares no signer. A declared signer is verified whatever
+      # this says, with cosign, before the image is pulled; this is whether an unsigned plugin runs at
+      # all on this agent's host — its operator's call, not the control plane's (decision 0017).
+      plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:false}

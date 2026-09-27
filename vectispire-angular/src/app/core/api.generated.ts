@@ -4535,6 +4535,7 @@ export interface components {
             network: boolean;
             network_justification?: string;
             output?: string;
+            signature?: components["schemas"]["PluginSignature"];
             /** Format: int32 */
             timeout_seconds?: number;
         };
@@ -4546,6 +4547,11 @@ export interface components {
             pluginId?: string;
             reason?: string;
             state?: string;
+        };
+        PluginSignature: {
+            identity?: string;
+            issuer?: string;
+            public_key?: string;
         };
         PluginStep: {
             state: string;

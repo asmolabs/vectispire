@@ -73,7 +73,8 @@ public final class ScanRunner {
     /**
      * @param plugins how this executor obtains a plugin's manifest — the database on the built-in
      *     worker, the protocol on an agent, as for {@code ruleSets}
-     * @param pluginRegistry the internal registry plugin images are pulled from, or blank for their own
+     * @param pluginSettings the internal registry plugin images are pulled from, and whether this
+     *     executor runs a plugin whose manifest declares no signer — the executor's own decisions
      */
     public ScanRunner(
             ContainerRunner containers,
@@ -81,11 +82,11 @@ public final class ScanRunner {
             Path bundledRules,
             RulePlacement.RuleSetProvider ruleSets,
             PluginProvider plugins,
-            String pluginRegistry,
+            PluginScanner.Settings pluginSettings,
             GitClone.HostKeyPolicy hostKeys,
             GitClone.WithoutKey withoutKey,
             Clock clock) {
-        this.plugins = new PluginSteps(new PluginScanner(containers, pluginRegistry), plugins);
+        this.plugins = new PluginSteps(new PluginScanner(containers, pluginSettings), plugins);
         this.containers = containers;
         this.dependencies = new DependencyScanner(containers, images);
         this.secrets = new SecretsScanner(containers, images.gitleaks());

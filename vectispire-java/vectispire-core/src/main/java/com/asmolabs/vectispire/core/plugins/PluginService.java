@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
+import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity;
@@ -323,7 +325,19 @@ public class PluginService {
                 + ", network " + (manifest.network() ? "OPEN" : "none")
                 + ", image " + manifest.image()
                 + ", languages " + manifest.languages().stream().map(Language::wireName).collect(Collectors.joining(","))
-                + (manifest.network() ? ", network justified as: " + manifest.networkJustification() : "") + ".";
+                + (manifest.network() ? ", network justified as: " + manifest.networkJustification() : "")
+                + ", " + signer(manifest.signature()) + ".";
+    }
+
+    /** Who the image must be signed by, as the audit reads it — a key by its fingerprint, not its PEM. */
+    private static String signer(PluginSignature signature) {
+        if (signature == null) {
+            return "no signer declared (trusted by digest alone)";
+        }
+        return switch (signature.form()) {
+            case KEYLESS -> "signed keyless by " + signature.identity() + " via " + signature.issuer();
+            case KEY -> "signed by key sha256:" + shortDigest(Digests.sha256Hex(signature.publicKey()));
+        };
     }
 
     private static String shortDigest(String digest) {

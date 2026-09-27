@@ -4023,6 +4023,9 @@
           "output" : {
             "type" : "string"
           },
+          "signature" : {
+            "$ref" : "#/components/schemas/PluginSignature"
+          },
           "timeout_seconds" : {
             "format" : "int32",
             "type" : "integer"
@@ -4053,6 +4056,20 @@
             "type" : "string"
           },
           "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "PluginSignature" : {
+        "properties" : {
+          "identity" : {
+            "type" : "string"
+          },
+          "issuer" : {
+            "type" : "string"
+          },
+          "public_key" : {
             "type" : "string"
           }
         },

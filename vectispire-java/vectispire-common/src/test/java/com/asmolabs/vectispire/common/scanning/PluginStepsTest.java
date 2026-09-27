@@ -11,6 +11,8 @@ import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
+import com.asmolabs.vectispire.common.domain.plugins.PluginSignature;
+import com.asmolabs.vectispire.common.scanning.scanners.ImageSignatureVerifier;
 import com.asmolabs.vectispire.common.domain.sarif.SarifFinding;
 import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import java.io.IOException;
@@ -32,7 +34,9 @@ import org.mockito.ArgumentCaptor;
 
 /**
  * A plugin's three states, decided without a clone and without a daemon: the container is a stub
- * that writes what the plugin would have written into the output mount it was handed.
+ * that writes what the plugin would have written into a directory standing for its bounded output,
+ * and answers what the runner would have read back from it. The verifier's run — cosign — is told
+ * apart by its label and answers {@link #verification}.
  */
 @DisplayName("the plugins of a scan")
 class PluginStepsTest {
@@ -53,6 +57,11 @@ class PluginStepsTest {
     /** Not the build's own user: the CI runs as root, a developer does not, and both must pass. */
     private String owner = "1000:1000";
     private final AtomicReference<ContainerRun> launched = new AtomicReference<>();
+    private final AtomicReference<ContainerRun> verified = new AtomicReference<>();
+    /** What cosign answers: its exit code and its words. */
+    private ContainerRunner.ContainerResult verification = new ContainerRunner.ContainerResult("[{}]", "Verified OK", 0);
+    /** Whether the output directory is reported full, as the holder's {@code df} would say. */
+    private boolean full;
 
     @BeforeEach
     void checkout() throws IOException {
@@ -76,12 +85,32 @@ class PluginStepsTest {
     private void plugin(int code, Consumer<Path> writes) {
         when(containers.run(any())).thenAnswer(invocation -> {
             ContainerRun run = invocation.getArgument(0);
+            if (run.label().endsWith(" signature")) {
+                verified.set(run);
+                return verification;
+            }
             launched.set(run);
-            Path output = Path.of(run.mounts().stream()
-                    .filter(mount -> mount.target().equals(PluginManifest.OUTPUT)).findFirst().orElseThrow().source());
+            Path output = Files.createTempDirectory(root, "output");
             writes.accept(output);
-            return new ContainerRunner.ContainerResult("", "the plugin's own complaint", code);
+            return new ContainerRunner.ContainerResult("", "the plugin's own complaint", code,
+                    Optional.of(readBack(run.output(), output)));
         });
+    }
+
+    /** What the runner answers for a bounded output: the file as the archive would, the space as df would. */
+    private ContainerRunner.CollectedOutput readBack(ContainerRun.BoundedOutput bounded, Path directory) throws IOException {
+        Path file = directory.resolve(bounded.file());
+        ContainerRunner.OutputFile read;
+        if (!Files.exists(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            read = new ContainerRunner.OutputFile.Missing();
+        } else if (!Files.isRegularFile(file, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            read = new ContainerRunner.OutputFile.NotRegular();
+        } else if (Files.size(file) > containers.outputBytes()) {
+            read = new ContainerRunner.OutputFile.TooLarge(Files.size(file));
+        } else {
+            read = new ContainerRunner.OutputFile.Read(Files.readAllBytes(file));
+        }
+        return new ContainerRunner.CollectedOutput(bounded.bytes(), full ? 0 : 1 << 20, full ? 0 : 100, read);
     }
 
     private static Consumer<Path> writing(String report) {
@@ -99,7 +128,11 @@ class PluginStepsTest {
     }
 
     private PluginScanner scanner(String mirror) {
-        return new PluginScanner(containers, mirror, directory -> Optional.ofNullable(owner));
+        return scannerWith(new PluginScanner.Settings(mirror, false));
+    }
+
+    private PluginScanner scannerWith(PluginScanner.Settings settings) {
+        return new PluginScanner(containers, settings, directory -> Optional.ofNullable(owner));
     }
 
     private List<PluginStep> run(PluginManifest manifest, PluginProvider provider, String mirror) {
@@ -133,7 +166,7 @@ class PluginStepsTest {
         }
 
         @Test
-        @DisplayName("runs in the closed shape: tree read-only, one writable output, no network, not root, argv not shell")
+        @DisplayName("runs in the closed shape: tree read-only, one bounded output, no network, not root, argv not shell")
         void confinement() throws IOException {
             plugin(1, writing(REPORT));
 
@@ -145,9 +178,13 @@ class PluginStepsTest {
             assertThat(run.user())
                     .as("the workspace owner, so what the plugin writes stays deletable and nothing runs as root")
                     .isEqualTo("1000:1000");
-            assertThat(run.mounts()).containsExactlyInAnyOrder(
-                    ContainerRun.Mount.readOnly(workspace.source().toString(), PluginManifest.SOURCE),
-                    ContainerRun.Mount.writable(root.resolve("plugins").resolve("acme-lint").toString(), PluginManifest.OUTPUT));
+            assertThat(run.mounts())
+                    .as("the tree alone, read-only: the output is no directory of the host")
+                    .containsExactly(ContainerRun.Mount.readOnly(workspace.source().toString(), PluginManifest.SOURCE));
+            assertThat(run.output())
+                    .as("a directory that holds no more than the scanner output ceiling, kept by the pinned holder")
+                    .isEqualTo(new ContainerRun.BoundedOutput(PluginManifest.OUTPUT, ScannerLimits.DEFAULT_OUTPUT_BYTES,
+                            PluginScanner.OUTPUT_HOLDER, "results.sarif"));
             assertThat(run.mounts())
                     .as("never the workspace root: it holds the secrets report in the clear")
                     .noneMatch(mount -> mount.source().equals(root.toString()));
@@ -177,6 +214,145 @@ class PluginStepsTest {
             run(manifest(Set.of(Language.PYTHON)), reference -> manifest(Set.of(Language.PYTHON)), "mirror.internal:5000");
 
             assertThat(launched.get().image()).isEqualTo("mirror.internal:5000/acme-lint@" + DIGEST);
+            assertThat(launched.get().output().holderImage())
+                    .as("the holder comes through the mirror too, by the same digest")
+                    .isEqualTo("mirror.internal:5000/library/" + PluginScanner.OUTPUT_HOLDER);
+        }
+    }
+
+    @Nested
+    @DisplayName("a declared signer")
+    class Signer {
+
+        private final PluginManifest keyless = signed(new PluginSignature(
+                "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0",
+                "https://token.actions.githubusercontent.com", null));
+
+        private final PluginManifest keyed = signed(new PluginSignature(null, null, "-----BEGIN PUBLIC KEY-----\n"
+                + "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhm3H+258usrgldBUFUFN9WFtNT21\n"
+                + "IV1MQgw1S41uz9HTMzDeHNZ9+PsTOW6xznu1CIrVOSLBcsTdCfoM911hVg==\n"
+                + "-----END PUBLIC KEY-----\n"));
+
+        private PluginManifest signed(PluginSignature signature) {
+            PluginManifest m = manifest(Set.of(Language.PYTHON));
+            return new PluginManifest(m.id(), m.name(), m.image(), m.languages(), m.arguments(), m.output(), m.exitCodes(),
+                    m.network(), m.networkJustification(), m.timeoutSeconds(), signature);
+        }
+
+        @Test
+        @DisplayName("keyless: cosign checks the exact identity and issuer, with the network and no file of the target")
+        void keyless() {
+            plugin(0, writing(REPORT));
+
+            assertThat(run(keyless)).singleElement().isInstanceOf(PluginStep.Produced.class);
+
+            ContainerRun check = verified.get();
+            assertThat(check.image()).isEqualTo(ImageSignatureVerifier.COSIGN);
+            assertThat(check.command()).containsExactly("verify",
+                    "--certificate-identity=https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0",
+                    "--certificate-oidc-issuer=https://token.actions.githubusercontent.com",
+                    "registry.acme.internal/acme-lint@" + DIGEST);
+            assertThat(check.network()).as("the signature is in the registry").isTrue();
+            assertThat(check.mounts()).as("no tree, no workspace, no key: nothing of the target").isEmpty();
+            assertThat(check.user()).isEqualTo("1000:1000");
+            assertThat(check.asRoot()).isFalse();
+        }
+
+        @Test
+        @DisplayName("key: the public key alone, mounted read-only; the transparency log is not consulted")
+        void key() throws IOException {
+            plugin(0, writing(REPORT));
+
+            assertThat(run(keyed)).singleElement().isInstanceOf(PluginStep.Produced.class);
+
+            ContainerRun check = verified.get();
+            assertThat(check.command()).containsExactly("verify", "--key=/trust/cosign.pub", "--insecure-ignore-tlog=true",
+                    "registry.acme.internal/acme-lint@" + DIGEST);
+            assertThat(check.mounts()).singleElement().satisfies(mount -> {
+                assertThat(mount.readOnly()).isTrue();
+                assertThat(mount.target()).isEqualTo("/trust/cosign.pub");
+                assertThat(Files.readString(Path.of(mount.source()))).isEqualTo(keyed.signature().publicKey());
+                assertThat(Path.of(mount.source()).startsWith(workspace.source()))
+                        .as("the key is kept outside the tree the plugin reads")
+                        .isFalse();
+            });
+        }
+
+        @Test
+        @DisplayName("an image cosign does not verify is never run, and the plugin is absent in cosign's words")
+        void refused() {
+            verification = new ContainerRunner.ContainerResult("", "Error: no matching signatures", 1);
+            plugin(0, writing(REPORT));
+
+            List<PluginStep> steps = run(keyless);
+
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
+                    assertThat(absent.reason()).contains("was not run").contains("no matching signatures"));
+            assertThat(launched.get()).as("the plugin's container is never created").isNull();
+        }
+
+        @Test
+        @DisplayName("a verifier that could not run is a refusal too, never a pass")
+        void verifierFailed() {
+            when(containers.run(any())).thenAnswer(invocation -> {
+                ContainerRun run = invocation.getArgument(0);
+                if (run.label().endsWith(" signature")) {
+                    throw ScannerFailureException.of(run.label(), "the verifier image could not be fetched");
+                }
+                launched.set(run);
+                return new ContainerRunner.ContainerResult("", "", 0);
+            });
+
+            assertThat(run(keyless)).singleElement().isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
+                    assertThat(absent.reason()).contains("could not be checked").contains("could not be fetched"));
+            assertThat(launched.get()).isNull();
+        }
+
+        @Test
+        @DisplayName("through a mirror, cosign checks the image as it will be pulled, and comes from the mirror too")
+        void mirrored() {
+            plugin(0, writing(REPORT));
+
+            run(keyless, reference -> keyless, "mirror.internal:5000");
+
+            assertThat(verified.get().command()).last().isEqualTo("mirror.internal:5000/acme-lint@" + DIGEST);
+            assertThat(verified.get().image())
+                    .isEqualTo("mirror.internal:5000/sigstore/cosign/cosign@" + ImageSignatureVerifier.COSIGN.split("@")[1]);
+        }
+
+        @Test
+        @DisplayName("an executor that requires a signer runs no plugin that declares none, and starts no container")
+        void required() {
+            plugin(0, writing(REPORT));
+            PluginManifest unsigned = manifest(Set.of(Language.PYTHON));
+
+            List<PluginStep> steps = new PluginSteps(scannerWith(new PluginScanner.Settings(null, true)), reference -> unsigned)
+                    .run(List.of(ref(unsigned)), workspace, workspace.source());
+
+            assertThat(steps).singleElement().isInstanceOfSatisfying(PluginStep.Absent.class, absent ->
+                    assertThat(absent.reason()).contains("VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED"));
+            verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("an executor that requires a signer runs a plugin that declares one, once it is verified")
+        void requiredAndSigned() {
+            plugin(0, writing(REPORT));
+
+            List<PluginStep> steps = new PluginSteps(scannerWith(new PluginScanner.Settings(null, true)), reference -> keyless)
+                    .run(List.of(ref(keyless)), workspace, workspace.source());
+
+            assertThat(steps).singleElement().isInstanceOf(PluginStep.Produced.class);
+            assertThat(verified.get()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("without a declared signer and without the requirement, nothing is verified")
+        void undeclared() {
+            plugin(0, writing(REPORT));
+
+            assertThat(run(manifest(Set.of(Language.PYTHON)))).singleElement().isInstanceOf(PluginStep.Produced.class);
+            assertThat(verified.get()).isNull();
         }
     }
 
@@ -257,6 +433,25 @@ class PluginStepsTest {
             });
 
             assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("not a regular file");
+        }
+
+        @Test
+        @DisplayName("a plugin that filled its output directory is absent, whatever it exited on and wrote")
+        void filled() {
+            full = true;
+            plugin(0, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason())
+                    .contains("filled its output directory").contains("not believed");
+        }
+
+        @Test
+        @DisplayName("a plugin killed for a file past its size limit is told so, not left to its exit code")
+        void fileTooLarge() {
+            plugin(153, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason())
+                    .contains("larger than").contains("SIGXFSZ");
         }
 
         @Test
@@ -356,11 +551,11 @@ class PluginStepsTest {
                     List.of(), "results.sarif", Set.of(0), false, null, null);
             when(containers.run(any())).thenAnswer(invocation -> {
                 ContainerRun run = invocation.getArgument(0);
+                Path output = Files.createTempDirectory(root, "output");
                 if (run.label().equals("plugin other")) {
-                    Path output = Path.of(run.mounts().get(1).source());
                     Files.writeString(output.resolve("results.sarif"), REPORT);
                 }
-                return new ContainerRunner.ContainerResult("", "", 0);
+                return new ContainerRunner.ContainerResult("", "", 0, Optional.of(readBack(run.output(), output)));
             });
 
             List<PluginStep> steps = new PluginSteps(scanner(null),

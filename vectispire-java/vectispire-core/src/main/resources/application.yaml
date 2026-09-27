@@ -103,6 +103,12 @@ vectispire:
     # (decision 0017). Blank pulls each image from its own registry.
     plugin-registry: ${VECTISPIRE_PLUGIN_REGISTRY:}
 
+    # **Whether the built-in worker runs a plugin whose manifest declares no signer.** A declared
+    # signer is verified whatever this says — cosign, pinned, before the image is pulled — and an image
+    # it does not verify is never run. Off by default; on, an unsigned plugin is absent with the reason.
+    # The agent has the same setting for its own host (decision 0017).
+    plugin-signature-required: ${VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED:false}
+
   branding:
     # **The two nested chains in this file are the only real ones, and they are here on purpose.**
     # Each name is an earlier spelling kept working for deployments that already set it, tried in

@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
+import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.InetAddress;
@@ -136,7 +137,8 @@ public class AgentRunner implements ApplicationRunner {
                 BundledRules.materialise(),
                 ruleSets,
                 plugins,
-                properties.images().pluginRegistry(),
+                new PluginScanner.Settings(
+                        properties.images().pluginRegistry(), properties.images().pluginSignatureRequired()),
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),
                 // **What `CredentialsMode.LOCAL` has always promised.** An agent in that mode
                 // receives no deployment key, and until now the session was built with an empty

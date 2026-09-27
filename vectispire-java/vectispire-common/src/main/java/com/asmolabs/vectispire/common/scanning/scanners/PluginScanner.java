@@ -9,13 +9,7 @@ import com.asmolabs.vectispire.common.scanning.ContainerRun;
 import com.asmolabs.vectispire.common.scanning.ContainerRunner;
 import com.asmolabs.vectispire.common.scanning.ScannerFailureException;
 import com.asmolabs.vectispire.common.scanning.Workspace;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +29,15 @@ import java.util.function.Function;
  *   <li><b>Only the analysed tree is mounted</b>, read-only, at {@value PluginManifest#SOURCE}. Not
  *       the workspace: its root holds the secrets report in the clear and the SBOM, and a plugin is
  *       code somebody else wrote.
- *   <li><b>One writable directory</b>, empty, at {@value PluginManifest#OUTPUT}, created for this
- *       run and deleted with the workspace. The report is read from there, not from stdout: a
- *       plugin can log what it likes without corrupting its SARIF.
+ *   <li><b>One writable directory</b>, empty, at {@value PluginManifest#OUTPUT}, <b>that cannot hold
+ *       more than the scanner output ceiling</b> — a size-limited tmpfs volume kept by a holder
+ *       container, never a directory of the host ({@link ContainerRun.BoundedOutput}). A bind mount
+ *       carried no size, and a plugin could fill the executor's disk through it. The report is read
+ *       from there, not from stdout: a plugin can log what it likes without corrupting its SARIF. A
+ *       plugin that filled the directory had a write refused, and its report is not believed.
+ *   <li><b>A declared signer is verified before the image is pulled</b>
+ *       ({@link ImageSignatureVerifier}); an executor configured to require one runs no plugin
+ *       whose manifest declares none.
  *   <li><b>As the workspace's owner, never root</b> — the Grype lesson: what root writes into a mount
  *       is root's on the host, and the unprivileged process cannot delete it afterwards. A host that
  *       reports no owner cannot run a plugin at all, rather than run it as root — and neither can
@@ -48,9 +48,10 @@ import java.util.function.Function;
  *       scanner limits', unchanged.
  * </ul>
  *
- * <p><b>The report is read like anything else a stranger wrote.</b> Not through a link (a plugin
- * could leave {@code results.sarif -> /etc/shadow} for this process to read), only a regular file,
- * and only up to the output ceiling, enforced while reading. Then {@link SarifReport}'s guards.
+ * <p><b>The report is read like anything else a stranger wrote.</b> Not through a link — the daemon
+ * archives a link as a link, and one is refused — only a regular file, and only up to the output
+ * ceiling, checked on the archive's header before its content is read. Then {@link SarifReport}'s
+ * guards.
  *
  * <p><b>Returns empty, never an empty list, when the plugin did not analyse</b> (decision 0007): a
  * report with no run, or a run that says it computed no results. A failure it can explain — an
@@ -59,19 +60,53 @@ import java.util.function.Function;
  */
 public final class PluginScanner {
 
-    /** Where each plugin's output directory is created, beside — never inside — the analysed tree. */
-    static final String OUTPUT_SUBDIR = "plugins";
-
-    private final ContainerRunner runner;
-    private final String registryMirror;
-    private final Function<Path, Optional<String>> owners;
+    /** Where the workspace keeps what the plugin machinery needs — a signer's key — outside the tree. */
+    static final String PLUGINS_SUBDIR = "plugins";
 
     /**
+     * The holder of a plugin's output directory: busybox 1.37, by the digest of its
+     * multi-architecture index. It only sleeps and, stopped, prints {@code df}; relocated to the
+     * plugin registry like a plugin's image, so an estate pulling through a mirror mirrors it too.
+     */
+    public static final String OUTPUT_HOLDER =
+            "busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e";
+
+    /** A process killed by {@code SIGXFSZ}: it wrote a file past its {@code fsize} limit. */
+    static final int FILE_TOO_LARGE_EXIT = 128 + 25;
+
+    /**
+     * What an executor decides about plugins for itself, whatever the control plane sends it.
+     *
      * @param registryMirror the internal registry plugin images are pulled from, or blank for their
      *     own — see {@link ImageDigest#relocate}
+     * @param signatureRequired run no plugin whose manifest declares no signer. <b>The executor's
+     *     setting, not the control plane's</b>: the host that runs the code is the one at stake, and an
+     *     agent's operator may refuse unsigned code whatever the governor registered
+     *     ({@code VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED})
      */
+    public record Settings(String registryMirror, boolean signatureRequired) {
+
+        public static final Settings DEFAULT = new Settings(null, false);
+
+        public Settings {
+            registryMirror = registryMirror == null || registryMirror.isBlank()
+                    ? null
+                    : ImageDigest.requireMirror(registryMirror);
+        }
+    }
+
+    private final ContainerRunner runner;
+    private final Settings settings;
+    private final ImageSignatureVerifier verifier;
+    private final Function<Path, Optional<String>> owners;
+
+    /** A mirror, and signatures verified where declared but not required. */
     public PluginScanner(ContainerRunner runner, String registryMirror) {
-        this(runner, registryMirror, ContainerRun::ownerOf);
+        this(runner, new Settings(registryMirror, false));
+    }
+
+    public PluginScanner(ContainerRunner runner, Settings settings) {
+        this(runner, settings, ContainerRun::ownerOf);
     }
 
     /**
@@ -79,12 +114,11 @@ public final class PluginScanner {
      *     whoever runs the build: the CI's job container is root, a developer is not, and a test of
      *     either rule must not depend on which of the two ran it
      */
-    public PluginScanner(ContainerRunner runner, String registryMirror, Function<Path, Optional<String>> owners) {
+    public PluginScanner(ContainerRunner runner, Settings settings, Function<Path, Optional<String>> owners) {
         this.runner = runner;
+        this.settings = settings == null ? Settings.DEFAULT : settings;
+        this.verifier = new ImageSignatureVerifier(runner);
         this.owners = owners;
-        this.registryMirror = registryMirror == null || registryMirror.isBlank()
-                ? null
-                : ImageDigest.requireMirror(registryMirror);
     }
 
     /**
@@ -101,8 +135,11 @@ public final class PluginScanner {
      */
     public Optional<PluginReport> scan(Workspace workspace, Path analysedRoot, PluginManifest manifest) {
         String label = "plugin " + manifest.id();
-        Path output = outputDirectory(workspace, manifest, label);
-        String owner = owners.apply(output).orElseThrow(() -> ScannerFailureException.of(label,
+        if (manifest.signature() == null && settings.signatureRequired()) {
+            throw ScannerFailureException.of(label, "This executor runs only plugins whose manifest declares who signed "
+                    + "their image (VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED), and this one declares nobody; it was not run.");
+        }
+        String owner = owners.apply(workspace.root()).orElseThrow(() -> ScannerFailureException.of(label,
                 "This host reports no owner for the workspace, so the plugin cannot run as an unprivileged user; "
                         + "it is not run as root instead."));
         if (owner.startsWith("0:")) {
@@ -111,14 +148,23 @@ public final class PluginScanner {
                             + "it is not run. Run Vectispire as an unprivileged user, as its images do (1000:1000).");
         }
 
+        String image = ImageDigest.relocate(manifest.image(), settings.registryMirror());
+        if (manifest.signature() != null) {
+            // Before the run, hence before the pull: an image nobody verified is not even fetched.
+            verifier.verify(image, manifest.signature(),
+                    workspace.root().resolve(PLUGINS_SUBDIR).resolve(manifest.id() + "-signer"), owner, label,
+                    ImageDigest.relocate(ImageSignatureVerifier.COSIGN, settings.registryMirror()));
+        }
+
+        long capacity = runner.outputBytes();
         ContainerRun run = ContainerRun.of(
-                        ImageDigest.relocate(manifest.image(), registryMirror),
+                        image,
                         manifest.command(PluginManifest.SOURCE, PluginManifest.OUTPUT + "/" + manifest.output()),
-                        List.of(
-                                ContainerRun.Mount.readOnly(analysedRoot.toString(), PluginManifest.SOURCE),
-                                ContainerRun.Mount.writable(output.toString(), PluginManifest.OUTPUT)),
+                        List.of(ContainerRun.Mount.readOnly(analysedRoot.toString(), PluginManifest.SOURCE)),
                         label)
-                .runningAs(owner);
+                .runningAs(owner)
+                .withBoundedOutput(new ContainerRun.BoundedOutput(PluginManifest.OUTPUT, capacity,
+                        ImageDigest.relocate(OUTPUT_HOLDER, settings.registryMirror()), manifest.output()));
         if (manifest.network()) {
             // The governor's declared exception, justified in the manifest and in the audit log.
             run = run.withNetwork();
@@ -128,11 +174,33 @@ public final class PluginScanner {
         }
 
         ContainerRunner.ContainerResult result = runner.run(run);
+        ContainerRunner.CollectedOutput output = result.output().orElseThrow(() -> ScannerFailureException.of(label,
+                "Its output directory was not read back."));
+        // Before the exit code: a plugin refused a write usually exits on an error, and the directory
+        // being full is the explanation its own words would only hint at.
+        if (output.full()) {
+            throw ScannerFailureException.of(label, "It filled its output directory — " + capacity + " bytes, "
+                    + ContainerRunner.OUTPUT_INODES + " files — so a write was refused and its report is not believed. "
+                    + PluginManifest.OUTPUT + " holds the report and whatever the plugin writes beside it, never more "
+                    + "than a scanner may hand back.");
+        }
+        if (result.exitCode() == FILE_TOO_LARGE_EXIT && !manifest.exitCodes().contains(result.exitCode())) {
+            throw ScannerFailureException.of(label, "It was stopped for writing a file larger than " + capacity
+                    + " bytes, the most any file of a plugin may weigh (exit " + FILE_TOO_LARGE_EXIT + ", SIGXFSZ).");
+        }
         if (!manifest.exitCodes().contains(result.exitCode())) {
             throw ScannerFailureException.exited(label, result.exitCode(), result.stderr());
         }
 
-        byte[] document = readReport(output.resolve(manifest.output()), runner.outputBytes(), manifest, label);
+        byte[] document = switch (output.file()) {
+            case ContainerRunner.OutputFile.Read read -> read.bytes();
+            case ContainerRunner.OutputFile.Missing missing -> throw ScannerFailureException.of(label,
+                    "The plugin exited without writing its report to " + PluginManifest.OUTPUT + "/" + manifest.output() + ".");
+            case ContainerRunner.OutputFile.NotRegular notRegular -> throw ScannerFailureException.of(label,
+                    "Its report is not a regular file; a link or a device is not read.");
+            case ContainerRunner.OutputFile.TooLarge tooLarge -> throw ScannerFailureException.of(label,
+                    "Its report is larger than the " + runner.outputBytes() + " bytes a scanner may hand back.");
+        };
         SarifReport report;
         try {
             report = SarifReport.read(document, runner.outputBytes(), List.of(PluginManifest.SOURCE));
@@ -166,47 +234,5 @@ public final class PluginScanner {
         }
         SarifReport.Run first = report.runs().getFirst();
         return Optional.of(new PluginReport(first.toolName(), first.toolVersion(), List.copyOf(all)));
-    }
-
-    private static Path outputDirectory(Workspace workspace, PluginManifest manifest, String label) {
-        Path output = workspace.root().resolve(OUTPUT_SUBDIR).resolve(manifest.id());
-        try {
-            Files.createDirectories(output.getParent());
-            // `createDirectory`, not `createDirectories`: it fails if the directory exists, so a
-            // report left there by anything else cannot be read as this run's.
-            Files.createDirectory(output);
-        } catch (IOException unwritable) {
-            throw ScannerFailureException.of(label, "Its output directory could not be created: " + unwritable.getMessage());
-        }
-        return output;
-    }
-
-    /** The report's bytes: a regular file, not through a link, and no more than the ceiling. */
-    private static byte[] readReport(Path file, long ceiling, PluginManifest manifest, String label) {
-        BasicFileAttributes attributes;
-        try {
-            attributes = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-        } catch (NoSuchFileException absent) {
-            throw ScannerFailureException.of(label, "The plugin exited without writing its report to "
-                    + PluginManifest.OUTPUT + "/" + manifest.output() + ".");
-        } catch (IOException unreadable) {
-            throw ScannerFailureException.of(label, "Its report could not be read: " + unreadable.getMessage());
-        }
-        if (!attributes.isRegularFile() || attributes.isSymbolicLink()) {
-            throw ScannerFailureException.of(label, "Its report is not a regular file; a link or a device is not read.");
-        }
-        if (attributes.size() > ceiling) {
-            throw ScannerFailureException.of(label, "Its report is larger than the " + ceiling + " bytes a scanner may hand back.");
-        }
-        try (InputStream in = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            // Bounded while reading too: the file could grow between the check and the read.
-            byte[] bytes = in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, ceiling + 1));
-            if (bytes.length > ceiling) {
-                throw ScannerFailureException.of(label, "Its report is larger than the " + ceiling + " bytes a scanner may hand back.");
-            }
-            return bytes;
-        } catch (IOException unreadable) {
-            throw ScannerFailureException.of(label, "Its report could not be read: " + unreadable.getMessage());
-        }
     }
 }
