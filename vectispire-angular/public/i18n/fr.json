@@ -179,7 +179,7 @@
     "exploitable_paths": "Chemins Critiques Exploitables",
     "focus": "Focaliser sur le graphe",
     "linked_components": "Composants Vulnérables Liés",
-    "linked_components_help": "Dépendances critiques & RCE atteignables",
+    "linked_components_help": "Dépendances critiques ou activement exploitées",
     "metadata": "Métadonnées Techniques :",
     "no_critical": "Aucune vulnérabilité critique active.",
     "no_endpoint": "Aucun endpoint API exposé ou non-authentifié.",
@@ -1171,7 +1171,6 @@
     "filter_kev": "CISA KEV",
     "filter_unsettled": "Masquer le triage réglé",
     "filter_unsettled_hint": "Écarte ce qui a été jugé non affecté ou marqué corrigé — ce que compte le tableau de bord.",
-    "filter_reachability": "Atteignabilité",
     "filter_severity": "Gravité",
     "filter_state": "État",
     "filter_type": "Type de constat",
@@ -1270,8 +1269,6 @@
     "bulk_hint_decide": "Une seule décision, inscrite sur chaque constat sélectionné — ou sur aucun.",
     "bulk_hint_request": "Votre décision part en approbation : un référent sécurité ou un CISO la validera.",
     "aria_select_page": "Sélectionner tous les constats de cette page",
-    "tag_reachable": "⚡ ATTEIGNABLE",
-    "tag_unreachable": "🛡️ NON ATTEIGNABLE",
     "kind_image": "image",
     "kind_repository": "dépôt",
     "seen_times": "vu {{count}}×",
@@ -1579,13 +1576,6 @@
       "densest_repositories": "Dépôts les plus denses"
     },
     "load_failed": "Impossible de charger la vue qualité."
-  },
-  "reachability": {
-    "call_traces": "Traces d'appel :",
-    "reachable": "Atteignable depuis le code",
-    "reachable_desc": "Une analyse a relié ce composant à du code appelé. La vulnérabilité n'est pas seulement présente dans les dépendances : elle est sur un chemin d'exécution.",
-    "unreachable": "Jugée non atteignable",
-    "unreachable_desc": "Un humain a établi que ce composant n'est pas sur un chemin d'exécution. L'analyse statique seule ne conclut jamais dans ce sens : l'absence de preuve d'appel n'est pas une preuve d'absence."
   },
   "remediation": {
     "affected_targets": "Cibles concernées",

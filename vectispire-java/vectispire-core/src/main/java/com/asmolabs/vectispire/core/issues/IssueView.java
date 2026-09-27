@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.issues;
 
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 
 /**
@@ -61,7 +62,19 @@ public record IssueView(
         String ticketRef,
         String ticketAttachedBy,
         String ticketUrl,
+        // **Published, not computed.** Nothing writes the columns behind these two since the
+        // reachability analyser went; every row reads UNKNOWN and null. They stay because an
+        // integration key reads this shape, and a field that vanishes breaks a client silently
+        // where a documented dead one does not.
+        @Schema(
+                description = "Not computed: always UNKNOWN. No analysis establishes whether the code calls the "
+                        + "vulnerable component; kept in the response so integrations reading it do not break, "
+                        + "and reserved for a real analysis.",
+                deprecated = true)
         String reachability,
+        @Schema(
+                description = "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
+                deprecated = true)
         String reachableSymbols) {
 
     public static IssueView of(IssueEntity issue) {

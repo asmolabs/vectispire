@@ -3336,7 +3336,15 @@ export interface components {
             packageName?: string;
             packageVersion?: string;
             purl?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
+             */
             reachability?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
+             */
             reachableSymbols?: string;
             /** Format: int64 */
             repoId?: number;
@@ -4118,7 +4126,15 @@ export interface components {
             packageName?: string;
             packageVersion?: string;
             purl?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
+             */
             reachability?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
+             */
             reachableSymbols?: string;
             /** Format: int64 */
             repoId?: number;
@@ -4207,7 +4223,15 @@ export interface components {
             packageName?: string;
             packageVersion?: string;
             purl?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.
+             */
             reachability?: string;
+            /**
+             * @deprecated
+             * @description Not computed: always null. Reserved, like reachability, for a real call-graph analysis.
+             */
             reachableSymbols?: string;
             /** Format: int64 */
             repoId?: number;

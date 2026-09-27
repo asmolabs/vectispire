@@ -207,6 +207,10 @@ class HistoryTest extends ApiTestBase {
                 // definition of an issue that drifts the day a column is added.
                 .andExpect(jsonPath("$.identifier").value("CVE-2026-1234"))
                 .andExpect(jsonPath("$.targetName").value("Arm Libs Spring"))
+                // Dormant but published: an integration key reads this shape, so the field stays
+                // and says what the column holds — nothing computes it.
+                .andExpect(jsonPath("$.reachability").value("UNKNOWN"))
+                .andExpect(jsonPath("$.reachableSymbols").doesNotExist())
                 // What a row cannot carry: the version it was seen on, and the decision taken.
                 .andExpect(jsonPath("$.sightings[0].version").value("2.4.1"))
                 .andExpect(jsonPath("$.sightings[0].scanId").value((int) scanId))

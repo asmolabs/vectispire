@@ -306,8 +306,6 @@ export type Issue = Refine<
         isDirectDependency: boolean | null;
         ticketRef: string | null;
         ticketUrl: string | null;
-        reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
-        reachableSymbols?: string | null;
         /** When this issue's remediation window closes; null when none applies — a severity with
          *  no window, or an issue already settled or closed.
          *
@@ -1246,8 +1244,6 @@ export type IssueDetail = Refine<
         isDirectDependency: boolean | null;
         ticketRef: string | null;
         ticketUrl: string | null;
-        reachability?: 'REACHABLE' | 'UNREACHABLE' | 'UNKNOWN';
-        reachableSymbols?: string | null;
         sightings: IssueSighting[];
         decisions: HistoryDecision[];
         /** The provenance of a `plugin` or `imported` issue — see {@link Issue}. */

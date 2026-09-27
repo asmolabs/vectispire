@@ -784,9 +784,13 @@
             "type" : "string"
           },
           "reachability" : {
+            "deprecated" : true,
+            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
             "type" : "string"
           },
           "reachableSymbols" : {
+            "deprecated" : true,
+            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : "string"
           },
           "repoId" : {
@@ -2899,9 +2903,13 @@
             "type" : "string"
           },
           "reachability" : {
+            "deprecated" : true,
+            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
             "type" : "string"
           },
           "reachableSymbols" : {
+            "deprecated" : true,
+            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : "string"
           },
           "repoId" : {
@@ -3127,9 +3135,13 @@
             "type" : "string"
           },
           "reachability" : {
+            "deprecated" : true,
+            "description" : "Not computed: always UNKNOWN. No analysis establishes whether the code calls the vulnerable component; kept in the response so integrations reading it do not break, and reserved for a real analysis.",
             "type" : "string"
           },
           "reachableSymbols" : {
+            "deprecated" : true,
+            "description" : "Not computed: always null. Reserved, like reachability, for a real call-graph analysis.",
             "type" : "string"
           },
           "repoId" : {

@@ -179,7 +179,7 @@
     "exploitable_paths": "Exploitable critical paths",
     "focus": "Focus on the graph",
     "linked_components": "Vulnerable components on the path",
-    "linked_components_help": "Critical dependencies and reachable remote code execution",
+    "linked_components_help": "Critical or actively exploited dependencies",
     "metadata": "Technical metadata:",
     "no_critical": "No active critical vulnerability.",
     "no_endpoint": "No exposed or unauthenticated API endpoint.",
@@ -1171,7 +1171,6 @@
     "filter_kev": "CISA KEV",
     "filter_unsettled": "Hide settled triage",
     "filter_unsettled_hint": "Leaves out what was argued not affected or marked fixed — what the dashboard counts.",
-    "filter_reachability": "Reachability",
     "filter_severity": "Severity",
     "filter_state": "State",
     "filter_type": "Finding Type",
@@ -1270,8 +1269,6 @@
     "bulk_hint_decide": "One decision, written to every selected issue — or to none of them.",
     "bulk_hint_request": "Your decision goes for approval: a security champion or a CISO will validate it.",
     "aria_select_page": "Select every issue on this page",
-    "tag_reachable": "⚡ REACHABLE",
-    "tag_unreachable": "🛡️ UNREACHABLE",
     "kind_image": "image",
     "kind_repository": "repository",
     "seen_times": "seen {{count}}×",
@@ -1579,13 +1576,6 @@
       "densest_repositories": "Densest repositories"
     },
     "load_failed": "Could not load the quality view."
-  },
-  "reachability": {
-    "call_traces": "Call traces:",
-    "reachable": "Reachable from your code",
-    "reachable_desc": "Analysis linked this component to code that is called. The vulnerability is not merely present in the dependency tree: it sits on an execution path.",
-    "unreachable": "Judged not reachable",
-    "unreachable_desc": "A person established that this component is not on an execution path. Static analysis alone never concludes this way: absence of a matched call is not proof of absence."
   },
   "remediation": {
     "affected_targets": "Affected targets",

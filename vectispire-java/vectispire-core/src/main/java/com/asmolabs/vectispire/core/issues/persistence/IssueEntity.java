@@ -121,6 +121,12 @@ public class IssueEntity {
     @Column(name = "description")
     private String description;
 
+    // **Dormant, kept on purpose.** Nothing computes reachability: the analyser that was meant to
+    // fill these two was never wired and went in f604ffa0, so every row carries the defaults
+    // (UNKNOWN, null) and nothing reads them to weigh, rank or clear anything. The columns stay —
+    // no migration — because a real analysis may come back through a plugin, and dropping a column
+    // on three engines to re-add it later is two migrations for nothing. There is no setter:
+    // whatever writes here next should be a deliberate change, not a line that compiles.
     @Column(name = "reachability", length = 16, nullable = false)
     private String reachability = "UNKNOWN";
 
@@ -614,15 +620,8 @@ public class IssueEntity {
         return reachability;
     }
 
-    public void setReachability(String reachability) {
-        this.reachability = reachability != null ? reachability : "UNKNOWN";
-    }
-
     public String getReachableSymbols() {
         return reachableSymbols;
     }
 
-    public void setReachableSymbols(String reachableSymbols) {
-        this.reachableSymbols = reachableSymbols;
-    }
 }

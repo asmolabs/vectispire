@@ -209,15 +209,6 @@
                         @if (issue.isKev) {
                             <p-tag severity="danger" value="KEV" styleClass="ml-2" />
                         }
-                        @if (issue.reachability === 'REACHABLE') {
-                            <p-tag severity="danger" [value]="'issues.tag_reachable' | translate" styleClass="ml-1" />
-                        } @else if (issue.reachability === 'UNREACHABLE') {
-                            <p-tag
-                                severity="success"
-                                [value]="'issues.tag_unreachable' | translate"
-                                styleClass="ml-1"
-                            />
-                        }
                         <div class="text-muted-color text-sm" style="max-width: 32rem; overflow-wrap: anywhere">
                             {{ issue.filePath ?? '—' }}
                         </div>

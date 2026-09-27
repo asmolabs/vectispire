@@ -36,9 +36,7 @@ public record ScanFindingView(
         Long issueId,
         Boolean isDirectDependency,
         Integer line,
-        String description,
-        String reachability,
-        String reachableSymbols) {
+        String description) {
 
     public static ScanFindingView of(FindingEntity finding) {
         return new ScanFindingView(
@@ -67,8 +65,6 @@ public record ScanFindingView(
                 finding.getIssueId(),
                 finding.getIsDirectDependency(),
                 finding.getLine(),
-                finding.getDescription(),
-                finding.getReachability(),
-                finding.getReachableSymbols());
+                finding.getDescription());
     }
 }
