@@ -14,7 +14,6 @@ import com.asmolabs.vectispire.core.tickets.persistence.IssueTicketRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 /**
@@ -75,15 +74,15 @@ public class TicketLinkService {
      * <p>The visibility check comes first, so a hidden issue answers 404 whatever the body holds —
      * answering 400 to a malformed body on an issue the caller may not see would tell the two apart.
      *
-     * @throws IllegalArgumentException for a provider that is not a {@link TicketingProvider}, and
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for a provider that is not a {@link TicketingProvider}, and
      *     for a key or URL that is blank or longer than its column
      */
     public IssueTicketView attach(
             long issueId, Visibility visibility, String provider, String ticketKey, String ticketUrl, RequestActor actor) {
 
         IssueView issue = visibleIssue(issueId, visibility);
-        TicketingProvider parsed = TicketingProvider.valueOf(
-                BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider").toUpperCase(Locale.ROOT));
+        TicketingProvider parsed = TicketingProvider.parse(
+                BoundedText.required(provider, MAX_PROVIDER_LENGTH, "The provider"));
         // Both columns are non-null and bounded, and both were written as sent: a blank key stored a
         // link to nothing, and a key past 128 or a URL past 512 characters was refused by the
         // database at the write, as a 500.

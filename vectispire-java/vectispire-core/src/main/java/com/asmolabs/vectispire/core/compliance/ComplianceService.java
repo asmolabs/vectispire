@@ -4,6 +4,7 @@ import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEngine;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.gate.SecurityOverview;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
@@ -400,14 +401,26 @@ public class ComplianceService {
                 observedTargets, fresh.within(), targetComplianceList);
     }
 
+    /**
+     * The number after the kind. Refused in words: the parser's own "For input string" used to reach
+     * the client, and would now be a 500 for a query string the caller mistyped.
+     */
+    private static long targetNumber(String targetId) {
+        try {
+            return Long.parseLong(targetId.substring(targetId.indexOf(':') + 1).trim());
+        } catch (NumberFormatException malformed) {
+            throw new InvalidInputException("A target is written repository:<id> or container:<id>.");
+        }
+    }
+
     private ComplianceSummary getSummaryForTarget(String targetId, SecurityOverview.Overview posture, Visibility allowed) {
         Long repoId = null;
         Long containerId = null;
 
         if (targetId.startsWith("repo:") || targetId.startsWith("repository:")) {
-            repoId = Long.parseLong(targetId.substring(targetId.indexOf(':') + 1));
+            repoId = targetNumber(targetId);
         } else if (targetId.startsWith("container:")) {
-            containerId = Long.parseLong(targetId.substring(targetId.indexOf(':') + 1));
+            containerId = targetNumber(targetId);
         }
 
         final Long fRepoId = repoId;
