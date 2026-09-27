@@ -276,6 +276,15 @@ tasks.named<Test>("test") {
         .withPropertyName("frontendSessionStore")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 
+    // `AuditOperationLabelsTest` reads the audit log screen's label table and both dictionaries: a
+    // label removed there changes no file of this module, and the task has to notice.
+    inputs.files(
+            rootProject.file("../vectispire-angular/src/app/pages/audit-log/audit-log.ts"),
+            rootProject.file("../vectispire-angular/public/i18n/en.json"),
+            rootProject.file("../vectispire-angular/public/i18n/fr.json"))
+        .withPropertyName("frontendAuditLabels")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+
     // `ModulithRuntimeInertTest` reads the production classpath from the lockfile: a dependency moved
     // back to `implementation` changes the lockfile and no source, and the task has to notice.
     inputs.file("gradle.lockfile")
