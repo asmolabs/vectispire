@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.Security;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +31,58 @@ class CosignSignerTest {
         assertThat(parsedPub.getAlgorithm()).isEqualTo("EC");
         assertThat(parsedPriv.getAlgorithm()).isEqualTo("EC");
         assertThat(parsedPub.getEncoded()).isEqualTo(keyPair.getPublic().getEncoded());
+    }
+
+    @Test
+    @DisplayName("a parsed key is the same whether or not BouncyCastle has been registered, as sshd does on a clone")
+    void parsingDoesNotDependOnTheRegisteredProviders() {
+        // The test above failed now and then on "ECDSA": Apache MINA sshd registers BouncyCastle the
+        // first time JGit clones over SSH, and the PEM converter then built a BouncyCastle key under
+        // that name. Whichever test ran first in the JVM decided — so this one registers it itself.
+        KeyPair keyPair = CosignSigner.generateKeyPair();
+        String pubPem = CosignSigner.toPem(keyPair.getPublic());
+        String privPem = CosignSigner.toPem(keyPair.getPrivate());
+        String sec1Pem = sec1(keyPair.getPrivate());
+
+        boolean added = Security.addProvider(new BouncyCastleProvider()) != -1;
+        try {
+            assertThat(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME)).isNotNull();
+            PublicKey parsedPub = CosignSigner.parsePublicKey(pubPem);
+            PrivateKey parsedPriv = CosignSigner.parsePrivateKey(privPem);
+
+            assertThat(parsedPub.getAlgorithm()).isEqualTo("EC");
+            assertThat(parsedPriv.getAlgorithm()).isEqualTo("EC");
+            assertThat(CosignSigner.parsePrivateKey(sec1Pem).getAlgorithm()).isEqualTo("EC");
+            assertThat(parsedPub.getClass()).isEqualTo(keyPair.getPublic().getClass());
+            assertThat(CosignSigner.computeKeyId(parsedPub)).isEqualTo(CosignSigner.computeKeyId(keyPair.getPublic()));
+            byte[] payload = "signed across providers".getBytes(StandardCharsets.UTF_8);
+            assertThat(CosignSigner.verify(payload, CosignSigner.sign(payload, parsedPriv), keyPair.getPublic())).isTrue();
+        } finally {
+            // Only what this test added: sshd keeps using the provider it registered.
+            if (added) {
+                Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+            }
+        }
+    }
+
+    /** The key as OpenSSL writes it by default, {@code BEGIN EC PRIVATE KEY}, which parses as a key pair. */
+    private static String sec1(PrivateKey key) {
+        try {
+            java.io.StringWriter out = new java.io.StringWriter();
+            try (org.bouncycastle.util.io.pem.PemWriter writer = new org.bouncycastle.util.io.pem.PemWriter(out)) {
+                // With the curve named inside, as OpenSSL writes it: the parser has nothing else to go on.
+                byte[] sec1 = new org.bouncycastle.asn1.sec.ECPrivateKey(
+                                256,
+                                ((java.security.interfaces.ECPrivateKey) key).getS(),
+                                new org.bouncycastle.asn1.x9.X962Parameters(
+                                        org.bouncycastle.asn1.sec.SECObjectIdentifiers.secp256r1))
+                        .getEncoded();
+                writer.writeObject(new org.bouncycastle.util.io.pem.PemObject("EC PRIVATE KEY", sec1));
+            }
+            return out.toString();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Test

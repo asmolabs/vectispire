@@ -19,7 +19,6 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import org.bouncycastle.openssl.PEMParser;
-import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
 import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
 
@@ -69,14 +68,23 @@ public final class CosignSigner {
         }
     }
 
+    /*
+     * **A PEM key is decoded here and built by the same `KeyFactory` as a base64 one, never by
+     * `JcaPEMKeyConverter`.** The converter names an EC key's algorithm "ECDSA" and asks the JCA for
+     * that: no JDK provider has it, so it fell back to "EC" and SunEC — until something registered
+     * BouncyCastle, which does have "ECDSA". Apache MINA sshd does, the first time JGit clones over
+     * SSH, so from the first clone on the same PEM parsed into a BouncyCastle key named "ECDSA"
+     * instead of a SunEC one named "EC": a property of what the process had done before, not of
+     * the key. `CosignSignerTest` failed on it whenever a clone test ran first in its JVM.
+     */
     public static PublicKey parsePublicKey(String pemOrBase64) {
         try {
             if (pemOrBase64.contains("-----")) {
                 try (PEMParser parser = new PEMParser(new StringReader(pemOrBase64))) {
                     Object parsed = parser.readObject();
-                    JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
                     if (parsed instanceof org.bouncycastle.asn1.x509.SubjectPublicKeyInfo subInfo) {
-                        return converter.getPublicKey(subInfo);
+                        return KeyFactory.getInstance(KEY_ALGORITHM)
+                                .generatePublic(new X509EncodedKeySpec(subInfo.getEncoded()));
                     }
                 }
             }
@@ -95,12 +103,15 @@ public final class CosignSigner {
             if (pemOrBase64.contains("-----")) {
                 try (PEMParser parser = new PEMParser(new StringReader(pemOrBase64))) {
                     Object parsed = parser.readObject();
-                    JcaPEMKeyConverter converter = new JcaPEMKeyConverter();
-                    if (parsed instanceof org.bouncycastle.asn1.pkcs.PrivateKeyInfo pkInfo) {
-                        return converter.getPrivateKey(pkInfo);
-                    }
-                    if (parsed instanceof org.bouncycastle.openssl.PEMKeyPair keyPair) {
-                        return converter.getKeyPair(keyPair).getPrivate();
+                    // Not through `JcaPEMKeyConverter`, for the reason given above `parsePublicKey`.
+                    org.bouncycastle.asn1.pkcs.PrivateKeyInfo info = switch (parsed) {
+                        case org.bouncycastle.asn1.pkcs.PrivateKeyInfo pkInfo -> pkInfo;
+                        case org.bouncycastle.openssl.PEMKeyPair keyPair -> keyPair.getPrivateKeyInfo();
+                        case null, default -> null;
+                    };
+                    if (info != null) {
+                        return KeyFactory.getInstance(KEY_ALGORITHM)
+                                .generatePrivate(new PKCS8EncodedKeySpec(info.getEncoded()));
                     }
                 }
             }
