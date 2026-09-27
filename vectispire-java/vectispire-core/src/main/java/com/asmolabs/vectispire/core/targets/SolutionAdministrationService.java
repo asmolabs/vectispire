@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -57,6 +58,7 @@ public class SolutionAdministrationService {
     private final TargetGrants grants;
     private final AuditLogService audit;
     private final TransactionTemplate transactions;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public SolutionAdministrationService(
@@ -66,6 +68,7 @@ public class SolutionAdministrationService {
             TargetGrants grants,
             AuditLogService audit,
             TransactionTemplate transactions,
+            ApplicationEventPublisher events,
             Clock clock) {
         this.solutions = solutions;
         this.projects = projects;
@@ -73,6 +76,7 @@ public class SolutionAdministrationService {
         this.grants = grants;
         this.audit = audit;
         this.transactions = transactions;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -215,6 +219,9 @@ public class SolutionAdministrationService {
         Removed removed = transactions.execute(status -> {
             int detached = repositories.detachProject(id);
             int revoked = grants.revokeAll(TeamRules.KIND_PROJECT, id);
+            // Modules above that keep rows naming the project drop theirs here, in this transaction
+            // (ProjectDeleted): the plugins activated for it, the SARIF sources scoped to it.
+            events.publishEvent(new ProjectDeleted(id));
             projects.deleteById(id);
             return new Removed(detached, revoked);
         });
@@ -223,6 +230,15 @@ public class SolutionAdministrationService {
                 "Project deleted: " + project.getName() + " (" + removed.detached()
                         + " repository(ies) returned to no project, " + removed.grants() + " grant(s) revoked)");
         audit.record(removed.grants() > 0 ? deleted.signalling(SecurityEventType.ACCESS_GRANT_CHANGED) : deleted);
+    }
+
+    /**
+     * A project as the routes answer it, or empty when there is none — for a module above that names
+     * a project in its own rows (plugin activations, SARIF sources) and must refuse one that does not
+     * exist before writing it.
+     */
+    public Optional<ProjectView> project(long id) {
+        return projects.findById(id).map(ProjectView::of);
     }
 
     // ------------------------------------------------------------------ filing a repository

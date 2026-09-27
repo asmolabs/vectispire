@@ -76,7 +76,10 @@ public class ScansController {
             String filePath,
             Integer line,
             String description,
-            String link) {}
+            String link,
+            String tool,
+            String toolName,
+            String toolVersion) {}
 
     /**
      * @param findingsTruncated said explicitly, or a scan of a thousand findings would show five
@@ -211,6 +214,9 @@ public class ScansController {
                 finding.filePath(),
                 finding.line(),
                 finding.description(),
-                finding.link());
+                finding.link(),
+                finding.tool(),
+                finding.toolName(),
+                finding.toolVersion());
     }
 }

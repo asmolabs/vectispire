@@ -23,7 +23,8 @@ import org.springframework.util.unit.DataSize;
 class RequestBodyLimitFilterTest {
 
     private final RequestBodyLimitFilter filter =
-            new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40));
+            new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
+                    DataSize.ofBytes(50));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")

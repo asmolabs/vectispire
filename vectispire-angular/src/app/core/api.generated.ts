@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_13"];
         put?: never;
         post: operations["create_9"];
         delete?: never;
@@ -65,7 +65,7 @@ export interface paths {
         delete: operations["remove_6"];
         options?: never;
         head?: never;
-        patch: operations["update_6"];
+        patch: operations["update_7"];
         trace?: never;
     };
     "/api/v1/admin/agents/{id}/sealing-key": {
@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent/plugins/{id}/{digest}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["plugin"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent/rules/{hash}": {
         parameters: {
             query?: never;
@@ -251,7 +267,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_12"];
         put?: never;
         post: operations["create_8"];
         delete?: never;
@@ -379,7 +395,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_15"];
+        get: operations["list_18"];
         put?: never;
         post?: never;
         delete?: never;
@@ -711,7 +727,7 @@ export interface paths {
          * Compliance progression
          * @description Every framework's monthly captures, each attributed to what plausibly moved it.
          */
-        get: operations["history"];
+        get: operations["history_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -887,7 +903,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_11"];
         put?: never;
         post: operations["create_7"];
         delete?: never;
@@ -909,7 +925,7 @@ export interface paths {
         delete: operations["remove_5"];
         options?: never;
         head?: never;
-        patch: operations["update_5"];
+        patch: operations["update_6"];
         trace?: never;
     };
     "/api/v1/containers/{id}/scan": {
@@ -1147,7 +1163,7 @@ export interface paths {
          * The exceptions register
          * @description Risk acceptances and dismissals, newest first, narrowed to what the caller may see.
          */
-        get: operations["register_1"];
+        get: operations["register_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1203,7 +1219,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_14"];
+        get: operations["list_17"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1255,7 +1271,7 @@ export interface paths {
          * Gate verdict register
          * @description The gate's recent answers, newest first, narrowed to what the caller may see.
          */
-        get: operations["register"];
+        get: operations["register_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1271,7 +1287,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_10"];
         put?: never;
         post: operations["create_6"];
         delete?: never;
@@ -1399,7 +1415,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1479,7 +1495,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_9"];
         put?: never;
         post: operations["create_5"];
         delete?: never;
@@ -1640,6 +1656,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List plugins
+         * @description Every registered plugin, with the manifest it runs.
+         */
+        get: operations["list_8"];
+        put?: never;
+        /**
+         * Register plugin
+         * @description Platform governor only. The image is pinned by digest; the id is never reused. 409 when the id is taken.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read plugin */
+        get: operations["get"];
+        /**
+         * Update plugin
+         * @description Platform governor only. A new manifest under the same id — a new image version keeps the id, and with it every issue's triage.
+         */
+        put: operations["update_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable plugin
+         * @description Platform governor only. Disabling stops every activation from the next scan without forgetting them.
+         */
+        put: operations["setEnabled_1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/plugins/{id}/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List projects a plugin analyses */
+        get: operations["projects"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{id}": {
         parameters: {
             query?: never;
@@ -1658,7 +1756,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Rename or describe project */
-        patch: operations["update_4"];
+        patch: operations["update_5"];
         trace?: never;
     };
     "/api/v1/projects/{id}/repositories/{repositoryId}": {
@@ -1680,6 +1778,50 @@ export interface paths {
          * @description Back to no project. 404 when the repository is not in this project.
          */
         delete: operations["unfile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List plugins switched on for project
+         * @description 404 when the project does not exist.
+         */
+        get: operations["list_15"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/plugins/{pluginId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Switch plugin on for project
+         * @description Its repositories run the plugin from the next scan, where one of its languages is present. Repeating it changes nothing.
+         */
+        put: operations["activate"];
+        post?: never;
+        /**
+         * Switch plugin off for project
+         * @description Its open issues are left as they are. 404 when it was not on.
+         */
+        delete: operations["deactivate"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1784,7 +1926,7 @@ export interface paths {
          * List repositories
          * @description Returns all git repositories monitored by Vectispire visible to the caller.
          */
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         /**
          * Create repository
@@ -1818,7 +1960,7 @@ export interface paths {
          * Update repository
          * @description Updates configuration, schedule or credentials of a monitored repository.
          */
-        patch: operations["update_3"];
+        patch: operations["update_4"];
         trace?: never;
     };
     "/api/v1/repositories/{id}/apis": {
@@ -1917,6 +2059,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repositoryId}/sarif-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List repository's SARIF imports
+         * @description The latest fifty. 404 for a repository the caller cannot see.
+         */
+        get: operations["history"];
+        put?: never;
+        /**
+         * Import SARIF report
+         * @description A declared internal source's integration key only (scope sarif_import). The report's tools must be declared for the source; every run must have succeeded and carry results; locations are relative to the repository. 403 for an undeclared key or tool, 404 for a repository outside the key's visibility or the source's scope, 413 past the size ceiling.
+         */
+        post: operations["importReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/rule-sets": {
         parameters: {
             query?: never;
@@ -1924,7 +2090,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         post: operations["upload"];
         delete?: never;
@@ -1978,7 +2144,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["deactivate"];
+        post: operations["deactivate_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1994,7 +2160,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["activate"];
+        post: operations["activate_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2010,6 +2176,67 @@ export interface paths {
         };
         get: operations["impact"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sarif-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List SARIF sources */
+        get: operations["list_5"];
+        put?: never;
+        /**
+         * Declare SARIF source
+         * @description Platform governor only. Binds an integration key holding sarif_import to one project or repository and the tools it may deliver.
+         */
+        post: operations["declare_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sarif-sources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove SARIF source
+         * @description Platform governor only. The issues it imported stay.
+         */
+        delete: operations["delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sarif-sources/{id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Enable or disable SARIF source
+         * @description Platform governor only.
+         */
+        put: operations["setEnabled"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2060,7 +2287,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_12"];
+        get: operations["list_14"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2395,7 +2622,7 @@ export interface paths {
         options?: never;
         head?: never;
         /** Rename or describe solution */
-        patch: operations["update_2"];
+        patch: operations["update_3"];
         trace?: never;
     };
     "/api/v1/solutions/{id}/projects": {
@@ -2688,7 +2915,7 @@ export interface paths {
         delete: operations["remove"];
         options?: never;
         head?: never;
-        patch: operations["update_1"];
+        patch: operations["update_2"];
         trace?: never;
     };
     "/api/v1/users/{id}/targets": {
@@ -2823,6 +3050,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Absent: {
+            state: "Absent";
+        } & (Omit<components["schemas"]["PluginStep"], "state"> & {
+            manifestDigest?: string;
+            pluginId?: string;
+            reason?: string;
+        });
         ActivateRequest: {
             note?: string;
         };
@@ -3087,6 +3321,7 @@ export interface components {
             /** Format: int64 */
             id?: number;
             identifier?: string;
+            importSource?: string;
             isDirectDependency?: boolean;
             isKev: boolean;
             /** Format: date-time */
@@ -3123,6 +3358,9 @@ export interface components {
             ticketUrl?: string;
             /** Format: int32 */
             timesSeen: number;
+            tool?: string;
+            toolName?: string;
+            toolVersion?: string;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -3653,6 +3891,9 @@ export interface components {
             packageName?: string;
             packageVersion?: string;
             severity?: string;
+            tool?: string;
+            toolName?: string;
+            toolVersion?: string;
             type?: string;
         };
         FindingsSummary: {
@@ -3865,6 +4106,7 @@ export interface components {
             /** Format: int64 */
             id?: number;
             identifier?: string;
+            importSource?: string;
             isDirectDependency?: boolean;
             isKev: boolean;
             /** Format: date-time */
@@ -3897,6 +4139,9 @@ export interface components {
             ticketUrl?: string;
             /** Format: int32 */
             timesSeen: number;
+            tool?: string;
+            toolName?: string;
+            toolVersion?: string;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -3950,6 +4195,7 @@ export interface components {
             /** Format: int64 */
             id?: number;
             identifier?: string;
+            importSource?: string;
             isDirectDependency?: boolean;
             isKev: boolean;
             /** Format: date-time */
@@ -3979,6 +4225,9 @@ export interface components {
             ticketUrl?: string;
             /** Format: int32 */
             timesSeen: number;
+            tool?: string;
+            toolName?: string;
+            toolVersion?: string;
             triageComment?: string;
             /** Format: date-time */
             triageExpiresAt?: string;
@@ -4110,6 +4359,13 @@ export interface components {
             formatted?: string;
             givenName?: string;
         };
+        NotApplicable: {
+            state: "NotApplicable";
+        } & (Omit<components["schemas"]["PluginStep"], "state"> & {
+            languages?: ("apex" | "bash" | "c" | "clojure" | "csharp" | "dockerfile" | "elixir" | "go" | "html" | "java" | "javascript" | "json" | "kotlin" | "ocaml" | "php" | "python" | "ruby" | "rust" | "scala" | "solidity" | "swift" | "terraform" | "typescript" | "yaml")[];
+            manifestDigest?: string;
+            pluginId?: string;
+        });
         Note: {
             category?: string;
             text?: string;
@@ -4253,6 +4509,48 @@ export interface components {
             privateKey?: string;
             signsResults: boolean;
         };
+        PluginActivationView: {
+            /** Format: date-time */
+            activatedAt?: string;
+            activatedBy?: string;
+            /** Format: int64 */
+            id?: number;
+            pluginId?: string;
+            /** Format: int64 */
+            projectId?: number;
+        };
+        PluginEnabled: {
+            enabled: boolean;
+        };
+        PluginManifest: {
+            arguments?: string[];
+            exit_codes?: number[];
+            id?: string;
+            image?: string;
+            languages?: ("apex" | "bash" | "c" | "clojure" | "csharp" | "dockerfile" | "elixir" | "go" | "html" | "java" | "javascript" | "json" | "kotlin" | "ocaml" | "php" | "python" | "ruby" | "rust" | "scala" | "solidity" | "swift" | "terraform" | "typescript" | "yaml")[];
+            name?: string;
+            network: boolean;
+            network_justification?: string;
+            output?: string;
+            /** Format: int32 */
+            timeout_seconds?: number;
+        };
+        PluginStep: {
+            state: string;
+        };
+        PluginView: {
+            /** Format: date-time */
+            createdAt?: string;
+            createdBy?: string;
+            enabled: boolean;
+            id?: string;
+            manifest?: components["schemas"]["PluginManifest"];
+            manifestDigest?: string;
+            name?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            updatedBy?: string;
+        };
         PoliciesResponse: {
             built_in?: components["schemas"]["GatePolicyView"];
             policies?: components["schemas"]["GatePolicyView"][];
@@ -4313,6 +4611,15 @@ export interface components {
             policy?: components["schemas"]["PolicyAssessment"];
             sbomDigestSha256?: string;
         };
+        Produced: {
+            state: "Produced";
+        } & (Omit<components["schemas"]["PluginStep"], "state"> & {
+            findings?: components["schemas"]["SarifFinding"][];
+            manifestDigest?: string;
+            pluginId?: string;
+            toolName?: string;
+            toolVersion?: string;
+        });
         Product: {
             "@id"?: string;
             identifiers?: {
@@ -4679,10 +4986,60 @@ export interface components {
             targetName?: string;
             targetType?: string;
         };
+        SarifFinding: {
+            file?: string;
+            /** Format: int32 */
+            line?: number;
+            message?: string;
+            ruleId?: string;
+            /** @enum {string} */
+            severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "NEGLIGIBLE" | "UNKNOWN";
+        };
+        SarifImportView: {
+            /** Format: uuid */
+            apiKeyId?: string;
+            /** Format: int32 */
+            createdCount: number;
+            documentSha256?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            importedAt?: string;
+            importedBy?: string;
+            /** Format: int32 */
+            reopenedCount: number;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int32 */
+            resolvedCount: number;
+            /** Format: int32 */
+            resultsCount: number;
+            /** Format: int64 */
+            sourceId?: number;
+            sourceSlug?: string;
+            tools?: string;
+        };
         SarifLog: {
             $schema?: string;
             runs?: components["schemas"]["Run"][];
             version?: string;
+        };
+        SarifSourceView: {
+            /** Format: uuid */
+            apiKeyId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            createdBy?: string;
+            enabled: boolean;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            /** Format: int64 */
+            projectId?: number;
+            /** Format: int64 */
+            repositoryId?: number;
+            slug?: string;
+            tools?: string[];
         };
         SarifTool: {
             driver?: components["schemas"]["Driver"];
@@ -4749,6 +5106,7 @@ export interface components {
             duration?: string;
             failures?: components["schemas"]["Failure"][];
             iac?: components["schemas"]["IacFinding"][];
+            plugins?: (components["schemas"]["Absent"] | components["schemas"]["NotApplicable"] | components["schemas"]["Produced"])[];
             project?: components["schemas"]["Project"];
             sast?: components["schemas"]["SastFinding"][];
             sbom?: components["schemas"]["JsonNode"];
@@ -5058,6 +5416,20 @@ export interface components {
         Source: {
             name?: string;
             url?: string;
+        };
+        SourceDeclaration: {
+            /** Format: uuid */
+            api_key_id?: string;
+            name?: string;
+            /** Format: int64 */
+            project_id?: number;
+            /** Format: int64 */
+            repository_id?: number;
+            slug?: string;
+            tools?: string[];
+        };
+        SourceEnabled: {
+            enabled: boolean;
         };
         SshKeyCreateRequest: {
             name?: string;
@@ -5468,7 +5840,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_11: {
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -5572,7 +5944,7 @@ export interface operations {
             };
         };
     };
-    update_6: {
+    update_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -5742,6 +6114,29 @@ export interface operations {
             };
         };
     };
+    plugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                digest: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginManifest"];
+                };
+            };
+        };
+    };
     ruleSet: {
         parameters: {
             query?: never;
@@ -5857,7 +6252,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_12: {
         parameters: {
             query?: never;
             header?: never;
@@ -6053,7 +6448,7 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    list_18: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -6451,7 +6846,7 @@ export interface operations {
             };
         };
     };
-    history: {
+    history_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -6669,7 +7064,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -6733,7 +7128,7 @@ export interface operations {
             };
         };
     };
-    update_5: {
+    update_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -7057,7 +7452,7 @@ export interface operations {
             };
         };
     };
-    register_1: {
+    register_2: {
         parameters: {
             query?: {
                 limit?: number;
@@ -7139,7 +7534,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_17: {
         parameters: {
             query?: never;
             header?: never;
@@ -7231,7 +7626,7 @@ export interface operations {
             };
         };
     };
-    register: {
+    register_1: {
         parameters: {
             query?: {
                 limit?: number;
@@ -7254,7 +7649,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -7451,7 +7846,7 @@ export interface operations {
             };
         };
     };
-    list_13: {
+    list_16: {
         parameters: {
             query?: {
                 state?: string;
@@ -7583,7 +7978,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -7853,6 +8248,146 @@ export interface operations {
             };
         };
     };
+    list_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"][];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginManifest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    update_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginManifest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    setEnabled_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PluginEnabled"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginView"];
+                };
+            };
+        };
+    };
+    projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginActivationView"][];
+                };
+            };
+        };
+    };
     remove_4: {
         parameters: {
             query?: never;
@@ -7873,7 +8408,7 @@ export interface operations {
             };
         };
     };
-    update_4: {
+    update_5: {
         parameters: {
             query?: never;
             header?: never;
@@ -7927,6 +8462,72 @@ export interface operations {
             path: {
                 id: number;
                 repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    list_15: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginActivationView"][];
+                };
+            };
+        };
+    };
+    activate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                pluginId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PluginActivationView"];
+                };
+            };
+        };
+    };
+    deactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                pluginId: string;
             };
             cookie?: never;
         };
@@ -8053,7 +8654,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: never;
             header?: never;
@@ -8118,7 +8719,7 @@ export interface operations {
             };
         };
     };
-    update_3: {
+    update_4: {
         parameters: {
             query?: never;
             header?: never;
@@ -8301,7 +8902,56 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    history: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifImportView"][];
+                };
+            };
+        };
+    };
+    importReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": string;
+                "application/sarif+json": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifImportView"];
+                };
+            };
+        };
+    };
+    list_6: {
         parameters: {
             query?: never;
             header?: never;
@@ -8409,7 +9059,7 @@ export interface operations {
             };
         };
     };
-    deactivate: {
+    deactivate_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -8431,7 +9081,7 @@ export interface operations {
             };
         };
     };
-    activate: {
+    activate_1: {
         parameters: {
             query?: never;
             header?: never;
@@ -8477,6 +9127,96 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TriageImpact"];
+                };
+            };
+        };
+    };
+    list_5: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifSourceView"][];
+                };
+            };
+        };
+    };
+    declare_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceDeclaration"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifSourceView"];
+                };
+            };
+        };
+    };
+    delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    setEnabled: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceEnabled"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SarifSourceView"];
                 };
             };
         };
@@ -8527,7 +9267,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_14: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */
@@ -9179,7 +9919,7 @@ export interface operations {
             };
         };
     };
-    update_2: {
+    update_3: {
         parameters: {
             query?: never;
             header?: never;
@@ -9767,7 +10507,7 @@ export interface operations {
             };
         };
     };
-    update_1: {
+    update_2: {
         parameters: {
             query?: never;
             header?: never;

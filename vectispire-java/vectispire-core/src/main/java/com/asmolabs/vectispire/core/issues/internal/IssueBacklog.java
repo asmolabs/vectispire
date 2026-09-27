@@ -34,6 +34,7 @@ public class IssueBacklog implements ScanIngestor.Backlog {
                 observation.target(),
                 observation.findings(),
                 observation.scannedTypes(),
+                observation.scannedTools(),
                 observation.descriptions(),
                 done -> deltas.ifPresent(sink -> sink.enqueue(new ScanDelta(
                         observation.scanId(),

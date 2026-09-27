@@ -88,6 +88,22 @@ public enum SecurityEventType {
     AGENT_SEALING_KEY_REFUSED("ZAN-SEC-020", "Agent sealing key refused: signature or generation did not verify", 8,
             Outcome.FAILURE),
 
+    /**
+     * A plugin was registered, changed, enabled, disabled, or switched on or off for a project:
+     * third-party code gained or lost read access to some of the estate's source.
+     */
+    PLUGIN_CHANGED("ZAN-SEC-021", "Analysis plugin registered, changed or activated", 6, Outcome.SUCCESS),
+
+    /** A SARIF source was declared, changed or removed: who may deposit findings, and for what. */
+    SARIF_SOURCE_CHANGED("ZAN-SEC-022", "SARIF import source declared or changed", 6, Outcome.SUCCESS),
+
+    /**
+     * A SARIF upload was refused for what it claimed: an undeclared key, a repository outside its
+     * source's scope, a tool its source is not declared for. Either a misconfigured pipeline or a
+     * key used for something it was not issued for.
+     */
+    SARIF_IMPORT_REFUSED("ZAN-SEC-023", "SARIF import refused: undeclared source, scope or tool", 5, Outcome.FAILURE),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("ZAN-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -169,6 +185,10 @@ public enum SecurityEventType {
             case AGENT_RESULT_REFUSED -> Optional.of(AGENT_RESULT_REFUSED);
             case AGENT_SEALING_KEY_REFUSED -> Optional.of(AGENT_SEALING_KEY_REFUSED);
             case GATE_POLICY_UPDATED -> Optional.of(SECURITY_SETTING_CHANGED);
+            case PLUGIN_REGISTERED, PLUGIN_UPDATED, PLUGIN_ENABLED_CHANGED, PLUGIN_ACTIVATED, PLUGIN_DEACTIVATED ->
+                    Optional.of(PLUGIN_CHANGED);
+            case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);
+            case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             // Listed rather than defaulted: a new operation has to be placed here, on one side or
             // the other, by whoever adds it — a default would decide for them, silently.
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
@@ -180,7 +200,10 @@ public enum SecurityEventType {
                     RULE_SET_ACTIVATED, RULE_SET_DEACTIVATED, POSTURE_DIGEST_SENT,
                     // A name or a description; a project deleted with grants on it names the event
                     // itself, since only its writer knows whether any were revoked.
-                    SOLUTION_UPDATED, PROJECT_UPDATED -> Optional.empty();
+                    SOLUTION_UPDATED, PROJECT_UPDATED,
+                    // Routine: a pipeline's upload, as frequent as its builds. What it did is in the
+                    // entry; a refusal is the event.
+                    SARIF_IMPORTED -> Optional.empty();
         };
     }
 }

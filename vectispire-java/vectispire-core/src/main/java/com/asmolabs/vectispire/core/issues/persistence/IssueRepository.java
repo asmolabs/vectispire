@@ -82,6 +82,23 @@ public interface IssueRepository
             @Param("containerId") Long containerId);
 
     /**
+     * A target's open issues of the given tools — what a clean run of a plugin, or an import of one
+     * tool's report, may resolve. Never by type alone: one plugin reporting nothing says nothing
+     * about another plugin's findings on the same target.
+     */
+    @Query("""
+            select i from IssueEntity i
+             where i.state = :state and i.type in :types and i.tool in :tools
+               and ((:repoId is not null and i.repoId = :repoId)
+                    or (:containerId is not null and i.containerId = :containerId))""")
+    List<IssueEntity> findOpenByTargetAndTools(
+            @Param("state") String state,
+            @Param("types") java.util.Collection<String> types,
+            @Param("tools") java.util.Collection<String> tools,
+            @Param("repoId") Long repoId,
+            @Param("containerId") Long containerId);
+
+    /**
      * Every open issue counted once, grouped by target and by the three axes the compliance
      * summary reports on.
      *

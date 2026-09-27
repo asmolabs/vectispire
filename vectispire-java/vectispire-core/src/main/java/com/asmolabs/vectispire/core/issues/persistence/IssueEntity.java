@@ -71,6 +71,28 @@ public class IssueEntity {
     @Column(name = "source", length = 50)
     private String source;
 
+    /**
+     * The tool a plugin or imported finding belongs to: {@code plugin:<id>} or
+     * {@code import:<source>/<tool>} ({@code ToolKeys}). The fingerprint's tool key, and the scope a
+     * clean run of that tool resolves — {@code null} for every other type.
+     */
+    @Column(name = "tool", length = 200)
+    private String tool;
+
+    /** The SARIF driver's name and version, as the tool reported them: provenance, never identity. */
+    @Column(name = "tool_name", length = 100)
+    private String toolName;
+
+    @Column(name = "tool_version", length = 100)
+    private String toolVersion;
+
+    /**
+     * The declared source an imported issue came from — its slug, kept after the source is deleted,
+     * since it is what an auditor reads to tell "declared by the CI" from "analysed by Vectispire".
+     */
+    @Column(name = "import_source", length = 40)
+    private String importSource;
+
     @Column(name = "severity", length = 50)
     private String severity;
 
@@ -290,6 +312,38 @@ public class IssueEntity {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getTool() {
+        return tool;
+    }
+
+    public void setTool(String tool) {
+        this.tool = tool;
+    }
+
+    public String getToolName() {
+        return toolName;
+    }
+
+    public void setToolName(String toolName) {
+        this.toolName = toolName;
+    }
+
+    public String getToolVersion() {
+        return toolVersion;
+    }
+
+    public void setToolVersion(String toolVersion) {
+        this.toolVersion = toolVersion;
+    }
+
+    public String getImportSource() {
+        return importSource;
+    }
+
+    public void setImportSource(String importSource) {
+        this.importSource = importSource;
     }
 
     public String getSeverity() {

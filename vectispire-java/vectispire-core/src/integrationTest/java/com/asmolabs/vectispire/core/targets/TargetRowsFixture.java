@@ -33,6 +33,10 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -224,6 +228,30 @@ final class TargetRowsFixture {
             contract.setEndpointsCount(1);
             contract.setCreatedAt(AT);
             beans.getBean(ApiContractRepository.class).save(contract);
+
+            // A SARIF source declared for this repository alone, and one import it made: neither has
+            // a foreign key (a common migration), so only the plugins module's listener takes them.
+            SarifSourceEntity source = new SarifSourceEntity();
+            source.setSlug(("ci-" + UUID.randomUUID()).substring(0, 20));
+            source.setName("ci");
+            source.setApiKeyId(UUID.randomUUID());
+            source.setRepositoryId(repoId);
+            source.setTools("semgrep");
+            source.setEnabled(true);
+            source.setCreatedAt(AT);
+            source.setCreatedBy("governor");
+            long sourceId = beans.getBean(SarifSourceRepository.class).save(source).getId();
+
+            SarifImportEntity imported = new SarifImportEntity();
+            imported.setSourceId(sourceId);
+            imported.setSourceSlug(source.getSlug());
+            imported.setRepoId(repoId);
+            imported.setTools("semgrep 1.0");
+            imported.setDocumentSha256("0".repeat(64));
+            imported.setImportedAt(AT);
+            imported.setImportedBy("pipeline");
+            imported.setApiKeyId(source.getApiKeyId());
+            beans.getBean(SarifImportRepository.class).save(imported);
         }
     }
 
@@ -261,6 +289,8 @@ final class TargetRowsFixture {
             rows.put("t_api_endpoint", count("t_api_endpoint where repository_id = ? or scan_id in (" + scans + ")"
                     + " or scan_id not in (select id from t_scan)", id));
             rows.put("t_api_contract", count("t_api_contract where repository_id = ? or scan_id in (" + scans + ")", id));
+            rows.put("t_sarif_source", count("t_sarif_source where repository_id = ?", id));
+            rows.put("t_sarif_import", count("t_sarif_import where repo_id = ?", id));
         }
         return rows;
     }

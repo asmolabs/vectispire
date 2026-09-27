@@ -17,6 +17,15 @@ public enum ApiKeyScope {
     EXPORT(true),
 
     /**
+     * Depositing an internal tool's SARIF report into a repository's backlog.
+     *
+     * <p><b>Never granted by default, and not enough on its own.</b> The key must also be declared as
+     * a SARIF source by the platform governor, scoped to a project or a repository — the scope lets a
+     * pipeline present the key, the declaration is what says the pipeline is inside the organisation.
+     */
+    SARIF_IMPORT(false),
+
+    /**
      * Running scans as an agent.
      *
      * <p><b>Never granted implicitly.</b> It is the scope that lets a holder execute work on

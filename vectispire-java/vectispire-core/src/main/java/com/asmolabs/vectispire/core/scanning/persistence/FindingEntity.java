@@ -63,6 +63,21 @@ public class FindingEntity {
     @Column(name = "source", length = 50, nullable = false)
     private String source;
 
+    /**
+     * The tool a plugin or imported finding belongs to: {@code plugin:<id>} or
+     * {@code import:<source>/<tool>} ({@code ToolKeys}). The fingerprint's tool key, and the scope a
+     * clean run of that tool resolves — {@code null} for every other type.
+     */
+    @Column(name = "tool", length = 200)
+    private String tool;
+
+    /** The SARIF driver's name and version, as the tool reported them: provenance, never identity. */
+    @Column(name = "tool_name", length = 100)
+    private String toolName;
+
+    @Column(name = "tool_version", length = 100)
+    private String toolVersion;
+
     @Column(name = "epss_score")
     private Double epssScore;
 
@@ -193,6 +208,30 @@ public class FindingEntity {
 
     public void setSource(String source) {
         this.source = source;
+    }
+
+    public String getTool() {
+        return tool;
+    }
+
+    public void setTool(String tool) {
+        this.tool = tool;
+    }
+
+    public String getToolName() {
+        return toolName;
+    }
+
+    public void setToolName(String toolName) {
+        this.toolName = toolName;
+    }
+
+    public String getToolVersion() {
+        return toolVersion;
+    }
+
+    public void setToolVersion(String toolVersion) {
+        this.toolVersion = toolVersion;
     }
 
     public Double getEpssScore() {

@@ -72,6 +72,15 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.PRECONDITION_FAILED, error.getMessage());
     }
 
+    /**
+     * A SARIF upload refused for who sent it or what it claims — a session, an undeclared key, an
+     * undeclared tool. 403: the route exists for a declared source, and saying so names no repository.
+     */
+    @ExceptionHandler(com.asmolabs.vectispire.core.plugins.SarifImportRefusedException.class)
+    ProblemDetail sarifImportRefused(com.asmolabs.vectispire.core.plugins.SarifImportRefusedException error) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
+    }
+
     /** A key or an agent credential on a route that did not invite it (decision 0024). */
     @ExceptionHandler(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException.class)
     ProblemDetail credentialNotAccepted(com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException error) {
@@ -109,7 +118,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler({
         ScanTriggerService.AlreadyQueuedException.class,
         AttestationService.NotAttestableException.class,
-        SolutionAdministrationService.SolutionNotEmptyException.class
+        SolutionAdministrationService.SolutionNotEmptyException.class,
+        com.asmolabs.vectispire.core.plugins.PluginConflictException.class
     })
     ProblemDetail conflict(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
@@ -120,7 +130,7 @@ public class ApiExceptionHandler {
      * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
      * itself, before this point.
      */
-    @ExceptionHandler(RequestBodyTooLargeException.class)
+    @ExceptionHandler({RequestBodyTooLargeException.class, com.asmolabs.vectispire.core.plugins.SarifTooLargeException.class})
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }

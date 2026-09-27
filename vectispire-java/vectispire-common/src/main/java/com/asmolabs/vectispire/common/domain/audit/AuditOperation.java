@@ -213,7 +213,41 @@ public enum AuditOperation {
      * an operator can edit — and it means the answer to "why did two arrive" is visible to whoever
      * asks, instead of living in a column no screen shows.
      */
-    POSTURE_DIGEST_SENT;
+    POSTURE_DIGEST_SENT,
+
+    /**
+     * A plugin was registered by the platform governor: a third-party image, pinned by digest, that
+     * will read the source of every project it is activated for. The entry carries the image, the
+     * languages, and the network exception with its justification when there is one.
+     */
+    PLUGIN_REGISTERED,
+
+    /** A plugin's manifest changed — a new image digest, arguments, the network — under the same id. */
+    PLUGIN_UPDATED,
+
+    /** A plugin was disabled or enabled: every activation stops, or resumes, at the next scan. */
+    PLUGIN_ENABLED_CHANGED,
+
+    /** A plugin was switched on for a project: it now reads that project's repositories. */
+    PLUGIN_ACTIVATED,
+
+    PLUGIN_DEACTIVATED,
+
+    /**
+     * An internal SARIF source was declared, changed or removed — which key may deposit findings, for
+     * which project or repository, from which tools. A declaration is the platform saying "this
+     * producer is inside the organisation", so it is the governor's and it is audited.
+     */
+    SARIF_SOURCE_CHANGED,
+
+    /** A declared source's SARIF report was accepted and folded into a repository's backlog. */
+    SARIF_IMPORTED,
+
+    /**
+     * An import was refused for what it claimed rather than for its form: no declared source for the
+     * key, a repository outside the source's scope, a tool the source is not declared for.
+     */
+    SARIF_IMPORT_REFUSED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

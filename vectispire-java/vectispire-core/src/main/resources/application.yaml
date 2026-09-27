@@ -97,6 +97,12 @@ vectispire:
       checkov: ${VECTISPIRE_IMAGE_CHECKOV:}
       semgrep: ${VECTISPIRE_IMAGE_SEMGREP:}
 
+    # **Where plugin images are pulled from.** Unlike the scanner images, not a reference to replace
+    # but a registry to relocate to: the host of each plugin's image is swapped for this one and its
+    # path and digest are kept, so a mirror can serve a plugin but never substitute another one
+    # (decision 0017). Blank pulls each image from its own registry.
+    plugin-registry: ${VECTISPIRE_PLUGIN_REGISTRY:}
+
   branding:
     # **The two nested chains in this file are the only real ones, and they are here on purpose.**
     # Each name is an earlier spelling kept working for deployments that already set it, tried in
@@ -169,6 +175,7 @@ vectispire:
       vex-ingest: ${VECTISPIRE_MAX_BODY_VEX_INGEST:16MB}
       agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}
       sign-in: ${VECTISPIRE_MAX_BODY_SIGN_IN:16KB}
+      sarif-import: ${VECTISPIRE_MAX_BODY_SARIF_IMPORT:32MB}
 
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}

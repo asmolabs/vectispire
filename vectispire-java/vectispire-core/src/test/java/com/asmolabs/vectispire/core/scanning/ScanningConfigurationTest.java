@@ -58,6 +58,11 @@ class ScanningConfigurationTest {
         }
 
         @Bean
+        com.asmolabs.vectispire.core.scanning.ScanPlugins scanPlugins() {
+            return mock(com.asmolabs.vectispire.core.scanning.ScanPlugins.class);
+        }
+
+        @Bean
         Clock clock() {
             return Clock.systemUTC();
         }

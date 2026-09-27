@@ -75,6 +75,7 @@ public class ScanDispatcher {
     private final EncryptionService encryption;
     private final SettingsService settings;
     private final ScanRuleSets ruleSets;
+    private final ScanPlugins plugins;
     private final SealedEnvelope envelopes;
     private final ScanningProperties properties;
 
@@ -117,6 +118,7 @@ public class ScanDispatcher {
             EncryptionService encryption,
             SettingsService settings,
             ScanRuleSets ruleSets,
+            ScanPlugins plugins,
             SealedEnvelope envelopes,
             ScanningProperties properties,
             Optional<ScanRunner> runner,
@@ -131,6 +133,7 @@ public class ScanDispatcher {
         this.encryption = encryption;
         this.settings = settings;
         this.ruleSets = ruleSets;
+        this.plugins = plugins;
         this.envelopes = envelopes;
         this.properties = properties;
         this.runner = runner;
@@ -552,7 +555,11 @@ public class ScanDispatcher {
                 // scan with whatever it found at the moment it asked, and two agents could
                 // diverge on the same target.
                 ruleSets.activeHash().orElse(null),
-                steps);
+                steps,
+                // **Decided here too, by id and manifest digest**, for the rule set's reason: an
+                // executor that looked the plugins up for itself would run what it found when it
+                // asked. The project the repository is filed in decides which; none, none.
+                plugins.forRepository(repository.id()));
     }
 
     /**
@@ -592,7 +599,8 @@ public class ScanDispatcher {
                 new ScanTask.Target.Repository(
                         repository.url(), repository.branch(), repository.subPath(), privateKey, repository.https()),
                 task.rulesHash(),
-                task.steps());
+                task.steps(),
+                task.plugins());
     }
 
     private static ScanTask.Target.HttpsCredential httpsOf(ScanTask task) {
@@ -605,7 +613,8 @@ public class ScanDispatcher {
                 new ScanTask.Target.Repository(
                         repository.url(), repository.branch(), repository.subPath(), repository.privateKey(), https),
                 task.rulesHash(),
-                task.steps());
+                task.steps(),
+                task.plugins());
     }
 
     /**

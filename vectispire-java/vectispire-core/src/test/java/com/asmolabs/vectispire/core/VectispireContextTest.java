@@ -55,6 +55,13 @@ public abstract class VectispireContextTest {
      * test rather than as a missing entry here.
      */
     private static final List<String> TABLES_CHILDREN_FIRST = List.of(
+            // No foreign key in or out (a common migration, decision 0027), so first or anywhere; left
+            // out, a plugin registered by one test would conflict with the next test's registration.
+            "t_sarif_import",
+            "t_sarif_source",
+            "t_plugin_activation",
+            "t_plugin_manifest",
+            "t_plugin",
             "t_ai_review_result",
             "t_finding",
             "t_issue",

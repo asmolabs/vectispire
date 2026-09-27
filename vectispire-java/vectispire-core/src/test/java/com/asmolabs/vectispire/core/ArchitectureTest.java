@@ -90,7 +90,9 @@ class ArchitectureTest {
             "inventory", "posture", "compliance", "access",
             // Step 5: the core domains, bottom-up — each only once what it uses was a module — then the
             // periodic jobs' port and the shell that composes several domains for one screen.
-            "targets", "scanning", "issues", "maintenance", "platform");
+            "targets", "scanning", "issues", "maintenance", "platform",
+            // After: third-party analysers and SARIF imports, over scanning, issues and targets.
+            "plugins");
 
     /**
      * The top-level packages that are no module's. Only {@code config} since step 5: the datasource,

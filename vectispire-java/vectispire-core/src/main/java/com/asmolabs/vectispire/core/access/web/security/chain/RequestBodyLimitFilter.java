@@ -40,6 +40,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       times the largest seen leaves room and still stops an anonymous client early.
  *   <li>VEX import, 16 MB: an OpenVEX or CycloneDX VEX document for a large product runs to a few
  *       megabytes; it is uploaded by a signed-in account, and parsed whole.
+ *   <li>SARIF import, 32 MB: an internal tool's report for one repository — SonarQube's or a CI's —
+ *       runs to a few megabytes; the sender holds a declared source's key, and the document is parsed
+ *       whole. The service holds the same limit where it reads the bytes.
  *   <li>Agent result, 256 MB: the result carries the SBOM, and a large container image's is tens of
  *       megabytes of JSON. The sender holds an agent key; the ceiling is against a runaway, not a
  *       stranger, and is set well above anything a real scan produces.
@@ -48,7 +51,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       are open to anyone, and their bodies were read by the JSON converter with no ceiling but the
  *       container's — the same buffering as the webhook's, offered to a client with no credential.
  * </ul>
- * All four are properties, so an estate that needs more can say so.
+ * All five are properties, so an estate that needs more can say so.
  *
  * <p>No default for every other route, deliberately: the rule-set upload and the gate take documents
  * whose size is the estate's, and a ceiling guessed for them would be an outage. Those routes are
@@ -61,6 +64,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     private final DataSize vexIngest;
     private final DataSize agentResult;
     private final DataSize signIn;
+    private final DataSize sarifImport;
 
     /** The prefix of the sign-in routes, three of them open to anyone. */
     static final String SIGN_IN_PREFIX = "/api/v1/auth/";
@@ -69,11 +73,13 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             @Value("${vectispire.http.max-body.ticket-webhook:1MB}") DataSize webhook,
             @Value("${vectispire.http.max-body.vex-ingest:16MB}") DataSize vexIngest,
             @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult,
-            @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn) {
+            @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn,
+            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize sarifImport) {
         this.webhook = webhook;
         this.vexIngest = vexIngest;
         this.agentResult = agentResult;
         this.signIn = signIn;
+        this.sarifImport = sarifImport;
     }
 
     @Override
@@ -112,6 +118,9 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/api/v1/agent/jobs/") && path.endsWith("/result")) {
             return Optional.of(agentResult.toBytes());
+        }
+        if (path.startsWith("/api/v1/repositories/") && path.endsWith("/sarif-imports")) {
+            return Optional.of(sarifImport.toBytes());
         }
         if (path.startsWith(SIGN_IN_PREFIX)) {
             return Optional.of(signIn.toBytes());

@@ -89,6 +89,12 @@ class RouteScopingTest {
             // nobody re-checked. It resolves an allowance now; the stale-entry test below would
             // have refused the entry the day that happened.)
 
+            // The plugin registry: an image digest, its arguments, the languages it reads — platform
+            // configuration, the same for every reader. Which projects a plugin reads is a separate
+            // route, `PluginsController#projects`, under a governance guard.
+            Map.entry("PluginsController#list", "the plugin registry, platform configuration naming no target"),
+            Map.entry("PluginsController#get", "one plugin's definition, platform configuration naming no target"),
+
             // Reached by an unguessable token that a writer who can see the repository published;
             // anonymous by design, since a README badge is fetched by whoever reads the README.
             Map.entry("ScorecardController#getPublishedBadge", "reached only by a published, revocable token"));

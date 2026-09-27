@@ -20,6 +20,9 @@ import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
  * @param kev whether the vulnerability is exploited in the wild; {@code false} until enrichment says
  *     otherwise
  * @param directDependency {@code null} when the scanner cannot tell, which is not {@code false}
+ * @param tool the tool key of a plugin or imported finding ({@code ToolKeys}), {@code null} otherwise —
+ *     a fingerprint input for those types, whole like the others
+ * @param toolName the SARIF driver's name, provenance only
  */
 public record ObservedFinding(
         String type,
@@ -40,7 +43,36 @@ public record ObservedFinding(
         String fixVersions,
         String link,
         boolean kev,
-        String description) {
+        String description,
+        String tool,
+        String toolName,
+        String toolVersion) {
+
+    /** A finding no tool-scoped step produced: every scanner Vectispire ships, end of life, licences. */
+    public ObservedFinding(
+            String type,
+            String source,
+            String identifier,
+            String severity,
+            String packageName,
+            String packageVersion,
+            String purl,
+            String filePath,
+            Integer line,
+            Boolean directDependency,
+            String owaspCategory,
+            Double epssScore,
+            Double cvssScore,
+            String cvssVector,
+            String fixState,
+            String fixVersions,
+            String link,
+            boolean kev,
+            String description) {
+        this(type, source, identifier, severity, packageName, packageVersion, purl, filePath, line, directDependency,
+                owaspCategory, epssScore, cvssScore, cvssVector, fixState, fixVersions, link, kev, description,
+                null, null, null);
+    }
 
     /** What the row holds, before its columns clip it — ingestion builds rows and hands these over. */
     static ObservedFinding of(FindingEntity finding) {
@@ -63,6 +95,9 @@ public record ObservedFinding(
                 finding.getFixVersions(),
                 finding.getLink(),
                 Boolean.TRUE.equals(finding.getIsKev()),
-                finding.getDescription());
+                finding.getDescription(),
+                finding.getTool(),
+                finding.getToolName(),
+                finding.getToolVersion());
     }
 }

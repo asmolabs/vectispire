@@ -74,7 +74,8 @@ class MigrationsTest {
                         "t_team_webhook", "t_issue_ticket", "t_siem_config", "t_threat_intel_feed", "t_threat_intel_sync", "t_license_policy",
                         "t_api_endpoint", "t_api_contract", "t_mfa_challenge", "t_gate_verdict",
                         "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery", "t_git_token",
-                        "t_solution", "t_project");
+                        "t_solution", "t_project",
+                        "t_plugin", "t_plugin_manifest", "t_plugin_activation", "t_sarif_source", "t_sarif_import");
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.agents.web;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentContract;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
+import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
@@ -11,6 +13,7 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.agents.AgentProtocolService;
 import com.asmolabs.vectispire.core.rules.RuleSetService;
 import com.asmolabs.vectispire.core.scanning.ScanDispatcher;
+import com.asmolabs.vectispire.core.scanning.ScanPlugins;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
@@ -54,13 +57,19 @@ public class AgentsController {
     private final ScanDispatcher dispatcher;
     private final AgentJobPoller poller;
     private final RuleSetService ruleSets;
+    private final ScanPlugins plugins;
     private final AgentProtocolService protocol;
 
     public AgentsController(
-            ScanDispatcher dispatcher, AgentJobPoller poller, RuleSetService ruleSets, AgentProtocolService protocol) {
+            ScanDispatcher dispatcher,
+            AgentJobPoller poller,
+            RuleSetService ruleSets,
+            ScanPlugins plugins,
+            AgentProtocolService protocol) {
         this.dispatcher = dispatcher;
         this.poller = poller;
         this.ruleSets = ruleSets;
+        this.plugins = plugins;
         this.protocol = protocol;
     }
 
@@ -197,6 +206,22 @@ public class AgentsController {
         return ruleSets.contentByHash(hash)
                 .map(content -> new RuleSetResponse(content.contentHash(), content.files()))
                 .orElseThrow(() -> new NoSuchElementException("No rule set with hash " + hash + "."));
+    }
+
+    /**
+     * A plugin's manifest, by the id and digest a task named.
+     *
+     * <p>The rule set's reasoning, for code: the task carries the reference, the agent fetches exactly
+     * that manifest — the current one or an older one a queued task still names — and checks that it
+     * hashes to the digest before running it. 404 for a reference no plugin ever had: the agent then
+     * reports the plugin absent, never runs something else in its place.
+     */
+    @GetMapping("/plugins/{id}/{digest}")
+    public PluginManifest plugin(
+            @PathVariable String id, @PathVariable String digest, @AuthenticationPrincipal VectispirePrincipal principal) {
+        authenticate(principal);
+        return plugins.manifest(new PluginRef(id, digest))
+                .orElseThrow(() -> new NoSuchElementException("No plugin " + id + " with manifest " + digest + "."));
     }
 
     /**

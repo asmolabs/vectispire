@@ -37,6 +37,9 @@ class SecurityEventTypeTest {
         expected.put("AUDIT_CHAIN_BROKEN", "ZAN-SEC-018");
         expected.put("SECURITY_SETTING_CHANGED", "ZAN-SEC-019");
         expected.put("AGENT_SEALING_KEY_REFUSED", "ZAN-SEC-020");
+        expected.put("PLUGIN_CHANGED", "ZAN-SEC-021");
+        expected.put("SARIF_SOURCE_CHANGED", "ZAN-SEC-022");
+        expected.put("SARIF_IMPORT_REFUSED", "ZAN-SEC-023");
         expected.put("PING_TEST", "ZAN-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -80,6 +83,14 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.AGENT_SEALING_KEY_ACCEPTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.GATE_POLICY_UPDATED))
                 .contains(SecurityEventType.SECURITY_SETTING_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_REGISTERED)).contains(SecurityEventType.PLUGIN_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.PLUGIN_ACTIVATED)).contains(SecurityEventType.PLUGIN_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_SOURCE_CHANGED))
+                .contains(SecurityEventType.SARIF_SOURCE_CHANGED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORT_REFUSED))
+                .contains(SecurityEventType.SARIF_IMPORT_REFUSED);
+        // A pipeline's upload is as frequent as its builds: the entry, not an event.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
     }
 
     @Test

@@ -40,7 +40,13 @@ class EntityViewsTest {
                 Arguments.of(AuditLogEntity.class, AuditEntryView.class),
                 Arguments.of(ApiContractEntity.class, ApiContractView.class),
                 Arguments.of(SolutionEntity.class, SolutionAdministrationService.SolutionView.class),
-                Arguments.of(ProjectEntity.class, SolutionAdministrationService.ProjectView.class));
+                Arguments.of(ProjectEntity.class, SolutionAdministrationService.ProjectView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity.class,
+                        com.asmolabs.vectispire.core.plugins.PluginActivationView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity.class,
+                        com.asmolabs.vectispire.core.plugins.SarifSourceView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity.class,
+                        com.asmolabs.vectispire.core.plugins.SarifImportView.class));
     }
 
     @ParameterizedTest(name = "{1} carries every property of {0}")

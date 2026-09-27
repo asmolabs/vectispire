@@ -5,9 +5,11 @@ import com.asmolabs.vectispire.common.domain.apis.ApiEndpoint;
 import com.asmolabs.vectispire.common.domain.dependencies.DependencyGraph;
 import com.asmolabs.vectispire.common.domain.dependencies.Directness;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.issues.ToolKeys;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.scanning.PluginStep;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
@@ -98,6 +100,8 @@ public class ScanIngestor {
      * @param target {@code null} for a scan attached to neither target, which the backlog refuses
      * @param scannedTypes the types this scan <b>actually looked at</b> — never inferred from the
      *     findings present (decision 0007)
+     * @param scannedTools the tool keys of the plugins that produced a report — the only scope a
+     *     tool-scoped type is resolved in. A plugin not applicable or absent is not among them
      * @param descriptions advisory text by identifier, for the issues' description
      */
     public record Observation(
@@ -105,7 +109,19 @@ public class ScanIngestor {
             ScanTarget target,
             List<ObservedFinding> findings,
             Set<FindingType> scannedTypes,
-            Map<String, String> descriptions) {}
+            Set<String> scannedTools,
+            Map<String, String> descriptions) {
+
+        /** A scan that ran no plugin. */
+        public Observation(
+                long scanId,
+                ScanTarget target,
+                List<ObservedFinding> findings,
+                Set<FindingType> scannedTypes,
+                Map<String, String> descriptions) {
+            this(scanId, target, findings, scannedTypes, Set.of(), descriptions);
+        }
+    }
 
     /**
      * What folding the findings did to the backlog.
@@ -198,6 +214,7 @@ public class ScanIngestor {
     public Reconciliation ingest(ScanEntity scan, ScanArtifacts artifacts, Prepared prepared) {
         List<FindingEntity> findings = new ArrayList<>();
         Set<FindingType> scannedTypes = EnumSet.noneOf(FindingType.class);
+        Set<String> scannedTools = new java.util.TreeSet<>();
         Map<String, String> descriptions = new HashMap<>();
 
         // **Built once per scan and asked per finding**: the graph is global to the SBOM while
@@ -291,6 +308,32 @@ public class ScanIngestor {
             });
         });
 
+        // **Each plugin in its own scope, and only the ones that produced.** A plugin's clean report
+        // resolves its own issues on this target — never the type's, which would close every other
+        // plugin's and every import's. Not applicable and absent add nothing here: the issues of
+        // those plugins stay as they are; the scan's failures say which one broke, and a
+        // not-applicable one is nobody's failure (PluginStep).
+        for (PluginStep step : artifacts.plugins()) {
+            if (!(step instanceof PluginStep.Produced produced)) {
+                continue;
+            }
+            String tool = ToolKeys.plugin(produced.pluginId());
+            scannedTools.add(tool);
+            produced.findings().forEach(result -> {
+                FindingEntity finding = base(scan, FindingType.PLUGIN, produced.pluginId(), result.ruleId());
+                // Medium when an agent's body carries none, as for an unreadable SARIF level: unknown
+                // ranks below every threshold and would exempt the finding from any gate asking for it.
+                finding.setSeverity((result.severity() == null ? Severity.MEDIUM : result.severity()).wireName());
+                finding.setFilePath(result.file());
+                finding.setLine(result.line());
+                finding.setDescription(result.message());
+                finding.setTool(tool);
+                finding.setToolName(produced.toolName());
+                finding.setToolVersion(produced.toolVersion());
+                findings.add(finding);
+            });
+        }
+
         // End of life is read from the SBOM. **The type counts as scanned only if detection was
         // switched on, an SBOM exists and the lookup succeeded**: without any of the three,
         // nothing was observed, and declaring it would resolve that type's whole history — "we
@@ -337,6 +380,7 @@ public class ScanIngestor {
                 scan.target(),
                 findings.stream().map(ObservedFinding::of).toList(),
                 scannedTypes,
+                scannedTools,
                 descriptions));
 
         // **The findings themselves are written here**, and forgetting it showed on screen: a scan's
@@ -435,6 +479,10 @@ public class ScanIngestor {
         finding.setFixState(BoundedText.clip(finding.getFixState(), 50));
         finding.setSeverity(BoundedText.clip(finding.getSeverity(), 50));
         finding.setDescription(BoundedText.clip(finding.getDescription(), BoundedText.TEXT_MAX));
+        finding.setSource(BoundedText.clip(finding.getSource(), 50));
+        finding.setTool(BoundedText.clip(finding.getTool(), 200));
+        finding.setToolName(BoundedText.clip(finding.getToolName(), 100));
+        finding.setToolVersion(BoundedText.clip(finding.getToolVersion(), 100));
     }
 
     /**

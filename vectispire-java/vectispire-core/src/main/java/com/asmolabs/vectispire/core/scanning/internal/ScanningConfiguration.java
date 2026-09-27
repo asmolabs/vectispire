@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.scanning.GitClone;
 import com.asmolabs.vectispire.common.scanning.RulePlacement;
 import com.asmolabs.vectispire.common.scanning.ScanRunner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
+import com.asmolabs.vectispire.core.scanning.ScanPlugins;
 import com.asmolabs.vectispire.core.scanning.ScanRuleSets;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -73,11 +74,16 @@ public class ScanningConfiguration {
      *     the operator's {@code ~/.ssh} is already the credential that reaches every target and
      *     the alternative was re-declaring it once per repository. Set {@code VECTISPIRE_HOST_SSH}
      *     to {@code false} where the people adding targets are not the people who own that key
+     * @param pluginRegistry the internal registry plugin images are pulled from — the registry host of
+     *     each image replaced, its path and digest kept, so the mirror serves but cannot substitute.
+     *     Blank pulls each from its own registry
      */
     @Bean
     ScanRunner scanRunner(
             ScanRuleSets ruleSets,
+            ScanPlugins plugins,
             Clock clock,
+            @Value("${vectispire.scanning.plugin-registry:}") String pluginRegistry,
             @Value("${vectispire.scanning.bundled-rules:}") String bundledRulesOverride,
             @Value("${vectispire.scanning.host-ssh:true}") boolean hostSsh,
             // Blank keeps the pinned digest — see ScannerImages.withOverrides. Named one by one
@@ -90,6 +96,11 @@ public class ScanningConfiguration {
             @Value("${vectispire.scanning.images.semgrep:}") String semgrepImage) {
         RulePlacement.RuleSetProvider provider =
                 ruleSets::filesOf;
+        // The manifest a task names, read from this side's own tables; the runner checks its
+        // digest, as it does for what an agent fetches over HTTP.
+        com.asmolabs.vectispire.common.scanning.PluginProvider manifests = reference -> plugins.manifest(reference)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No plugin " + reference.id() + " with manifest " + reference.digest() + " is registered."));
 
         return new ScanRunner(
                 new ContainerRunner(),
@@ -97,6 +108,8 @@ public class ScanningConfiguration {
                         syftImage, grypeImage, gitleaksImage, checkovImage, semgrepImage),
                 bundledRules(bundledRulesOverride),
                 provider,
+                manifests,
+                pluginRegistry,
                 // Same policy as the agent: a changed host key blocks the scan rather than being
                 // accepted, which is the whole point of recording it in the first place.
                 new GitClone.HostKeyPolicy.AcceptNew(Path.of(System.getProperty("user.home"), ".ssh", "known_hosts")),

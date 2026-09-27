@@ -64,6 +64,30 @@ class AgentResultWireTest {
     }
 
     @Test
+    @DisplayName("a plugin's three states cross the wire as the agent writes them, and a lost list arrives absent")
+    void pluginStates() throws Exception {
+        String body = """
+                {"plugins":[
+                  {"state":"produced","pluginId":"acme-lint","manifestDigest":"d1","toolName":"acme","toolVersion":"4.2",
+                   "findings":[{"ruleId":"ACME001","severity":"HIGH","file":"src/a.py","line":3,"message":"m"}]},
+                  {"state":"produced","pluginId":"clean","manifestDigest":"d2","toolName":"acme","findings":[]},
+                  {"state":"not_applicable","pluginId":"java-only","manifestDigest":"d3","languages":["java"]},
+                  {"state":"absent","pluginId":"broken","manifestDigest":"d4","reason":"exited with 2"},
+                  {"state":"produced","pluginId":"lost","manifestDigest":"d5","toolName":"acme"}],
+                 "failures":[],"duration":"PT1S"}
+                """;
+
+        ScanArtifacts read = json.readValue(body, ScanArtifacts.class);
+
+        assertThat(read.plugins()).extracting(step -> step.getClass().getSimpleName())
+                .containsExactly("Produced", "Produced", "NotApplicable", "Absent", "Absent");
+        assertThat(((com.asmolabs.vectispire.common.scanning.PluginStep.Produced) read.plugins().get(1)).findings())
+                .as("an empty list stays \"ran, found nothing\"")
+                .isEmpty();
+        assertThat(json.readValue(json.writeValueAsString(read), ScanArtifacts.class)).isEqualTo(read);
+    }
+
+    @Test
     @DisplayName("what the control plane would write, it reads back unchanged")
     void aRoundTripIsTheIdentity() throws Exception {
         ScanArtifacts written = ScanArtifacts.builder()

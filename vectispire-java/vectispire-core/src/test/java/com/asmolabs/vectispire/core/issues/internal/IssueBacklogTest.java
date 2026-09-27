@@ -42,7 +42,7 @@ class IssueBacklogTest {
     @Test
     @DisplayName("hands back what the sync did, the issue of each finding included")
     void answersTheSync() {
-        when(sync.sync(anyLong(), any(), any(), any(), any(), any()))
+        when(sync.sync(anyLong(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new IssueSyncService.SyncResult(1, 2, 3, 4, List.of(), List.of(), List.of(40L, 41L)));
 
         ScanIngestor.Reconciliation result = new IssueBacklog(sync, Optional.empty()).reconcile(observation());
@@ -57,8 +57,8 @@ class IssueBacklogTest {
         IssueEntity opened = new IssueEntity();
         opened.setId(40L);
         opened.setIdentifier("CVE-2021-44228");
-        when(sync.sync(anyLong(), any(), any(), any(), any(), any())).thenAnswer(call -> {
-            Consumer<IssueSyncService.SyncResult> hook = call.getArgument(5);
+        when(sync.sync(anyLong(), any(), any(), any(), any(), any(), any())).thenAnswer(call -> {
+            Consumer<IssueSyncService.SyncResult> hook = call.getArgument(6);
             IssueSyncService.SyncResult result =
                     new IssueSyncService.SyncResult(1, 0, 0, 0, List.of(opened), List.of(), List.of(40L));
             hook.accept(result);

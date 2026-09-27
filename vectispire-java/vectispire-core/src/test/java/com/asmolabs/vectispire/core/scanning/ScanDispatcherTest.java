@@ -105,6 +105,7 @@ class ScanDispatcherTest {
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
                 settings,
                 ruleSets,
+                mock(ScanPlugins.class),
                 envelopes,
                 new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(),
@@ -326,7 +327,7 @@ class ScanDispatcherTest {
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, envelopes,
+                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -363,7 +364,7 @@ class ScanDispatcherTest {
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, envelopes,
+                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -402,7 +403,7 @@ class ScanDispatcherTest {
         new ScanDispatcher(
                         queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), ingestor,
                         new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                        settings, ruleSets, envelopes,
+                        settings, ruleSets, mock(ScanPlugins.class), envelopes,
                         new ScanningProperties(Optional.of("linux/amd64")),
                         Optional.of(runner),
                         mock(AuditLogService.class),
@@ -507,7 +508,7 @@ class ScanDispatcherTest {
         ScanDispatcher restricted = new ScanDispatcher(
                 queue, new TargetCatalog(repositories, containers), new CloneCredentials(gitTokens, sshKeys), mock(ScanIngestor.class),
                 new EncryptionService(new EncryptionProperties(Optional.of(ENCRYPTION_KEY), List.of())),
-                settings, ruleSets, envelopes, new ScanningProperties(Optional.of("linux/amd64")),
+                settings, ruleSets, mock(ScanPlugins.class), envelopes, new ScanningProperties(Optional.of("linux/amd64")),
                 Optional.empty(), mock(AuditLogService.class), mock(PlatformMetrics.class),
                 new TransactionTemplate(transactions),
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));

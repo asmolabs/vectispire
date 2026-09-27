@@ -109,6 +109,21 @@ class ScanIngestorTest {
         }
 
         @Test
+        @DisplayName("a plugin declares its tool, never its type, and only when it produced a report")
+        void pluginsDeclareTheirToolOnly() {
+            String digest = "d".repeat(64);
+            ingestor.ingest(scan(), ScanArtifacts.builder()
+                    .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Produced("ran", digest, "t", "1", List.of()))
+                    .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.NotApplicable(
+                            "elsewhere", digest, Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.GO)))
+                    .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Absent("broken", digest, "exit 2"))
+                    .build(Duration.ZERO));
+
+            assertThat(observation().scannedTypes()).isEmpty();
+            assertThat(observation().scannedTools()).containsExactly("plugin:ran");
+        }
+
+        @Test
         @DisplayName("a step that ran and found nothing declares its type")
         void emptyResultsStillDeclare() {
             // This is the whole distinction: "the secrets scanner ran and found nothing" must

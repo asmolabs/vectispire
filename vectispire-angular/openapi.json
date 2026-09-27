@@ -1,6 +1,24 @@
 {
   "components" : {
     "schemas" : {
+      "Absent" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/PluginStep"
+        }, {
+          "properties" : {
+            "manifestDigest" : {
+              "type" : "string"
+            },
+            "pluginId" : {
+              "type" : "string"
+            },
+            "reason" : {
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        } ]
+      },
       "ActivateRequest" : {
         "properties" : {
           "note" : {
@@ -726,6 +744,9 @@
           "identifier" : {
             "type" : "string"
           },
+          "importSource" : {
+            "type" : "string"
+          },
           "isDirectDependency" : {
             "type" : "boolean"
           },
@@ -815,6 +836,15 @@
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "tool" : {
+            "type" : "string"
+          },
+          "toolName" : {
+            "type" : "string"
+          },
+          "toolVersion" : {
+            "type" : "string"
           },
           "triageComment" : {
             "type" : "string"
@@ -2247,6 +2277,15 @@
           "severity" : {
             "type" : "string"
           },
+          "tool" : {
+            "type" : "string"
+          },
+          "toolName" : {
+            "type" : "string"
+          },
+          "toolVersion" : {
+            "type" : "string"
+          },
           "type" : {
             "type" : "string"
           }
@@ -2825,6 +2864,9 @@
           "identifier" : {
             "type" : "string"
           },
+          "importSource" : {
+            "type" : "string"
+          },
           "isDirectDependency" : {
             "type" : "boolean"
           },
@@ -2909,6 +2951,15 @@
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "tool" : {
+            "type" : "string"
+          },
+          "toolName" : {
+            "type" : "string"
+          },
+          "toolVersion" : {
+            "type" : "string"
           },
           "triageComment" : {
             "type" : "string"
@@ -3041,6 +3092,9 @@
           "identifier" : {
             "type" : "string"
           },
+          "importSource" : {
+            "type" : "string"
+          },
           "isDirectDependency" : {
             "type" : "boolean"
           },
@@ -3113,6 +3167,15 @@
           "timesSeen" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "tool" : {
+            "type" : "string"
+          },
+          "toolName" : {
+            "type" : "string"
+          },
+          "toolVersion" : {
+            "type" : "string"
           },
           "triageComment" : {
             "type" : "string"
@@ -3471,6 +3534,29 @@
           }
         },
         "type" : "object"
+      },
+      "NotApplicable" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/PluginStep"
+        }, {
+          "properties" : {
+            "languages" : {
+              "items" : {
+                "enum" : [ "apex", "bash", "c", "clojure", "csharp", "dockerfile", "elixir", "go", "html", "java", "javascript", "json", "kotlin", "ocaml", "php", "python", "ruby", "rust", "scala", "solidity", "swift", "terraform", "typescript", "yaml" ],
+                "type" : "string"
+              },
+              "type" : "array",
+              "uniqueItems" : true
+            },
+            "manifestDigest" : {
+              "type" : "string"
+            },
+            "pluginId" : {
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        } ]
       },
       "Note" : {
         "properties" : {
@@ -3854,6 +3940,134 @@
         "required" : [ "signsResults" ],
         "type" : "object"
       },
+      "PluginActivationView" : {
+        "properties" : {
+          "activatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "activatedBy" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "pluginId" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "PluginEnabled" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "enabled" ],
+        "type" : "object"
+      },
+      "PluginManifest" : {
+        "properties" : {
+          "arguments" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "exit_codes" : {
+            "items" : {
+              "format" : "int32",
+              "type" : "integer"
+            },
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "image" : {
+            "type" : "string"
+          },
+          "languages" : {
+            "items" : {
+              "enum" : [ "apex", "bash", "c", "clojure", "csharp", "dockerfile", "elixir", "go", "html", "java", "javascript", "json", "kotlin", "ocaml", "php", "python", "ruby", "rust", "scala", "solidity", "swift", "terraform", "typescript", "yaml" ],
+              "type" : "string"
+            },
+            "type" : "array",
+            "uniqueItems" : true
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "network" : {
+            "type" : "boolean"
+          },
+          "network_justification" : {
+            "type" : "string"
+          },
+          "output" : {
+            "type" : "string"
+          },
+          "timeout_seconds" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "network" ],
+        "type" : "object"
+      },
+      "PluginStep" : {
+        "discriminator" : {
+          "propertyName" : "state"
+        },
+        "properties" : {
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "state" ]
+      },
+      "PluginView" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "manifest" : {
+            "$ref" : "#/components/schemas/PluginManifest"
+          },
+          "manifestDigest" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "updatedBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "enabled" ],
+        "type" : "object"
+      },
       "PoliciesResponse" : {
         "properties" : {
           "built_in" : {
@@ -4014,6 +4228,33 @@
           }
         },
         "type" : "object"
+      },
+      "Produced" : {
+        "allOf" : [ {
+          "$ref" : "#/components/schemas/PluginStep"
+        }, {
+          "properties" : {
+            "findings" : {
+              "items" : {
+                "$ref" : "#/components/schemas/SarifFinding"
+              },
+              "type" : "array"
+            },
+            "manifestDigest" : {
+              "type" : "string"
+            },
+            "pluginId" : {
+              "type" : "string"
+            },
+            "toolName" : {
+              "type" : "string"
+            },
+            "toolVersion" : {
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        } ]
       },
       "Product" : {
         "properties" : {
@@ -4988,6 +5229,82 @@
         "required" : [ "durationSeconds" ],
         "type" : "object"
       },
+      "SarifFinding" : {
+        "properties" : {
+          "file" : {
+            "type" : "string"
+          },
+          "line" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "ruleId" : {
+            "type" : "string"
+          },
+          "severity" : {
+            "enum" : [ "CRITICAL", "HIGH", "MEDIUM", "LOW", "NEGLIGIBLE", "UNKNOWN" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SarifImportView" : {
+        "properties" : {
+          "apiKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "createdCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "documentSha256" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "importedBy" : {
+            "type" : "string"
+          },
+          "reopenedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "resolvedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "resultsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceSlug" : {
+            "type" : "string"
+          },
+          "tools" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdCount", "reopenedCount", "resolvedCount", "resultsCount" ],
+        "type" : "object"
+      },
       "SarifLog" : {
         "properties" : {
           "$schema" : {
@@ -5003,6 +5320,50 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "SarifSourceView" : {
+        "properties" : {
+          "apiKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "repositoryId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "tools" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "enabled" ],
         "type" : "object"
       },
       "SarifTool" : {
@@ -5185,6 +5546,18 @@
           "iac" : {
             "items" : {
               "$ref" : "#/components/schemas/IacFinding"
+            },
+            "type" : "array"
+          },
+          "plugins" : {
+            "items" : {
+              "oneOf" : [ {
+                "$ref" : "#/components/schemas/Absent"
+              }, {
+                "$ref" : "#/components/schemas/NotApplicable"
+              }, {
+                "$ref" : "#/components/schemas/Produced"
+              } ]
             },
             "type" : "array"
           },
@@ -6038,6 +6411,44 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "SourceDeclaration" : {
+        "properties" : {
+          "api_key_id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "project_id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "repository_id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "tools" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "SourceEnabled" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "enabled" ],
         "type" : "object"
       },
       "SshKeyCreateRequest" : {
@@ -7139,7 +7550,7 @@
   "paths" : {
     "/api/v1/admin/agents" : {
       "get" : {
-        "operationId" : "list_11",
+        "operationId" : "list_13",
         "responses" : {
           "200" : {
             "content" : {
@@ -7243,7 +7654,7 @@
         "tags" : [ "agents-admin-controller" ]
       },
       "patch" : {
-        "operationId" : "update_6",
+        "operationId" : "update_7",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -7459,6 +7870,39 @@
         "tags" : [ "agents-controller" ]
       }
     },
+    "/api/v1/agent/plugins/{id}/{digest}" : {
+      "get" : {
+        "operationId" : "plugin",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "digest",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginManifest"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agents-controller" ]
+      }
+    },
     "/api/v1/agent/rules/{hash}" : {
       "get" : {
         "operationId" : "ruleSet",
@@ -7608,7 +8052,7 @@
     },
     "/api/v1/api-keys" : {
       "get" : {
-        "operationId" : "list_10",
+        "operationId" : "list_12",
         "responses" : {
           "200" : {
             "content" : {
@@ -7814,7 +8258,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_15",
+        "operationId" : "list_18",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -8290,7 +8734,7 @@
     "/api/v1/compliance/history" : {
       "get" : {
         "description" : "Every framework's monthly captures, each attributed to what plausibly moved it.",
-        "operationId" : "history",
+        "operationId" : "history_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -8574,7 +9018,7 @@
     },
     "/api/v1/containers" : {
       "get" : {
-        "operationId" : "list_9",
+        "operationId" : "list_11",
         "responses" : {
           "200" : {
             "content" : {
@@ -8639,7 +9083,7 @@
         "tags" : [ "containers-controller" ]
       },
       "patch" : {
-        "operationId" : "update_5",
+        "operationId" : "update_6",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -8995,7 +9439,7 @@
     "/api/v1/exceptions" : {
       "get" : {
         "description" : "Risk acceptances and dismissals, newest first, narrowed to what the caller may see.",
-        "operationId" : "register_1",
+        "operationId" : "register_2",
         "parameters" : [ {
           "in" : "query",
           "name" : "limit",
@@ -9110,7 +9554,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_14",
+        "operationId" : "list_17",
         "responses" : {
           "200" : {
             "content" : {
@@ -9226,7 +9670,7 @@
     "/api/v1/gate/verdicts" : {
       "get" : {
         "description" : "The gate's recent answers, newest first, narrowed to what the caller may see.",
-        "operationId" : "register",
+        "operationId" : "register_1",
         "parameters" : [ {
           "in" : "query",
           "name" : "limit",
@@ -9262,7 +9706,7 @@
     },
     "/api/v1/git-tokens" : {
       "get" : {
-        "operationId" : "list_8",
+        "operationId" : "list_10",
         "responses" : {
           "200" : {
             "content" : {
@@ -9504,7 +9948,7 @@
     },
     "/api/v1/issues" : {
       "get" : {
-        "operationId" : "list_13",
+        "operationId" : "list_16",
         "parameters" : [ {
           "in" : "query",
           "name" : "state",
@@ -9756,7 +10200,7 @@
     },
     "/api/v1/issues/{issueId}/tickets" : {
       "get" : {
-        "operationId" : "list_7",
+        "operationId" : "list_9",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -10108,6 +10552,188 @@
         "tags" : [ "OWASP coverage" ]
       }
     },
+    "/api/v1/plugins" : {
+      "get" : {
+        "description" : "Every registered plugin, with the manifest it runs.",
+        "operationId" : "list_8",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List plugins",
+        "tags" : [ "Plugins" ]
+      },
+      "post" : {
+        "description" : "Platform governor only. The image is pinned by digest; the id is never reused. 409 when the id is taken.",
+        "operationId" : "register",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PluginManifest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Register plugin",
+        "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/plugins/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read plugin",
+        "tags" : [ "Plugins" ]
+      },
+      "put" : {
+        "description" : "Platform governor only. A new manifest under the same id — a new image version keeps the id, and with it every issue's triage.",
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PluginManifest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Update plugin",
+        "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/plugins/{id}/enabled" : {
+      "put" : {
+        "description" : "Platform governor only. Disabling stops every activation from the next scan without forgetting them.",
+        "operationId" : "setEnabled_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PluginEnabled"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Enable or disable plugin",
+        "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/plugins/{id}/projects" : {
+      "get" : {
+        "operationId" : "projects",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginActivationView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List projects a plugin analyses",
+        "tags" : [ "Plugins" ]
+      }
+    },
     "/api/v1/projects/{id}" : {
       "delete" : {
         "description" : "Its repositories return to no project and its grants are revoked; no repository and no finding is deleted.",
@@ -10130,7 +10756,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
-        "operationId" : "update_4",
+        "operationId" : "update_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10222,6 +10848,101 @@
         },
         "summary" : "File repository into project",
         "tags" : [ "Solutions" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/plugins" : {
+      "get" : {
+        "description" : "404 when the project does not exist.",
+        "operationId" : "list_15",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PluginActivationView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List plugins switched on for project",
+        "tags" : [ "Plugins" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/plugins/{pluginId}" : {
+      "delete" : {
+        "description" : "Its open issues are left as they are. 404 when it was not on.",
+        "operationId" : "deactivate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "pluginId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Switch plugin off for project",
+        "tags" : [ "Plugins" ]
+      },
+      "put" : {
+        "description" : "Its repositories run the plugin from the next scan, where one of its languages is present. Repeating it changes nothing.",
+        "operationId" : "activate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "pluginId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PluginActivationView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Switch plugin on for project",
+        "tags" : [ "Plugins" ]
       }
     },
     "/api/v1/quality/overview" : {
@@ -10394,7 +11115,7 @@
     "/api/v1/repositories" : {
       "get" : {
         "description" : "Returns all git repositories monitored by Vectispire visible to the caller.",
-        "operationId" : "list_6",
+        "operationId" : "list_7",
         "responses" : {
           "200" : {
             "content" : {
@@ -10466,7 +11187,7 @@
       },
       "patch" : {
         "description" : "Updates configuration, schedule or credentials of a monitored repository.",
-        "operationId" : "update_3",
+        "operationId" : "update_4",
         "parameters" : [ {
           "description" : "Repository identifier",
           "in" : "path",
@@ -10694,9 +11415,85 @@
         "tags" : [ "Repositories" ]
       }
     },
+    "/api/v1/repositories/{repositoryId}/sarif-imports" : {
+      "get" : {
+        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "operationId" : "history",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SarifImportView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List repository's SARIF imports",
+        "tags" : [ "SARIF import" ]
+      },
+      "post" : {
+        "description" : "A declared internal source's integration key only (scope sarif_import). The report's tools must be declared for the source; every run must have succeeded and carry results; locations are relative to the repository. 403 for an undeclared key or tool, 404 for a repository outside the key's visibility or the source's scope, 413 past the size ceiling.",
+        "operationId" : "importReport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/sarif+json" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SarifImportView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Import SARIF report",
+        "tags" : [ "SARIF import" ]
+      }
+    },
     "/api/v1/rule-sets" : {
       "get" : {
-        "operationId" : "list_5",
+        "operationId" : "list_6",
         "responses" : {
           "200" : {
             "content" : {
@@ -10804,7 +11601,7 @@
     },
     "/api/v1/rule-sets/deactivate" : {
       "post" : {
-        "operationId" : "deactivate",
+        "operationId" : "deactivate_1",
         "responses" : {
           "200" : {
             "content" : {
@@ -10823,7 +11620,7 @@
     },
     "/api/v1/rule-sets/{id}/activate" : {
       "post" : {
-        "operationId" : "activate",
+        "operationId" : "activate_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -10883,6 +11680,117 @@
           }
         },
         "tags" : [ "rule-sets-controller" ]
+      }
+    },
+    "/api/v1/sarif-sources" : {
+      "get" : {
+        "operationId" : "list_5",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SarifSourceView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List SARIF sources",
+        "tags" : [ "SARIF import" ]
+      },
+      "post" : {
+        "description" : "Platform governor only. Binds an integration key holding sarif_import to one project or repository and the tools it may deliver.",
+        "operationId" : "declare_2",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SourceDeclaration"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SarifSourceView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Declare SARIF source",
+        "tags" : [ "SARIF import" ]
+      }
+    },
+    "/api/v1/sarif-sources/{id}" : {
+      "delete" : {
+        "description" : "Platform governor only. The issues it imported stay.",
+        "operationId" : "delete",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "summary" : "Remove SARIF source",
+        "tags" : [ "SARIF import" ]
+      }
+    },
+    "/api/v1/sarif-sources/{id}/enabled" : {
+      "put" : {
+        "description" : "Platform governor only.",
+        "operationId" : "setEnabled",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SourceEnabled"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SarifSourceView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Enable or disable SARIF source",
+        "tags" : [ "SARIF import" ]
       }
     },
     "/api/v1/sbom/diff" : {
@@ -10958,7 +11866,7 @@
     "/api/v1/scans" : {
       "get" : {
         "description" : "Returns historical security scans with filtering by repository or container target.",
-        "operationId" : "list_12",
+        "operationId" : "list_14",
         "parameters" : [ {
           "description" : "Filter by repository ID",
           "in" : "query",
@@ -11699,7 +12607,7 @@
         "tags" : [ "Solutions" ]
       },
       "patch" : {
-        "operationId" : "update_2",
+        "operationId" : "update_3",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -12493,7 +13401,7 @@
         "tags" : [ "users-controller" ]
       },
       "patch" : {
-        "operationId" : "update_1",
+        "operationId" : "update_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "id",
@@ -13055,6 +13963,9 @@
     "url" : "/"
   } ],
   "tags" : [ {
+    "description" : "Third-party analysers run as containers, emitting SARIF",
+    "name" : "Plugins"
+  }, {
     "description" : "The Top 10 by rule, with what this deployment cannot see",
     "name" : "OWASP coverage"
   }, {
@@ -13075,6 +13986,9 @@
   }, {
     "description" : "Users, teams, RBAC roles, SSH keys, audit logging and system settings",
     "name" : "Administration"
+  }, {
+    "description" : "SARIF from declared internal sources",
+    "name" : "SARIF import"
   }, {
     "description" : "Security findings, triage workflow, risk assessment and remediation",
     "name" : "Issues & Vulnerabilities"

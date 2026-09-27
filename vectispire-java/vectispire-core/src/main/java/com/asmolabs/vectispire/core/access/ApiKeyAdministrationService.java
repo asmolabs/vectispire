@@ -156,6 +156,23 @@ public class ApiKeyAdministrationService {
         return new Issued(viewOf(saved, issuedAt, targets.labels(), owner), issued.fullKey());
     }
 
+    /**
+     * A key as the list shows it, by id — for a module that binds a key to something of its own (a
+     * declared SARIF source) and must check what the key is before it does.
+     */
+    public Optional<KeyView> key(UUID id) {
+        Instant asOf = clock.instant();
+        return keys.findById(id).map(key -> {
+            Map<Long, String> owner = key.getOwnerUserId() == null
+                    ? Map.of()
+                    : users.findById(key.getOwnerUserId())
+                            .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                            .map(user -> Map.of(user.getId(), user.getUsername()))
+                            .orElse(Map.of());
+            return viewOf(key, asOf, targets.labels(), owner);
+        });
+    }
+
     public void revoke(UUID id, RequestActor actor) {
         ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
 

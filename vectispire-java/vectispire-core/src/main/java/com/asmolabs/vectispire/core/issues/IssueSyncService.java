@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.scanning.ObservedFinding;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,9 +93,56 @@ public class IssueSyncService {
             Set<FindingType> scannedTypes,
             Map<String, String> descriptions,
             Consumer<SyncResult> beforeCommit) {
+        return sync(scanId, scanTarget, scanFindings, scannedTypes, Set.of(), descriptions, beforeCommit);
+    }
+
+    /**
+     * @param scannedTools the tool keys of the plugins that <b>produced</b> a report in this scan
+     *     ({@code ToolKeys.plugin}). A tool-scoped type is resolved by these and never by type: a
+     *     plugin that was not applicable, or failed, is not among them, and its issues stay as they
+     *     are — the third state and the absent one, read the same way here and told apart on the scan
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public SyncResult sync(
+            long scanId,
+            ScanTarget scanTarget,
+            List<ObservedFinding> scanFindings,
+            Set<FindingType> scannedTypes,
+            Set<String> scannedTools,
+            Map<String, String> descriptions,
+            Consumer<SyncResult> beforeCommit) {
+        return fold(scanId, requireTarget(scanId, scanTarget), scanFindings, scannedTypes, scannedTools, null,
+                descriptions, beforeCommit);
+    }
+
+    /**
+     * Folds an imported SARIF report into the target's backlog — the same reconciliation as a scan's,
+     * with no scan: an imported issue's first and last sightings name no scan, and the import record
+     * ({@code t_sarif_import}) is its dated evidence.
+     *
+     * @param importSource the declared source's slug, kept on every issue it touches as provenance
+     * @param tools the tool keys the report covers ({@code ToolKeys.imported}); each resolves its own
+     *     open issues on the target that this report did not carry, and nothing else
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public SyncResult syncImport(ScanTarget target, String importSource, Set<String> tools, List<ObservedFinding> findings) {
+        if (target == null) {
+            throw new IllegalStateException("An import belongs to a target.");
+        }
+        return fold(null, target, findings, Set.of(), tools, importSource, Map.of(), null);
+    }
+
+    private SyncResult fold(
+            Long scanId,
+            ScanTarget target,
+            List<ObservedFinding> scanFindings,
+            Set<FindingType> scannedTypes,
+            Set<String> scannedTools,
+            String importSource,
+            Map<String, String> descriptions,
+            Consumer<SyncResult> beforeCommit) {
 
         Instant moment = clock.instant();
-        ScanTarget target = requireTarget(scanId, scanTarget);
 
         // One finding can repeat within a scan — the same CVE at two places in one package. The
         // issue is one; its occurrences are several. The positions are kept to answer, per finding,
@@ -137,6 +185,9 @@ public class IssueSyncService {
                     issue.setDescription(description);
                 }
             }
+            if (importSource != null) {
+                issue.setImportSource(importSource);
+            }
             touched.add(issue);
         }
 
@@ -147,7 +198,7 @@ public class IssueSyncService {
                 saved.stream().collect(Collectors.toMap(IssueEntity::getFingerprint, IssueEntity::getId, (a, b) -> a));
         List<Long> issueIds = fingerprints.stream().map(idByFingerprint::get).toList();
 
-        int resolved = resolveDisappeared(target, scannedTypes, byFingerprint.keySet(), moment);
+        int resolved = resolveDisappeared(target, scannedTypes, scannedTools, byFingerprint.keySet(), moment);
 
         SyncResult result = new SyncResult(
                 created.size(),
@@ -178,16 +229,37 @@ public class IssueSyncService {
      *
      * <p>Restricted to the types the scan looked at, and to nothing at all when it looked at
      * none — the guard that makes a malformed call harmless rather than destructive.
+     *
+     * <p><b>A tool-scoped type is never resolved by type</b>, even if a caller names it: only by the
+     * tools that actually reported. Resolving {@code plugin} as a type would close every plugin's and
+     * every import's issues on the target the first time any one of them came back clean.
      */
-    private int resolveDisappeared(ScanTarget target, Set<FindingType> scannedTypes, Set<String> seen, Instant moment) {
-        if (scannedTypes.isEmpty()) {
+    private int resolveDisappeared(
+            ScanTarget target, Set<FindingType> scannedTypes, Set<String> scannedTools, Set<String> seen, Instant moment) {
+        List<String> types = scannedTypes.stream()
+                .filter(type -> !type.toolScoped())
+                .map(FindingType::wireName)
+                .toList();
+        List<String> tools = scannedTools == null ? List.of() : scannedTools.stream()
+                .filter(tool -> tool != null && !tool.isBlank())
+                .toList();
+        if (types.isEmpty() && tools.isEmpty()) {
             return 0;
         }
 
-        List<String> types = scannedTypes.stream().map(FindingType::wireName).toList();
-        List<IssueEntity> disappeared = issues
-                .findOpenByTarget(IssueState.OPEN.wireName(), types, repoIdOf(target), containerIdOf(target))
-                .stream()
+        List<IssueEntity> open = new ArrayList<>();
+        if (!types.isEmpty()) {
+            open.addAll(issues.findOpenByTarget(IssueState.OPEN.wireName(), types, repoIdOf(target), containerIdOf(target)));
+        }
+        if (!tools.isEmpty()) {
+            List<String> toolScoped = Arrays.stream(FindingType.values())
+                    .filter(FindingType::toolScoped)
+                    .map(FindingType::wireName)
+                    .toList();
+            open.addAll(issues.findOpenByTargetAndTools(
+                    IssueState.OPEN.wireName(), toolScoped, tools, repoIdOf(target), containerIdOf(target)));
+        }
+        List<IssueEntity> disappeared = open.stream()
                 .filter(issue -> !seen.contains(issue.getFingerprint()))
                 .toList();
 
@@ -198,7 +270,7 @@ public class IssueSyncService {
         return disappeared.size();
     }
 
-    private IssueEntity create(long scanId, ScanTarget target, String fingerprint, ObservedFinding finding, Instant moment) {
+    private IssueEntity create(Long scanId, ScanTarget target, String fingerprint, ObservedFinding finding, Instant moment) {
         IssueEntity issue = new IssueEntity();
         issue.setRepoId(repoIdOf(target));
         issue.setContainerId(containerIdOf(target));
@@ -208,6 +280,7 @@ public class IssueSyncService {
         issue.setPurl(finding.purl());
         issue.setPackageName(finding.packageName());
         issue.setFilePath(finding.filePath());
+        issue.setTool(finding.tool());
         issue.setState(IssueState.OPEN.wireName());
         issue.setFirstSeenAt(moment);
         issue.setLastSeenAt(moment);
@@ -242,7 +315,7 @@ public class IssueSyncService {
         return own == null || own.isBlank() ? null : own;
     }
 
-    private void refresh(IssueEntity issue, ObservedFinding finding, long scanId, Instant moment) {
+    private void refresh(IssueEntity issue, ObservedFinding finding, Long scanId, Instant moment) {
         copyRefreshedFields(issue, finding, false);
         issue.setLastSeenAt(moment);
         issue.setLastSeenScanId(scanId);
@@ -281,6 +354,10 @@ public class IssueSyncService {
         set(finding.fixState(), issue::setFixState, overwriteNulls);
         set(finding.fixVersions(), issue::setFixVersions, overwriteNulls);
         set(finding.link(), issue::setLink, overwriteNulls);
+        // The tool's name and version follow the latest report, like a package's version: a plugin
+        // moved to a new image is still one issue, now saying which version saw it last.
+        set(finding.toolName(), issue::setToolName, overwriteNulls);
+        set(finding.toolVersion(), issue::setToolVersion, overwriteNulls);
         // Both columns are non-nullable, so there is no absent value to skip — but false must
         // not overwrite true on a refresh. Enrichment sets this flag *after* reconciliation, so
         // a second scan arriving before enrichment would otherwise un-flag an exploited
@@ -350,7 +427,10 @@ public class IssueSyncService {
                 BoundedText.clip(finding.fixVersions(), 255),
                 BoundedText.clip(finding.link(), 500),
                 finding.kev(),
-                BoundedText.clip(finding.description(), BoundedText.TEXT_MAX));
+                BoundedText.clip(finding.description(), BoundedText.TEXT_MAX),
+                BoundedText.clip(finding.tool(), 200),
+                BoundedText.clip(finding.toolName(), 100),
+                BoundedText.clip(finding.toolVersion(), 100));
     }
 
     private static String fingerprintOf(ScanTarget target, ObservedFinding finding) {
@@ -359,6 +439,15 @@ public class IssueSyncService {
                         "Unknown finding type \"" + finding.type() + "\": it would fingerprint as itself and "
                                 + "never match an existing issue."));
 
+        if (type.toolScoped()) {
+            // Rule, normalised path, tool — see IssueFingerprint. A finding of this type without its
+            // tool is a defect upstream, and failing here is what keeps it from sharing an identity
+            // with every other tool's finding on the same rule and file.
+            if (finding.tool() == null || finding.tool().isBlank()) {
+                throw new IllegalStateException("A " + type.wireName() + " finding carries no tool key.");
+            }
+            return IssueFingerprint.ofTool(target, type, finding.tool(), finding.identifier(), finding.filePath());
+        }
         return IssueFingerprint.of(new IssueFingerprint.Input(
                 target,
                 type,
@@ -368,7 +457,7 @@ public class IssueSyncService {
                 finding.filePath()));
     }
 
-    private static ScanTarget requireTarget(long scanId, ScanTarget target) {
+    private static ScanTarget requireTarget(Long scanId, ScanTarget target) {
         return Optional.ofNullable(target)
                 .orElseThrow(() -> new IllegalStateException("Scan " + scanId + " belongs to no target."));
     }
