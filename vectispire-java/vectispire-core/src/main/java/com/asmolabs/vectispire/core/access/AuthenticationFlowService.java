@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Sessions;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.core.access.persistence.MfaChallengeEntity;
@@ -496,7 +497,7 @@ public class AuthenticationFlowService {
      * here as it does at the sign-in form: an open session was otherwise a way to guess the
      * password behind it at whatever rate the server sustained, with nothing in the audit trail.
      *
-     * @throws IllegalArgumentException when the new password breaks a rule, with the rule's text
+     * @throws InvalidInputException when the new password breaks a rule, with the rule's text
      * @throws java.util.NoSuchElementException when the account is gone — the bearer filter found it
      *     active at the start of this request, so only a deletion racing it lands here
      */
@@ -535,10 +536,10 @@ public class AuthenticationFlowService {
         // The password was right: whatever the new one turns out to be, this was not a guess.
         auth.clearPasswordFailures(user.getId());
         AccountRules.validatePassword(newPassword).ifPresent(message -> {
-            throw new IllegalArgumentException(message);
+            throw new InvalidInputException(message);
         });
         if (newPassword.equals(currentPassword)) {
-            throw new IllegalArgumentException("The new password is the same as the old one.");
+            throw new InvalidInputException("The new password is the same as the old one.");
         }
 
         users.changePassword(user.getId(), PasswordHasher.hash(newPassword), clock.instant());

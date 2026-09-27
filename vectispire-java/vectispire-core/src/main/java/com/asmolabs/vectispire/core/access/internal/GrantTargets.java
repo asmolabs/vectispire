@@ -1,11 +1,11 @@
 package com.asmolabs.vectispire.core.access.internal;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.common.domain.teams.TeamRules;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.VisibilityService;
-import java.util.NoSuchElementException;
 import java.util.function.BiPredicate;
 import org.springframework.stereotype.Service;
 
@@ -49,8 +49,8 @@ public class GrantTargets {
      * @param granter what the administrator granting may see
      * @param held whether the grantee holds this grant already, before the replacement — asked with
      *     the kind normalized, as the grant tables store it
-     * @throws IllegalArgumentException for a kind that does not exist — a malformed request, 400
-     * @throws NoSuchElementException for a target that does not exist or that the granter does not
+     * @throws com.asmolabs.vectispire.common.domain.errors.InvalidInputException for a kind that does not exist — a malformed request, 400
+     * @throws NotFoundException for a target that does not exist or that the granter does not
      *     see — 404, in the same words
      */
     public String validate(String kind, Long id, Visibility granter, BiPredicate<String, Long> held) {
@@ -65,7 +65,7 @@ public class GrantTargets {
             default -> false;
         };
         if (!grantable) {
-            throw new NoSuchElementException("No " + normalized + " with id " + id + ".");
+            throw new NotFoundException("No " + normalized + " with id " + id + ".");
         }
         return normalized;
     }

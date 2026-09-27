@@ -5,6 +5,8 @@ import com.asmolabs.vectispire.common.domain.apikeys.ApiKeys;
 import com.asmolabs.vectispire.common.domain.apikeys.InvalidApiKeyException;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyEntity;
 import com.asmolabs.vectispire.core.access.persistence.ApiKeyRepository;
@@ -19,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -109,7 +110,7 @@ public class ApiKeyAdministrationService {
     public Issued issue(Request request, RequestActor actor) {
         String name = request.name() == null ? "" : request.name().trim();
         if (name.isEmpty()) {
-            throw new IllegalArgumentException("A name is required.");
+            throw new InvalidInputException("A name is required.");
         }
         if (name.length() > MAX_NAME_LENGTH) {
             throw new InvalidApiKeyException("A key's name is at most " + MAX_NAME_LENGTH + " characters.");
@@ -174,7 +175,7 @@ public class ApiKeyAdministrationService {
     }
 
     public void revoke(UUID id, RequestActor actor) {
-        ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NoSuchElementException("Key not found."));
+        ApiKeyEntity key = keys.findById(id).orElseThrow(() -> new NotFoundException("Key not found."));
 
         // Revoking deletes the row: a "disabled" key that a scan could re-enable by accident
         // would be worse than an absent one. The audit trail keeps the record.

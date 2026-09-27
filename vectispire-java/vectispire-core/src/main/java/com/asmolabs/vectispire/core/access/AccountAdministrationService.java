@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -22,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +37,8 @@ import org.springframework.stereotype.Service;
  * entry is written here, after it returns, for the reason that class gives: an audited action
  * that rolls back is still recorded as attempted only if its entry is outside the boundary.
  *
- * <p>Every refusal is an {@link IllegalArgumentException} carrying text meant for the screen, and
- * every missing account a {@link NoSuchElementException} — the 400 and the 404 the handler maps.
+ * <p>Every refusal is an {@link InvalidInputException} carrying text meant for the screen, and
+ * every missing account a {@link NotFoundException} — the 400 and the 404 the handler maps.
  */
 @Service
 public class AccountAdministrationService {
@@ -104,11 +105,11 @@ public class AccountAdministrationService {
         refuseIfInvalid(AccountRules.validateUsername(username));
         refuseIfInvalid(AccountRules.validatePassword(password));
         if (Role.of(role).isEmpty()) {
-            throw new IllegalArgumentException("Unknown role: " + role + ".");
+            throw new InvalidInputException("Unknown role: " + role + ".");
         }
         refuseGovernorAdministration(actingAccountId, Optional.empty(), Role.of(role));
         if (users.findByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("The username \"" + username + "\" is already taken.");
+            throw new InvalidInputException("The username \"" + username + "\" is already taken.");
         }
 
         Instant createdAt = clock.instant();
@@ -150,7 +151,7 @@ public class AccountAdministrationService {
         String password = change.password();
 
         if (Role.of(role).isEmpty()) {
-            throw new IllegalArgumentException("Unknown role: " + role + ".");
+            throw new InvalidInputException("Unknown role: " + role + ".");
         }
         if (password != null) {
             refuseIfInvalid(AccountRules.validatePassword(password));
@@ -316,7 +317,7 @@ public class AccountAdministrationService {
     }
 
     private UserEntity requireAccount(long id) {
-        return users.findById(id).orElseThrow(() -> new NoSuchElementException("Account not found."));
+        return users.findById(id).orElseThrow(() -> new NotFoundException("Account not found."));
     }
 
     /** See {@link AccountRules#refuseGovernorAdministration}; the acting role is read, not trusted. */
@@ -360,7 +361,7 @@ public class AccountAdministrationService {
 
     private static void refuseIfInvalid(Optional<String> refusal) {
         refusal.ifPresent(message -> {
-            throw new IllegalArgumentException(message);
+            throw new InvalidInputException(message);
         });
     }
 

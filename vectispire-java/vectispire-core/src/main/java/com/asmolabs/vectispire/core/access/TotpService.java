@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.core.access;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.auth.Totp;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.core.access.persistence.UserEntity;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
@@ -77,12 +78,12 @@ public class TotpService {
         // left open on somebody's desk was enough to move their second factor onto one's own
         // phone. Disabling asks for a code, so replacing goes through disabling.
         if (user.getMfaEnabled()) {
-            throw new IllegalArgumentException(
+            throw new InvalidInputException(
                     "MFA is already enabled. Disable it with a current code before enrolling a new device.");
         }
         OptionalLong step = Totp.matchingStep(secret, code, clock.instant());
         if (step.isEmpty()) {
-            throw new IllegalArgumentException("Invalid TOTP verification code.");
+            throw new InvalidInputException("Invalid TOTP verification code.");
         }
 
         List<String> backupCodes = Totp.generateBackupCodes(8);
@@ -124,7 +125,7 @@ public class TotpService {
         }
         if (!verify(user, code)) {
             // The reservation stays: it is this failure.
-            throw new IllegalArgumentException("Invalid code or backup code. MFA could not be disabled.");
+            throw new InvalidInputException("Invalid code or backup code. MFA could not be disabled.");
         }
         auth.clearSecondFactorFailures(user.getId());
 

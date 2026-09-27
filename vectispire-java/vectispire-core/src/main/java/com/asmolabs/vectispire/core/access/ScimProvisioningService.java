@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.domain.users.AccountRules;
 import com.asmolabs.vectispire.common.domain.users.Role;
@@ -156,7 +157,7 @@ public class ScimProvisioningService {
     public UserCreation createUser(UserAttributes attributes, RequestActor origin) {
         String username = attributes.userName() == null ? "" : attributes.userName().trim().toLowerCase(Locale.ROOT);
         AccountRules.validateUsername(username).ifPresent(msg -> {
-            throw new IllegalArgumentException(msg);
+            throw new InvalidInputException(msg);
         });
 
         if (users.findByUsername(username).isPresent()) {
@@ -342,7 +343,7 @@ public class ScimProvisioningService {
      * already holds is not a grant, so a directory that sends it back on every replacement is not
      * refused.
      *
-     * @throws IllegalArgumentException for a role with a global security scope, which is granted in
+     * @throws InvalidInputException for a role with a global security scope, which is granted in
      *     Vectispire
      */
     private static String grantable(String requested, String unchanged) {
@@ -351,7 +352,7 @@ public class ScimProvisioningService {
             return unchanged;
         }
         if (role.get().isAdministrative() || role.get().hasGlobalSecurityScope()) {
-            throw new IllegalArgumentException("SCIM cannot grant the " + role.get().name()
+            throw new InvalidInputException("SCIM cannot grant the " + role.get().name()
                     + " role: roles that administer or see the whole estate are granted in Vectispire.");
         }
         return role.get().name();
@@ -385,7 +386,7 @@ public class ScimProvisioningService {
      */
     private static void bindOnce(UserEntity user, String externalId) {
         if (user.getKeycloakId() != null && !user.getKeycloakId().equals(externalId)) {
-            throw new IllegalArgumentException("externalId is immutable once set: this account is already "
+            throw new InvalidInputException("externalId is immutable once set: this account is already "
                     + "bound to another identity-provider subject.");
         }
         user.setKeycloakId(externalId);
@@ -414,7 +415,7 @@ public class ScimProvisioningService {
     public GroupCreation createGroup(String displayName, List<String> memberValues, RequestActor origin) {
         String name = displayName == null ? "" : displayName.trim();
         if (name.isBlank()) {
-            throw new IllegalArgumentException("Group displayName cannot be blank.");
+            throw new InvalidInputException("Group displayName cannot be blank.");
         }
 
         GroupCreation outcome = transactions.execute(status -> {

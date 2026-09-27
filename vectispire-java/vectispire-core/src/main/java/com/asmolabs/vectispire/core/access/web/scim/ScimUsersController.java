@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access.web.scim;
 
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.core.access.ScimProvisioningService;
 import com.asmolabs.vectispire.core.access.UserView;
 import com.asmolabs.vectispire.core.access.web.scim.dto.ScimErrorResponse;
@@ -103,8 +104,14 @@ public class ScimUsersController {
                 .body(ScimErrorResponse.of(HttpStatus.FORBIDDEN.value(), ex.getMessage()));
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ScimErrorResponse> handleBadInput(IllegalArgumentException ex) {
+    /**
+     * A refusal the provisioning service wrote for the directory, in SCIM's own error schema (RFC
+     * 7644 §3.12) rather than a problem: a directory client parses {@code scimType} and {@code
+     * detail} under that schema. Only {@link InvalidInputException}: a bare {@code
+     * IllegalArgumentException} is a defect, and the application's handler answers it 500.
+     */
+    @ExceptionHandler(InvalidInputException.class)
+    public ResponseEntity<ScimErrorResponse> handleBadInput(InvalidInputException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ScimErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
     }

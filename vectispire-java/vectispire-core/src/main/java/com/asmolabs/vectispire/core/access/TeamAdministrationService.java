@@ -2,6 +2,8 @@ package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -26,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -48,8 +49,8 @@ import org.springframework.stereotype.Service;
  * {@link VisibilityService}: intersecting them would make joining a team narrow what somebody
  * already had.
  *
- * <p>Every refusal is an {@link IllegalArgumentException} carrying text meant for the screen, and
- * a missing team a {@link NoSuchElementException} — the 400 and the 404 the handler maps.
+ * <p>Every refusal is an {@link InvalidInputException} carrying text meant for the screen, and
+ * a missing team a {@link NotFoundException} — the 400 and the 404 the handler maps.
  */
 @Service
 public class TeamAdministrationService {
@@ -239,7 +240,7 @@ public class TeamAdministrationService {
         // without anybody being told.
         List<Long> unknown = wanted.stream().filter(userId -> users.findById(userId).isEmpty()).toList();
         if (!unknown.isEmpty()) {
-            throw new IllegalArgumentException("No such account(s): " + unknown);
+            throw new InvalidInputException("No such account(s): " + unknown);
         }
 
         memberships.deleteByTeamId(id);
@@ -345,7 +346,7 @@ public class TeamAdministrationService {
     }
 
     private TeamEntity requireTeam(long id) {
-        return teams.findById(id).orElseThrow(() -> new NoSuchElementException("Team not found."));
+        return teams.findById(id).orElseThrow(() -> new NotFoundException("Team not found."));
     }
 
     private void refuseIfNameTaken(String name, Long allowed) {
@@ -354,7 +355,7 @@ public class TeamAdministrationService {
             // Caught here rather than left to the unique constraint: a constraint violation
             // surfaces as a 500 with a driver's message in it, and the administrator needs to
             // read "that name is taken".
-            throw new IllegalArgumentException("A team named \"" + name + "\" already exists.");
+            throw new InvalidInputException("A team named \"" + name + "\" already exists.");
         }
     }
 

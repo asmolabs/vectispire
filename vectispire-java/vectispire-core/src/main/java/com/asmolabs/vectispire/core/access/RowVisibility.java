@@ -1,8 +1,8 @@
 package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
-import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 /**
@@ -41,7 +41,7 @@ public final class RowVisibility {
      */
     public static <T> T requireVisibleIssue(T issue, Function<? super T, ScanTarget> targetOf, Visibility visibility) {
         if (issue == null || !visibility.permits(targetOf.apply(issue))) {
-            throw new NoSuchElementException("Issue not found.");
+            throw new NotFoundException("Issue not found.");
         }
         return issue;
     }
@@ -60,7 +60,7 @@ public final class RowVisibility {
         // restricted reader enumerate every scan of the deployment. Pass the absent row here as
         // null rather than refusing it beforehand in the caller's own words.
         if (scan == null || !visibility.permits(targetOf.apply(scan))) {
-            throw new NoSuchElementException("Scan not found.");
+            throw new NotFoundException("Scan not found.");
         }
         return scan;
     }
@@ -68,7 +68,7 @@ public final class RowVisibility {
     /** The same rule for a route named by a repository: absent and hidden read alike. */
     public static <T> T requireVisibleRepository(T repository, long repositoryId, Visibility visibility) {
         if (repository == null || !visibility.permits(new ScanTarget.Repository(repositoryId))) {
-            throw new NoSuchElementException("Repository not found.");
+            throw new NotFoundException("Repository not found.");
         }
         return repository;
     }
@@ -83,7 +83,7 @@ public final class RowVisibility {
      */
     public static <T> T requireVisible(java.util.Optional<T> row, ScanTarget target, Visibility visibility) {
         if (row.isEmpty() || !visibility.permits(target)) {
-            throw new NoSuchElementException(TARGET_NOT_FOUND);
+            throw new NotFoundException(TARGET_NOT_FOUND);
         }
         return row.get();
     }
@@ -96,7 +96,7 @@ public final class RowVisibility {
         // instead would have made this stricter than the rule it is meant to reuse — a scan
         // attached to neither target would have 404'd for an administrator too.
         if (!visibility.permits(target)) {
-            throw new NoSuchElementException(TARGET_NOT_FOUND);
+            throw new NotFoundException(TARGET_NOT_FOUND);
         }
     }
 }
