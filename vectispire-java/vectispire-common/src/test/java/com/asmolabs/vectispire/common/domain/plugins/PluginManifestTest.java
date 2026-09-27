@@ -137,11 +137,18 @@ class PluginManifestTest {
     }
 
     @Test
-    @DisplayName("an argument carrying a control character is refused")
+    @DisplayName("an argument carrying a control character is refused, but a script's newlines and tabs are not")
     void controlCharacters() {
-        assertThatThrownBy(() -> new PluginManifest("x1", "X", IMAGE, Set.of(Language.GO), List.of("a\nb"), null, null,
+        assertThatThrownBy(() -> new PluginManifest("x1", "X", IMAGE, Set.of(Language.GO), List.of("a\u001fb"), null, null,
+                        false, null, null).validated())
+                .as("the digest's list separator cannot appear inside an argument")
+                .isInstanceOf(InvalidPluginException.class);
+        assertThatThrownBy(() -> new PluginManifest("x1", "X", IMAGE, Set.of(Language.GO), List.of("a\u0000b"), null, null,
                         false, null, null).validated())
                 .isInstanceOf(InvalidPluginException.class);
+        assertThat(new PluginManifest("x1", "X", IMAGE, Set.of(Language.GO), List.of("set -e\n\tlint ."), null, null,
+                        false, null, null).validated())
+                .isNotNull();
     }
 
     @Test

@@ -170,6 +170,14 @@ public final class ContainerRunner {
         return null;
     }
 
+    /**
+     * The ceiling on what a scanner may hand back, in bytes — its standard output here, and the
+     * report file a plugin writes, which is the same output by another route and gets the same bound.
+     */
+    public long outputBytes() {
+        return limits.outputBytes();
+    }
+
     /** Is the daemon reachable? Checked before claiming a scan rather than in the middle of one. */
     public boolean isAvailable() {
         try {

@@ -29,6 +29,10 @@ public record ScanArtifacts(
         Optional<List<SastFinding>> sast,
         Optional<List<ApiEndpoint>> apiEndpoints,
         Optional<List<ApiContract>> apiContracts,
+        // A list of three-state results rather than an Optional: see PluginStep for why a plugin
+        // needs "not applicable" beside "ran" and "did not run". Empty means no plugin was asked
+        // for — or an agent older than plugins, which reports none; neither resolves anything.
+        List<PluginStep> plugins,
         List<Failure> failures,
         // **ISO-8601 text, pinned here and not in either mapper.** The published contract says
         // `string, format: duration`; Jackson writes a `Duration` as a decimal number of seconds
@@ -57,14 +61,39 @@ public record ScanArtifacts(
         sast = sast == null ? Optional.empty() : sast;
         apiEndpoints = apiEndpoints == null ? Optional.empty() : apiEndpoints;
         apiContracts = apiContracts == null ? Optional.empty() : apiContracts;
+        plugins = plugins == null ? List.of() : plugins.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(ScanArtifacts::withoutMissingFindings)
+                .toList();
         failures = failures == null ? List.of() : failures;
+    }
+
+    /**
+     * A {@code produced} step whose findings did not arrive is absent, never empty.
+     *
+     * <p>{@code "findings": null} — or no field at all, from a body somebody wrote by hand — would
+     * otherwise reach ingestion as a plugin that ran and found nothing, which resolves its whole
+     * backlog on the target. The same defence as the {@code NullNode} SBOM above, for the same
+     * reason: absent is the reading that resolves nothing.
+     */
+    private static PluginStep withoutMissingFindings(PluginStep step) {
+        if (step instanceof PluginStep.Produced produced && produced.findings() == null) {
+            return new PluginStep.Absent(produced.pluginId(), produced.manifestDigest(),
+                    "the executor reported the plugin as run without a list of findings");
+        }
+        return step;
     }
 
     /** @param step named as an operator would recognize it, not as the class is called */
     public record Failure(String step, String reason) {}
 
+    /**
+     * Whether no analysis produced anything. A plugin that ran counts as an observation; one that
+     * was not applicable does not — it looked at nothing.
+     */
     public boolean observedNothing() {
-        return dependencies.isEmpty() && secrets.isEmpty() && iac.isEmpty() && sast.isEmpty();
+        return dependencies.isEmpty() && secrets.isEmpty() && iac.isEmpty() && sast.isEmpty()
+                && plugins.stream().noneMatch(PluginStep.Produced.class::isInstance);
     }
 
     public static Builder builder() {
@@ -80,6 +109,7 @@ public record ScanArtifacts(
         private List<SastFinding> sast;
         private List<ApiEndpoint> apiEndpoints;
         private List<ApiContract> apiContracts;
+        private final List<PluginStep> plugins = new ArrayList<>();
         private final List<Failure> failures = new ArrayList<>();
 
         public Builder sbom(JsonNode value) { this.sbom = value; return this; }
@@ -90,6 +120,7 @@ public record ScanArtifacts(
         public Builder sast(List<SastFinding> value) { this.sast = value; return this; }
         public Builder apiEndpoints(List<ApiEndpoint> value) { this.apiEndpoints = value; return this; }
         public Builder apiContracts(List<ApiContract> value) { this.apiContracts = value; return this; }
+        public Builder plugin(PluginStep value) { this.plugins.add(value); return this; }
 
         public Builder failed(String step, String reason) {
             failures.add(new Failure(step, reason));
@@ -106,6 +137,7 @@ public record ScanArtifacts(
                     Optional.ofNullable(sast),
                     Optional.ofNullable(apiEndpoints),
                     Optional.ofNullable(apiContracts),
+                    List.copyOf(plugins),
                     List.copyOf(failures),
                     duration);
         }

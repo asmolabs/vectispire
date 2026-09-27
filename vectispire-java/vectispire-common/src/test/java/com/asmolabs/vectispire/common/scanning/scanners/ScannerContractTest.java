@@ -45,7 +45,8 @@ class ScannerContractTest {
             SecretsScanner.class,
             IacScanner.class,
             SastScanner.class,
-            DependencyScanner.class);
+            DependencyScanner.class,
+            PluginScanner.class);
 
     @Test
     @DisplayName("every scanner that runs a container holds one, so the list below is the right list")

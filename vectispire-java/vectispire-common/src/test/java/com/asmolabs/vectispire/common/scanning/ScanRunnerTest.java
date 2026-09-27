@@ -62,6 +62,40 @@ class ScanRunnerTest {
                 .isTrue();
     }
 
+    @Test
+    @DisplayName("a repository task's plugins reach the artifacts in their three states, and only the absent one is a failure")
+    void pluginsAreRecorded(@org.junit.jupiter.api.io.TempDir Path root) throws java.io.IOException {
+        Workspace workspace = new Workspace(root, root.resolve("source"), root.resolve("rules"));
+        java.nio.file.Files.createDirectories(workspace.source());
+        java.nio.file.Files.writeString(workspace.source().resolve("app.py"), "print(1)");
+        ContainerRunner containers = mock(ContainerRunner.class);
+        when(containers.outputBytes()).thenReturn(ScannerLimits.DEFAULT_OUTPUT_BYTES);
+        when(containers.run(any())).thenReturn(new ContainerRunner.ContainerResult("", "", 0));
+
+        var python = PluginStepsTest.manifest(Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.PYTHON));
+        var javaOnly = new com.asmolabs.vectispire.common.domain.plugins.PluginManifest("java-only", "J", python.image(),
+                Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.JAVA), java.util.List.of(), null, null,
+                false, null, null);
+        ScanRunner runner = new ScanRunner(containers, ScannerImages.PINNED, Path.of("unused"), hash -> java.util.List.of(),
+                reference -> reference.id().equals("java-only") ? javaOnly : python, null,
+                new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.NONE, FIXED);
+        ScanTask task = new ScanTask(new ScanTask.Target.Repository("https://host/p.git", "main", null, null), null,
+                Set.of(), java.util.List.of(
+                        new com.asmolabs.vectispire.common.domain.plugins.PluginRef(python.id(), python.digest()),
+                        new com.asmolabs.vectispire.common.domain.plugins.PluginRef(javaOnly.id(), javaOnly.digest())));
+
+        ScanArtifacts.Builder builder = ScanArtifacts.builder();
+        runner.runPlugins(task, workspace, workspace.source(), builder);
+        ScanArtifacts artifacts = builder.build(java.time.Duration.ZERO);
+
+        assertThat(artifacts.plugins()).extracting(step -> step.getClass().getSimpleName())
+                .containsExactlyInAnyOrder("Absent", "NotApplicable");
+        assertThat(artifacts.failures())
+                .describedAs("the plugin that wrote no report is a failure under its name; the inapplicable one is not")
+                .extracting(ScanArtifacts.Failure::step)
+                .containsExactly("plugin acme-lint");
+    }
+
     private static ScanRunner runner(ContainerRunner containers) {
         return new ScanRunner(
                 containers,

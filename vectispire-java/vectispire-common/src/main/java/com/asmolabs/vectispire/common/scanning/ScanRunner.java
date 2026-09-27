@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.common.scanning;
 import com.asmolabs.vectispire.common.domain.targets.RepositorySubPath;
 import com.asmolabs.vectispire.common.scanning.scanners.DependencyScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.IacScanner;
+import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.SastScanner;
 import com.asmolabs.vectispire.common.scanning.scanners.ScannerImages;
 import com.asmolabs.vectispire.common.scanning.scanners.SecretsScanner;
@@ -36,6 +37,7 @@ public final class ScanRunner {
     private final SastScanner sast;
     private final RulePlacement rules;
     private final RulePlacement.RuleSetProvider ruleSets;
+    private final PluginSteps plugins;
     private final GitClone.HostKeyPolicy hostKeys;
 
     /**
@@ -65,6 +67,25 @@ public final class ScanRunner {
             GitClone.HostKeyPolicy hostKeys,
             GitClone.WithoutKey withoutKey,
             Clock clock) {
+        this(containers, images, bundledRules, ruleSets, PluginProvider.NONE, null, hostKeys, withoutKey, clock);
+    }
+
+    /**
+     * @param plugins how this executor obtains a plugin's manifest — the database on the built-in
+     *     worker, the protocol on an agent, as for {@code ruleSets}
+     * @param pluginRegistry the internal registry plugin images are pulled from, or blank for their own
+     */
+    public ScanRunner(
+            ContainerRunner containers,
+            ScannerImages images,
+            Path bundledRules,
+            RulePlacement.RuleSetProvider ruleSets,
+            PluginProvider plugins,
+            String pluginRegistry,
+            GitClone.HostKeyPolicy hostKeys,
+            GitClone.WithoutKey withoutKey,
+            Clock clock) {
+        this.plugins = new PluginSteps(new PluginScanner(containers, pluginRegistry), plugins);
         this.containers = containers;
         this.dependencies = new DependencyScanner(containers, images);
         this.secrets = new SecretsScanner(containers, images.gitleaks());
@@ -185,6 +206,9 @@ public final class ScanRunner {
                 });
             }
 
+            // Last, and each on its own: see runPlugins.
+            runPlugins(task, workspace, scanRoot, artifacts);
+
             return artifacts.build(Duration.between(started, clock.instant()));
         });
     }
@@ -222,6 +246,27 @@ public final class ScanRunner {
         });
 
         return artifacts.build(Duration.between(started, clock.instant()));
+    }
+
+    /**
+     * The task's plugins, after every scanner.
+     *
+     * <p><b>Each on its own.</b> A plugin's failure is its own step's: it is recorded as a failure of
+     * the scan, under the plugin's name, and leaves that plugin's issues alone; no scanner above is
+     * touched. A plugin whose languages the tree does not contain is not run and <em>not</em> a
+     * failure — see {@link PluginStep} for why that third state exists. Package-private so the
+     * wiring is exercised without a clone.
+     */
+    void runPlugins(ScanTask task, Workspace workspace, Path scanRoot, ScanArtifacts.Builder artifacts) {
+        if (task.plugins().isEmpty()) {
+            return;
+        }
+        for (PluginStep step : plugins.run(task.plugins(), workspace, scanRoot)) {
+            artifacts.plugin(step);
+            if (step instanceof PluginStep.Absent absent) {
+                artifacts.failed("plugin " + absent.pluginId(), absent.reason());
+            }
+        }
     }
 
     /** Is the daemon reachable? Asked before claiming a scan rather than in the middle of one. */

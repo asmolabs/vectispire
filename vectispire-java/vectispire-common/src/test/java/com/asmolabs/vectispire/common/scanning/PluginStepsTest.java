@@ -1,0 +1,384 @@
+package com.asmolabs.vectispire.common.scanning;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
+import com.asmolabs.vectispire.common.domain.sarif.SarifFinding;
+import com.asmolabs.vectispire.common.scanning.scanners.PluginScanner;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
+
+/**
+ * A plugin's three states, decided without a clone and without a daemon: the container is a stub
+ * that writes what the plugin would have written into the output mount it was handed.
+ */
+@DisplayName("the plugins of a scan")
+class PluginStepsTest {
+
+    private static final String DIGEST = "sha256:" + "d".repeat(64);
+
+    static final String REPORT = """
+            {"version":"2.1.0","runs":[{"tool":{"driver":{"name":"acme-lint","version":"4.2.0"}},
+             "results":[{"ruleId":"ACME001","level":"error","message":{"text":"eval() here"},
+               "locations":[{"physicalLocation":{"artifactLocation":{"uri":"/repo/source/app/a.py"},"region":{"startLine":3}}}]}]}]}
+            """;
+
+    @TempDir
+    Path root;
+
+    private Workspace workspace;
+    private ContainerRunner containers;
+    private final AtomicReference<ContainerRun> launched = new AtomicReference<>();
+
+    @BeforeEach
+    void checkout() throws IOException {
+        workspace = new Workspace(root, root.resolve(Workspace.SOURCE_SUBDIR), root.resolve(Workspace.RULES_SUBDIR));
+        Files.createDirectories(workspace.source().resolve("app"));
+        Files.writeString(workspace.source().resolve("app/a.py"), "eval(input())");
+        containers = mock(ContainerRunner.class);
+        when(containers.outputBytes()).thenReturn(ScannerLimits.DEFAULT_OUTPUT_BYTES);
+    }
+
+    static PluginManifest manifest(Set<Language> languages) {
+        return new PluginManifest("acme-lint", "ACME", "registry.acme.internal/acme-lint@" + DIGEST, languages,
+                List.of("--out", "{output}", "{source}"), "results.sarif", Set.of(0, 1), false, null, 120);
+    }
+
+    private static PluginRef ref(PluginManifest manifest) {
+        return new PluginRef(manifest.id(), manifest.digest());
+    }
+
+    /** The container writes {@code content} as its report and exits on {@code code}. */
+    private void plugin(int code, Consumer<Path> writes) {
+        when(containers.run(any())).thenAnswer(invocation -> {
+            ContainerRun run = invocation.getArgument(0);
+            launched.set(run);
+            Path output = Path.of(run.mounts().stream()
+                    .filter(mount -> mount.target().equals(PluginManifest.OUTPUT)).findFirst().orElseThrow().source());
+            writes.accept(output);
+            return new ContainerRunner.ContainerResult("", "the plugin's own complaint", code);
+        });
+    }
+
+    private static Consumer<Path> writing(String report) {
+        return output -> {
+            try {
+                Files.writeString(output.resolve("results.sarif"), report);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        };
+    }
+
+    private List<PluginStep> run(PluginManifest manifest) {
+        return run(manifest, reference -> manifest, null);
+    }
+
+    private List<PluginStep> run(PluginManifest manifest, PluginProvider provider, String mirror) {
+        return new PluginSteps(new PluginScanner(containers, mirror), provider)
+                .run(List.of(ref(manifest)), workspace, workspace.source());
+    }
+
+    @Nested
+    @DisplayName("produced")
+    class Produced {
+
+        @Test
+        @DisplayName("a plugin whose language is present runs, and its report becomes its findings")
+        void produced() {
+            plugin(0, writing(REPORT));
+
+            List<PluginStep> steps = run(manifest(Set.of(Language.PYTHON)));
+
+            assertThat(steps).containsExactly(new PluginStep.Produced("acme-lint", manifest(Set.of(Language.PYTHON)).digest(),
+                    "acme-lint", "4.2.0", List.of(new SarifFinding("ACME001", Severity.HIGH, "app/a.py", 3, "eval() here"))));
+        }
+
+        @Test
+        @DisplayName("an empty report is a plugin that ran and found nothing — the one state that resolves")
+        void empty() {
+            plugin(0, writing("{\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"acme-lint\"}},\"results\":[]}]}"));
+
+            assertThat(run(manifest(Set.of(Language.PYTHON))))
+                    .singleElement()
+                    .isInstanceOfSatisfying(PluginStep.Produced.class, step -> assertThat(step.findings()).isEmpty());
+        }
+
+        @Test
+        @DisplayName("runs in the closed shape: tree read-only, one writable output, no network, not root, argv not shell")
+        void confinement() throws IOException {
+            plugin(1, writing(REPORT));
+
+            run(manifest(Set.of(Language.PYTHON)));
+
+            ContainerRun run = launched.get();
+            assertThat(run.network()).isFalse();
+            assertThat(run.asRoot()).isFalse();
+            assertThat(run.user())
+                    .as("the workspace owner, so what the plugin writes stays deletable and nothing runs as root")
+                    .isEqualTo(ContainerRun.ownerOf(root.resolve("plugins").resolve("acme-lint")).orElseThrow())
+                    .isNotEqualTo("0:0");
+            assertThat(run.mounts()).containsExactlyInAnyOrder(
+                    ContainerRun.Mount.readOnly(workspace.source().toString(), PluginManifest.SOURCE),
+                    ContainerRun.Mount.writable(root.resolve("plugins").resolve("acme-lint").toString(), PluginManifest.OUTPUT));
+            assertThat(run.mounts())
+                    .as("never the workspace root: it holds the secrets report in the clear")
+                    .noneMatch(mount -> mount.source().equals(root.toString()));
+            assertThat(run.command()).containsExactly("--out", "/repo/output/results.sarif", "/repo/source");
+            assertThat(run.timeout()).isEqualTo(Duration.ofSeconds(120));
+            assertThat(run.image()).isEqualTo("registry.acme.internal/acme-lint@" + DIGEST);
+        }
+
+        @Test
+        @DisplayName("the network is opened only for a plugin that declared it")
+        void declaredNetwork() {
+            plugin(0, writing(REPORT));
+            PluginManifest networked = new PluginManifest("acme-lint", "ACME", "registry.acme.internal/acme-lint@" + DIGEST,
+                    Set.of(Language.PYTHON), List.of(), "results.sarif", Set.of(0), true,
+                    "fetches its rule database from the internal mirror", null);
+
+            run(networked);
+
+            assertThat(launched.get().network()).isTrue();
+        }
+
+        @Test
+        @DisplayName("the image is pulled from the internal registry, by the same digest")
+        void mirrored() {
+            plugin(0, writing(REPORT));
+
+            run(manifest(Set.of(Language.PYTHON)), reference -> manifest(Set.of(Language.PYTHON)), "mirror.internal:5000");
+
+            assertThat(launched.get().image()).isEqualTo("mirror.internal:5000/acme-lint@" + DIGEST);
+        }
+    }
+
+    @Nested
+    @DisplayName("not applicable")
+    class NotApplicable {
+
+        @Test
+        @DisplayName("a plugin none of whose languages is in the tree is not run, and not reported as a failure")
+        void notApplicable() {
+            plugin(0, writing(REPORT));
+
+            List<PluginStep> steps = run(manifest(Set.of(Language.JAVA, Language.KOTLIN)));
+
+            assertThat(steps).containsExactly(new PluginStep.NotApplicable(
+                    "acme-lint", manifest(Set.of(Language.JAVA, Language.KOTLIN)).digest(), Set.of(Language.JAVA, Language.KOTLIN)));
+            verify(containers, never()).run(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("absent")
+    class Absent {
+
+        private PluginStep.Absent absentOf(List<PluginStep> steps) {
+            assertThat(steps).singleElement().isInstanceOf(PluginStep.Absent.class);
+            return (PluginStep.Absent) steps.getFirst();
+        }
+
+        @Test
+        @DisplayName("an exit code the manifest does not declare is a failure, with the plugin's own words")
+        void undeclaredExitCode() {
+            plugin(2, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason())
+                    .contains("exited with 2").contains("the plugin's own complaint");
+        }
+
+        @Test
+        @DisplayName("no report is a failure, not an empty one")
+        void noReport() {
+            plugin(0, output -> { });
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("without writing its report");
+        }
+
+        @Test
+        @DisplayName("a report left as a link is not followed: the plugin cannot make this process read a host file")
+        void linkedReport(@TempDir Path elsewhere) throws IOException {
+            Path secret = elsewhere.resolve("secret.sarif");
+            Files.writeString(secret, REPORT);
+            plugin(0, output -> {
+                try {
+                    Files.createSymbolicLink(output.resolve("results.sarif"), secret);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("not a regular file");
+        }
+
+        @Test
+        @DisplayName("a report larger than the scanner output ceiling is a failure")
+        void oversized() {
+            when(containers.outputBytes()).thenReturn(64L);
+            plugin(0, writing(REPORT));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("larger than");
+        }
+
+        @Test
+        @DisplayName("a run that computed no results is absent — SARIF's own absent, not an empty list")
+        void noResults() {
+            plugin(0, writing("{\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"acme-lint\"}}}]}"));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("computed no results");
+        }
+
+        @Test
+        @DisplayName("a report with no run analysed nothing, and is absent")
+        void noRun() {
+            plugin(0, writing("{\"version\":\"2.1.0\",\"runs\":[]}"));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("carries no run");
+        }
+
+        @Test
+        @DisplayName("one run that computed no results makes the whole report absent, not the others' findings complete")
+        void oneRunWithoutResults() {
+            plugin(0, writing("{\"version\":\"2.1.0\",\"runs\":["
+                    + "{\"tool\":{\"driver\":{\"name\":\"a\"}},\"results\":[{\"ruleId\":\"R\"}]},"
+                    + "{\"tool\":{\"driver\":{\"name\":\"b\"}}}]}"));
+
+            absentOf(run(manifest(Set.of(Language.PYTHON))));
+        }
+
+        @Test
+        @DisplayName("a run that says it failed is a failure, whatever it wrote")
+        void failedRun() {
+            plugin(0, writing("{\"version\":\"2.1.0\",\"runs\":[{\"tool\":{\"driver\":{\"name\":\"acme-lint\"}},"
+                    + "\"invocations\":[{\"executionSuccessful\":false}],\"results\":[]}]}"));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("did not execute successfully");
+        }
+
+        @Test
+        @DisplayName("a report pointing outside the analysed tree is refused whole")
+        void link() {
+            plugin(0, writing(REPORT.replace("/repo/source/app/a.py", "https://evil.example/a.py")));
+
+            assertThat(absentOf(run(manifest(Set.of(Language.PYTHON)))).reason()).contains("refused");
+        }
+
+        @Test
+        @DisplayName("a definition that does not hash to the task's digest is not run")
+        void wrongDefinition() {
+            plugin(0, writing(REPORT));
+            PluginManifest asked = manifest(Set.of(Language.PYTHON));
+            PluginManifest served = new PluginManifest("acme-lint", "ACME", asked.image(), asked.languages(),
+                    List.of("--everything"), asked.output(), asked.exitCodes(), false, null, 120);
+
+            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), reference -> served)
+                    .run(List.of(ref(asked)), workspace, workspace.source());
+
+            assertThat(absentOf(steps).reason()).contains("not the one the task names");
+            verify(containers, never()).run(any());
+        }
+
+        @Test
+        @DisplayName("an executor that cannot fetch a definition reports the plugin absent")
+        void unfetchable() {
+            PluginManifest asked = manifest(Set.of(Language.PYTHON));
+
+            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), PluginProvider.NONE)
+                    .run(List.of(ref(asked)), workspace, workspace.source());
+
+            assertThat(absentOf(steps).reason()).contains("could not be obtained");
+        }
+
+        @Test
+        @DisplayName("a sub-path absent from the checkout is absent, not \"no language\"")
+        void noTree() {
+            PluginManifest asked = manifest(Set.of(Language.PYTHON));
+
+            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null), reference -> asked)
+                    .run(List.of(ref(asked)), workspace, workspace.source().resolve("missing"));
+
+            assertThat(absentOf(steps).reason()).contains("absent from the checkout");
+        }
+
+        @Test
+        @DisplayName("one plugin's failure is its own: the next one still runs")
+        void independent() {
+            PluginManifest broken = manifest(Set.of(Language.PYTHON));
+            PluginManifest other = new PluginManifest("other", "Other", broken.image(), Set.of(Language.PYTHON),
+                    List.of(), "results.sarif", Set.of(0), false, null, null);
+            when(containers.run(any())).thenAnswer(invocation -> {
+                ContainerRun run = invocation.getArgument(0);
+                if (run.label().equals("plugin other")) {
+                    Path output = Path.of(run.mounts().get(1).source());
+                    Files.writeString(output.resolve("results.sarif"), REPORT);
+                }
+                return new ContainerRunner.ContainerResult("", "", 0);
+            });
+
+            List<PluginStep> steps = new PluginSteps(new PluginScanner(containers, null),
+                            reference -> reference.id().equals("other") ? other : broken)
+                    .run(List.of(ref(broken), ref(other)), workspace, workspace.source());
+
+            assertThat(steps).extracting(step -> step.getClass().getSimpleName()).containsExactly("Absent", "Produced");
+        }
+    }
+
+    @Test
+    @DisplayName("the step the runner records names the plugin; a not-applicable one records no failure")
+    void artifacts() {
+        ScanArtifacts.Builder builder = ScanArtifacts.builder();
+        builder.plugin(new PluginStep.NotApplicable("a", DIGEST, Set.of(Language.JAVA)));
+        ScanArtifacts artifacts = builder.build(Duration.ZERO);
+
+        assertThat(artifacts.failures()).isEmpty();
+        assertThat(artifacts.observedNothing())
+                .as("a plugin with nothing to look at looked at nothing")
+                .isTrue();
+        assertThat(ScanArtifacts.builder().plugin(new PluginStep.Produced("a", DIGEST, "t", null, List.of()))
+                        .build(Duration.ZERO).observedNothing())
+                .as("a plugin that ran and found nothing did observe the tree")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("a produced step whose findings did not arrive is absent, never empty")
+    void missingFindingsAreAbsent() {
+        ScanArtifacts artifacts = new ScanArtifacts(null, null, null, null, null, null, null, null,
+                List.of(new PluginStep.Produced("a", DIGEST, "t", null, null)), null, Duration.ZERO);
+
+        assertThat(artifacts.plugins()).singleElement().isInstanceOf(PluginStep.Absent.class);
+    }
+
+    @Test
+    @DisplayName("the command captured is the one the container is created with")
+    void captured() {
+        plugin(0, writing(REPORT));
+        run(manifest(Set.of(Language.PYTHON)));
+        ArgumentCaptor<ContainerRun> captor = ArgumentCaptor.forClass(ContainerRun.class);
+        verify(containers).run(captor.capture());
+
+        assertThat(captor.getValue()).isEqualTo(launched.get());
+    }
+}

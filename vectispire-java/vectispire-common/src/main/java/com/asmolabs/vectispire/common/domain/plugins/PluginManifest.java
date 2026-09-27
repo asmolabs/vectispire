@@ -70,7 +70,7 @@ public record PluginManifest(
     static final int MAX_ID = 40;
     static final int MAX_NAME = 100;
     static final int MAX_ARGUMENTS = 32;
-    static final int MAX_ARGUMENT = 1_024;
+    static final int MAX_ARGUMENT = 4_096;
     static final int MAX_EXIT_CODES = 8;
     static final int MIN_JUSTIFICATION = 20;
     static final int MAX_JUSTIFICATION = 500;
@@ -110,9 +110,13 @@ public record PluginManifest(
             throw new InvalidPluginException("A plugin takes at most " + MAX_ARGUMENTS + " arguments.");
         }
         for (String argument : arguments) {
-            if (argument == null || argument.length() > MAX_ARGUMENT || hasControl(argument)) {
+            // A newline or a tab is an ordinary character of an argv entry — a `sh -c` script inside
+            // the image has several lines — and no shell on this side reads them. Every other
+            // control character is refused, the digest's list separator among them.
+            if (argument == null || argument.length() > MAX_ARGUMENT
+                    || hasControl(argument.replace('\n', ' ').replace('\t', ' '))) {
                 throw new InvalidPluginException("Each argument is a string of at most " + MAX_ARGUMENT
-                        + " characters with no control character.");
+                        + " characters with no control character but a newline or a tab.");
             }
         }
         requireOutput(output);

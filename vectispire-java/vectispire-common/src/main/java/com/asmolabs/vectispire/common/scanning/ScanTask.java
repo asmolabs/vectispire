@@ -1,8 +1,10 @@
 package com.asmolabs.vectispire.common.scanning;
 
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -14,7 +16,12 @@ import java.util.Set;
  * are mutually exclusive. A sealed interface says it instead, and the switch that dispatches on
  * it has to handle both cases or fail to compile.
  */
-public record ScanTask(Target target, String rulesHash, Set<Step> steps) {
+public record ScanTask(Target target, String rulesHash, Set<Step> steps, List<PluginRef> plugins) {
+
+    /** A task that runs no plugin — an image scan, a repository in no project, or none activated. */
+    public ScanTask(Target target, String rulesHash, Set<Step> steps) {
+        this(target, rulesHash, steps, List.of());
+    }
 
     /** What a scan can run. Each is optional: an operator may want only some of them. */
     public enum Step {
@@ -79,9 +86,15 @@ public record ScanTask(Target target, String rulesHash, Set<Step> steps) {
      *     executor identical. An agent reading "the active set" for itself would scan with
      *     whatever it found at the moment it asked, and two agents could diverge — resolving
      *     and recreating the SAST backlog as they take turns.
+     * @param plugins the plugins this scan runs, each by id and manifest digest — decided by the
+     *     control plane from the repository's project, for the same reason as {@code rulesHash}.
+     *     Optional on the wire: an agent older than plugins ignores it and reports no plugin step,
+     *     which ingestion reads as absent. Not a break of the contract (see {@code AgentContract}):
+     *     ignoring it changes nothing an older agent did before
      */
     public ScanTask {
         steps = steps == null ? Set.of() : Set.copyOf(steps);
+        plugins = plugins == null ? List.of() : List.copyOf(plugins);
     }
 
     public boolean runs(Step step) {
