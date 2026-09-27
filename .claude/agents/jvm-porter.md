@@ -150,6 +150,18 @@ and an agent without a verified sealing key has the repositories carrying a cred
 its selection (`ScanQueue.claimWithin`). A refund (`ScanQueue.requeueRefunded`) is for a race the
 next selection closes, never for a path that can repeat.
 
+**An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
+element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side one too,
+SQLite's default build past 32,766): the claim's exclusion of every waiting repository carrying a
+credential failed at every poll on a large enough queue, and `findAllById` is the same statement. Walk
+in pages (`ScanQueue.eligible`, keyset on the order's own key) or batch the lookup
+(`TargetCatalog.carryingCredentials`, 1,000 at a time), and test past the limit on the engines.
+
+**A scanner that is not root cannot assume its `/tmp` is writable.** The daemon copies the image's own
+mode onto a tmpfs mounted over it: the matcher's image ships a root-only `/tmp`, and once it ran as the
+workspace's owner every match was absent ("unable to create listing temp file"). The scratch mounts
+carry `mode=1777`; a fake scanner in the integration suite ships a root-only `/tmp` to keep it so.
+
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
 triage, across every target. For plugin and imported findings that includes the tool key (in the
