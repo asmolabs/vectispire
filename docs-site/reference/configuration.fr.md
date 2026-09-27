@@ -70,11 +70,15 @@ total. Chaque refus reçoit toujours sa réponse `401` ou `403`.
 
 ## Corps de requête
 
-Trois routes lisent leur corps en entier avant que quoi que ce soit ne le regarde, et les routes de
-connexion acceptent un envoi de n'importe qui. Au-delà de ces limites, elles répondent `413`.
+Chaque corps de requête est borné pendant sa lecture, qu'il déclare sa longueur ou non. Les routes
+qui ne sont pas nommées ci-dessous prennent la limite par défaut ; une route nommée prend la sienne à
+la place — plus grande ou plus petite — et n'est jamais ramenée au défaut. Au-delà de sa limite, une
+route répond `413`, par un document de problème dont le `detail` donne la limite.
 
 | Variable | Défaut | Route |
 |---|---|---|
+| `VECTISPIRE_MAX_BODY_DEFAULT` | `1MB` | chaque route non nommée ci-dessous, quelle que soit la méthode — un triage, une liste d'accès, un paramètre ou un utilisateur SCIM pèse au plus quelques dizaines de kilo-octets |
+| `VECTISPIRE_MAX_BODY_RULE_SET_UPLOAD` | `64MB` | `POST /api/v1/rule-sets` — un jeu de règles peut contenir 32 Mo de fichiers, et le JSON qui les porte échappe leur YAML |
 | `VECTISPIRE_MAX_BODY_TICKET_WEBHOOK` | `1MB` | `POST /api/v1/tickets/webhook/{provider}` — un événement de tracker pèse quelques dizaines de kilo-octets |
 | `VECTISPIRE_MAX_BODY_VEX_INGEST` | `16MB` | `POST /api/v1/vex/ingest` — un document VEX pour un gros produit |
 | `VECTISPIRE_MAX_BODY_AGENT_RESULT` | `256MB` | `POST /api/v1/agent/jobs/{id}/result` — le résultat porte le SBOM |

@@ -166,11 +166,14 @@ vectispire:
     webhook-requests-per-window: ${VECTISPIRE_WEBHOOK_REQUESTS_PER_WINDOW:300}
     webhook-request-window: ${VECTISPIRE_WEBHOOK_REQUEST_WINDOW:PT1M}
 
-  # **The request bodies read whole into memory, and the sign-in routes anyone may post to**, which no
-  # container setting bounds: Tomcat's and Spring's limits apply to forms and multipart only. Past
-  # these, 413. The reasoning for each value is on `RequestBodyLimitFilter`.
+  # **Every request body**, which no container setting bounds: Tomcat's and Spring's limits apply to
+  # forms and multipart only. `default` holds for every route not named below; a named route takes
+  # its own value instead, larger or smaller. Past these, 413. The reasoning for each value is on
+  # `RequestBodyLimitFilter`.
   http:
     max-body:
+      default: ${VECTISPIRE_MAX_BODY_DEFAULT:1MB}
+      rule-set-upload: ${VECTISPIRE_MAX_BODY_RULE_SET_UPLOAD:64MB}
       ticket-webhook: ${VECTISPIRE_MAX_BODY_TICKET_WEBHOOK:1MB}
       vex-ingest: ${VECTISPIRE_MAX_BODY_VEX_INGEST:16MB}
       agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}

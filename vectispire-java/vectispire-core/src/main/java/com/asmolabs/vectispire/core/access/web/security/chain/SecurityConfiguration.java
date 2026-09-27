@@ -174,8 +174,8 @@ public class SecurityConfiguration implements WebMvcConfigurer {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(rateLimit, UsernamePasswordAuthenticationFilter.class)
                 // The anonymous tracker webhook, limited per address before any secret is decrypted
-                // or any refusal audited; and the three raw bodies, bounded before a converter reads
-                // them whole. In the chain rather than only as servlet filters so that the HTTP
+                // or any refusal audited; and every request body, bounded before a converter reads
+                // it whole. In the chain rather than only as servlet filters so that the HTTP
                 // suite, which assembles this chain, exercises them.
                 .addFilterBefore(webhookRateLimit, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(bodyLimit, UsernamePasswordAuthenticationFilter.class)

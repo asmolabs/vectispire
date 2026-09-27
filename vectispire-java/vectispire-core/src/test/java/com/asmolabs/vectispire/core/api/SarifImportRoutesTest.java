@@ -363,7 +363,7 @@ class SarifImportRoutesTest extends ApiTestBase {
             // holds the same limit once the bytes are read.
             upload(key.secret(), inScope, huge)
                     .andExpect(status().isContentTooLarge())
-                    .andExpect(jsonPath("$.message").value(Matchers.containsString("this route accepts")));
+                    .andExpect(jsonPath("$.detail").value(Matchers.containsString("this route accepts")));
         }
 
         @Test

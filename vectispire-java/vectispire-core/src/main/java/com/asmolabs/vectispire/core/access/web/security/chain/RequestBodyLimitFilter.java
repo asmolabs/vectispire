@@ -18,24 +18,31 @@ import org.springframework.util.unit.DataSize;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * A ceiling on the request bodies read whole into memory before anything looks at them, and on the
- * sign-in routes anybody may post to.
+ * A ceiling on every request body, applied before anything parses it.
  *
  * <p><b>Why a filter, and not a container setting.</b> Tomcat's {@code maxPostSize} and Spring's
- * multipart limits apply to form and multipart bodies only; a {@code @RequestBody String} or
- * {@code byte[]} is read by a message converter to the end of the stream, whatever its length. So
- * the anonymous tracker webhook, the VEX import and an agent's result had no ceiling at all — a
- * client could make the process buffer as much as it cared to send. Nothing else in the stack bounds
- * them, and only a filter sees the body before the converter does.
+ * multipart limits apply to form and multipart bodies only; a {@code @RequestBody} — a record, a
+ * {@code String} or a {@code byte[]} — is read by a message converter to the end of the stream,
+ * whatever its length. So the anonymous tracker webhook, the VEX import and an agent's result had no
+ * ceiling at all at first, and every other JSON route still had none after those were given one: a
+ * signed-in account, or a leaked integration key, could make the process buffer as much as it cared
+ * to send into a request that needs a few hundred bytes. Nothing else in the stack bounds them, and
+ * only a filter sees the body before the converter does.
  *
  * <p><b>Two checks.</b> A declared {@code Content-Length} over the ceiling is answered 413 at once,
  * without reading a byte. A body with no declared length — chunked — is counted as the converter
  * reads it, and refused the moment it passes the ceiling; {@link RequestBodyTooLargeException} is
  * unchecked on purpose, because the converters catch {@code IOException} and would turn it into a
- * 400 that says the JSON was malformed.
+ * 400 that says the JSON was malformed. The header is only ever a reason to refuse early, never a
+ * reason to stop counting.
  *
- * <p><b>The limits, and why each.</b>
+ * <p><b>The limits, and why each.</b> A route with a ceiling of its own takes it <i>instead of</i>
+ * the default, never the smaller of the two: the default is for the routes nobody measured, not a
+ * clamp on the ones that were.
  * <ul>
+ *   <li>Default, 1 MB, every other route and every method: a triage, a grant list, a setting, a gate
+ *       request or a SCIM user is at most tens of kilobytes, and a bulk triage of ten thousand ids
+ *       fits many times over.
  *   <li>Webhook, 1 MB: a Jira or GitLab issue event with its changelog is tens of kilobytes; ten
  *       times the largest seen leaves room and still stops an anonymous client early.
  *   <li>VEX import, 16 MB: an OpenVEX or CycloneDX VEX document for a large product runs to a few
@@ -43,6 +50,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *   <li>SARIF import, 32 MB: an internal tool's report for one repository — SonarQube's or a CI's —
  *       runs to a few megabytes; the sender holds a declared source's key, and the document is parsed
  *       whole. The service holds the same limit where it reads the bytes.
+ *   <li>Rule-set upload, 64 MB, {@code POST /api/v1/rule-sets}: {@code RuleSet} accepts up to 32 MB
+ *       of rule files, and the JSON carrying them escapes every quote and line break of their YAML. A
+ *       set at the domain's own limit must still arrive, or this would be a second, smaller limit
+ *       that nobody states.
  *   <li>Agent result, 256 MB: the result carries the SBOM, and a large container image's is tens of
  *       megabytes of JSON. The sender holds an agent key; the ceiling is against a runaway, not a
  *       stranger, and is set well above anything a real scan produces.
@@ -51,11 +62,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       are open to anyone, and their bodies were read by the JSON converter with no ceiling but the
  *       container's — the same buffering as the webhook's, offered to a client with no credential.
  * </ul>
- * All five are properties, so an estate that needs more can say so.
- *
- * <p>No default for every other route, deliberately: the rule-set upload and the gate take documents
- * whose size is the estate's, and a ceiling guessed for them would be an outage. Those routes are
- * reached by an authenticated caller only.
+ * All seven are properties, so an estate that needs more can say so. There is no multipart route
+ * today. One added later would have its parts parsed by the container from the raw request, past the
+ * counting stream, so only the declared length would bound it here and Spring's multipart limits
+ * would be the real ones — give it a line of its own rather than trust the default.
  */
 @Component
 public class RequestBodyLimitFilter extends OncePerRequestFilter {
@@ -65,6 +75,8 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     private final DataSize agentResult;
     private final DataSize signIn;
     private final DataSize sarifImport;
+    private final DataSize ruleSetUpload;
+    private final DataSize fallback;
 
     /** The prefix of the sign-in routes, three of them open to anyone. */
     static final String SIGN_IN_PREFIX = "/api/v1/auth/";
@@ -74,56 +86,63 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             @Value("${vectispire.http.max-body.vex-ingest:16MB}") DataSize vexIngest,
             @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult,
             @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn,
-            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize sarifImport) {
+            @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize sarifImport,
+            @Value("${vectispire.http.max-body.rule-set-upload:64MB}") DataSize ruleSetUpload,
+            @Value("${vectispire.http.max-body.default:1MB}") DataSize fallback) {
         this.webhook = webhook;
         this.vexIngest = vexIngest;
         this.agentResult = agentResult;
         this.signIn = signIn;
         this.sarifImport = sarifImport;
+        this.ruleSetUpload = ruleSetUpload;
+        this.fallback = fallback;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        Optional<Long> limit = limitFor(request);
-        if (limit.isEmpty()) {
-            chain.doFilter(request, response);
-            return;
-        }
-
-        long ceiling = limit.get();
+        long ceiling = ownLimit(request).orElse(fallback).toBytes();
         if (request.getContentLengthLong() > ceiling) {
+            // RFC 9457, the shape `ApiExceptionHandler` gives the same refusal found while reading:
+            // the client reads `detail`, and one 413 must not answer in two shapes depending on
+            // which of the two checks caught the body.
             response.setStatus(HttpStatus.CONTENT_TOO_LARGE.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
             response.getWriter().write(
-                    "{\"message\":\"The request body is larger than the %d bytes this route accepts.\"}"
-                            .formatted(ceiling));
+                    "{\"type\":\"about:blank\",\"title\":\"Content Too Large\",\"status\":413,\"detail\":\"%s\"}"
+                            .formatted(new RequestBodyTooLargeException(ceiling).getMessage()));
             return;
         }
         chain.doFilter(new Bounded(request, ceiling), response);
     }
 
-    /** The ceiling for this route, or empty when the route reads no raw body. */
-    private Optional<Long> limitFor(HttpServletRequest request) {
+    /**
+     * The route's own ceiling, or empty when it has none and takes the default. Its own replaces the
+     * default: a route listed here with more than the default keeps all of it.
+     */
+    private Optional<DataSize> ownLimit(HttpServletRequest request) {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return Optional.empty();
         }
         String path = LoginRateLimitFilter.routedPath(request);
         if (path.startsWith(WebhookRateLimitFilter.WEBHOOK_PREFIX)) {
-            return Optional.of(webhook.toBytes());
+            return Optional.of(webhook);
         }
         if (path.equals("/api/v1/vex/ingest")) {
-            return Optional.of(vexIngest.toBytes());
+            return Optional.of(vexIngest);
         }
         if (path.startsWith("/api/v1/agent/jobs/") && path.endsWith("/result")) {
-            return Optional.of(agentResult.toBytes());
+            return Optional.of(agentResult);
         }
         if (path.startsWith("/api/v1/repositories/") && path.endsWith("/sarif-imports")) {
-            return Optional.of(sarifImport.toBytes());
+            return Optional.of(sarifImport);
+        }
+        if (path.equals("/api/v1/rule-sets")) {
+            return Optional.of(ruleSetUpload);
         }
         if (path.startsWith(SIGN_IN_PREFIX)) {
-            return Optional.of(signIn.toBytes());
+            return Optional.of(signIn);
         }
         return Optional.empty();
     }
