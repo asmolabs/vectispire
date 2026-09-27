@@ -144,5 +144,5 @@ flowchart TB
 3. **Certified Compliance Evidence Export**:
    - ✅ *Delivered*: Executive PDF generation and sealed ZIP evidence bundles for external auditors.
 4. **Real-World Exploitability Prioritization (FIRST.org EPSS & CISA KEV)**:
-   - ✅ *Delivered*: Risk matrix combining CVSS, EPSS (30-day exploit probability & percentile), code reachability, and CISA KEV status on `/epss`.
+   - ✅ *Delivered*: Risk matrix combining CVSS, EPSS (30-day exploit probability & percentile), and CISA KEV status on `/epss`. It has a reachability term too, which reads a column no analysis fills: there is no call-graph analysis, and every issue counts as `UNKNOWN`.
 

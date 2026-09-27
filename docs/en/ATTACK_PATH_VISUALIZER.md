@@ -15,7 +15,7 @@ $$\text{1. Ingress / Internet Exposure} \longrightarrow \text{2. Unauthenticated
 ```mermaid
 flowchart LR
     A["🌐 Internet Ingress\n(0.0.0.0/0)"] -->|Exposes| B["⚡ POST /api/v1/auth/login\n(Unauthenticated)"]
-    B -->|Invokes| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - Reachable)"]
+    B -->|Invokes| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - KEV)"]
     C -->|Exfiltrates / Compromises| D["🔑 STRIPE_SECRET_KEY &\n🗄️ PostgreSQL Database"]
 
     style A fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
@@ -30,7 +30,7 @@ flowchart LR
 
 1. **Multi-Source Real-Time Correlation**:
    * **API Attack Surface (`ApiInventory`)**: Identifies public and unauthenticated HTTP endpoints (`authRequired = false`).
-   * **Reachability & Exploitability**: Prioritizes critical vulnerabilities (`CVSS >= 9.0`, CISA KEV catalog, RCE descriptions, or proven call graphs `reachability = 'REACHABLE'`).
+   * **Exploitability**: Prioritizes critical vulnerabilities (`CVSS >= 9.0`, CISA KEV catalog, RCE descriptions). The correlation also honours an issue recorded `reachability = 'REACHABLE'`, but **nothing records it today**: Vectispire runs no call-graph analysis (`ReachabilityAnalyzer`, never wired, was removed), so every issue reads `UNKNOWN` and that term selects nothing.
    * **Crown Jewels & Data Sinks (`Gitleaks` / `SAST`)**: Uncovered plaintext secrets, cloud keys, database connection strings.
 
 2. **Interactive Topological Graph**:

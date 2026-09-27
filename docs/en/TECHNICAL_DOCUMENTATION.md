@@ -456,7 +456,7 @@ Two rules the harness enforces on itself:
 ## 8. Dependency Graph & Blast Radius Explorer
 
 - **Blast Radius Analysis Engine (`BlastRadiusService`)**: In-memory relational mapping linking Target (Git repository / Container image) $\rightarrow$ Package dependency (Direct vs Transitive) $\rightarrow$ CVE security advisories.
-- **Organizational Risk Scoring**: 0-100 score weighing fleet target dispersion, direct vs transitive inclusion, reachability call graph, and peak CVSS score.
+- **Organizational Risk Scoring**: 0-100 score weighing fleet target dispersion, direct vs transitive inclusion, and peak CVSS score. Reachability is not a term of it: no analysis establishes whether a component's vulnerable code is called — there is no call-graph analysis — and every finding records `UNKNOWN`.
 - **REST Endpoints**:
   - `GET /api/v1/blast-radius/explore?q={package|CVE}`: Full node/edge dependency graph and impacted target breakdown.
   - `GET /api/v1/blast-radius/top-impact?limit=10`: Top highest blast radius packages across the enterprise.
@@ -501,7 +501,7 @@ Two rules the harness enforces on itself:
 ## 11. Local AI Vulnerability & Triage Explainer Advisor
 
 - **Explainer & Remediation Engine (`AiReviewService`, `AiAdvisorController`)**:
-  - Generates contextual vulnerability explanations, exploit mechanics analysis, static reachability exposure verdict, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements.
+  - Generates contextual vulnerability explanations, exploit mechanics analysis, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements. The issue's recorded reachability is passed along — `UNKNOWN` for every issue today, since nothing computes it — and `not_affected` is never offered on its strength.
   - Dual-mode operation: Local Ollama model inference (zero third-party data leakage) or instantaneous deterministic heuristic fallback.
 - **REST Endpoints**:
   - `GET /api/v1/ai-advisor/status`: Status of the local AI inference engine and available models.

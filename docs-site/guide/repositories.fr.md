@@ -108,6 +108,11 @@ Vectispire ne reconnaît pas compte aussi, plutôt que d'être lu comme réglé.
 | Licence non autorisée par la politique de licences | −5 | composant |
 | Au moins un scan terminé | +5 | une fois |
 
+**Aucun problème n'est atteignable aujourd'hui.** Vectispire n'exécute aucune analyse de graphe
+d'appels, si bien que rien n'établit si le code vulnérable d'un composant est appelé : chaque
+problème enregistre une atteignabilité inconnue, et un critique qui n'est pas activement exploité
+coûte −8. La ligne reste parce que la colonne reste.
+
 Les pénalités s'additionnent : un critique atteignable et activement exploité coûte 40. Les
 sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 et 100.
 

@@ -463,7 +463,7 @@ Deux règles que le harnais s'impose à lui-même :
 ## 8. Graphe de dépendances & explorateur de rayon d'impact
 
 - **Moteur d'analyse du rayon d'impact (`BlastRadiusService`)** : cartographie relationnelle en mémoire reliant Cible (dépôt Git / image de conteneur) $\rightarrow$ Dépendance de paquet (directe ou transitive) $\rightarrow$ Avis de sécurité CVE.
-- **Score de risque organisationnel** : score de 0 à 100 pondérant la dispersion des cibles dans la flotte, l'inclusion directe ou transitive, le graphe d'appels d'atteignabilité, et le score CVSS maximal.
+- **Score de risque organisationnel** : score de 0 à 100 pondérant la dispersion des cibles dans la flotte, l'inclusion directe ou transitive, et le score CVSS maximal. L'atteignabilité n'en est pas un terme : aucune analyse n'établit si le code vulnérable d'un composant est appelé — il n'y a pas d'analyse de graphe d'appels — et chaque constat enregistre `UNKNOWN`.
 - **Endpoints REST** :
   - `GET /api/v1/blast-radius/explore?q={package|CVE}` : graphe complet nœuds/arêtes des dépendances et ventilation des cibles impactées.
   - `GET /api/v1/blast-radius/top-impact?limit=10` : paquets au plus fort rayon d'impact dans l'entreprise.
@@ -509,7 +509,7 @@ Deux règles que le harnais s'impose à lui-même :
 ## 11. Conseiller IA local d'explication des vulnérabilités et de triage
 
 - **Moteur d'explication et de remédiation (`AiReviewService`, `AiAdvisorController`)** :
-  - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, un verdict d'exposition par atteignabilité statique, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX.
+  - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX. L'atteignabilité enregistrée du problème est transmise — `UNKNOWN` pour chaque problème aujourd'hui, puisque rien ne la calcule — et `not_affected` n'est jamais proposé sur sa foi.
   - Fonctionnement double : inférence par modèle Ollama local (aucune fuite de données vers un tiers) ou repli heuristique déterministe instantané.
 - **Endpoints REST** :
   - `GET /api/v1/ai-advisor/status` : état du moteur d'inférence IA local et modèles disponibles.

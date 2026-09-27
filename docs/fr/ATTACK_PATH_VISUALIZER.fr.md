@@ -15,7 +15,7 @@ $$\text{1. Exposition Ingress / Internet} \longrightarrow \text{2. Endpoint API 
 ```mermaid
 flowchart LR
     A["🌐 Internet Ingress\n(0.0.0.0/0)"] -->|Expose| B["⚡ POST /api/v1/auth/login\n(Non-Authentifié)"]
-    B -->|Invoque| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - Reachable)"]
+    B -->|Invoque| C["🔥 log4j-core 2.14.1\n(CVE-2021-44228 RCE - KEV)"]
     C -->|Exfiltre / Compromission| D["🔑 STRIPE_SECRET_KEY &\n🗄️ PostgreSQL Database"]
 
     style A fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
@@ -30,7 +30,7 @@ flowchart LR
 
 1. **Corrélation Multi-Sources en Temps Réel** :
    * **Points d'Entrée API (`ApiInventory`)** : Identification automatique des routes publiques et non-authentifiées (`authRequired = false`).
-   * **Reachability & Exploitabilité** : Filtrage des vulnérabilités critiques (`CVSS >= 9.0`, CISA KEV, exécution de code à distance RCE, ou chemin d'appel prouvé `reachability = 'REACHABLE'`).
+   * **Exploitabilité** : Filtrage des vulnérabilités critiques (`CVSS >= 9.0`, CISA KEV, exécution de code à distance RCE). La corrélation retient aussi un problème enregistré `reachability = 'REACHABLE'`, mais **rien ne l'enregistre aujourd'hui** : Vectispire n'exécute aucune analyse de graphe d'appels (`ReachabilityAnalyzer`, jamais branché, a été supprimé), si bien que chaque problème vaut `UNKNOWN` et que ce critère ne retient rien.
    * **Puits de Données & Secrets (`Gitleaks` / `SAST`)** : Clés d'API en clair, mots de passe de production et connexions base de données.
 
 2. **Graphe Topologique Interactif** :

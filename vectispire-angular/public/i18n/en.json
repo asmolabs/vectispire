@@ -1195,7 +1195,7 @@
       "resolved": "Resolved",
       "all": "All"
     },
-    "subtitle": "Continuous backlog triage, reachability analysis and remediation tracking.",
+    "subtitle": "Continuous backlog triage and remediation tracking.",
     "target_label": "Target:",
     "this_issue": "this issue",
     "ticket": "Ticket",

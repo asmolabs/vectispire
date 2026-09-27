@@ -142,7 +142,7 @@ flowchart TB
 2. **Supervision Temps Réel de la File d'Analyse** :
    - ✅ *Réalisé* : Tableau de bord KPI et suivi direct des scans en cours et en attente sur `/agents`.
 3. **Priorisation par Exploitabilité Réelle (FIRST.org EPSS & CISA KEV)** :
-   - ✅ *Réalisé* : Modèle de calcul croisant CVSS, EPSS (probabilité & percentile 30j), Reachability et catalogue CISA KEV sur l'écran `/epss`.
+   - ✅ *Réalisé* : Modèle de calcul croisant CVSS, EPSS (probabilité & percentile 30j) et catalogue CISA KEV sur l'écran `/epss`. Il a aussi un terme d'atteignabilité, qui lit une colonne qu'aucune analyse ne remplit : il n'y a pas d'analyse de graphe d'appels, et chaque problème compte comme `UNKNOWN`.
 4. **Persistance Sécurisée de Session (Production)** :
    - 🔄 *Évolution future* : Support optionnel de cookies de session `HttpOnly; SameSite=Strict` pour les déploiements requérant une persistance au rafraîchissement complet F5.
 

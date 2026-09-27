@@ -42,7 +42,9 @@ public record BlastRadiusReport(
 
     /**
      * Computes an organizational Blast Radius Risk Score between 0 and 100 based on target dispersion,
-     * direct vs transitive exposure, reachability, and severity.
+     * direct vs transitive exposure, and severity. Reachability is not a term: nothing establishes it
+     * (there is no call-graph analysis), so a term for it would weigh a column that always reads
+     * {@code UNKNOWN}.
      */
     public static int calculateScore(int targetsCount, int directCount, int transitiveCount, int cveCount, double maxCvss) {
         if (targetsCount == 0) {

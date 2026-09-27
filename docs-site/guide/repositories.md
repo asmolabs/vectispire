@@ -107,6 +107,10 @@ read as settled.
 | Licence not allowed by the licence policy | −5 | component |
 | At least one completed scan | +5 | once |
 
+**No issue is reachable today.** Vectispire runs no call-graph analysis, so nothing establishes
+whether a component's vulnerable code is called: every issue records its reachability as unknown,
+and a critical that is not actively exploited costs −8. The row stays because the column does.
+
 Penalties add up: a reachable, actively exploited critical costs 40. Medium and low severities
 cost nothing. The result is held between 0 and 100.
 
