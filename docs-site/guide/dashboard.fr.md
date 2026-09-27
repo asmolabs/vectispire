@@ -55,7 +55,7 @@ partir de 50, D à partir de 30, F en dessous. Les problèmes triés **non affec
 l'exclusion est en attente d'approbation compte toujours.
 
 **Ce n'est pas la note du scorecard.** La fiche scorecard d'un dépôt, et la pastille README qui
-en est tirée, suivent une autre règle — vulnérabilités exploitées, atteignabilité, licences —
+en est tirée, suivent une autre règle — vulnérabilités exploitées, critiques et hautes, licences —
 et une échelle de A+ à F, décrite dans
 [Comment la note du scorecard est calculée](repositories.md#comment-la-note-du-scorecard-est-calculee).
 Le même dépôt peut donc afficher B ici et C sur sa pastille ; aucune des deux n'a tort, elles

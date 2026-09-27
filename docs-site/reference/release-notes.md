@@ -92,6 +92,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 - New finding types `plugin` and `imported`, and new fields on issues and scans (`tool`,
   `toolName`, `toolVersion`, `importSource`, a scan's `plugins[]`). The OpenAPI document in the
   repository is the contract.
+- **Reachability is not computed, and says so.** An issue's `reachability` and `reachableSymbols`
+  stay in `GET /api/v1/issues` and `GET /api/v1/issues/{id}`, marked deprecated in the OpenAPI
+  document: always `UNKNOWN` and null, since nothing analyses the call graph. Removed where only
+  the interface read them: `reachableEpssCount` and each ranked issue's `reachability` from
+  `GET /api/v1/epss/priorities`, `reachability` from each target of the blast radius, the
+  `reachability` key of an attack-path node's `metadata`, and `deterministic.exposure` from the AI
+  advisor's answer. `POST /api/v1/ai-advisor/explain/cve/{id}` ignores a `reachability` parameter.
+  In OpenVEX, a finding awaiting triage reads "Awaiting contextual triage." rather than
+  "Awaiting reachability confirmation and contextual triage."
 
 ### New
 
@@ -117,6 +126,12 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   or a key suspected of having leaked.
 - Single sign-on records the provider's second factor and may require it
   (`VECTISPIRE_OIDC_REQUIRE_MFA`); Vault Transit may hold the encryption key.
+- **The screens no longer show reachability**, which nothing computes: the issues list loses its
+  reachable / unreachable tags, the issue detail its reachability panel, the EPSS page its
+  "reachable and weaponised" card and its column, the blast radius its column. The scorecard
+  charges every critical 8 points, the EPSS ranking is CVSS × EPSS with KEV on top, and the
+  attack paths no longer admit or flag a node on it — no figure an installation has shown moves,
+  since every issue read `UNKNOWN`. The AI advisor says the exposure was not assessed.
 
 ### Security
 

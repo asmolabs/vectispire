@@ -29,6 +29,11 @@ vulnérabilité triée **non affecté** ou **corrigé** en sort, comme elle sort
 scorecard. Une exclusion encore en attente d'approbation reste classée — une demande n'est pas une
 décision.
 
+Le classement pèse le CVSS, l'EPSS et le KEV, et rien d'autre : les quatre quadrants de la matrice
+sont exactement les seuils que leurs légendes énoncent. Il n'y a ni terme, ni carte, ni colonne
+d'atteignabilité — Vectispire n'exécute aucune analyse de graphe d'appels, il ne peut donc pas dire
+si le code vulnérable est appelé.
+
 ## Chemins d'attaque
 
 ![Un chemin d'attaque : une route non authentifiée atteignant un composant vulnérable, puis la base — avec le récit que la chaîne produit.](../assets/screens/fr/attack-paths.png)

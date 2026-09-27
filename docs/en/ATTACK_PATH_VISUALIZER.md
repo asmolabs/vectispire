@@ -30,13 +30,13 @@ flowchart LR
 
 1. **Multi-Source Real-Time Correlation**:
    * **API Attack Surface (`ApiInventory`)**: Identifies public and unauthenticated HTTP endpoints (`authRequired = false`).
-   * **Exploitability**: Prioritizes critical vulnerabilities (`CVSS >= 9.0`, CISA KEV catalog, RCE descriptions). The correlation also honours an issue recorded `reachability = 'REACHABLE'`, but **nothing records it today**: Vectispire runs no call-graph analysis (`ReachabilityAnalyzer`, never wired, was removed), so every issue reads `UNKNOWN` and that term selects nothing.
+   * **Exploitability**: Prioritizes critical vulnerabilities (`CVSS >= 9.0`, CISA KEV catalog, RCE descriptions). Reachability is **not** a criterion: Vectispire runs no call-graph analysis (`ReachabilityAnalyzer`, never wired, was removed), so the issue's `reachability` column reads `UNKNOWN` everywhere, and the graph no longer reads it to admit, rank or flag a node. A hop is exploitable when an unauthenticated route stands in front of the component.
    * **Crown Jewels & Data Sinks (`Gitleaks` / `SAST`)**: Uncovered plaintext secrets, cloud keys, database connection strings.
 
 2. **Interactive Topological Graph**:
    * Multi-column layout showing entry-to-asset propagation.
    * Quick filter: *"Show only directly exploitable critical paths"*.
-   * Node Inspector: Click any node to view call stack proofs, EPSS probability, source files, and CVSS vectors.
+   * Node Inspector: Click any node to view its EPSS probability, source file and CVSS score.
 
 3. **Attack Scenarios & Prioritized Remediation**:
    * Step-by-step guidance to break the exploit chain (lock down unauthenticated API routes, upgrade vulnerable libraries, isolate internal network segments).

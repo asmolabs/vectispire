@@ -196,6 +196,7 @@ erDiagram
         datetime last_seen_at
         string ticket_ref
         string ticket_url
+        string reachability "dormant: nothing writes it, always UNKNOWN"
     }
     AI_REVIEW_RESULT {
         int id PK
@@ -456,7 +457,7 @@ Two rules the harness enforces on itself:
 ## 8. Dependency Graph & Blast Radius Explorer
 
 - **Blast Radius Analysis Engine (`BlastRadiusService`)**: In-memory relational mapping linking Target (Git repository / Container image) $\rightarrow$ Package dependency (Direct vs Transitive) $\rightarrow$ CVE security advisories.
-- **Organizational Risk Scoring**: 0-100 score weighing fleet target dispersion, direct vs transitive inclusion, and peak CVSS score. Reachability is not a term of it: no analysis establishes whether a component's vulnerable code is called — there is no call-graph analysis — and every finding records `UNKNOWN`.
+- **Organizational Risk Scoring**: 0-100 score weighing fleet target dispersion, direct vs transitive inclusion, and peak CVSS score. Reachability is not a term of it: no analysis establishes whether a component's vulnerable code is called — there is no call-graph analysis — and the report carries no reachability per target.
 - **REST Endpoints**:
   - `GET /api/v1/blast-radius/explore?q={package|CVE}`: Full node/edge dependency graph and impacted target breakdown.
   - `GET /api/v1/blast-radius/top-impact?limit=10`: Top highest blast radius packages across the enterprise.
@@ -501,12 +502,12 @@ Two rules the harness enforces on itself:
 ## 11. Local AI Vulnerability & Triage Explainer Advisor
 
 - **Explainer & Remediation Engine (`AiReviewService`, `AiAdvisorController`)**:
-  - Generates contextual vulnerability explanations, exploit mechanics analysis, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements. The issue's recorded reachability is passed along — `UNKNOWN` for every issue today, since nothing computes it — and `not_affected` is never offered on its strength.
+  - Generates contextual vulnerability explanations, exploit mechanics analysis, exact upgrade CLI commands (`mvn`, `npm`), and formal VEX justification statements. No reachability is passed to the model or to the fallback, since nothing computes it: the fallback says the exposure was not assessed, and `not_affected` is never offered.
   - Dual-mode operation: Local Ollama model inference (zero third-party data leakage) or instantaneous deterministic heuristic fallback.
 - **REST Endpoints**:
   - `GET /api/v1/ai-advisor/status`: Status of the local AI inference engine and available models.
   - `POST /api/v1/ai-advisor/explain/issue/{issueId}`: Contextual explanation and VEX statement for a persisted issue.
-  - `POST /api/v1/ai-advisor/explain/cve/{cveId}`: On-the-fly explanation for any CVE identifier with optional package metadata.
+  - `POST /api/v1/ai-advisor/explain/cve/{cveId}`: On-the-fly explanation for any CVE identifier with optional package metadata. A `reachability` parameter is no longer read.
 
 ## 12. Open Source License Legal Risk & Copyleft Matrix
 
@@ -524,7 +525,7 @@ Two rules the harness enforces on itself:
   - Pure Java calendar-day calculation of Mean Time to Remediate (MTTR) broken down by severity echelon (Critical, High, Medium, Low).
   - Net burndown resolution velocity KPI tracking resolution speed against discovery rate.
   - Target Maturity Scoreboard ranking repositories and containers with Grades (`A` to `F`) and 0-100 posture scores: 100 minus 25 per unresolved critical, 10 per high, 3 per medium, 1 otherwise (a missing severity counts as medium; settled triage — `not_affected`, `fixed` — excluded); A ≥ 90, B ≥ 75, C ≥ 50, D ≥ 30.
-  - **Distinct from the security scorecard** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), which grades A+ to F on open issues whose triage is not settled — KEV −25, reachable critical −15, other critical −8, high −4, disallowed licence −5, completed scan +5 — and feeds the public README badge. The user guide's repository page gives the full rule.
+  - **Distinct from the security scorecard** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), which grades A+ to F on open issues whose triage is not settled — KEV −25, critical −8, high −4, disallowed licence −5, completed scan +5 — and feeds the public README badge. The user guide's repository page gives the full rule.
 - **REST Endpoints**:
   - `GET /api/v1/dashboard/posture-analytics?days=30`: Aggregated MTTR by severity, net burndown rate, daily time series, and target maturity rankings.
 

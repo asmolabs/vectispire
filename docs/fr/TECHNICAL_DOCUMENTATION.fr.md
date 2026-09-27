@@ -199,6 +199,7 @@ erDiagram
         datetime last_seen_at
         string ticket_ref
         string ticket_url
+        string reachability "dormante : rien ne l'écrit, toujours UNKNOWN"
     }
     AI_REVIEW_RESULT {
         int id PK
@@ -463,7 +464,7 @@ Deux règles que le harnais s'impose à lui-même :
 ## 8. Graphe de dépendances & explorateur de rayon d'impact
 
 - **Moteur d'analyse du rayon d'impact (`BlastRadiusService`)** : cartographie relationnelle en mémoire reliant Cible (dépôt Git / image de conteneur) $\rightarrow$ Dépendance de paquet (directe ou transitive) $\rightarrow$ Avis de sécurité CVE.
-- **Score de risque organisationnel** : score de 0 à 100 pondérant la dispersion des cibles dans la flotte, l'inclusion directe ou transitive, et le score CVSS maximal. L'atteignabilité n'en est pas un terme : aucune analyse n'établit si le code vulnérable d'un composant est appelé — il n'y a pas d'analyse de graphe d'appels — et chaque constat enregistre `UNKNOWN`.
+- **Score de risque organisationnel** : score de 0 à 100 pondérant la dispersion des cibles dans la flotte, l'inclusion directe ou transitive, et le score CVSS maximal. L'atteignabilité n'en est pas un terme : aucune analyse n'établit si le code vulnérable d'un composant est appelé — il n'y a pas d'analyse de graphe d'appels — et le rapport ne porte aucune atteignabilité par cible.
 - **Endpoints REST** :
   - `GET /api/v1/blast-radius/explore?q={package|CVE}` : graphe complet nœuds/arêtes des dépendances et ventilation des cibles impactées.
   - `GET /api/v1/blast-radius/top-impact?limit=10` : paquets au plus fort rayon d'impact dans l'entreprise.
@@ -509,12 +510,12 @@ Deux règles que le harnais s'impose à lui-même :
 ## 11. Conseiller IA local d'explication des vulnérabilités et de triage
 
 - **Moteur d'explication et de remédiation (`AiReviewService`, `AiAdvisorController`)** :
-  - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX. L'atteignabilité enregistrée du problème est transmise — `UNKNOWN` pour chaque problème aujourd'hui, puisque rien ne la calcule — et `not_affected` n'est jamais proposé sur sa foi.
+  - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX. Aucune atteignabilité n'est transmise au modèle ni au repli, puisque rien ne la calcule : le repli indique que l'exposition n'a pas été évaluée, et `not_affected` n'est jamais proposé.
   - Fonctionnement double : inférence par modèle Ollama local (aucune fuite de données vers un tiers) ou repli heuristique déterministe instantané.
 - **Endpoints REST** :
   - `GET /api/v1/ai-advisor/status` : état du moteur d'inférence IA local et modèles disponibles.
   - `POST /api/v1/ai-advisor/explain/issue/{issueId}` : explication contextuelle et déclaration VEX pour une anomalie persistée.
-  - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : explication à la volée pour tout identifiant CVE, avec métadonnées de paquet facultatives.
+  - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : explication à la volée pour tout identifiant CVE, avec métadonnées de paquet facultatives. Un paramètre `reachability` n'est plus lu.
 
 ## 12. Risque juridique des licences open source & matrice de copyleft
 
@@ -532,7 +533,7 @@ Deux règles que le harnais s'impose à lui-même :
   - Calcul en Java pur, par jour calendaire, du délai moyen de remédiation (MTTR) ventilé par échelon de sévérité (Critical, High, Medium, Low).
   - Indicateur de vélocité de résolution nette suivant la vitesse de résolution face au rythme de découverte.
   - Tableau de maturité des cibles classant dépôts et conteneurs avec des notes (`A` à `F`) et des scores de posture de 0 à 100 : 100 moins 25 par critique non résolu, 10 par haute, 3 par moyenne, 1 sinon (une sévérité absente compte comme moyenne ; triage réglé — `not_affected`, `fixed` — exclu) ; A ≥ 90, B ≥ 75, C ≥ 50, D ≥ 30.
-  - **Distinct du scorecard de sécurité** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), qui note de A+ à F sur les problèmes ouverts dont le triage n'est pas réglé — KEV −25, critique atteignable −15, autre critique −8, haute −4, licence non autorisée −5, scan terminé +5 — et alimente la pastille README publique. La page « Dépôts » du guide utilisateur donne la règle complète.
+  - **Distinct du scorecard de sécurité** (`SecurityScorecardService`, `GET /api/v1/scorecards/...`), qui note de A+ à F sur les problèmes ouverts dont le triage n'est pas réglé — KEV −25, critique −8, haute −4, licence non autorisée −5, scan terminé +5 — et alimente la pastille README publique. La page « Dépôts » du guide utilisateur donne la règle complète.
 - **Endpoints REST** :
   - `GET /api/v1/dashboard/posture-analytics?days=30` : MTTR agrégé par sévérité, taux de résolution nette, séries temporelles quotidiennes et classements de maturité des cibles.
 

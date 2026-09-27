@@ -101,17 +101,17 @@ read as settled.
 | Element | Points | Per |
 |---|---|---|
 | Actively exploited vulnerability (CISA KEV) | −25 | issue |
-| Critical, reachable | −15 | issue |
-| Critical, not reachable or reachability unknown | −8 | issue |
+| Critical | −8 | issue |
 | High | −4 | issue |
 | Licence not allowed by the licence policy | −5 | component |
 | At least one completed scan | +5 | once |
 
-**No issue is reachable today.** Vectispire runs no call-graph analysis, so nothing establishes
-whether a component's vulnerable code is called: every issue records its reachability as unknown,
-and a critical that is not actively exploited costs −8. The row stays because the column does.
+**Reachability is not a term.** Vectispire runs no call-graph analysis, so nothing establishes
+whether a component's vulnerable code is called. The grade used to charge a "reachable" critical
+−15 instead of −8, on a value that was never recorded; every critical now costs −8, which is what
+every grade already was.
 
-Penalties add up: a reachable, actively exploited critical costs 40. Medium and low severities
+Penalties add up: an actively exploited critical costs 33. Medium and low severities
 cost nothing. The result is held between 0 and 100.
 
 **The grade:**
@@ -125,9 +125,8 @@ cost nothing. The result is held between 0 and 100.
 | 40 – 54 | D |
 | below 40 | F |
 
-For example, a scanned repository with one reachable critical, one unreachable critical, one
-high, one actively exploited medium and one disallowed licence scores
-100 − 15 − 8 − 4 − 25 − 5 + 5 = **48, grade D**.
+For example, a scanned repository with two criticals, one high, one actively exploited medium and
+one disallowed licence scores 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, grade C**.
 
 **What does not move the grade.** Issues past their remediation deadline are counted on the
 scorecard and produce a recommendation, but cost no points: deadlines are a setting of each
@@ -138,7 +137,7 @@ change grade because somebody edited a window.
 an in-toto attestation is issued from a completed scan, so there is none before —, actively
 exploited vulnerabilities, criticals, highs, and overdue issues.
 
-The penalties have no ceiling, so the scale saturates at the bottom: five reachable, exploited
+The penalties have no ceiling, so the scale saturates at the bottom: five exploited
 criticals already make an F, and five hundred make the same F. Read the counts on the
 scorecard, not only the letter.
 

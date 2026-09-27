@@ -102,18 +102,17 @@ Vectispire ne reconnaît pas compte aussi, plutôt que d'être lu comme réglé.
 | Élément | Points | Par |
 |---|---|---|
 | Vulnérabilité activement exploitée (CISA KEV) | −25 | problème |
-| Critique, atteignable | −15 | problème |
-| Critique, non atteignable ou atteignabilité inconnue | −8 | problème |
+| Critique | −8 | problème |
 | Haute | −4 | problème |
 | Licence non autorisée par la politique de licences | −5 | composant |
 | Au moins un scan terminé | +5 | une fois |
 
-**Aucun problème n'est atteignable aujourd'hui.** Vectispire n'exécute aucune analyse de graphe
-d'appels, si bien que rien n'établit si le code vulnérable d'un composant est appelé : chaque
-problème enregistre une atteignabilité inconnue, et un critique qui n'est pas activement exploité
-coûte −8. La ligne reste parce que la colonne reste.
+**L'atteignabilité n'est pas un terme.** Vectispire n'exécute aucune analyse de graphe d'appels,
+si bien que rien n'établit si le code vulnérable d'un composant est appelé. La note facturait un
+critique « atteignable » −15 au lieu de −8, sur une valeur jamais enregistrée ; tout critique coûte
+désormais −8, ce que toutes les notes valaient déjà.
 
-Les pénalités s'additionnent : un critique atteignable et activement exploité coûte 40. Les
+Les pénalités s'additionnent : un critique activement exploité coûte 33. Les
 sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 et 100.
 
 **La note :**
@@ -127,9 +126,8 @@ sévérités moyenne et basse ne coûtent rien. Le résultat est borné entre 0 
 | 40 – 54 | D |
 | moins de 40 | F |
 
-Par exemple, un dépôt scanné avec un critique atteignable, un critique non atteignable, une
-haute, une moyenne activement exploitée et une licence non autorisée obtient
-100 − 15 − 8 − 4 − 25 − 5 + 5 = **48, note D**.
+Par exemple, un dépôt scanné avec deux critiques, une haute, une moyenne activement exploitée et
+une licence non autorisée obtient 100 − 8 − 8 − 4 − 25 − 5 + 5 = **55, note C**.
 
 **Ce qui ne change pas la note.** Les problèmes en retard sur leur délai de remédiation sont
 comptés sur la fiche et produisent une recommandation, mais ne coûtent aucun point : les délais
@@ -142,7 +140,7 @@ n'y en a donc aucune avant —, les vulnérabilités activement exploitées, les
 hautes et les problèmes en retard.
 
 Les pénalités n'ont pas de plafond, l'échelle sature donc par le bas : cinq critiques
-atteignables et exploités suffisent pour un F, et cinq cents donnent le même F. Lisez les
+exploités suffisent pour un F, et cinq cents donnent le même F. Lisez les
 compteurs de la fiche, pas seulement la lettre.
 
 Cette note n'est **pas** celle du classement de maturité du tableau de bord, qui suit une autre

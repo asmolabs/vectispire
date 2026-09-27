@@ -30,13 +30,13 @@ flowchart LR
 
 1. **Corrélation Multi-Sources en Temps Réel** :
    * **Points d'Entrée API (`ApiInventory`)** : Identification automatique des routes publiques et non-authentifiées (`authRequired = false`).
-   * **Exploitabilité** : Filtrage des vulnérabilités critiques (`CVSS >= 9.0`, CISA KEV, exécution de code à distance RCE). La corrélation retient aussi un problème enregistré `reachability = 'REACHABLE'`, mais **rien ne l'enregistre aujourd'hui** : Vectispire n'exécute aucune analyse de graphe d'appels (`ReachabilityAnalyzer`, jamais branché, a été supprimé), si bien que chaque problème vaut `UNKNOWN` et que ce critère ne retient rien.
+   * **Exploitabilité** : Filtrage des vulnérabilités critiques (`CVSS >= 9.0`, CISA KEV, exécution de code à distance RCE). L'atteignabilité n'est **pas** un critère : Vectispire n'exécute aucune analyse de graphe d'appels (`ReachabilityAnalyzer`, jamais branché, a été supprimé), si bien que la colonne `reachability` du problème vaut `UNKNOWN` partout, et que le graphe ne la lit plus pour retenir, classer ou signaler un nœud. Un saut est exploitable quand une route non authentifiée se tient devant le composant.
    * **Puits de Données & Secrets (`Gitleaks` / `SAST`)** : Clés d'API en clair, mots de passe de production et connexions base de données.
 
 2. **Graphe Topologique Interactif** :
    * Vue en colonnes réactives avec connexions visuelles entre composants.
    * Filtre rapide : *"Afficher uniquement les chemins critiques exploitables"*.
-   * Inspecteur de nœuds : Clic sur n'importe quel élément pour afficher les détails techniques (scores CVSS/EPSS, fichier source, preuves d'appel).
+   * Inspecteur de nœuds : Clic sur n'importe quel élément pour afficher les détails techniques (scores CVSS/EPSS, fichier source).
 
 3. **Scénarios d'Attaque & Plan de Remédiation Actionnable** :
    * Synthèse narrative de l'attaque avec étapes concrètes de correction (verrouillage de la route API, mise à jour de la librairie, isolation réseau).

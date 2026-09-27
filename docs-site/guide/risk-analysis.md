@@ -25,6 +25,10 @@ The ranking covers open vulnerabilities whose triage is not settled: one triaged
 or **fixed** leaves it, as it leaves the gate and the scorecard. A dismissal still awaiting
 approval stays ranked — a request is not a decision.
 
+The ranking weighs CVSS, EPSS and KEV, and nothing else: the four quadrants of the matrix are
+exactly the thresholds their captions state. There is no reachability term, card or column —
+Vectispire runs no call-graph analysis, so it cannot say whether the vulnerable code is called.
+
 ## Attack paths
 
 ![An attack path: an unauthenticated route reaching a vulnerable component, reaching the data store — with the narrative the chain produces.](../assets/screens/en/attack-paths.png)

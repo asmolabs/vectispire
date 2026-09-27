@@ -104,6 +104,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 - Nouveaux types de résultats `plugin` et `imported`, et nouveaux champs sur les problèmes et les
   scans (`tool`, `toolName`, `toolVersion`, `importSource`, les `plugins[]` d'un scan). Le
   document OpenAPI du dépôt fait foi.
+- **L'atteignabilité n'est pas calculée, et le dit.** Les champs `reachability` et
+  `reachableSymbols` d'un problème restent dans `GET /api/v1/issues` et `GET /api/v1/issues/{id}`,
+  marqués dépréciés dans le document OpenAPI : toujours `UNKNOWN` et null, puisque rien n'analyse
+  le graphe d'appels. Retirés là où seule l'interface les lisait : `reachableEpssCount` et la
+  `reachability` de chaque problème classé de `GET /api/v1/epss/priorities`, la `reachability` de
+  chaque cible du rayon d'impact, la clé `reachability` des `metadata` d'un nœud de chemin
+  d'attaque, et `deterministic.exposure` de la réponse du conseiller IA.
+  `POST /api/v1/ai-advisor/explain/cve/{id}` ignore un paramètre `reachability`. En OpenVEX, un
+  constat en attente de triage indique « Awaiting contextual triage. » au lieu de « Awaiting
+  reachability confirmation and contextual triage. »
 
 ### Nouveautés
 
@@ -130,6 +140,13 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   l'horloge a été remise en arrière ou une clé soupçonnée d'avoir fui.
 - L'authentification unique enregistre le second facteur du fournisseur et peut l'exiger
   (`VECTISPIRE_OIDC_REQUIRE_MFA`) ; Vault Transit peut détenir la clé de chiffrement.
+- **Les écrans n'affichent plus l'atteignabilité**, que rien ne calcule : la liste des problèmes
+  perd ses étiquettes atteignable / non atteignable, le détail d'un problème son encadré
+  d'atteignabilité, la page EPSS sa carte « appelables et armées » et sa colonne, le rayon d'impact
+  sa colonne. Le scorecard facture chaque critique 8 points, le classement EPSS est CVSS × EPSS
+  avec le KEV au-dessus, et les chemins d'attaque ne retiennent ni ne signalent plus un nœud sur
+  cette base — aucun chiffre qu'une installation a affiché ne bouge, puisque chaque problème valait
+  `UNKNOWN`. Le conseiller IA indique que l'exposition n'a pas été évaluée.
 
 ### Sécurité
 
