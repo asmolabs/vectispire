@@ -224,6 +224,7 @@ describe('every screen', () => {
                 include_triaged: false,
                 include_ai_review: false,
                 fail_on_uncovered_languages: false,
+                include_plugins: false,
                 note: null,
                 created_by: null,
                 created_at: null
