@@ -161,7 +161,8 @@
                     <pre class="m-0 mt-1 font-mono text-xs whitespace-pre-wrap">{{ key }}</pre>
                 } @else if (plugin.manifest.signature; as signer) {
                     <span class="font-mono break-all">{{
-                        'plugins.signer_keyless' | translate: { identity: signer.identity ?? '', issuer: signer.issuer ?? '' }
+                        'plugins.signer_keyless'
+                            | translate: { identity: signer.identity ?? '', issuer: signer.issuer ?? '' }
                     }}</span>
                 } @else {
                     {{ 'plugins.signer_none' | translate }}
@@ -382,7 +383,9 @@
         <fieldset class="flex flex-col gap-2 border-0 p-0 m-0">
             <legend class="font-medium">{{ 'plugins.field_signer' | translate }}</legend>
             <small class="text-muted-color">{{ 'plugins.signer_hint' | translate }}</small>
-            <label for="plugin-signer-identity" class="text-sm">{{ 'plugins.field_signer_identity' | translate }}</label>
+            <label for="plugin-signer-identity" class="text-sm">{{
+                'plugins.field_signer_identity' | translate
+            }}</label>
             <input
                 pInputText
                 id="plugin-signer-identity"

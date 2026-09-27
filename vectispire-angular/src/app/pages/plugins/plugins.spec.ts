@@ -95,7 +95,9 @@ describe('the plugin registry', () => {
         expect(detail).toContain('0, 1');
         expect(detail).toContain('600 s');
         expect(detail).toContain('Pulls rules from rules.acme.internal daily.');
-        expect(dom().querySelector('[data-testid="plugin-signer"]')?.textContent).toContain('trusted by its digest alone');
+        expect(dom().querySelector('[data-testid="plugin-signer"]')?.textContent).toContain(
+            'trusted by its digest alone'
+        );
         expect(dom().querySelector('[data-testid="manifest-digest"]')?.textContent).toContain(PLUGIN.manifestDigest);
         // An ordinary account is not answered which projects a plugin reads, and is not made to ask.
         http.expectNone('/api/v1/plugins/acme-lint/projects');
@@ -219,7 +221,10 @@ describe('the plugin registry', () => {
     it('sends the signer as typed, and none at all when its three fields are empty', async () => {
         await start('SUPERUSER');
 
-        fixture.componentInstance.openEdit({ ...PLUGIN, manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } } });
+        fixture.componentInstance.openEdit({
+            ...PLUGIN,
+            manifest: { ...MANIFEST, signature: { identity: RELEASE, issuer: GITHUB, public_key: null } }
+        });
         expect(fixture.componentInstance.draft.signerIdentity).toBe(RELEASE);
         expect(fixture.componentInstance.draft.signerIssuer).toBe(GITHUB);
         // A key pasted beside the identity travels with it: refusing both is the server's call, not the form's.
