@@ -90,7 +90,7 @@ in `t_mfa_challenge` since `V23`, so no session affinity is required on `/api/v1
 is the tracker webhook's ceiling** (`vectispire.security.webhook-requests-per-window`): it is the
 one limit whose figure an operator sizes against a tracker's bulk edit rather than against an
 attacker, and three instances used to give an address three of them. `WebhookRateLimitFilter` keeps
-its bucket in front, then counts each admitted delivery in `t_rate_window` (since `V42`), in fixed
+its bucket in front, then counts each admitted delivery in `t_rate_window` (since `V44`), in fixed
 windows every instance shares, so the configured figure is the deployment's. A fixed window lets an
 address spend its allowance at the end of one window and again at the start of the next; a
 database that cannot be reached admits rather than refuses, the delivery behind it needing the

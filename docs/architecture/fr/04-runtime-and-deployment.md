@@ -96,7 +96,7 @@ requise sur `/api/v1/auth/**`. **Le plafond du webhook des trackers non plus**
 (`vectispire.security.webhook-requests-per-window`) : c'est la seule limite qu'un opérateur
 dimensionne d'après l'édition en masse d'un tracker plutôt que d'après un attaquant, et trois
 instances en donnaient trois à une adresse. `WebhookRateLimitFilter` garde son seau en tête, puis
-compte chaque livraison admise dans `t_rate_window` (depuis `V42`), par fenêtres fixes que toutes les
+compte chaque livraison admise dans `t_rate_window` (depuis `V44`), par fenêtres fixes que toutes les
 instances partagent : le chiffre configuré est celui du déploiement. Une fenêtre fixe laisse une
 adresse dépenser son allocation à la fin d'une fenêtre puis au début de la suivante ; une base
 injoignable admet plutôt que de refuser, la livraison derrière elle ayant de toute façon besoin de
