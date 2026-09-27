@@ -198,6 +198,8 @@ public enum SecurityEventType {
                     // change; and a feed refresh anybody with the lead role may ask for at will.
                     CERTIFIED_SCOPE_CHANGED, THREAT_INTEL_SYNCED,
                     AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED,
+                    // Bookkeeping of an upgrade: counters given back, nothing anybody did.
+                    SCAN_ATTEMPTS_REPAIRED,
                     // Every restart of every agent: the refusal is the event, the rotation is routine.
                     AGENT_SEALING_KEY_ACCEPTED, RULE_SET_UPLOADED,
                     RULE_SET_ACTIVATED, RULE_SET_DEACTIVATED, POSTURE_DIGEST_SENT,

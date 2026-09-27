@@ -18,6 +18,14 @@ repositories without a credential are not affected. Before upgrading: pin each d
 signing key on the **Agents** screen, then update the agents. See
 [Agents](../administration/agents.md).
 
+**Attempts counted by withheld claims are given back once, at the first start.** Before this
+version each poll of such an agent took a scan needing a credential — one attempt — and put it
+back, so a scan nothing had tried could fail as "lease exhausted" at its first real takeover. On a
+database with a `delegated` agent, the waiting scans of repositories carrying a credential that no
+agent was ever handed (no `AGENT_CREDENTIAL_SENT`) have their attempts reset to 0, recorded once as
+`SCAN_ATTEMPTS_REPAIRED`. Not touched: a scan delivered at least once, running, completed or already
+failed — run a failed one again by hand — image scans, and repositories without a credential.
+
 **Secrets reach the containers as files, not as environment variables.** The shipped
 `docker-compose.yml` now hands `ENCRYPTION_KEY`, the database passwords, the bootstrap password,
 `VECTISPIRE_SIGNING_KEY` and the OIDC client secret over as Compose secrets under `/run/secrets/`:

@@ -83,6 +83,22 @@ public class AuditLogQueryService {
     }
 
     /**
+     * Which of these resources at least one entry of {@code operationType} names — whether a scan's
+     * credential ever left for an agent is answered by the {@code AGENT_CREDENTIAL_SENT} it wrote.
+     *
+     * <p>A thousand identifiers a statement: the list is the caller's, and every engine stops binding
+     * somewhere.
+     */
+    public java.util.Set<String> resourcesNamed(String operationType, java.util.Collection<String> resourceIds) {
+        List<String> distinct = List.copyOf(java.util.Set.copyOf(resourceIds));
+        java.util.Set<String> named = new java.util.HashSet<>();
+        for (int from = 0; from < distinct.size(); from += 1_000) {
+            named.addAll(entries.findResourcesNamed(operationType, distinct.subList(from, Math.min(from + 1_000, distinct.size()))));
+        }
+        return java.util.Set.copyOf(named);
+    }
+
+    /**
      * The whole trail, oldest first, one document per line as {@code json} writes an entry: the
      * evidence bundle's {@code 02_immutable_audit_log.jsonl}.
      *

@@ -19,6 +19,16 @@ peut les prendre. Les agents en mode `local`, les scans d'images et les dépôts
 sont pas concernés. Avant la mise à jour : épinglez la clé de signature de chaque agent délégué
 sur l'écran **Agents**, puis mettez les agents à jour. Voir [Agents](../administration/agents.md).
 
+**Les tentatives comptées par les réclamations retenues sont rendues une fois, au premier
+démarrage.** Avant cette version, chaque interrogation d'un tel agent prenait un scan qui avait
+besoin d'un identifiant — une tentative — et le remettait en file : un scan que rien n'avait essayé
+pouvait échouer en « bail épuisé » à sa première vraie reprise. Sur une base qui déclare un agent
+`delegated`, les scans en attente de dépôts portant un identifiant qu'aucun agent n'a jamais reçu
+(pas d'`AGENT_CREDENTIAL_SENT`) voient leurs tentatives remises à 0, consigné une fois sous
+`SCAN_ATTEMPTS_REPAIRED`. Ne sont pas touchés : un scan livré au moins une fois, en cours, terminé ou
+déjà en échec — relancez à la main un scan en échec —, les scans d'images et les dépôts sans
+identifiant.
+
 **Les secrets arrivent dans les conteneurs sous forme de fichiers, plus de variables
 d'environnement.** Le `docker-compose.yml` livré remet désormais `ENCRYPTION_KEY`, les mots de
 passe de la base, le mot de passe d'amorçage, `VECTISPIRE_SIGNING_KEY` et le secret du client OIDC

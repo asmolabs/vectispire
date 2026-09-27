@@ -82,6 +82,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLogEntity, UUID> 
             @Param("search") String search,
             Pageable pageable);
 
+    /** Which of these resources at least one entry of this operation names. */
+    @Query("select distinct a.resourceId from AuditLogEntity a where a.operationType = :operation and a.resourceId in :ids")
+    List<String> findResourcesNamed(@Param("operation") String operationType, @Param("ids") java.util.Collection<String> ids);
+
     @Query("select distinct a.operationType from AuditLogEntity a order by a.operationType asc")
     List<String> distinctOperationTypes();
 }

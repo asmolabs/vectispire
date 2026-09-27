@@ -431,6 +431,21 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
              group by s.requiredAgentLabel""")
     List<Object[]> countPendingByRequiredLabel(@Param("status") String status);
 
+    /** The scans of repositories in this status that were counted at least one attempt, as {@code [id, repoId]}. */
+    @Query("""
+            select s.id, s.repoId from ScanEntity s
+             where s.status = :status and s.repoId is not null and s.attempts > 0""")
+    List<Object[]> findAttemptedRepositoryScans(@Param("status") String status);
+
+    /**
+     * Gives these scans their attempts back, <b>while they are still in this status</b>: one a worker
+     * claimed since it was read keeps the attempt that claim counted.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update ScanEntity s set s.attempts = 0 where s.id in :ids and s.status = :status and s.attempts > 0")
+    int resetAttempts(@Param("ids") Collection<Long> ids, @Param("status") String status);
+
     @Query("select s.id from ScanEntity s where s.containerId = :containerId")
     List<Long> findIdsByContainerId(@Param("containerId") Long containerId);
 

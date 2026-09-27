@@ -147,6 +147,17 @@ public enum AuditOperation {
     /** A deployment key left the control plane (delegated mode). */
     AGENT_CREDENTIAL_SENT,
 
+    /**
+     * The upgrade gave back the attempts that withheld claims had counted on scans never delivered.
+     *
+     * <p>Until the claim of an agent without a usable sealing key left the scans carrying a credential
+     * out of its selection, each of its polls took such a scan — one attempt — and put it back; a scan
+     * nothing had tried then failed for good at its first real takeover. Written once per database,
+     * whatever it repaired, and that is also its bookkeeping: the repair runs while no such entry
+     * exists, and never again.
+     */
+    SCAN_ATTEMPTS_REPAIRED,
+
     AGENT_RESULT_SUBMITTED,
 
     /**

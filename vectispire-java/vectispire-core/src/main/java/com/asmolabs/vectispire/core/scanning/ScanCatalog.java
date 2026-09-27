@@ -183,6 +183,37 @@ public class ScanCatalog {
         return grouped(scans.countPendingByRequiredLabel(status));
     }
 
+    /** A waiting scan of a repository that was counted at least one attempt. */
+    public record AttemptedScan(long id, long repoId) {}
+
+    /** The waiting scans of repositories that were counted at least one attempt. */
+    public List<AttemptedScan> waitingWithAttempts() {
+        return scans.findAttemptedRepositoryScans(com.asmolabs.vectispire.common.domain.scans.ScanStatus.PENDING.wireName())
+                .stream()
+                .map(row -> new AttemptedScan(((Number) row[0]).longValue(), ((Number) row[1]).longValue()))
+                .toList();
+    }
+
+    /**
+     * Gives these waiting scans their attempts back — <b>the catalog's one write</b>, on {@code agents}'
+     * behalf, as {@code TargetCatalog} writes a column another module decides: the claims that counted
+     * the attempts were the agents' protocol's, and so is knowing they never delivered anything.
+     * A scan claimed since it was read is left as it is.
+     *
+     * @return how many scans were changed
+     */
+    @Transactional
+    public int refundAttempts(Collection<Long> ids) {
+        List<Long> distinct = List.copyOf(java.util.Set.copyOf(ids));
+        int changed = 0;
+        for (int from = 0; from < distinct.size(); from += 1_000) {
+            changed += scans.resetAttempts(
+                    distinct.subList(from, Math.min(from + 1_000, distinct.size())),
+                    com.asmolabs.vectispire.common.domain.scans.ScanStatus.PENDING.wireName());
+        }
+        return changed;
+    }
+
     /** Scans with this status per claimant, in query order. */
     public Map<String, Long> countByClaimant(String status) {
         return grouped(scans.countRunningByClaimant(status));
