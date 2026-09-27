@@ -39,6 +39,25 @@ import java.util.Objects;
  * identity; falling back to the name keeps findings that have no purl — secrets, IaC, licenses
  * — fingerprintable.
  *
+ * <h2>Plugin and imported findings: rule, path, tool</h2>
+ *
+ * <p>A {@linkplain FindingType#toolScoped() tool-scoped} finding has no package, and its tool key
+ * takes the package's place — {@link #ofTool}. The same formula, so no second hash exists to drift:
+ *
+ * <pre>SHA-256(target NUL type NUL rule id NUL tool key NUL normalised path)</pre>
+ *
+ * <ul>
+ *   <li><b>the tool key</b> is {@code plugin:<id>} for a plugin Vectispire ran, and
+ *       {@code import:<source>/<tool name, lowercased>} for a declared source's report
+ *       ({@link ToolKeys}). <b>Not the image, not its version, not the tool's version</b>: a plugin
+ *       moved to a new image keeps its id and its whole triage; renaming the plugin, the source or
+ *       the tool resolves and recreates it;
+ *   <li><b>the rule id</b> is the SARIF {@code ruleId}, whole — a tool that renames its rules loses
+ *       the triage attached to them, and nothing on this side can tell a rename from a new rule;
+ *   <li><b>the path</b> is the SARIF location normalised by {@code SarifPaths}, relative to the
+ *       analysed tree. The line is not in it, as for every other type.
+ * </ul>
+ *
  * <h2>One thing fixed that the original could not fix</h2>
  *
  * <p>The NestJS implementation joined the fields with a vertical bar and carried a note saying
@@ -72,6 +91,24 @@ public final class IssueFingerprint {
             Objects.requireNonNull(target, "a finding always belongs to a target");
             Objects.requireNonNull(type, "a finding always has a type");
         }
+    }
+
+    /**
+     * The identity of a plugin's or an imported finding — see the class documentation.
+     *
+     * @param toolKey {@link ToolKeys#plugin} or {@link ToolKeys#imported}; never blank, since a
+     *     finding with no tool would share its identity with every tool's finding on the same rule
+     *     and file
+     */
+    public static String ofTool(ScanTarget target, FindingType type, String toolKey, String ruleId, String filePath) {
+        if (!type.toolScoped()) {
+            throw new IllegalArgumentException(
+                    "Only a tool-scoped type is fingerprinted by tool; " + type.wireName() + " is fingerprinted by package.");
+        }
+        if (toolKey == null || toolKey.isBlank()) {
+            throw new IllegalArgumentException("A " + type.wireName() + " finding carries the key of the tool that made it.");
+        }
+        return of(new Input(target, type, ruleId, null, toolKey, filePath));
     }
 
     public static String of(Input input) {

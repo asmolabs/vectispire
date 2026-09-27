@@ -76,16 +76,20 @@ public class SecurityDebtService {
     private static final double ORDINARY_VULNERABILITY_HOURS = 0.8;
 
     /**
-     * The finding types this report is about — every type but one.
+     * The finding types this report is about — every type but those counted only on request.
      *
      * <p><b>{@code AI_REVIEW} is excluded from the count, not given an effort of zero.</b> A
      * bucket of zero hours beside a non-zero issue count is the very inconsistency this class
      * just stopped having. Excluded rather than costed because the domain already says what it
      * is: {@link FindingType#isSecurity()} answers {@code false} for it, its severity is invented
      * by a local model reading a repository that may be hostile, and it is off unless somebody
-     * asks. Costing model output would let a repository inflate its own estimate.
+     * asks. Costing model output would let a repository inflate its own estimate. The plugin and
+     * imported findings share the three properties — not security, a severity a third-party tool
+     * chose, off the gate unless asked — and are left out on the same rule.
      */
-    private static final Set<FindingType> COSTED = EnumSet.complementOf(EnumSet.of(FindingType.AI_REVIEW));
+    private static final Set<FindingType> COSTED = java.util.Arrays.stream(FindingType.values())
+            .filter(type -> type.gateParticipation() != FindingType.GateParticipation.ON_REQUEST)
+            .collect(java.util.stream.Collectors.toCollection(() -> EnumSet.noneOf(FindingType.class)));
 
     /** The list is a work order, and nobody works a hundred items at once. */
     private static final int MOST_LEVERAGE = 10;
@@ -235,7 +239,7 @@ public class SecurityDebtService {
                 // Filtered out above, and named here rather than left to a `default`: the day a
                 // ninth type is added the compiler asks what it costs, which is the question
                 // nobody was asked the last eight times.
-                case AI_REVIEW -> { }
+                case AI_REVIEW, PLUGIN, IMPORTED -> { }
             }
         }
         return tallies;

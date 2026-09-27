@@ -47,6 +47,18 @@ class PolicyGateTest {
         }
 
         @Test
+        @DisplayName("the AI review flag admits AI findings only: plugin and imported findings ask on their own")
+        void aiFlagIsNotAPluginFlag() {
+            List<GateIssue> findings = List.of(
+                    issue(1, FindingType.PLUGIN, Severity.CRITICAL, null),
+                    issue(2, FindingType.IMPORTED, Severity.CRITICAL, null));
+
+            assertThat(PolicyGate.evaluate(findings, GatePolicy.BUILT_IN).passed()).isTrue();
+            assertThat(PolicyGate.evaluate(findings, GatePolicy.BUILT_IN.with(PolicyFlag.INCLUDE_AI_REVIEW, true)).passed())
+                    .isTrue();
+        }
+
+        @Test
         @DisplayName("a settled issue does not fail a build, unless triage is included")
         void settledIssuesAreExcluded() {
             List<GateIssue> findings =

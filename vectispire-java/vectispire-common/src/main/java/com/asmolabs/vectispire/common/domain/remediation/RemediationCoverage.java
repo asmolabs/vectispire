@@ -26,7 +26,10 @@ import java.util.List;
  *
  * <p>{@link FindingType#AI_REVIEW} is left out of the total as it is out of the effort estimate:
  * its severity is invented by a local model reading a repository that may be hostile. Including it
- * in "what is left to do" would let a repository inflate its own backlog.
+ * in "what is left to do" would let a repository inflate its own backlog. So are the plugin and
+ * imported findings, for the same reason one step removed: their severity is whatever a third-party
+ * tool chose. The rule is the type's gate participation — what counts only on request is not counted
+ * here unasked.
  *
  * <h2>Findings, not distinct vulnerabilities</h2>
  *
@@ -79,7 +82,9 @@ public record RemediationCoverage(
         List<RemediationGap> gaps = new ArrayList<>();
 
         for (OpenFamily family : families) {
-            if (FindingType.AI_REVIEW.wireName().equals(family.type())) {
+            if (FindingType.fromWireName(family.type())
+                    .filter(type -> type.gateParticipation() == FindingType.GateParticipation.ON_REQUEST)
+                    .isPresent()) {
                 continue;
             }
             if (FindingType.VULNERABILITY.wireName().equals(family.type())) {

@@ -95,6 +95,8 @@ public final class SarifExport {
             case LICENSE -> "License";
             case EOL -> "End of life";
             case AI_REVIEW -> "AI review";
+            case PLUGIN -> "Plugin finding";
+            case IMPORTED -> "Imported finding";
             case SAST -> "Vulnerable code";
             case QUALITY -> "Code quality";
         };
