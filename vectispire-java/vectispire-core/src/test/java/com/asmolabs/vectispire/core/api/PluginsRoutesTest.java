@@ -316,6 +316,42 @@ class PluginsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("a declared signer is stored, audited, and reaches the agent as it was declared, digest and all")
+        void theSignerReachesTheAgent() throws Exception {
+            String key = "-----BEGIN PUBLIC KEY-----\n"
+                    + "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEhm3H+258usrgldBUFUFN9WFtNT21\n"
+                    + "IV1MQgw1S41uz9HTMzDeHNZ9+PsTOW6xznu1CIrVOSLBcsTdCfoM911hVg==\n"
+                    + "-----END PUBLIC KEY-----\n";
+            Map<String, Object> halfKeyless = manifest("acme-lint", DIGEST);
+            halfKeyless.put("signature", Map.of("identity", "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v1"));
+            register(governor(), halfKeyless)
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.detail").value(Matchers.containsString("issuer")));
+
+            Map<String, Object> signed = manifest("acme-lint", DIGEST);
+            signed.put("signature", Map.of("public_key", key));
+            String digest = json.readTree(register(governor(), signed)
+                            .andExpect(status().isCreated())
+                            .andExpect(jsonPath("$.manifest.signature.public_key").value(key))
+                            .andReturn().getResponse().getContentAsString())
+                    .get("manifestDigest").asText();
+
+            String served = mvc.perform(get("/api/v1/agent/plugins/acme-lint/" + digest)
+                            .header("Authorization", "Bearer " + agent().token()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.signature.public_key").value(key))
+                    .andReturn().getResponse().getContentAsString();
+            // What the agent reads is what it checks against the task's digest: read back from the wire, it
+            // must hash to the digest the task names, or every signed plugin would be absent on an agent.
+            assertThat(json.readValue(served, com.asmolabs.vectispire.common.domain.plugins.PluginManifest.class).digest())
+                    .isEqualTo(digest);
+            assertThat(auditLog.findAll()).filteredOn(entry -> entry.getOperationType()
+                            .equals(AuditOperation.PLUGIN_REGISTERED.wireName()))
+                    .singleElement()
+                    .satisfies(entry -> assertThat(entry.getDescription()).contains("signed by key sha256:"));
+        }
+
+        @Test
         @DisplayName("a repository in a project runs the enabled plugins switched on for it, by id and digest")
         void theTaskCarriesTheProjectsPlugins() throws Exception {
             String governor = governor();
