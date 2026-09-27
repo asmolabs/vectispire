@@ -82,6 +82,85 @@
                 </p-message>
             }
 
+            <div class="border-t pt-4 flex flex-col gap-3" style="border-color: var(--surface-border)">
+                <p class="text-sm text-muted-color m-0">
+                    {{ 'settings.epss_desc' | translate }}
+                </p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div
+                        class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-xs text-muted-color uppercase font-semibold">{{
+                            'settings.epss_feed_status' | translate
+                        }}</span>
+                        <div class="text-base font-bold mt-1" [ngClass]="epssStateClass()" data-testid="epss-state">
+                            {{ epssStateLabel() }}
+                        </div>
+                    </div>
+
+                    <div
+                        class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-xs text-muted-color uppercase font-semibold">{{
+                            'settings.epss_scored' | translate
+                        }}</span>
+                        <div
+                            class="text-base font-bold mt-1 text-surface-900 dark:text-surface-0"
+                            data-testid="epss-count"
+                        >
+                            {{ 'settings.epss_cve_count' | translate: { count: epss()?.totalScored ?? 0 } }}
+                        </div>
+                    </div>
+
+                    <div
+                        class="p-3 bg-surface-50 dark:bg-surface-800 rounded-lg border border-surface-200 dark:border-surface-700"
+                    >
+                        <span class="text-xs text-muted-color uppercase font-semibold">{{
+                            'settings.epss_last_sync' | translate
+                        }}</span>
+                        <div
+                            class="text-sm font-medium mt-1 text-surface-700 dark:text-surface-300"
+                            data-testid="epss-synced-at"
+                        >
+                            {{ (epss()?.lastSyncedAt | date: 'dd/MM/yyyy HH:mm') ?? ('settings.never' | translate) }}
+                        </div>
+                    </div>
+                </div>
+
+                @if (epss()?.scoreDate; as scoreDate) {
+                    <p class="text-sm text-muted-color m-0" data-testid="epss-file">
+                        {{
+                            'settings.epss_file_in_use'
+                                | translate
+                                    : {
+                                          model: epss()?.modelVersion ?? '—',
+                                          date: (scoreDate | date: 'dd/MM/yyyy') ?? '—'
+                                      }
+                        }}
+                    </p>
+                }
+
+                @if (epss()?.inProgress) {
+                    <p-message severity="info" [closable]="false" styleClass="w-full" data-testid="epss-in-progress">
+                        {{ 'settings.epss_in_progress' | translate }}
+                    </p-message>
+                }
+
+                @if (epss()?.status === 'FAILED') {
+                    <p-message severity="warn" [closable]="false" styleClass="w-full" data-testid="epss-failure">
+                        {{
+                            'settings.epss_last_attempt_failed'
+                                | translate
+                                    : {
+                                          at: (epss()?.lastAttemptAt | date: 'dd/MM/yyyy HH:mm') ?? '—',
+                                          reason: epss()?.lastError ?? '—'
+                                      }
+                        }}
+                    </p-message>
+                }
+            </div>
+
             @if (threatIntelFeedback(); as msg) {
                 <p-message severity="info" [closable]="true" styleClass="w-full">
                     {{ msg }}

@@ -91,7 +91,18 @@ describe('EPSS prioritisation', () => {
                 kevCatalogVersion: '2026.09.26',
                 kevReleasedAt: '2026-09-26T15:00:00Z',
                 lastAttemptAt: '2026-09-27T12:00:00Z',
-                lastError: 'KEV catalogue: connection refused'
+                lastError: 'KEV catalogue: connection refused',
+                epss: {
+                    status: 'SYNCED',
+                    lastSyncedAt: '2026-09-27T06:00:00Z',
+                    modelVersion: 'v2025.03.14',
+                    scoreDate: '2026-09-26T12:00:00Z',
+                    totalScored: 380066,
+                    lastAttemptAt: '2026-09-27T12:00:00Z',
+                    lastError: null,
+                    backlogUpdatedCount: 0,
+                    inProgress: false
+                }
             })
         );
 

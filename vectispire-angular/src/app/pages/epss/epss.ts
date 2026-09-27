@@ -139,7 +139,19 @@ export class Epss implements OnInit {
                     this.error.set(res.lastError ?? this.i18n.t('epss.sync_failed'));
                     return;
                 }
-                this.syncFeedback.set(this.i18n.t('epss.sync_succeeded', { cves: res.totalCves, kev: res.totalKev }));
+                // The EPSS file fails apart from the catalogue, and the scores this screen ranks on are
+                // its own: a file that could not be read is said as such, the scores in use kept.
+                if (res.epss.status !== 'SYNCED' && !res.epss.inProgress) {
+                    this.error.set(res.epss.lastError ?? this.i18n.t('epss.sync_failed'));
+                    return;
+                }
+                this.syncFeedback.set(
+                    this.i18n.t('epss.sync_succeeded', {
+                        cves: res.totalCves,
+                        kev: res.totalKev,
+                        scored: res.epss.totalScored
+                    })
+                );
                 this.loadSummary();
             },
             error: (err) => {

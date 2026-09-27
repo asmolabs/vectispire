@@ -107,9 +107,26 @@ export type SiemConfig = Refine<
 export type SiemTestResult = Refine<Schema<'TestResult'>, { message: string }>;
 
 /**
- * Where the CISA KEV catalogue stands. `lastSyncedAt` is when the catalogue in use was read, and a
- * failed attempt leaves it where it was; `kevReleasedAt` is how old that catalogue is, which a
- * mirror refreshed rarely makes different.
+ * Where FIRST's EPSS file stands. `scoreDate` is the day the scores in use are for, as the file says
+ * — the age of the data — and a failed attempt leaves it where it was. Before the first
+ * synchronisation no CVE has a score: unknown, which a screen must never show as zero.
+ */
+export type EpssFeedStatus = Refine<
+    Schema<'EpssFeedStatus'>,
+    {
+        status: 'NEVER_SYNCED' | 'SYNCED' | 'FAILED';
+        lastSyncedAt: string | null;
+        modelVersion: string | null;
+        scoreDate: string | null;
+        lastAttemptAt: string | null;
+        lastError: string | null;
+    }
+>;
+
+/**
+ * Where the CISA KEV catalogue stands, and the EPSS file under `epss`. `lastSyncedAt` is when the
+ * catalogue in use was read, and a failed attempt leaves it where it was; `kevReleasedAt` is how old
+ * that catalogue is, which a mirror refreshed rarely makes different.
  */
 export type ThreatIntelSyncStatus = Refine<
     Schema<'ThreatIntelSyncStatus'>,
@@ -120,6 +137,7 @@ export type ThreatIntelSyncStatus = Refine<
         kevReleasedAt: string | null;
         lastAttemptAt: string | null;
         lastError: string | null;
+        epss: EpssFeedStatus;
     }
 >;
 

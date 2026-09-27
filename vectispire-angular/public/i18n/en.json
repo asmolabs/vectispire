@@ -855,7 +855,7 @@
     "target": "Target",
     "weaponised": "weaponised flaw(s)",
     "load_failed": "Could not load the EPSS prioritisation data.",
-    "sync_succeeded": "Synchronisation succeeded: {{cves}} CVEs analysed ({{kev}} in CISA KEV).",
+    "sync_succeeded": "Synchronisation succeeded: {{cves}} CVEs analysed ({{kev}} in CISA KEV), {{scored}} EPSS scores in use.",
     "sync_failed": "The Threat Intelligence feed could not be synchronised.",
     "tier_critical_armed": "Critical / Weaponised (P0)",
     "tier_high_probable": "High / Probable (P1)",
@@ -1953,7 +1953,7 @@
       "governance": "Governance"
     },
     "test_connection": "Test the connection",
-    "threat_intel_desc": "CISA's catalogue of Known Exploited Vulnerabilities, read every six hours and on demand — from CISA, or from the mirror the deployment names. Open issues whose CVE it lists are marked actively exploited, and announced to the SIEM when they newly are; one it no longer lists is not. EPSS scores are asked per scan and are not part of this feed.",
+    "threat_intel_desc": "CISA's catalogue of Known Exploited Vulnerabilities, read every six hours and on demand — from CISA, or from the mirror the deployment names. Open issues whose CVE it lists are marked actively exploited, and announced to the SIEM when they newly are; one it no longer lists is not.",
     "threat_intel_title": "Threat intelligence feed (CISA KEV)",
     "ticket_token_title": "Ticket tracker token",
     "ticket_webhook_help": "Register these webhook URLs in your ticket tracker (Jira, GitLab, GitHub, ServiceNow). When somebody closes a ticket there as fixed, declined or a false positive, Vectispire applies the same triage decision and records it in the audit log.",
@@ -2022,7 +2022,17 @@
     "feed_state_never_synced": "Never synchronized",
     "feed_state_unknown": "Unknown",
     "kev_catalogue_release": "Catalogue in use: version {{version}}, released by CISA on {{released}}.",
-    "kev_last_attempt_failed": "The attempt of {{at}} failed: {{reason}}. The catalogue in use is kept, and nothing is re-evaluated until the next successful read."
+    "kev_last_attempt_failed": "The attempt of {{at}} failed: {{reason}}. The catalogue in use is kept, and nothing is re-evaluated until the next successful read.",
+    "epss_desc": "FIRST's daily EPSS file — the probability that each published CVE is exploited in the next 30 days — read once a day and on demand, from FIRST or from the mirror the deployment names. Scans and open issues take their scores from it; no scan asks anybody. Until it is first read, no CVE has a score: unknown, not zero.",
+    "epss_feed_status": "EPSS file",
+    "epss_scored": "CVEs scored",
+    "epss_cve_count": "{{count}} CVEs",
+    "epss_last_sync": "EPSS file last read",
+    "epss_file_in_use": "Scores in use: model {{model}}, scores of {{date}}.",
+    "epss_in_progress": "An EPSS synchronisation is in progress; this request did not start another.",
+    "epss_last_attempt_failed": "The attempt of {{at}} failed: {{reason}}. The scores in use are kept until the next successful read.",
+    "epss_synced": "EPSS scores of {{count}} CVEs in use; {{issues}} open issues re-scored.",
+    "error_epss_sync": "The EPSS file could not be read. The scores in use are kept."
   },
   "severities": {
     "critical": "Critical",

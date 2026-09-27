@@ -855,7 +855,7 @@
     "target": "Cible",
     "weaponised": "faille(s) armée(s)",
     "load_failed": "Erreur lors du chargement des données de priorisation EPSS.",
-    "sync_succeeded": "Synchronisation réussie : {{cves}} CVEs analysées ({{kev}} dans CISA KEV).",
+    "sync_succeeded": "Synchronisation réussie : {{cves}} CVEs analysées ({{kev}} dans CISA KEV), {{scored}} scores EPSS en usage.",
     "sync_failed": "Échec de synchronisation du flux Threat Intelligence.",
     "tier_critical_armed": "Critique / Armée (P0)",
     "tier_high_probable": "Élevée / Probable (P1)",
@@ -1942,7 +1942,7 @@
       },
       "enrichment_enabled": {
         "label": "Enrichissement CISA KEV et scores EPSS",
-        "help": "Seuls les identifiants CVE sont transmis aux sources publiques — aucun code source ni SBOM ne quitte l'infrastructure."
+        "help": "Les scans lisent les copies que le plan de contrôle synchronise : rien de ce qu'un scan trouve ne quitte l'infrastructure. Désactivé, le compteur « activement exploitées » reste à zéro, ce qui veut alors dire « nous n'avons pas demandé » et non « il n'y en a aucune »."
       },
       "eol_detection_enabled": {
         "label": "Détection des plateformes et frameworks obsolètes (EOL)",
@@ -2067,7 +2067,7 @@
       "governance": "Gouvernance"
     },
     "test_connection": "Tester la connexion",
-    "threat_intel_desc": "Le catalogue des vulnérabilités activement exploitées (Known Exploited Vulnerabilities) de la CISA, lu toutes les six heures et à la demande — chez la CISA, ou sur le miroir que désigne le déploiement. Les constats ouverts dont la CVE y figure sont marqués activement exploités, et signalés au SIEM quand ils le deviennent ; ceux qu'il ne liste plus ne le sont plus. Les scores EPSS sont demandés à chaque scan et ne font pas partie de ce flux.",
+    "threat_intel_desc": "Le catalogue des vulnérabilités activement exploitées (Known Exploited Vulnerabilities) de la CISA, lu toutes les six heures et à la demande — chez la CISA, ou sur le miroir que désigne le déploiement. Les constats ouverts dont la CVE y figure sont marqués activement exploités, et signalés au SIEM quand ils le deviennent ; ceux qu'il ne liste plus ne le sont plus.",
     "threat_intel_title": "Flux de threat intelligence (CISA KEV)",
     "ticket_token_title": "Jeton du gestionnaire de tickets",
     "ticket_webhook_help": "Configurez ces URLs de webhook dans vos gestionnaires de tickets (Jira, GitLab, GitHub, ServiceNow). Lorsqu'un lead ou développeur marque un ticket comme résolu, refusé ou faux positif dans son outil de ticketing, Vectispire applique automatiquement la décision de triage et consigne l'événement dans le journal d'audit.",
@@ -2136,7 +2136,17 @@
     "feed_state_never_synced": "Jamais synchronisé",
     "feed_state_unknown": "Inconnu",
     "kev_catalogue_release": "Catalogue en usage : version {{version}}, publiée par la CISA le {{released}}.",
-    "kev_last_attempt_failed": "La tentative du {{at}} a échoué : {{reason}}. Le catalogue en usage est conservé, et rien n'est réévalué avant la prochaine lecture réussie."
+    "kev_last_attempt_failed": "La tentative du {{at}} a échoué : {{reason}}. Le catalogue en usage est conservé, et rien n'est réévalué avant la prochaine lecture réussie.",
+    "epss_desc": "Le fichier EPSS quotidien du FIRST — la probabilité que chaque CVE publiée soit exploitée dans les 30 prochains jours — lu une fois par jour et à la demande, chez le FIRST ou sur le miroir que désigne le déploiement. Les scans et les constats ouverts y prennent leurs scores ; aucun scan n'interroge qui que ce soit. Tant qu'il n'a jamais été lu, aucune CVE n'a de score : inconnu, et non zéro.",
+    "epss_feed_status": "Fichier EPSS",
+    "epss_scored": "CVE notées",
+    "epss_cve_count": "{{count}} CVE",
+    "epss_last_sync": "Dernière lecture du fichier EPSS",
+    "epss_file_in_use": "Scores en usage : modèle {{model}}, scores du {{date}}.",
+    "epss_in_progress": "Une synchronisation EPSS est en cours ; cette demande n'en a pas lancé une autre.",
+    "epss_last_attempt_failed": "La tentative du {{at}} a échoué : {{reason}}. Les scores en usage sont conservés jusqu'à la prochaine lecture réussie.",
+    "epss_synced": "Scores EPSS de {{count}} CVE en usage ; {{issues}} constats ouverts renotés.",
+    "error_epss_sync": "Le fichier EPSS n'a pas pu être lu. Les scores en usage sont conservés."
   },
   "severities": {
     "critical": "Critique",
