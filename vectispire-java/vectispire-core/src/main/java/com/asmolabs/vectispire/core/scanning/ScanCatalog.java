@@ -214,6 +214,19 @@ public class ScanCatalog {
         return changed;
     }
 
+    /** Waiting scans of one repository that require one label — {@code null} when they require none. */
+    public record WaitingScans(String requiredLabel, long repoId, long scans) {}
+
+    /** The waiting scans of repositories, per required label and repository. */
+    public List<WaitingScans> waitingRepositories() {
+        return scans.countPendingByRequiredLabelAndRepository(
+                        com.asmolabs.vectispire.common.domain.scans.ScanStatus.PENDING.wireName())
+                .stream()
+                .map(row -> new WaitingScans(
+                        (String) row[0], ((Number) row[1]).longValue(), ((Number) row[2]).longValue()))
+                .toList();
+    }
+
     /** Scans with this status per claimant, in query order. */
     public Map<String, Long> countByClaimant(String status) {
         return grouped(scans.countRunningByClaimant(status));

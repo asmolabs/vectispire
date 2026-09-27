@@ -64,6 +64,8 @@ public interface MaintenanceTask {
     final class Sequence {
         public static final int NOTIFICATION_RELAY = 10;
         public static final int SCHEDULING_TICK = 20;
+        /** Beside the scheduling tick, on its minute: whether scans needing a credential have anyone to take them. */
+        public static final int CREDENTIALED_BACKLOG = 30;
         public static final int SCAN_RETENTION = 100;
         public static final int SENT_MESSAGES = 200;
         public static final int TICKET_SWEEP = 300;

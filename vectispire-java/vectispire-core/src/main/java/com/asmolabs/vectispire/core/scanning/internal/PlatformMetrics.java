@@ -28,9 +28,10 @@ import org.springframework.stereotype.Service;
  *
  * <h2>What is measured, and what deliberately is not</h2>
  *
- * <p>Four meters here and two in {@code agents}' {@code AgentMetrics} — the enabled agents and their
- * polls, which moved with the agent row (decision 0029) — each tied to a question somebody asks at
- * three in the morning. Rate-limit
+ * <p>Four meters here and three in {@code agents}' {@code AgentMetrics} — the enabled agents and their
+ * polls, which moved with the agent row (decision 0029), and the scans needing a credential that no
+ * agent able to be handed one can take — each tied to a question somebody asks at three in the
+ * morning. Rate-limit
  * refusals are <em>not</em> among them: the bearer filter already writes an audit entry when its
  * ceiling is reached, and turning that into a counter means changing two filters' constructors —
  * one of which is being edited elsewhere. Worth adding once that work lands. There is no

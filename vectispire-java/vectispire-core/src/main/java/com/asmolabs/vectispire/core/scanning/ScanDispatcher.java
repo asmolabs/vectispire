@@ -303,6 +303,23 @@ public class ScanDispatcher {
     }
 
     /**
+     * Whether a scan needing a delegated credential may be claimed for this agent — the dispatcher's
+     * own predicate, published so that a figure of the scans nobody can take counts with the rule the
+     * claim applies, not with a copy of it.
+     */
+    public static boolean canBeHandedCredentials(AgentView agent) {
+        return sealsCredentials(agent);
+    }
+
+    /**
+     * Whether this control plane scans anything itself: without a runner the built-in worker claims
+     * nothing, whatever its configuration says — see {@code runner}.
+     */
+    public boolean runsScansHere() {
+        return runner.isPresent();
+    }
+
+    /**
      * Whether a scan needing a delegated credential may be claimed for this agent.
      *
      * <p>True for an agent that is never handed one — {@code local}, or a mode this version cannot

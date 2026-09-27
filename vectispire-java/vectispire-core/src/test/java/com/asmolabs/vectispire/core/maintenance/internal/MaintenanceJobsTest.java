@@ -14,6 +14,8 @@ import com.asmolabs.vectispire.common.domain.notifications.OutboxRetry;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
+import com.asmolabs.vectispire.core.agents.CredentialedBacklog;
+import com.asmolabs.vectispire.core.agents.internal.CredentialedBacklogTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
 import com.asmolabs.vectispire.core.compliance.internal.AbandonedReviewsTask;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
@@ -82,6 +84,7 @@ class MaintenanceJobsTest {
     static final List<Class<? extends MaintenanceTask>> COMPOSITION = List.of(
             NotificationRelayTask.class,
             SchedulingTickTask.class,
+            CredentialedBacklogTask.class,
             ScanRetentionTask.class,
             SentMessagesTask.class,
             TicketSweepTask.class,
@@ -102,6 +105,7 @@ class MaintenanceJobsTest {
     private SessionCleanupService sessions;
     private InventoryBackfill backfill;
     private SchedulerService scheduler;
+    private CredentialedBacklog backlog;
     private IssueTriageService triage;
     private PostureDigestService digest;
     private TargetDeletionService targetDeletion;
@@ -121,6 +125,7 @@ class MaintenanceJobsTest {
         sessions = mock(SessionCleanupService.class);
         backfill = mock(InventoryBackfill.class);
         scheduler = mock(SchedulerService.class);
+        backlog = mock(CredentialedBacklog.class);
         triage = mock(IssueTriageService.class);
         digest = mock(PostureDigestService.class);
         targetDeletion = mock(TargetDeletionService.class);
@@ -136,10 +141,12 @@ class MaintenanceJobsTest {
         when(settings.asInt(Setting.EVIDENCE_RETENTION_DAYS)).thenReturn(400);
         when(triage.expireStale()).thenReturn(List.of());
         when(feed.syncIfDue()).thenReturn(java.util.Optional.empty());
+        when(backlog.unserved()).thenReturn(CredentialedBacklog.Unserved.NONE);
 
         tasks = List.of(
                 new NotificationRelayTask(outbox),
                 new SchedulingTickTask(scheduler),
+                new CredentialedBacklogTask(backlog, clock),
                 new ScanRetentionTask(retention),
                 new SentMessagesTask(outbox),
                 new TicketSweepTask(tickets),
@@ -210,6 +217,7 @@ class MaintenanceJobsTest {
 
         verify(outbox, never()).relay(anyInt());
         verify(scheduler, never()).runOnce();
+        verify(backlog, never()).unserved();
     }
 
     @Test
@@ -255,6 +263,9 @@ class MaintenanceJobsTest {
         // the shortest of the three.
         verify(outbox).relay(anyInt());
         verify(scheduler).runOnce();
+        // On the scheduler's minute: the scans needing a credential that nobody able to be handed it
+        // can take, which only a log line and a gauge would otherwise ever say.
+        verify(backlog).unserved();
         verify(retention, never()).prune();
     }
 

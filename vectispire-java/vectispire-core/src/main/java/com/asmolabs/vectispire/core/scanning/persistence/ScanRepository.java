@@ -431,6 +431,20 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
              group by s.requiredAgentLabel""")
     List<Object[]> countPendingByRequiredLabel(@Param("status") String status);
 
+    /**
+     * The waiting scans of repositories, grouped by the label they require <b>and</b> by repository,
+     * as {@code [requiredLabel, repoId, count]}: what the figure of the scans no capable executor can
+     * take starts from, since whether a scan needs a credential is its repository's to say.
+     *
+     * <p>One row per waiting repository and label, so as long as the queue's distinct targets — the
+     * scheduler stacks no second scan on a target whose first has not started.
+     */
+    @Query("""
+            select s.requiredAgentLabel, s.repoId, count(s.id) from ScanEntity s
+             where s.status = :status and s.repoId is not null
+             group by s.requiredAgentLabel, s.repoId""")
+    List<Object[]> countPendingByRequiredLabelAndRepository(@Param("status") String status);
+
     /** The scans of repositories in this status that were counted at least one attempt, as {@code [id, repoId]}. */
     @Query("""
             select s.id, s.repoId from ScanEntity s

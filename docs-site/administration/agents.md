@@ -137,7 +137,12 @@ So, for each `delegated` agent:
    any of their attempts**. Image scans and repositories without a credential still go to it. When
    those scans are all that is waiting for it, its poll is answered **412** with the step that is
    missing, and its log says so on every retry; nothing is sent. If no other executor can take
-   them, they wait until this agent is fixed: the agent's log and its row are where that shows.
+   them, they wait until this agent is fixed. The control plane says so too: the gauge
+   `vectispire.scans.credential.unserved` (under `/actuator/metrics`) counts the waiting scans of
+   repositories carrying a credential that no executor able to be handed it serves — an enabled
+   `local` agent, a `delegated` one with a verified key, or the built-in worker when it runs — and
+   its log warns, at most every fifteen minutes and again when the count grows, naming the labels
+   and the agents that would take them but hold no verified key.
 
 **Rotation is automatic.** Each start makes a new pair, stamped with its creation time; the control
 plane keeps the newest key signed with the pinned key and refuses an older one (**409**, audited).
