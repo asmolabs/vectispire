@@ -109,6 +109,7 @@
          <trusted-key id="C7BE5BCC9FEC15518CFDA882B0F3710FA64900E7" group="^com[.]google($|([.].*))" regex="true"/>
          <trusted-key id="C89074FC8BE681B7C7EAAB6E4C5EED3C53B75933" group="org.skyscreamer" name="jsonassert" version="1.5.3"/>
          <trusted-key id="C8D37E9675158FF5B29B6D6452FC3551DA8DC57E" group="com.mysql" name="mysql-connector-j" version="26.7.0"/>
+         <trusted-key id="CA3DBEC9E2437111422501634E0C1F66EC9AD124" group="org.immutables"/>
          <trusted-key id="CC57399D74CD7E4768ED6FA4CA62973FBF0451C0" group="com.vaadin.external.google" name="android-json" version="0.0.20131108.vaadin1"/>
          <trusted-key id="D54A395B5CF3F86EB45F6E426B1B008864323B92" group="org.antlr"/>
          <trusted-key id="DB467D22A2666D061FDD120DB5BD4591883D638C" group="com.tngtech.archunit"/>

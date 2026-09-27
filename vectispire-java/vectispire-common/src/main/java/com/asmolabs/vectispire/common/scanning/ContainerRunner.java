@@ -110,15 +110,24 @@ public final class ContainerRunner {
     }
 
     private static DockerClient defaultClient() {
+        return clientAt(resolveDockerHost());
+    }
+
+    /**
+     * The client of the daemon at {@code host} — blank for the configuration's own — one request per
+     * connection: see {@link OneRequestPerConnection}. Package-private so the suite that starts the
+     * shipped socket proxy builds exactly this one.
+     */
+    static DockerClient clientAt(String host) {
         DefaultDockerClientConfig.Builder builder = DefaultDockerClientConfig.createDefaultConfigBuilder();
-        String explicitHost = resolveDockerHost();
-        if (explicitHost != null && !explicitHost.isBlank()) {
-            builder.withDockerHost(explicitHost);
+        if (host != null && !host.isBlank()) {
+            builder.withDockerHost(host);
         }
         DefaultDockerClientConfig config = builder.build();
         return DockerClientImpl.getInstance(
                 config,
-                new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost()).build());
+                new OneRequestPerConnection(
+                        new ApacheDockerHttpClient.Builder().dockerHost(config.getDockerHost()).build()));
     }
 
     /**

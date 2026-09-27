@@ -53,6 +53,9 @@ dependencies {
     implementation(libs.apache.httpcore5.h2)
 
     implementation(libs.docker.java.transport)
+    // Read by javac only, never packaged: the catalogue says why naming a transport type needs it.
+    compileOnly(libs.immutables.annotations)
+    testCompileOnly(libs.immutables.annotations)
 
     // JGit rather than shelling out to the `git` binary. Three reasons, all of them things the
     // subprocess version could not do: the agent's host no longer needs git installed; failures

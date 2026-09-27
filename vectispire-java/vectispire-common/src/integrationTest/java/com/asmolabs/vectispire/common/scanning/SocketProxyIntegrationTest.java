@@ -49,6 +49,7 @@ class SocketProxyIntegrationTest {
 
     private static final DockerClient DOCKER = DockerClients.local();
     private static String proxy;
+    private static String proxyHost;
     private static ContainerRunner throughProxy;
 
     @BeforeAll
@@ -72,7 +73,10 @@ class SocketProxyIntegrationTest {
         DOCKER.startContainerCmd(proxy).exec();
         String port = DOCKER.inspectContainerCmd(proxy).exec().getNetworkSettings().getPorts().getBindings()
                 .get(api)[0].getHostPortSpec();
-        DockerClient proxied = DockerClients.at("tcp://127.0.0.1:" + port);
+        proxyHost = "tcp://127.0.0.1:" + port;
+        // The runner's own client, not the suite's: what goes through the proxy here is what the
+        // composition sends through it.
+        DockerClient proxied = ContainerRunner.clientAt(proxyHost);
         throughProxy = new ContainerRunner(proxied, PluginScannerIntegrationTest.SMALL_LIMITS);
         for (int attempt = 0; attempt < 50 && !throughProxy.isAvailable(); attempt++) {
             Thread.sleep(200);
@@ -106,6 +110,26 @@ class SocketProxyIntegrationTest {
                 throw new java.io.UncheckedIOException(e);
             }
         });
+    }
+
+    /**
+     * The proxy closes a connection ten seconds after its last response ({@code timeout
+     * http-keep-alive 10s}); a pooled client that reuses it sends its next request into a closed
+     * socket, and a {@code POST} is not retried. One request, a pause past the proxy's timeout, then a
+     * {@code POST} as the very next call — the one order that hands it the stale connection.
+     */
+    @Test
+    @DisplayName("a request after the proxy's idle timeout goes out on a live connection")
+    void afterAPause() throws InterruptedException {
+        DockerClient client = ContainerRunner.clientAt(proxyHost);
+        client.pingCmd().exec();
+        Thread.sleep(12_000);
+
+        String created = client.createContainerCmd(PROXY)
+                .withLabels(java.util.Map.of(ContainerRunner.SCANNER_LABEL, "idle-connection probe"))
+                .exec()
+                .getId();
+        DOCKER.removeContainerCmd(created).withForce(true).exec();
     }
 
     @Test

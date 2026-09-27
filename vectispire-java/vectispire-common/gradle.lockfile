@@ -42,6 +42,7 @@ org.bouncycastle:bcprov-jdk18on:1.86=compileClasspath,integrationTestCompileClas
 org.bouncycastle:bcutil-jdk18on:1.86=compileClasspath,integrationTestCompileClasspath,integrationTestRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.eclipse.jgit:org.eclipse.jgit.ssh.apache:7.8.0.202609011348-r=compileClasspath,integrationTestCompileClasspath,integrationTestRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.eclipse.jgit:org.eclipse.jgit:7.8.0.202609011348-r=compileClasspath,integrationTestCompileClasspath,integrationTestRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.immutables:value-annotations:2.10.1=compileClasspath,testCompileClasspath
 org.jacoco:org.jacoco.agent:0.8.14=jacocoAgent,jacocoAnt
 org.jacoco:org.jacoco.ant:0.8.14=jacocoAnt
 org.jacoco:org.jacoco.core:0.8.14=jacocoAnt
