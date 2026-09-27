@@ -4,7 +4,9 @@
 
 *Proposée le 2026-08-29 sous le titre « checks personnalisés en images de conteneur, pas en JAR » ;
 amendée et acceptée le 2026-09-27, quand les plugins ont été construits. Ce qui a changé depuis la
-proposition est listé à la fin.*
+proposition est listé à la fin. Amendée de nouveau le 2026-09-27 par le §9 (le signataire de l'image,
+vérifié avant le pull) et le §10 (ce qu'écrit un plugin est borné), les deux suites que la première
+version laissait ouvertes.*
 
 ## Contexte
 
@@ -74,11 +76,12 @@ un socket monté, jamais un démon propre au plugin), et il écrit **du SARIF 2.
 - **Seul l'arbre analysé est monté**, en lecture seule, sur `/repo/source` (le sous-chemin du dépôt
   s'il en a un, après que `SourceFiles.within` a prouvé qu'il est dans le clone). **Pas l'espace de
   travail** : sa racine contient le rapport de secrets en clair et le SBOM.
-- **Un seul répertoire accessible en écriture**, vide, créé pour l'exécution, sur `/repo/output` ; le
-  rapport est lu dans `/repo/output/<output>`, pas sur la sortie standard, pour que le plugin puisse
-  journaliser librement. Il est lu comme un fichier ordinaire, pas à travers un lien, et seulement
-  jusqu'au plafond de sortie des scanners (`ScannerLimits.outputBytes`, celui ajouté le 2026-09-26),
-  appliqué pendant la lecture.
+- **Un seul répertoire accessible en écriture**, vide, sur `/repo/output`, **qui ne contient pas plus que
+  le plafond de sortie des scanners** (`ScannerLimits.outputBytes`, 256 Mio) et 4 096 fichiers — un
+  tmpfs à taille limitée, jamais un répertoire de l'hôte (§10). Le rapport est lu dans
+  `/repo/output/<output>`, pas sur la sortie standard, pour que le plugin puisse journaliser librement ;
+  il est lu comme un fichier ordinaire, pas à travers un lien, jusqu'au même plafond, vérifié avant que
+  son contenu soit lu.
 - **Réseau `none`.** Un plugin qui a besoin du réseau le dit dans son manifeste avec une justification
   écrite (20 à 500 caractères), que le gouverneur enregistre et que le journal d'audit porte — le
   précédent de Grype rendu explicite. Il n'y a pas d'autre moyen de l'ouvrir.
@@ -95,6 +98,9 @@ La campagne conteneurs lance un busybox épinglé qui rapporte son propre confin
 — pas l'uid 0, pas d'ethernet ni de route, image et arbre en lecture seule, espace temporaire `noexec`,
 pas de socket, et `/repo` ne contenant que `source` et `output` (`PluginScannerIntegrationTest`).
 
+Un manifeste peut aussi nommer **qui doit avoir signé l'image** (§9) ; l'exécuteur le vérifie alors
+avec cosign avant que l'image soit tirée, et n'en lance jamais une qu'il ne vérifie pas.
+
 ### 2. Le manifeste
 
 ```json
@@ -108,7 +114,11 @@ pas de socket, et `/repo` ne contenant que `source` et `output` (`PluginScannerI
   "exit_codes": [0, 1],
   "network": false,
   "network_justification": null,
-  "timeout_seconds": 600
+  "timeout_seconds": 600,
+  "signature": {
+    "identity": "https://github.com/acme/lint/.github/workflows/release.yml@refs/tags/v4.2.0",
+    "issuer": "https://token.actions.githubusercontent.com"
+  }
 }
 ```
 
@@ -123,9 +133,12 @@ pas de socket, et `/repo` ne contenant que `source` et `output` (`PluginScannerI
 | `exit_codes` | Les codes qui signifient « analysé », constats ou non ; `[0]` par défaut. Tout autre code fait échouer l'étape. |
 | `network` / `network_justification` | Coupé par défaut ; ouvert seulement avec une justification, et une justification sans lui est refusée. |
 | `timeout_seconds` | 10 à 900, ou absent pour la durée des scanners. |
+| `signature` | Facultatif (§9). Sans clé — `identity` et `issuer`, les deux, comparés à l'identique — ou `public_key`, une clé publique PEM (ECDSA P-256/384/521, Ed25519, RSA d'au moins 2 048 bits). Exactement l'une des deux formes. Absent : l'image n'est reconnue que par son digest, ce qu'un exécuteur peut refuser. |
 
 Le **digest** du manifeste (`PluginManifest.digest`) couvre tous les champs. Mémoire, processus et CPU
-sont ceux des scanners et ne se négocient pas plugin par plugin.
+sont ceux des scanners et ne se négocient pas plugin par plugin. Le signataire n'est ajouté aux champs
+du digest **que lorsqu'il est déclaré**, si bien qu'un manifeste sans signataire se hache exactement
+comme avant l'existence du champ (§9).
 
 **Un registre interne** : `vectispire.scanning.plugin-registry` (`VECTISPIRE_PLUGIN_REGISTRY`, et
 `vectispire.agent.images.plugin-registry` côté agent) reloge chaque image de plugin — l'hôte du
@@ -309,6 +322,133 @@ encore, et une version à moitié faite ouvrirait le réseau plus largement que 
 dès aujourd'hui — avec tout le réseau, et c'est exactement pour cela que la justification est exigée et
 auditée.
 
+### 9. Qui a construit l'image : un signataire déclaré, vérifié avant le pull
+
+Le digest est l'intégrité, pas la provenance. Il dit *ce qui* tourne et rien de qui l'a fabriqué : un
+gouverneur qui colle un digest depuis une merge request se porte garant d'octets que personne n'a
+examinés, et un registre qui sert le digest sert ce qu'y a poussé quiconque pouvait pousser.
+
+**Ce que déclare le gouverneur.** Le champ facultatif `signature` du manifeste, sous l'une de deux
+formes :
+
+- **sans clé** (keyless) — `identity` et `issuer` : le sujet du certificat Fulcio qui a signé l'image (l'URI
+  d'un workflow de CI, l'adresse d'un compte de service) et l'émetteur OIDC qui s'en est porté garant.
+  **Les deux, et comparés à l'identique.** Le `--certificate-identity-regexp` de cosign n'est pas
+  proposé : `.*acme.*` admet `evil-acme.example`, et une erreur d'ancrage n'est pas de celles qu'une
+  relecture attrape. L'une des deux moitiés seule admet quiconque l'autre admet ; l'une sans l'autre est
+  donc refusée.
+- **par clé** — `public_key` : la clé publique PEM avec laquelle l'organisation signe (le `cosign.pub` de
+  `cosign generate-key-pair`). La clé est la racine de confiance, donc le journal de transparence n'est
+  **pas** consulté (`--insecure-ignore-tlog`) : une organisation qui signe ses images internes avec sa
+  propre clé n'a pas à publier leurs noms dans un journal public, et la vérification n'a besoin que du
+  registre, rien de Sigstore.
+
+**Facultatif par plugin ; exigible par exécuteur.** Un plugin qui déclare un signataire est vérifié
+partout où il tourne, quels que soient les réglages de l'exécuteur. Qu'un exécuteur lance ou non un
+plugin qui n'en déclare aucun relève de `VECTISPIRE_PLUGIN_SIGNATURE_REQUIRED`
+(`vectispire.scanning.plugin-signature-required` sur le worker intégré,
+`vectispire.agent.images.plugin-signature-required` sur un agent), **désactivé par défaut** ; activé,
+un plugin non signé est absent avec la raison et rien n'est démarré. Le réglage appartient à
+l'exécuteur plutôt qu'à la plateforme parce que c'est l'hôte de l'exécuteur qui lance le code :
+l'exploitant d'un agent peut refuser du code non signé quoi que le gouverneur ait enregistré, et un
+agent ne doit pas avoir besoin du plan de contrôle pour savoir ce qu'il a le droit d'exécuter — un
+réglage de plateforme qu'il irait chercher serait précisément l'autorité qu'il refuse de croire sur
+parole. *Désactivé par défaut est un choix du propriétaire et peut s'inverser : chaque plugin déjà
+enregistré serait alors absent jusqu'à ce qu'il déclare un signataire.*
+
+**Où, et comment.** Les deux exécuteurs lancent des plugins, donc les deux vérifient, et l'agent n'a
+besoin de rien de ce que détient le plan de contrôle : le signataire est dans le manifeste qu'il
+récupère déjà par id et digest, et le vérificateur est dans `vectispire-common`. Le vérificateur est
+**cosign lui-même, lancé comme un scanner** : `ghcr.io/sigstore/cosign/cosign` v3.1.3 — la version du
+workflow de release — épinglé par le digest de son index multi-architecture, lancé par
+`ContainerRunner` dans la forme fermée (pas root, racine en lecture seule, aucune capacité, les limites
+des scanners, supprimé dans un `finally`), relogé vers le registre des plugins comme l'image d'un
+plugin. Une implémentation Java a été écartée : une chaîne Fulcio, la preuve d'inclusion d'un journal
+de transparence, un client TUF pour la racine de confiance et la disposition des signatures dans le
+registre feraient un second cosign à tenir au pas de la façon dont cosign signe, dans le plan de
+contrôle et sur chaque agent.
+
+**Le réseau, dit tel quel.** La signature vit dans le registre, donc le vérificateur a le réseau — le
+précédent de Grype, pour l'outil épinglé de Vectispire lui-même. Il ne reçoit **aucun fichier de la
+cible** : ni arbre, ni espace de travail ; la seule clé publique, montée en lecture seule, quand le
+manifeste en déclare une. La vérification sans clé récupère la racine de confiance de Sigstore depuis
+son dépôt TUF et vérifie l'inclusion dans le journal hors ligne, depuis le bundle de la signature ; la
+vérification par clé n'atteint que le registre — **la forme hors ligne**, pour ce qui est de Sigstore.
+Le vérificateur ne reçoit **aucun identifiant de registre** : une image qu'un registre ne sert qu'à un
+pull authentifié ne peut pas être vérifiée, et elle est absente. Un miroir réglé par
+`VECTISPIRE_PLUGIN_REGISTRY` doit porter les signatures aussi (`cosign copy` le fait) : la référence
+vérifiée est celle qui est tirée.
+
+**Avant le pull, et la vérification est la barrière.** Le vérificateur tourne avant que le conteneur
+du plugin soit créé, donc avant que son image soit récupérée : une image que personne n'a vérifiée
+n'est même pas sur l'hôte. Toute réponse autre que la sortie 0 de cosign — aucune signature, un autre
+signataire, un registre ou une racine de confiance injoignable, le vérificateur lui-même incapable de
+démarrer — rend le plugin **absent**, avec les mots de cosign comme raison ; l'image ne tourne jamais.
+Rien n'est mis en cache : chaque analyse vérifie chaque plugin signé, un aller-retour au registre
+chacun, un coût accepté pour qu'une signature révoquée ou repoussée se voie à l'analyse suivante.
+
+**Le digest, et les manifestes conservés.** Le signataire est dans le digest du manifeste — le changer
+est un nouveau manifeste, audité comme les autres, et une tâche ne peut pas recevoir une image sous un
+signataire que le gouverneur n'a pas nommé. Il n'est ajouté **que lorsqu'il est déclaré** : chaque ligne
+que garde `t_plugin_manifest` est indexée par son digest, et une formule qui aurait changé pour tous les
+manifestes les aurait laissés se hacher vers rien de ce que leurs tâches nomment — servis à personne,
+chaque plugin absent jusqu'à un nouvel enregistrement. La formule sans signataire est épinglée par
+valeur (`PluginSignatureTest`) ; V41 n'est pas publiée, mais une base de développement continue de
+fonctionner tout de même, et la colonne JSON n'a besoin d'aucune migration. Le résumé d'audit nomme le
+signataire : l'identité et l'émetteur, ou l'empreinte de la clé.
+
+**Ce que cela ne prouve pas.** Que le signataire est celui que croit le gouverneur : la déclaration est
+la sienne, auditée comme le reste du manifeste. Un signataire dont la CI est compromise signe ce qu'on
+lui donne ; l'épinglage par digest dit toujours de quels octets il s'agissait.
+
+### 10. Ce qu'écrit un plugin est borné
+
+La première version montait en écriture un répertoire de l'espace de travail sur `/repo/output`, et
+**un montage de répertoire ne porte aucune taille** : un plugin pouvait remplir le disque de
+l'exécuteur aussi longtemps que sa durée le permettait. Le rapport était lu jusqu'au plafond ; rien ne
+bornait ce qui était écrit à côté.
+
+Ce qui a été pesé, face au point d'accès Docker que le projet utilise réellement — le proxy de socket,
+dont le filtre ouvre `CONTAINERS`, `IMAGES`, `POST` et ferme `VOLUMES` :
+
+| Option | Pourquoi pas, ou pourquoi |
+|---|---|
+| `HostConfig.Tmpfs` avec `size=` | La borne évidente, et elle ne se relit pas : l'API d'archive répond « Could not find the file » pour un tmpfs de conteneur, qu'il tourne ou soit arrêté (mesuré, Docker 29). |
+| Un volume nommé à taille limitée | Il faut l'API `/volumes` que le proxy ferme, et le pilote local ne dimensionne que le tmpfs. |
+| `--storage-opt size=` sur la couche inscriptible | overlay2 sur xfs avec `pquota` seulement, et le système de fichiers racine reste de toute façon en lecture seule. |
+| Un chien de garde qui interroge le répertoire | Pas une borne : un plugin écrit des gigaoctets entre deux interrogations. |
+| **Un volume tmpfs déclaré dans la création, tenu par un gardien** | Construit. |
+
+**Comment.** `ContainerRun.withBoundedOutput` : un volume anonyme du pilote local, `type=tmpfs` avec
+`size=` (le plafond) et `nr_inodes=4096`, appartenant à l'`uid:gid` du plugin, mode `0700`, `noexec`,
+`nosuid`, `nodev`, déclaré dans `Mounts` à l'intérieur de `POST /containers/create` — aucun appel à
+`/volumes`. Un volume tmpfs est vidé quand le dernier conteneur qui l'utilise s'arrête ; un **gardien**
+— un busybox épinglé qui ne fait que dormir, dans la même forme fermée — le détient donc ; le plugin
+l'atteint par `VolumesFrom` ; une fois le plugin terminé, le rapport est lu depuis le gardien par l'API
+d'archive ; puis le gardien est arrêté et imprime le `df` du répertoire, en octets et en inodes, qui est
+la mesure même du noyau de « plein » plutôt qu'une supposition tirée de ce qui y reste. Les deux
+conteneurs, et le volume avec eux, sont étiquetés et supprimés dans un `finally` ; un gardien qu'un
+plantage aurait laissé expire après la durée du plugin plus dix minutes.
+
+**Plein veut dire absent.** Moins d'une page ou aucun inode restant signifie qu'une écriture a été
+refusée, ou que la suivante l'aurait été : le plugin est absent — son rapport, aussi bien formé soit-il,
+n'est pas cru, puisque ce qu'il n'a pas pu écrire n'y est pas (0007).
+
+**Chaque fichier du plugin est borné aussi.** Le plugin reçoit une limite `fsize` au plafond. Un tmpfs
+garde un fichier creux de n'importe quelle taille apparente dans aucune page, et le démon archive la
+taille apparente : sans la limite, un `truncate -s 1T` à côté du rapport serait relu comme un téraoctet
+de zéros. Elle s'applique à chaque fichier qu'écrit le plugin, son espace temporaire compris : un plugin
+ne peut écrire nulle part un fichier plus grand que le plafond. Un processus enfant qui la dépasse est
+tué (`SIGXFSZ`, sortie 153, rapportée comme telle) ; le premier processus du conteneur n'est pas tué par
+un signal par défaut et reçoit `EFBIG` à la place.
+
+**De la mémoire, pas du disque.** Les pages sont imputées au plafond mémoire du plugin lui-même (2 Gio, à
+côté de `/tmp` et `$HOME`) ; le disque de l'hôte n'est pas touché du tout. La campagne conteneurs le
+prouve : un plugin qui remplit son répertoire, qui l'inonde de fichiers, qui écrit un téraoctet creux ou
+un fichier au-delà de la limite, qui laisse un lien, chacun absent avec sa raison, l'espace de travail
+inchangé, rien de laissé derrière — et la même exécution à travers le proxy de socket épinglé avec le
+filtre de la composition (`SocketProxyIntegrationTest`).
+
 ## Conséquences
 
 - Une migration, `V41`, écrite une fois dans `common` : `t_plugin`, `t_plugin_manifest`,
@@ -320,14 +460,21 @@ auditée.
   `targets` ; `scanning` déclare le port `ScanPlugins` qu'il implémente. La route des agents vit dans
   `agents`, par ce port.
 - **Un agent sur un réseau fermé échoue au pull**, ce qui laisse le plugin absent et son backlog intact.
-  Pré-télécharger, ou pointer `VECTISPIRE_PLUGIN_REGISTRY` vers un registre que les agents atteignent.
+  Pré-télécharger, ou pointer `VECTISPIRE_PLUGIN_REGISTRY` vers un registre que les agents atteignent —
+  il doit alors porter `library/busybox` (le gardien de la sortie) et, pour les plugins signés,
+  `sigstore/cosign/cosign` et les signatures.
+- **Un plugin signé a besoin du registre depuis l'exécuteur à chaque analyse**, la vérification sans
+  clé du dépôt TUF de Sigstore aussi. Un registre qui exige une authentification pour la lecture ne peut
+  pas encore être vérifié : le vérificateur ne détient aucun identifiant.
 - **Ce qui est abandonné** : l'extension dans le processus ; un plugin voit un arbre et émet des
   constats sur cet arbre, et un contrôle qui a besoin du corpus est une règle sur les données ingérées,
   pas un plugin.
-- **Non borné** : le disque dans lequel le plugin écrit sous `/repo/output` — un montage de répertoire ne
-  peut pas porter de limite de taille. Le rapport est lu jusqu'au plafond, le conteneur jusqu'à sa
-  durée ; un volume à taille limitée est une suite à donner. La vérification cosign de l'image avant le
-  pull aussi.
+- **Ce qu'écrit un plugin est borné** (§10) : le plafond et 4 096 fichiers dans `/repo/output`, aucun
+  fichier plus grand que le plafond nulle part, en mémoire plutôt que sur le disque de l'hôte. Un plugin
+  qui a besoin d'écrire plus que le plafond de sortie des scanners ne peut pas tourner ici.
+- **Non construit** : des identifiants de registre pour le vérificateur ; une vérification sans clé
+  entièrement hors ligne (un fichier de racine de confiance et un bundle de signature livrés avec le
+  manifeste) ; la mise en cache d'une vérification d'une analyse à l'autre.
 
 ## Ce qui a changé depuis la proposition du 2026-08-29
 
@@ -340,4 +487,5 @@ auditée.
 | Contrôles globaux d'abord, par cible ensuite | Activation par projet dès le départ ; rien de global. |
 | Aucun modèle de langages | Langages déclarés, recensement borné, et un troisième état : non applicable. |
 | — | Import de SARIF depuis des sources internes déclarées. |
-| Vérification cosign en phase 3 | Toujours une suite à donner. |
+| Vérification cosign en phase 3 | Construite (§9) : un signataire déclaré, sans clé ou par clé, vérifié par un cosign épinglé avant le pull ; un exécuteur peut en exiger un. |
+| — | Ce qu'écrit un plugin est borné (§10) : un volume tmpfs tenu par un gardien, `fsize`, `nr_inodes`. |
