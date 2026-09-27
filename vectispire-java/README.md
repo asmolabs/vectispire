@@ -173,6 +173,7 @@ same name; decision records written before that date keep the names they had.
 | A SIEM signature identifier does not change meaning | `SecurityEventTypeTest` |
 | A username cannot forge a second CEF event or a field | `CefEventTest`, `SiemSignalsRoutesTest` |
 | A controller writes no audit entry; the service performing the action does | `ArchitectureTest` |
+| No controller decides what a caller sees: it resolves a `Visibility`, refuses a target it names through `Visibilities`, and hands the allowance to the service — it asks it nothing and tests no kind of it | `ArchitectureTest.controllersDecideNoVisibility` |
 | No third-party asset is referenced by the interface | `check-assets.mjs`, run by `npm test` |
 | A `local` agent never receives a deployment key | `ScanDispatcherTest` |
 | A delegated credential leaves only sealed for a sealing key the agent's pinned signing key vouched for — never in the clear; an unsigned, stale or absent announcement neither replaces nor clears the accepted key | `SealingKeyAttestationTest`, `AgentSealingKeyRoutesTest`, `ScanDispatcherTest`, `AgentSealingKeyIntegrationTest` (MySQL, PostgreSQL), `AgentSealingKeyAnnouncementTest` |
@@ -387,6 +388,8 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
 | A plugin's output was a directory of the workspace bound writable, and a bind mount carries no size: a plugin could fill the executor's disk. `HostConfig.Tmpfs` was the obvious bound and cannot be read back — the archive API does not see a container's tmpfs — so the output is a tmpfs volume declared in the create and kept by a holder, measured by the kernel's `df` | `ContainerRunner`, `ContainerRun.BoundedOutput` |
 | The NestJS prefix pattern backtracked in the cube of a run of spaces — two seconds for 2,000 of them — and the Spring parser searched the whole file once per annotation: one committed file held a scan worker, in the built-in worker the control plane's own process | `ApiDiscoveryScanner`, `AnalysisBudget` |
+| A single sign-on was orchestrated by the success handler in three commits — the subject's binding, the teams its groups claimed, the session — so a session that failed to open left the account bound and its teams reconciled for somebody never signed in. The flow is the service's, those three in one transaction and the audit entry after it | `AuthenticationFlowService.completeFederatedSignIn`, `FederatedSignInTest` |
+| The gate's verdict route and its policy routes each parsed a severity in their own controller, and the copies had diverged — one trimmed `" none "`, the other refused it. One reading now, in the gate's service layer | `GatePolicyFields` |
 
 ### Shapes chosen deliberately
 

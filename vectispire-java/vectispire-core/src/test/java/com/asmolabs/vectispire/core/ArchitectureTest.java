@@ -337,6 +337,32 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("no controller decides what a caller sees: it resolves a Visibility and hands it on")
+    void controllersDecideNoVisibility() {
+        // A route resolves the allowance (`VisibilityService.of`) and refuses a target it names
+        // (`Visibilities.requireVisible`, 404 never 403); what the allowance lets through of a read
+        // is the service's. The licence routes narrowed the inventory row by row and refused the
+        // estate's summary with an `instanceof Visibility.Everything` of their own, beside a service
+        // that already held the same filter for the evidence bundle — two copies of one decision,
+        // and the next route over the same service would have had neither. Asking the allowance
+        // anything (`permits`, `asFilter`, `isEmpty`, `and`) or testing which kind it is, is that
+        // decision. The security web layer is left out: the filter chain builds the allowance.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .and().resideOutsideOfPackage(SECURITY_WEB)
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "a question to a Visibility",
+                        call -> call.getTargetOwner().isAssignableTo(
+                                        com.asmolabs.vectispire.common.domain.access.Visibility.class)
+                                && Set.of("permits", "asFilter", "isEmpty", "and").contains(call.getName())))
+                .orShould().dependOnClassesThat().areAssignableTo(
+                        com.asmolabs.vectispire.common.domain.access.Visibility.Everything.class)
+                .orShould().dependOnClassesThat().areAssignableTo(
+                        com.asmolabs.vectispire.common.domain.access.Visibility.Only.class)
+                .check(classes);
+    }
+
+    @Test
     @DisplayName("the domain depends on no framework and no driver")
     void domainIsPure() {
         // A pure calculation importing Hibernate stops being testable without a database;
