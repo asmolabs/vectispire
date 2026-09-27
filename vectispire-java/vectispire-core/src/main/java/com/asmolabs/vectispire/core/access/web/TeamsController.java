@@ -1,8 +1,10 @@
 package com.asmolabs.vectispire.core.access.web;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.TeamAdministrationService.TeamView;
 import com.asmolabs.vectispire.core.access.TeamAdministrationService;
+import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
@@ -34,8 +36,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class TeamsController {
 
     private final TeamAdministrationService teams;
+    private final VisibilityService visibility;
 
-    public TeamsController(TeamAdministrationService teams) {
+    public TeamsController(TeamAdministrationService teams, VisibilityService visibility) {
+        this.visibility = visibility;
         this.teams = teams;
     }
 
@@ -143,7 +147,7 @@ public class TeamsController {
                         ? null
                         : new TeamAdministrationService.TargetAssignment(assignment.kind(), assignment.id()))
                 .toList();
-        return teams.replaceTargets(id, requested, actor(principal, request));
+        return teams.replaceTargets(id, requested, granter(principal), actor(principal, request));
     }
 
     /**
@@ -157,6 +161,11 @@ public class TeamsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return summaryOf(teams.setWebhook(id, body == null ? null : body.url(), actor(principal, request)));
+    }
+
+    /** What the administrator granting may see: a grant is refused as absent outside it. */
+    private Visibility granter(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
     /** The principal's own name, agents included, as this route has always attributed it. */

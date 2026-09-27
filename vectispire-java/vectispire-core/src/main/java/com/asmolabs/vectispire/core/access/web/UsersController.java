@@ -1,9 +1,11 @@
 package com.asmolabs.vectispire.core.access.web;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService.AccountView;
 import com.asmolabs.vectispire.core.access.AccountAdministrationService;
 import com.asmolabs.vectispire.core.access.GrantableTargets;
 import com.asmolabs.vectispire.core.access.UserView;
+import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAdministrator;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
@@ -31,8 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsersController {
 
     private final AccountAdministrationService accounts;
+    private final VisibilityService visibility;
 
-    public UsersController(AccountAdministrationService accounts) {
+    public UsersController(AccountAdministrationService accounts, VisibilityService visibility) {
+        this.visibility = visibility;
         this.accounts = accounts;
     }
 
@@ -136,7 +140,7 @@ public class UsersController {
                 .toList();
         // What was stored, not what was sent: the two differ by every entry the service skipped or
         // normalized, and a screen showing the request would show assignments that do not exist.
-        return accounts.replaceTargets(id, requested, RequestActors.of(principal, request));
+        return accounts.replaceTargets(id, requested, granter(principal), RequestActors.of(principal, request));
     }
 
     @DeleteMapping("/{id}")
@@ -146,6 +150,11 @@ public class UsersController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         accounts.delete(id, actingAccountId(principal), RequestActors.of(principal, request));
+    }
+
+    /** What the administrator granting may see: a grant is refused as absent outside it. */
+    private Visibility granter(VectispirePrincipal principal) {
+        return visibility.of(principal.user().orElse(null), principal.credentialRestriction());
     }
 
     private static Long actingAccountId(VectispirePrincipal principal) {

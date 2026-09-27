@@ -71,11 +71,14 @@ made is visible to its holders as soon as it is filed; a repository moved out st
 through that grant at the same moment. Nothing is re-granted, which is the point — and why moving a
 repository between projects is audited as the access change it is.
 
-There is no grant on a solution: grant each of its projects. A grant naming a project that does not
-exist is refused. Deleting a project revokes every grant naming it.
+There is no grant on a solution: grant each of its projects. A new grant naming a project, a
+repository or an image that does not exist — or one the administrator granting cannot see — is
+refused with `404`, the same answer in both cases, and the account's or team's grants stay as they
+were. Deleting a project, a repository or an image revokes every grant naming it.
 
 The grant lists of an account and of a team show each target by name — a project as
-`Solution / Project` — and a target that has since been deleted as "deleted target". The access
+`Solution / Project` — and a target that has since been deleted as "deleted target". Such a grant
+is kept when the list is saved again, so the list stays editable; remove it to revoke it. The access
 dialogs on **Users** and **Teams** offer every project, as *Project — Solution / Project*, next to
 the repositories and images.
 

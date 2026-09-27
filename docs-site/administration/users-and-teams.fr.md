@@ -73,12 +73,16 @@ visible de ses titulaires dès qu'il y est rangé ; un dépôt qui en sort cesse
 cette attribution au même instant. Rien n'est réattribué, c'est tout l'intérêt — et c'est pourquoi
 déplacer un dépôt d'un projet à l'autre est audité comme le changement d'accès qu'il est.
 
-Il n'y a pas d'attribution sur une solution : attribuez chacun de ses projets. Une attribution
-nommant un projet inexistant est refusée. Supprimer un projet révoque toute attribution qui le
-nomme.
+Il n'y a pas d'attribution sur une solution : attribuez chacun de ses projets. Une nouvelle
+attribution nommant un projet, un dépôt ou une image inexistant — ou que l'administrateur qui
+attribue ne voit pas — est refusée par un `404`, la même réponse dans les deux cas, et les
+attributions du compte ou de l'équipe restent ce qu'elles étaient. Supprimer un projet, un dépôt ou
+une image révoque toute attribution qui le nomme.
 
 Les listes d'attributions d'un compte et d'une équipe montrent chaque cible par son nom — un projet
-sous la forme `Solution / Projet` — et une cible supprimée depuis comme « deleted target ». Les
+sous la forme `Solution / Projet` — et une cible supprimée depuis comme « deleted target ». Une telle
+attribution est conservée quand la liste est enregistrée de nouveau, pour que la liste reste
+modifiable ; retirez-la pour la révoquer. Les
 fenêtres d'accès des écrans **Utilisateurs** et **Équipes** proposent chaque projet, sous la forme
 *Projet — Solution / Projet*, à côté des dépôts et des images.
 

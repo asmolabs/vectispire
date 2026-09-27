@@ -324,17 +324,17 @@ class SolutionsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a grant naming a project that does not exist is refused, for an account and for a team")
+    @DisplayName("a grant naming a project that does not exist is refused as absent, for an account and for a team")
     void aGrantOnAMissingProjectIsRefused() throws Exception {
         asReader();
         mvc.perform(authenticated(put("/api/v1/users/" + readerId() + "/targets"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(List.of(Map.of("kind", "project", "id", 987654)))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
         mvc.perform(authenticated(put("/api/v1/teams/" + team(unique("missing")) + "/targets"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(List.of(Map.of("kind", "project", "id", 987654)))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     @Test

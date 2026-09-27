@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.OutboundUrlGuard;
@@ -261,20 +262,28 @@ public class TeamAdministrationService {
      * Replaces the targets wholesale.
      *
      * @param requested as sent; a null entry, or one with no id, is skipped
+     * @param granter what the administrator granting may see: a new grant outside it, or naming a
+     *     target that does not exist, is refused as absent ({@link GrantTargets})
      * @return the assignments as stored, named
      */
     public List<GrantableTargets.TargetGrant> replaceTargets(
-            long id, List<TargetAssignment> requested, RequestActor actor) {
+            long id, List<TargetAssignment> requested, Visibility granter, RequestActor actor) {
         TeamEntity team = requireTeam(id);
+        java.util.Set<TargetAssignment> held = targets.findByTeamId(id).stream()
+                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .collect(java.util.stream.Collectors.toSet());
         List<TargetAssignment> wanted = new ArrayList<>();
         for (TargetAssignment assignment : requested) {
             if (assignment == null || assignment.id() == null) {
                 continue;
             }
-            // The kind is validated against those that exist, and a project against the table. An
-            // unrecognised kind stored here would resolve to nothing forever — an assignment the
-            // screen shows and that grants nothing, which is the most confusing possible outcome.
-            wanted.add(new TargetAssignment(grantTargets.validate(assignment.kind(), assignment.id()), assignment.id()));
+            // The kind is validated against those that exist, and the target against the tables and
+            // the granter's visibility. An unrecognised kind stored here would resolve to nothing
+            // forever — an assignment the screen shows and that grants nothing, which is the most
+            // confusing possible outcome.
+            String kind = grantTargets.validate(assignment.kind(), assignment.id(), granter,
+                    (normalized, targetId) -> held.contains(new TargetAssignment(normalized, targetId)));
+            wanted.add(new TargetAssignment(kind, assignment.id()));
         }
 
         targets.deleteByTeamId(id);

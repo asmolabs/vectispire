@@ -34,6 +34,12 @@ class AccountInputRoutesTest extends ApiTestBase {
     @Autowired
     private UserTargetRepository assignments;
 
+    @Autowired
+    private com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository repositories;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.targets.persistence.ContainerRepository containers;
+
     @Test
     @DisplayName("an e-mail or display name past its column is a 400, and no account is created")
     void identityFieldsAreBounded() throws Exception {
@@ -69,8 +75,10 @@ class AccountInputRoutesTest extends ApiTestBase {
     @DisplayName("a null entry, or one with no id, is skipped, and what is answered is what was stored")
     void nullsAreSkipped() throws Exception {
         long id = account("targets-nulls");
-        String body = "[null, {\"kind\":\"repository\"}, {\"kind\":\"Repository\",\"id\":7},"
-                + " {\"kind\":\"repository\",\"id\":7}, {\"kind\":\"container\",\"id\":3}]";
+        long repository = repository();
+        long image = container();
+        String body = "[null, {\"kind\":\"repository\"}, {\"kind\":\"Repository\",\"id\":" + repository + "},"
+                + " {\"kind\":\"repository\",\"id\":" + repository + "}, {\"kind\":\"container\",\"id\":" + image + "}]";
 
         MvcResult result = setTargets(id, body);
 
@@ -79,11 +87,10 @@ class AccountInputRoutesTest extends ApiTestBase {
                 result.getResponse().getContentAsString(),
                 new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, Object>>>() {});
         assertThat(answered)
-                .as("the kind lowercased, the duplicate collapsed, the unusable entries gone — and each "
-                        + "named, here as deleted since neither target was ever created")
-                .containsExactly(
-                        Map.of("kind", "repository", "id", 7, "name", "deleted target"),
-                        Map.of("kind", "container", "id", 3, "name", "deleted target"));
+                .as("the kind lowercased, the duplicate collapsed, the unusable entries gone — and each named")
+                .extracting(grant -> grant.get("kind") + ":" + grant.get("id"))
+                .containsExactly("repository:" + repository, "container:" + image);
+        assertThat(answered).extracting(grant -> grant.get("name")).doesNotContain("deleted target");
         assertThat(assignments.findByUserId(id)).hasSize(2);
     }
 
@@ -91,13 +98,29 @@ class AccountInputRoutesTest extends ApiTestBase {
     @DisplayName("an unknown or missing kind is a 400, and the previous assignments stay")
     void anUnknownKindIsRefused() throws Exception {
         long id = account("targets-kind");
-        assertThat(setTargets(id, "[{\"kind\":\"repository\",\"id\":1}]").getResponse().getStatus())
+        assertThat(setTargets(id, "[{\"kind\":\"repository\",\"id\":" + repository() + "}]").getResponse().getStatus())
                 .isEqualTo(200);
 
         assertThat(setTargets(id, "[{\"kind\":\"folder\",\"id\":2}]").getResponse().getStatus()).isEqualTo(400);
         assertThat(setTargets(id, "[{\"id\":2}]").getResponse().getStatus()).isEqualTo(400);
 
         assertThat(assignments.findByUserId(id)).hasSize(1);
+    }
+
+    private long repository() {
+        com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity repository =
+                new com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity();
+        repository.setUrl("https://example.invalid/granted-" + System.nanoTime() + ".git");
+        repository.setBranch("main");
+        return repositories.save(repository).getId();
+    }
+
+    private long container() {
+        com.asmolabs.vectispire.core.targets.persistence.ContainerEntity image =
+                new com.asmolabs.vectispire.core.targets.persistence.ContainerEntity();
+        image.setImageName("team/granted-" + System.nanoTime());
+        image.setTag("latest");
+        return containers.save(image).getId();
     }
 
     private long account(String username) {

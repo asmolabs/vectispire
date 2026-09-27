@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.access;
 
+import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.PasswordHasher;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
@@ -245,16 +246,22 @@ public class AccountAdministrationService {
      * revocation that silently does nothing.
      *
      * <p><b>Read as the team path reads it.</b> A null entry, or one with no id, is skipped; the kind
-     * is validated against those that exist and lowercased, and a project must exist. The body used
+     * is validated against those that exist and lowercased, and a new grant's target must exist and
+     * be one the granter sees — a grant already held is kept as it is ({@link GrantTargets}). The body used
      * to reach the table as sent: {@code [null]} or a missing id was a 500 from the insert, and an
      * unknown kind was stored — an assignment the screen showed and that granted nothing.
      *
      * @param requested as sent, possibly null or holding nulls
+     * @param granter what the administrator granting may see: a new grant outside it, or naming a
+     *     target that does not exist, is refused as absent ({@link GrantTargets})
      * @return the assignments as stored, which is what the screen must show — not what it sent
      */
     public List<GrantableTargets.TargetGrant> replaceTargets(
-            long id, List<TargetAssignment> requested, RequestActor actor) {
+            long id, List<TargetAssignment> requested, Visibility granter, RequestActor actor) {
         UserEntity user = requireAccount(id);
+        java.util.Set<TargetAssignment> held = assignments.findByUserId(id).stream()
+                .map(row -> new TargetAssignment(row.getId().targetKind(), row.getId().targetId()))
+                .collect(java.util.stream.Collectors.toSet());
 
         // A set, because the pair is the table's primary key: the same target sent twice is one
         // assignment, not a constraint violation.
@@ -263,7 +270,9 @@ public class AccountAdministrationService {
             if (assignment == null || assignment.id() == null) {
                 continue;
             }
-            unique.add(new TargetAssignment(grantTargets.validate(assignment.kind(), assignment.id()), assignment.id()));
+            String kind = grantTargets.validate(assignment.kind(), assignment.id(), granter,
+                    (normalized, targetId) -> held.contains(new TargetAssignment(normalized, targetId)));
+            unique.add(new TargetAssignment(kind, assignment.id()));
         }
         List<TargetAssignment> wanted = List.copyOf(unique);
 
