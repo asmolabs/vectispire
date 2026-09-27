@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.aireview.AiReviewStatus;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
@@ -15,6 +16,7 @@ import com.asmolabs.vectispire.core.scanning.ScanView;
 import com.asmolabs.vectispire.core.settings.BrandingProperties;
 import com.asmolabs.vectispire.core.targets.RepositoryView;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
+import java.time.Clock;
 import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +39,7 @@ public class OwaspReportService {
     private final IssueCatalog issues;
     private final AuditLogService audit;
     private final BrandingProperties branding;
+    private final Clock clock;
 
     public OwaspReportService(
             OwaspReviewService reviews,
@@ -44,19 +47,21 @@ public class OwaspReportService {
             ScanCatalog scans,
             IssueCatalog issues,
             AuditLogService audit,
-            BrandingProperties branding) {
+            BrandingProperties branding,
+            Clock clock) {
         this.reviews = reviews;
         this.targets = targets;
         this.scans = scans;
         this.issues = issues;
         this.audit = audit;
         this.branding = branding;
+        this.clock = clock;
     }
 
     /** @throws NoSuchElementException for a hidden or absent repository, or one never reviewed */
     public AiReviewResultView latest(long repositoryId, Visibility allowed) {
         visible(repositoryId, allowed);
-        return reviews.latest(repositoryId).map(AiReviewResultView::of)
+        return reviews.latest(repositoryId).map(row -> AiReviewResultView.of(row, clock.instant()))
                 .orElseThrow(() -> new NoSuchElementException(NO_REPORT));
     }
 
@@ -82,7 +87,7 @@ public class OwaspReportService {
                 ipAddress,
                 userAgent));
 
-        return AiReviewResultView.of(result);
+        return AiReviewResultView.of(result, clock.instant());
     }
 
     /**
@@ -96,27 +101,32 @@ public class OwaspReportService {
      */
     public byte[] pdf(long repositoryId, Visibility allowed) {
         RepositoryView repository = visible(repositoryId, allowed);
-        AiReviewResultEntity result =
+        AiReviewResultEntity row =
                 reviews.latest(repositoryId).orElseThrow(() -> new NoSuchElementException(NO_REPORT));
+        AiReviewResultView result = AiReviewResultView.of(row, clock.instant());
 
-        if (!"completed".equals(result.getStatus())) {
+        if (AiReviewStatus.RUNNING.wireName().equals(result.status())) {
             throw new OwaspReviewService.ReviewRefusedException(
-                    "The last run did not produce a report: " + result.getError());
+                    "The report is still being written. Export it once the model has answered.");
+        }
+        if (!AiReviewStatus.COMPLETED.wireName().equals(result.status())) {
+            throw new OwaspReviewService.ReviewRefusedException(
+                    "The last run did not produce a report: " + result.error());
         }
 
-        ScanView scan = scans.scan(result.getScanId()).orElse(null);
+        ScanView scan = scans.scan(result.scanId()).orElse(null);
         return OwaspReportPdf.render(
                 new OwaspReportPdf.Subject(
                         repository.name() == null ? RepositoryUrl.redact(repository.url()) : repository.name(),
                         repository.branch(),
                         scan == null ? null : scan.version(),
-                        result.getModel(),
-                        result.getScanId(),
+                        result.model(),
+                        result.scanId(),
                         scan == null ? null : scan.createdAt(),
-                        result.getCreatedAt(),
+                        result.createdAt(),
                         issues.countByStateAndRepository(IssueState.OPEN.wireName(), repositoryId),
                         branding.name()),
-                result.getResponse());
+                result.response());
     }
 
     private RepositoryView visible(long repositoryId, Visibility allowed) {

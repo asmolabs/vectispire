@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -21,9 +22,12 @@ import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * The OWASP report: what it is built from, and what it says when it cannot be built.
@@ -59,6 +64,12 @@ class OwaspReportTest extends ApiTestBase {
     @Autowired
     private com.asmolabs.vectispire.core.compliance.persistence.AiReviewResultRepository results;
 
+    @Autowired
+    private org.springframework.transaction.support.TransactionTemplate transactions;
+
+    @Autowired
+    private com.asmolabs.vectispire.core.compliance.OwaspReportService reports;
+
     private AiReviewService models;
     private OwaspReviewService service;
     private com.asmolabs.vectispire.core.targets.RepositoryView repository;
@@ -68,7 +79,10 @@ class OwaspReportTest extends ApiTestBase {
         models = Mockito.mock(AiReviewService.class);
         Mockito.when(models.isEnabled()).thenReturn(true);
         Mockito.when(models.selectedModel()).thenReturn("gemma4:12b-it-qat");
-        service = new OwaspReviewService(models, results, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), catalog, Clock.fixed(NOW, ZoneOffset.UTC));
+        Mockito.when(models.timeout()).thenReturn(java.time.Duration.ofSeconds(300));
+        service = new OwaspReviewService(
+                models, results, new com.asmolabs.vectispire.core.issues.IssueCatalog(issues), catalog, transactions,
+                Clock.fixed(NOW, ZoneOffset.UTC));
 
         RepositoryEntity entity = new RepositoryEntity();
         entity.setUrl("ssh://git@example.com/art/basalt-libs-spring.git");
@@ -118,6 +132,94 @@ class OwaspReportTest extends ApiTestBase {
             assertThat(stored.getError()).contains("Connection refused");
             assertThat(service.latest(repository.id())).get().extracting(AiReviewResultEntity::getStatus)
                     .isEqualTo("failed");
+        }
+    }
+
+    @Nested
+    @DisplayName("around the call to the model")
+    class AroundTheCall {
+
+        /**
+         * The call held a transaction open for as long as the model took — five minutes by default,
+         * a pooled connection and, on SQLite, the database file for all of it. Asked from inside the
+         * stub, because only there is the question about the call rather than about the method.
+         */
+        @Test
+        @DisplayName("no transaction is open while the model writes, and the request is already recorded as running")
+        void theCallHoldsNoTransaction() {
+            seedScan("1.17.6");
+            AtomicReference<Boolean> transactionOpen = new AtomicReference<>();
+            AtomicReference<AiReviewResultEntity> meanwhile = new AtomicReference<>();
+            Mockito.when(models.reviewCode(Mockito.anyString(), Mockito.anyString())).thenAnswer(call -> {
+                transactionOpen.set(TransactionSynchronizationManager.isActualTransactionActive());
+                meanwhile.set(service.latest(repository.id()).orElse(null));
+                return "## A06 — Vulnerable and Outdated Components";
+            });
+
+            AiReviewResultEntity stored = service.run(repository);
+
+            assertThat(transactionOpen.get()).as("a transaction was open during the model call").isFalse();
+            // Committed before the call: a reader arriving meanwhile sees a review under way, with the
+            // deadline past which nothing will be waiting for it.
+            assertThat(meanwhile.get()).isNotNull().satisfies(row -> {
+                assertThat(row.getStatus()).isEqualTo("running");
+                assertThat(row.getDeadlineAt()).isEqualTo(NOW.plusSeconds(300).plus(Duration.ofMinutes(1)));
+            });
+            assertThat(stored.getStatus()).isEqualTo("completed");
+            assertThat(results.findById(stored.getId())).get().satisfies(row -> {
+                assertThat(row.getStatus()).isEqualTo("completed");
+                assertThat(row.getDeadlineAt()).isNull();
+            });
+        }
+
+        @Test
+        @DisplayName("a review a stopped process left running reads as failed past its deadline, and the sweep writes it so")
+        void anAbandonedReviewIsSettled() throws Exception {
+            long scanId = seedScan("1.17.6");
+            AiReviewResultEntity lapsed = running(scanId, NOW.minusSeconds(1));
+
+            // Read as failed at once, before any sweep: an hour of "being written" over a request
+            // whose process is gone is the silent failure the running state must not introduce.
+            mvc.perform(authenticated(get("/api/v1/repositories/" + repository.id() + "/owasp-review"), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("failed"))
+                    .andExpect(jsonPath("$.error").value(Matchers.containsString("stopped before the model answered")));
+
+            AiReviewResultEntity waiting = running(scanId, NOW.plusSeconds(60));
+
+            assertThat(service.settleAbandoned()).isEqualTo(1);
+            assertThat(results.findById(lapsed.getId())).get().satisfies(row -> {
+                assertThat(row.getStatus()).isEqualTo("failed");
+                assertThat(row.getError()).contains("stopped before the model answered");
+            });
+            // One still inside its deadline is somebody's request in progress, and is left alone.
+            assertThat(results.findById(waiting.getId())).get()
+                    .extracting(AiReviewResultEntity::getStatus).isEqualTo("running");
+        }
+
+        @Test
+        @DisplayName("a review still being written has no PDF yet")
+        void aRunningReviewHasNoPdf() {
+            long scanId = seedScan("1.17.6");
+            running(scanId, Instant.now().plusSeconds(600));
+
+            // Refused, and refused as "not yet" rather than as the last run's failure: an empty
+            // response rendered onto an OWASP cover page would be a document that says nothing.
+            assertThat(org.assertj.core.api.Assertions.catchThrowable(() -> reports.pdf(
+                            repository.id(), com.asmolabs.vectispire.common.domain.access.Visibility.everything())))
+                    .isInstanceOf(OwaspReviewService.ReviewRefusedException.class)
+                    .hasMessageContaining("still being written");
+        }
+
+        private AiReviewResultEntity running(long scanId, Instant deadline) {
+            AiReviewResultEntity row = new AiReviewResultEntity();
+            row.setScanId(scanId);
+            row.setModel("gemma4:e4b");
+            row.setPrompt("p");
+            row.setStatus("running");
+            row.setCreatedAt(deadline.minusSeconds(360));
+            row.setDeadlineAt(deadline);
+            return results.save(row);
         }
     }
 

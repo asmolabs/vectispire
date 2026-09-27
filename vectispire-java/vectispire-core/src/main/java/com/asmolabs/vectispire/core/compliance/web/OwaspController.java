@@ -46,7 +46,9 @@ public class OwaspController {
 
     /**
      * @param status {@code completed} or {@code failed} — a failed run is returned, not hidden,
-     *     so "the model could not be reached at 14:32" is on the screen instead of an empty page
+     *     so "the model could not be reached at 14:32" is on the screen instead of an empty page —
+     *     or {@code running} while another request waits for the model: the review is recorded
+     *     before the model is asked, so a reader arriving meanwhile sees it under way
      * @param model recorded on the row: a report is an artefact of the model that wrote it, and
      *     comparing two reports written by different models without knowing it is a trap
      * @param content the model's answer as it came, kept so nothing renders a report the raw text

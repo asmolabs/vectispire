@@ -15,7 +15,9 @@ import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.core.access.SessionCleanupService;
 import com.asmolabs.vectispire.core.access.internal.SessionCleanupTask;
 import com.asmolabs.vectispire.core.compliance.ComplianceHistoryService;
+import com.asmolabs.vectispire.core.compliance.internal.AbandonedReviewsTask;
 import com.asmolabs.vectispire.core.compliance.internal.ComplianceHistoryTask;
+import com.asmolabs.vectispire.core.compliance.internal.OwaspReviewService;
 import com.asmolabs.vectispire.core.compliance.internal.SnapshotRetentionTask;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
 import com.asmolabs.vectispire.core.gate.internal.VerdictRetentionTask;
@@ -88,6 +90,7 @@ class MaintenanceJobsTest {
             SessionCleanupTask.class,
             VerdictRetentionTask.class,
             SnapshotRetentionTask.class,
+            AbandonedReviewsTask.class,
             OrphanedTargetRowsTask.class);
 
     private RetentionService retention;
@@ -102,6 +105,7 @@ class MaintenanceJobsTest {
     private ComplianceHistoryService complianceHistory;
     private GateVerdictRepository verdicts;
     private ComplianceSnapshotRepository snapshots;
+    private OwaspReviewService reviews;
     private List<MaintenanceTask> tasks;
     private MaintenanceJobs jobs;
 
@@ -119,6 +123,7 @@ class MaintenanceJobsTest {
         complianceHistory = mock(ComplianceHistoryService.class);
         verdicts = mock(GateVerdictRepository.class);
         snapshots = mock(ComplianceSnapshotRepository.class);
+        reviews = mock(OwaspReviewService.class);
         SettingsService settings = mock(SettingsService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-09-26T03:00:00Z"), ZoneOffset.UTC);
 
@@ -139,6 +144,7 @@ class MaintenanceJobsTest {
                 new SessionCleanupTask(sessions),
                 new VerdictRetentionTask(verdicts, settings, clock),
                 new SnapshotRetentionTask(snapshots, settings, clock),
+                new AbandonedReviewsTask(reviews),
                 new OrphanedTargetRowsTask(targetDeletion));
         jobs = new MaintenanceJobs(tasks);
     }
@@ -173,7 +179,7 @@ class MaintenanceJobsTest {
         // expire before the digest and the compliance capture read the backlog, and the orphaned
         // rows go last.
         InOrder turn = inOrder(retention, outbox, tickets, backfill, triage, digest, complianceHistory, sessions,
-                verdicts, snapshots, targetDeletion);
+                verdicts, snapshots, reviews, targetDeletion);
         turn.verify(retention).prune();
         turn.verify(outbox).pruneSent();
         turn.verify(tickets).sweep();
@@ -184,6 +190,7 @@ class MaintenanceJobsTest {
         turn.verify(sessions).prune();
         turn.verify(verdicts).deleteBefore(any());
         turn.verify(snapshots).deleteBefore(any());
+        turn.verify(reviews).settleAbandoned();
         turn.verify(targetDeletion).purgeOrphanedTargetData();
     }
 

@@ -60,6 +60,13 @@ public class AiReviewResultEntity {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /**
+     * When a {@code running} review stops being waited for: the model's timeout and a margin, from
+     * the request. Null once settled, and on every row written before reviews had a running state.
+     */
+    @Column(name = "deadline_at")
+    private Instant deadlineAt;
+
     public Long getId() {
         return id;
     }
@@ -130,5 +137,13 @@ public class AiReviewResultEntity {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getDeadlineAt() {
+        return deadlineAt;
+    }
+
+    public void setDeadlineAt(Instant deadlineAt) {
+        this.deadlineAt = deadlineAt;
     }
 }
