@@ -105,7 +105,7 @@ export class Epss implements OnInit {
         this.adviceError.set(null);
         this.advice.set(null);
 
-        this.intelApi.explainCveWithAi(record.cveId).subscribe({
+        this.intelApi.explainCveWithAi(record.cveId, this.i18n.currentLang()).subscribe({
             next: (advice) => {
                 this.advice.set(advice);
                 this.adviceLoading.set(false);

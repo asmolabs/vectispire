@@ -52,13 +52,14 @@ public class AiAdvisorController {
     @PostMapping("/explain/issue/{issueId}")
     public AiVulnerabilityAdvice explainIssue(
             @AuthenticationPrincipal VectispirePrincipal principal,
-            @PathVariable Long issueId) {
+            @PathVariable Long issueId,
+            @RequestParam(required = false) String language) {
         // The principal was already on this signature and was already unused — the route took
         // an identifier, found the row and explained it, whoever asked. An explanation names the
         // package, the file and the fix, which is the finding itself in prose. Absent and hidden
         // answer alike, in the service.
         return advisor.explainIssue(
-                issueId, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+                issueId, language, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 
     @RequiresWriteAccount
@@ -66,20 +67,18 @@ public class AiAdvisorController {
     public AiVulnerabilityAdvice explainCve(
             @AuthenticationPrincipal VectispirePrincipal principal,
             @PathVariable String cveId,
-            @RequestParam(required = false) String packageName,
-            @RequestParam(required = false) String currentVersion,
-            @RequestParam(required = false) String fixVersion) {
+            @RequestParam(required = false) String language) {
         // `reachability` was a parameter here, and the caller's word became the advice's
         // exposure: passing REACHABLE had the product answer "a code finding mentions this
-        // component". It is no longer read; a client still sending it is ignored, not refused.
+        // component". `packageName`, `currentVersion` and `fixVersion` went the same way, for the
+        // same reason — the caller's word printed as the advice's facts. None is read; a client
+        // still sending one is ignored, not refused. Removed rather than kept as deprecated: the
+        // route accepts no integration key (it carries no `@AcceptsApiKey`), so no integration can
+        // have depended on them, and neither screen sent them.
 
         // Narrowed before anything is read, so that a CVE present only in a target the caller was
         // not given gets exactly the answer a CVE present nowhere gets — see `AiAdvisorService`.
         return advisor.explainCve(
-                cveId,
-                packageName,
-                currentVersion,
-                fixVersion,
-                visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
+                cveId, language, visibility.of(principal.user().orElse(null), principal.credentialRestriction()));
     }
 }

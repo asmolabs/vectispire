@@ -8192,21 +8192,7 @@
           }
         }, {
           "in" : "query",
-          "name" : "packageName",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "currentVersion",
-          "required" : false,
-          "schema" : {
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "fixVersion",
+          "name" : "language",
           "required" : false,
           "schema" : {
             "type" : "string"
@@ -8237,6 +8223,13 @@
           "schema" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "language",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
           }
         } ],
         "responses" : {

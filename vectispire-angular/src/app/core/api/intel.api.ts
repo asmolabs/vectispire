@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ThreatIntelSyncStatus, EpssFleetSummary, ThreatIntelRecord, AiVulnerabilityAdvice } from '../api.models';
+import { SupportedLanguage } from '../i18n/i18n.service';
 
 /**
  * Threat intelligence — the KEV and EPSS feeds — and the model that explains a vulnerability.
@@ -42,24 +43,27 @@ export class IntelApi {
         );
     }
 
-    explainIssueWithAi(issueId: number): Observable<AiVulnerabilityAdvice> {
-        return this.http.post<AiVulnerabilityAdvice>(`/api/v1/ai-advisor/explain/issue/${issueId}`, {});
+    /**
+     * `language` is the one the screen is shown in: the model is asked to answer in it. Nothing on
+     * the server records a reader's language, so without it the answer is in English.
+     */
+    explainIssueWithAi(issueId: number, language: SupportedLanguage): Observable<AiVulnerabilityAdvice> {
+        return this.http.post<AiVulnerabilityAdvice>(
+            `/api/v1/ai-advisor/explain/issue/${issueId}`,
+            {},
+            { params: new HttpParams().set('language', language) }
+        );
     }
 
-    explainCveWithAi(
-        cveId: string,
-        pkg?: string,
-        currentVer?: string,
-        fixVer?: string
-    ): Observable<AiVulnerabilityAdvice> {
-        let params = new HttpParams();
-        if (pkg) params = params.set('packageName', pkg);
-        if (currentVer) params = params.set('currentVersion', currentVer);
-        if (fixVer) params = params.set('fixVersion', fixVer);
+    /**
+     * The identifier alone: the route took a package, a version and a fix and printed them as the
+     * advice's facts, and no longer reads them.
+     */
+    explainCveWithAi(cveId: string, language: SupportedLanguage): Observable<AiVulnerabilityAdvice> {
         return this.http.post<AiVulnerabilityAdvice>(
             `/api/v1/ai-advisor/explain/cve/${encodeURIComponent(cveId)}`,
             {},
-            { params }
+            { params: new HttpParams().set('language', language) }
         );
     }
 }

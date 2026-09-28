@@ -6346,9 +6346,7 @@ export interface operations {
     explainCve: {
         parameters: {
             query?: {
-                packageName?: string;
-                currentVersion?: string;
-                fixVersion?: string;
+                language?: string;
             };
             header?: never;
             path: {
@@ -6371,7 +6369,9 @@ export interface operations {
     };
     explainIssue: {
         parameters: {
-            query?: never;
+            query?: {
+                language?: string;
+            };
             header?: never;
             path: {
                 issueId: number;

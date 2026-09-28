@@ -162,6 +162,9 @@ describe('EPSS prioritisation', () => {
 
         const call = http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/'));
         expect(call.request.url).toContain('CVE-2021-44228');
+        // The model answers in the screen's language; the component is not the caller's to state.
+        expect(call.request.params.get('language')).toBe('en');
+        expect(call.request.params.keys()).toEqual(['language']);
         call.flush({
             identifier: 'CVE-2021-44228',
             title: 'Log4Shell',

@@ -275,7 +275,9 @@ describe('the issue backlog', () => {
 
         const page = fixture.componentInstance;
         page.openAiAdvisor({ id: 1 } as never);
-        http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1').error(new ProgressEvent('failed'));
+        const explain = http.expectOne((call) => call.url === '/api/v1/ai-advisor/explain/issue/1');
+        expect(explain.request.params.get('language')).toBe('en');
+        explain.error(new ProgressEvent('failed'));
         fixture.detectChanges();
 
         // **The error was set in a signal the template did not use**: the dialog opened, the

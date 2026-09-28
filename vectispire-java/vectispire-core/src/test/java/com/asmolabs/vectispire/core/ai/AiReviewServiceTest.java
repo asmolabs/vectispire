@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
@@ -244,7 +245,7 @@ class AiReviewServiceTest {
         when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"message\":{\"content\":\"{}\"}}");
 
-        service.explainVulnerability(unscoredIssue(), Exploitation.unknown());
+        service.explainVulnerability(unscoredIssue(), Exploitation.unknown(), AdviceLanguage.ENGLISH);
 
         org.mockito.ArgumentCaptor<Object> body = org.mockito.ArgumentCaptor.forClass(Object.class);
         verify(post).postForResponse(anyString(), body.capture(), any(), anyString(), any(), any());
@@ -254,6 +255,9 @@ class AiReviewServiceTest {
         assertThat(prompt)
                 .contains("CVE: CVE-2022-42889, Package: commons-text, Version: 1.9, Fixed: unknown, KEV: unknown, EPSS: unknown.")
                 .contains("never estimate it")
+                // The reader's language: the prompt asked for French whoever asked.
+                .startsWith("Explain this vulnerability in English for a developer")
+                .doesNotContain("French")
                 .doesNotContain("KEV: false")
                 .doesNotContain("null");
     }
@@ -266,13 +270,14 @@ class AiReviewServiceTest {
         when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
                 .thenReturn("{\"message\":{\"content\":\"{}\"}}");
 
-        service.explainVulnerability(unscoredIssue(), new Exploitation(KevListing.NOT_LISTED, 0.05));
+        service.explainVulnerability(unscoredIssue(), new Exploitation(KevListing.NOT_LISTED, 0.05), AdviceLanguage.FRENCH);
 
         org.mockito.ArgumentCaptor<Object> body = org.mockito.ArgumentCaptor.forClass(Object.class);
         verify(post).postForResponse(anyString(), body.capture(), any(), anyString(), any(), any());
         java.util.List<java.util.Map<String, String>> messages =
                 (java.util.List<java.util.Map<String, String>>) ((java.util.Map<String, Object>) body.getValue()).get("messages");
         assertThat(messages.get(1).get("content"))
+                .startsWith("Explain this vulnerability in French for a developer")
                 .contains("KEV: not listed in the CISA KEV catalogue, EPSS: 0.05.");
     }
 
@@ -291,7 +296,7 @@ class AiReviewServiceTest {
                 .thenReturn("{\"message\":{\"content\":\"{\\\"summary\\\":\\\"s\\\",\\\"vex_status\\\":\\\"not_affected\\\","
                         + "\\\"vex_justification\\\":\\\"code_not_reachable\\\"}\"}}");
 
-        AiVulnerabilityAdvice advice = service.explainVulnerability(unscoredIssue(), Exploitation.unknown());
+        AiVulnerabilityAdvice advice = service.explainVulnerability(unscoredIssue(), Exploitation.unknown(), AdviceLanguage.ENGLISH);
 
         assertThat(advice.summaryExplanation()).isEqualTo("s");
         assertThat(advice.deterministic()).isNull();

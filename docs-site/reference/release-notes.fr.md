@@ -188,6 +188,22 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `targetVersion` et `remediation.suggestedVersion` valent null quand rien n'est enregistré, au lieu
   de « the component », « current » ou « the fixed version », et l'avis d'un modèle ne porte plus
   de justification VEX.
+- **`POST /api/v1/ai-advisor/explain/cve/{id}` ne lit plus `packageName`, `currentVersion` ni
+  `fixVersion`** : ils étaient imprimés comme les faits de l'avis sur la seule parole de l'appelant.
+  Un client qui les envoie encore reçoit la réponse qu'il aurait eue sans eux ; la route n'accepte
+  aucune clé d'intégration. Une CVE qu'aucun problème visible ne porte est expliquée à partir des
+  seuls flux enregistrés, et sa suggestion VEX est `under_investigation` même quand la CISA la liste
+  — elle disait `affected`, à propos d'un parc que rien ne montrait concerné. La mise à niveau
+  suggérée pour un problème est une seule commande, pour l'écosystème que nomme son purl (Maven,
+  npm, PyPI, Cargo, NuGet, Composer, Go), avec un `<dependency>` Maven pour Maven seulement, et
+  aucune quand le purl manque ou nomme un autre écosystème — elle proposait `mvn` et `npm` ensemble
+  quel que soit le composant. Les deux routes d'explication prennent `language` (`en`, `fr` ;
+  anglais en son absence, toute autre valeur un 400) : le modèle répond dans la langue de l'écran,
+  là où il répondait en français à tout le monde.
+- **La génération EPSS qu'un fichier remplace est conservée jusqu'à l'application du suivant**
+  (V47, `epss_previous_generation`) : une analyse enrichie pendant une bascule ne trouve plus ses
+  scores disparus ; `t_epss_score` contient les lignes de deux fichiers entre deux synchronisations,
+  quelque 760 000.
 - **Le protocole des agents a un septième appel**, `POST /api/v1/agent/jobs/{id}/failure` : une analyse
   que l'agent a prise et n'a pas pu exécuter est signalée aussitôt avec sa raison — remise en file avec
   la tentative comptée, ou en échec à la dernière — au lieu d'attendre vingt minutes l'expiration de

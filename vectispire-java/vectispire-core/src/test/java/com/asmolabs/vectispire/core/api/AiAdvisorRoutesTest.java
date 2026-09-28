@@ -44,16 +44,36 @@ class AiAdvisorRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.selectedModel").isString());
     }
 
+    /**
+     * The caller's component is not a fact either.
+     *
+     * <p>The route took a package, a version and a fixed version and printed them as the advice's —
+     * "reported in component 'log4j-core', version 2.14.1", an upgrade to copy — on the caller's
+     * word alone. They are ignored now, not refused, as {@code reachability} was.
+     */
     @Test
-    @DisplayName("POST /api/v1/ai-advisor/explain/cve/{cveId} returns deterministic advice for CVE")
-    void explainsCve() throws Exception {
+    @DisplayName("a package, a version and a fix passed by the caller are ignored: the advice states none")
+    void theCallersComponentIsIgnored() throws Exception {
         mvc.perform(authenticated(
                 post("/api/v1/ai-advisor/explain/cve/CVE-2021-44228?packageName=log4j-core&currentVersion=2.14.1&fixVersion=2.17.1"),
                 asAdmin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.identifier").value("CVE-2021-44228"))
-                .andExpect(jsonPath("$.summaryExplanation").value(org.hamcrest.Matchers.containsString("log4j-core")))
-                .andExpect(jsonPath("$.remediation.suggestedVersion").value("2.17.1"));
+                .andExpect(jsonPath("$.summaryExplanation").value("Vulnerability CVE-2021-44228: the affected component is unknown."))
+                .andExpect(jsonPath("$.deterministic.packageName").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.remediation.suggestedVersion").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.remediation.cliCommand").value(""));
+    }
+
+    @Test
+    @DisplayName("a language is one the interface is shown in, or refused in words")
+    void aLanguageIsOneOfTheInterfaces() throws Exception {
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/cve/CVE-2021-44228?language=fr"), asAdmin()))
+                .andExpect(status().isOk());
+        var refused = mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/cve/CVE-2021-44228?language=de"), asAdmin()))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+        org.assertj.core.api.Assertions.assertThat(detailOf(refused)).isEqualTo("language must be one of en, fr.");
     }
 
     /**
@@ -129,7 +149,9 @@ class AiAdvisorRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.deterministic.kev").value("LISTED"))
                 .andExpect(jsonPath("$.deterministic.exploitProbability").value(0.94358))
                 .andExpect(jsonPath("$.exploitMechanics").value(Matchers.containsString("EPSS probability: 94.358%")))
-                .andExpect(jsonPath("$.vexSuggestion.status").value("affected"));
+                // Listed, and carried by no issue the caller can see: nothing shows the estate is
+                // affected. This said `affected` on the catalogue's word alone.
+                .andExpect(jsonPath("$.vexSuggestion.status").value("under_investigation"));
 
         mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/cve/CVE-2024-3094"), asAdmin()))
                 .andExpect(status().isOk())
@@ -170,6 +192,66 @@ class AiAdvisorRoutesTest extends ApiTestBase {
                 // No fix recorded on the row: none is claimed.
                 .andExpect(jsonPath("$.deterministic.targetVersion").value(Matchers.nullValue()))
                 .andExpect(jsonPath("$.remediation.fixAction").value("No fixed version is recorded for this vulnerability."));
+    }
+
+    /**
+     * A listed CVE an issue carries, in the ecosystem its purl names.
+     *
+     * <p>The advice offered a Maven command and an npm one side by side whatever the component, and a
+     * {@code <dependency>} with {@code <groupId>...</groupId>}. One command now, for the ecosystem
+     * the purl names; none without a purl.
+     */
+    @Test
+    @DisplayName("an issue on a listed CVE is affected, and its upgrade is written for the ecosystem its purl names")
+    void anIssueOnAListedCve() throws Exception {
+        ThreatIntelEntity listed = new ThreatIntelEntity();
+        listed.setCveId("CVE-2021-44228");
+        listed.setKev(true);
+        intel.save(listed);
+        ThreatIntelSyncEntity sync = new ThreatIntelSyncEntity();
+        sync.setLastSyncedAt(Instant.now());
+        sync.setStatus("SYNCED");
+        syncs.save(sync);
+
+        IssueEntity maven = vulnerability("CVE-2021-44228", "log4j-core", "2.14.1", "2.17.1",
+                "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1");
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + maven.getId()), asAdmin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vexSuggestion.status").value("affected"))
+                .andExpect(jsonPath("$.remediation.cliCommand").value(
+                        "mvn versions:use-dep-version -Dincludes=org.apache.logging.log4j:log4j-core -DdepVersion=2.17.1 -DforceVersion=true"))
+                .andExpect(jsonPath("$.remediation.codeSnippetOrDiff").value(Matchers.containsString(
+                        "<groupId>org.apache.logging.log4j</groupId>")));
+
+        IssueEntity npm = vulnerability("CVE-2021-23337", "lodash", "4.17.20", "4.17.21", "pkg:npm/lodash@4.17.20");
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + npm.getId()), asAdmin()))
+                .andExpect(jsonPath("$.remediation.cliCommand").value("npm install lodash@4.17.21"))
+                .andExpect(jsonPath("$.remediation.codeSnippetOrDiff").value(""));
+
+        IssueEntity unknown = vulnerability("CVE-2022-42889", "commons-text", "1.9", "1.10.0", null);
+        mvc.perform(authenticated(post("/api/v1/ai-advisor/explain/issue/" + unknown.getId()), asAdmin()))
+                .andExpect(jsonPath("$.remediation.fixAction").value("Upgrade 'commons-text' from version 1.9 to 1.10.0."))
+                .andExpect(jsonPath("$.remediation.cliCommand").value(""))
+                .andExpect(jsonPath("$.remediation.codeSnippetOrDiff").value(""));
+    }
+
+    private IssueEntity vulnerability(String cve, String pkg, String version, String fix, String purl) {
+        IssueEntity issue = new IssueEntity();
+        issue.setFingerprint("fp-ai-advisor-" + cve + "-" + System.nanoTime());
+        issue.setType("vulnerability");
+        issue.setIdentifier(cve);
+        issue.setPackageName(pkg);
+        issue.setPackageVersion(version);
+        issue.setFixVersions(fix);
+        issue.setPurl(purl);
+        issue.setState("open");
+        issue.setSeverity("HIGH");
+        issue.setTriageStatus("untriaged");
+        issue.setKev("CVE-2021-44228".equals(cve));
+        issue.setFirstSeenAt(Instant.now());
+        issue.setLastSeenAt(Instant.now());
+        issue.setTimesSeen(1);
+        return issuesRepo.save(issue);
     }
 
     @Test

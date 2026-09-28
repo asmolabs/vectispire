@@ -563,7 +563,7 @@ export class Issues {
         this.aiAdviceLoading.set(true);
         this.aiModalOpen = true;
 
-        this.intelApi.explainIssueWithAi(issue.id).subscribe({
+        this.intelApi.explainIssueWithAi(issue.id, this.i18n.currentLang()).subscribe({
             next: (advice) => {
                 this.aiAdvice.set(advice);
                 this.aiAdviceLoading.set(false);

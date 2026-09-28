@@ -166,6 +166,19 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   any catalogue had been read. `deterministic.packageName`, `currentVersion`, `targetVersion` and
   `remediation.suggestedVersion` are null when nothing is recorded, rather than "the component",
   "current" or "the fixed version", and a model's advice no longer carries a VEX justification.
+- **`POST /api/v1/ai-advisor/explain/cve/{id}` no longer reads `packageName`, `currentVersion` or
+  `fixVersion`**: they were printed as the advice's facts on the caller's word alone. A client still
+  sending them is answered as if it had not; the route accepts no integration key. A CVE no issue
+  you can see carries is explained from the stored feeds alone, and its VEX suggestion is
+  `under_investigation` even when CISA lists it — it said `affected`, about an estate nothing showed
+  to carry it. An issue's suggested upgrade is one command for the ecosystem its purl names (Maven,
+  npm, PyPI, Cargo, NuGet, Composer, Go), with a Maven `<dependency>` only for Maven, and none when
+  the purl is missing or names another ecosystem — it offered `mvn` and `npm` together whatever the
+  component. Both explain routes take `language` (`en`, `fr`; English when absent, anything else a
+  400): the model answers in the screen's language, where it answered in French for everyone.
+- **The EPSS generation a file replaces is kept until the next one is applied** (V47,
+  `epss_previous_generation`), so a scan enriched during a switch no longer finds its scores gone;
+  `t_epss_score` holds two files' rows between synchronisations, some 760,000.
 - **The agent protocol has a seventh call**, `POST /api/v1/agent/jobs/{id}/failure`: a scan the agent
   claimed and could not run is reported at once with its reason — requeued with the attempt counted,
   or failed at the last — instead of waiting twenty minutes for its lease to lapse. The claim's answer

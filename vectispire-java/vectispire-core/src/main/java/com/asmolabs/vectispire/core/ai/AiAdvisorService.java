@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.ai;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
 import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.common.domain.threatintel.KevListing;
@@ -39,19 +40,27 @@ public class AiAdvisorService {
     }
 
     /**
+     * @param language the reader's, as the screen names it ({@link AdviceLanguage#parse}); English
+     *     when none is given
      * @throws com.asmolabs.vectispire.common.domain.errors.NotFoundException for a hidden or absent issue, in the same words.
      *     <b>An absent row goes to the same guard as a hidden one.</b> It had its own 404, worded
      *     "Issue not found: 42" against the guard's "Issue not found.", so the message alone told a
      *     restricted reader which sequential ids existed
      */
-    public AiVulnerabilityAdvice explainIssue(long issueId, Visibility allowed) {
+    public AiVulnerabilityAdvice explainIssue(long issueId, String language, Visibility allowed) {
+        AdviceLanguage asked = AdviceLanguage.parse(language);
         IssueView issue = RowVisibility.requireVisibleIssue(issues.issue(issueId).orElse(null), AiAdvisorService::targetOf, allowed);
-        return reviews.explainVulnerability(issue, exploitationOf(issue));
+        return reviews.explainVulnerability(issue, exploitationOf(issue), asked);
     }
 
     /**
-     * Explains a CVE from the first visible issue that carries it, or from the stored feeds and
-     * what the caller passed when none does.
+     * Explains a CVE from the first visible issue that carries it, or from the stored feeds alone
+     * when none does.
+     *
+     * <p><b>No component from the caller.</b> The route took a package, a version and a fixed version
+     * as parameters and printed them as the advice's facts — "reported in component X, version Y",
+     * an upgrade command built from them — on nobody's word but the caller's. Neither screen sent
+     * them; an identifier no visible issue carries is explained by what the feeds hold.
      *
      * <p><b>Narrowed before anything is read</b>, so that a CVE present only in a target the caller
      * was not given gets exactly the answer a CVE present nowhere gets. The route took the first
@@ -60,23 +69,18 @@ public class AiAdvisorService {
      * they were never given. The feeds are public catalogues, read whole: what they answer does not
      * depend on the estate either.
      */
-    public AiVulnerabilityAdvice explainCve(
-            String cveId,
-            String packageName,
-            String currentVersion,
-            String fixVersion,
-            Visibility allowed) {
+    public AiVulnerabilityAdvice explainCve(String cveId, String language, Visibility allowed) {
+        AdviceLanguage asked = AdviceLanguage.parse(language);
 
         List<IssueView> matched = issues.withIdentifier(cveId).stream()
                 .filter(issue -> allowed.permits(targetOf(issue)))
                 .toList();
         if (!matched.isEmpty()) {
             IssueView issue = matched.get(0);
-            return reviews.explainVulnerability(issue, exploitationOf(issue));
+            return reviews.explainVulnerability(issue, exploitationOf(issue), asked);
         }
 
-        return AiVulnerabilityAdvice.generateDeterministic(
-                cveId, packageName, currentVersion, fixVersion, feeds.exploitationOf(cveId));
+        return AiVulnerabilityAdvice.forIdentifierAlone(cveId, feeds.exploitationOf(cveId));
     }
 
     /**

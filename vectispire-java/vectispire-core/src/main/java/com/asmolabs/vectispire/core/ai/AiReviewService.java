@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.ai;
 
+import com.asmolabs.vectispire.common.domain.aireview.AdviceLanguage;
 import com.asmolabs.vectispire.common.domain.aireview.AiProvider;
 import com.asmolabs.vectispire.common.domain.aireview.AiReview;
 import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
@@ -320,8 +321,10 @@ public class AiReviewService {
      * @param exploitation what the stored feeds say about it, resolved by the caller: the issue's
      *     own {@code isKev} reads false before the catalogue was ever read, and was sent to the
      *     model as {@code KEV: false} — a fact nobody had established
+     * @param language the language the model is asked to answer in: the reader's
      */
-    public AiVulnerabilityAdvice explainVulnerability(IssueView issue, Exploitation exploitation) {
+    public AiVulnerabilityAdvice explainVulnerability(
+            IssueView issue, Exploitation exploitation, AdviceLanguage language) {
         String id = issue.identifier() != null ? issue.identifier() : "VULN-" + issue.id();
         String pkg = present(issue.packageName());
         String ver = present(issue.packageVersion());
@@ -342,12 +345,18 @@ public class AiReviewService {
                 // This sent `KEV: false` for a catalogue never read and `EPSS: null` for a CVE
                 // nobody scored, and a model asked to explain fills a gap with a plausible figure.
                 // The same six facts leave as before; only their spelling changed.
+                //
+                // **In the reader's language, not in French.** The prompt asked for French whoever
+                // asked: an English reader got a French explanation beside the screen's English.
+                // The language is the one the screen is shown in, English when none is given — no
+                // account or instance setting names one.
                 String prompt = String.format(
-                        "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, KEV: %s, EPSS: %s. "
+                        "Explain this vulnerability in %s for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, KEV: %s, EPSS: %s. "
                                 + "A value given as unknown is unknown: say so, and never estimate it. "
                                 + "Nothing has established whether the application invokes the vulnerable code: say so in `exposure`, and say what to check, never that it is or is not invoked. "
                                 + "Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"affected|under_investigation\",\"vex_statement\":\"...\"}",
-                        id, orUnknown(pkg), orUnknown(ver), orUnknown(fix), kevFact(exploitation), epssFact(exploitation));
+                        language.englishName(), id, orUnknown(pkg), orUnknown(ver), orUnknown(fix),
+                        kevFact(exploitation), epssFact(exploitation));
 
                 String text = chat(List.of(
                         Map.of("role", "system", "content", "You are an AppSec assistant. Respond ONLY with valid JSON without markdown wrapping."),
@@ -393,7 +402,7 @@ public class AiReviewService {
             }
         }
 
-        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, exploitation);
+        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, present(issue.purl()), exploitation);
     }
 
     /**
