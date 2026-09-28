@@ -798,7 +798,7 @@ export interface paths {
         get?: never;
         /**
          * Confirm checklist template layout
-         * @description Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. 400 for a layout that cannot be one; 409 for a version that is not a draft, or that changed meanwhile.
+         * @description Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. revision is the one the editor read. 400 for a layout that cannot be one, or without revision; 409 for a version that is not a draft, or that changed since that revision.
          */
         put: operations["confirmLayout"];
         post?: never;
@@ -818,7 +818,7 @@ export interface paths {
         get?: never;
         /**
          * Pair checklist template items
-         * @description Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. 400 for a pair of items that are not added and removed; 409 when there is no previous version.
+         * @description Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. revision is the one the editor read. 400 for a pair of items that are not added and removed, or without revision; 409 when there is no previous version, or the draft changed since that revision.
          */
         put: operations["pairItems"];
         post?: never;
@@ -7533,7 +7533,9 @@ export interface operations {
     };
     confirmLayout: {
         parameters: {
-            query?: never;
+            query?: {
+                revision?: number;
+            };
             header?: never;
             path: {
                 slug: string;
@@ -7560,7 +7562,9 @@ export interface operations {
     };
     pairItems: {
         parameters: {
-            query?: never;
+            query?: {
+                revision?: number;
+            };
             header?: never;
             path: {
                 slug: string;

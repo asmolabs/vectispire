@@ -71,17 +71,25 @@ describe('the checklist template client', () => {
         named.flush(CONFIRMED_PREVIEW);
     });
 
-    it('confirms a layout and replaces the pairs with the bodies the server reads', () => {
-        api.confirmChecklistLayout('release', 2, LAYOUT).subscribe();
-        const layout = http.expectOne({ method: 'PUT', url: '/api/v1/checklist-templates/release/versions/2/layout' });
+    it('confirms a layout and replaces the pairs with the bodies the server reads, on the revision shown', () => {
+        api.confirmChecklistLayout('release', 2, 4, LAYOUT).subscribe();
+        const layout = http.expectOne(
+            (request) =>
+                request.method === 'PUT' && request.url === '/api/v1/checklist-templates/release/versions/2/layout'
+        );
+        expect(layout.request.params.get('revision')).toBe('4');
         expect(asSchema('ChecklistLayoutForm', layout.request.body)).toEqual(LAYOUT);
         layout.flush(VERSION);
 
         const pairs = [
             { added: 'text:secrets are rotated every ninety days', removed: 'text:secrets are rotated yearly' }
         ];
-        api.pairChecklistItems('release', 2, pairs).subscribe();
-        const paired = http.expectOne({ method: 'PUT', url: '/api/v1/checklist-templates/release/versions/2/pairs' });
+        api.pairChecklistItems('release', 2, 5, pairs).subscribe();
+        const paired = http.expectOne(
+            (request) =>
+                request.method === 'PUT' && request.url === '/api/v1/checklist-templates/release/versions/2/pairs'
+        );
+        expect(paired.request.params.get('revision')).toBe('5');
         expect(asSchema('ChecklistPairsRequest', paired.request.body)).toEqual({ pairs });
         paired.flush(VERSION);
     });

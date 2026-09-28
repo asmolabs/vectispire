@@ -529,7 +529,8 @@ export class ChecklistTemplates {
     confirmLayout(): void {
         const draft = this.layoutDraft();
         const selected = this.selected();
-        if (!draft || !selected) return;
+        const shown = this.shown();
+        if (!draft || !selected || !shown) return;
         const problem = layoutProblem(draft);
         if (problem) {
             this.formError.set(this.i18n.t(PROBLEM_KEYS[problem]));
@@ -538,7 +539,7 @@ export class ChecklistTemplates {
         const hadPairs = (this.version()?.pairs.length ?? 0) > 0;
         this.formError.set(null);
         this.busy.set(true);
-        this.api.confirmChecklistLayout(selected.slug, selected.ordinal, layoutOf(draft)).subscribe({
+        this.api.confirmChecklistLayout(selected.slug, selected.ordinal, shown.revision, layoutOf(draft)).subscribe({
             next: (version) => {
                 this.busy.set(false);
                 const count = version.items.length;
@@ -574,10 +575,11 @@ export class ChecklistTemplates {
 
     private sendPairs(pairs: ChecklistItemPair[]): void {
         const selected = this.selected();
-        if (!selected) return;
+        const shown = this.shown();
+        if (!selected || !shown) return;
         this.busy.set(true);
         this.panelError.set(null);
-        this.api.pairChecklistItems(selected.slug, selected.ordinal, pairs).subscribe({
+        this.api.pairChecklistItems(selected.slug, selected.ordinal, shown.revision, pairs).subscribe({
             next: (version) => {
                 this.busy.set(false);
                 this.pairAdded.set(null);

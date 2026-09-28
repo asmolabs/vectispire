@@ -73,9 +73,13 @@ import org.springframework.util.unit.DataSize;
  * <h2>What a person has seen is what is published</h2>
  *
  * <p>Every change to a version is a conditional update on the revision its writer read, so two edits
- * of one draft cannot interleave and a publication cannot overtake an edit. Publishing names the
- * revision the publisher reviewed: an author's edit made after the review refuses the publication
- * rather than being published unseen, which a check of the status alone would let through.
+ * of one draft cannot interleave and a publication cannot overtake an edit. <b>The writer is the
+ * person, not the request</b>: confirming a layout, pairing items and publishing each name the
+ * revision the person read on screen, and a draft changed since is refused. The first version of
+ * this class compared the edits with the revision the request itself had just read, which ordered
+ * two requests but let one lead's layout silently replace another's. Publishing is the case that
+ * matters most: an author's edit made after the review refuses the publication rather than being
+ * published unseen, which a check of the status alone would let through.
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
  * on SQLite would wait on this one's file lock. Publishing a version, and retiring a published one,
@@ -253,11 +257,15 @@ public class ChecklistTemplateService {
      * Confirms a draft's layout and answer words, and reads its items from the workbook by them —
      * blank domain and objective cells filled down, rows without a control left out. Pairs made
      * earlier are cleared: they named items as the previous layout read them.
+     *
+     * @param seenRevision the revision the editor read — a draft edited since is refused
      */
-    public ChecklistVersionView confirmLayout(String slug, int ordinal, ChecklistLayoutForm form, Editor editor) {
+    public ChecklistVersionView confirmLayout(
+            String slug, int ordinal, Integer seenRevision, ChecklistLayoutForm form, Editor editor) {
         ChecklistLayout layout = parse(form);
         ChecklistTemplateEntity template = requireTemplate(slug);
         ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal), "have its layout confirmed");
+        requireSeen(template, version, seenRevision, "confirming its layout");
         TemplateVersion read = TemplateVersion.read(stored(version), layout);
 
         List<DraftAuthor> authors = withAuthor(forms.authors(version.getDraftAuthors()), editor);
@@ -282,11 +290,16 @@ public class ChecklistTemplateService {
      * Pairs a draft's items by hand with the previous version's — "same control, reworded": the new
      * item takes the old key, so that a project's answer follows it, to be confirmed (§4). The list
      * replaces the draft's pairs; an empty one clears them.
+     *
+     * @param seenRevision the revision the editor read — a draft edited since is refused, since the
+     *     list sent replaces pairs somebody else may have made meanwhile
      */
-    public ChecklistVersionView pairItems(String slug, int ordinal, List<ChecklistItemPair> requested, Editor editor) {
+    public ChecklistVersionView pairItems(
+            String slug, int ordinal, Integer seenRevision, List<ChecklistItemPair> requested, Editor editor) {
         List<VersionPairing.ManualPair> pairs = parsePairs(requested);
         ChecklistTemplateEntity template = requireTemplate(slug);
         ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal), "have its items paired");
+        requireSeen(template, version, seenRevision, "pairing its items");
         requireLayout(version, "pairing its items");
         if (version.getPreviousVersionId() == null) {
             throw new ConflictException("Version " + ordinal + " of \"" + template.getSlug() + "\" follows no published "
@@ -363,11 +376,7 @@ public class ChecklistTemplateService {
         ChecklistTemplateEntity template = requireTemplate(slug);
         ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal), "be published");
         requireLayout(version, "publishing it");
-        if (!version.getRevision().equals(reviewedRevision)) {
-            throw new ConflictException("Version " + ordinal + " of \"" + template.getSlug() + "\" has changed since "
-                    + "revision " + reviewedRevision + " — it is at revision " + version.getRevision()
-                    + ". Read it again before publishing it.");
-        }
+        requireSeen(template, version, reviewedRevision, "publishing it");
         boolean fourEyes = requireAnotherPerson(template, version, editor, "published");
         Instant now = clock.instant();
 
@@ -778,5 +787,24 @@ public class ChecklistTemplateService {
             case VersionPairing.Removed removed -> new ChecklistTemplatePreview.PairingChange("removed", false, null, null,
                     null, removed.previous().key().value(), removed.previous().row(), removed.previous().control());
         };
+    }
+
+    /**
+     * The revision the writer read is the one being changed. The conditional update alone compares
+     * with the revision this request read a moment earlier, which only orders two requests: two leads
+     * editing one draft from the same screen would each overwrite the other's layout or pairs, silently,
+     * and the second would never have seen the first's work.
+     */
+    private static void requireSeen(ChecklistTemplateEntity template, ChecklistTemplateVersionEntity version,
+            Integer seenRevision, String doing) {
+        if (seenRevision == null) {
+            throw new InvalidInputException("State the revision you read — the version's \"revision\": a draft is "
+                    + "changed from what somebody has seen.");
+        }
+        if (!version.getRevision().equals(seenRevision)) {
+            throw new ConflictException("Version " + version.getOrdinal() + " of \"" + template.getSlug() + "\" has "
+                    + "changed since revision " + seenRevision + " — it is at revision " + version.getRevision()
+                    + ". Read it again before " + doing + ".");
+        }
     }
 }

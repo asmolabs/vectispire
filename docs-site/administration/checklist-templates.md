@@ -87,6 +87,10 @@ choose the added item and the removed one it is, and **Pair them**. The new item
 and becomes *changed*, *paired by hand*, so that a project's answer follows it, to be confirmed.
 **Unpair** undoes a pair. A first version has nothing to pair with: every item is new.
 
+Confirming a layout and pairing items are sent on the **revision on screen**, like publishing: when
+another lead changed the draft after you opened it, your change is refused with both revisions named,
+rather than replacing theirs unseen. Reload the draft and make it again.
+
 ## 4. Publish
 
 Publishing makes the version what projects open their checklists on. The button names the

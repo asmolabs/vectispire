@@ -280,7 +280,9 @@ describe('the checklist templates screen', () => {
         type('#layout-column-id', 'g');
         button('confirm-layout').click();
 
-        const request = http.expectOne({ method: 'PUT', url: `${VERSION_URL}/layout` });
+        const request = http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/layout`);
+        // The revision on screen, so that a layout another lead confirmed meanwhile refuses this one.
+        expect(request.request.params.get('revision')).toBe('4');
         expect(request.request.body).toEqual({
             sheet: 'Checklist',
             columns: { id: 'G', domain: 'A', objective: 'B', control: 'C', kpi: 'D', answer: 'E', comment: 'F' },
@@ -300,7 +302,7 @@ describe('the checklist templates screen', () => {
         openDraft(CONFIRMED_PREVIEW);
         button('confirm-layout').click();
 
-        http.expectOne({ method: 'PUT', url: `${VERSION_URL}/layout` }).flush(
+        http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/layout`).flush(
             { detail: 'The product header cell B6 lies among the item rows.' },
             { status: 400, statusText: 'Bad Request' }
         );
@@ -346,7 +348,8 @@ describe('the checklist templates screen', () => {
         fixture.detectChanges();
         button('pair-items').click();
 
-        const request = http.expectOne({ method: 'PUT', url: `${VERSION_URL}/pairs` });
+        const request = http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/pairs`);
+        expect(request.request.params.get('revision')).toBe('4');
         expect(request.request.body).toEqual({
             pairs: [
                 earlier,
@@ -384,7 +387,7 @@ describe('the checklist templates screen', () => {
         expect(text('[data-testid="change-changed"]')).toContain('Paired by hand');
         button('Unpair').click();
 
-        const request = http.expectOne({ method: 'PUT', url: `${VERSION_URL}/pairs` });
+        const request = http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/pairs`);
         expect(request.request.body).toEqual({ pairs: [kept] });
         request.flush(VERSION);
         answerRereads();

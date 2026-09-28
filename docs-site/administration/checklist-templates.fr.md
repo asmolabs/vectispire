@@ -91,6 +91,11 @@ item prend l'ancienne clé et devient *modifié*, *apparié à la main*, afin qu
 le suive, à confirmer. **Désapparier** défait un appariement. Une première version n'a rien avec quoi
 s'apparier : chaque item est nouveau.
 
+Confirmer une disposition et apparier des items sont envoyés sur la **révision affichée**, comme la
+publication : quand un autre responsable a modifié le brouillon après que vous l'avez ouvert, votre
+modification est refusée, les deux révisions nommées, plutôt que de remplacer la sienne sans qu'il le
+voie. Rechargez le brouillon et refaites-la.
+
 ## 4. Publier
 
 Publier fait de la version celle sur laquelle les projets ouvrent leurs checklists. Le bouton nomme la

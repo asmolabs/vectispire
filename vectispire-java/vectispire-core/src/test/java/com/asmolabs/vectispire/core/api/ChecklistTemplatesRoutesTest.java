@@ -352,6 +352,35 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
                     .andExpect(status().isBadRequest()).andReturn())).contains("revision");
             assertThat(statusOf("release", 1)).isEqualTo("draft");
         }
+
+        @Test
+        @DisplayName("an edit names the revision its editor read, so one lead's layout never silently replaces another's")
+        void refusesAnEditOnAStaleRevision() throws Exception {
+            // Both leads open revision `seen`; the importer confirms first.
+            int seen = draftWithLayout("release");
+            confirm(importer, "release", 1, layout(8), seen).andExpect(status().isOk());
+
+            // The reviewer's layout and pairs were made on what they saw, which is no longer the draft.
+            assertThat(detailOf(confirm(reviewer, "release", 1, layout(9), seen)
+                    .andExpect(status().isConflict()).andReturn()))
+                    .contains("has changed since revision " + seen);
+            assertThat(detailOf(confirm(reviewer, "release", 1, layout(9), null)
+                    .andExpect(status().isBadRequest()).andReturn()))
+                    .contains("revision");
+            assertThat(read(mvc.perform(authenticated(get(BASE + "/release/versions/1"), asAuditor()))
+                    .andExpect(status().isOk())).at("/layout/lastItemRow").asInt())
+                    .as("the importer's layout stands").isEqualTo(8);
+
+            publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.SECOND), "").andExpect(status().isCreated());
+            int second = read(confirm(importer, "release", 2, layout(10)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+            confirm(importer, "release", 2, layout(10), second).andExpect(status().isOk());
+            assertThat(detailOf(pair(reviewer, "release", 2, List.of(), second)
+                    .andExpect(status().isConflict()).andReturn()))
+                    .contains("has changed since revision " + second);
+            pair(reviewer, "release", 2, List.of(), null).andExpect(status().isBadRequest());
+        }
     }
 
     @Nested
@@ -543,14 +572,42 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM).content(workbook));
     }
 
+    /** Confirms a layout as a screen does: on the revision it has just read. */
     private ResultActions confirm(String token, String slug, int ordinal, Map<?, ?> layout) throws Exception {
-        return mvc.perform(authenticated(put(BASE + "/" + slug + "/versions/" + ordinal + "/layout"), token)
-                .contentType(MediaType.APPLICATION_JSON).content(write(layout)));
+        return confirm(token, slug, ordinal, layout, currentRevision(slug, ordinal));
     }
 
+    private ResultActions confirm(String token, String slug, int ordinal, Map<?, ?> layout, Integer revision)
+            throws Exception {
+        var put = put(BASE + "/" + slug + "/versions/" + ordinal + "/layout");
+        if (revision != null) {
+            put = put.param("revision", String.valueOf(revision));
+        }
+        return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON).content(write(layout)));
+    }
+
+    /** Pairs items as a screen does: on the revision it has just read. */
     private ResultActions pair(String token, String slug, int ordinal, List<Map<String, String>> pairs) throws Exception {
-        return mvc.perform(authenticated(put(BASE + "/" + slug + "/versions/" + ordinal + "/pairs"), token)
-                .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("pairs", pairs))));
+        return pair(token, slug, ordinal, pairs, currentRevision(slug, ordinal));
+    }
+
+    private ResultActions pair(String token, String slug, int ordinal, List<Map<String, String>> pairs, Integer revision)
+            throws Exception {
+        var put = put(BASE + "/" + slug + "/versions/" + ordinal + "/pairs");
+        if (revision != null) {
+            put = put.param("revision", String.valueOf(revision));
+        }
+        return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON)
+                .content(write(Map.of("pairs", pairs))));
+    }
+
+    /** The version's revision as a reader sees it now; absent for a version that does not exist. */
+    private Integer currentRevision(String slug, int ordinal) throws Exception {
+        MvcResult result = mvc.perform(authenticated(get(BASE + "/" + slug + "/versions/" + ordinal), asAuditor()))
+                .andReturn();
+        return result.getResponse().getStatus() == 200
+                ? json.readTree(result.getResponse().getContentAsString()).at("/version/revision").asInt()
+                : null;
     }
 
     private ResultActions publish(String token, String slug, int ordinal, int revision) throws Exception {

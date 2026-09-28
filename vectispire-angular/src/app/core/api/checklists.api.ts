@@ -77,14 +77,37 @@ export class ChecklistsApi {
         return this.http.get<ChecklistPreview>(`${versionPath(slug, ordinal)}/preview`, { params });
     }
 
-    /** Reads the items by the layout; the pairs made earlier are cleared, since they named items as read before. */
-    confirmChecklistLayout(slug: string, ordinal: number, layout: ChecklistLayout): Observable<ChecklistVersion> {
-        return this.http.put<ChecklistVersion>(`${versionPath(slug, ordinal)}/layout`, layout);
+    /**
+     * Reads the items by the layout; the pairs made earlier are cleared, since they named items as read before.
+     * `revision` is the one on screen: a draft another lead changed since is refused (409), not overwritten.
+     */
+    confirmChecklistLayout(
+        slug: string,
+        ordinal: number,
+        revision: number,
+        layout: ChecklistLayout
+    ): Observable<ChecklistVersion> {
+        return this.http.put<ChecklistVersion>(`${versionPath(slug, ordinal)}/layout`, layout, {
+            params: new HttpParams().set('revision', revision)
+        });
     }
 
-    /** Replaces the draft's pairs whole: the list sent is every pair it is to have, an empty one clears them. */
-    pairChecklistItems(slug: string, ordinal: number, pairs: ChecklistItemPair[]): Observable<ChecklistVersion> {
-        return this.http.put<ChecklistVersion>(`${versionPath(slug, ordinal)}/pairs`, { pairs });
+    /**
+     * Replaces the draft's pairs whole: the list sent is every pair it is to have, an empty one clears them.
+     * `revision` is the one on screen, for the same reason: a whole list sent over pairs made meanwhile would
+     * erase them.
+     */
+    pairChecklistItems(
+        slug: string,
+        ordinal: number,
+        revision: number,
+        pairs: ChecklistItemPair[]
+    ): Observable<ChecklistVersion> {
+        return this.http.put<ChecklistVersion>(
+            `${versionPath(slug, ordinal)}/pairs`,
+            { pairs },
+            { params: new HttpParams().set('revision', revision) }
+        );
     }
 
     /** A new draft from a published version: same workbook, layout and items. */
