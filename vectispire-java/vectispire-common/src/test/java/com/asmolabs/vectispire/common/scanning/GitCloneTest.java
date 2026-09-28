@@ -88,6 +88,20 @@ class GitCloneTest {
     }
 
     @Test
+    @DisplayName("a host key refused by the host's own ssh may be new there, and is not called changed")
+    void aKeyRefusedByTheHostsOwnSshMayBeNew() {
+        // Without a key, HOST_SSH hands the decision to that machine's own configuration, which by
+        // default refuses a host its known_hosts does not list: "has changed" would send the
+        // operator looking for an interception that is a missing line.
+        GitClone.Request hostSsh = new GitClone.Request("ssh://git@host/p.git", "main", INTO, null, Duration.ofMinutes(5),
+                new GitClone.HostKeyPolicy.TrustEveryHost(), GitClone.WithoutKey.HOST_SSH);
+        Exception refused = new TransportException("ssh://git@host/p.git", new IllegalStateException("Server key did not validate"));
+
+        assertThat(GitClone.explain(hostSsh, refused)).contains("not listed there").doesNotContain("has changed since");
+        assertThat(GitClone.explain(request("ssh://git@host/p.git", "key"), refused)).contains("has changed since the last clone");
+    }
+
+    @Test
     @DisplayName("falls back to a plain sentence rather than leaking a stack trace")
     void unknownFailuresStayReadable() {
         assertThat(GitClone.explain(request("ssh://git@host/p.git", null), new IllegalStateException("¯\\_(ツ)_/¯")))

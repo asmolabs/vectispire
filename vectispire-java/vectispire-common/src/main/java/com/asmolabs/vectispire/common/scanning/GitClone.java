@@ -82,6 +82,9 @@ public final class GitClone {
          * it: a legitimately rotated host key blocks scans until an operator clears the entry.
          * That is the right way round — a blocked scan is visible, a silently intercepted one is
          * not — and {@code explain} already has the message for it.
+         *
+         * <p>A file this process cannot write is an operator's pinned list and is only matched
+         * against — see {@code AcceptNewDatabase}.
          */
         record AcceptNew(Path knownHosts) implements HostKeyPolicy {}
 
@@ -270,12 +273,29 @@ public final class GitClone {
             // class exists to avoid.
             throw alreadyDiagnosed;
         } catch (GitAPIException | RuntimeException failure) {
+            // **A diagnosis made inside JGit comes back wrapped.** The session factory runs in the
+            // transport callback, so a known-hosts file that cannot be prepared reached this line as
+            // a TransportException and the scan read "the clone failed" — on the composition, every
+            // SSH clone with a key, for a reason the operator could have fixed had it been named.
+            Optional<CloneFailureException> diagnosed = diagnosedWithin(failure);
+            if (diagnosed.isPresent()) {
+                throw diagnosed.get();
+            }
             // JGit's own text may quote the URL too; masked like the explanation, although nothing
             // displays it today — the day something does, it will not carry the token.
             throw new CloneFailureException(
                     explain(request, failure),
                     rootMessage(failure).replace(request.url(), RepositoryUrl.redact(request.url())));
         }
+    }
+
+    private static Optional<CloneFailureException> diagnosedWithin(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof CloneFailureException diagnosed) {
+                return Optional.of(diagnosed);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -335,10 +355,10 @@ public final class GitClone {
     /**
      * The SSH session, built two very different ways.
      *
-     * <p><b>With a key, nothing of the host is used.</b> No agent, no default identity, and a
-     * throwaway home directory: only the key this scan was given. That is what keeps a target
-     * reachable solely by the credential somebody attached to it — a key lying around on the
-     * host cannot clone a repository nobody gave it to.
+     * <p><b>With a key, nothing of the host is used.</b> No agent, no default identity, no ssh
+     * config: only the key this scan was given, and the known-hosts file of the policy. That is
+     * what keeps a target reachable solely by the credential somebody attached to it — a key lying
+     * around on the host cannot clone a repository nobody gave it to.
      *
      * <p><b>With {@link WithoutKey#HOST_SSH} and no key, the host's own configuration is used
      * whole</b> — identities, {@code config}, agent and {@code known_hosts}. Deliberately whole:
@@ -358,6 +378,11 @@ public final class GitClone {
         SshdSessionFactoryBuilder builder = new SshdSessionFactoryBuilder()
                 .setPreferredAuthentications("publickey")
                 .setDefaultKeysProvider(ignored -> keys)
+                // **No ssh config, not even the one beside the known-hosts file.** The session's home
+                // is that file's directory, which on a host is the operator's own ~/.ssh, and JGit read
+                // `config` there: a `HostName` or `Port` sent the clone somewhere the URL checks never
+                // saw, an `IdentityFile` added the host's key to the one this repository was given.
+                .setConfigStoreFactory((homeDir, configFile, localUserName) -> null)
                 .setServerKeyDatabase((homeDir, sshDir) -> serverKeys(request.hostKeys()));
 
         Path home = knownHostsHome(request.hostKeys());
@@ -439,7 +464,21 @@ public final class GitClone {
                             + ". Is the deployment key attached to it declared with the provider?"
                     : url + " requires authentication. Attach an SSH key to this repository.";
         }
-        if (message.contains("KeyExchange") || message.contains("host key") || message.contains("HostKey")) {
+        // "Server key did not validate" is what JGit says when the database refuses the key, and it
+        // said nothing that matched below it: a changed host key read as "the clone failed".
+        if (message.contains("Server key did not validate") || message.contains("KeyExchange")
+                || message.contains("host key") || message.contains("HostKey")) {
+            if (!request.hasKey() && request.withoutKey() == WithoutKey.HOST_SSH) {
+                // The host's own configuration decides here, and by default it refuses a host its
+                // known_hosts does not list: the key may be new rather than changed.
+                return "The host key of " + url + " was refused by this machine's own known_hosts: the host is not"
+                        + " listed there, or its key has changed. Check it is the right server, then add its key.";
+            }
+            if (request.hostKeys() instanceof HostKeyPolicy.AcceptNew pinned && !Files.isWritable(pinned.knownHosts())) {
+                return "The host key of " + url + " is not the one listed in " + pinned.knownHosts()
+                        + ", or the host is not listed there: that file is read-only, so it is matched against and"
+                        + " never added to.";
+            }
             return "The host key of " + url
                     + " has changed since the last clone. Check it is the same server before running again.";
         }
@@ -503,13 +542,32 @@ public final class GitClone {
      *
      * <p>Backed by a file that outlives the clone, which is the whole point — see
      * {@link HostKeyPolicy.AcceptNew}.
+     *
+     * <p><b>The policy is this class's, never the session's configuration.</b> JGit's database
+     * decides by {@code StrictHostKeyChecking}, read from the ssh config, and when none says
+     * otherwise that is {@code ask} — which, with nobody to ask, refuses. So the policy called
+     * "accept new" had never accepted a new host: a first contact failed with "Server key did not
+     * validate" unless the host happened to be in the file already, and an ssh config beside the
+     * file saying {@code StrictHostKeyChecking no} or {@code UserKnownHostsFile /dev/null} would
+     * have turned the check off. What the database is handed is {@link #acceptingNew}, whatever the
+     * session read.
+     *
+     * <p><b>A file this process cannot write is matched against, never added to.</b> Accept-new on
+     * it would accept a first contact and fail to record it, quietly — JGit logs a warning and lets
+     * the session through — so every clone would be a first contact again, which is the defect this
+     * policy was written to end. A read-only file is an operator's pinned list: a host it does not
+     * name is refused.
      */
     private static final class AcceptNewDatabase implements ServerKeyDatabase {
 
+        private final Path knownHosts;
+        private final boolean recording;
         private final org.eclipse.jgit.internal.transport.sshd.OpenSshServerKeyDatabase delegate;
 
         AcceptNewDatabase(Path knownHosts) {
             prepareKnownHosts(knownHosts);
+            this.knownHosts = knownHosts;
+            this.recording = Files.isWritable(knownHosts);
             this.delegate = new org.eclipse.jgit.internal.transport.sshd.OpenSshServerKeyDatabase(
                     true, List.of(knownHosts));
         }
@@ -517,13 +575,44 @@ public final class GitClone {
         @Override
         public List<java.security.PublicKey> lookup(String connectAddress, java.net.InetSocketAddress remoteAddress,
                 Configuration config) {
-            return delegate.lookup(connectAddress, remoteAddress, config);
+            return delegate.lookup(connectAddress, remoteAddress, acceptingNew(config));
         }
 
         @Override
         public boolean accept(String connectAddress, java.net.InetSocketAddress remoteAddress,
                 java.security.PublicKey serverKey, Configuration config, org.eclipse.jgit.transport.CredentialsProvider provider) {
-            return delegate.accept(connectAddress, remoteAddress, serverKey, config, provider);
+            return delegate.accept(connectAddress, remoteAddress, serverKey, acceptingNew(config), provider);
+        }
+
+        /** Only this file, accept-new while it can be written, and lines an operator can compare by eye. */
+        private Configuration acceptingNew(Configuration session) {
+            String user = session.getUsername();
+            return new Configuration() {
+                @Override
+                public List<String> getUserKnownHostsFiles() {
+                    return List.of(knownHosts.toString());
+                }
+
+                @Override
+                public List<String> getGlobalKnownHostsFiles() {
+                    return List.of();
+                }
+
+                @Override
+                public StrictHostKeyChecking getStrictHostKeyChecking() {
+                    return recording ? StrictHostKeyChecking.ACCEPT_NEW : StrictHostKeyChecking.REQUIRE_MATCH;
+                }
+
+                @Override
+                public boolean getHashKnownHosts() {
+                    return false;
+                }
+
+                @Override
+                public String getUsername() {
+                    return user;
+                }
+            };
         }
     }
 }
