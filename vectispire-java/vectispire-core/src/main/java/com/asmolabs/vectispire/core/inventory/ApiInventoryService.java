@@ -179,9 +179,15 @@ public class ApiInventoryService {
 
     /**
      * Purges discovered endpoints and contracts for a specific repository.
+     *
+     * <p><b>A repository somebody checked</b>, like the reads beside it. Every account the route
+     * admits holds a role that sees the whole estate today, so the check at the route refuses nothing
+     * yet; a bare id would still let the next caller — a task, a neighbouring service, a route whose
+     * marker is widened — erase an inventory it was never shown.
      */
     @Transactional
-    public void clearForRepository(long repositoryId) {
+    public void clearForRepository(VisibleTarget<ScanTarget.Repository> repository) {
+        long repositoryId = repository.target().id();
         apiEndpoints.deleteByRepositoryIdOrScanId(repositoryId, -1L);
         apiContracts.deleteByRepositoryIdOrScanId(repositoryId, -1L);
     }
@@ -193,12 +199,21 @@ public class ApiInventoryService {
      * loop. The shadow-API status is computed per repository exactly as it is there — an endpoint
      * is documented, undocumented or shadow relative to <em>its own</em> repository's contracts,
      * so the grouping has to happen before the comparison, not after.
+     *
+     * <p><b>Repositories somebody checked, not ids</b> — the proof {@link #forRepository} takes, one
+     * per repository. The overview filters by the caller's visibility before it asks; with bare ids,
+     * the next caller would not have had to.
      */
     @Transactional(readOnly = true)
-    public Map<Long, List<EndpointView>> endpointViewsByRepository(Collection<Long> repositoryIds) {
-        if (repositoryIds.isEmpty()) {
+    public Map<Long, List<EndpointView>> endpointViewsByRepository(
+            Collection<VisibleTarget<ScanTarget.Repository>> repositories) {
+        if (repositories.isEmpty()) {
             return Map.of();
         }
+        List<Long> repositoryIds = repositories.stream()
+                .map(repository -> repository.target().id())
+                .distinct()
+                .toList();
 
         Map<Long, List<ApiEndpointEntity>> endpointsByRepo = apiEndpoints.findByRepositoryIdIn(repositoryIds)
                 .stream()

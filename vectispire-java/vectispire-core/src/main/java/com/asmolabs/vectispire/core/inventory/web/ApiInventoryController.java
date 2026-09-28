@@ -99,8 +99,9 @@ public class ApiInventoryController {
     @RequiresSecurityLead
     @DeleteMapping("/repositories/{id}/apis")
     public ResponseEntity<Void> clearRepositoryAttackSurface(
+            @AuthenticationPrincipal VectispirePrincipal principal,
             @Parameter(description = "Repository identifier", required = true) @PathVariable long id) {
-        apiInventoryService.clearForRepository(id);
+        apiInventoryService.clearForRepository(requireVisible(principal, id));
         return ResponseEntity.noContent().build();
     }
 

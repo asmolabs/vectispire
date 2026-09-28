@@ -401,8 +401,12 @@ public class AttackPathService {
         // issues are fetched for every visible target at once and handed to `buildGraph`, which
         // is the same computation it always was on the same inputs.
         List<Long> repoIds = visible.stream().map(RepositoryView::id).toList();
-        Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo =
-                apiInventory.endpointViewsByRepository(repoIds);
+        // The inventory takes proofs, not ids. Minted from what the filter above kept, so the guard
+        // passes each one; it is the inventory's parameter that makes the next caller check too.
+        Map<Long, List<ApiInventoryService.EndpointView>> endpointsByRepo = apiInventory.endpointViewsByRepository(
+                repoIds.stream()
+                        .map(id -> RowVisibility.requireVisible(new ScanTarget.Repository(id), allowed))
+                        .toList());
         Map<Long, List<IssueRows.GraphNode>> issuesByRepo = issues
                 .unsettledOfRepositories(
                         "open", repoIds, TriageStatus.settledWireNames(), IssueRows.GraphNode.class).stream()
