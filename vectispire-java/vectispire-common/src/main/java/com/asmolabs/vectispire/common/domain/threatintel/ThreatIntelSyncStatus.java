@@ -37,6 +37,12 @@ public record ThreatIntelSyncStatus(
         String lastError,
         EpssFeedStatus epss) {
 
+    /** The same state, with the issues this synchronisation re-evaluated. */
+    public ThreatIntelSyncStatus withBacklogUpdated(long count) {
+        return new ThreatIntelSyncStatus(lastSyncedAt, totalCves, totalKev, status, count, kevCatalogVersion,
+                kevReleasedAt, lastAttemptAt, lastError, epss);
+    }
+
     /**
      * Where FIRST's EPSS file stands.
      *

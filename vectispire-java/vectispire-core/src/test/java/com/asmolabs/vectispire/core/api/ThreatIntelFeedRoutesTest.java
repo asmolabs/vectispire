@@ -3,6 +3,8 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -13,9 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
+import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
@@ -25,11 +29,16 @@ import com.asmolabs.vectispire.core.threatintel.ThreatIntelFeedService;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogSource;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -179,7 +188,7 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
             return new KevCatalog("2026.09.26", RELEASED, Map.of("CVE-2021-44228", RELEASED));
         });
 
-        feed.syncThreatIntel(new com.asmolabs.vectispire.core.audit.RequestActor("lead", null, null),
+        feed.syncThreatIntel(new RequestActor("lead", null, null),
                 ThreatIntelFeedService.Origin.THREAT_INTELLIGENCE_SCREEN);
 
         assertThat(open.get()).as("a transaction was open during the fetch").isFalse();
@@ -218,8 +227,62 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
         verify(siem, never()).enqueue(any());
     }
 
+    @Test
+    @DisplayName("a backlog of several pages is re-evaluated whole, each newly listed issue announced once")
+    void aBacklogOfSeveralPages() {
+        // Three pages of open issues: those on an even row are listed, a tenth of the odd ones were flagged
+        // by an older catalogue. And settled issues on listed CVE, which the re-evaluation leaves alone.
+        int open = 1_234;
+        List<IssueEntity> backlog = new ArrayList<>();
+        for (int row = 0; row < open; row++) {
+            backlog.add(unsaved(cve(row), row % 10 == 1));
+        }
+        for (int row = 0; row < 6; row += 2) {
+            IssueEntity settled = unsaved(cve(row), false);
+            settled.setState(row == 0 ? "closed" : "resolved");
+            backlog.add(settled);
+        }
+        issuesRepo.saveAll(backlog);
+        Map<String, Instant> listed = new LinkedHashMap<>();
+        for (int row = 0; row < 2 * open; row += 2) {
+            listed.put(cve(row), Instant.parse("2021-12-10T00:00:00Z"));
+        }
+        when(source.fetch()).thenReturn(new KevCatalog("2026.09.26", RELEASED, listed));
+
+        ThreatIntelSyncStatus first = feed.syncIfDue().orElseThrow();
+
+        int promoted = (open + 1) / 2;
+        long demoted = IntStream.range(0, open).filter(row -> row % 10 == 1).count();
+        assertThat(first.backlogUpdatedCount()).isEqualTo(promoted + demoted);
+        assertThat(issuesRepo.findAll()).allSatisfy(issue -> {
+            int row = Integer.parseInt(issue.getIdentifier().substring("CVE-2020-".length()));
+            boolean settled = !"open".equals(issue.getState());
+            assertThat(issue.isKev()).as(issue.getIdentifier() + " " + issue.getState()).isEqualTo(!settled && row % 2 == 0);
+        });
+        ArgumentCaptor<CefEvent> events =
+                ArgumentCaptor.forClass(CefEvent.class);
+        verify(siem, atLeast(0)).enqueue(events.capture());
+        assertThat(events.getAllValues())
+                .filteredOn(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED)
+                .map(CefEvent::message)
+                .hasSize(promoted)
+                .doesNotHaveDuplicates();
+
+        // The same catalogue again: every flag already right, nothing written, nothing announced.
+        clearInvocations(siem);
+        ThreatIntelSyncStatus again = feed.syncThreatIntel(
+                new RequestActor("lead", null, null),
+                ThreatIntelFeedService.Origin.THREAT_INTELLIGENCE_SCREEN);
+        assertThat(again.backlogUpdatedCount()).isZero();
+        verify(siem, never()).enqueue(argThat(event -> event.eventType() == SecurityEventType.CRITICAL_KEV_DETECTED));
+    }
+
+    private static String cve(int row) {
+        return String.format(Locale.ROOT, "CVE-2020-%04d", row);
+    }
+
     private void catalogue(Instant released, String... cves) {
-        Map<String, Instant> added = new java.util.LinkedHashMap<>();
+        Map<String, Instant> added = new LinkedHashMap<>();
         for (String cve : cves) {
             added.put(cve, Instant.parse("2021-12-10T00:00:00Z"));
         }
@@ -227,6 +290,10 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
     }
 
     private IssueEntity issue(String cve, boolean kev) {
+        return issuesRepo.save(unsaved(cve, kev));
+    }
+
+    private static IssueEntity unsaved(String cve, boolean kev) {
         IssueEntity issue = new IssueEntity();
         issue.setType("vulnerability");
         issue.setIdentifier(cve);
@@ -239,6 +306,6 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
         issue.setFirstSeenAt(Instant.now());
         issue.setLastSeenAt(Instant.now());
         issue.setTriageStatus("untriaged");
-        return issuesRepo.save(issue);
+        return issue;
     }
 }

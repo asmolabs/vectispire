@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -17,11 +18,11 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * What the threat-intel feeds write onto the backlog, and only that.
  *
- * <p>The KEV re-evaluation reads the open issues at the start of its transaction and wrote them back
+ * <p>The KEV re-evaluation read the open issues at the start of its transaction and wrote them back
  * whole at its end; the EPSS refresh, running meanwhile in transactions of its own, had its scores put
  * back to what the KEV transaction had read. The interleaving is forced here inside one transaction:
- * the rows are read, a score changes underneath the persistence context — as a committed EPSS page
- * does — and the flag is written.
+ * a page is read, a score changes underneath it — as a committed EPSS page does — and the flag is
+ * written.
  */
 @DisplayName("the feeds' writes onto the backlog")
 class FeedWritesTest extends VectispireContextTest {
@@ -44,7 +45,8 @@ class FeedWritesTest extends VectispireContextTest {
         long id = issue(0.1).getId();
 
         transactions.executeWithoutResult(status -> {
-            assertThat(catalog.notInStates(List.of("closed", "resolved"))).isNotEmpty();
+            assertThat(catalog.openIdentifiedAfter(0, List.of("closed", "resolved"), 500, IssueRows.KevCandidate.class))
+                    .isNotEmpty();
             jdbc.update("update t_issue set epss_score = 0.9 where id = ?", id);
             catalog.recordExploitation(List.of(new IssueCatalog.Exploitation(id, true)));
         });
@@ -61,7 +63,8 @@ class FeedWritesTest extends VectispireContextTest {
         long second = issue(0.2).getId();
 
         transactions.executeWithoutResult(status -> {
-            assertThat(catalog.notInStates(List.of("closed", "resolved"))).hasSize(2);
+            assertThat(catalog.openIdentifiedAfter(0, List.of("closed", "resolved"), 500, IssueRows.EpssCandidate.class))
+                    .hasSize(2);
             jdbc.update("update t_issue set is_kev = ? where id = ?", true, first);
             assertThat(catalog.recordEpss(Map.of(first, 0.7, second, 0.7))).isEqualTo(2);
         });

@@ -90,6 +90,13 @@ public final class IssueRows {
     public record EpssCandidate(Long id, String identifier, Double epssScore) {}
 
     /**
+     * What the KEV re-evaluation reads of an open issue: which row, which CVE, the flag it carries —
+     * so an unchanged one is not written again — and what a {@code CRITICAL_KEV_DETECTED} names.
+     */
+    public record KevCandidate(
+            Long id, String identifier, Boolean isKev, String packageName, Long repoId, Long containerId) {}
+
+    /**
      * The three columns a security grade is computed from.
      *
      * <p>A scorecard subtracts on severity and on whether the issue is actively exploited, and

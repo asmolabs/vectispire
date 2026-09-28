@@ -29,6 +29,25 @@ public interface ThreatIntelSyncRepository extends JpaRepository<ThreatIntelSync
     int markAttempt(@Param("id") long id, @Param("at") Instant at);
 
     /**
+     * Takes the row's write lock until the caller's transaction ends, and changes nothing: the first
+     * statement of each page of the KEV re-evaluation.
+     *
+     * <p><b>Why each page takes it.</b> The re-evaluation is a page of open issues per transaction,
+     * and a newly flagged issue is announced to the SIEM in the page that flags it. Two
+     * synchronisations walking the backlog at once — the schedule on one instance, a lead's button on
+     * another — would each read an issue as not yet exploited and each announce it. Under the lock the
+     * second one's page waits for the first one's to commit, and only then reads the flags: on
+     * PostgreSQL a statement's snapshot is taken when it starts, and on MySQL a transaction's at its
+     * first plain read, which comes after this update — so the flags read are the ones just committed.
+     * The column set to itself because an update is the lock every engine has (see {@link
+     * #markAttempt}), and it must not move the attempt the schedule's retry is timed from.
+     */
+    @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update ThreatIntelSyncEntity s set s.lastAttemptAt = s.lastAttemptAt where s.id = :id")
+    int holdForReevaluation(@Param("id") long id);
+
+    /**
      * Claims the scheduled synchronisation for this instance, if one is due.
      *
      * <p>Every instance runs every maintenance task; the conditional update is the election, as the

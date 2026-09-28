@@ -273,14 +273,14 @@ public class EpssFeed {
      * rejected one — keeps the figure it had rather than losing it to an unknown.
      *
      * <p><b>Bounded pages, each its own transaction</b>, walked by id: the backlog of a large estate is
-     * hundreds of thousands of rows, and read at once — as the KEV re-evaluation still reads it — it
-     * would be one transaction holding all of them.
+     * hundreds of thousands of rows, and read at once it would be one transaction holding all of them.
      */
     private long rescoreBacklog(long generation) {
         long after = 0;
         long rescored = 0;
         while (true) {
-            List<IssueRows.EpssCandidate> page = issues.openIdentifiedAfter(after, CLOSED, BACKLOG_PAGE);
+            List<IssueRows.EpssCandidate> page =
+                    issues.openIdentifiedAfter(after, CLOSED, BACKLOG_PAGE, IssueRows.EpssCandidate.class);
             if (page.isEmpty()) {
                 return rescored;
             }

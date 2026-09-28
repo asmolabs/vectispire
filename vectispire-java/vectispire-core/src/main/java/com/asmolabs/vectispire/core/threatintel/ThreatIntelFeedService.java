@@ -14,7 +14,7 @@ import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.S
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
-import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.persistence.queries.IssueRows;
 import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogSource;
@@ -87,6 +87,12 @@ public class ThreatIntelFeedService {
 
     /** Identifiers per lookup, under every engine's bind-parameter ceiling. */
     private static final int LOOKUP_BATCH = 1_000;
+
+    /** Open issues re-evaluated per transaction, as the EPSS refresh re-scores them. */
+    static final int BACKLOG_PAGE = 500;
+
+    /** The states the re-evaluation treats as settled: "still open" is every other one. */
+    private static final List<String> CLOSED = List.of("closed", "resolved");
 
     /** The actor of a synchronisation nobody asked for, as the audit log names it. */
     private static final RequestActor SCHEDULE = new RequestActor("system", null, null);
@@ -200,7 +206,14 @@ public class ThreatIntelFeedService {
         });
     }
 
-    /** The fetch, outside any transaction, then the write, in one. */
+    /**
+     * The fetch, outside any transaction; the catalogue written in one; then the backlog, a page per
+     * transaction.
+     *
+     * <p><b>Applied once stored.</b> What follows cannot un-apply the catalogue: a page that fails is
+     * logged, and the next synchronisation walks the whole backlog again — the flags are compared, not
+     * toggled, so a page applied twice changes nothing and announces nothing.
+     */
     private ThreatIntelSyncStatus synchronize() {
         Instant attempted = clock.instant();
         KevCatalog read;
@@ -213,7 +226,17 @@ public class ThreatIntelFeedService {
             log.warn("KEV catalogue not synchronised from {}: {}", catalogue.location(), reason);
             return transactions.execute(status -> recordFailure(attempted, reason));
         }
-        return transactions.execute(status -> apply(read, attempted));
+        ThreatIntelSyncStatus stored = transactions.execute(status -> apply(read, attempted));
+        if (stored.status() != State.SYNCED) {
+            return stored;
+        }
+        long updated = 0;
+        try {
+            updated = reevaluate();
+        } catch (RuntimeException failure) {
+            log.warn("KEV catalogue applied, but the open issues were not all re-evaluated: {}", reason(failure));
+        }
+        return stored.withBacklogUpdated(updated);
     }
 
     /** Within the transaction {@link #synchronize()} opens. */
@@ -224,7 +247,7 @@ public class ThreatIntelFeedService {
         return status(syncRepo.save(sync), 0);
     }
 
-    /** Within the transaction {@link #synchronize()} opens: the catalogue stored, then the backlog. */
+    /** Within the transaction {@link #synchronize()} opens: the catalogue stored, and the sync row. */
     private ThreatIntelSyncStatus apply(KevCatalog read, Instant attempted) {
         ThreatIntelSyncEntity sync = holdSyncRow(attempted);
 
@@ -273,8 +296,6 @@ public class ThreatIntelFeedService {
         intelRepo.insertListed(listed, now);
         intelRepo.saveAll(changed);
 
-        long updatedIssues = reevaluate(stored);
-
         sync.setLastSyncedAt(now);
         sync.setCveCount(stored.size());
         sync.setKevCount(read.added().size());
@@ -282,58 +303,100 @@ public class ThreatIntelFeedService {
         sync.setKevCatalogVersion(read.version());
         sync.setKevReleasedAt(read.released());
         sync.setLastError(null);
-        return status(syncRepo.save(sync), updatedIssues);
+        return status(syncRepo.save(sync), 0);
     }
 
     /**
-     * The open issues' exploitation, against the catalogue just stored.
+     * The open issues' exploitation, against the catalogue stored, a page of {@value #BACKLOG_PAGE} at a
+     * time in id order — each page its own short transaction.
      *
-     * <p><b>Two queries, not one plus one per issue.</b> This read the whole of {@code t_issue} and
-     * filtered the closed rows in Java, then asked the intel table for one CVE at a time. The state
-     * filter is SQL, and the intel is the map already in memory. What is unchanged on purpose is which
-     * issues qualify — "not closed and not resolved", passed as data so the definition stays the
-     * caller's.
+     * <p><b>Not the whole backlog in one transaction.</b> This read every open issue into memory in the
+     * catalogue's transaction and held the sync row's lock, and SQLite's whole file, until the last
+     * one was written — hundreds of thousands of rows on a large estate. Walked by keyset, each page
+     * costs the same however deep the walk is, as the EPSS refresh's does.
+     *
+     * <p><b>Announced once.</b> Each page takes the sync row's lock before it reads its issues ({@link
+     * ThreatIntelSyncRepository#holdForReevaluation}), so a second synchronisation's page reads the
+     * flags the first one's committed: a newly listed CVE raises {@code CRITICAL_KEV_DETECTED} once per
+     * issue, whoever walks the backlog second.
      *
      * <p><b>Absent from the catalogue is not exploited</b>, since the catalogue applied is whole: an
      * issue flagged by an older catalogue, or by the typed-in list this replaced, is un-flagged.
      *
-     * <p><b>The flag only.</b> The EPSS score used to ride along, read here and written back at the
-     * end of this transaction — which would put back a score the EPSS feed refreshed meanwhile. The
-     * EPSS feed writes its own column ({@code EpssFeed}).
+     * <p><b>The flag only.</b> Written by a targeted update ({@link IssueCatalog#recordExploitation}): a
+     * row saved whole would put back the EPSS score, or a scan's {@code lastSeenAt}, it was read with.
      */
-    private long reevaluate(Map<String, ThreatIntelEntity> intel) {
-        List<IssueView> open = issuesRepo.notInStates(List.of("closed", "resolved"));
+    private long reevaluate() {
+        long after = 0;
+        long updated = 0;
+        while (true) {
+            long from = after;
+            Page page = transactions.execute(status -> reevaluatePage(from));
+            updated += page.updated();
+            if (page.read() < BACKLOG_PAGE) {
+                return updated;
+            }
+            after = page.last();
+        }
+    }
 
-        // The figures are this module's decision; the rows are the backlog's, written in one batch
-        // after the loop, in this transaction (decision 0029).
+    /** One page's outcome: the rows read, the last id, the flags changed. */
+    private record Page(int read, long last, int updated) {}
+
+    /** Within its own transaction: the lock, the page, the catalogue's word on it, the flags written. */
+    private Page reevaluatePage(long after) {
+        syncRepo.holdForReevaluation(ThreatIntelSyncEntity.SINGLETON_ID);
+        List<IssueRows.KevCandidate> page =
+                issuesRepo.openIdentifiedAfter(after, CLOSED, BACKLOG_PAGE, IssueRows.KevCandidate.class);
+        if (page.isEmpty()) {
+            return new Page(0, after, 0);
+        }
+        Set<String> listed = listedAmong(page.stream().map(IssueRows.KevCandidate::identifier).toList());
+
+        // The figures are this module's decision; the rows are the backlog's (decision 0029).
         List<IssueCatalog.Exploitation> updates = new ArrayList<>();
-        for (IssueView issue : open) {
-            if (issue.identifier() == null || issue.identifier().isBlank()) {
+        for (IssueRows.KevCandidate issue : page) {
+            if (issue.identifier().isBlank()) {
                 continue;
             }
-            ThreatIntelEntity match = intel.get(issue.identifier().trim().toUpperCase(Locale.ROOT));
-            boolean kev = match != null && match.isKev();
-            if (kev == issue.isKev()) {
+            boolean kev = listed.contains(issue.identifier().trim().toUpperCase(Locale.ROOT));
+            boolean was = Boolean.TRUE.equals(issue.isKev());
+            if (kev == was) {
                 continue;
             }
             updates.add(new IssueCatalog.Exploitation(issue.id(), kev));
 
-            if (kev && !issue.isKev()) {
+            if (kev) {
                 log.warn("CVE {} newly listed as actively exploited in the CISA KEV catalogue. Notifying SOC/SIEM.",
                         issue.identifier());
-                // Queued in this transaction, sent after it commits: a reclassification that rolls
-                // back announces nothing, and no collector holds this sync's locks while it answers.
+                // Queued in this transaction, sent after it commits: a page that rolls back announces
+                // nothing, and no collector holds this sync's locks while it answers.
                 siemEvents.enqueue(CefEvent.builder(SecurityEventType.CRITICAL_KEV_DETECTED)
                         .message("Vulnerability " + issue.identifier()
                                 + " promoted to CISA Known Exploited Vulnerability (KEV)")
-                        .target(targetOf(issue))
+                        .target(targetOf(issue.repoId(), issue.containerId()))
                         .identifier(issue.identifier())
                         .component(issue.packageName())
                         .build());
             }
         }
         issuesRepo.recordExploitation(updates);
-        return updates.size();
+        return new Page(page.size(), page.getLast().id(), updates.size());
+    }
+
+    /** Those of these identifiers the stored catalogue lists, upper-case — one page's, so one statement. */
+    private Set<String> listedAmong(List<String> identifiers) {
+        List<String> wanted = identifiers.stream()
+                .map(id -> id.trim().toLowerCase(Locale.ROOT))
+                .filter(id -> !id.isEmpty())
+                .distinct()
+                .toList();
+        if (wanted.isEmpty()) {
+            return Set.of();
+        }
+        return intelRepo.exploitedAmong(wanted).stream()
+                .map(id -> id.toUpperCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -402,11 +465,11 @@ public class ThreatIntelFeedService {
     }
 
     /** The target a finding belongs to, as the CEF target field names it: {@code repository 12}, {@code container 3}. */
-    private static String targetOf(IssueView issue) {
-        if (issue.repoId() != null) {
-            return "repository " + issue.repoId();
+    private static String targetOf(Long repoId, Long containerId) {
+        if (repoId != null) {
+            return "repository " + repoId;
         }
-        return issue.containerId() == null ? null : "container " + issue.containerId();
+        return containerId == null ? null : "container " + containerId;
     }
 
     /**

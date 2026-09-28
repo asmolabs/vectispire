@@ -265,16 +265,6 @@ public interface IssueRepository
     List<OpenIssueCount> countOpenByContainer(@Param("state") String state);
 
     /**
-     * Every issue whose state is none of {@code states}.
-     *
-     * <p><b>Exists so the threat-intel sync stops reading the table.</b> It used to call
-     * {@code findAll()} and drop closed and resolved rows in Java — the whole of {@code t_issue},
-     * estimated at half a million rows, loaded to keep a subset. The states are passed in rather
-     * than hard-coded here because the caller's definition of "still open" is the caller's.
-     */
-    List<IssueEntity> findByStateNotIn(java.util.Collection<String> states);
-
-    /**
      * A page of the issues in none of {@code states} that name an identifier, after {@code afterId}
      * in id order — keyset, so each page costs the same however deep the walk is — read in {@code
      * shape}, a record whose components are the entity's property names.

@@ -273,11 +273,6 @@ public class IssueCatalog {
         return issues.findByState(state, shape);
     }
 
-    /** Every issue in none of these states. */
-    public List<IssueView> notInStates(Collection<String> states) {
-        return issues.findByStateNotIn(states).stream().map(IssueView::of).toList();
-    }
-
     // ------------------------------------------------------------------ tickets
 
     /** See {@code IssueRepository.findActionableWithoutTicket}: worst first, at most {@code limit}. */
@@ -326,12 +321,14 @@ public class IssueCatalog {
 
     /**
      * A page of the open issues that name an identifier, in id order after {@code afterId} — the EPSS
-     * refresh walks the backlog with these, a bounded page per transaction, rather than reading every
-     * open issue at once.
+     * refresh and the KEV re-evaluation walk the backlog with these, a bounded page per transaction,
+     * rather than reading every open issue at once.
+     *
+     * @param shape {@link IssueRows.EpssCandidate} or {@link IssueRows.KevCandidate}: what the walk reads
      */
-    public List<IssueRows.EpssCandidate> openIdentifiedAfter(long afterId, Collection<String> closedStates, int limit) {
+    public <R> List<R> openIdentifiedAfter(long afterId, Collection<String> closedStates, int limit, Class<R> shape) {
         return issues.findByIdGreaterThanAndStateNotInAndIdentifierIsNotNullOrderByIdAsc(
-                afterId, closedStates, Limit.of(limit), IssueRows.EpssCandidate.class);
+                afterId, closedStates, Limit.of(limit), shape);
     }
 
     /**
