@@ -22,11 +22,14 @@ l'auteur de la requête.
 | `retryAfterSeconds` | sur un 429 | Le temps d'attente. L'en-tête `Retry-After` porte le même nombre. |
 | `correlationId` | sur un 500 | Une référence à transmettre à votre administrateur ; elle figure aussi dans `detail`. |
 
-Le type de contenu est `application/problem+json`. Une exception : une requête que le serveur web
-refuse avant que l'application ne la voie — une URL que le pare-feu de sécurité rejette, par
-exemple avec `//` ou un `..` encodé — porte les mêmes membres en `application/json`, sauf si le
-client demande `application/problem+json` dans `Accept`. Une URL que le serveur ne peut même pas
-décoder, comme un `%` isolé, reçoit la page HTML du conteneur de servlets.
+Le type de contenu est `application/problem+json`, y compris pour une requête que le serveur web
+refuse avant que l'application ne la voie : une URL que le pare-feu de sécurité rejette — `//`, un
+`..` encodé, un `;` — et une URL que le conteneur de servlets ne peut pas décoder, comme un `%`
+isolé ou un `/` encodé. Les deux sont un 400 dont le `detail` dit quel genre d'URL a été refusé ;
+aucune n'est une page HTML, et aucune ne nomme le serveur ni sa version. Une exception demeure :
+une défaillance levée avant qu'une route ne soit atteinte reçoit de la page d'erreur les mêmes
+membres, en `application/json` sauf si le client demande `application/problem+json` dans
+`Accept`.
 
 ## Ce que signifie chaque statut
 

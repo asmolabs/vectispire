@@ -119,7 +119,9 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   credential (which had no body) and the 403 of a role (which had the container's
   `{timestamp, status, error, path}`). The three rate limiters answered `{"message": …}`: the
   sentence is now `detail`, and a new `retryAfterSeconds` repeats the `Retry-After` header. A
-  client reading `message` must read `detail`.
+  client reading `message` must read `detail`. A URL refused before the application — by the
+  security firewall (`//`, an encoded `..`) or by the servlet container (a lone `%`), which
+  answered its own HTML page — is a 400 problem too.
 - **A 500 no longer quotes the failure.** An error nobody wrote a message for — including one that
   used to answer 400 or 404 with a library's own words ("For input string", "No value present",
   "No enum constant …") — is a 500 whose `detail` gives a `correlationId`, logged with the error.

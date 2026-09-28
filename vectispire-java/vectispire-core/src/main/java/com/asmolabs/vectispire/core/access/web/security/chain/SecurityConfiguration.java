@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.firewall.RequestRejectedHandler;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -36,6 +37,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfiguration implements WebMvcConfigurer {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SecurityConfiguration.class);
 
     private final BearerAuthenticationFilter bearer;
     private final LoginRateLimitFilter rateLimit;
@@ -155,6 +158,26 @@ public class SecurityConfiguration implements WebMvcConfigurer {
             "base-uri 'self'",
             "form-action 'self'",
             "frame-ancestors 'none'");
+
+    /**
+     * The firewall's refusal — {@code //}, an encoded {@code ..} or {@code ;}, a control character —
+     * answered by the chain, as its other refusals are.
+     *
+     * <p>Without a handler the rejection is rethrown out of the chain and reaches the container's error
+     * page, which answers a problem's members as {@code application/json}: the one refusal of the
+     * chain whose media type was not RFC 9457's. {@code WebSecurity} picks this bean up by type. The
+     * firewall's own sentence names the sequence it found and stays in the debug log; the client is
+     * told the class of problem, which is what it can fix.
+     */
+    @Bean
+    RequestRejectedHandler requestRejectedHandler() {
+        return (request, response, rejected) -> {
+            log.debug("Request refused by the firewall: {}", rejected.getMessage());
+            ProblemResponses.write(request, response, HttpStatus.BAD_REQUEST,
+                    "The request was refused: its URL contains a sequence this server does not accept — a"
+                            + " doubled or encoded separator, an encoded traversal, a ';' or a control character.");
+        };
+    }
 
     @Bean
     SecurityFilterChain apiSecurity(HttpSecurity http, ClientAddressFilter clientAddress) throws Exception {

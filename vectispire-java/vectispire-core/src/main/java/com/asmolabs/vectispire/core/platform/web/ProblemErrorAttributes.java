@@ -14,8 +14,10 @@ import org.springframework.web.context.request.WebRequest;
  * What the container's error page answers, in the members of an RFC 9457 problem.
  *
  * <p><b>What still reaches it.</b> {@code ApiExceptionHandler} answers everything a controller
- * throws, and the filter chain writes its own refusals; what is left is an exception thrown by a
- * filter, and a status set by the container itself. Those went to Spring Boot's error page, whose
+ * throws, and the filter chain writes its own refusals, its firewall's included; what is left is an
+ * exception thrown by a filter, and a status a filter sets with {@code sendError}. A URI the
+ * connector cannot decode never gets this far — {@link ProblemErrorReportValve} answers it. Those
+ * went to Spring Boot's error page, whose
  * body is {@code {timestamp, status, error, path}} — no {@code detail}, so the one failure that most
  * needs explaining was the one the interface could not read a sentence from.
  *

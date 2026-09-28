@@ -21,11 +21,13 @@ document. Read `detail`: it is the sentence written for whoever made the request
 | `retryAfterSeconds` | on a 429 | How long to wait. The `Retry-After` header carries the same number. |
 | `correlationId` | on a 500 | A reference to quote to your administrator; also found in `detail`. |
 
-The content type is `application/problem+json`. One exception: a request the web server itself
-rejects before the application sees it — a URL the security firewall refuses, such as one with
-`//` or an encoded `..` — carries the same members as `application/json` unless the client asks
-for `application/problem+json` in `Accept`. A URL the server cannot even decode, such as a lone
-`%`, is answered by the servlet container with its own HTML page.
+The content type is `application/problem+json`, including for a request the web server rejects
+before the application sees it: a URL the security firewall refuses — `//`, an encoded `..`, a
+`;` — and one the servlet container cannot decode, such as a lone `%` or an encoded `/`. Both are
+a 400 whose `detail` says which kind of URL was refused; neither is an HTML page, and neither
+names the server or its version. One exception remains: a failure thrown before any route is
+reached is answered by the error page with the same members, as `application/json` unless the
+client asks for `application/problem+json` in `Accept`.
 
 ## What each status means
 

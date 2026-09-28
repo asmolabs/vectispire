@@ -134,7 +134,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   portait le `{timestamp, status, error, path}` du conteneur). Les trois limiteurs de débit
   répondaient `{"message": …}` : la phrase est désormais `detail`, et un nouveau
   `retryAfterSeconds` répète l'en-tête `Retry-After`. Un client qui lit `message` doit lire
-  `detail`.
+  `detail`. Une URL refusée avant l'application — par le pare-feu de sécurité (`//`, un `..`
+  encodé) ou par le conteneur de servlets (un `%` isolé), qui répondait sa propre page HTML — est
+  elle aussi un problème 400.
 - **Un 500 ne cite plus la défaillance.** Une erreur pour laquelle personne n'a écrit de message —
   y compris celles qui répondaient 400 ou 404 avec les mots d'une bibliothèque (« For input
   string », « No value present », « No enum constant … ») — est un 500 dont le `detail` donne un
