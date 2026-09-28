@@ -511,12 +511,13 @@ Deux règles que le harnais s'impose à lui-même :
 ## 11. Conseiller IA local d'explication des vulnérabilités et de triage
 
 - **Moteur d'explication et de remédiation (`AiReviewService`, `AiAdvisorController`)** :
-  - Génère des explications contextuelles de vulnérabilité, une analyse des mécanismes d'exploitation, les commandes CLI exactes de mise à niveau (`mvn`, `npm`), et des déclarations formelles de justification VEX. Aucune atteignabilité n'est transmise au modèle ni au repli, puisque rien ne la calcule : le repli indique que l'exposition n'a pas été évaluée, et `not_affected` n'est jamais proposé.
-  - Fonctionnement double : inférence par modèle Ollama local (aucune fuite de données vers un tiers) ou repli heuristique déterministe instantané.
+  - Génère des explications contextuelles de vulnérabilité, ce que l'on sait de son exploitation, une commande de mise à niveau suggérée (`mvn`, `npm`) lorsque le composant et une version corrigée sont tous deux enregistrés, et une suggestion de statut VEX — `affected` ou `under_investigation`, jamais une justification. Aucune atteignabilité n'est transmise au modèle ni au repli, puisque rien ne la calcule : le repli indique que l'exposition n'a pas été évaluée, et `not_affected` n'est jamais proposé, même lorsqu'un modèle le répond.
+  - **L'exploitation est lue dans les flux enregistrés, jamais supposée.** L'inscription KEV vient du catalogue CISA synchronisé (`deterministic.kev` : `LISTED`, `NOT_LISTED`, ou `UNKNOWN` avant la première synchronisation et pour un identifiant qui n'est pas une CVE) et le score EPSS du fichier EPSS en vigueur (`deterministic.exploitProbability`, null s'il est inconnu) ; l'indicateur et le score propres à une anomalie sont utilisés lorsqu'elle les porte. Une valeur inconnue est affichée comme inconnue à l'écran et envoyée au modèle comme `unknown`, avec la consigne de ne pas l'estimer. Un composant, une version ou une version corrigée que personne n'a enregistré vaut null, et aucune mise à niveau n'est proposée sans version corrigée.
+  - Fonctionnement double : le modèle configuré (Ollama ou une API compatible OpenAI, tenue à une adresse interne sauf acceptation du risque distant) ou un repli déterministe instantané. L'explication d'une CVE que le parc ne porte pas est toujours la déterministe : rien la concernant n'est envoyé à un modèle.
 - **Endpoints REST** :
   - `GET /api/v1/ai-advisor/status` : état du moteur d'inférence IA local et modèles disponibles.
   - `POST /api/v1/ai-advisor/explain/issue/{issueId}` : explication contextuelle et déclaration VEX pour une anomalie persistée.
-  - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : explication à la volée pour tout identifiant CVE, avec métadonnées de paquet facultatives. Un paramètre `reachability` n'est plus lu.
+  - `POST /api/v1/ai-advisor/explain/cve/{cveId}` : explication à la volée pour tout identifiant CVE, avec métadonnées de paquet facultatives, son inscription KEV et son score EPSS lus dans les flux enregistrés. Un paramètre `reachability` n'est plus lu.
 
 ## 12. Risque juridique des licences open source & matrice de copyleft
 

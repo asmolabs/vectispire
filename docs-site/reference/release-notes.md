@@ -134,6 +134,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   advisor's answer. `POST /api/v1/ai-advisor/explain/cve/{id}` ignores a `reachability` parameter.
   In OpenVEX, a finding awaiting triage reads "Awaiting contextual triage." rather than
   "Awaiting reachability confirmation and contextual triage."
+- **The AI advisor's `deterministic.activelyExploited` is `deterministic.kev`**: `LISTED`,
+  `NOT_LISTED` or `UNKNOWN`, read from the stored CISA catalogue — the boolean said false before
+  any catalogue had been read. `deterministic.packageName`, `currentVersion`, `targetVersion` and
+  `remediation.suggestedVersion` are null when nothing is recorded, rather than "the component",
+  "current" or "the fixed version", and a model's advice no longer carries a VEX justification.
 
 ### New
 
@@ -165,6 +170,14 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   charges every critical 8 points, the EPSS ranking is CVSS × EPSS with KEV on top, and the
   attack paths no longer admit or flag a node on it — no figure an installation has shown moves,
   since every issue read `UNKNOWN`. The AI advisor says the exposure was not assessed.
+- **The AI advisor no longer invents exploitation figures.** Explaining a CVE the estate does not
+  carry showed an EPSS probability of 75 % for every CVE, and "actively exploited" for two
+  identifiers typed into the code; a listed CVE without a score read 85 %. It now shows the KEV
+  listing and the EPSS score the stored feeds hold, and says "unknown" when they hold nothing —
+  before the first synchronisation, for instance. The impact sentences nobody had looked up
+  ("a remote attacker may execute arbitrary code") are gone, no upgrade is proposed without a
+  recorded fixed version, and the EPSS page no longer shows a percentile of 0 for a CVE the file
+  does not score.
 
 ### Security
 

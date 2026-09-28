@@ -151,6 +151,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `POST /api/v1/ai-advisor/explain/cve/{id}` ignore un paramètre `reachability`. En OpenVEX, un
   constat en attente de triage indique « Awaiting contextual triage. » au lieu de « Awaiting
   reachability confirmation and contextual triage. »
+- **Le `deterministic.activelyExploited` du conseiller IA devient `deterministic.kev`** :
+  `LISTED`, `NOT_LISTED` ou `UNKNOWN`, lu dans le catalogue CISA enregistré — le booléen valait
+  faux avant toute lecture du catalogue. `deterministic.packageName`, `currentVersion`,
+  `targetVersion` et `remediation.suggestedVersion` valent null quand rien n'est enregistré, au lieu
+  de « the component », « current » ou « the fixed version », et l'avis d'un modèle ne porte plus
+  de justification VEX.
 
 ### Nouveautés
 
@@ -184,6 +190,15 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   avec le KEV au-dessus, et les chemins d'attaque ne retiennent ni ne signalent plus un nœud sur
   cette base — aucun chiffre qu'une installation a affiché ne bouge, puisque chaque problème valait
   `UNKNOWN`. Le conseiller IA indique que l'exposition n'a pas été évaluée.
+- **Le conseiller IA n'invente plus de chiffres d'exploitation.** L'explication d'une CVE que le
+  parc ne porte pas affichait une probabilité EPSS de 75 % pour toute CVE, et « activement
+  exploitée » pour deux identifiants inscrits dans le code ; une CVE inscrite sans score valait
+  85 %. Il affiche désormais l'inscription KEV et le score EPSS que détiennent les flux
+  enregistrés, et indique « inconnue » quand ils ne détiennent rien — avant la première
+  synchronisation, par exemple. Les phrases d'impact que personne n'avait vérifiées (« un attaquant
+  distant peut exécuter du code arbitraire ») disparaissent, aucune mise à niveau n'est proposée
+  sans version corrigée enregistrée, et la page EPSS n'affiche plus un percentile de 0 pour une
+  CVE que le fichier ne note pas.
 
 ### Sécurité
 
