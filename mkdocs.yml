@@ -128,6 +128,7 @@ plugins:
             Exceptions: Exceptions
             History and evidence: Historique et preuves
             Attestation: Attestation
+            Security checklists: Checklists de sécurité
             Exports: Exports
             Integrations: Intégrations
             CI policy gate: Barrière CI
@@ -207,6 +208,7 @@ nav:
       - Exceptions: guide/exceptions.md
       - History and evidence: guide/history.md
       - Attestation: guide/attestation.md
+      - Security checklists: guide/security-checklists.md
       - Exports: guide/exports.md
   - Integrations:
       - CI policy gate: integrations/ci-gate.md

@@ -73,5 +73,6 @@ restant à côté comme une donnée rapportée.
 - [Constats et triage](../guide/issues.fr.md) — là où une décision se propose.
 - [Utilisateurs et équipes](users-and-teams.fr.md) — les rôles et ce que chacun peut faire.
 - [Modèles de checklists](checklist-templates.fr.md) — une version de modèle publiée par quelqu'un d'autre que son auteur.
+- [Checklists de sécurité](../guide/security-checklists.fr.md#5-approuver) — la checklist d'un projet approuvée par quelqu'un qui n'en a rien écrit.
 - [SIEM](../integrations/siem.fr.md#catalogue-des-evenements) — une checklist approuvée (`VECTI-SEC-025`), une approbation refusée ou une checklist renvoyée (`VECTI-SEC-026`).
 - [Journal d'audit](audit-log.fr.md) — où chaque décision et chaque changement de réglage sont inscrits.

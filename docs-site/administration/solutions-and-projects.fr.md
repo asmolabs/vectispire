@@ -131,3 +131,4 @@ Les mêmes opérations, pour les scripts :
 
 - [Utilisateurs et équipes](users-and-teams.md) — attribuer un projet à un compte ou à une équipe.
 - [Journal d'audit](audit-log.md) — où sont enregistrés créations, suppressions et déplacements.
+- [Checklists de sécurité](../guide/security-checklists.fr.md) — la checklist d'un projet, montrée seulement à qui voit le projet en entier.

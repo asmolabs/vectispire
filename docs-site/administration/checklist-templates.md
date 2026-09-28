@@ -2,8 +2,8 @@
 
 A checklist template is **your organisation's own security checklist**, imported from the workbook
 you already use: its domains, objectives, controls, contacts and KPIs, in its own words and its own
-language. Projects will answer it line by line; this page is where the template itself is imported,
-checked and published.
+language. Projects answer it line by line — see [security checklists](../guide/security-checklists.md);
+this page is where the template itself is imported, checked and published.
 
 Open it from **Administration → Checklist templates**. Decision
 [0032](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0032-security-checklists.md)
@@ -130,6 +130,8 @@ the SIEM as `VECTI-SEC-024`.
 
 ## Related
 
+- [Security checklists](../guide/security-checklists.md) — a project's checklist, answered on a published version, and what
+  moving it to a new version carries.
 - [Four-eyes approval](four-eyes.md) — the setting that decides who may publish.
 - [Users and teams](users-and-teams.md) — the roles and what each may do.
 - [Audit log](audit-log.md) — where every change to a template is recorded.

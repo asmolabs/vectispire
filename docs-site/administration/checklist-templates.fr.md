@@ -2,8 +2,9 @@
 
 Un modèle de checklist est **la checklist de sécurité de votre organisation**, importée depuis le
 classeur que vous utilisez déjà : ses domaines, objectifs, contrôles, contacts et KPI, dans ses
-propres mots et sa propre langue. Les projets y répondront ligne par ligne ; cette page est celle où
-le modèle lui-même est importé, vérifié et publié.
+propres mots et sa propre langue. Les projets y répondent ligne par ligne — voir
+[checklists de sécurité](../guide/security-checklists.fr.md) ; cette page est celle où le modèle
+lui-même est importé, vérifié et publié.
 
 Ouvrez-la depuis **Administration → Modèles de checklists**. La décision
 [0032](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0032-security-checklists.md)
@@ -137,6 +138,8 @@ signalé au SIEM comme `VECTI-SEC-024`.
 
 ## À lire aussi
 
+- [Checklists de sécurité](../guide/security-checklists.fr.md) — la checklist d'un projet, remplie sur une version
+  publiée, et ce que le passage à une nouvelle version reporte.
 - [Double validation](four-eyes.fr.md) — le réglage qui décide qui peut publier.
 - [Utilisateurs et équipes](users-and-teams.fr.md) — les rôles et ce que chacun peut faire.
 - [Journal d'audit](audit-log.fr.md) — où chaque changement d'un modèle est inscrit.

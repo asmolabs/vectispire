@@ -68,5 +68,6 @@ records the integration as the author with any claimed name kept beside it as re
 - [Issues and triage](../guide/issues.md) — where a decision is proposed.
 - [Users and teams](users-and-teams.md) — the roles and what each may do.
 - [Checklist templates](checklist-templates.md) — a template version published by somebody other than its author.
+- [Security checklists](../guide/security-checklists.md#5-sign-off) — a project's checklist signed off by somebody who wrote none of it.
 - [SIEM](../integrations/siem.md#event-catalogue) — a checklist signed off (`VECTI-SEC-025`), a sign-off refused or a checklist returned (`VECTI-SEC-026`).
 - [Audit log](audit-log.md) — where every decision and every setting change is recorded.

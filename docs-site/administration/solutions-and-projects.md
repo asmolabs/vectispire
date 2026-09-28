@@ -128,3 +128,4 @@ The same operations, for scripts:
 
 - [Users and teams](users-and-teams.md) — granting a project to an account or a team.
 - [Audit log](audit-log.md) — where creations, deletions and moves are recorded.
+- [Security checklists](../guide/security-checklists.md) — a project's checklist, shown only to whoever sees the project whole.
