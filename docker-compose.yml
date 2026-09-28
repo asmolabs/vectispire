@@ -197,8 +197,10 @@ services:
       VECTISPIRE_IMAGE_GITLEAKS: ${VECTISPIRE_IMAGE_GITLEAKS:-}
       VECTISPIRE_IMAGE_CHECKOV: ${VECTISPIRE_IMAGE_CHECKOV:-}
       VECTISPIRE_IMAGE_SEMGREP: ${VECTISPIRE_IMAGE_SEMGREP:-}
-      # Lets the control plane clone over SSH with the host operator's keys (mounted below).
-      VECTISPIRE_HOST_SSH: ${VECTISPIRE_HOST_SSH:-true}
+      # **Off here, although the application defaults to on.** "The host's own git access" is, in
+      # this container, the `.ssh` of the home set below — which holds no identity unless you put a
+      # dedicated one there. Each repository gets its key attached instead (SSH keys screen).
+      VECTISPIRE_HOST_SSH: ${VECTISPIRE_HOST_SSH:-false}
       # **The daemon is spoken to through the proxy, never through the file.** `ContainerRunner`
       # honours `DOCKER_HOST` before any autodetection, so nothing changes in the code: there is no
       # socket left to detect in this container.
@@ -212,7 +214,17 @@ services:
       # /repo/source", "open /repo/rules/gitleaks/gitleaks.toml: no such file or directory").
       # `JDK_JAVA_OPTIONS` rather than `JAVA_TOOL_OPTIONS`: the launcher reads it, and an operator
       # who sets the other one for a proxy does not silently take this away.
-      JDK_JAVA_OPTIONS: -Djava.io.tmpdir=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
+      #
+      # **And the home is set, because the image has none.** It runs as 1000 with no passwd entry,
+      # so `user.home` was `/`: the known-hosts file an SSH clone records its hosts in could not be
+      # created, and every clone with a deployment key failed ("The known-hosts file could not be
+      # prepared: /.ssh"), along with JGit's own configuration ("Creating directories for
+      # /.config/jgit failed"). Under the work directory it is writable, this process's alone — the
+      # agent has its own — and it survives a restart, so a host recorded once is checked against
+      # from then on rather than met again. Scanners are handed their workspace, never this.
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
+        -Duser.home=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}/home
     secrets:
       - source: mysql_password
         target: VECTISPIRE_DB_PASSWORD
@@ -230,8 +242,14 @@ services:
       - source: oidc_client_secret
         target: vectispire.oidc.client-secret
     volumes:
-      # Read-only, and only what git needs: the deploy keys the operator already uses.
-      - ${HOME}/.ssh:/home/vectispire/.ssh:ro
+      # **No `~/.ssh` of the operator's.** One was mounted here, read-only, and it did nothing it
+      # promised: at `/home/vectispire/.ssh` it was never read, the home being `/`; and where the home
+      # did match (an image built from the Dockerfile) a read-only known-hosts file made every keyed
+      # clone fail. It was also the wrong thing to hand over — every private key and host the
+      # operator has, to the process holding ENCRYPTION_KEY, usable with `VECTISPIRE_HOST_SSH` by
+      # anyone allowed to add a URL. To pin the forges' host keys rather than record them at first
+      # contact, write them to `home/.ssh/known_hosts` under the work directory — see the guide.
+      #
       # The audit mirror's home. A named volume rather than a bind mount: it holds audit
       # entries, and the image creates the directory owned by its unprivileged user so the
       # volume inherits that owner instead of arriving root-owned.
@@ -357,10 +375,14 @@ services:
       # `ENCRYPTION_KEY` — that is its whole purpose.
       DOCKER_HOST: tcp://agent-docker-proxy:2375
       # The agent creates its workspaces the way the built-in worker does, and hands them to its
-      # daemon the same way: same defect, same cure — see the control plane's.
-      JDK_JAVA_OPTIONS: -Djava.io.tmpdir=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
+      # daemon the same way: same defect, same cure — see the control plane's. Its home too, for the
+      # same reason, and in its own directory: a `delegated` agent's keyed clones record their hosts
+      # there. A `local` agent clones with that home's `.ssh` — empty unless you put a dedicated
+      # deployment key there, never the operator's own.
+      JDK_JAVA_OPTIONS: >-
+        -Djava.io.tmpdir=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
+        -Duser.home=${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}/home
     volumes:
-      - ${HOME}/.ssh:/home/vectispire/.ssh:ro
       # **Its own directory, not the control plane's.** Sharing one would let each side read the
       # other's clones; the agent exists to be another trust domain, even on one host.
       - ${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}:${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}
