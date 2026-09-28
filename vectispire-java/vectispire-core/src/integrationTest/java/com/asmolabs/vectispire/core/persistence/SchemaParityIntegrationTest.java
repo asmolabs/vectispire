@@ -169,6 +169,14 @@ class SchemaParityIntegrationTest {
                 .as("the poller's `findDue`, on a schedule")
                 .contains("status");
 
+        assertThat(indexedFirstColumns("t_checklist_template_version"))
+                .as("every template read lists its versions, and every import and derive asks whether a "
+                        + "draft exists and which number is next (decision 0032)")
+                .contains("template_id");
+        assertThat(indexedFirstColumns("t_checklist_item"))
+                .as("a version's items are read in order, counted in every listing, replaced by every edit")
+                .contains("version_id");
+
         // The child tables of a scan: read with it, purged with it by the `TargetDeleted` listeners.
         // Three of them carried an index that led with the wrong column, which is the case this
         // assertion exists to catch — `getIndexInfo` would have reported an index on the table
