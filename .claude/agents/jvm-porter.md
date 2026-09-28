@@ -182,7 +182,10 @@ every capability dropped has no `CAP_DAC_OVERRIDE` and cannot read the 0700 work
 file sharing hides both defects, a Linux daemon does not. Through the socket proxy a pooled connection
 dies after ten idle seconds, so every request closes its own (`OneRequestPerConnection`). A change to
 the composition, the images or the scanners' shape runs `scripts/composition-scan-check.sh` — the one
-check that scans through the file as shipped.
+check that scans through the file as shipped, with every scanner at its pinned digest (the matcher
+against a one-advisory database published in the executor's cache, not the publisher's 3 GB) and each
+required to report what the fixture planted for it. On Docker Desktop it puts the scans' directories
+in the VM, because on a shared path a scanner running as root reads the 0700 workspace and passes.
 
 **Anything entering an issue's fingerprint is a data contract.** A rule id, a finding type, a
 path normalization. Change one and every existing issue is resolved and recreated, losing its
