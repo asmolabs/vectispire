@@ -10,7 +10,6 @@ import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -127,19 +126,21 @@ public class WithheldClaimRepair {
 
         // Claimed and done in one transaction, the entry recorded after its commit: the audit log opens
         // its own, and inside this one it would wait on SQLite's file lock until it timed out.
-        Optional<List<Long>> done = transactions.execute(status -> {
-            if (!once.claim(JOB)) {
-                // Rolled back here, by us: the failed insert has marked the transaction rollback-only,
-                // and a commit asked for now would throw instead of saying "not ours".
-                status.setRollbackOnly();
-                return Optional.<List<Long>>empty();
+        List<Long> repaired;
+        try {
+            repaired = transactions.execute(status -> {
+                once.claim(JOB);
+                return delegatedAgentDeclared() ? refundUndelivered() : List.<Long>of();
+            });
+        } catch (RuntimeException failed) {
+            // Rolled back, claim and work together. Whether another instance has the job is the
+            // committed row's to say, never the exception's: a claim that failed for any other reason
+            // read as "theirs" would report the repair as run elsewhere while nobody ran it.
+            if (once.hasRun(JOB)) {
+                return new Outcome.ClaimedElsewhere();
             }
-            return Optional.of(delegatedAgentDeclared() ? refundUndelivered() : List.<Long>of());
-        });
-        if (done == null || done.isEmpty()) {
-            return new Outcome.ClaimedElsewhere();
+            throw failed;
         }
-        List<Long> repaired = done.get();
         audit.record(AuditLogService.Record.of(
                 AuditOperation.SCAN_ATTEMPTS_REPAIRED,
                 "scans",

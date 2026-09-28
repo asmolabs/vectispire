@@ -77,7 +77,11 @@ s'exécutaient toutes deux et en écrivaient chacune une. `OneShotJobs.claim` in
 tâche dans `t_one_shot_job` (depuis `V46`), première instruction de la transaction qui fait le
 travail ; la clé primaire laisse passer une insertion, l'autre attend cette transaction et échoue,
 et son instance n'écrit rien. Une exécution qui échoue annule sa réclamation avec elle, et le
-démarrage suivant réessaie.
+démarrage suivant réessaie. **Laquelle des deux était un échec, c'est la ligne validée qui le dit**
+(`OneShotJobs.hasRun`, lue après l'annulation), jamais l'exception : SQLite signale le refus de la
+clé comme une erreur non classée, et un verrou expiré ou une connexion perdue font échouer la même
+insertion — lus comme « réclamée ailleurs », chacun ferait passer la tâche pour exécutée alors que
+personne ne l'a exécutée.
 
 **La coordination n'est pas la seule chose qu'elles auraient pu partager.** Ces quatre tâches
 tournent sur un ordonnanceur de quatre threads, déclaré dans `CoreConfiguration` plutôt que laissé

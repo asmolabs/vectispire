@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -18,9 +19,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @DisplayName("the audit log's integrity chain")
 class AuditLogServiceTest {
@@ -72,6 +76,35 @@ class AuditLogServiceTest {
 
         assertThat(stored).extracting(AuditLogEntity::getTimestamp).doesNotHaveDuplicates();
         assertThat(service.verify()).returns(null, AuditChain.Verification::broken);
+    }
+
+    @Test
+    @DisplayName("an entry a lock refused is tried again, and one the database refused is not")
+    void aLockIsTriedAgain() {
+        AtomicInteger tries = new AtomicInteger();
+        doAnswer(call -> {
+            if (tries.incrementAndGet() == 1) {
+                throw new CannotAcquireLockException("SQLITE_BUSY");
+            }
+            AuditLogEntity row = call.getArgument(0);
+            row.setId(UUID.randomUUID());
+            stored.add(row);
+            return row;
+        }).when(entries).saveAndFlush(any());
+
+        service.record(AuditLogService.Record.of(AuditOperation.SCAN_ATTEMPTS_REPAIRED, "scans", "once", null));
+
+        assertThat(stored).singleElement().returns("once", AuditLogEntity::getDescription);
+
+        tries.set(0);
+        doAnswer(call -> {
+            tries.incrementAndGet();
+            throw new DataIntegrityViolationException("too long");
+        }).when(entries).saveAndFlush(any());
+
+        service.record(AuditLogService.Record.of(AuditOperation.SETTING_UPDATED, "x", "refused", "alice"));
+
+        assertThat(tries).as("a refusal of the row itself would only be refused again").hasValue(1);
     }
 
     @Test

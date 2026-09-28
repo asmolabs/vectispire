@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.agents;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
 import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
@@ -44,10 +45,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /**
@@ -212,7 +216,9 @@ class WithheldClaimRepairIntegrationTest {
      * Two instances starting together, forced into the interleaving that wrote two entries: the second
      * reads the trail while the first is between its claim and its commit, so neither has written its
      * entry yet and both pass the only check there used to be. Latches, not luck — left to timing,
-     * the first finishes before the second starts and the test proves nothing.
+     * the first finishes before the second starts and the test proves nothing. And the first records
+     * while the second's refused transaction is still open, the interleaving that lost the entry on
+     * CI's SQLite and that timing alone produced there one run in a few.
      */
     @Test
     @DisplayName("two instances starting together: one runs it and writes the entry, the other writes nothing")
@@ -222,13 +228,30 @@ class WithheldClaimRepairIntegrationTest {
 
         CountDownLatch firstClaimed = new CountDownLatch(1);
         CountDownLatch secondClaiming = new CountDownLatch(1);
-        // The first instance pauses right after its claim, before its work and its commit.
+        CountDownLatch secondRefused = new CountDownLatch(1);
+        CountDownLatch firstDone = new CountDownLatch(1);
+        // The first instance pauses right after its claim, before its work and its commit; and once
+        // committed, it records its entry only when the second has been refused and still holds its
+        // transaction open. That is the moment CI hit on SQLite: the refused insert keeps the file's
+        // write lock until its rollback, the entry's transaction had already read the chain's head,
+        // and SQLite answers such an upgrade SQLITE_BUSY at once, without its busy timeout — the
+        // repair ran and its entry was lost, logged and swallowed.
         AgentRepository pausing = (AgentRepository) Proxy.newProxyInstance(
                 AgentRepository.class.getClassLoader(), new Class<?>[] {AgentRepository.class},
                 (proxy, method, args) -> {
                     if (method.getName().equals("findAll") && method.getParameterCount() == 0) {
                         firstClaimed.countDown();
                         assertThat(secondClaiming.await(30, TimeUnit.SECONDS)).isTrue();
+                        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                            @Override
+                            public void afterCommit() {
+                                try {
+                                    assertThat(secondRefused.await(30, TimeUnit.SECONDS)).isTrue();
+                                } catch (InterruptedException interrupted) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }
+                        });
                     }
                     try {
                         return method.invoke(agents, args);
@@ -239,9 +262,20 @@ class WithheldClaimRepairIntegrationTest {
         // The second says when it has read the trail — found no entry — and reaches for the claim.
         OneShotJobs signalling = new OneShotJobs(oneShotJobs, Clock.systemUTC()) {
             @Override
-            public boolean claim(String name) {
+            public void claim(String name) {
                 secondClaiming.countDown();
-                return super.claim(name);
+                try {
+                    super.claim(name);
+                } finally {
+                    // Still inside the refused transaction: held, not waited on for ever, since an
+                    // entry written by trying again needs the lock back.
+                    secondRefused.countDown();
+                    try {
+                        firstDone.await(500, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
             }
         };
         WithheldClaimRepair first = new WithheldClaimRepair(
@@ -250,7 +284,13 @@ class WithheldClaimRepairIntegrationTest {
                 agents, scanCatalog, targetCatalog, trail, audit, signalling, transactions);
 
         try (ExecutorService starts = Executors.newFixedThreadPool(2)) {
-            Future<WithheldClaimRepair.Outcome> one = starts.submit(first::repairOnce);
+            Future<WithheldClaimRepair.Outcome> one = starts.submit(() -> {
+                try {
+                    return first.repairOnce();
+                } finally {
+                    firstDone.countDown();
+                }
+            });
             assertThat(firstClaimed.await(30, TimeUnit.SECONDS)).isTrue();
             Future<WithheldClaimRepair.Outcome> other = starts.submit(second::repairOnce);
 
@@ -281,6 +321,26 @@ class WithheldClaimRepairIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from t_one_shot_job", Integer.class))
                 .as("the claim rolled back with the work it was taken for")
                 .isZero();
+        assertThat(repair.repairOnce()).isEqualTo(new WithheldClaimRepair.Outcome.Repaired(List.of(inflated)));
+    }
+
+    @Test
+    @DisplayName("a claim that failed with nobody holding the job is a failure, not another instance's run")
+    void aFailedClaimIsNotALostOne() {
+        agent(CredentialsMode.DELEGATED);
+        long inflated = scan(keyed, null, ScanStatus.PENDING, 3);
+        OneShotJobs failing = new OneShotJobs(oneShotJobs, Clock.systemUTC()) {
+            @Override
+            public void claim(String name) {
+                throw new CannotAcquireLockException("the lock wait timed out");
+            }
+        };
+        WithheldClaimRepair unlucky = new WithheldClaimRepair(
+                agents, scanCatalog, targetCatalog, trail, audit, failing, transactions);
+
+        assertThatThrownBy(unlucky::repairOnce).isInstanceOf(CannotAcquireLockException.class);
+
+        assertThat(entries()).isEmpty();
         assertThat(repair.repairOnce()).isEqualTo(new WithheldClaimRepair.Outcome.Repaired(List.of(inflated)));
     }
 

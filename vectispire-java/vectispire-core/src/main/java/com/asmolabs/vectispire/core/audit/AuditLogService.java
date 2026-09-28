@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.audit.internal.AuditMirror;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -14,6 +15,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -182,12 +184,47 @@ public class AuditLogService {
      */
     public void record(Record entry) {
         try {
-            separately.executeWithoutResult(status -> write(entry));
+            writeRetryingOnLocks(entry);
         } catch (RuntimeException failed) {
             // See the class note: never at the expense of the action being described. Logged at
             // error level, because a log that stops recording in silence is worse than one that
             // stops loudly.
             log.error("Audit entry could not be written: {}", failed.getMessage(), failed);
+        }
+    }
+
+    /** The pauses before each new try of an entry refused a lock; their sum bounds what it costs its caller. */
+    private static final List<Duration> LOCK_BACKOFF = List.of(
+            Duration.ofMillis(50), Duration.ofMillis(100), Duration.ofMillis(200),
+            Duration.ofMillis(400), Duration.ofMillis(800));
+
+    /**
+     * The entry's transaction, tried again when a lock refused it — and only then.
+     *
+     * <p><b>A refused lock is not a refused entry.</b> The write reads the chain's head and then
+     * inserts, and on SQLite a transaction that has read cannot wait for the write lock: it is
+     * answered {@code SQLITE_BUSY} at once, its busy timeout never consulted. Two instances starting
+     * together lost the one-shot repair's entry that way — the loser's refused claim still held the
+     * lock, for the milliseconds before its rollback, when the winner recorded. MySQL's deadlock
+     * victim and lock-wait timeout are the same class. Each is gone a moment later, so each is tried
+     * again, in a new transaction; any other failure is the entry's own and is not.
+     */
+    private void writeRetryingOnLocks(Record entry) {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                separately.executeWithoutResult(status -> write(entry));
+                return;
+            } catch (PessimisticLockingFailureException locked) {
+                if (attempt >= LOCK_BACKOFF.size()) {
+                    throw locked;
+                }
+                try {
+                    Thread.sleep(LOCK_BACKOFF.get(attempt));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw locked;
+                }
+            }
         }
     }
 
