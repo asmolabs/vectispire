@@ -554,6 +554,47 @@ class ScanQueueIntegrationTest {
         return scan.getId();
     }
 
+    /**
+     * An agent's failure report, on every engine: the lapse's rule applied at once, and only to the
+     * attempt it names. The last half forces the window the statement's own condition exists for —
+     * the lease lapsing and the same agent taking the scan again between the report's read and its
+     * write — by issuing the write after the retake.
+     */
+    @Test
+    @DisplayName("a failure report requeues with the reason, fails at the last attempt, and reaches no later attempt")
+    void aFailureReportEndsItsAttemptOnly() {
+        enqueue(1, null);
+        UUID edge = agent("edge");
+        long id = queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow().getId();
+
+        assertThat(queue.abandon(id, "somebody-else", 1, done -> "not mine")).isEmpty();
+        assertThat(queue.abandon(id, edge.toString(), 2, done -> "not this attempt")).isEmpty();
+        assertThat(queue.abandon(id, edge.toString(), 1, done -> "attempt " + done.attempt() + ": clone refused"))
+                .hasValueSatisfying(done -> assertThat(done.outcome())
+                        .isEqualTo(com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed.REQUEUE));
+        ScanEntity requeued = scans.findById(id).orElseThrow();
+        assertThat(requeued.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
+        assertThat(requeued.getError()).isEqualTo("attempt 1: clone refused");
+        assertThat(requeued.getClaimedBy()).isNull();
+        assertThat(queue.abandon(id, edge.toString(), 1, done -> "again")).isEmpty();
+
+        queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow();
+        assertThat(scans.releaseOwnedAttempt(
+                        id, ScanStatus.SCANNING.wireName(), edge.toString(), 1, ScanStatus.PENDING.wireName(), "stale"))
+                .isZero();
+        assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+
+        assertThat(queue.abandon(id, edge.toString(), 2, done -> "clone refused")).isPresent();
+        queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow();
+        assertThat(queue.abandon(id, edge.toString(), 3, done -> "the last"))
+                .hasValueSatisfying(done -> assertThat(done.outcome())
+                        .isEqualTo(com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed.FAIL));
+        ScanEntity failed = scans.findById(id).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(failed.getError()).isEqualTo("the last");
+        assertThat(failed.getLeaseExpiresAt()).isNull();
+    }
+
     @Test
     @DisplayName("a deposed worker cannot fail the scan its successor now holds")
     void aDeposedWorkerCannotFailItsSuccessor() {
