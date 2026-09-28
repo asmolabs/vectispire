@@ -207,6 +207,20 @@
         },
         "type" : "object"
       },
+      "AnswerWordsForm" : {
+        "properties" : {
+          "no" : {
+            "type" : "string"
+          },
+          "notApplicable" : {
+            "type" : "string"
+          },
+          "yes" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ApiContract" : {
         "properties" : {
           "contractPath" : {
@@ -1131,6 +1145,303 @@
           },
           "new_password" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistDeriveRequest" : {
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistItemPair" : {
+        "properties" : {
+          "added" : {
+            "type" : "string"
+          },
+          "removed" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistItemView" : {
+        "properties" : {
+          "boundRule" : {
+            "type" : "string"
+          },
+          "contact" : {
+            "type" : "string"
+          },
+          "contentDigest" : {
+            "type" : "string"
+          },
+          "control" : {
+            "type" : "string"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "evidenceKind" : {
+            "type" : "string"
+          },
+          "evidenceValidityMonths" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "itemKey" : {
+            "type" : "string"
+          },
+          "kpi" : {
+            "type" : "string"
+          },
+          "objective" : {
+            "type" : "string"
+          },
+          "position" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sheetRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "versionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistLayoutForm" : {
+        "properties" : {
+          "answers" : {
+            "$ref" : "#/components/schemas/AnswerWordsForm"
+          },
+          "columns" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          },
+          "firstItemRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "header" : {
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/HeaderCellForm"
+            },
+            "type" : "object"
+          },
+          "lastItemRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sheet" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistPairsRequest" : {
+        "properties" : {
+          "pairs" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistItemPair"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistPublishRequest" : {
+        "properties" : {
+          "revision" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistTemplatePreview" : {
+        "properties" : {
+          "cells" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PreviewCell"
+            },
+            "type" : "array"
+          },
+          "cellsTruncated" : {
+            "type" : "boolean"
+          },
+          "layout" : {
+            "$ref" : "#/components/schemas/ChecklistLayoutForm"
+          },
+          "pairing" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PairingChange"
+            },
+            "type" : "array"
+          },
+          "proposal" : {
+            "$ref" : "#/components/schemas/ProposedLayout"
+          },
+          "sheet" : {
+            "type" : "string"
+          },
+          "sheets" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "templateSlug" : {
+            "type" : "string"
+          },
+          "version" : {
+            "$ref" : "#/components/schemas/ChecklistVersionSummary"
+          }
+        },
+        "required" : [ "cellsTruncated" ],
+        "type" : "object"
+      },
+      "ChecklistTemplateView" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdBy" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "slug" : {
+            "type" : "string"
+          },
+          "versions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistVersionSummary"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistVersionSummary" : {
+        "properties" : {
+          "derivedFromOrdinal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "draftAuthors" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "importedBy" : {
+            "type" : "string"
+          },
+          "itemCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "layoutConfirmed" : {
+            "type" : "boolean"
+          },
+          "offersNotApplicable" : {
+            "type" : "boolean"
+          },
+          "ordinal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "previousOrdinal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "publishedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "publishedBy" : {
+            "type" : "string"
+          },
+          "retiredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "retiredBy" : {
+            "type" : "string"
+          },
+          "revision" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sourceSha256" : {
+            "type" : "string"
+          },
+          "sourceSize" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "itemCount", "layoutConfirmed", "offersNotApplicable", "ordinal", "revision", "sourceSize" ],
+        "type" : "object"
+      },
+      "ChecklistVersionView" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistItemView"
+            },
+            "type" : "array"
+          },
+          "layout" : {
+            "$ref" : "#/components/schemas/ChecklistLayoutForm"
+          },
+          "pairs" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistItemPair"
+            },
+            "type" : "array"
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "templateSlug" : {
+            "type" : "string"
+          },
+          "version" : {
+            "$ref" : "#/components/schemas/ChecklistVersionSummary"
           }
         },
         "type" : "object"
@@ -2764,6 +3075,17 @@
         "required" : [ "isDirect", "riskScore" ],
         "type" : "object"
       },
+      "HeaderCellForm" : {
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "HelloRequest" : {
         "properties" : {
           "capabilities" : {
@@ -4009,6 +4331,38 @@
         },
         "type" : "object"
       },
+      "PairingChange" : {
+        "properties" : {
+          "change" : {
+            "type" : "string"
+          },
+          "control" : {
+            "type" : "string"
+          },
+          "pairedByHand" : {
+            "type" : "boolean"
+          },
+          "previousControl" : {
+            "type" : "string"
+          },
+          "previousKey" : {
+            "type" : "string"
+          },
+          "previousRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "readKey" : {
+            "type" : "string"
+          },
+          "row" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "pairedByHand" ],
+        "type" : "object"
+      },
       "PatchOperation" : {
         "properties" : {
           "op" : {
@@ -4427,6 +4781,28 @@
         },
         "type" : "object"
       },
+      "PreviewCell" : {
+        "properties" : {
+          "column" : {
+            "type" : "string"
+          },
+          "formula" : {
+            "type" : "boolean"
+          },
+          "ref" : {
+            "type" : "string"
+          },
+          "row" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "formula", "row" ],
+        "type" : "object"
+      },
       "Produced" : {
         "allOf" : [ {
           "$ref" : "#/components/schemas/PluginStep"
@@ -4611,6 +4987,44 @@
           "solutionId" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ProposedLayout" : {
+        "properties" : {
+          "answerValues" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "columnHeaderRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "columns" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          },
+          "firstItemRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "header" : {
+            "additionalProperties" : {
+              "$ref" : "#/components/schemas/HeaderCellForm"
+            },
+            "type" : "object"
+          },
+          "lastItemRow" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sheet" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -9028,6 +9442,414 @@
           }
         },
         "tags" : [ "blast-radius-controller" ]
+      }
+    },
+    "/api/v1/checklist-templates" : {
+      "get" : {
+        "description" : "Every template, with its versions and without their items.",
+        "operationId" : "listTemplates",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChecklistTemplateView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List checklist templates",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}" : {
+      "get" : {
+        "description" : "404 for a slug no template has.",
+        "operationId" : "readTemplate",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistTemplateView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read checklist template",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions" : {
+      "post" : {
+        "description" : "Security lead only. The .xlsx is the raw body; it becomes the template's next version, a draft, whose layout is then confirmed — never published in one step. A new slug creates the template, named by name. 400 for a body that is not an .xlsx workbook or fails a zip or XML guard; 409 while the template has a draft; 413 past the size ceiling.",
+        "operationId" : "importWorkbook",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "name",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "label",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/octet-stream" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Import checklist template workbook",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}" : {
+      "get" : {
+        "description" : "Its status, its confirmed layout, its items in the sheet's order and its pairs made by hand.",
+        "operationId" : "readVersion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read checklist template version",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/derive" : {
+      "post" : {
+        "description" : "Security lead only. A new draft from a published version: the same workbook, layout and items. 409 for a version that is not published, or while the template has a draft.",
+        "operationId" : "deriveVersion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistDeriveRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Derive checklist template version",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/layout" : {
+      "put" : {
+        "description" : "Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. 400 for a layout that cannot be one; 409 for a version that is not a draft, or that changed meanwhile.",
+        "operationId" : "confirmLayout",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistLayoutForm"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Confirm checklist template layout",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/pairs" : {
+      "put" : {
+        "description" : "Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. 400 for a pair of items that are not added and removed; 409 when there is no previous version.",
+        "operationId" : "pairItems",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistPairsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Pair checklist template items",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/preview" : {
+      "get" : {
+        "description" : "The layout the reader proposes from the workbook's structure, the confirmed one, the cells of a sheet, and each item's pairing with the previous version. sheet names the sheet whose cells to show.",
+        "operationId" : "previewVersion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sheet",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistTemplatePreview"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Preview checklist template version",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/publish" : {
+      "post" : {
+        "description" : "Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 409 for a version that is not a draft, has no layout, changed since the revision named, or was written by the caller while four-eyes is on.",
+        "operationId" : "publishVersion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistPublishRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Publish checklist template version",
+        "tags" : [ "Checklist templates" ]
+      }
+    },
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/retire" : {
+      "post" : {
+        "description" : "Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 for a version already retired.",
+        "operationId" : "retireVersion",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slug",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "ordinal",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistVersionView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Retire checklist template version",
+        "tags" : [ "Checklist templates" ]
       }
     },
     "/api/v1/compliance/evidence-bundle.zip" : {
@@ -14547,20 +15369,11 @@
     "url" : "/"
   } ],
   "tags" : [ {
-    "description" : "Third-party analysers run as containers, emitting SARIF",
-    "name" : "Plugins"
-  }, {
     "description" : "The Top 10 by rule, with what this deployment cannot see",
     "name" : "OWASP coverage"
   }, {
-    "description" : "Regulatory conformity frameworks (NIS2, ISO 27001, CRA, SOC2, PCI-DSS)",
-    "name" : "Compliance"
-  }, {
     "description" : "Remote scanner agents protocol, tasks dispatching and heartbeat",
     "name" : "Agents"
-  }, {
-    "description" : "User login, MFA, SSO and session management",
-    "name" : "Authentication"
   }, {
     "description" : "Sign-in, token exchange, MFA, SSO and session management",
     "name" : "Authentication"
@@ -14574,20 +15387,47 @@
     "description" : "SARIF from declared internal sources",
     "name" : "SARIF import"
   }, {
-    "description" : "Security findings, triage workflow, risk assessment and remediation",
-    "name" : "Issues & Vulnerabilities"
-  }, {
     "description" : "Each framework's verdict over time, with what moved it",
     "name" : "Compliance history"
-  }, {
-    "description" : "Container image registry tracking, digest verification and scanning",
-    "name" : "Containers"
   }, {
     "description" : "Software Bill of Materials (CycloneDX, SPDX), CSAF and OpenVEX documents",
     "name" : "SBOM & VEX"
   }, {
     "description" : "Posture grades, security scorecards and SVG badges",
     "name" : "Scorecards"
+  }, {
+    "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
+    "name" : "Statement of Applicability"
+  }, {
+    "description" : "The register of risk acceptances and dismissals",
+    "name" : "Exceptions"
+  }, {
+    "description" : "Security scan lifecycle, pipeline execution and status reporting",
+    "name" : "Scans"
+  }, {
+    "description" : "Target repository inventory, Git synchronization and scan triggers",
+    "name" : "Repositories"
+  }, {
+    "description" : "Issue tracker synchronization (Jira, GitLab, GitHub, ServiceNow)",
+    "name" : "Ticketing"
+  }, {
+    "description" : "Third-party analysers run as containers, emitting SARIF",
+    "name" : "Plugins"
+  }, {
+    "description" : "Regulatory conformity frameworks (NIS2, ISO 27001, CRA, SOC2, PCI-DSS)",
+    "name" : "Compliance"
+  }, {
+    "description" : "User login, MFA, SSO and session management",
+    "name" : "Authentication"
+  }, {
+    "description" : "Security findings, triage workflow, risk assessment and remediation",
+    "name" : "Issues & Vulnerabilities"
+  }, {
+    "description" : "Container image registry tracking, digest verification and scanning",
+    "name" : "Containers"
+  }, {
+    "description" : "The organisation's checklist templates, imported from its workbooks",
+    "name" : "Checklist templates"
   }, {
     "description" : "Coverage and test reports from declared internal sources",
     "name" : "Report import"
@@ -14598,25 +15438,10 @@
     "description" : "The ISMS scope, and the evidence covering it",
     "name" : "Certified scope"
   }, {
-    "description" : "ISO 27001 clause 6.1.3 d — what is claimed, against what is measured",
-    "name" : "Statement of Applicability"
-  }, {
     "description" : "Solutions, their projects and the repositories filed in them",
     "name" : "Solutions"
   }, {
-    "description" : "The register of risk acceptances and dismissals",
-    "name" : "Exceptions"
-  }, {
-    "description" : "Security scan lifecycle, pipeline execution and status reporting",
-    "name" : "Scans"
-  }, {
     "description" : "Discovered API endpoints, declared contracts (OpenAPI/Swagger) and shadow APIs",
     "name" : "Attack Surface"
-  }, {
-    "description" : "Target repository inventory, Git synchronization and scan triggers",
-    "name" : "Repositories"
-  }, {
-    "description" : "Issue tracker synchronization (Jira, GitLab, GitHub, ServiceNow)",
-    "name" : "Ticketing"
   } ]
 }

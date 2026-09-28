@@ -19,6 +19,7 @@ public record ChecklistTemplateVersionSummary(
         boolean offersNotApplicable,
         Long previousVersionId,
         Long derivedFromVersionId,
+        String draftAuthors,
         Instant importedAt,
         String importedBy,
         Instant publishedAt,

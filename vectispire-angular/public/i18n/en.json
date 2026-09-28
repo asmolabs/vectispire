@@ -405,7 +405,13 @@
       "sarif_import_refused": "SARIF import refused",
       "coverage_imported": "Coverage report recorded",
       "test_report_imported": "Test report recorded",
-      "report_import_refused": "Report import refused"
+      "report_import_refused": "Report import refused",
+      "checklist_template_imported": "Checklist template imported",
+      "checklist_template_layout_confirmed": "Checklist template layout confirmed",
+      "checklist_template_items_paired": "Checklist template items paired",
+      "checklist_template_derived": "Checklist template version derived",
+      "checklist_template_published": "Checklist template version published",
+      "checklist_template_retired": "Checklist template version retired"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

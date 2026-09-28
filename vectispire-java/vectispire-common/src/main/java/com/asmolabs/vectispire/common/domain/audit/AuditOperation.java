@@ -304,7 +304,34 @@ public enum AuditOperation {
      * A coverage or test report was refused for what it claimed rather than for its form: no enabled
      * source for the key, a kind its source is not declared for, a repository outside its scope.
      */
-    REPORT_IMPORT_REFUSED;
+    REPORT_IMPORT_REFUSED,
+
+    /**
+     * A checklist template's workbook was imported as a new draft version (decision 0032 §3). The
+     * entry carries the file's SHA-256, which a delivered checklist is compared with.
+     */
+    CHECKLIST_TEMPLATE_IMPORTED,
+
+    /**
+     * A draft's layout and answer words were confirmed, and its items read from the workbook by them.
+     * The words are what the renderer will write into every document, so who chose them is recorded.
+     */
+    CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED,
+
+    /**
+     * A draft's items were paired by hand with the previous version's: "same control, reworded".
+     * A pair decides which of a project's answers follow into the new version, to be confirmed.
+     */
+    CHECKLIST_TEMPLATE_ITEMS_PAIRED,
+
+    /** A new draft was derived from a published version: same workbook, same layout, same items. */
+    CHECKLIST_TEMPLATE_DERIVED,
+
+    /** A template version was published: what projects attest to from now on. */
+    CHECKLIST_TEMPLATE_PUBLISHED,
+
+    /** A published version was retired — no new checklist opens on it — or a draft was set aside. */
+    CHECKLIST_TEMPLATE_RETIRED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

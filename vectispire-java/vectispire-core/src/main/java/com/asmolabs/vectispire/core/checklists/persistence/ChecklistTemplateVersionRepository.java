@@ -35,7 +35,8 @@ public interface ChecklistTemplateVersionRepository extends JpaRepository<Checkl
     /** Every version of a template, oldest first, without its workbook. */
     @Query("select new com.asmolabs.vectispire.core.checklists.persistence.ChecklistTemplateVersionSummary("
             + "v.id, v.templateId, v.ordinal, v.label, v.status, v.revision, v.sourceSha256, v.sourceSize, v.layout,"
-            + " v.offersNotApplicable, v.previousVersionId, v.derivedFromVersionId, v.importedAt, v.importedBy,"
+            + " v.offersNotApplicable, v.previousVersionId, v.derivedFromVersionId, v.draftAuthors, v.importedAt,"
+            + " v.importedBy,"
             + " v.publishedAt, v.publishedBy, v.retiredAt, v.retiredBy,"
             + " (select count(i) from ChecklistItemEntity i where i.versionId = v.id))"
             + " from ChecklistTemplateVersionEntity v where v.templateId = :templateId order by v.ordinal asc")

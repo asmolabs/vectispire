@@ -105,9 +105,16 @@ public enum SecurityEventType {
     SARIF_IMPORT_REFUSED("ZAN-SEC-023", "SARIF import refused: undeclared source, scope or tool", 5, Outcome.FAILURE),
 
     /**
+     * A checklist template version was published, or a published one retired: what every project's
+     * checklist attests to has changed (decision 0032 §9). A draft set aside, never published, changes
+     * nothing any project attests to and is not this event.
+     */
+    CHECKLIST_TEMPLATE_CHANGED("ZAN-SEC-024", "Checklist template version published or retired", 6, Outcome.SUCCESS),
+
+    /**
      * A coverage or test report was refused for what it claimed: an undeclared or disabled key, a kind
      * its source is not declared for, a repository outside its scope — {@code ZAN-SEC-023}'s twin for
-     * the reports a checklist reads (decision 0032). {@code 024} to {@code 026} are the checklists'.
+     * the reports a checklist reads (decision 0032). {@code 025} and {@code 026} are the checklists'.
      */
     REPORT_IMPORT_REFUSED("ZAN-SEC-027", "Report import refused: undeclared source, kind or scope", 5, Outcome.FAILURE),
 
@@ -197,6 +204,7 @@ public enum SecurityEventType {
             case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
+            case CHECKLIST_TEMPLATE_PUBLISHED -> Optional.of(CHECKLIST_TEMPLATE_CHANGED);
             // Listed rather than defaulted: a new operation has to be placed here, on one side or
             // the other, by whoever adds it — a default would decide for them, silently.
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
@@ -219,7 +227,13 @@ public enum SecurityEventType {
                     SOLUTION_UPDATED, PROJECT_UPDATED,
                     // Routine: a pipeline's upload, as frequent as its builds. What it did is in the
                     // entry; a refusal is the event.
-                    SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED -> Optional.empty();
+                    SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED,
+                    // A draft being written changes nothing any project attests to: publishing it does.
+                    CHECKLIST_TEMPLATE_IMPORTED, CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED, CHECKLIST_TEMPLATE_ITEMS_PAIRED,
+                    CHECKLIST_TEMPLATE_DERIVED,
+                    // A published version retired is the event, and a draft set aside is not: its writer
+                    // knows which, and names the event itself.
+                    CHECKLIST_TEMPLATE_RETIRED -> Optional.empty();
         };
     }
 }

@@ -24,8 +24,8 @@ class RequestBodyLimitFilterTest {
 
     private final RequestBodyLimitFilter filter =
             new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
-                    DataSize.ofBytes(50), DataSize.ofBytes(70), DataSize.ofBytes(80), DataSize.ofBytes(60),
-                    DataSize.ofBytes(5));
+                    DataSize.ofBytes(50), DataSize.ofBytes(70), DataSize.ofBytes(80), DataSize.ofBytes(90),
+                    DataSize.ofBytes(60), DataSize.ofBytes(5));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")
@@ -66,6 +66,8 @@ class RequestBodyLimitFilterTest {
         assertThat(declared("/api/v1/repositories/7/coverage-imports", 70)).isEqualTo(200);
         assertThat(declared("/api/v1/repositories/7/test-report-imports", 81)).isEqualTo(413);
         assertThat(declared("/api/v1/repositories/7/test-report-imports", 80)).isEqualTo(200);
+        assertThat(declared("/api/v1/checklist-templates/release/versions", 91)).isEqualTo(413);
+        assertThat(declared("/api/v1/checklist-templates/release/versions", 90)).isEqualTo(200);
         assertThat(declared("/api/v1/rule-sets", 61)).isEqualTo(413);
         assertThat(declared("/api/v1/rule-sets", 60)).isEqualTo(200);
     }
@@ -80,6 +82,11 @@ class RequestBodyLimitFilterTest {
         // A route's own ceiling is a POST's: another method on the same path is an ordinary request.
         assertThat(declared("PUT", "/api/v1/vex/ingest", 6)).isEqualTo(413);
         assertThat(declared("/api/v1/rule-sets/3/activate", 6)).as("not the upload").isEqualTo(413);
+        // A version's own routes carry a few bytes of JSON; only the import has the workbook's ceiling.
+        assertThat(declared("/api/v1/checklist-templates/release/versions/2/derive", 6)).as("not the import")
+                .isEqualTo(413);
+        assertThat(declared("/api/v1/checklist-templates/release/versions/2/publish", 6)).as("not the import")
+                .isEqualTo(413);
     }
 
     @Test

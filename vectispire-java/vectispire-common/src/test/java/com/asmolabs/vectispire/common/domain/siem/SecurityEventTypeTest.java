@@ -40,6 +40,7 @@ class SecurityEventTypeTest {
         expected.put("PLUGIN_CHANGED", "ZAN-SEC-021");
         expected.put("SARIF_SOURCE_CHANGED", "ZAN-SEC-022");
         expected.put("SARIF_IMPORT_REFUSED", "ZAN-SEC-023");
+        expected.put("CHECKLIST_TEMPLATE_CHANGED", "ZAN-SEC-024");
         expected.put("REPORT_IMPORT_REFUSED", "ZAN-SEC-027");
         expected.put("PING_TEST", "ZAN-SEC-999");
 
@@ -96,6 +97,14 @@ class SecurityEventTypeTest {
                 .contains(SecurityEventType.REPORT_IMPORT_REFUSED);
         assertThat(SecurityEventType.signalledBy(AuditOperation.COVERAGE_IMPORTED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.TEST_REPORT_IMPORTED)).isEmpty();
+        // What every project attests to changes when a version is published (decision 0032 §9).
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_PUBLISHED))
+                .contains(SecurityEventType.CHECKLIST_TEMPLATE_CHANGED);
+        // A draft being written changes nothing any project attests to.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_IMPORTED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_ITEMS_PAIRED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_DERIVED)).isEmpty();
     }
 
     @Test
@@ -108,6 +117,8 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.ISSUE_TRIAGED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.ACCESS_DENIED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.LOGIN_SUCCESS)).isEmpty();
+        // A published version retired is ZAN-SEC-024, a draft set aside is nothing: the writer names it.
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_RETIRED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(null)).isEmpty();
     }
 }

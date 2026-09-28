@@ -688,6 +688,206 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/checklist-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List checklist templates
+         * @description Every template, with its versions and without their items.
+         */
+        get: operations["listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read checklist template
+         * @description 404 for a slug no template has.
+         */
+        get: operations["readTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import checklist template workbook
+         * @description Security lead only. The .xlsx is the raw body; it becomes the template's next version, a draft, whose layout is then confirmed — never published in one step. A new slug creates the template, named by name. 400 for a body that is not an .xlsx workbook or fails a zip or XML guard; 409 while the template has a draft; 413 past the size ceiling.
+         */
+        post: operations["importWorkbook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read checklist template version
+         * @description Its status, its confirmed layout, its items in the sheet's order and its pairs made by hand.
+         */
+        get: operations["readVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/derive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Derive checklist template version
+         * @description Security lead only. A new draft from a published version: the same workbook, layout and items. 409 for a version that is not published, or while the template has a draft.
+         */
+        post: operations["deriveVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/layout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Confirm checklist template layout
+         * @description Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. 400 for a layout that cannot be one; 409 for a version that is not a draft, or that changed meanwhile.
+         */
+        put: operations["confirmLayout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/pairs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Pair checklist template items
+         * @description Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. 400 for a pair of items that are not added and removed; 409 when there is no previous version.
+         */
+        put: operations["pairItems"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview checklist template version
+         * @description The layout the reader proposes from the workbook's structure, the confirmed one, the cells of a sheet, and each item's pairing with the previous version. sheet names the sheet whose cells to show.
+         */
+        get: operations["previewVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish checklist template version
+         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 409 for a version that is not a draft, has no layout, changed since the revision named, or was written by the caller while four-eyes is on.
+         */
+        post: operations["publishVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{slug}/versions/{ordinal}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retire checklist template version
+         * @description Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 for a version already retired.
+         */
+        post: operations["retireVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/compliance/evidence-bundle.zip": {
         parameters: {
             query?: never;
@@ -3202,6 +3402,11 @@ export interface components {
             responses?: string[];
             state?: string;
         };
+        AnswerWordsForm: {
+            no?: string;
+            notApplicable?: string;
+            yes?: string;
+        };
         ApiContract: {
             contractPath?: string;
             declaredPaths?: string[];
@@ -3552,6 +3757,115 @@ export interface components {
         ChangePasswordRequest: {
             current_password?: string;
             new_password?: string;
+        };
+        ChecklistDeriveRequest: {
+            label?: string;
+        };
+        ChecklistItemPair: {
+            added?: string;
+            removed?: string;
+        };
+        ChecklistItemView: {
+            boundRule?: string;
+            contact?: string;
+            contentDigest?: string;
+            control?: string;
+            domain?: string;
+            evidenceKind?: string;
+            /** Format: int32 */
+            evidenceValidityMonths?: number;
+            /** Format: int64 */
+            id?: number;
+            itemKey?: string;
+            kpi?: string;
+            objective?: string;
+            /** Format: int32 */
+            position?: number;
+            /** Format: int32 */
+            sheetRow?: number;
+            /** Format: int64 */
+            versionId?: number;
+        };
+        ChecklistLayoutForm: {
+            answers?: components["schemas"]["AnswerWordsForm"];
+            columns?: {
+                [key: string]: string;
+            };
+            /** Format: int32 */
+            firstItemRow?: number;
+            header?: {
+                [key: string]: components["schemas"]["HeaderCellForm"];
+            };
+            /** Format: int32 */
+            lastItemRow?: number;
+            sheet?: string;
+        };
+        ChecklistPairsRequest: {
+            pairs?: components["schemas"]["ChecklistItemPair"][];
+        };
+        ChecklistPublishRequest: {
+            /** Format: int32 */
+            revision?: number;
+        };
+        ChecklistTemplatePreview: {
+            cells?: components["schemas"]["PreviewCell"][];
+            cellsTruncated: boolean;
+            layout?: components["schemas"]["ChecklistLayoutForm"];
+            pairing?: components["schemas"]["PairingChange"][];
+            proposal?: components["schemas"]["ProposedLayout"];
+            sheet?: string;
+            sheets?: string[];
+            templateSlug?: string;
+            version?: components["schemas"]["ChecklistVersionSummary"];
+        };
+        ChecklistTemplateView: {
+            /** Format: date-time */
+            createdAt?: string;
+            createdBy?: string;
+            /** Format: int64 */
+            id?: number;
+            name?: string;
+            slug?: string;
+            versions?: components["schemas"]["ChecklistVersionSummary"][];
+        };
+        ChecklistVersionSummary: {
+            /** Format: int32 */
+            derivedFromOrdinal?: number;
+            draftAuthors?: string[];
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            importedAt?: string;
+            importedBy?: string;
+            /** Format: int64 */
+            itemCount: number;
+            label?: string;
+            layoutConfirmed: boolean;
+            offersNotApplicable: boolean;
+            /** Format: int32 */
+            ordinal: number;
+            /** Format: int32 */
+            previousOrdinal?: number;
+            /** Format: date-time */
+            publishedAt?: string;
+            publishedBy?: string;
+            /** Format: date-time */
+            retiredAt?: string;
+            retiredBy?: string;
+            /** Format: int32 */
+            revision: number;
+            sourceSha256?: string;
+            /** Format: int64 */
+            sourceSize: number;
+            status?: string;
+        };
+        ChecklistVersionView: {
+            items?: components["schemas"]["ChecklistItemView"][];
+            layout?: components["schemas"]["ChecklistLayoutForm"];
+            pairs?: components["schemas"]["ChecklistItemPair"][];
+            templateName?: string;
+            templateSlug?: string;
+            version?: components["schemas"]["ChecklistVersionSummary"];
         };
         CompatibilityCell: {
             /** @enum {string} */
@@ -4163,6 +4477,10 @@ export interface components {
             type?: string;
             version?: string;
         };
+        HeaderCellForm: {
+            label?: string;
+            value?: string;
+        };
         HelloRequest: {
             capabilities?: string;
             contract_version?: string;
@@ -4640,6 +4958,18 @@ export interface components {
             /** Format: int32 */
             version?: number;
         };
+        PairingChange: {
+            change?: string;
+            control?: string;
+            pairedByHand: boolean;
+            previousControl?: string;
+            previousKey?: string;
+            /** Format: int32 */
+            previousRow?: number;
+            readKey?: string;
+            /** Format: int32 */
+            row?: number;
+        };
         PatchOperation: {
             op?: string;
             path?: string;
@@ -4790,6 +5120,14 @@ export interface components {
             policy?: components["schemas"]["PolicyAssessment"];
             sbomDigestSha256?: string;
         };
+        PreviewCell: {
+            column?: string;
+            formula: boolean;
+            ref?: string;
+            /** Format: int32 */
+            row: number;
+            text?: string;
+        };
         Produced: {
             state: "Produced";
         } & (Omit<components["schemas"]["PluginStep"], "state"> & {
@@ -4854,6 +5192,22 @@ export interface components {
             name?: string;
             /** Format: int64 */
             solutionId?: number;
+        };
+        ProposedLayout: {
+            answerValues?: string[];
+            /** Format: int32 */
+            columnHeaderRow?: number;
+            columns?: {
+                [key: string]: string;
+            };
+            /** Format: int32 */
+            firstItemRow?: number;
+            header?: {
+                [key: string]: components["schemas"]["HeaderCellForm"];
+            };
+            /** Format: int32 */
+            lastItemRow?: number;
+            sheet?: string;
         };
         Publisher: {
             category?: string;
@@ -7051,6 +7405,257 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TopImpactPackage"][];
+                };
+            };
+        };
+    };
+    listTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistTemplateView"][];
+                };
+            };
+        };
+    };
+    readTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistTemplateView"];
+                };
+            };
+        };
+    };
+    importWorkbook: {
+        parameters: {
+            query?: {
+                name?: string;
+                label?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    readVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    deriveVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ChecklistDeriveRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    confirmLayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistLayoutForm"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    pairItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistPairsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    previewVersion: {
+        parameters: {
+            query?: {
+                sheet?: string;
+            };
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistTemplatePreview"];
+                };
+            };
+        };
+    };
+    publishVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistPublishRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
+                };
+            };
+        };
+    };
+    retireVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+                ordinal: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistVersionView"];
                 };
             };
         };

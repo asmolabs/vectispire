@@ -405,7 +405,13 @@
       "sarif_import_refused": "Import SARIF refusé",
       "coverage_imported": "Rapport de couverture enregistré",
       "test_report_imported": "Rapport de tests enregistré",
-      "report_import_refused": "Import de rapport refusé"
+      "report_import_refused": "Import de rapport refusé",
+      "checklist_template_imported": "Modèle de checklist importé",
+      "checklist_template_layout_confirmed": "Disposition du modèle de checklist confirmée",
+      "checklist_template_items_paired": "Lignes du modèle de checklist appariées",
+      "checklist_template_derived": "Version de modèle de checklist dérivée",
+      "checklist_template_published": "Version de modèle de checklist publiée",
+      "checklist_template_retired": "Version de modèle de checklist retirée"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

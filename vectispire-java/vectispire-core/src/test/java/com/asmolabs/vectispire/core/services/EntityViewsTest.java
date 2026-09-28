@@ -52,7 +52,9 @@ class EntityViewsTest {
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity.class,
                         com.asmolabs.vectispire.core.plugins.TestReportImportView.class),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity.class,
-                        com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class));
+                        com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class),
+                Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity.class,
+                        com.asmolabs.vectispire.core.checklists.ChecklistItemView.class));
     }
 
     @ParameterizedTest(name = "{1} carries every property of {0}")
