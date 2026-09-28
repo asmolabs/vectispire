@@ -22,7 +22,8 @@ second was once true, and every queued scan stayed `pending` for ever without a 
 
 An agent never opens a JDBC connection and never holds the encryption key. It receives work by
 long polling ([0003](decisions/0003-long-polling-for-agents.md)) and returns results over the same
-channel.
+channel — or, for a scan it could not run, a failure report that ends the attempt as a lapsed lease
+would, at once and with the reason (`AgentProtocolService.reportFailure`).
 
 ## The database
 

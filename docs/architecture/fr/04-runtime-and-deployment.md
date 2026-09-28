@@ -24,7 +24,9 @@ une seule ligne de journal.
 
 Un agent n'ouvre jamais de connexion JDBC et ne détient jamais la clé de chiffrement. Il reçoit le
 travail par long polling ([0003](decisions/0003-long-polling-for-agents.md)) et renvoie les
-résultats par le même canal.
+résultats par le même canal — ou, pour une analyse qu'il n'a pas pu exécuter, un rapport d'échec qui
+termine la tentative comme l'expiration du bail l'aurait fait, mais aussitôt et avec la raison
+(`AgentProtocolService.reportFailure`).
 
 ## La base de données
 
