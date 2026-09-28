@@ -46,7 +46,13 @@ class EntityViewsTest {
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity.class,
                         com.asmolabs.vectispire.core.plugins.SarifSourceView.class),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity.class,
-                        com.asmolabs.vectispire.core.plugins.SarifImportView.class));
+                        com.asmolabs.vectispire.core.plugins.SarifImportView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity.class,
+                        com.asmolabs.vectispire.core.plugins.CoverageImportView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity.class,
+                        com.asmolabs.vectispire.core.plugins.TestReportImportView.class),
+                Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity.class,
+                        com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class));
     }
 
     @ParameterizedTest(name = "{1} carries every property of {0}")

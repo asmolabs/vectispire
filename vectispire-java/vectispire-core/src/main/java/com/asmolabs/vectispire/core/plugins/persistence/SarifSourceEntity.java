@@ -12,8 +12,10 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * A declared internal source of SARIF: the integration key it uploads with, the one project or
- * repository it may deliver for, and the tools it may deliver.
+ * A declared internal source — of SARIF, and since decision 0032 of coverage and test reports: the
+ * integration key it uploads with, the one project or repository it may deliver for, the report kinds
+ * it may deliver, and the SARIF tools. The table keeps its first name: renaming it would be a
+ * migration of its own for nothing a reader sees.
  *
  * <p>{@code apiKeyId} is unique: the key names the source, so an import never has to be told which
  * source it comes from — which is also why a caller cannot claim another source's name.
@@ -46,6 +48,13 @@ public class SarifSourceEntity {
     /** The accepted tool names, lowercased, comma-separated — compared as {@code ToolKeys} compares them. */
     @Column(name = "tools", length = 1000, nullable = false)
     private String tools;
+
+    /**
+     * The report kinds it may deliver, comma-separated wire names ({@code SourceKind}). {@code sarif}
+     * for every source declared before the column existed.
+     */
+    @Column(name = "kinds", length = 100, nullable = false)
+    private String kinds;
 
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
@@ -110,6 +119,14 @@ public class SarifSourceEntity {
 
     public void setTools(String tools) {
         this.tools = tools;
+    }
+
+    public String getKinds() {
+        return kinds;
+    }
+
+    public void setKinds(String kinds) {
+        this.kinds = kinds;
     }
 
     public boolean getEnabled() {

@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.PluginActivationRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
 import com.asmolabs.vectispire.core.targets.ProjectDeleted;
 import com.asmolabs.vectispire.core.targets.TargetDeleted;
 import com.asmolabs.vectispire.core.targets.TargetPurge;
@@ -23,8 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
  * would outlive its scope: inert while the identifier is unused, and attached to whatever took it if
  * an engine ever handed it out again.
  *
- * <p>Nothing here is referenced by another table, so the repository's rows go in the first phase,
- * with the other rows that name a target by identifier alone.
+ * <p>Nothing here is referenced by another module's table, so the repository's rows go in the first
+ * phase, with the other rows that name a target by identifier alone. Inside the module one row names
+ * another — a test suite its import — and the suites go first: their delete finds them through the
+ * import rows, which must still be there.
  */
 @Component
 class PluginPurge {
@@ -32,20 +37,38 @@ class PluginPurge {
     private final PluginActivationRepository activations;
     private final SarifSourceRepository sources;
     private final SarifImportRepository imports;
+    private final CoverageImportRepository coverage;
+    private final TestReportImportRepository testReports;
+    private final TestSuiteResultRepository suites;
 
-    PluginPurge(PluginActivationRepository activations, SarifSourceRepository sources, SarifImportRepository imports) {
+    PluginPurge(
+            PluginActivationRepository activations,
+            SarifSourceRepository sources,
+            SarifImportRepository imports,
+            CoverageImportRepository coverage,
+            TestReportImportRepository testReports,
+            TestSuiteResultRepository suites) {
         this.activations = activations;
         this.sources = sources;
         this.imports = imports;
+        this.coverage = coverage;
+        this.testReports = testReports;
+        this.suites = suites;
     }
 
-    /** A repository's imports, and the sources declared for it alone. A container has neither. */
+    /**
+     * A repository's imports — SARIF, coverage, test reports and their suites — and the sources
+     * declared for it alone. A container has none of them.
+     */
     @EventListener
     @Order(TargetPurge.Phase.REFERENCES)
     @Transactional(propagation = Propagation.MANDATORY)
     public void purge(TargetDeleted deleted) {
         if (deleted.target() instanceof ScanTarget.Repository repository) {
             imports.deleteByRepository(repository.id());
+            coverage.deleteByRepository(repository.id());
+            suites.deleteByRepository(repository.id());
+            testReports.deleteByRepository(repository.id());
             sources.deleteByRepository(repository.id());
         }
     }

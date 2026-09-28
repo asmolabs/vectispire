@@ -24,7 +24,8 @@ class RequestBodyLimitFilterTest {
 
     private final RequestBodyLimitFilter filter =
             new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
-                    DataSize.ofBytes(50), DataSize.ofBytes(60), DataSize.ofBytes(5));
+                    DataSize.ofBytes(50), DataSize.ofBytes(70), DataSize.ofBytes(80), DataSize.ofBytes(60),
+                    DataSize.ofBytes(5));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")
@@ -61,6 +62,10 @@ class RequestBodyLimitFilterTest {
         assertThat(declared("/api/v1/agent/jobs/42/result", 30)).isEqualTo(200);
         assertThat(declared("/api/v1/repositories/7/sarif-imports", 51)).isEqualTo(413);
         assertThat(declared("/api/v1/repositories/7/sarif-imports", 50)).isEqualTo(200);
+        assertThat(declared("/api/v1/repositories/7/coverage-imports", 71)).isEqualTo(413);
+        assertThat(declared("/api/v1/repositories/7/coverage-imports", 70)).isEqualTo(200);
+        assertThat(declared("/api/v1/repositories/7/test-report-imports", 81)).isEqualTo(413);
+        assertThat(declared("/api/v1/repositories/7/test-report-imports", 80)).isEqualTo(200);
         assertThat(declared("/api/v1/rule-sets", 61)).isEqualTo(413);
         assertThat(declared("/api/v1/rule-sets", 60)).isEqualTo(200);
     }

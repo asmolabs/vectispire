@@ -47,9 +47,10 @@ import org.springframework.util.unit.DataSize;
  * <ol>
  *   <li><b>An integration key, never a session</b> — the route accepts {@code sarif_import} keys, and
  *       a person with a browser is not a source.</li>
- *   <li><b>A key declared as a source, and enabled.</b> The key names the source; an undeclared key
- *       is refused (403) and the refusal signalled to the SIEM, since a key presented where it was not
- *       declared is either a broken pipeline or a key used for something it was not issued for.</li>
+ *   <li><b>A key declared as a source, enabled, and delivering SARIF among its kinds.</b> The key
+ *       names the source; an undeclared key is refused (403) and the refusal signalled to the SIEM,
+ *       since a key presented where it was not declared is either a broken pipeline or a key used for
+ *       something it was not issued for.</li>
  *   <li><b>A repository the key sees, inside the source's scope</b> — the account's visibility, the
  *       key's restriction and the declared project or repository, intersected. Outside any of them
  *       answers 404, in the words of a repository that does not exist.</li>
@@ -122,6 +123,13 @@ public class SarifImportService {
                 .filter(SarifSourceEntity::getEnabled)
                 .orElseThrow(() -> refused(caller, String.valueOf(repositoryId), "the key \"" + caller.keyName()
                         + "\" is not declared as an enabled SARIF source", "This key is not declared as an enabled SARIF source."));
+        // A source declared for coverage or test reports alone holds a key that may also carry
+        // sarif_import; its declaration, not the key's scopes, says what it may deposit (decision 0032).
+        if (!SourceKind.fromStored(source.getKinds()).contains(SourceKind.SARIF)) {
+            throw refused(caller, String.valueOf(repositoryId), "source \"" + source.getSlug()
+                    + "\" is not declared to deliver SARIF", "Source \"" + source.getSlug() + "\" is not declared to "
+                    + "deliver SARIF.");
+        }
 
         RepositoryView repository = targets.repository(repositoryId)
                 .filter(found -> caller.allowed().permits(new ScanTarget.Repository(repositoryId)))

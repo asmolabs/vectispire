@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The declared internal sources of SARIF.
+ * The declared internal sources — of SARIF, coverage and test reports (decisions 0017 §7, 0032 §7).
  *
  * <p><b>Declaring one is the platform governor's</b>: it is the platform saying "this producer is
  * inside the organisation, and may deposit findings for this project" — the kind of rule
@@ -46,7 +46,9 @@ public class SarifSourcesController {
 
     /**
      * @param projectId and {@code repositoryId}: exactly one — the one scope the source may deliver for
-     * @param tools each run's {@code tool.driver.name} the source may deliver, compared without case
+     * @param tools each run's {@code tool.driver.name} the source may deliver, compared without case —
+     *     for a source delivering {@code sarif}, and none otherwise
+     * @param kinds {@code sarif}, {@code coverage}, {@code test_report}; absent is {@code sarif} alone
      */
     public record SourceDeclaration(
             String slug,
@@ -54,7 +56,8 @@ public class SarifSourcesController {
             @JsonProperty("api_key_id") UUID apiKeyId,
             @JsonProperty("project_id") Long projectId,
             @JsonProperty("repository_id") Long repositoryId,
-            List<String> tools) {}
+            List<String> tools,
+            List<String> kinds) {}
 
     public record SourceEnabled(boolean enabled) {}
 
@@ -65,8 +68,9 @@ public class SarifSourcesController {
         return sources.list();
     }
 
-    @Operation(summary = "Declare SARIF source", description = "Platform governor only. Binds an integration key holding "
-            + "sarif_import to one project or repository and the tools it may deliver.")
+    @Operation(summary = "Declare SARIF source", description = "Platform governor only. Binds an integration key to one "
+            + "project or repository and the report kinds it may deliver — sarif (the key holds sarif_import, and the "
+            + "tools are named), coverage and test_report (the key holds report_import). Kinds absent: sarif alone.")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @RequiresPlatformGovernor
@@ -79,7 +83,8 @@ public class SarifSourcesController {
         }
         return sources.declare(
                 new SarifSourceService.Declaration(
-                        body.slug(), body.name(), body.apiKeyId(), body.projectId(), body.repositoryId(), body.tools()),
+                        body.slug(), body.name(), body.apiKeyId(), body.projectId(), body.repositoryId(), body.tools(),
+                        body.kinds()),
                 RequestActors.of(principal, request));
     }
 

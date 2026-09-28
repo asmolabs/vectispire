@@ -49,6 +49,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *   <li>SARIF import, 32 MB: an internal tool's report for one repository — SonarQube's or a CI's —
  *       runs to a few megabytes; the sender holds a declared source's key, and the document is parsed
  *       whole. The service holds the same limit where it reads the bytes.
+ *   <li>Coverage import, 16 MB: a JaCoCo or Cobertura XML report for a large repository runs to a few
+ *       megabytes (a counter per method, a line per source line); an lcov tracefile is smaller. The
+ *       sender holds a declared source's key, the service holds the same limit, and only the totals
+ *       are kept (decision 0032 §7).
+ *   <li>Test-report import, 32 MB: a JUnit document, or a zip of one per test class, whose failures
+ *       carry stack traces and captured output. The zip is bounded again once inflated — entries and
+ *       bytes — by the reader, since 32 MB of deflate is gigabytes of XML.
  *   <li>Rule-set upload, 64 MB, {@code POST /api/v1/rule-sets}: {@code RuleSet} accepts up to 32 MB
  *       of rule files, and the JSON carrying them escapes every quote and line break of their YAML. A
  *       set at the domain's own limit must still arrive, or this would be a second, smaller limit
@@ -61,7 +68,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       are open to anyone, and their bodies were read by the JSON converter with no ceiling but the
  *       container's — the same buffering as the webhook's, offered to a client with no credential.
  * </ul>
- * All seven are properties, so an estate that needs more can say so. There is no multipart route
+ * All nine are properties, so an estate that needs more can say so. There is no multipart route
  * today. One added later would have its parts parsed by the container from the raw request, past the
  * counting stream, so only the declared length would bound it here and Spring's multipart limits
  * would be the real ones — give it a line of its own rather than trust the default.
@@ -74,6 +81,8 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     private final DataSize agentResult;
     private final DataSize signIn;
     private final DataSize sarifImport;
+    private final DataSize coverageImport;
+    private final DataSize testReportImport;
     private final DataSize ruleSetUpload;
     private final DataSize fallback;
 
@@ -86,6 +95,8 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             @Value("${vectispire.http.max-body.agent-result:256MB}") DataSize agentResult,
             @Value("${vectispire.http.max-body.sign-in:16KB}") DataSize signIn,
             @Value("${vectispire.http.max-body.sarif-import:32MB}") DataSize sarifImport,
+            @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize coverageImport,
+            @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize testReportImport,
             @Value("${vectispire.http.max-body.rule-set-upload:64MB}") DataSize ruleSetUpload,
             @Value("${vectispire.http.max-body.default:1MB}") DataSize fallback) {
         this.webhook = webhook;
@@ -93,6 +104,8 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         this.agentResult = agentResult;
         this.signIn = signIn;
         this.sarifImport = sarifImport;
+        this.coverageImport = coverageImport;
+        this.testReportImport = testReportImport;
         this.ruleSetUpload = ruleSetUpload;
         this.fallback = fallback;
     }
@@ -133,6 +146,12 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/api/v1/repositories/") && path.endsWith("/sarif-imports")) {
             return Optional.of(sarifImport);
+        }
+        if (path.startsWith("/api/v1/repositories/") && path.endsWith("/coverage-imports")) {
+            return Optional.of(coverageImport);
+        }
+        if (path.startsWith("/api/v1/repositories/") && path.endsWith("/test-report-imports")) {
+            return Optional.of(testReportImport);
         }
         if (path.equals("/api/v1/rule-sets")) {
             return Optional.of(ruleSetUpload);

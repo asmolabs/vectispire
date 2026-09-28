@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -80,9 +81,13 @@ public class SarifSourceService {
 
     /**
      * @param projectId and {@code repositoryId}: exactly one
-     * @param tools the SARIF tool names the source may deliver
+     * @param tools the SARIF tool names the source may deliver — required with {@code sarif}, refused
+     *     without it
+     * @param kinds {@code sarif}, {@code coverage}, {@code test_report}; {@code null} is SARIF alone
      */
-    public record Declaration(String slug, String name, UUID apiKeyId, Long projectId, Long repositoryId, List<String> tools) {}
+    public record Declaration(
+            String slug, String name, UUID apiKeyId, Long projectId, Long repositoryId, List<String> tools,
+            List<String> kinds) {}
 
     public List<SarifSourceView> list() {
         return sources.findAllByOrderBySlugAsc().stream().map(SarifSourceView::of).toList();
@@ -95,9 +100,10 @@ public class SarifSourceService {
         }
         String slug = requireSlug(declaration.slug());
         String name = BoundedText.required(declaration.name(), MAX_NAME, "The source's name");
-        String tools = String.join(",", requireTools(declaration.tools()));
+        Set<SourceKind> kinds = SourceKind.parseAll(declaration.kinds());
+        String tools = String.join(",", requireTools(declaration.tools(), kinds.contains(SourceKind.SARIF)));
         String scope = requireScope(declaration.projectId(), declaration.repositoryId());
-        UUID keyId = requireImportKey(declaration.apiKeyId());
+        UUID keyId = requireImportKey(declaration.apiKeyId(), kinds);
 
         SarifSourceEntity saved = transactions.execute(status -> {
             if (sources.existsBySlug(slug)) {
@@ -113,6 +119,7 @@ public class SarifSourceService {
             source.setProjectId(declaration.projectId());
             source.setRepositoryId(declaration.repositoryId());
             source.setTools(tools);
+            source.setKinds(SourceKind.stored(kinds));
             source.setEnabled(true);
             source.setCreatedAt(clock.instant());
             source.setCreatedBy(actor == null || actor.username() == null ? "unknown" : actor.username());
@@ -120,7 +127,8 @@ public class SarifSourceService {
         });
 
         audit.record(actor.entry(AuditOperation.SARIF_SOURCE_CHANGED, slug,
-                "SARIF source \"" + slug + "\" declared for " + scope + ", key " + keyId + ", tools " + tools + "."));
+                "Source \"" + slug + "\" declared for " + scope + ", key " + keyId + ", delivering "
+                        + SourceKind.stored(kinds) + (tools.isEmpty() ? "" : ", tools " + tools) + "."));
         return SarifSourceView.of(saved);
     }
 
@@ -165,18 +173,23 @@ public class SarifSourceService {
     }
 
     /**
-     * The key a source uploads with: an integration key — an account, not an agent — holding
-     * {@code sarif_import}, and not expired. Refused otherwise, before anything is written.
+     * The key a source uploads with: an integration key — an account, not an agent — holding the scope
+     * of every kind it is declared for ({@code sarif_import} for SARIF, {@code report_import} for
+     * coverage and test reports), and not expired. Refused otherwise, before anything is written: a
+     * kind declared for a key that cannot present it would be a declaration that never works.
      */
-    private UUID requireImportKey(UUID keyId) {
+    private UUID requireImportKey(UUID keyId, Set<SourceKind> kinds) {
         if (keyId == null) {
             throw new InvalidInputException("A source names the integration key it uploads with.");
         }
         ApiKeyAdministrationService.KeyView key = apiKeys.key(keyId)
                 .orElseThrow(() -> new InvalidInputException("No API key " + keyId + "."));
-        if (!key.scopes().contains(ApiKeyScope.SARIF_IMPORT.wireName())) {
-            throw new InvalidInputException("The key \"" + key.name() + "\" does not hold the "
-                    + ApiKeyScope.SARIF_IMPORT.wireName() + " scope; issue one that does.");
+        for (SourceKind kind : kinds) {
+            if (!key.scopes().contains(kind.scope().wireName())) {
+                throw new InvalidInputException("The key \"" + key.name() + "\" does not hold the "
+                        + kind.scope().wireName() + " scope a " + kind.wireName() + " source uploads with; issue one "
+                        + "that does.");
+            }
         }
         if (key.scopes().contains(ApiKeyScope.AGENT.wireName()) || key.owner() == null) {
             throw new InvalidInputException("The key \"" + key.name() + "\" acts for no active account; a source "
@@ -204,8 +217,19 @@ public class SarifSourceService {
         return "repository " + repositoryId;
     }
 
-    /** The tool names, compared as the import compares them: stripped and lowercased. */
-    static List<String> requireTools(List<String> tools) {
+    /**
+     * The tool names, compared as the import compares them: stripped and lowercased. Required of a
+     * SARIF source, refused of one that delivers no SARIF — they would read as a permission nothing
+     * uses.
+     */
+    static List<String> requireTools(List<String> tools, boolean sarif) {
+        if (!sarif) {
+            if (tools != null && tools.stream().anyMatch(tool -> tool != null && !tool.isBlank())) {
+                throw new InvalidInputException("Tools are the SARIF tools a source delivers; a source that "
+                        + "delivers no SARIF declares none.");
+            }
+            return List.of();
+        }
         if (tools == null || tools.isEmpty()) {
             throw new InvalidInputException("A source declares the tools it delivers — each run's tool.driver.name.");
         }

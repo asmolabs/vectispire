@@ -76,6 +76,7 @@ class MigrationsTest {
                         "t_control_declaration", "t_compliance_snapshot", "t_webhook_delivery", "t_git_token",
                         "t_solution", "t_project",
                         "t_plugin", "t_plugin_manifest", "t_plugin_activation", "t_sarif_source", "t_sarif_import",
+                        "t_coverage_import", "t_test_report_import", "t_test_suite_result",
                         "t_rate_window", "t_epss_score", "t_one_shot_job");
     }
 

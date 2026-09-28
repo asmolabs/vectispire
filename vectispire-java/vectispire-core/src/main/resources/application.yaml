@@ -208,6 +208,8 @@ vectispire:
       agent-result: ${VECTISPIRE_MAX_BODY_AGENT_RESULT:256MB}
       sign-in: ${VECTISPIRE_MAX_BODY_SIGN_IN:16KB}
       sarif-import: ${VECTISPIRE_MAX_BODY_SARIF_IMPORT:32MB}
+      coverage-import: ${VECTISPIRE_MAX_BODY_COVERAGE_IMPORT:16MB}
+      test-report-import: ${VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT:32MB}
 
   session:
     absolute-lifetime: ${VECTISPIRE_SESSION_LIFETIME:12h}

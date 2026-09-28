@@ -7,10 +7,12 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A declared SARIF source, under the entity's property names.
+ * A declared source, under the entity's property names.
  *
  * @param projectId and {@code repositoryId}: exactly one is set — the one scope it may deliver for
- * @param tools the tool names it may deliver, lowercased, as {@code tool.driver.name} is compared
+ * @param tools the SARIF tool names it may deliver, lowercased, as {@code tool.driver.name} is
+ *     compared; empty for a source that delivers no SARIF
+ * @param kinds what it may deliver: {@code sarif}, {@code coverage}, {@code test_report}
  */
 public record SarifSourceView(
         Long id,
@@ -20,13 +22,15 @@ public record SarifSourceView(
         Long projectId,
         Long repositoryId,
         List<String> tools,
+        List<String> kinds,
         boolean enabled,
         Instant createdAt,
         String createdBy) {
 
     static SarifSourceView of(SarifSourceEntity source) {
         return new SarifSourceView(source.getId(), source.getSlug(), source.getName(), source.getApiKeyId(),
-                source.getProjectId(), source.getRepositoryId(), tools(source.getTools()), source.getEnabled(),
+                source.getProjectId(), source.getRepositoryId(), tools(source.getTools()),
+                SourceKind.fromStored(source.getKinds()).stream().map(SourceKind::wireName).toList(), source.getEnabled(),
                 source.getCreatedAt(), source.getCreatedBy());
     }
 

@@ -58,6 +58,9 @@ public abstract class VectispireContextTest {
             // No foreign key in or out (a common migration, decision 0027), so first or anywhere; left
             // out, a plugin registered by one test would conflict with the next test's registration.
             "t_sarif_import",
+            "t_coverage_import",
+            "t_test_suite_result",
+            "t_test_report_import",
             "t_sarif_source",
             "t_plugin_activation",
             "t_plugin_manifest",

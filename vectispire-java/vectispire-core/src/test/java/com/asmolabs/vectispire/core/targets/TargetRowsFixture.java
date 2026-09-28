@@ -33,10 +33,16 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventEntity;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.SarifSourceRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
@@ -237,6 +243,7 @@ final class TargetRowsFixture {
             source.setApiKeyId(UUID.randomUUID());
             source.setRepositoryId(repoId);
             source.setTools("semgrep");
+            source.setKinds("sarif,coverage,test_report");
             source.setEnabled(true);
             source.setCreatedAt(AT);
             source.setCreatedBy("governor");
@@ -252,6 +259,40 @@ final class TargetRowsFixture {
             imported.setImportedBy("pipeline");
             imported.setApiKeyId(source.getApiKeyId());
             beans.getBean(SarifImportRepository.class).save(imported);
+
+            // A coverage figure and a test report with one suite, the suite naming its import: the
+            // listener takes the suite before the import it is found through.
+            CoverageImportEntity coverage = new CoverageImportEntity();
+            coverage.setSourceId(sourceId);
+            coverage.setSourceSlug(source.getSlug());
+            coverage.setRepoId(repoId);
+            coverage.setFormat("jacoco");
+            coverage.setLinesCovered(1);
+            coverage.setLinesTotal(2);
+            coverage.setDocumentSha256("0".repeat(64));
+            coverage.setImportedAt(AT);
+            coverage.setImportedBy("pipeline");
+            coverage.setApiKeyId(source.getApiKeyId());
+            beans.getBean(CoverageImportRepository.class).save(coverage);
+
+            TestReportImportEntity report = new TestReportImportEntity();
+            report.setSourceId(sourceId);
+            report.setSourceSlug(source.getSlug());
+            report.setRepoId(repoId);
+            report.setFormat("junit");
+            report.setDocumentsCount(1);
+            report.setSuitesCount(1);
+            report.setTestsCount(1);
+            report.setDocumentSha256("0".repeat(64));
+            report.setImportedAt(AT);
+            report.setImportedBy("pipeline");
+            report.setApiKeyId(source.getApiKeyId());
+            long reportId = beans.getBean(TestReportImportRepository.class).save(report).getId();
+            TestSuiteResultEntity suite = new TestSuiteResultEntity();
+            suite.setImportId(reportId);
+            suite.setName("com.example.AppTest");
+            suite.setTestsCount(1);
+            beans.getBean(TestSuiteResultRepository.class).save(suite);
         }
     }
 
@@ -291,6 +332,11 @@ final class TargetRowsFixture {
             rows.put("t_api_contract", count("t_api_contract where repository_id = ? or scan_id in (" + scans + ")", id));
             rows.put("t_sarif_source", count("t_sarif_source where repository_id = ?", id));
             rows.put("t_sarif_import", count("t_sarif_import where repo_id = ?", id));
+            rows.put("t_coverage_import", count("t_coverage_import where repo_id = ?", id));
+            rows.put("t_test_report_import", count("t_test_report_import where repo_id = ?", id));
+            rows.put("t_test_suite_result", count("t_test_suite_result where import_id in (select t.id from "
+                    + "t_test_report_import t where t.repo_id = ?) or import_id not in (select id from t_test_report_import)",
+                    id));
         }
         return rows;
     }

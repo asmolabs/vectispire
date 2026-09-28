@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeExcep
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
 import com.asmolabs.vectispire.core.plugins.PluginConflictException;
+import com.asmolabs.vectispire.core.plugins.ReportImportRefusedException;
+import com.asmolabs.vectispire.core.plugins.ReportTooLargeException;
 import com.asmolabs.vectispire.core.plugins.SarifImportRefusedException;
 import com.asmolabs.vectispire.core.plugins.SarifTooLargeException;
 import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
@@ -107,11 +109,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * A SARIF upload refused for who sent it or what it claims — a session, an undeclared key, an
-     * undeclared tool. 403: the route exists for a declared source, and saying so names no repository.
+     * A SARIF, coverage or test-report upload refused for who sent it or what it claims — a session,
+     * an undeclared key, a kind or a tool its source is not declared for. 403: the route exists for a
+     * declared source, and saying so names no repository.
      */
-    @ExceptionHandler(SarifImportRefusedException.class)
-    ProblemDetail sarifImportRefused(SarifImportRefusedException error) {
+    @ExceptionHandler({SarifImportRefusedException.class, ReportImportRefusedException.class})
+    ProblemDetail importRefused(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, error.getMessage());
     }
 
@@ -170,7 +173,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
      * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
      * itself, before this point.
      */
-    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class})
+    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class, ReportTooLargeException.class})
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }
