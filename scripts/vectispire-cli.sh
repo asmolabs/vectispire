@@ -50,6 +50,8 @@ Commands:
   gate          Evaluate the security gate and return exit code 0 (PASS) or 1 (FAIL)
   sbom          Download the SBOM (CycloneDX / SPDX JSON) for a scan or repository
   status        Check the status of the latest scan on a target
+  coverage      Send a coverage report (JaCoCo, Cobertura, lcov) for a repository
+  test-report   Send a JUnit test report (one XML file, or a zip of them) for a repository
   version       Display CLI version
 
 Global Options:
@@ -76,6 +78,15 @@ SBOM Options:
   --repo-id <id>          Fetch latest scan SBOM for this repository ID
   --output <file>         Output filepath (default: stdout or vectispire-sbom.json)
 
+Report Options (coverage, test-report):
+  --repo-id <id>          Target repository ID (required)
+  --file <path>           The report to send (required)
+  --format <format>       coverage only: jacoco, cobertura or lcov (required, never guessed)
+  --commit <sha>          The commit the report was produced from (kept as stated)
+  --branch <name>         The branch it was produced on (kept as stated)
+  The key must hold the report_import scope and be declared as a source delivering
+  coverage or test_report, or the report is refused.
+
 Examples:
   # Trigger scan and wait in CI/CD pipeline
   vectispire-cli scan --repo-id 1 --wait
@@ -85,6 +96,10 @@ Examples:
 
   # Download latest scan SBOM
   vectispire-cli sbom --repo-id 1 --output ./artifacts/sbom.json
+
+  # Send the pipeline's coverage and test results
+  vectispire-cli coverage --repo-id 1 --format jacoco --file target/site/jacoco/jacoco.xml --commit "$CI_COMMIT_SHA"
+  vectispire-cli test-report --repo-id 1 --file target/surefire-reports.zip
 
 EOF
     exit 0
@@ -297,6 +312,102 @@ cmd_sbom() {
     fi
 }
 
+# Sends a file as the request body and reports the server's own refusal: `curl -f` would print
+# nothing on a 403 or a 400, and "which rule refused the report" is exactly what the person reading
+# the pipeline log needs.
+http_upload() {
+    ENDPOINT="$1"
+    CONTENT_TYPE="$2"
+    FILE="$3"
+    AUTH_HEADER=$(get_auth_header)
+    RESPONSE_FILE=$(mktemp)
+    STATUS=$(curl -s -o "$RESPONSE_FILE" -w "%{http_code}" -H "$AUTH_HEADER" -H "Content-Type: $CONTENT_TYPE" \
+        -H "Accept: application/json" -X POST --data-binary "@$FILE" "${VECTISPIRE_URL}${ENDPOINT}") || STATUS="000"
+    BODY=$(cat "$RESPONSE_FILE")
+    rm -f "$RESPONSE_FILE"
+    if [ "$STATUS" = "000" ]; then
+        printf "${RED}✘ Could not reach %s${NC}\n" "$VECTISPIRE_URL" >&2
+        exit 1
+    fi
+    if [ "$STATUS" != "201" ]; then
+        printf "${RED}✘ Refused (HTTP %s)${NC} %s\n" "$STATUS" "$BODY" >&2
+        exit 1
+    fi
+    printf "%s\n" "$BODY"
+}
+
+# The commit and branch go in the query string: percent-encode what a branch name may carry.
+url_encode() {
+    printf "%s" "$1" | od -An -tx1 -v | tr -d ' \n' | sed 's/\(..\)/%\1/g'
+}
+
+report_query() {
+    QUERY=""
+    [ -n "$FORMAT" ] && QUERY="${QUERY}&format=$(url_encode "$FORMAT")"
+    [ -n "$COMMIT" ] && QUERY="${QUERY}&commit=$(url_encode "$COMMIT")"
+    [ -n "$BRANCH" ] && QUERY="${QUERY}&branch=$(url_encode "$BRANCH")"
+    [ -n "$QUERY" ] && printf "?%s" "${QUERY#&}"
+    return 0
+}
+
+parse_report_options() {
+    REPO_ID=""
+    FILE=""
+    FORMAT=""
+    COMMIT=""
+    BRANCH=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --repo-id) REPO_ID="$2"; shift 2 ;;
+            --file) FILE="$2"; shift 2 ;;
+            --format) FORMAT="$2"; shift 2 ;;
+            --commit) COMMIT="$2"; shift 2 ;;
+            --branch) BRANCH="$2"; shift 2 ;;
+            *) printf "${RED}Unknown report option: %s${NC}\n" "$1" >&2; exit 1 ;;
+        esac
+    done
+    require_auth
+    if [ -z "$REPO_ID" ] || [ -z "$FILE" ]; then
+        printf "${RED}Error: Provide --repo-id <id> and --file <path>.${NC}\n" >&2
+        exit 1
+    fi
+    if [ ! -f "$FILE" ]; then
+        printf "${RED}Error: No such file: %s${NC}\n" "$FILE" >&2
+        exit 1
+    fi
+}
+
+cmd_coverage() {
+    parse_report_options "$@"
+    if [ -z "$FORMAT" ]; then
+        # The server refuses an undeclared format rather than guessing; saying so here saves a round trip.
+        printf "${RED}Error: Provide --format jacoco, cobertura or lcov.${NC}\n" >&2
+        exit 1
+    fi
+    case "$FORMAT" in
+        lcov) CONTENT_TYPE="text/plain" ;;
+        *) CONTENT_TYPE="application/xml" ;;
+    esac
+    printf "${BLUE}==> Sending %s coverage for repository %s...${NC}\n" "$FORMAT" "$REPO_ID" >&2
+    http_upload "/api/v1/repositories/${REPO_ID}/coverage-imports$(report_query)" "$CONTENT_TYPE" "$FILE"
+    printf "${GREEN}✔ Coverage recorded${NC}\n" >&2
+}
+
+cmd_test_report() {
+    parse_report_options "$@"
+    if [ -n "$FORMAT" ]; then
+        printf "${RED}Error: --format is for coverage; a test report is JUnit, a zip when the file ends in .zip.${NC}\n" >&2
+        exit 1
+    fi
+    case "$FILE" in
+        *.zip) CONTENT_TYPE="application/zip" ;;
+        *) CONTENT_TYPE="application/xml" ;;
+    esac
+    printf "${BLUE}==> Sending the test report for repository %s...${NC}\n" "$REPO_ID" >&2
+    http_upload "/api/v1/repositories/${REPO_ID}/test-report-imports$(report_query)" "$CONTENT_TYPE" "$FILE"
+    printf "${GREEN}✔ Test report recorded${NC}\n" >&2
+}
+
 # --- CLI Entrypoint ---
 
 COMMAND="$1"
@@ -319,6 +430,8 @@ case "$COMMAND" in
     scan) cmd_scan "$@" ;;
     gate) cmd_gate "$@" ;;
     sbom) cmd_sbom "$@" ;;
+    coverage) cmd_coverage "$@" ;;
+    test-report) cmd_test_report "$@" ;;
     version|--version|-v) printf "vectispire-cli v%s\n" "$VERSION" ;;
     *)
         printf "${RED}Unknown command: %s${NC}\n" "$COMMAND" >&2
