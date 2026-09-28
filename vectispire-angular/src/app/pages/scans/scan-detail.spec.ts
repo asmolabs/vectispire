@@ -36,6 +36,7 @@ describe('the scan detail', () => {
             error: null,
             claimedBy: 'agent-eu-1',
             attempts: 1,
+            notBefore: null,
             targetKind: 'repository',
             targetId: 5,
             targetName: 'Arm Libs Spring'
@@ -108,6 +109,7 @@ describe('the scan detail', () => {
 
         TestBed.inject(I18nService).translations.set({
             common: { loading: 'Loading…' },
+            scans: { retry_at: 'Retry at {{ time }}.' },
             rule_coverage: {
                 import: 'Import a catalogue',
                 add: 'Add this language',
@@ -165,6 +167,37 @@ describe('the scan detail', () => {
         });
 
         expect(fixture.nativeElement.textContent as string).toContain('the agent never claimed it');
+    });
+
+    it('says when a waiting scan whose attempt could not run may be tried again', async () => {
+        const later = new Date(Date.now() + 5 * 60_000).toISOString();
+        await load({
+            ...DETAIL,
+            scan: {
+                ...DETAIL.scan,
+                status: 'pending',
+                error: 'Attempt 1 of 3 could not run on agent "edge"; the scan is back in the queue',
+                notBefore: later
+            }
+        });
+
+        const retry = fixture.nativeElement.querySelector('[data-testid="scan-retry-at"]') as HTMLElement | null;
+        expect(retry).not.toBeNull();
+        expect(retry?.textContent).toContain('Retry at');
+    });
+
+    it('says nothing of a retry once its moment has passed, or for a scan that is not waiting', async () => {
+        const page = fixture.componentInstance;
+        const earlier = new Date(Date.now() - 60_000).toISOString();
+        const later = new Date(Date.now() + 60_000).toISOString();
+
+        expect(page.retryAt({ ...DETAIL.scan, status: 'pending', notBefore: earlier })).toBeNull();
+        expect(page.retryAt({ ...DETAIL.scan, status: 'failed', notBefore: later })).toBeNull();
+        expect(page.retryAt({ ...DETAIL.scan, status: 'pending', notBefore: null })).toBeNull();
+        expect(page.retryAt({ ...DETAIL.scan, status: 'pending', notBefore: later })).toBe(later);
+
+        await load();
+        expect(fixture.nativeElement.querySelector('[data-testid="scan-retry-at"]')).toBeNull();
     });
 
     it('lists the findings of this scan', async () => {

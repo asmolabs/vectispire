@@ -27,6 +27,16 @@
             {{ detail.scan.error }}
         </p-message>
     }
+    <!--
+        **When the next attempt may start.** A scan whose last attempt could not run waits before it
+        can be claimed again — a minute, then five, then fifteen — and "Queued" alone read as a scan
+        about to start that did not.
+    -->
+    @if (retryAt(detail.scan); as at) {
+        <p class="text-sm text-muted-color mt-0 mb-4" data-testid="scan-retry-at">
+            {{ 'scans.retry_at' | translate: { time: (at | date: 'dd/MM/yyyy HH:mm') ?? at } }}
+        </p>
+    }
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <p-card>

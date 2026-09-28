@@ -1820,6 +1820,7 @@
     "title": "Scans",
     "error_not_found": "This scan does not exist.",
     "error_load": "Could not load this scan.",
+    "retry_at": "Its last attempt could not run: the next may start at {{ time }}.",
     "findings_title": "Findings from this scan",
     "findings_subtitle": "— what this scan observed, not the target's backlog",
     "findings_truncated": "{{total}} findings in total; the first {{shown}} are shown.",

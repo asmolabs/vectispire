@@ -394,6 +394,7 @@ describe('every screen', () => {
                         error: null,
                         claimedBy: null,
                         attempts: 1,
+                        notBefore: null,
                         targetKind: 'repository',
                         targetId: 5,
                         targetName: 'Arm Libs Spring'

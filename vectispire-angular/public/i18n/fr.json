@@ -1820,6 +1820,7 @@
     "title": "Analyses",
     "error_not_found": "Cette analyse n'existe pas.",
     "error_load": "Impossible de charger cette analyse.",
+    "retry_at": "Sa dernière tentative n'a pas pu s'exécuter : la suivante peut démarrer à {{ time }}.",
     "findings_title": "Constats de ce scan",
     "findings_subtitle": "— ce que ce scan a observé, et non le backlog de la cible",
     "findings_truncated": "{{total}} constats au total ; les {{shown}} premiers sont affichés.",

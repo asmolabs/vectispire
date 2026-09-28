@@ -941,6 +941,8 @@ export type ScanSummary = Refine<
         durationMs: number | null;
         error: string | null;
         claimedBy: string | null;
+        /** For a waiting scan whose last attempt could not run, when it may be claimed again. */
+        notBefore: string | null;
         targetId: number | null;
     }
 >;

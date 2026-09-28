@@ -10,7 +10,7 @@ import { DocumentsApi } from '../../core/api/documents.api';
 import { ScansApi } from '../../core/api/scans.api';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { saveDocument } from '../../core/download';
-import type { ScanDetail } from '../../core/api.models';
+import type { ScanDetail, ScanSummary } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
 import { findingTypeLabel } from '../../shared/finding-types';
@@ -106,6 +106,17 @@ export class ScanDetailPage {
 
     private download(path: string, filename: string): void {
         this.documentsApi.downloadDocument(path).subscribe({ next: (response) => saveDocument(response, filename) });
+    }
+
+    /**
+     * When a waiting scan may be claimed again, or null: only for a scan still `pending` whose
+     * `notBefore` is ahead. Past it, the scan is simply queued — saying "retry at" a moment already
+     * gone would read as a scan stuck on a schedule.
+     */
+    retryAt(scan: ScanSummary, now: number = Date.now()): string | null {
+        if (scan.status !== 'pending' || !scan.notBefore) return null;
+        const at = Date.parse(scan.notBefore);
+        return Number.isFinite(at) && at > now ? scan.notBefore : null;
     }
 
     seconds(durationMs: number): number {

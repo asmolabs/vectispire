@@ -140,6 +140,7 @@ describe('the component search', () => {
         error: null,
         claimedBy: null,
         attempts: 1,
+        notBefore: null,
         targetId: 5
     });
 
