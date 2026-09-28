@@ -92,7 +92,9 @@ class ArchitectureTest {
             // periodic jobs' port and the shell that composes several domains for one screen.
             "targets", "scanning", "issues", "maintenance", "platform",
             // After: third-party analysers and SARIF imports, over scanning, issues and targets.
-            "plugins");
+            "plugins",
+            // Security checklists (decision 0032): the organisation's templates, answered per project.
+            "checklists");
 
     /**
      * The top-level packages that are no module's. Only {@code config} since step 5: the datasource,

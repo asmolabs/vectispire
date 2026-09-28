@@ -62,7 +62,7 @@ class ModularityTest {
             "settings", "outbound", "crypto", "audit", "outbox", "reporting",
             "siem", "rules", "ai", "threatintel", "tickets", "agents", "notifications", "exports", "gate",
             "inventory", "posture", "compliance", "access",
-            "targets", "scanning", "issues", "maintenance", "platform", "plugins");
+            "targets", "scanning", "issues", "maintenance", "platform", "plugins", "checklists");
 
     /**
      * The one module that may use any other, and so the one that declares no list: the shell (decision

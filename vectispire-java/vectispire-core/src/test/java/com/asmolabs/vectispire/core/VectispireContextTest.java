@@ -57,6 +57,11 @@ public abstract class VectispireContextTest {
     private static final List<String> TABLES_CHILDREN_FIRST = List.of(
             // No foreign key in or out (a common migration, decision 0027), so first or anywhere; left
             // out, a plugin registered by one test would conflict with the next test's registration.
+            // No foreign key either (V51, common). Left out, a template imported by one test would hold
+            // its slug's next version number, and its draft, in the next test.
+            "t_checklist_item",
+            "t_checklist_template_version",
+            "t_checklist_template",
             "t_sarif_import",
             "t_coverage_import",
             "t_test_suite_result",
