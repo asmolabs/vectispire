@@ -173,8 +173,9 @@ beside another writer's open transaction fails in milliseconds: the audit entry 
 lock refusal, and the test forces the writer to hold its transaction open (latches, as ever).
 
 **An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
-element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side one too,
-SQLite's default build past 32,766): the claim's exclusion of every waiting repository carrying a
+element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side prepared
+statement too). The SQLite driver in use accepted 70,000 and 100,000 when measured, so a test past the
+limit proves the batching on PostgreSQL only — say so in its javadoc rather than claim all three. The claim's exclusion of every waiting repository carrying a
 credential failed at every poll on a large enough queue, and `findAllById` is the same statement. Walk
 in pages (`ScanQueue.eligible`, keyset on the order's own key) or batch the lookup
 (`TargetCatalog.carryingCredentials`, 1,000 at a time), and test past the limit on the engines.
