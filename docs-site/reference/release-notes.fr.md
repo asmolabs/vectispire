@@ -122,7 +122,7 @@ tâche de maintenance lance une demi-minute après le démarrage, un nouveau con
 EPSS — inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le
 fichier les remplace.
 
-**Les migrations V32 à V46 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V47 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration

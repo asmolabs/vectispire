@@ -108,7 +108,7 @@ scans can close it. Until the first synchronisation, which the first maintenance
 minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already
 on issues stay until the file replaces them.
 
-**Schema migrations V32 to V46 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V47 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
