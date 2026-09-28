@@ -126,8 +126,8 @@ public class AgentLoop {
      *
      * <p><b>Waiting, not abandoning, and the reason is what abandoning costs.</b> The protocol has
      * no call to give a scan back unrun — the failure report spends an attempt and says the scan
-     * could not run, and a stop is neither — so an abandoned scan keeps its lease until it lapses — twenty
-     * minutes by default — then goes back to the queue having used one of its attempts, and every
+     * could not run, and a stop is neither. An abandoned scan keeps its lease until it lapses —
+     * twenty minutes by default — then goes back to the queue having used one of its attempts, and every
      * minute of work already done is thrown away. Waiting costs the orchestrator's grace period,
      * which is the operator's to set; if it runs out first, the process is killed and the leases
      * lapse, which is exactly what abandoning would have produced anyway.

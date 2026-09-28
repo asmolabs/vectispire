@@ -530,8 +530,9 @@ public class AgentProtocol {
      * report spends the same attempt at once and leaves the reason on the scan. <b>Signed as a result
      * is</b>, over the exact bytes, under a context of its own ({@code ResultAttestation.signFailure}).
      *
-     * <p><b>Never an exception for an answer the control plane gives on purpose</b>: whatever it says,
-     * nothing more is to be done with this scan here, and the caller logs which it was.
+     * <p><b>An outcome, not an exception, for every answer about the scan</b>: whatever it says,
+     * nothing more is to be done with this scan here, and the caller logs which it was. A refused
+     * attestation is the exception, as for a result, since its fix is this agent's configuration.
      *
      * @param reason already scrubbed — see {@code FailureReason}
      * @throws UnauthorizedException when the report's attestation, or the API key, is refused
