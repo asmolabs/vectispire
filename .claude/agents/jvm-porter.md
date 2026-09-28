@@ -99,7 +99,7 @@ publisher, and an owner below it that must act in the same transaction is called
 before the first phase (`TargetGrants.revokeAll`).
 
 **Spring Modulith verifies the module boundaries, and does nothing at runtime** (decision 0030).
-`ModularityTest` calls `verify()` over twenty-six modules (twenty-five domains, seven shared, and
+`ModularityTest` calls `verify()` over twenty-seven modules (twenty-six domains, seven shared, and
 `config`) and writes the canvases and diagrams to `build/modulith-docs/`. A message is a reach you
 just added: answer it with the owner's API or a port, never by moving a class to wherever the message
 stops. A new module is a package under `core`, a `package-info` with its list, a line in
