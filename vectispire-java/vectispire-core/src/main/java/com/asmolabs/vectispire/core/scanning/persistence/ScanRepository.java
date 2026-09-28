@@ -1,5 +1,6 @@
 package com.asmolabs.vectispire.core.scanning.persistence;
 
+import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import java.time.Instant;
 import java.util.Collection;
@@ -397,6 +398,37 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
              where s.containerId is not null
                and s.id = (select max(l.id) from ScanEntity l where l.containerId = s.containerId)""")
     List<LatestScanRow> findLatestPerContainer();
+
+    /**
+     * Each of these repositories' newest scan with this status, created at or after {@code since},
+     * whose {@code examined_types} holds the type {@code pattern} matches — see {@code
+     * ExaminedTypes.pattern}.
+     *
+     * <p><b>The list wrapped in commas, then {@code like}.</b> The engines share no function that
+     * splits a column, and a JSON one would be three spellings of one query; a comma on each side
+     * makes {@code sast} match {@code ,iac,sast,} and never a name containing it. A null column —
+     * unrecorded — concatenates to null on every engine, and matches nothing.
+     *
+     * <p>The newest is the highest identifier, as for {@link #findLatestPerRepository}: two scans of
+     * one repository created in the same instant would otherwise both be its newest.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select new com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow(
+                       s.repoId, s.id, s.createdAt)
+              from ScanEntity s
+             where s.repoId in :repoIds
+               and s.id = (select max(l.id) from ScanEntity l
+                            where l.repoId = s.repoId
+                              and l.status = :status
+                              and l.createdAt >= :since
+                              and concat(',', l.examinedTypes, ',') like :pattern)""")
+    List<ExaminingScanRow> findNewestExamining(
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("status") String status,
+            @Param("since") Instant since,
+            @Param("pattern") String pattern);
 
     /**
      * The history, newest first, optionally narrowed to one target.

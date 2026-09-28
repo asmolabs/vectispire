@@ -1,7 +1,9 @@
 /**
  * The projections {@code scanning}'s queries select into that other modules read as they are: {@code
  * LatestScanRow} (the latest scan of each target, for the gate's overview and the compliance
- * evidence) and {@code PackageImpact} (a package's reach across the estate, for the blast radius).
+ * evidence), {@code PackageImpact} (a package's reach across the estate, for the blast radius) and
+ * {@code ExaminingScanRow} (a repository's newest scan in which a built-in step produced, for the
+ * checklists' measurements — decision 0032).
  *
  * <p><b>Published, read-only, and nothing else of {@code persistence}.</b> They are records the
  * database fills and {@code ScanCatalog} hands over unchanged; restating each as an API record would

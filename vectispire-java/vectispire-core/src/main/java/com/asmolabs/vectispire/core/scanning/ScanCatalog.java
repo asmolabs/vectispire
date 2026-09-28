@@ -1,12 +1,14 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingGraphQueries;
 import com.asmolabs.vectispire.core.scanning.persistence.FindingRepository;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
 import com.asmolabs.vectispire.core.scanning.persistence.queries.PackageImpact;
 import java.time.Instant;
@@ -30,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  * whose components are the entities' property names, so a reader changed {@code getStatus()} for
  * {@code status()} and nothing else (decision 0029). The two projections the queries select into and
  * several readers share — {@link LatestScanRow} and {@link PackageImpact} — are
- * published as they are, read-only.
+ * published as they are, read-only, as is {@link ExaminingScanRow}.
  *
  * <p>Row arrays do not cross: a grouped count answers a map, a pair of target columns a {@link
  * ScanOfTarget}.
@@ -125,6 +127,50 @@ public class ScanCatalog {
     public List<LatestScanRow> latestPerContainer() {
         return scans.findLatestPerContainer();
     }
+
+    /**
+     * Each of these repositories' newest <b>completed</b> scan created at or after {@code since} in
+     * which {@code type}'s step produced — the evidence that a repository was examined for it
+     * (decision 0032, §6). A repository missing from the answer has no such scan: never scanned for it
+     * in that time, every step absent, or only scans from before {@code examined_types}, which nothing
+     * recorded — the reader tells those apart with its own questions, and must not read the absence
+     * as "examined, and clean".
+     *
+     * <p><b>A thousand identifiers per statement</b>, as {@code TargetCatalog.carryingCredentials}: a
+     * project's repositories are sized by the data, and with one bind parameter each the PostgreSQL
+     * driver refuses the statement past 65,535 — as a MySQL server-side statement would.
+     *
+     * <p><b>Built-in types only.</b> A plugin has three states, kept in {@code plugin_steps}, and an
+     * imported tool is its import's row; neither is ever in {@code examined_types}, so asking for one
+     * here would answer "never examined" for every repository. Refused instead. A plugin's scope is read
+     * from the scans' {@link PluginOutcome}s — {@code produced}, {@code not_applicable}, {@code absent},
+     * as {@link ScanView#plugins()} already carries them — by a question of its own beside this one, and
+     * an import's from {@code plugins}' import rows; collapsing either into this set would lose the
+     * third state (decision 0017).
+     *
+     * @throws UnsupportedOperationException for a type no built-in step examines — a caller's defect,
+     *     never a user's input
+     */
+    public Map<Long, ExaminingScanRow> newestExamining(Collection<Long> repositoryIds, FindingType type, Instant since) {
+        if (!ExaminedTypes.BUILT_IN.contains(type)) {
+            throw new UnsupportedOperationException(
+                    "No built-in step examines " + type.wireName() + "; its outcomes are not in examined_types.");
+        }
+        List<Long> distinct = List.copyOf(java.util.Set.copyOf(repositoryIds));
+        Map<Long, ExaminingScanRow> newest = new java.util.HashMap<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            scans.findNewestExamining(
+                            distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())),
+                            com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName(),
+                            since,
+                            ExaminedTypes.pattern(type))
+                    .forEach(row -> newest.put(row.repositoryId(), row));
+        }
+        return Map.copyOf(newest);
+    }
+
+    /** How many identifiers one statement binds: far under every engine's limit. */
+    static final int LOOKUP_BATCH = 1_000;
 
     /** Scans with this status, newest first, as identifier and target only. */
     public List<ScanOfTarget> withStatusNewestFirst(String status) {
