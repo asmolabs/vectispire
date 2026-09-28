@@ -19,6 +19,7 @@ import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.KevCatalogSource;
 import com.asmolabs.vectispire.core.threatintel.persistence.KnownEpssScore;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelBulkWrites;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelRepository;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
@@ -239,13 +240,21 @@ public class ThreatIntelFeedService {
         Map<String, ThreatIntelEntity> stored = intelRepo.findAll().stream()
                 .collect(Collectors.toMap(e -> e.getCveId().toUpperCase(Locale.ROOT), Function.identity(), (a, b) -> a));
         List<ThreatIntelEntity> changed = new ArrayList<>();
+        // New entries many to a statement: through saveAll each was a select and an insert, 3,000
+        // round trips for the first synchronisation of an installation (ThreatIntelBulkWrites).
+        List<ThreatIntelBulkWrites.Listing> listed = new ArrayList<>();
         read.added().forEach((cve, added) -> {
             ThreatIntelEntity entity = stored.get(cve);
             if (entity == null) {
+                listed.add(new ThreatIntelBulkWrites.Listing(cve, added));
                 entity = new ThreatIntelEntity();
                 entity.setCveId(cve);
+                entity.setKev(true);
+                entity.setDateAdded(added);
                 stored.put(cve, entity);
-            } else if (entity.isKev() && Objects.equals(entity.getDateAdded(), added)) {
+                return;
+            }
+            if (entity.isKev() && Objects.equals(entity.getDateAdded(), added)) {
                 return;
             }
             entity.setKev(true);
@@ -261,6 +270,7 @@ public class ThreatIntelFeedService {
                 changed.add(entity);
             }
         });
+        intelRepo.insertListed(listed, now);
         intelRepo.saveAll(changed);
 
         long updatedIssues = reevaluate(stored);

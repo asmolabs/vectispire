@@ -112,6 +112,10 @@ class ThreatIntelFeedRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.epssScore").doesNotExist());
         // And a scan asks the same table: the query a scan's enrichment runs finds the stored entry.
         assertThat(intel.exploitedAmong(List.of("cve-2021-44228", "cve-2099-0001"))).containsExactly("CVE-2021-44228");
+        // Written many rows to a statement, the day CISA listed it read back as it was written.
+        assertThat(intel.findByCveIdIgnoreCase("CVE-2023-34362")).get()
+                .extracting(e -> e.getDateAdded())
+                .isEqualTo(Instant.parse("2021-12-10T00:00:00Z"));
     }
 
     @Test

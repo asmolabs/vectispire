@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ThreatIntelRepository extends JpaRepository<ThreatIntelEntity, String> {
+public interface ThreatIntelRepository extends JpaRepository<ThreatIntelEntity, String>, ThreatIntelBulkWrites {
     Optional<ThreatIntelEntity> findByCveIdIgnoreCase(String cveId);
 
     /**
