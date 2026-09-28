@@ -4,7 +4,9 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.enrichment.Catalogs;
 import com.asmolabs.vectispire.common.domain.siem.CefEvent;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
+import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.common.domain.threatintel.KevCatalog;
+import com.asmolabs.vectispire.common.domain.threatintel.KevListing;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelRecord;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus;
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.EpssFeedStatus;
@@ -395,6 +397,36 @@ public class ThreatIntelFeedService {
             return "repository " + issue.repoId();
         }
         return issue.containerId() == null ? null : "container " + issue.containerId();
+    }
+
+    /**
+     * What the stored feeds say about one identifier's exploitation, with unknown said as such.
+     *
+     * <p><b>Not {@link #lookupCve}, whose record has a boolean {@code isKev}</b>: false there is
+     * "not listed" once the catalogue has been read and "nobody asked" before, and only its notes
+     * tell which. A caller that prints the answer — the advisor, to a reader and to a model — needs
+     * the difference in the value. {@link KevListing#UNKNOWN} before the first synchronisation and
+     * for an identifier that is not a CVE, which the catalogue could never list; a null score when
+     * the EPSS file in use has none, or there is no file yet.
+     *
+     * <p>Local reads only: both feeds are synchronised whole, so asking about a CVE tells no third
+     * party which ones somebody here was looking at.
+     */
+    public Exploitation exploitationOf(String identifier) {
+        if (!Exploitation.namesACve(identifier)) {
+            return Exploitation.unknown();
+        }
+        String id = identifier.trim().toUpperCase(Locale.ROOT);
+        KnownEpssScore score = epss.scoresOf(List.of(id)).get(id);
+        boolean catalogueRead = syncRepo.findById(ThreatIntelSyncEntity.SINGLETON_ID)
+                .map(ThreatIntelSyncEntity::getLastSyncedAt)
+                .isPresent();
+        KevListing kev = !catalogueRead
+                ? KevListing.UNKNOWN
+                : intelRepo.exploitedAmong(List.of(id.toLowerCase(Locale.ROOT))).isEmpty()
+                        ? KevListing.NOT_LISTED
+                        : KevListing.LISTED;
+        return new Exploitation(kev, score == null ? null : score.score());
     }
 
     /**
