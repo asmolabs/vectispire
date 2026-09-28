@@ -2822,7 +2822,7 @@
     "derive_label": "Libellé de la nouvelle version",
     "derive_btn": "Dériver un nouveau brouillon",
     "retire_btn": "Retirer",
-    "derive_explain": "Un brouillon dérivé garde le classeur, la disposition et les items de cette version, et est apparié avec la plus récente version publiée.",
+    "derive_explain": "Un brouillon dérivé garde le classeur, la disposition et les items de cette version, et est apparié avec elle.",
     "error_preview": "Impossible de charger la version.",
     "error_layout": "Impossible de confirmer la disposition.",
     "error_pairs": "Impossible d'enregistrer les appariements.",

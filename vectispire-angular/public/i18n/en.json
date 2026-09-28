@@ -2708,7 +2708,7 @@
     "derive_label": "Label of the new version",
     "derive_btn": "Derive a new draft",
     "retire_btn": "Retire",
-    "derive_explain": "A derived draft keeps this version's workbook, layout and items, and is paired with the newest published version.",
+    "derive_explain": "A derived draft keeps this version's workbook, layout and items, and is paired with this version.",
     "error_preview": "Could not load the version.",
     "error_layout": "Could not confirm the layout.",
     "error_pairs": "Could not record the pairs.",
