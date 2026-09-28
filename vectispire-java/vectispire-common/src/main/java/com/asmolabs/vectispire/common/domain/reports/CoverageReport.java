@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.reports;
 
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.xml.SafeXml;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -52,6 +53,9 @@ public record CoverageReport(CoverageFormat format, Counts lines, Optional<Count
     /** Elements in one XML coverage report: far above what a 16 MB report can hold, below a flood. */
     static final long MAX_ELEMENTS = 4_000_000;
 
+    /** A DOCTYPE naming its DTD is how JaCoCo and Cobertura open; it is tolerated and never loaded. */
+    private static final SafeXml XML = SafeXml.of(SafeXml.Doctype.NAMED_ONLY, InvalidReportException::new);
+
     /** lcov: the files, the line entries and branch entries across the whole tracefile. */
     static final int MAX_FILES = 200_000;
     static final int MAX_LINE_ENTRIES = 4_000_000;
@@ -100,7 +104,7 @@ public record CoverageReport(CoverageFormat format, Counts lines, Optional<Count
     private static CoverageReport jacoco(byte[] document) {
         String what = "The JaCoCo report";
         Map<String, Counts> totals = new HashMap<>();
-        SafeXml.read(new ByteArrayInputStream(document), what, new SafeXml.Budget(MAX_ELEMENTS), element -> {
+        XML.read(new ByteArrayInputStream(document), what, new SafeXml.Budget(MAX_ELEMENTS, "The coverage report"), element -> {
             if (element.depth() == 1 && !"report".equals(element.name())) {
                 throw new InvalidReportException(what + " opens with <" + element.name() + ">, not <report>: is it "
                         + "JaCoCo's XML report?");
@@ -122,7 +126,7 @@ public record CoverageReport(CoverageFormat format, Counts lines, Optional<Count
     private static CoverageReport cobertura(byte[] document) {
         String what = "The Cobertura report";
         Map<String, String> root = new LinkedHashMap<>();
-        SafeXml.read(new ByteArrayInputStream(document), what, new SafeXml.Budget(MAX_ELEMENTS), element -> {
+        XML.read(new ByteArrayInputStream(document), what, new SafeXml.Budget(MAX_ELEMENTS, "The coverage report"), element -> {
             if (element.depth() == 1) {
                 if (!"coverage".equals(element.name())) {
                     throw new InvalidReportException(what + " opens with <" + element.name() + ">, not <coverage>: is "

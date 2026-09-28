@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.common.domain.reports;
 
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
+import com.asmolabs.vectispire.common.domain.xml.SafeXml;
 import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -55,6 +56,9 @@ public record TestReport(TestReportFormat format, int documents, List<Suite> sui
     static final int MAX_TESTS = 1_000_000;
     static final long MAX_ELEMENTS = 8_000_000;
 
+    /** A DOCTYPE naming its DTD is how JaCoCo and Cobertura open; it is tolerated and never loaded. */
+    private static final SafeXml XML = SafeXml.of(SafeXml.Doctype.NAMED_ONLY, InvalidReportException::new);
+
     /** One suite's counts; {@code tests} includes the failed, errored and skipped ones. */
     public record Suite(String name, int tests, int failures, int errors, int skipped) {}
 
@@ -95,7 +99,7 @@ public record TestReport(TestReportFormat format, int documents, List<Suite> sui
             throw new InvalidReportException("The test report is larger than the " + maxBytes + " bytes accepted.");
         }
         Collector collector = new Collector();
-        SafeXml.Budget budget = new SafeXml.Budget(MAX_ELEMENTS);
+        SafeXml.Budget budget = new SafeXml.Budget(MAX_ELEMENTS, "The test report");
         int documents = switch (format) {
             case JUNIT_XML -> {
                 collector.document(new ByteArrayInputStream(document), "The JUnit report", budget);
@@ -162,7 +166,7 @@ public record TestReport(TestReportFormat format, int documents, List<Suite> sui
             Deque<Open> open = new ArrayDeque<>();
             int[] caseDepth = {0};
             String[] outcome = {null};
-            SafeXml.read(input, what, budget, new SafeXml.Handler() {
+            XML.read(input, what, budget, new SafeXml.Handler() {
                 @Override
                 public void start(SafeXml.Element element) {
                     if (element.depth() == 1 && !"testsuites".equals(element.name()) && !"testsuite".equals(element.name())) {
