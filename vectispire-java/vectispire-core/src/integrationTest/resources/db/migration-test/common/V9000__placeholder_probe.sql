@@ -13,5 +13,6 @@ create table t_placeholder_probe (
     unset_flag ${bool} not null default ${false},
     set_flag ${bool} not null default ${true},
     body ${text},
-    score ${double}
+    score ${double},
+    payload ${bytes}
 );

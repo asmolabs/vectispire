@@ -81,14 +81,18 @@ class MigrationPlaceholdersIntegrationTest {
                     .containsEntry("unset_flag", "bit(1)")
                     .containsEntry("set_flag", "bit(1)")
                     .containsEntry("body", "longtext")
-                    .containsEntry("score", "double");
+                    .containsEntry("score", "double")
+                    // `blob` stops at 64 KiB; a template's workbook is up to 10 MB (decision 0032).
+                    .containsEntry("payload", "longblob");
             case POSTGRES -> assertThat(declared)
                     .containsEntry("id", "bigint identity always")
                     .containsEntry("observed_at", "timestamp with time zone")
                     .containsEntry("unset_flag", "boolean")
                     .containsEntry("set_flag", "boolean")
                     .containsEntry("body", "text")
-                    .containsEntry("score", "double precision");
+                    .containsEntry("score", "double precision")
+                    // A column, not an `oid` pointing into pg_largeobject.
+                    .containsEntry("payload", "bytea");
             case SQLITE -> assertThat(declared)
                     // Only this exact spelling aliases the rowid; `autoincrement` is proven below.
                     .containsEntry("id", "integer pk")
@@ -96,7 +100,8 @@ class MigrationPlaceholdersIntegrationTest {
                     .containsEntry("unset_flag", "boolean")
                     .containsEntry("set_flag", "boolean")
                     .containsEntry("body", "text")
-                    .containsEntry("score", "double");
+                    .containsEntry("score", "double")
+                    .containsEntry("payload", "blob");
         }
     }
 
@@ -159,6 +164,33 @@ class MigrationPlaceholdersIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("bytes survive the round trip whole: every byte value, past MySQL's 64 KiB blob")
+    void theBytes() throws Exception {
+        // Every value from 0 to 255, so that a column read back through a character set — a text
+        // type standing in for a binary one — would change some of them; and past 64 KiB, where
+        // MySQL's `blob` would refuse the row or cut it.
+        byte[] payload = new byte[70_000];
+        for (int i = 0; i < payload.length; i++) {
+            payload[i] = (byte) i;
+        }
+        try (Connection connection = dataSource.getConnection()) {
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "insert into t_placeholder_probe (label, observed_at, payload) values (?, ?, ?)")) {
+                insert.setString(1, "bytes");
+                insert.setTimestamp(2, Timestamp.from(Instant.parse("2026-09-28T00:00:00Z")));
+                insert.setBytes(3, payload);
+                insert.executeUpdate();
+            }
+            try (Statement statement = connection.createStatement();
+                    ResultSet row = statement.executeQuery(
+                            "select payload from t_placeholder_probe where label = 'bytes'")) {
+                assertThat(row.next()).isTrue();
+                assertThat(row.getBytes("payload")).isEqualTo(payload);
+            }
+        }
+    }
+
     private static long insert(Connection connection, String label) throws Exception {
         try (PreparedStatement insert = connection.prepareStatement(
                 "insert into t_placeholder_probe (label, observed_at) values (?, ?)",
@@ -201,7 +233,7 @@ class MigrationPlaceholdersIntegrationTest {
                 types.put(column, rows.getString(2).toLowerCase(Locale.ROOT).trim());
             }
         }
-        assertThat(seen).as("the probe table exists and was read").hasSize(7);
+        assertThat(seen).as("the probe table exists and was read").hasSize(8);
         return types;
     }
 }

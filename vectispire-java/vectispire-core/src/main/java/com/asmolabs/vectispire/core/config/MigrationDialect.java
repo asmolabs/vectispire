@@ -43,6 +43,12 @@ import java.util.SequencedMap;
  *   <li>{@code text} is MySQL's {@code longtext}: its {@code text} stops at 64 KiB, which a
  *       PostgreSQL {@code text} does not, and a value that fits on one engine only is a 500 on
  *       the other.
+ *   <li>{@code bytes} is a file's bytes (decision 0032: a checklist template's workbook) —
+ *       MySQL's {@code longblob}, since its {@code blob} stops at 64 KiB as its {@code text} does;
+ *       PostgreSQL's {@code bytea}, never a large object: an entity maps it as {@code byte[]} with
+ *       an explicit JDBC type and <b>never {@code @Lob}</b>, which Hibernate writes to PostgreSQL
+ *       as an {@code oid} — a pointer into {@code pg_largeobject} that a row's deletion leaves
+ *       behind, and that {@code validate} would compare with a column that is not one.
  * </ul>
  *
  * <p><b>A value here is as frozen as an applied migration.</b> Flyway does not replay what it has
@@ -61,14 +67,16 @@ public enum MigrationDialect {
             "bigint auto_increment primary key",
             "bit(1)", "b'1'", "b'0'",
             "longtext",
-            "double")),
+            "double",
+            "longblob")),
 
     POSTGRESQL("postgresql", placeholders(
             "timestamp with time zone",
             "bigint generated always as identity primary key",
             "boolean", "true", "false",
             "text",
-            "double precision")),
+            "double precision",
+            "bytea")),
 
     /** The test fixture (decision 0014): its copy must apply, but nothing is offered on it. */
     SQLITE("sqlite", placeholders(
@@ -76,7 +84,8 @@ public enum MigrationDialect {
             "integer primary key autoincrement",
             "boolean", "1", "0",
             "text",
-            "double"));
+            "double",
+            "blob"));
 
     /** Read before the vendor's own directory; holds nothing below V40 — see decision 0027. */
     public static final String COMMON_LOCATION = "classpath:db/migration/common";
@@ -90,9 +99,9 @@ public enum MigrationDialect {
     }
 
     private static Map<String, String> placeholders(
-            String ts, String id, String bool, String yes, String no, String text, String dbl) {
+            String ts, String id, String bool, String yes, String no, String text, String dbl, String bytes) {
         // Positional on purpose: every engine must answer every key, and a constructor that takes
-        // seven values cannot forget one the way a map literal per constant could.
+        // eight values cannot forget one the way a map literal per constant could.
         SequencedMap<String, String> values = new LinkedHashMap<>();
         values.put("ts", ts);
         values.put("id", id);
@@ -101,6 +110,7 @@ public enum MigrationDialect {
         values.put("false", no);
         values.put("text", text);
         values.put("double", dbl);
+        values.put("bytes", bytes);
         return Collections.unmodifiableMap(values);
     }
 

@@ -78,6 +78,8 @@ class MigrationLayoutTest {
             Forbidden.of("\\b(long|medium|tiny)text\\b|\\bclob\\b|\\btext\\b",
                     "write ${text}: MySQL's text stops at 64 KiB"),
             Forbidden.of("\\bdouble\\b|\\bprecision\\b|\\breal\\b|\\bfloat\\b", "write ${double}"),
+            Forbidden.of("\\bbytea\\b|\\b(long|medium|tiny)?blob\\b|\\b(var)?binary\\b|\\boid\\b",
+                    "write ${bytes}: MySQL's blob stops at 64 KiB, and PostgreSQL's large object is not a column"),
             Forbidden.of("\\breferences\\b",
                     "a foreign key diverges: MySQL discards an inline one and SQLite cannot add one"
                             + " afterwards — write it in the three vendor directories"),
@@ -92,7 +94,7 @@ class MigrationLayoutTest {
                             + " three vendor directories"),
             Forbidden.of("\\bon\\s+conflict\\b|\\bon\\s+duplicate\\s+key\\b|\\binsert\\s+(ignore|or)\\b"
                     + "|\\breplace\\s+into\\b", "an upsert diverges — write it in the three vendor directories"),
-            Forbidden.of("\\bpragma\\b|\\bengine\\s*=|\\bunsigned\\b|\\bjsonb?\\b|\\bbytea\\b|\\bblob\\b",
+            Forbidden.of("\\bpragma\\b|\\bengine\\s*=|\\bunsigned\\b|\\bjsonb?\\b",
                     "engine-specific — write it in the three vendor directories"),
             Forbidden.of("`|\"|::|\\$",
                     "quoting, casts and dollar bodies are engine-specific — plain identifiers only"));
@@ -292,6 +294,11 @@ class MigrationLayoutTest {
         // Decision 0013's reason, pinned where the value is: the audit chain hashes a millisecond
         // timestamp, and a bare `datetime` makes it report tampering that never happened.
         assertThat(MigrationDialect.MYSQL.placeholders()).containsEntry("ts", "datetime(6)");
+
+        // Decision 0032's: a template's workbook is up to 10 MB. MySQL's `blob` stops at 64 KiB, and
+        // PostgreSQL's large object is an `oid` whose bytes a deleted row leaves behind.
+        assertThat(MigrationDialect.MYSQL.placeholders()).containsEntry("bytes", "longblob");
+        assertThat(MigrationDialect.POSTGRESQL.placeholders()).containsEntry("bytes", "bytea");
     }
 
     @Test

@@ -2,7 +2,7 @@
 
 A migration that differs between engines only by its column types is written **once**, here, from
 V40 on, with the type placeholders `MigrationDialect` spells per engine: `${ts}`, `${id}`, `${bool}`,
-`${true}`, `${false}`, `${text}`, `${double}`. A new table's key is `id ${id},` — the placeholder
+`${true}`, `${false}`, `${text}`, `${double}`, `${bytes}`. A new table's key is `id ${id},` — the placeholder
 carries `primary key` itself, because SQLite only accepts `autoincrement` on the exact phrase
 `integer primary key`.
 
