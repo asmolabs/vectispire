@@ -246,6 +246,15 @@ vectispire:
     previous-keys: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS:}
     previous-keys-file: ${VECTISPIRE_PREVIOUS_ENCRYPTION_KEYS_FILE:}
 
+  queue:
+    # **How long a scan waits after an attempt that could not run for a transient reason** — the
+    # network, a timeout, a lapsed lease — before another claim may take it: the first after the
+    # first attempt, the last for every attempt past the list, bounded by the attempt limit (3). A
+    # permanent failure — a host key refused, a repository absent — fails at once and waits for
+    # nothing. Without the wait, a lone agent took back at its next poll the scan it had just
+    # reported, and spent the three attempts in seconds.
+    retry-delays: ${VECTISPIRE_SCAN_RETRY_DELAYS:1m,5m,15m}
+
   worker:
     enabled: ${VECTISPIRE_EMBEDDED_WORKER:true}
     max-concurrent: ${VECTISPIRE_SCAN_MAX_CONCURRENT:2}

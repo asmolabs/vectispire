@@ -91,7 +91,7 @@ public class CoreConfiguration {
 
     @Bean
     Policy scanQueuePolicy(QueueProperties properties) {
-        return new Policy(properties.lease(), properties.maxAttempts(), properties.claimAttempts());
+        return new Policy(properties.lease(), properties.maxAttempts(), properties.claimAttempts(), properties.retryDelays());
     }
 
     @Bean
@@ -115,12 +115,16 @@ public class CoreConfiguration {
      *     concurrent claimants against a queue of twenty left six empty-handed. Nothing was ever
      *     claimed twice — it was a throughput problem, whose production shape is an agent
      *     polling for thirty seconds while work waits
+     * @param retryDelays how long a scan waits after each attempt that could not run for a transient
+     *     reason, before another claim may take it: the first after the first attempt, the last for
+     *     every attempt past the list. A permanent failure does not wait, it fails
      */
     @ConfigurationProperties("vectispire.queue")
     public record QueueProperties(
             @DefaultValue("20m") Duration lease,
             @DefaultValue("3") int maxAttempts,
-            @DefaultValue("12") int claimAttempts) {}
+            @DefaultValue("12") int claimAttempts,
+            @DefaultValue({"1m", "5m", "15m"}) java.util.List<Duration> retryDelays) {}
 
     /**
      * The periodic jobs' threads.

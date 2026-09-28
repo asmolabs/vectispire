@@ -1,10 +1,11 @@
 package com.asmolabs.vectispire.core.scanning.internal;
 
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.LEASE_EXHAUSTED_MESSAGE;
-import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.afterLapse;
+import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.afterFailure;
 import static com.asmolabs.vectispire.common.domain.scans.ScanQueue.leaseUntil;
 
-import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next;
 import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.scanning.AgentClaimLock;
@@ -84,8 +85,10 @@ public class ScanQueue {
             }
             // Nothing taken: the queue is empty, *everything is locked elsewhere*, or nothing is
             // destined for this agent. Another turn tells the second case from the others, and
-            // the loop is bounded.
-            if (batch.isEmpty() && countPending() == 0) {
+            // the loop is bounded. Counted among the scans due: one waiting out its retry delay is
+            // no reason to turn again, and every tick of a queue in backoff would otherwise run the
+            // whole loop for nothing.
+            if (batch.isEmpty() && scans.countDue(ScanStatus.PENDING.wireName(), clock.instant()) == 0) {
                 break;
             }
         }
@@ -145,9 +148,10 @@ public class ScanQueue {
             if (countHeld(worker) >= limit) {
                 return new AgentClaim(Optional.empty(), kept);
             }
+            Instant asOf = clock.instant();
             Selection selection = exclusion.excludesNothing()
-                    ? new Selection(candidates(1, agentLabels).stream().map(ScanEntity::getId).toList(), false)
-                    : eligible(agentLabels, exclusion);
+                    ? new Selection(candidates(1, agentLabels, asOf).stream().map(ScanEntity::getId).toList(), false)
+                    : eligible(agentLabels, exclusion, asOf);
             kept |= selection.kept();
             List<Long> candidates = selection.candidates();
             if (candidates.isEmpty()) {
@@ -248,12 +252,12 @@ public class ScanQueue {
      * ended, and only its repositories are asked about, so no statement here or in the exclusion's
      * owner carries more than {@link #PAGE}, however large the queue.
      */
-    private Selection eligible(Collection<String> agentLabels, Exclusion exclusion) {
+    private Selection eligible(Collection<String> agentLabels, Exclusion exclusion, Instant asOf) {
         String pending = ScanStatus.PENDING.wireName();
         boolean kept = false;
         ClaimCandidate last = null;
         for (int page = 0; page < PAGES; page++) {
-            List<ClaimCandidate> rows = page(pending, agentLabels, last);
+            List<ClaimCandidate> rows = page(pending, agentLabels, asOf, last);
             Set<Long> repositories = rows.stream()
                     .map(ClaimCandidate::repoId)
                     .filter(Objects::nonNull)
@@ -274,16 +278,16 @@ public class ScanQueue {
         return new Selection(List.of(), kept);
     }
 
-    private List<ClaimCandidate> page(String pending, Collection<String> agentLabels, ClaimCandidate after) {
+    private List<ClaimCandidate> page(String pending, Collection<String> agentLabels, Instant asOf, ClaimCandidate after) {
         Limit page = Limit.of(PAGE);
         if (after == null) {
             return agentLabels.isEmpty()
-                    ? scans.findClaimableUnlabelledPage(pending, page)
-                    : scans.findClaimablePage(pending, agentLabels, page);
+                    ? scans.findClaimableUnlabelledPage(pending, asOf, page)
+                    : scans.findClaimablePage(pending, agentLabels, asOf, page);
         }
         return agentLabels.isEmpty()
-                ? scans.findClaimableUnlabelledPageAfter(pending, after.createdAt(), after.id(), page)
-                : scans.findClaimablePageAfter(pending, agentLabels, after.createdAt(), after.id(), page);
+                ? scans.findClaimableUnlabelledPageAfter(pending, asOf, after.createdAt(), after.id(), page)
+                : scans.findClaimablePageAfter(pending, agentLabels, asOf, after.createdAt(), after.id(), page);
     }
 
     /** What one attempt of {@link #claimWithin} came back with. */
@@ -337,11 +341,11 @@ public class ScanQueue {
         return scans.countHeld(worker, ScanStatus.SCANNING.wireName(), clock.instant());
     }
 
-    private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels) {
+    private List<ScanEntity> candidates(int wanted, Collection<String> agentLabels, Instant asOf) {
         String pending = ScanStatus.PENDING.wireName();
         return agentLabels.isEmpty()
-                ? scans.findClaimableUnlabelled(pending, Limit.of(wanted))
-                : scans.findClaimable(pending, agentLabels, Limit.of(wanted));
+                ? scans.findClaimableUnlabelled(pending, asOf, Limit.of(wanted))
+                : scans.findClaimable(pending, agentLabels, asOf, Limit.of(wanted));
     }
 
     public Optional<ScanEntity> byId(long scanId) {
@@ -357,6 +361,7 @@ public class ScanQueue {
         return scans.countByStatus(ScanStatus.SCANNING.wireName());
     }
 
+    /** How many scans wait, those serving out a retry delay included — what the queue gauge shows. */
     public long countPending() {
         return scans.countByStatus(ScanStatus.PENDING.wireName());
     }
@@ -413,41 +418,55 @@ public class ScanQueue {
                 scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.PENDING.wireName()) > 0;
     }
 
-    /** Ends this worker's scan in failure, lease included. False when it was no longer this worker's. */
-    @Transactional
-    public boolean fail(long scanId, String worker, String reason) {
-        return scans.releaseOwned(
-                scanId, ScanStatus.SCANNING.wireName(), worker, ScanStatus.FAILED.wireName(), truncate(reason)) > 0;
+    /**
+     * What became of an attempt its executor could not run.
+     *
+     * @param next back in the queue from an instant, or failed for good — permanently, or at the limit
+     * @param attempt the attempt that failed, counted from one
+     */
+    public record Abandoned(Next next, int attempt, int maxAttempts) {
+
+        public boolean retried() {
+            return next instanceof Next.Retry;
+        }
+
+        /** When the scan can be claimed again; empty when it failed for good. */
+        public Optional<Instant> notBefore() {
+            return next instanceof Next.Retry(Instant at) ? Optional.of(at) : Optional.empty();
+        }
+
+        /** Failed for good because another attempt would meet the same refusal, not because the attempts ran out. */
+        public boolean permanent() {
+            return next instanceof Next.Fail(boolean permanent) && permanent;
+        }
     }
 
     /**
-     * What became of an attempt its executor reported it could not run.
+     * Ends one attempt of this worker's scan that could not run, <b>whichever executor it was</b>:
+     * failed for good if the failure is permanent or the attempt the last, otherwise back in the
+     * queue with the attempt counted and a wait before the next claim —
+     * {@link com.asmolabs.vectispire.common.domain.scans.ScanQueue#afterFailure}, the one rule for an
+     * agent's report, the built-in worker's own failure and, through the reclaim, a lapsed lease. The
+     * reason is stored either way, so a scan waiting for its next attempt says why the last one did
+     * not run.
      *
-     * @param outcome requeued with the attempt counted, or failed for good: the lapse's rule
-     * @param attempt the attempt that failed, counted from one
-     */
-    public record Abandoned(Lapsed outcome, int attempt, int maxAttempts) {}
-
-    /**
-     * Ends one attempt of this worker's scan on its executor's word, <b>as its lease lapsing would,
-     * without the wait</b>: back in the queue with the attempt counted, or failed for good at the
-     * limit — {@link com.asmolabs.vectispire.common.domain.scans.ScanQueue#afterLapse}, the one rule
-     * for both. The reason is stored either way, so a scan waiting for its next attempt says why the
-     * last one did not run.
+     * <p><b>The built-in worker used to fail for good at its first error</b>, through a {@code fail}
+     * that took no attempt into account: a clone refused by a network blip failed the scan on the
+     * control plane where the same blip on an agent cost one attempt of three. A scan's fate no longer
+     * depends on which executor took it, and that method is gone.
      *
-     * <p>Not {@link #fail}, which the built-in worker calls: that one fails for good at the first
-     * error, and it may, since the worker that failed is the only one that would take the scan again.
-     * A remote agent is one executor among several — a clone refused from one network segment may
-     * succeed from another — and until this existed its failure cost the scan an attempt anyway, only
-     * twenty minutes later and with no reason given.
-     *
-     * @param attempt the attempt the report is about, as the claim handed it to the executor
+     * @param attempt the attempt the failure is about, as the claim handed it to the executor
+     * @param kind the executor's word on whether another attempt could pass — see {@link FailureKind}
      * @param reason the sentence stored on the scan, given what became of it
      * @return empty when the scan is no longer this worker's, or no longer at that attempt — a report
      *     already applied, or one about an attempt since superseded; nothing is written then
      */
     public Optional<Abandoned> abandon(
-            long scanId, String worker, int attempt, java.util.function.Function<Abandoned, String> reason) {
+            long scanId,
+            String worker,
+            int attempt,
+            FailureKind kind,
+            java.util.function.Function<Abandoned, String> reason) {
         Optional<ScanEntity> held = scans.findById(scanId)
                 .filter(scan -> ScanStatus.SCANNING.wireName().equals(scan.getStatus()))
                 .filter(scan -> worker.equals(scan.getClaimedBy()))
@@ -455,12 +474,18 @@ public class ScanQueue {
         if (held.isEmpty()) {
             return Optional.empty();
         }
-        Abandoned abandoned = new Abandoned(afterLapse(attempt, policy), attempt, policy.maxAttempts());
-        String to = abandoned.outcome() == Lapsed.FAIL ? ScanStatus.FAILED.wireName() : ScanStatus.PENDING.wireName();
+        Abandoned abandoned = new Abandoned(afterFailure(attempt, kind, clock.instant(), policy), attempt, policy.maxAttempts());
+        String to = abandoned.retried() ? ScanStatus.PENDING.wireName() : ScanStatus.FAILED.wireName();
         // The condition read above is repeated by the statement: between the two, the lease may have
         // lapsed and the reclaim run, and the scan be taken again — by this very agent.
         int changed = scans.releaseOwnedAttempt(
-                scanId, ScanStatus.SCANNING.wireName(), worker, attempt, to, truncate(reason.apply(abandoned)));
+                scanId,
+                ScanStatus.SCANNING.wireName(),
+                worker,
+                attempt,
+                to,
+                truncate(reason.apply(abandoned)),
+                abandoned.notBefore().orElse(null));
         return changed > 0 ? Optional.of(abandoned) : Optional.empty();
     }
 
@@ -519,13 +544,25 @@ public class ScanQueue {
         String running = ScanStatus.SCANNING.wireName();
         for (ScanEntity scan : lapsed) {
             // Counted only when the row really changed: the owner may have renewed or finished
-            // since it was read, and that scan was not reclaimed.
-            if (afterLapse(scan.getAttempts(), policy) == Lapsed.FAIL) {
-                if (scans.releaseLapsed(scan.getId(), running, asOf, ScanStatus.FAILED.wireName(), LEASE_EXHAUSTED_MESSAGE) > 0) {
-                    failed.add(scan.getId());
+            // since it was read, and that scan was not reclaimed. A lapse is a transient failure
+            // nobody reported — the worker went quiet — and it waits as a reported one does: a
+            // worker that dies on a target every time would otherwise hand it to the next claimant
+            // at once, and the fleet would spend the attempts in as many ticks.
+            switch (afterFailure(scan.getAttempts(), FailureKind.TRANSIENT, asOf, policy)) {
+                case Next.Fail fail -> {
+                    if (scans.releaseLapsed(
+                                    scan.getId(), running, asOf, ScanStatus.FAILED.wireName(), LEASE_EXHAUSTED_MESSAGE, null)
+                            > 0) {
+                        failed.add(scan.getId());
+                    }
                 }
-            } else if (scans.releaseLapsed(scan.getId(), running, asOf, ScanStatus.PENDING.wireName(), null) > 0) {
-                requeued.add(scan.getId());
+                case Next.Retry retry -> {
+                    if (scans.releaseLapsed(
+                                    scan.getId(), running, asOf, ScanStatus.PENDING.wireName(), null, retry.notBefore())
+                            > 0) {
+                        requeued.add(scan.getId());
+                    }
+                }
             }
         }
         return new Reclaimed(List.copyOf(requeued), List.copyOf(failed));
@@ -554,7 +591,7 @@ public class ScanQueue {
         Instant claimedAt = clock.instant();
         Instant leaseUntil = claimedAt.plus(policy.lease());
 
-        List<ScanEntity> candidates = candidates(wanted, agentLabels);
+        List<ScanEntity> candidates = candidates(wanted, agentLabels, claimedAt);
 
         List<Long> taken = new ArrayList<>(candidates.size());
         for (ScanEntity candidate : candidates) {

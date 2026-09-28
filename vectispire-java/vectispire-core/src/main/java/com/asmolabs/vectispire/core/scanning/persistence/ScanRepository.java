@@ -1,34 +1,30 @@
 package com.asmolabs.vectispire.core.scanning.persistence;
 
 import com.asmolabs.vectispire.core.scanning.persistence.queries.LatestScanRow;
-import jakarta.persistence.LockModeType;
-import jakarta.persistence.QueryHint;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The scan queue, whose claim is the whole point.
  *
- * <p><b>The claim is transactional.</b> {@code SELECT … FOR UPDATE SKIP LOCKED} gives the
- * calling transaction exclusive ownership of the selected rows and lets a concurrent claimant
- * <em>step over</em> them instead of blocking — which is what lets several instances share one
- * queue without serializing on the oldest row. The status change and the lock release happen in
- * the same commit, so there is no window in which a row is claimed without saying so.
+ * <p><b>The claim is a read, then a conditional update per candidate, with no row lock</b> — see
+ * {@code ScanQueue.takeBatch} for why {@code SELECT … FOR UPDATE SKIP LOCKED} was dropped, and what it
+ * cost on MySQL. The two queries that locked were kept after nothing called them; they are gone,
+ * since a claim written against them would have skipped none of the rules below.
  *
- * <p><b>The routing filter lives inside the locking query, never after it.</b> Taking rows and
- * handing back the ones that do not fit would lock work destined for other agents and starve
- * them for the length of the transaction.
+ * <p><b>The routing filter lives inside the selection, never after it</b>, and so does the wait a
+ * failed attempt earns ({@code notBefore}): every selection and the take itself say "due by
+ * {@code :asOf}", the take too because a scan may fail and be requeued with a wait between the read
+ * that offered it and the update that takes it.
  *
- * <p><b>Ask for exactly what is needed, and retry.</b> The obvious idea — lock a wider window
+ * <p><b>Ask for exactly what is needed, and retry.</b> The obvious idea — take a wider window
  * then trim it — was tried and made PostgreSQL fail the very tests MySQL was failing: a
  * claimant holding rows it will not take starves the others for as long as it holds them.
  */
@@ -47,61 +43,51 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     long countByStatusAndContainerId(String status, Long containerId);
 
     /**
-     * The rows this claimant is allowed to take, locked.
-     *
-     * <p>{@code jakarta.persistence.lock.timeout = -2} is Hibernate's {@code SKIP_LOCKED}. Left
-     * out, the query <em>waits</em> for whoever holds the row instead of stepping over it, and
-     * several instances sharing a queue serialize on its oldest entry — the slow failure that
-     * looks like a busy database rather than like a missing hint.
-     *
-     * @param labels the agent's capabilities; a scan requiring none goes to anyone
-     */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
-    @Query("""
-            select s from ScanEntity s
-             where s.status = :status
-               and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
-             order by s.createdAt asc, s.id asc""")
-    List<ScanEntity> lockClaimable(
-            @Param("status") String status, @Param("labels") Collection<String> labels, Limit limit);
-
-    /**
-     * The same selection without a lock, for an engine that has none.
+     * The scans this claimant may take, due by {@code asOf}, in claim order.
      *
      * <p>Paired with {@link #take}: the candidates are read, then each is taken by a
      * conditional update whose {@code where} still says {@code pending}. A row somebody else
      * took in between updates zero rows and drops out of the batch.
+     *
+     * @param labels the agent's capabilities; a scan requiring none goes to anyone
+     * @param asOf the claim's instant: a scan whose {@code notBefore} is later waits
      */
     @Query("""
             select s from ScanEntity s
              where s.status = :status
                and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
+               and (s.notBefore is null or s.notBefore <= :asOf)
              order by s.createdAt asc, s.id asc""")
     List<ScanEntity> findClaimable(
-            @Param("status") String status, @Param("labels") Collection<String> labels, Limit limit);
+            @Param("status") String status,
+            @Param("labels") Collection<String> labels,
+            @Param("asOf") Instant asOf,
+            Limit limit);
 
     /**
-     * The same two queries for an agent that carries no label at all.
+     * The same query for an agent that carries no label at all.
      *
      * <p>Written out rather than passing an empty collection: {@code in ()} is a syntax error on
      * several engines, and the usual workaround — a sentinel value nothing equals — is a magic
      * string that has to stay impossible forever. It also stopped being impossible the moment it
      * contained a NUL byte, which PostgreSQL refuses outright.
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
     @Query("""
             select s from ScanEntity s
              where s.status = :status and s.requiredAgentLabel is null
+               and (s.notBefore is null or s.notBefore <= :asOf)
              order by s.createdAt asc, s.id asc""")
-    List<ScanEntity> lockClaimableUnlabelled(@Param("status") String status, Limit limit);
+    List<ScanEntity> findClaimableUnlabelled(@Param("status") String status, @Param("asOf") Instant asOf, Limit limit);
 
+    /**
+     * How many waiting scans are due by {@code asOf}, whatever they require — what tells the claim's
+     * loop that another turn cannot find anything.
+     */
     @Query("""
-            select s from ScanEntity s
-             where s.status = :status and s.requiredAgentLabel is null
-             order by s.createdAt asc, s.id asc""")
-    List<ScanEntity> findClaimableUnlabelled(@Param("status") String status, Limit limit);
+            select count(s.id) from ScanEntity s
+             where s.status = :status
+               and (s.notBefore is null or s.notBefore <= :asOf)""")
+    long countDue(@Param("status") String status, @Param("asOf") Instant asOf);
 
     /**
      * The claimable selection in claim order, a page at a time, for an agent that cannot be handed a
@@ -124,20 +110,26 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
               from ScanEntity s
              where s.status = :status
                and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
+               and (s.notBefore is null or s.notBefore <= :asOf)
              order by s.createdAt asc, s.id asc""")
     List<ClaimCandidate> findClaimablePage(
-            @Param("status") String status, @Param("labels") Collection<String> labels, Limit limit);
+            @Param("status") String status,
+            @Param("labels") Collection<String> labels,
+            @Param("asOf") Instant asOf,
+            Limit limit);
 
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
               from ScanEntity s
              where s.status = :status
                and (s.requiredAgentLabel is null or s.requiredAgentLabel in :labels)
+               and (s.notBefore is null or s.notBefore <= :asOf)
                and (s.createdAt > :afterAt or (s.createdAt = :afterAt and s.id > :afterId))
              order by s.createdAt asc, s.id asc""")
     List<ClaimCandidate> findClaimablePageAfter(
             @Param("status") String status,
             @Param("labels") Collection<String> labels,
+            @Param("asOf") Instant asOf,
             @Param("afterAt") Instant afterAt,
             @Param("afterId") Long afterId,
             Limit limit);
@@ -147,17 +139,21 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
               from ScanEntity s
              where s.status = :status and s.requiredAgentLabel is null
+               and (s.notBefore is null or s.notBefore <= :asOf)
              order by s.createdAt asc, s.id asc""")
-    List<ClaimCandidate> findClaimableUnlabelledPage(@Param("status") String status, Limit limit);
+    List<ClaimCandidate> findClaimableUnlabelledPage(
+            @Param("status") String status, @Param("asOf") Instant asOf, Limit limit);
 
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.ClaimCandidate(s.id, s.repoId, s.createdAt)
               from ScanEntity s
              where s.status = :status and s.requiredAgentLabel is null
+               and (s.notBefore is null or s.notBefore <= :asOf)
                and (s.createdAt > :afterAt or (s.createdAt = :afterAt and s.id > :afterId))
              order by s.createdAt asc, s.id asc""")
     List<ClaimCandidate> findClaimableUnlabelledPageAfter(
             @Param("status") String status,
+            @Param("asOf") Instant asOf,
             @Param("afterAt") Instant afterAt,
             @Param("afterId") Long afterId,
             Limit limit);
@@ -168,14 +164,19 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * <p>{@code status = :from} in the {@code where} is what makes this safe without a lock:
      * two claimants racing on the same row both issue the update, and exactly one of them
      * changes a row.
+     *
+     * <p><b>The wait is in the {@code where} too</b>, not only in the read that offered the row: in
+     * between, the scan may have been taken, failed and requeued with a wait, by another executor —
+     * still {@code pending}, and not due. The take clears it: a running scan waits for nothing.
      */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
                set s.status = :to, s.claimedBy = :worker, s.claimedAt = :claimedAt,
-                   s.leaseExpiresAt = :leaseExpiresAt, s.attempts = s.attempts + 1
-             where s.id = :id and s.status = :from""")
+                   s.leaseExpiresAt = :leaseExpiresAt, s.attempts = s.attempts + 1, s.notBefore = null
+             where s.id = :id and s.status = :from
+               and (s.notBefore is null or s.notBefore <= :claimedAt)""")
     int take(
             @Param("id") Long id,
             @Param("from") String from,
@@ -218,7 +219,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     @Query("""
             update ScanEntity s
                set s.status = :to, s.error = :error, s.claimedBy = null,
-                   s.claimedAt = null, s.leaseExpiresAt = null
+                   s.claimedAt = null, s.leaseExpiresAt = null, s.notBefore = null
              where s.id = :id and s.status = :running and s.claimedBy = :owner""")
     int releaseOwned(
             @Param("id") Long id,
@@ -234,13 +235,15 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * is about; without it, a report delayed or sent twice would reach the next attempt when the same
      * agent had taken the scan again — requeued by the first report, claimed by the next poll — and
      * spend an attempt that had not failed.
+     *
+     * @param notBefore when the scan becomes claimable again; null when it failed for good
      */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
                set s.status = :to, s.error = :error, s.claimedBy = null,
-                   s.claimedAt = null, s.leaseExpiresAt = null
+                   s.claimedAt = null, s.leaseExpiresAt = null, s.notBefore = :notBefore
              where s.id = :id and s.status = :running and s.claimedBy = :owner and s.attempts = :attempt""")
     int releaseOwnedAttempt(
             @Param("id") Long id,
@@ -248,7 +251,8 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("owner") String owner,
             @Param("attempt") int attempt,
             @Param("to") String to,
-            @Param("error") String error);
+            @Param("error") String error,
+            @Param("notBefore") Instant notBefore);
 
     /**
      * Hands a scan back to the queue as {@link #releaseOwned} does, and gives back the attempt its
@@ -265,7 +269,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     @Query("""
             update ScanEntity s
                set s.status = :to, s.error = null, s.claimedBy = null,
-                   s.claimedAt = null, s.leaseExpiresAt = null,
+                   s.claimedAt = null, s.leaseExpiresAt = null, s.notBefore = null,
                    s.attempts = case when s.attempts > 0 then s.attempts - 1 else 0 end
              where s.id = :id and s.status = :running and s.claimedBy = :owner""")
     int releaseOwnedRefunded(
@@ -281,13 +285,16 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      * renew or finish. Conditioning on the lease is enough — no successor can have taken a scan
      * that is still {@code scanning}, so only the owner can have changed the row, and either of its
      * moves makes this match nothing.
+     *
+     * @param notBefore when a requeued scan becomes claimable again — a lapse is a transient failure
+     *     and waits as a reported one does; null for one failed for good
      */
     @Transactional
     @Modifying(clearAutomatically = true)
     @Query("""
             update ScanEntity s
                set s.status = :to, s.error = :error, s.claimedBy = null,
-                   s.claimedAt = null, s.leaseExpiresAt = null
+                   s.claimedAt = null, s.leaseExpiresAt = null, s.notBefore = :notBefore
              where s.id = :id and s.status = :running
                and (s.leaseExpiresAt is null or s.leaseExpiresAt < :asOf)""")
     int releaseLapsed(
@@ -295,7 +302,8 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("running") String running,
             @Param("asOf") Instant asOf,
             @Param("to") String to,
-            @Param("error") String error);
+            @Param("error") String error,
+            @Param("notBefore") Instant notBefore);
 
     /**
      * The targets that have at least one scan in this status, as {@code [repoId, containerId]}.
@@ -477,10 +485,16 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
     /**
      * Gives these scans their attempts back, <b>while they are still in this status</b>: one a worker
      * claimed since it was read keeps the attempt that claim counted.
+     *
+     * <p><b>And the wait those attempts earned.</b> The wait is the price of the attempts counted: a
+     * scan whose count is back at zero waiting five minutes for its "third" attempt would be a scan
+     * the queue holds back for a failure it no longer counts.
      */
     @Transactional
     @Modifying(clearAutomatically = true)
-    @Query("update ScanEntity s set s.attempts = 0 where s.id in :ids and s.status = :status and s.attempts > 0")
+    @Query("""
+            update ScanEntity s set s.attempts = 0, s.notBefore = null
+             where s.id in :ids and s.status = :status and s.attempts > 0""")
     int resetAttempts(@Param("ids") Collection<Long> ids, @Param("status") String status);
 
     @Query("select s.id from ScanEntity s where s.containerId = :containerId")

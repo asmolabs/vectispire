@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.domain.scans.FailureReason;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
@@ -121,9 +122,12 @@ public class AgentProtocolService {
     public sealed interface FailureOutcome {
 
         /**
-         * @param retried back in the queue; false when that attempt was the last and the scan failed
+         * @param retried back in the queue; false when the scan failed for good
+         * @param permanent failed for good because the agent said another attempt would fail the same way
+         * @param retryAt when the scan can be claimed again; null when it failed for good
          */
-        record Recorded(boolean retried, int attempt, int maxAttempts) implements FailureOutcome {}
+        record Recorded(boolean retried, int attempt, int maxAttempts, boolean permanent, java.time.Instant retryAt)
+                implements FailureOutcome {}
 
         /** A signing key is pinned for this agent and the report does not carry its signature. Audited. */
         record NotAttested() implements FailureOutcome {}
@@ -138,9 +142,14 @@ public class AgentProtocolService {
         record NoLongerYours() implements FailureOutcome {}
     }
 
-    /** A failure report's body, as the agent writes it. Unknown fields are a later agent's, and read past. */
+    /**
+     * A failure report's body, as the agent writes it. Unknown fields are a later agent's, and read past.
+     *
+     * @param kind {@code permanent} or {@code transient}; absent from an agent older than the field,
+     *     and read as transient — see {@link FailureKind#fromWire}
+     */
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
-    record FailureReport(Integer attempt, String reason) {}
+    record FailureReport(Integer attempt, String reason, String kind) {}
 
     /**
      * Whether this agent takes part in the protocol at all — every route of it asks first.
@@ -355,8 +364,9 @@ public class AgentProtocolService {
         // A sign of life, like a renewal: the agent is up, it simply could not run this one.
         heardFrom(agent);
         String reason = FailureReason.scrub(report.reason());
+        FailureKind kind = FailureKind.fromWire(report.kind());
         Optional<ScanDispatcher.AgentFailure> recorded = dispatcher.reportAgentFailure(
-                scanId, agent, report.attempt(), reason.isEmpty() ? "the agent gave no reason." : reason);
+                scanId, agent, report.attempt(), kind, reason.isEmpty() ? "the agent gave no reason." : reason);
         if (recorded.isEmpty()) {
             return new FailureOutcome.NoLongerYours();
         }
@@ -366,13 +376,14 @@ public class AgentProtocolService {
                 AuditOperation.AGENT_SCAN_FAILED,
                 String.valueOf(scanId),
                 "Agent \"" + agent.name() + "\" reported it could not run attempt " + failure.attempt() + " of "
-                        + failure.maxAttempts() + " of the scan"
+                        + failure.maxAttempts() + " of the scan, a " + kind.wireName() + " failure"
                         + (pinned == null || pinned.isBlank() ? " (not attested)" : ", attestation verified")
-                        + (failure.retried() ? "; back in the queue." : "; the scan failed."),
+                        + (failure.retried() ? "; back in the queue, not before " + failure.notBefore() + "." : "; the scan failed."),
                 agent.name(),
                 origin.ipAddress(),
                 origin.userAgent()));
-        return new FailureOutcome.Recorded(failure.retried(), failure.attempt(), failure.maxAttempts());
+        return new FailureOutcome.Recorded(
+                failure.retried(), failure.attempt(), failure.maxAttempts(), failure.permanent(), failure.notBefore());
     }
 
     /**

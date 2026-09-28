@@ -80,8 +80,27 @@ class AgentFailureReportRoutesTest extends ApiTestBase {
         return json.readTree(body);
     }
 
+    /** A report as an agent older than the {@code kind} field sends it. */
     private static String report(int attempt, String reason) {
         return "{\"attempt\":" + attempt + ",\"reason\":\"" + reason + "\"}";
+    }
+
+    private static String report(int attempt, String reason, String kind) {
+        return "{\"attempt\":" + attempt + ",\"reason\":\"" + reason + "\",\"kind\":\"" + kind + "\"}";
+    }
+
+    /** Whether the agent's poll comes back empty. */
+    private boolean pollsNothing(Enrolled agent) throws Exception {
+        MvcResult started = mvc.perform(get("/api/v1/agent/jobs?wait=0").header("Authorization", "Bearer " + agent.token()))
+                .andReturn();
+        return mvc.perform(asyncDispatch(started)).andReturn().getResponse().getStatus() == 204;
+    }
+
+    /** The wait a failure earned, served: what a minute — or five — passing does to the row. */
+    private void waitServed(long scanId) {
+        ScanEntity scan = scans.findById(scanId).orElseThrow();
+        scan.setNotBefore(Instant.now().minusSeconds(1));
+        scans.save(scan);
     }
 
     private ResultActions send(Enrolled agent, long scanId, String body, String signature) throws Exception {
@@ -102,16 +121,26 @@ class AgentFailureReportRoutesTest extends ApiTestBase {
         assertThat(first.path("scanId").asLong()).isEqualTo(scanId);
         assertThat(first.path("attempt").asInt()).isEqualTo(1);
 
-        send(agent, scanId, report(1, "The host key of ssh://git@gitea/team/app.git has changed."), null)
+        Instant reported = Instant.now();
+        send(agent, scanId, report(1, "The clone of ssh://git@gitea/team/app.git timed out."), null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.retried").value(true))
+                .andExpect(jsonPath("$.permanent").value(false))
                 .andExpect(jsonPath("$.attempt").value(1))
-                .andExpect(jsonPath("$.maxAttempts").value(3));
+                .andExpect(jsonPath("$.maxAttempts").value(3))
+                .andExpect(jsonPath("$.retryAt").isNotEmpty());
         ScanEntity requeued = scans.findById(scanId).orElseThrow();
         assertThat(requeued.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
         assertThat(requeued.getClaimedBy()).isNull();
         assertThat(requeued.getLeaseExpiresAt()).isNull();
         assertThat(requeued.getAttempts()).isEqualTo(1);
+        // A report with no kind — an agent older than the field — is transient: a minute's wait.
+        assertThat(requeued.getNotBefore())
+                .isBetween(reported.plusSeconds(55), Instant.now().plusSeconds(65));
+
+        // **The defect this closes**: alone in its pool, the agent took the scan back at its next
+        // poll, and three attempts went in seconds.
+        assertThat(pollsNothing(agent)).as("the scan waits out its minute").isTrue();
 
         // What the scans screen reads: the reason, on the scan, while it waits for its next attempt.
         mvc.perform(authenticated(get("/api/v1/scans/" + scanId), asAdmin()))
@@ -120,29 +149,84 @@ class AgentFailureReportRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.scan.error").value(org.hamcrest.Matchers.allOf(
                         org.hamcrest.Matchers.containsString("Attempt 1 of 3"),
                         org.hamcrest.Matchers.containsString("back in the queue"),
-                        org.hamcrest.Matchers.containsString("The host key of ssh://git@gitea/team/app.git has changed."))));
+                        org.hamcrest.Matchers.containsString("The clone of ssh://git@gitea/team/app.git timed out."))))
+                .andExpect(jsonPath("$.scan.notBefore").value(requeued.getNotBefore().toString()));
 
         // The same report again — a retry on the way, a proxy's replay — does nothing.
         send(agent, scanId, report(1, "again"), null).andExpect(status().isConflict());
         assertThat(scans.findById(scanId).orElseThrow().getError()).doesNotContain("again");
 
-        // Taken again by the same agent: the old report still does nothing to the new attempt.
+        // Taken again by the same agent once the wait is served: the old report still does nothing
+        // to the new attempt.
+        waitServed(scanId);
         assertThat(claim(agent).path("attempt").asInt()).isEqualTo(2);
+        assertThat(scans.findById(scanId).orElseThrow().getNotBefore()).as("a running scan waits for nothing").isNull();
         send(agent, scanId, report(1, "late"), null).andExpect(status().isConflict());
         assertThat(scans.findById(scanId).orElseThrow().getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
 
-        send(agent, scanId, report(2, "clone refused"), null).andExpect(jsonPath("$.retried").value(true));
+        Instant second = Instant.now();
+        send(agent, scanId, report(2, "connection reset", "transient"), null).andExpect(jsonPath("$.retried").value(true));
+        assertThat(scans.findById(scanId).orElseThrow().getNotBefore())
+                .as("five minutes after the second attempt")
+                .isBetween(second.plusSeconds(295), Instant.now().plusSeconds(305));
+        waitServed(scanId);
         assertThat(claim(agent).path("attempt").asInt()).isEqualTo(3);
-        send(agent, scanId, report(3, "clone refused"), null)
+        send(agent, scanId, report(3, "connection reset", "transient"), null)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.retried").value(false));
+                .andExpect(jsonPath("$.retried").value(false))
+                .andExpect(jsonPath("$.permanent").value(false))
+                .andExpect(jsonPath("$.retryAt").doesNotExist());
 
         ScanEntity failed = scans.findById(scanId).orElseThrow();
         assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
-        assertThat(failed.getError()).contains("Attempt 3 of 3").contains("the last").contains("clone refused");
+        assertThat(failed.getError()).contains("Attempt 3 of 3").contains("the last").contains("connection reset");
+        assertThat(failed.getNotBefore()).isNull();
         assertThat(auditEntries.findAll())
                 .filteredOn(entry -> AuditOperation.AGENT_SCAN_FAILED.wireName().equals(entry.getOperationType()))
                 .hasSize(3);
+    }
+
+    @Test
+    @DisplayName("a permanent failure fails the scan on its first attempt, with the reason, and is audited as such")
+    void aPermanentFailureFailsAtOnce() throws Exception {
+        Enrolled agent = declareAgent();
+        long scanId = pending();
+        claim(agent);
+
+        send(agent, scanId, report(1, "The host key of ssh://git@gitea/team/app.git has changed.", "permanent"), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.retried").value(false))
+                .andExpect(jsonPath("$.permanent").value(true))
+                .andExpect(jsonPath("$.attempt").value(1))
+                .andExpect(jsonPath("$.retryAt").doesNotExist());
+
+        ScanEntity failed = scans.findById(scanId).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(failed.getAttempts()).isEqualTo(1);
+        assertThat(failed.getNotBefore()).isNull();
+        assertThat(failed.getError())
+                .contains("Attempt 1 of 3")
+                .contains("another attempt would meet the same refusal")
+                .contains("has changed");
+        assertThat(pollsNothing(agent)).isTrue();
+        assertThat(auditEntries.findAll())
+                .filteredOn(entry -> AuditOperation.AGENT_SCAN_FAILED.wireName().equals(entry.getOperationType()))
+                .filteredOn(entry -> entry.getDescription().contains("a permanent failure"))
+                .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("a kind this version cannot read is transient, never a reason to fail for good")
+    void anUnknownKindRetries() throws Exception {
+        Enrolled agent = declareAgent();
+        long scanId = pending();
+        claim(agent);
+
+        send(agent, scanId, report(1, "whatever", "catastrophic"), null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.retried").value(true))
+                .andExpect(jsonPath("$.permanent").value(false));
+        assertThat(scans.findById(scanId).orElseThrow().getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
     }
 
     @Test
@@ -221,11 +305,11 @@ class AgentFailureReportRoutesTest extends ApiTestBase {
         String running = ScanStatus.SCANNING.wireName();
         String pending = ScanStatus.PENDING.wireName();
 
-        assertThat(scans.releaseOwnedAttempt(scanId, running, agent.id(), 2, pending, "stale")).isZero();
-        assertThat(scans.releaseOwnedAttempt(scanId, running, "somebody-else", 1, pending, "stale")).isZero();
+        assertThat(scans.releaseOwnedAttempt(scanId, running, agent.id(), 2, pending, "stale", null)).isZero();
+        assertThat(scans.releaseOwnedAttempt(scanId, running, "somebody-else", 1, pending, "stale", null)).isZero();
         assertThat(scans.findById(scanId).orElseThrow().getStatus()).isEqualTo(running);
 
-        assertThat(scans.releaseOwnedAttempt(scanId, running, agent.id(), 1, pending, "applied")).isEqualTo(1);
+        assertThat(scans.releaseOwnedAttempt(scanId, running, agent.id(), 1, pending, "applied", null)).isEqualTo(1);
     }
 
     /** An image scan: its task needs a container row and nothing else — no key, no clone. */

@@ -34,6 +34,7 @@ public record ScanView(
         Instant claimedAt,
         Instant leaseExpiresAt,
         int attempts,
+        Instant notBefore,
         List<PluginOutcome> plugins) {
 
     public static ScanView of(ScanEntity scan) {
@@ -60,6 +61,7 @@ public record ScanView(
                 scan.getClaimedAt(),
                 scan.getLeaseExpiresAt(),
                 scan.getAttempts(),
+                scan.getNotBefore(),
                 PluginOutcome.read(scan.getPluginSteps()));
     }
 }

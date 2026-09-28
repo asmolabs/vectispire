@@ -182,6 +182,31 @@ class WithheldClaimRepairIntegrationTest {
         assertThat(entries()).singleElement().asString().contains("1 waiting scan(s)").contains(String.valueOf(inflated));
     }
 
+    /**
+     * The wait a failed attempt earns grows with the attempts counted: a scan given its count back and
+     * still held for the wait of its "third" attempt would be held back for failures no longer counted.
+     */
+    @Test
+    @DisplayName("the attempts given back take their retry wait with them, and a scan not repaired keeps its own")
+    void theWaitGoesWithTheAttempts() {
+        agent(CredentialsMode.DELEGATED);
+        long inflated = scan(keyed, null, ScanStatus.PENDING, 2);
+        long delivered = scan(keyed, null, ScanStatus.PENDING, 2);
+        audit.record(AuditLogService.Record.of(
+                AuditOperation.AGENT_CREDENTIAL_SENT, String.valueOf(delivered), "Deployment key delegated.", "edge"));
+        Instant later = Instant.now().plusSeconds(300);
+        for (long id : new long[] {inflated, delivered}) {
+            ScanEntity waiting = scans.findById(id).orElseThrow();
+            waiting.setNotBefore(later);
+            scans.save(waiting);
+        }
+
+        repair.repairOnce();
+
+        assertThat(scans.findById(inflated).orElseThrow().getNotBefore()).isNull();
+        assertThat(scans.findById(delivered).orElseThrow().getNotBefore()).isNotNull();
+    }
+
     @Test
     @DisplayName("once per database: a later start gives back nothing, even attempts counted since")
     void once() {

@@ -18,6 +18,8 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.crypto.EncryptionKey;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next;
 import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
@@ -330,7 +332,7 @@ class ScanDispatcherTest {
         when(sshKeys.findById(KEY_ID)).thenReturn(Optional.empty());
 
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.DELEGATED, null))).isEmpty();
-        verify(queue).fail(anyLong(), anyString(), anyString());
+        assertThat(abandonedAs(7L, FailureKind.PERMANENT)).contains("has been deleted");
     }
 
     @Test
@@ -434,7 +436,7 @@ class ScanDispatcherTest {
                 .dispatch("worker-1", 2, List.of());
 
         verify(runner, never()).run(any());
-        verify(queue, never()).fail(anyLong(), anyString(), anyString());
+        verify(queue, never()).abandon(anyLong(), anyString(), anyInt(), any(), any());
     }
 
     @Test
@@ -487,9 +489,16 @@ class ScanDispatcherTest {
 
     /** Runs {@code scan} through a dispatch round of the built-in worker, with {@code runner} as its runner. */
     private void onTheWorker(ScanEntity scan, ScanRunner runner) {
+        onTheWorker(scan, runner, true);
+    }
+
+    /** @param holds whether to stub the write's hold as granted — false leaves a test's own stub in place */
+    private void onTheWorker(ScanEntity scan, ScanRunner runner, boolean holds) {
         queueHolds(scan);
         when(queue.renewLease(anyLong(), anyString())).thenReturn(true);
-        when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
+        if (holds) {
+            when(queue.holdForWrite(anyLong(), anyString())).thenReturn(true);
+        }
         when(queue.lease()).thenReturn(Duration.ofMinutes(20));
         when(queue.byId(scan.getId())).thenReturn(Optional.of(scan));
         when(queue.countHeld(anyString())).thenReturn(0L);
@@ -546,6 +555,8 @@ class ScanDispatcherTest {
         ScanEntity scan = new ScanEntity();
         scan.setId(7L);
         scan.setRepoId(1L);
+        // What the claim that handed it over counted.
+        scan.setAttempts(1);
         return scan;
     }
 
@@ -633,7 +644,7 @@ class ScanDispatcherTest {
                 com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist.parse("gitlab.corp.example"));
 
         assertThat(restricted.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
-        verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("is not allowed"));
+        assertThat(abandonedAs(7L, FailureKind.PERMANENT)).contains("is not allowed");
     }
 
     @Test
@@ -648,7 +659,81 @@ class ScanDispatcherTest {
         queueHolds(repositoryScan());
 
         assertThat(dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null))).isEmpty();
-        verify(queue).fail(eq(7L), anyString(), org.mockito.ArgumentMatchers.contains("Repository URL refused"));
+        assertThat(abandonedAs(7L, FailureKind.PERMANENT)).contains("Repository URL refused");
+    }
+
+    /**
+     * The sentence the queue was asked to store for scan {@code scanId}, abandoned as {@code kind} at
+     * the attempt the claim counted — the scan's own, which {@link #repositoryScan} sets to one.
+     */
+    @SuppressWarnings("unchecked")
+    private String abandonedAs(long scanId, FailureKind kind) {
+        org.mockito.ArgumentCaptor<java.util.function.Function<ScanQueue.Abandoned, String>> reason =
+                org.mockito.ArgumentCaptor.forClass(java.util.function.Function.class);
+        verify(queue).abandon(eq(scanId), anyString(), eq(1), eq(kind), reason.capture());
+        return reason.getValue().apply(new ScanQueue.Abandoned(
+                kind == FailureKind.PERMANENT ? new Next.Fail(true) : new Next.Retry(java.time.Instant.EPOCH), 1, 3));
+    }
+
+    /** A failure that says it is permanent, as a clone's refused host key does. */
+    private static final class Refused extends IllegalStateException
+            implements com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure {
+        Refused(String message) {
+            super(message);
+        }
+
+        @Override
+        public FailureKind failureKind() {
+            return FailureKind.PERMANENT;
+        }
+    }
+
+    @Test
+    @DisplayName("the built-in worker's runner failure retries as an agent's would, scrubbed of the task's secrets")
+    void theWorkersTransientFailureRetries() {
+        ScanRunner runner = mock(ScanRunner.class);
+        // The task carries the repository's key in the clear on this side; a message quoting it —
+        // a parser naming the line it choked on — must not reach the row every reader sees.
+        when(runner.run(any())).thenThrow(new IllegalStateException(
+                "Cannot connect to the Docker daemon while cloning with " + PRIVATE_KEY + " token=abc123def"));
+
+        onTheWorker(repositoryScan(), runner);
+
+        String sentence = abandonedAs(7L, FailureKind.TRANSIENT);
+        assertThat(sentence)
+                .contains("Attempt 1 of 3 could not run on the built-in worker")
+                .contains("back in the queue")
+                .contains("Cannot connect to the Docker daemon")
+                .doesNotContain(PRIVATE_KEY)
+                .doesNotContain("abc123def");
+    }
+
+    @Test
+    @DisplayName("the built-in worker fails a permanent failure at once, as an agent's report does")
+    void theWorkersPermanentFailureFails() {
+        ScanRunner runner = mock(ScanRunner.class);
+        // Wrapped, as a runner may wrap it: the kind is read along the causes, the sentence off the top.
+        when(runner.run(any())).thenThrow(
+                new RuntimeException("clone: The host key has changed.", new Refused("The host key has changed.")));
+
+        onTheWorker(repositoryScan(), runner);
+
+        assertThat(abandonedAs(7L, FailureKind.PERMANENT))
+                .contains("another attempt would meet the same refusal")
+                .contains("The host key has changed.");
+    }
+
+    @Test
+    @DisplayName("results the built-in worker could not write retry, as an agent's undelivered upload would")
+    void anUnwrittenResultRetries() {
+        ScanRunner runner = mock(ScanRunner.class);
+        when(runner.run(any())).thenReturn(ScanArtifacts.builder().secrets(List.of()).build(Duration.ofSeconds(1)));
+        ScanEntity scan = repositoryScan();
+        when(queue.holdForWrite(anyLong(), anyString())).thenThrow(new IllegalStateException("database went away"));
+
+        onTheWorker(scan, runner, false);
+
+        assertThat(abandonedAs(7L, FailureKind.TRANSIENT)).contains("database went away");
     }
 
     private static final List<com.asmolabs.vectispire.common.domain.plugins.PluginRef> PLUGINS = List.of(

@@ -312,14 +312,19 @@ public class AgentsController {
     /**
      * @param attempt the attempt the claim handed the agent — {@code AgentTask.attempt}
      * @param reason why the scan could not run, scrubbed by the agent and again on arrival
+     * @param kind {@code permanent} when another attempt would meet the same refusal — the scan then
+     *     fails at once — or {@code transient}; absent, as an older agent sends it, is transient
      */
-    public record FailureReportRequest(Integer attempt, String reason) {}
+    public record FailureReportRequest(Integer attempt, String reason, String kind) {}
 
     /**
-     * @param retried back in the queue for another attempt; false when that was the last and the scan
-     *     failed for good
+     * @param retried back in the queue for another attempt; false when the scan failed for good
+     * @param permanent failed for good because the report said the failure was permanent
+     * @param retryAt when the scan can be claimed again — the wait grows with the attempts; null when
+     *     it failed for good
      */
-    public record FailureReportResponse(boolean retried, int attempt, int maxAttempts) {}
+    public record FailureReportResponse(
+            boolean retried, int attempt, int maxAttempts, boolean permanent, java.time.Instant retryAt) {}
 
     /**
      * "I could not run this scan": the clone refused, the workspace not made, a credential that would
@@ -350,8 +355,9 @@ public class AgentsController {
                 protocol.reportFailure(agent, scanId, body, signature, RequestActors.unnamed(request));
 
         return switch (outcome) {
-            case AgentProtocolService.FailureOutcome.Recorded(boolean retried, int attempt, int maxAttempts) ->
-                    new FailureReportResponse(retried, attempt, maxAttempts);
+            case AgentProtocolService.FailureOutcome.Recorded(
+                            boolean retried, int attempt, int maxAttempts, boolean permanent, java.time.Instant retryAt) ->
+                    new FailureReportResponse(retried, attempt, maxAttempts, permanent, retryAt);
             case AgentProtocolService.FailureOutcome.NotAttested refused -> throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
                     "This agent's reports must be signed: the " + ResultAttestation.HEADER

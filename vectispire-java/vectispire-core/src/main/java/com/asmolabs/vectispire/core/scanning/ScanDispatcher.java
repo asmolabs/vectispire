@@ -6,7 +6,10 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
-import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
+import com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
+import com.asmolabs.vectispire.common.domain.scans.FailureReason;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Next;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
@@ -162,10 +165,11 @@ public class ScanDispatcher {
     /**
      * What an agent's report that it could not run its scan did.
      *
-     * @param retried back in the queue for another attempt; false when that was the last and the scan
-     *     failed for good
+     * @param retried back in the queue for another attempt; false when the scan failed for good
+     * @param permanent failed for good because the failure was permanent, not because the attempts ran out
+     * @param notBefore when the scan can be claimed again; null when it failed for good
      */
-    public record AgentFailure(boolean retried, int attempt, int maxAttempts) {}
+    public record AgentFailure(boolean retried, int attempt, int maxAttempts, boolean permanent, Instant notBefore) {}
 
     /**
      * One dispatch round: reclaims lost leases, then claims and executes.
@@ -269,10 +273,12 @@ public class ScanDispatcher {
         }
 
         ScanEntity scan = claimed.get();
+        ScanTask built = null;
         try {
             // **The agent's mode decides.** An agent in `local` mode never has a key to receive, so
             // the question of a sealing key does not arise for it at all.
             ScanTask task = buildTask(scan, credentialsMode(agent).deliversCredentials());
+            built = task;
 
             String privateKey = privateKeyOf(task);
             ScanTask.Target.HttpsCredential https = httpsOf(task);
@@ -312,7 +318,9 @@ public class ScanDispatcher {
         } catch (CredentialWithheldException refused) {
             throw refused;
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), agent.id().toString(), String.valueOf(error.getMessage()));
+            // The same rule as the agent's own report and the built-in worker's: a repository whose
+            // URL the allow-list now refuses fails at once, a key store that did not answer retries.
+            abandon(scan, agent.id().toString(), "for agent \"" + agent.name() + "\"", error, built);
             return Optional.empty();
         }
     }
@@ -415,25 +423,80 @@ public class ScanDispatcher {
      * <p>Only while the scan is still this agent's, at that attempt: a report sent twice, or about an
      * attempt since superseded, changes nothing.
      *
+     * <p><b>The agent's kind decides between failing and waiting</b> — see {@link ScanQueue#abandon}.
+     * Without the wait a lone agent took back at its next poll the scan it had just reported, and three
+     * attempts were spent in seconds.
+     *
+     * @param kind what the agent says of the failure; transient when its report named none
      * @param reason already scrubbed — see {@code FailureReason}
      */
-    public Optional<AgentFailure> reportAgentFailure(long scanId, AgentView agent, int attempt, String reason) {
+    public Optional<AgentFailure> reportAgentFailure(
+            long scanId, AgentView agent, int attempt, FailureKind kind, String reason) {
         Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
-        Optional<ScanQueue.Abandoned> abandoned = queue.abandon(scanId, agent.id().toString(), attempt, outcome ->
-                "Attempt " + outcome.attempt() + " of " + outcome.maxAttempts() + " could not run on agent \""
-                        + agent.name() + "\""
-                        + (outcome.outcome() == Lapsed.FAIL ? ", and it was the last: " : "; the scan is back in the queue: ")
-                        + reason);
+        String where = "on agent \"" + agent.name() + "\"";
+        Optional<ScanQueue.Abandoned> abandoned =
+                queue.abandon(scanId, agent.id().toString(), attempt, kind, outcome -> sentence(outcome, where, reason));
         abandoned.ifPresent(done -> {
             metrics.scanFinishedSince(claimedAt, false, true);
-            if (done.outcome() == Lapsed.FAIL) {
-                log.warn("Scan {} failed for good on agent \"{}\" after {} attempts.", scanId, agent.name(), done.attempt());
-            } else {
-                log.info("Scan {} could not run on agent \"{}\" (attempt {} of {}) — back in the queue.",
-                        scanId, agent.name(), done.attempt(), done.maxAttempts());
-            }
+            logAbandoned(scanId, where, done);
         });
-        return abandoned.map(done -> new AgentFailure(done.outcome() == Lapsed.REQUEUE, done.attempt(), done.maxAttempts()));
+        return abandoned.map(done -> new AgentFailure(
+                done.retried(), done.attempt(), done.maxAttempts(), done.permanent(), done.notBefore().orElse(null)));
+    }
+
+    /**
+     * What a scan that could not run says of it, whichever executor it was.
+     *
+     * @param where where the attempt failed — {@code on agent "edge"}, {@code on the built-in worker}
+     */
+    static String sentence(ScanQueue.Abandoned outcome, String where, String reason) {
+        String attempt = "Attempt " + outcome.attempt() + " of " + outcome.maxAttempts() + " could not run " + where;
+        String next = switch (outcome.next()) {
+            case Next.Retry(Instant notBefore) -> "; the scan is back in the queue, not before " + notBefore + ": ";
+            case Next.Fail(boolean permanent) when permanent -> ", and another attempt would meet the same refusal: ";
+            case Next.Fail fail -> ", and it was the last: ";
+        };
+        return attempt + next + reason;
+    }
+
+    private static void logAbandoned(long scanId, String where, ScanQueue.Abandoned done) {
+        if (done.permanent()) {
+            log.warn("Scan {} failed for good {}: the failure is not one another attempt would pass.", scanId, where);
+        } else if (!done.retried()) {
+            log.warn("Scan {} failed for good {} after {} attempts.", scanId, where, done.attempt());
+        } else {
+            log.info("Scan {} could not run {} (attempt {} of {}) — back in the queue, not before {}.",
+                    scanId, where, done.attempt(), done.maxAttempts(), done.notBefore().orElse(null));
+        }
+    }
+
+    /**
+     * Ends an attempt that failed here, by the same rule as an agent's report — the kind read off the
+     * exception, the reason scrubbed of what the task carried and of what has a secret's shape.
+     *
+     * <p><b>Scrubbed although it never leaves the control plane.</b> It reaches the scan's row, which
+     * every account that sees the target reads, and a clone's message can quote what the clone held;
+     * an agent's reason is scrubbed on both sides before it lands in the same column.
+     *
+     * @param task what was handed to the runner, for its secrets; null when the failure came first
+     */
+    private void abandon(ScanEntity scan, String worker, String where, RuntimeException error, ScanTask task) {
+        String raw = error.getMessage() == null ? error.toString() : error.getMessage();
+        String reason = FailureReason.scrub(raw, secretsOf(task));
+        FailureKind kind = FailureKind.of(error);
+        queue.abandon(scan.getId(), worker, scan.getAttempts(), kind,
+                        outcome -> sentence(outcome, where, reason.isEmpty() ? "no reason was given." : reason))
+                .ifPresent(done -> logAbandoned(scan.getId(), where, done));
+    }
+
+    private static List<String> secretsOf(ScanTask task) {
+        // Nulls included: the scrub skips them, and a list that refused one would lose the rest.
+        List<String> secrets = new java.util.ArrayList<>();
+        if (task != null && task.target() instanceof ScanTask.Target.Repository repository) {
+            secrets.add(repository.privateKey());
+            secrets.add(repository.https() == null ? null : repository.https().token());
+        }
+        return secrets;
     }
 
     private void reclaimLostLeases() {
@@ -458,15 +521,21 @@ public class ScanDispatcher {
         }
 
         ScanArtifacts artifacts;
+        ScanTask task = null;
         ScheduledFuture<?> heartbeat = keepLeased(scan.getId(), worker);
         try {
             // The built-in worker runs inside the control plane and always receives the key.
-            ScanTask task = buildTask(scan, true);
+            task = buildTask(scan, true);
             // **Outside a transaction, deliberately.** Execution lasts minutes; holding one open
             // for that long blocks PostgreSQL's vacuum.
             artifacts = runner.orElseThrow().run(task);
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), worker, String.valueOf(error.getMessage()));
+            // **The agents' rule, not a rule of its own.** This used to fail the scan for good at the
+            // first error, with the raw message: a network blip that cost an agent one attempt of
+            // three cost the built-in worker the scan. A step that failed inside a scan that ran is
+            // not this — it is in the artifacts, absent (decision 0007) — this is a scan that could
+            // not run at all.
+            abandon(scan, worker, "on the built-in worker", error, task);
             metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
         } finally {
@@ -480,7 +549,10 @@ public class ScanDispatcher {
             metrics.scanFinishedSince(scan.getClaimedAt(), true, false);
             return true;
         } catch (RuntimeException error) {
-            queue.fail(scan.getId(), worker, String.valueOf(error.getMessage()));
+            // Its results could not be written, and the write rolled back: the scan is still this
+            // worker's, as an agent's is when its upload fails — which ends in a lapse, a transient
+            // failure. The same here, without the twenty minutes.
+            abandon(scan, worker, "on the built-in worker", error, task);
             metrics.scanFinishedSince(scan.getClaimedAt(), false, false);
             return false;
         }
@@ -597,6 +669,27 @@ public class ScanDispatcher {
     }
 
     /**
+     * A task this control plane will not build, for a reason no later attempt changes: its target is
+     * gone, its URL refused by the rules or the allow-list, its credential deleted or sealed under no
+     * key configured here. Permanent, so the scan fails with the reason instead of spending its
+     * attempts on it. What {@link EncryptionService} raises when a key store does not answer is not
+     * one of these, and retries.
+     */
+    static final class TaskRefused extends IllegalStateException implements ClassifiedFailure {
+
+        private static final long serialVersionUID = 1L;
+
+        TaskRefused(String message) {
+            super(message);
+        }
+
+        @Override
+        public FailureKind failureKind() {
+            return FailureKind.PERMANENT;
+        }
+    }
+
+    /**
      * Prepares the task: the private key is decrypted here, and <b>only</b> here.
      *
      * <p>The runner receives it in the clear because it has to hand it to git, but it knows
@@ -614,30 +707,30 @@ public class ScanDispatcher {
 
         RepositoryView repository = targets
                 .repository(scan.getRepoId())
-                .orElseThrow(() -> new IllegalStateException("Repository " + scan.getRepoId() + " no longer exists."));
+                .orElseThrow(() -> new TaskRefused("Repository " + scan.getRepoId() + " no longer exists."));
         // The URL's own rules, before its host is judged: a row registered before a rule existed —
         // an address two parsers read as two different hosts, since 2026-09 — is refused before its
         // task and its credential leave for an agent, not only by the clone at the other end.
         RepositoryUrl.validate(repository.url()).ifPresent(reason -> {
-            throw new IllegalStateException("Repository URL refused: " + reason);
+            throw new TaskRefused("Repository URL refused: " + reason);
         });
         // Again here, not only when the URL was entered: a list tightened after a repository was
         // registered has to stop its scans too, and this is the one place every executor's task
         // is built — the worker's and every agent's.
         if (!allowedHosts.permits(repository.url())) {
-            throw new IllegalStateException(allowedHosts.refusal(RepositoryUrl.redact(repository.url())));
+            throw new TaskRefused(allowedHosts.refusal(RepositoryUrl.redact(repository.url())));
         }
 
         ScanTask.Target.HttpsCredential https = null;
         if (repository.httpsTokenId() != null && deliverCredentials) {
             CloneCredentials.StoredGitToken token = credentials
                     .gitToken(repository.httpsTokenId())
-                    .orElseThrow(() -> new IllegalStateException(
+                    .orElseThrow(() -> new TaskRefused(
                             "The HTTPS token of repository " + RepositoryUrl.redact(repository.url()) + " has been deleted."));
             SecretCipher.Decrypted secret =
                     encryption.inspect(token.ciphertext(), SecretCipher.gitTokenContext(token.id().toString()));
             if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
-                throw new IllegalStateException(
+                throw new TaskRefused(
                         "The HTTPS token \"" + token.name() + "\" cannot be decrypted by any configured encryption key.");
             }
             https = new ScanTask.Target.HttpsCredential(token.host(), token.username(), secret.plainText());
@@ -647,14 +740,14 @@ public class ScanDispatcher {
         if (repository.sshKeyId() != null && deliverCredentials) {
             CloneCredentials.StoredSshKey key = credentials
                     .sshKey(repository.sshKeyId())
-                    .orElseThrow(() -> new IllegalStateException(
+                    .orElseThrow(() -> new TaskRefused(
                             "The SSH key of repository " + RepositoryUrl.redact(repository.url()) + " has been deleted."));
             SecretCipher.Decrypted secret =
                     encryption.inspect(key.ciphertext(), SecretCipher.privateKeyContext(key.id().toString()));
             if (secret.state() == SecretCipher.SecretState.UNREADABLE) {
                 // Said explicitly: without this, the failure would look like a refusal from the
                 // git server, and the operator would go looking at the provider.
-                throw new IllegalStateException(
+                throw new TaskRefused(
                         "The SSH key \"" + key.name() + "\" cannot be decrypted by any configured encryption key.");
             }
             privateKey = secret.plainText();
@@ -698,11 +791,11 @@ public class ScanDispatcher {
      */
     private ScanTask buildImageTask(ScanEntity scan) {
         if (scan.getContainerId() == null) {
-            throw new IllegalStateException("Scan " + scan.getId() + " names neither a repository nor a container.");
+            throw new TaskRefused("Scan " + scan.getId() + " names neither a repository nor a container.");
         }
         ContainerView container = targets
                 .container(scan.getContainerId())
-                .orElseThrow(() -> new IllegalStateException("Container " + scan.getContainerId() + " no longer exists."));
+                .orElseThrow(() -> new TaskRefused("Container " + scan.getContainerId() + " no longer exists."));
 
         return new ScanTask(
                 new ScanTask.Target.Image(

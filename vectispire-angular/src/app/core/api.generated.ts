@@ -3935,6 +3935,7 @@ export interface components {
         FailureReportRequest: {
             /** Format: int32 */
             attempt?: number;
+            kind?: string;
             reason?: string;
         };
         FailureReportResponse: {
@@ -3942,7 +3943,10 @@ export interface components {
             attempt: number;
             /** Format: int32 */
             maxAttempts: number;
+            permanent: boolean;
             retried: boolean;
+            /** Format: date-time */
+            retryAt?: string;
         };
         FindingView: {
             description?: string;
@@ -5240,6 +5244,8 @@ export interface components {
             id?: number;
             /** Format: int32 */
             newIssuesCount: number;
+            /** Format: date-time */
+            notBefore?: string;
             /** Format: int32 */
             resolvedIssuesCount: number;
             status?: string;

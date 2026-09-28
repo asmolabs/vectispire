@@ -20,7 +20,8 @@ import org.hibernate.type.SqlTypes;
  *
  * <p>{@code claimedBy}, {@code claimedAt} and {@code leaseExpiresAt} are the queue: the row is
  * the lock, so a worker that dies releases it by not renewing rather than by holding a lock in
- * a process that no longer exists.
+ * a process that no longer exists. {@code notBefore} is the queue too: the wait a failed attempt
+ * earns before the next claim.
  */
 @Entity
 @Table(name = "t_scan")
@@ -102,6 +103,14 @@ public class ScanEntity {
 
     @Column(name = "attempts", nullable = false)
     private int attempts;
+
+    /**
+     * When a waiting scan becomes claimable again after an attempt that could not run; null for one
+     * claimable now. Set by a failure report, the built-in worker's failure and a lapsed lease alike,
+     * cleared by the claim.
+     */
+    @Column(name = "not_before")
+    private Instant notBefore;
 
     public Long getId() {
         return id;
@@ -301,5 +310,13 @@ public class ScanEntity {
 
     public void setAttempts(int attempts) {
         this.attempts = attempts;
+    }
+
+    public Instant getNotBefore() {
+        return notBefore;
+    }
+
+    public void setNotBefore(Instant notBefore) {
+        this.notBefore = notBefore;
     }
 }

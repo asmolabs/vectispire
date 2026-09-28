@@ -2284,6 +2284,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "kind" : {
+            "type" : "string"
+          },
           "reason" : {
             "type" : "string"
           }
@@ -2300,11 +2303,18 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "permanent" : {
+            "type" : "boolean"
+          },
           "retried" : {
             "type" : "boolean"
+          },
+          "retryAt" : {
+            "format" : "date-time",
+            "type" : "string"
           }
         },
-        "required" : [ "attempt", "maxAttempts", "retried" ],
+        "required" : [ "attempt", "maxAttempts", "permanent", "retried" ],
         "type" : "object"
       },
       "FindingView" : {
@@ -5781,6 +5791,10 @@
           "newIssuesCount" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "notBefore" : {
+            "format" : "date-time",
+            "type" : "string"
           },
           "resolvedIssuesCount" : {
             "format" : "int32",

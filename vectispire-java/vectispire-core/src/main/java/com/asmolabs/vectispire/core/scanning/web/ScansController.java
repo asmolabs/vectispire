@@ -49,6 +49,10 @@ public class ScansController {
         this.visibility = visibility;
     }
 
+    /**
+     * @param notBefore for a waiting scan whose last attempt could not run, when it can be claimed
+     *     again — the screen's "retry at"; null for one claimable now, and for every other status
+     */
     public record ScanSummary(
             Long id,
             String status,
@@ -61,6 +65,7 @@ public class ScansController {
             String error,
             String claimedBy,
             int attempts,
+            Instant notBefore,
             String targetKind,
             Long targetId,
             String targetName) {}
@@ -199,6 +204,7 @@ public class ScansController {
                 scan.error(),
                 scan.claimedBy(),
                 scan.attempts(),
+                scan.notBefore(),
                 scan.repoId() != null ? "repository" : "container",
                 scan.repoId() != null ? scan.repoId() : scan.containerId(),
                 names.of(scan.repoId(), scan.containerId()));

@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.core.scanning;
 
+import static com.asmolabs.vectispire.common.domain.scans.FailureKind.PERMANENT;
+import static com.asmolabs.vectispire.common.domain.scans.FailureKind.TRANSIENT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentKind;
@@ -300,7 +302,8 @@ class ScanQueueIntegrationTest {
         // count the take it was waiting for.
         enqueue(2, null);
         UUID edge = agent("edge");
-        List<ScanEntity> queued = scans.findClaimableUnlabelled(ScanStatus.PENDING.wireName(), org.springframework.data.domain.Limit.of(2));
+        List<ScanEntity> queued = scans.findClaimableUnlabelled(
+                ScanStatus.PENDING.wireName(), Instant.now(), org.springframework.data.domain.Limit.of(2));
         long newest = queued.get(1).getId();
         CountDownLatch holding = new CountDownLatch(1);
 
@@ -544,6 +547,283 @@ class ScanQueueIntegrationTest {
         });
     }
 
+    /** The wait a failure earned, served: what the minutes passing do to the row. */
+    private void waitServed(long id) {
+        waitsUntil(id, Instant.now().minusSeconds(1));
+    }
+
+    private void waitsUntil(long id, Instant notBefore) {
+        ScanEntity scan = scans.findById(id).orElseThrow();
+        scan.setNotBefore(notBefore);
+        scans.save(scan);
+    }
+
+    private long onlyScanOf(long repoId) {
+        return scans.findAll().stream().filter(scan -> Long.valueOf(repoId).equals(scan.getRepoId()))
+                .map(ScanEntity::getId).findFirst().orElseThrow();
+    }
+
+    /** The oldest scan waiting out a retry, a due one behind it: what every selection must tell apart. */
+    private record Backoff(long waiting, long dueRepository) {}
+
+    private Backoff backoffBeforeADueScan(String label) {
+        scans.deleteAll();
+        long backoffRepository = repository("backoff-" + label + "-" + System.nanoTime());
+        long dueRepository = repository("due-" + label + "-" + System.nanoTime());
+        enqueueFor(backoffRepository, 1, label);
+        enqueueFor(dueRepository, 1, label);
+        long waiting = onlyScanOf(backoffRepository);
+        waitsUntil(waiting, Instant.now().plusSeconds(600));
+        return new Backoff(waiting, dueRepository);
+    }
+
+    /**
+     * Every statement the claim reads through — the built-in worker's, an agent's, an excluding
+     * agent's first page — with and without labels, each its own query on every engine.
+     */
+    @Test
+    @DisplayName("a scan waiting out its retry delay is skipped by every selection, and taken once it is due")
+    void aScanInBackoffIsSkipped() {
+        for (String label : new String[] {null, "dmz"}) {
+            List<String> labels = label == null ? List.of() : List.of(label);
+            UUID edge = agent("edge-" + label);
+
+            Backoff worker = backoffBeforeADueScan(label);
+            assertThat(queue.claim(5, "worker", labels)).as("the built-in worker, label %s", label)
+                    .extracting(ScanEntity::getRepoId).containsExactly(worker.dueRepository());
+
+            Backoff agent = backoffBeforeADueScan(label);
+            assertThat(queue.claimWithin(edge, 16, labels, ScanQueue.Exclusion.NONE).scan()).as("an agent, label %s", label)
+                    .get().extracting(ScanEntity::getRepoId).isEqualTo(agent.dueRepository());
+            assertThat(queue.claimWithin(edge, 16, labels, ScanQueue.Exclusion.NONE).scan()).isEmpty();
+
+            Backoff excluding = backoffBeforeADueScan(label);
+            assertThat(queue.claimWithin(edge, 16, labels, repositories -> java.util.Set.of()).scan())
+                    .as("an agent walking pages, label %s", label)
+                    .get().extracting(ScanEntity::getRepoId).isEqualTo(excluding.dueRepository());
+
+            ScanEntity still = scans.findById(excluding.waiting()).orElseThrow();
+            assertThat(still.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
+            assertThat(still.getAttempts()).as("a skipped scan costs no attempt").isZero();
+
+            waitServed(excluding.waiting());
+            assertThat(queue.claimWithin(edge, 16, labels, repositories -> java.util.Set.of()).scan())
+                    .get().extracting(ScanEntity::getId).isEqualTo(excluding.waiting());
+            assertThat(scans.findById(excluding.waiting()).orElseThrow().getNotBefore())
+                    .as("a running scan waits for nothing").isNull();
+        }
+    }
+
+    @Test
+    @DisplayName("an excluding agent's walk past a full page skips a scan in backoff on the next page too")
+    void theNextPageSkipsTheBackoffToo() {
+        for (String label : new String[] {null, "dmz"}) {
+            scans.deleteAll();
+            List<String> labels = label == null ? List.of() : List.of(label);
+            long keyed = repository("keyed-" + label);
+            enqueueFor(keyed, ScanQueue.PAGE, label);
+            long backoffRepository = repository("backoff-" + label);
+            enqueueFor(backoffRepository, 1, label);
+            waitsUntil(onlyScanOf(backoffRepository), Instant.now().plusSeconds(600));
+            long dueRepository = repository("due-" + label);
+            enqueueFor(dueRepository, 1, label);
+
+            assertThat(queue.claimWithin(agent("edge-" + label), 16, labels, excluding(keyed)).scan())
+                    .as("label %s", label)
+                    .get().extracting(ScanEntity::getRepoId).isEqualTo(dueRepository);
+        }
+    }
+
+    @Test
+    @DisplayName("a permanent failure fails the scan on its first attempt, with the reason and no wait")
+    void aPermanentFailureFailsOnItsFirstAttempt() {
+        enqueue(1, null);
+        UUID edge = agent("edge");
+        long id = queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow().getId();
+
+        assertThat(queue.abandon(id, edge.toString(), 1, PERMANENT, done -> "host key changed"))
+                .hasValueSatisfying(done -> {
+                    assertThat(done.retried()).isFalse();
+                    assertThat(done.permanent()).isTrue();
+                    assertThat(done.notBefore()).isEmpty();
+                });
+        ScanEntity failed = scans.findById(id).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(failed.getAttempts()).isEqualTo(1);
+        assertThat(failed.getError()).isEqualTo("host key changed");
+        assertThat(failed.getNotBefore()).isNull();
+        assertThat(failed.getClaimedBy()).isNull();
+    }
+
+    /** A clock a test moves by hand. */
+    private static final class MovingClock extends java.time.Clock {
+        private volatile Instant now;
+
+        MovingClock(Instant start) {
+            this.now = start;
+        }
+
+        void advance(java.time.Duration by) {
+            now = now.plus(by);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return java.time.ZoneOffset.UTC;
+        }
+
+        @Override
+        public java.time.Clock withZone(java.time.ZoneId zone) {
+            return this;
+        }
+    }
+
+    @Autowired
+    private AgentClaimLock claimLock;
+
+    @Autowired
+    private com.asmolabs.vectispire.common.domain.scans.ScanQueue.Policy policy;
+
+    /**
+     * The whole schedule, on the engine, with the clock moved by hand: a second short of each wait
+     * claims nothing — by the agent or the built-in worker — and the second after, the next attempt
+     * starts. Also what shows the configuration reaches the queue: the delays are the application's.
+     */
+    @Test
+    @DisplayName("a transient failure retries after one minute, then five, and fails for good at the third attempt")
+    void aTransientFailureReachesTheLimitAcrossTheDelays() {
+        assertThat(policy.retryDelays()).as("the configured delays")
+                .containsExactly(java.time.Duration.ofMinutes(1), java.time.Duration.ofMinutes(5), java.time.Duration.ofMinutes(15));
+        // Whole seconds: MySQL keeps microseconds, and the comparison below is to the instant.
+        MovingClock clock = new MovingClock(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+        ScanQueue timed = new ScanQueue(scans, claimLock, policy, clock, transactions);
+        enqueue(1, null);
+        UUID edge = agent("edge");
+
+        long id = timed.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow().getId();
+        Instant first = clock.instant();
+        assertThat(timed.abandon(id, edge.toString(), 1, TRANSIENT, done -> "connection reset")).get()
+                .extracting(done -> done.notBefore().orElseThrow()).isEqualTo(first.plus(policy.retryDelays().get(0)));
+
+        clock.advance(java.time.Duration.ofSeconds(59));
+        assertThat(timed.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan()).as("a second early").isEmpty();
+        assertThat(timed.claim(1, "worker", List.of())).isEmpty();
+        clock.advance(java.time.Duration.ofSeconds(1));
+        // Taken by the built-in worker this time: the scan's fate does not depend on the executor.
+        assertThat(timed.claim(1, "worker", List.of())).singleElement()
+                .satisfies(scan -> assertThat(scan.getAttempts()).isEqualTo(2));
+
+        Instant second = clock.instant();
+        assertThat(timed.abandon(id, "worker", 2, TRANSIENT, done -> "daemon unreachable")).get()
+                .extracting(done -> done.notBefore().orElseThrow()).isEqualTo(second.plus(policy.retryDelays().get(1)));
+        clock.advance(java.time.Duration.ofMinutes(5).minusSeconds(1));
+        assertThat(timed.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan()).as("a second early").isEmpty();
+        clock.advance(java.time.Duration.ofSeconds(1));
+        assertThat(timed.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan()).get()
+                .extracting(ScanEntity::getAttempts).isEqualTo(3);
+
+        assertThat(timed.abandon(id, edge.toString(), 3, TRANSIENT, done -> "the last")).hasValueSatisfying(done -> {
+            assertThat(done.retried()).isFalse();
+            assertThat(done.permanent()).isFalse();
+        });
+        ScanEntity failed = scans.findById(id).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(failed.getNotBefore()).isNull();
+        clock.advance(java.time.Duration.ofHours(1));
+        assertThat(timed.claim(1, "worker", List.of())).as("failed for good is not waiting").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a lapsed lease waits as a reported failure does, and fails for good at the limit with no wait")
+    void aLapseWaitsToo() {
+        long id = claimedThenLapsed("worker-a");
+        Instant before = Instant.now();
+
+        assertThat(queue.reclaimLapsedLeases().requeued()).containsExactly(id);
+        assertThat(scans.findById(id).orElseThrow().getNotBefore())
+                .isBetween(before.plusSeconds(59), Instant.now().plusSeconds(61));
+        assertThat(queue.claim(1, "worker-b", List.of())).as("a lone worker does not take it back at once").isEmpty();
+
+        for (int attempt = 2; attempt <= 3; attempt++) {
+            waitServed(id);
+            assertThat(queue.claim(1, "worker-b", List.of())).hasSize(1);
+            ScanEntity held = scans.findById(id).orElseThrow();
+            held.setLeaseExpiresAt(Instant.now().minusSeconds(60));
+            scans.save(held);
+            queue.reclaimLapsedLeases();
+        }
+
+        ScanEntity failed = scans.findById(id).orElseThrow();
+        assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
+        assertThat(failed.getError()).isEqualTo(com.asmolabs.vectispire.common.domain.scans.ScanQueue.LEASE_EXHAUSTED_MESSAGE);
+        assertThat(failed.getNotBefore()).isNull();
+    }
+
+    /**
+     * Two executors — the built-in worker and an agent — polling together, round after round, while
+     * the only scan waits out its delay: neither takes it. Once due, the same two polling together
+     * take it exactly once.
+     */
+    @Test
+    @DisplayName("two executors polling at once leave a scan in backoff alone, and exactly one takes it once due")
+    void twoExecutorsAndOneScanInBackoff() throws Exception {
+        enqueue(1, null);
+        long id = scans.findAll().getFirst().getId();
+        waitsUntil(id, Instant.now().plusSeconds(600));
+        UUID edge = agent("edge");
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(2)) {
+            for (int round = 0; round < 4; round++) {
+                if (round == 3) {
+                    waitServed(id);
+                }
+                CyclicBarrier together = new CyclicBarrier(2);
+                Future<List<ScanEntity>> worker = pool.submit(() -> {
+                    together.await(10, TimeUnit.SECONDS);
+                    return queue.claim(1, "worker", List.of());
+                });
+                Future<Optional<ScanEntity>> agent = pool.submit(() -> {
+                    together.await(10, TimeUnit.SECONDS);
+                    return queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan();
+                });
+                int taken = worker.get(30, TimeUnit.SECONDS).size() + (agent.get(30, TimeUnit.SECONDS).isPresent() ? 1 : 0);
+                assertThat(taken).as("round %d", round).isEqualTo(round == 3 ? 1 : 0);
+            }
+        }
+        ScanEntity running = scans.findById(id).orElseThrow();
+        assertThat(running.getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
+        assertThat(running.getAttempts()).isEqualTo(1);
+    }
+
+    /**
+     * The interleaving the take's own condition exists for, forced: a claimant reads the scan while it
+     * is due; before its take, another executor takes it, and its attempt fails and puts it back with
+     * a wait — {@code pending} again, and not due. The first claimant's take must change nothing.
+     */
+    @Test
+    @DisplayName("a scan requeued with a wait between a claim's read and its take is not taken")
+    void theTakeRepeatsTheWait() {
+        enqueue(1, null);
+        String pending = ScanStatus.PENDING.wireName();
+        long id = scans.findClaimableUnlabelled(pending, Instant.now(), org.springframework.data.domain.Limit.of(1))
+                .getFirst().getId();
+
+        UUID other = agent("other");
+        assertThat(queue.claimWithin(other, 1, List.of(), ScanQueue.Exclusion.NONE).scan()).get()
+                .extracting(ScanEntity::getId).isEqualTo(id);
+        assertThat(queue.abandon(id, other.toString(), 1, TRANSIENT, done -> "connection reset")).isPresent();
+
+        Instant now = Instant.now();
+        assertThat(scans.take(id, pending, ScanStatus.SCANNING.wireName(), "worker", now, now.plusSeconds(600)))
+                .isZero();
+        assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(pending);
+    }
+
     /** Claims one scan for {@code worker}, then makes its lease lapse as a silent worker's would. */
     private long claimedThenLapsed(String worker) {
         enqueue(1, null);
@@ -567,32 +847,34 @@ class ScanQueueIntegrationTest {
         UUID edge = agent("edge");
         long id = queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow().getId();
 
-        assertThat(queue.abandon(id, "somebody-else", 1, done -> "not mine")).isEmpty();
-        assertThat(queue.abandon(id, edge.toString(), 2, done -> "not this attempt")).isEmpty();
-        assertThat(queue.abandon(id, edge.toString(), 1, done -> "attempt " + done.attempt() + ": clone refused"))
-                .hasValueSatisfying(done -> assertThat(done.outcome())
-                        .isEqualTo(com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed.REQUEUE));
+        assertThat(queue.abandon(id, "somebody-else", 1, TRANSIENT, done -> "not mine")).isEmpty();
+        assertThat(queue.abandon(id, edge.toString(), 2, TRANSIENT, done -> "not this attempt")).isEmpty();
+        assertThat(queue.abandon(id, edge.toString(), 1, TRANSIENT, done -> "attempt " + done.attempt() + ": clone refused"))
+                .hasValueSatisfying(done -> assertThat(done.retried()).isTrue());
         ScanEntity requeued = scans.findById(id).orElseThrow();
         assertThat(requeued.getStatus()).isEqualTo(ScanStatus.PENDING.wireName());
         assertThat(requeued.getError()).isEqualTo("attempt 1: clone refused");
         assertThat(requeued.getClaimedBy()).isNull();
-        assertThat(queue.abandon(id, edge.toString(), 1, done -> "again")).isEmpty();
+        assertThat(requeued.getNotBefore()).as("a minute's wait").isAfter(Instant.now().plusSeconds(50));
+        assertThat(queue.abandon(id, edge.toString(), 1, TRANSIENT, done -> "again")).isEmpty();
 
+        waitServed(id);
         queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow();
-        assertThat(scans.releaseOwnedAttempt(
-                        id, ScanStatus.SCANNING.wireName(), edge.toString(), 1, ScanStatus.PENDING.wireName(), "stale"))
+        assertThat(scans.releaseOwnedAttempt(id, ScanStatus.SCANNING.wireName(), edge.toString(), 1,
+                        ScanStatus.PENDING.wireName(), "stale", null))
                 .isZero();
         assertThat(scans.findById(id).orElseThrow().getStatus()).isEqualTo(ScanStatus.SCANNING.wireName());
 
-        assertThat(queue.abandon(id, edge.toString(), 2, done -> "clone refused")).isPresent();
+        assertThat(queue.abandon(id, edge.toString(), 2, TRANSIENT, done -> "clone refused")).isPresent();
+        waitServed(id);
         queue.claimWithin(edge, 1, List.of(), ScanQueue.Exclusion.NONE).scan().orElseThrow();
-        assertThat(queue.abandon(id, edge.toString(), 3, done -> "the last"))
-                .hasValueSatisfying(done -> assertThat(done.outcome())
-                        .isEqualTo(com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed.FAIL));
+        assertThat(queue.abandon(id, edge.toString(), 3, TRANSIENT, done -> "the last"))
+                .hasValueSatisfying(done -> assertThat(done.retried()).isFalse());
         ScanEntity failed = scans.findById(id).orElseThrow();
         assertThat(failed.getStatus()).isEqualTo(ScanStatus.FAILED.wireName());
         assertThat(failed.getError()).isEqualTo("the last");
         assertThat(failed.getLeaseExpiresAt()).isNull();
+        assertThat(failed.getNotBefore()).isNull();
     }
 
     @Test
@@ -602,9 +884,11 @@ class ScanQueueIntegrationTest {
         // the successor's scan FAILED and dropped the successor's lease with it.
         long id = claimedThenLapsed("worker-a");
         assertThat(queue.reclaimLapsedLeases().requeued()).containsExactly(id);
+        waitServed(id);
         assertThat(queue.claim(1, "worker-b", List.of())).extracting(ScanEntity::getId).containsExactly(id);
 
-        assertThat(queue.fail(id, "worker-a", "runner crashed")).isFalse();
+        assertThat(queue.abandon(id, "worker-a", 1, PERMANENT, done -> "runner crashed")).isEmpty();
+        assertThat(queue.abandon(id, "worker-a", 2, PERMANENT, done -> "runner crashed")).isEmpty();
         assertThat(queue.requeue(id, "worker-a")).isFalse();
 
         ScanEntity after = scans.findById(id).orElseThrow();
