@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report-3.0.xsd" version="3.0" name="com.example.invoicing.InvoiceTest" time="0.412" tests="5" errors="1" skipped="1" failures="1">
+  <properties>
+    <property name="java.version" value="25"/>
+  </properties>
+  <testcase name="totalsLines" classname="com.example.invoicing.InvoiceTest" time="0.012"/>
+  <testcase name="roundsHalfEven" classname="com.example.invoicing.InvoiceTest" time="0.004">
+    <failure message="expected: &lt;10.05&gt; but was: &lt;10.04&gt;" type="org.opentest4j.AssertionFailedError"><![CDATA[org.opentest4j.AssertionFailedError: expected: <10.05> but was: <10.04>
+	at com.example.invoicing.InvoiceTest.roundsHalfEven(InvoiceTest.java:31)]]></failure>
+    <system-out><![CDATA[rounding 10.045]]></system-out>
+  </testcase>
+  <testcase name="readsLegacyFormat" classname="com.example.invoicing.InvoiceTest" time="0.001">
+    <error message="boom" type="java.lang.IllegalStateException">java.lang.IllegalStateException: boom</error>
+  </testcase>
+  <testcase name="exportsPdf" classname="com.example.invoicing.InvoiceTest" time="0">
+    <skipped message="needs a font"/>
+  </testcase>
+  <testcase name="retriesOnce" classname="com.example.invoicing.InvoiceTest" time="0.2">
+    <flakyFailure message="timeout" type="java.util.concurrent.TimeoutException"/>
+  </testcase>
+</testsuite>
