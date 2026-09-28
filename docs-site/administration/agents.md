@@ -111,11 +111,23 @@ left; once they lapse they no longer count, even before the queue puts them back
 
 A clone refused — a host key that changed, a deployment key the forge does not know — a workspace
 that could not be made, a delegated credential that would not open: anything that stops the agent
-before a result exists. **The agent says so at once** (`POST /api/v1/agent/jobs/{id}/failure`), and
-the scan goes where its lapsing lease would have sent it twenty minutes later: back in the queue with
-the attempt counted, or failed for good at its third. **The reason is on the scan**, in the history
-and the scan's page — *Attempt 1 of 3 could not run on agent "edge"; the scan is back in the queue:
-…* — while it waits for its next attempt too, and each report is audited as `AGENT_SCAN_FAILED`.
+before a result exists. **The agent says so at once** (`POST /api/v1/agent/jobs/{id}/failure`), with
+the reason and whether another attempt could pass — the report's `kind`:
+
+| Kind | What the agent met | What becomes of the scan |
+|---|---|---|
+| `permanent` | a host key that changed or is not pinned, authentication refused (SSH or HTTPS), a repository or a branch that does not exist, a sub-path the clone does not hold, a credential that will not open or cannot be used here, a URL the clone's own guard refuses (a link-local host, a redirect) | **failed at once**, on this attempt, whichever it is |
+| `transient` | the network, a timeout, the forge answering 5xx or 429, a Docker daemon that did not answer — and anything the agent could not classify | back in the queue with the attempt counted, **claimable again after 1 minute, then 5, then 15**, failed for good at the third attempt |
+
+The agent decides the kind from the failure's type — MINA's SSH disconnect reason, JGit's own
+exception, the HTTP status the forge answered — never from the message's words. **When in doubt,
+transient**: an unknown failure retries rather than failing a scan for good over a passing incident.
+A lapsed lease is transient too, and waits the same way. The delays are the control plane's
+`VECTISPIRE_SCAN_RETRY_DELAYS` ([Configuration](../reference/configuration.md#scan-queue)).
+
+**The reason is on the scan**, in the history and the scan's page — *Attempt 1 of 3 could not run on
+agent "edge"; the scan is back in the queue, not before …: …* — and the page says when the next attempt
+may start while the scan waits. Each report is audited as `AGENT_SCAN_FAILED`, with its kind.
 
 - **Scrubbed before it leaves the agent, and again on arrival.** The agent removes the deployment key,
   the token, its API key and its signing key from the text by value; the control plane removes
@@ -130,10 +142,16 @@ and the scan's page — *Attempt 1 of 3 could not run on agent "edge"; the scan 
   does one from an agent that does not hold the scan.
 - **An older control plane answers 404**, and the agent falls back to what it always did — the lease
   lapses, and the reason is in the agent's log only; it says so there. An older agent against this
-  control plane sends no report, and its failures end as they did.
+  control plane sends no report, and its failures end as they did; one that reports without a `kind`
+  is read as transient.
 
-A retry is often the same agent: with one agent, a scan whose clone is refused uses its three attempts
-in as many polls and fails with the reason, where it used to take an hour.
+A retry is often the same agent. With one agent, a scan whose clone met a passing network error used
+to spend its three attempts in as many polls — seconds — before the incident had passed; it now waits
+between them. A clone refused for good fails at its first attempt, with the reason.
+
+**The built-in worker follows the same rule.** A scan the control plane could not run itself — its
+runner failed before a result existed — is classified the same way, waits the same delays and carries
+a reason scrubbed the same way: which executor took a scan does not change its fate.
 
 ## Credentials modes
 

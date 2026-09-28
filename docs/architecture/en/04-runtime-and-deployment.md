@@ -25,6 +25,32 @@ long polling ([0003](decisions/0003-long-polling-for-agents.md)) and returns res
 channel — or, for a scan it could not run, a failure report that ends the attempt as a lapsed lease
 would, at once and with the reason (`AgentProtocolService.reportFailure`).
 
+## A scan that could not run
+
+**One rule, whichever executor failed.** An agent's report, the built-in worker's own failure and a
+lease that lapsed all end the attempt through `ScanQueue.abandon` or the reclaim, and both apply
+`ScanQueue.afterFailure` (in `vectispire-common`): a **permanent** failure fails the scan at once,
+whatever the attempt; a **transient** one requeues it with the attempt counted and sets
+`t_scan.not_before` — the failure's instant plus 1 minute after the first attempt, 5 after the
+second, 15 after any later one (`vectispire.queue.retry-delays`), bounded by the attempt limit.
+Every claim selection and the conditional take itself skip a scan whose `not_before` is ahead, on
+every engine; the take clears it.
+
+**The kind is decided where the exception is.** The agent sends it as the report's `kind`, absent
+reading as transient so an older agent keeps the rule it had; the built-in worker reads it from the
+same exceptions (`FailureKind.of`, which walks the causes for a `ClassifiedFailure`). A clone's kind
+comes from types — MINA's disconnect reason, JGit's `NoRemoteRepositoryException`, the socket
+exceptions, the HTTP status read off the connection — and from JGit's own formatted sentence for an
+absent branch, the one kind no type carries (`GitClone.diagnose`). A task the control plane refuses
+to build is `TaskRefused`, permanent. Anything unclassified is transient.
+
+**Why the wait.** Without it, a lone agent took back at its next poll the scan it had just reported,
+and the three attempts meant to outlast a passing incident were spent in seconds. **Why the built-in
+worker was aligned**: it failed a scan for good at its first runner error, with the raw message
+unscrubbed, where the same error on an agent cost one attempt of three. This concerns a scan that
+could not run at all; a step that fails inside a scan that ran leaves its artifact absent, as decision
+[0007](decisions/0007-none-is-not-an-empty-list.md) requires, and is not retried.
+
 ## The database
 
 **PostgreSQL or MySQL. MySQL is the default** — it is what `docker-compose.yml` ships — and the

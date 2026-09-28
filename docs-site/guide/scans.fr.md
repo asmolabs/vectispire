@@ -45,6 +45,22 @@ l'un de trois états, dessinés distinctement : **produit** (vert, avec le nombr
 rapport), **non applicable** (gris — aucun de ses langages n'est dans l'arbre ; pas un échec) et
 **absent — échec** (rouge, avec la raison). Seul le dernier est le problème de quelqu'un.
 
+## Un scan qui n'a pas pu s'exécuter
+
+Un scan qui s'arrête avant qu'un résultat existe — le clonage refusé, l'identifiant de la tâche
+inutilisable, le réseau coupé — n'est pas retenté à l'aveugle. **Un échec qu'une autre tentative
+rencontrerait de nouveau fait échouer le scan aussitôt**, avec la raison : une clé d'hôte qui a changé,
+une authentification refusée, un dépôt, une branche ou un sous-chemin qui n'existe pas, une URL que le
+clonage refuse. **Tout le reste attend puis réessaie** : le scan revient dans la file, *En attente*, et
+ne peut pas être réclamé de nouveau avant une minute après sa première tentative, cinq après la
+deuxième — sa page indique *la suivante peut démarrer à …* — et échoue pour de bon à la troisième. Il en
+va de même que le worker intégré ou un agent l'ait exécuté. Voir
+[Agents](../administration/agents.md#quand-une-analyse-ne-peut-pas-sexecuter-sur-un-agent) pour la façon
+dont la nature de l'échec est décidée.
+
+Ce n'est pas une étape qui a échoué dans un scan qui s'est exécuté : celle-là laisse ses propres
+résultats absents, les autres tiennent, et le scan dit laquelle c'était.
+
 ## Un scan échoué n'est pas un scan propre
 
 Un scan qui a échoué ne produit aucun constat, et une cible sans constat passe toutes les

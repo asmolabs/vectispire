@@ -28,6 +28,35 @@ résultats par le même canal — ou, pour une analyse qu'il n'a pas pu exécute
 termine la tentative comme l'expiration du bail l'aurait fait, mais aussitôt et avec la raison
 (`AgentProtocolService.reportFailure`).
 
+## Une analyse qui n'a pas pu s'exécuter
+
+**Une seule règle, quel que soit l'exécutant qui a échoué.** Le rapport d'un agent, l'échec propre du
+worker intégré et un bail expiré terminent tous la tentative par `ScanQueue.abandon` ou par la
+reprise, et tous deux appliquent `ScanQueue.afterFailure` (dans `vectispire-common`) : un échec
+**permanent** fait échouer l'analyse aussitôt, quelle que soit la tentative ; un échec **transitoire**
+la remet dans la file avec la tentative comptée et fixe `t_scan.not_before` — l'instant de l'échec plus
+1 minute après la première tentative, 5 après la deuxième, 15 après toute tentative suivante
+(`vectispire.queue.retry-delays`), dans la limite du nombre de tentatives. Chaque sélection de la prise
+et la prise conditionnelle elle-même ignorent une analyse dont le `not_before` est à venir, sur chaque
+moteur ; la prise l'efface.
+
+**La nature est décidée là où se trouve l'exception.** L'agent l'envoie dans le `kind` du rapport —
+absent, il vaut transitoire, pour qu'un agent plus ancien garde la règle qu'il avait ; le worker
+intégré la lit sur les mêmes exceptions (`FailureKind.of`, qui parcourt les causes à la recherche d'un
+`ClassifiedFailure`). La nature d'un échec de clonage vient des types — la raison de déconnexion de
+MINA, la `NoRemoteRepositoryException` de JGit, les exceptions de socket, le statut HTTP lu sur la
+connexion — et de la phrase formatée par JGit pour une branche absente, la seule nature qu'aucun type
+ne porte (`GitClone.diagnose`). Une tâche que le plan de contrôle refuse de construire est une
+`TaskRefused`, permanente. Tout ce qui n'est pas classé est transitoire.
+
+**Pourquoi l'attente.** Sans elle, un agent seul reprenait à son interrogation suivante l'analyse qu'il
+venait de signaler, et les trois tentatives censées survivre à un incident passager étaient consommées
+en quelques secondes. **Pourquoi le worker intégré a été aligné** : il faisait échouer une analyse pour
+de bon à la première erreur de son runner, avec le message brut non nettoyé, là où la même erreur sur
+un agent coûtait une tentative sur trois. Il s'agit d'une analyse qui n'a pas pu s'exécuter du tout ;
+une étape qui échoue dans une analyse qui s'est exécutée laisse son artefact absent, comme l'exige la
+décision [0007](decisions/0007-none-is-not-an-empty-list.md), et n'est pas retentée.
+
 ## La base de données
 
 **PostgreSQL ou MySQL. MySQL est le défaut** — c'est ce que livre `docker-compose.yml` — et le

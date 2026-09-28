@@ -41,6 +41,20 @@ states, drawn apart: **produced** (green, with the number of findings in its rep
 applicable** (grey — none of its languages is in the tree; not a failure) and **absent — failed** (red,
 with the reason). Only the last is somebody's problem.
 
+## A scan that could not run
+
+A scan that stops before any result exists — the clone refused, the task's credential unusable, the
+network down — is not retried blindly. **A failure that another attempt would meet again fails the
+scan at once**, with the reason: a host key that changed, an authentication refused, a repository, a
+branch or a sub-path that is not there, a URL the clone refuses. **Anything else waits and retries**:
+the scan goes back to the queue, *Queued*, and cannot be claimed again for one minute after its first
+attempt, five after its second — its page says *the next may start at …* — and fails for good at its
+third attempt. The same holds whether the built-in worker or an agent ran it. See
+[Agents](../administration/agents.md#when-a-scan-cannot-run-on-an-agent) for how the kind is decided.
+
+This is not a step that failed inside a scan that ran: that one leaves its own results absent, the
+others stand, and the scan says which step it was.
+
 ## A failed scan is not a clean scan
 
 A scan that failed produces no findings, and a target with no findings passes every

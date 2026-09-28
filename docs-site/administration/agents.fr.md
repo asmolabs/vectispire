@@ -118,11 +118,24 @@ ait remises en attente.
 Un clonage refusé — une clé d'hôte qui a changé, une clé de déploiement que la forge ne connaît pas —,
 un espace de travail impossible à créer, un identifiant délégué qui ne s'ouvre pas : tout ce qui arrête
 l'agent avant qu'un résultat existe. **L'agent le dit aussitôt** (`POST /api/v1/agent/jobs/{id}/failure`),
-et l'analyse va là où l'expiration de son bail l'aurait envoyée vingt minutes plus tard : de retour
-dans la file avec la tentative comptée, ou en échec définitif à la troisième. **La raison est sur
-l'analyse**, dans l'historique et sur sa page — *Attempt 1 of 3 could not run on agent "edge"; the scan
-is back in the queue: …* —, y compris pendant qu'elle attend sa tentative suivante, et chaque rapport
-est audité sous `AGENT_SCAN_FAILED`.
+avec la raison et si une autre tentative pourrait réussir — le `kind` du rapport :
+
+| Nature | Ce que l'agent a rencontré | Ce que devient l'analyse |
+|---|---|---|
+| `permanent` | une clé d'hôte qui a changé ou n'est pas épinglée, une authentification refusée (SSH ou HTTPS), un dépôt ou une branche qui n'existe pas, un sous-chemin absent du clone, un identifiant qui ne s'ouvre pas ou ne peut pas servir ici, une URL que la garde du clonage refuse (un hôte link-local, une redirection) | **en échec aussitôt**, à cette tentative, quelle qu'elle soit |
+| `transient` | le réseau, un délai dépassé, la forge qui répond 5xx ou 429, un démon Docker qui ne répond pas — et tout ce que l'agent n'a pas su classer | de retour dans la file avec la tentative comptée, **réclamable de nouveau après 1 minute, puis 5, puis 15**, en échec définitif à la troisième tentative |
+
+L'agent décide de la nature d'après le type de l'échec — la raison de déconnexion SSH de MINA,
+l'exception propre à JGit, le statut HTTP de la forge —, jamais d'après les mots du message. **Dans le
+doute, transitoire** : un échec inconnu est retenté plutôt que de faire échouer une analyse pour de bon
+sur un incident passager. Un bail expiré est transitoire aussi, et attend de la même façon. Les délais
+sont le `VECTISPIRE_SCAN_RETRY_DELAYS` du plan de contrôle
+([Configuration](../reference/configuration.md#scan-queue)).
+
+**La raison est sur l'analyse**, dans l'historique et sur sa page — *Attempt 1 of 3 could not run on
+agent "edge"; the scan is back in the queue, not before …: …* —, et la page indique à partir de quand la
+tentative suivante peut démarrer tant que l'analyse attend. Chaque rapport est audité sous
+`AGENT_SCAN_FAILED`, avec sa nature.
 
 - **Nettoyée avant de quitter l'agent, et de nouveau à l'arrivée.** L'agent retire du texte, par leur
   valeur, la clé de déploiement, le jeton, sa clé API et sa clé de signature ; le plan de contrôle
@@ -137,11 +150,18 @@ est audité sous `AGENT_SCAN_FAILED`.
   409 et ne change rien — tout comme celui d'un agent qui ne détient pas l'analyse.
 - **Un plan de contrôle plus ancien répond 404**, et l'agent revient à ce qu'il a toujours fait — le
   bail expire, et la raison n'est que dans le journal de l'agent, qui le dit. Un agent plus ancien face
-  à ce plan de contrôle n'envoie pas de rapport, et ses échecs se terminent comme avant.
+  à ce plan de contrôle n'envoie pas de rapport, et ses échecs se terminent comme avant ; celui qui
+  rapporte sans `kind` est lu comme transitoire.
 
-Une nouvelle tentative, c'est souvent le même agent : avec un seul agent, une analyse dont le clonage
-est refusé consomme ses trois tentatives en autant d'interrogations et échoue avec la raison, là où il
-lui fallait une heure.
+Une nouvelle tentative, c'est souvent le même agent. Avec un seul agent, une analyse dont le clonage
+rencontrait une erreur réseau passagère consommait ses trois tentatives en autant d'interrogations —
+quelques secondes — avant que l'incident soit passé ; elle attend désormais entre elles. Un clonage
+refusé pour de bon échoue dès sa première tentative, avec la raison.
+
+**Le worker intégré suit la même règle.** Une analyse que le plan de contrôle n'a pas pu exécuter
+lui-même — son runner a échoué avant qu'un résultat existe — est classée de la même façon, attend les
+mêmes délais et porte une raison nettoyée de la même façon : l'exécutant qui a pris une analyse ne
+change pas son sort.
 
 ## Modes d'identifiants {#credentials-modes}
 

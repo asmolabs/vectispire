@@ -108,7 +108,20 @@ scans can close it. Until the first synchronisation, which the first maintenance
 minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already
 on issues stay until the file replaces them.
 
-**Schema migrations V32 to V47 run at start**, on MySQL and PostgreSQL. Back up the database
+**A permanent failure no longer retries; transient ones wait 1, then 5, then 15 minutes.** A scan
+that could not run — on an agent or on the built-in worker — fails at once, on its first attempt and
+with the reason, when another attempt would meet the same refusal: a host key that changed, an
+authentication refused, a repository, a branch or a sub-path that is not there, a credential that
+will not open, a URL the clone refuses. Anything else — the network, a timeout, a daemon that did not
+answer, a lapsed lease — goes back to the queue with the attempt counted and cannot be claimed again
+for one minute after the first attempt, five after the second, fifteen after any later one
+(`VECTISPIRE_SCAN_RETRY_DELAYS`, see [Configuration](configuration.md#scan-queue)), and fails at the
+third. Before, a lone agent retook the scan it had just reported at its next poll and spent the three
+attempts in seconds; the built-in worker failed a scan for good at its first error, with the raw
+message. A sub-path the clone does not hold now fails the scan before any scanner runs, where each
+analyser used to report it.
+
+**Schema migrations V32 to V48 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -185,6 +198,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   carries the `attempt` the report names; an older agent reads past it. Signed like a result when the
   agent's key is pinned, audited as `AGENT_SCAN_FAILED`. An agent of this version falls back to the
   lapse against an older control plane (404). See [Agents](../administration/agents.md#when-a-scan-cannot-run-on-an-agent).
+- **The failure report takes a `kind`**, `permanent` or `transient` (V48 adds `t_scan.not_before`): a
+  permanent failure fails the scan at once, a transient one waits before its next claim. Absent — an
+  older agent — or unknown reads as transient. The answer adds `permanent` and `retryAt`, the instant
+  the scan can be claimed again. A scan's summary (`GET /api/v1/scans`, `GET /api/v1/scans/{id}`) adds
+  `notBefore`, set on a waiting scan whose last attempt could not run.
 
 ### New
 

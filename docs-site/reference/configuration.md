@@ -177,6 +177,12 @@ export VECTISPIRE_API_DOCS_ENABLED=true
 
 Then `http://localhost:3180/swagger-ui.html`.
 
+## Scan queue {#scan-queue}
+
+| Variable | Default | |
+|---|---|---|
+| `VECTISPIRE_SCAN_RETRY_DELAYS` | `1m,5m,15m` | How long a scan waits, after an attempt that could not run for a transient reason — the network, a timeout, a lapsed lease — before it can be claimed again: the first after the first attempt, the last for every attempt past the list, bounded by the attempt limit (three). A permanent failure — a host key refused, a repository absent — fails at once and waits for nothing. Durations as Spring reads them (`30s`, `2m`); a negative one stops the application. |
+
 ## Remote agents
 
 | Variable | Notes |

@@ -122,7 +122,21 @@ tâche de maintenance lance une demi-minute après le démarrage, un nouveau con
 EPSS — inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le
 fichier les remplace.
 
-**Les migrations V32 à V47 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Un échec permanent n'est plus retenté ; un échec transitoire attend 1, puis 5, puis 15 minutes.**
+Une analyse qui n'a pas pu s'exécuter — sur un agent ou sur le worker intégré — échoue aussitôt, dès sa
+première tentative et avec la raison, quand une autre tentative rencontrerait le même refus : une clé
+d'hôte qui a changé, une authentification refusée, un dépôt, une branche ou un sous-chemin qui
+n'existe pas, un identifiant qui ne s'ouvre pas, une URL que le clonage refuse. Tout le reste — le
+réseau, un délai dépassé, un démon qui ne répond pas, un bail expiré — revient dans la file avec la
+tentative comptée et ne peut être réclamé de nouveau qu'une minute après la première tentative, cinq
+après la deuxième, quinze après toute tentative suivante (`VECTISPIRE_SCAN_RETRY_DELAYS`, voir
+[Configuration](configuration.md#scan-queue)), puis échoue à la troisième. Auparavant, un agent seul
+reprenait à son interrogation suivante l'analyse qu'il venait de signaler et consommait les trois
+tentatives en quelques secondes ; le worker intégré faisait échouer une analyse pour de bon à sa
+première erreur, avec le message brut. Un sous-chemin absent du clone fait désormais échouer l'analyse
+avant tout analyseur, là où chacun le signalait.
+
+**Les migrations V32 à V48 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -211,6 +225,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   Signé comme un résultat quand la clé de l'agent est épinglée, audité sous `AGENT_SCAN_FAILED`. Un
   agent de cette version revient à l'expiration face à un plan de contrôle plus ancien (404). Voir
   [Agents](../administration/agents.md#quand-une-analyse-ne-peut-pas-sexecuter-sur-un-agent).
+- **Le rapport d'échec prend un `kind`**, `permanent` ou `transient` (V48 ajoute `t_scan.not_before`) :
+  un échec permanent fait échouer l'analyse aussitôt, un échec transitoire attend avant la prise
+  suivante. Absent — un agent plus ancien — ou inconnu, il vaut transitoire. La réponse ajoute
+  `permanent` et `retryAt`, l'instant à partir duquel l'analyse peut être reprise. Le résumé d'une
+  analyse (`GET /api/v1/scans`, `GET /api/v1/scans/{id}`) ajoute `notBefore`, renseigné sur une analyse
+  en attente dont la dernière tentative n'a pas pu s'exécuter.
 
 ### Nouveautés
 

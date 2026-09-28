@@ -182,6 +182,12 @@ export VECTISPIRE_API_DOCS_ENABLED=true
 
 Puis `http://localhost:3180/swagger-ui.html`.
 
+## File des analyses {#scan-queue}
+
+| Variable | Défaut | Notes |
+|---|---|---|
+| `VECTISPIRE_SCAN_RETRY_DELAYS` | `1m,5m,15m` | Combien de temps une analyse attend, après une tentative qui n'a pas pu s'exécuter pour une raison transitoire — le réseau, un délai dépassé, un bail expiré —, avant de pouvoir être réclamée de nouveau : la première valeur après la première tentative, la dernière pour toute tentative au-delà de la liste, dans la limite du nombre de tentatives (trois). Un échec permanent — une clé d'hôte refusée, un dépôt absent — échoue aussitôt et n'attend rien. Des durées telles que Spring les lit (`30s`, `2m`) ; une durée négative empêche l'application de démarrer. |
+
 ## Agents distants
 
 | Variable | Notes |

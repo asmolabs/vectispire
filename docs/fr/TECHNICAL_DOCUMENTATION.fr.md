@@ -159,6 +159,7 @@ erDiagram
         datetime claimed_at
         datetime lease_expires_at
         int attempts
+        datetime not_before "reprenable à partir de, après une tentative échouée"
         text error
         datetime created_at
     }

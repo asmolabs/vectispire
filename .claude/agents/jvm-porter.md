@@ -150,6 +150,18 @@ and an agent without a verified sealing key has the repositories carrying a cred
 its selection (`ScanQueue.claimWithin`). A refund (`ScanQueue.requeueRefunded`) is for a race the
 next selection closes, never for a path that can repeat.
 
+**A scan that could not run fails or waits by one rule, whichever executor failed it.** An agent's
+report, the built-in worker's runner failure and a lapsed lease all go through `ScanQueue.abandon` /
+the reclaim and `ScanQueue.afterFailure`: permanent fails at once, transient requeues with the
+attempt counted **and a wait** (`not_before`: 1, 5, 15 minutes) that every claim selection *and the
+take* honour. Without the wait a lone agent retook the scan it had just reported at its next poll and
+spent three attempts in seconds; with a rule of its own the built-in worker failed a scan for good at
+its first error, the raw message unscrubbed. The kind comes from a type — a `ClassifiedFailure`
+found by `FailureKind.of`, `CloneFailureException.Kind` from MINA's disconnect reason, JGit's
+exceptions, the HTTP status read off the connection — never from a message's words, which choose the
+sentence only; absent or unknown is transient. A new way for a scan not to run declares its kind, or
+it retries three times. A new claim query carries `(s.notBefore is null or s.notBefore <= :asOf)`.
+
 **A failed claim statement is not a lost claim.** Where a key arbitrates between instances
 (`OneShotJobs.claim`), the loser's insert fails — and so does one that hit a lock timeout or a
 dropped connection, and on SQLite the key's refusal is not even a `DataIntegrityViolationException`.
