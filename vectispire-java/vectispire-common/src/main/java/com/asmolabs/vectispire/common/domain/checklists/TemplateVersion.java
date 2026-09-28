@@ -57,4 +57,14 @@ public record TemplateVersion(String sourceSha256, ChecklistLayout layout, List<
             }
         }
     }
+
+    /**
+     * The version a confirmed layout reads from a workbook: the item rows, blank domain and objective
+     * cells filled down, rows without a control left out.
+     *
+     * @throws InvalidTemplateException no such sheet, no item, two items with one key, a field too long
+     */
+    public static TemplateVersion read(Workbook workbook, ChecklistLayout layout) {
+        return new TemplateVersion(workbook.sha256(), layout, TemplateItems.read(workbook, layout));
+    }
 }
