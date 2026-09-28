@@ -35,6 +35,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0029](0029-core-domains-become-modules.md) | The core domains become modules, and the layered packages are gone | accepted |
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
 | [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | An agent's sealing key is believed only on the word of its pinned signing key | accepted |
+| [0032](0032-security-checklists.md) | A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran | proposed |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short
