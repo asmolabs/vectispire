@@ -378,7 +378,10 @@ public class AgentProtocolService {
                 "Agent \"" + agent.name() + "\" reported it could not run attempt " + failure.attempt() + " of "
                         + failure.maxAttempts() + " of the scan, a " + kind.wireName() + " failure"
                         + (pinned == null || pinned.isBlank() ? " (not attested)" : ", attestation verified")
-                        + (failure.retried() ? "; back in the queue, not before " + failure.notBefore() + "." : "; the scan failed."),
+                        + (failure.retried()
+                                ? "; back in the queue, not before "
+                                        + failure.notBefore().truncatedTo(java.time.temporal.ChronoUnit.SECONDS) + "."
+                                : "; the scan failed."),
                 agent.name(),
                 origin.ipAddress(),
                 origin.userAgent()));

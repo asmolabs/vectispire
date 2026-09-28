@@ -452,7 +452,9 @@ public class ScanDispatcher {
     static String sentence(ScanQueue.Abandoned outcome, String where, String reason) {
         String attempt = "Attempt " + outcome.attempt() + " of " + outcome.maxAttempts() + " could not run " + where;
         String next = switch (outcome.next()) {
-            case Next.Retry(Instant notBefore) -> "; the scan is back in the queue, not before " + notBefore + ": ";
+            // To the second: the instant is read by a person, and its nanoseconds are the clock's, not the rule's.
+            case Next.Retry(Instant notBefore) -> "; the scan is back in the queue, not before "
+                    + notBefore.truncatedTo(java.time.temporal.ChronoUnit.SECONDS) + ": ";
             case Next.Fail(boolean permanent) when permanent -> ", and another attempt would meet the same refusal: ";
             case Next.Fail fail -> ", and it was the last: ";
         };
