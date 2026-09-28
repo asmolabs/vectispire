@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.time.Duration;
@@ -474,7 +475,7 @@ public final class GitClone {
                 return "The host key of " + url + " was refused by this machine's own known_hosts: the host is not"
                         + " listed there, or its key has changed. Check it is the right server, then add its key.";
             }
-            if (request.hostKeys() instanceof HostKeyPolicy.AcceptNew pinned && !Files.isWritable(pinned.knownHosts())) {
+            if (request.hostKeys() instanceof HostKeyPolicy.AcceptNew pinned && isPinned(pinned.knownHosts())) {
                 return "The host key of " + url + " is not the one listed in " + pinned.knownHosts()
                         + ", or the host is not listed there: that file is read-only, so it is matched against and"
                         + " never added to.";
@@ -538,6 +539,25 @@ public final class GitClone {
     }
 
     /**
+     * Whether a known-hosts file is the operator's pin — matched against, never added to.
+     *
+     * <p><b>Read from the file's own bits as well as from an access check.</b> An access check alone
+     * answers "writable" to root for a {@code r--r--r--} file, so an executor running as root — the
+     * CI's job container is one — would treat the operator's pin as a list to learn into and accept
+     * any new host. A read-only mount is still caught by the access check, which root cannot pass.
+     */
+    static boolean isPinned(Path knownHosts) {
+        if (!Files.isWritable(knownHosts)) {
+            return true;
+        }
+        try {
+            return !Files.getPosixFilePermissions(knownHosts).contains(PosixFilePermission.OWNER_WRITE);
+        } catch (UnsupportedOperationException | IOException noPosixBits) {
+            return false;
+        }
+    }
+
+    /**
      * First contact is accepted and written down; a changed key is refused.
      *
      * <p>Backed by a file that outlives the clone, which is the whole point — see
@@ -567,7 +587,7 @@ public final class GitClone {
         AcceptNewDatabase(Path knownHosts) {
             prepareKnownHosts(knownHosts);
             this.knownHosts = knownHosts;
-            this.recording = Files.isWritable(knownHosts);
+            this.recording = !isPinned(knownHosts);
             this.delegate = new org.eclipse.jgit.internal.transport.sshd.OpenSshServerKeyDatabase(
                     true, List.of(knownHosts));
         }
