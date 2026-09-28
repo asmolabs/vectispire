@@ -5217,6 +5217,7 @@ export interface components {
             secrets?: components["schemas"]["SecretFinding"][];
         };
         ScanDetail: {
+            examinedTypes?: string[];
             findings?: components["schemas"]["FindingView"][];
             /** Format: int64 */
             findingsTotal: number;

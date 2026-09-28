@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.scanning.web;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.core.access.VisibilityService;
 import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
@@ -93,6 +94,10 @@ public class ScansController {
      *     null when it carries no manifest this can read. On the detail rather than in the list:
      *     it answers "which build did this" for one scan, and would be a column of blanks in a
      *     history where most rows are container scans
+     * @param examinedTypes the built-in finding types whose step produced in this scan, as wire names,
+     *     sorted — a type left out was not examined, so its issues were left as they were. Null when
+     *     the scan never recorded it: every scan from before this version, and one that never ran.
+     *     Null is "unknown", never "examined nothing", which is the empty list
      */
     public record ScanDetail(
             ScanSummary scan,
@@ -103,7 +108,8 @@ public class ScansController {
             List<FindingView> findings,
             long findingsTotal,
             boolean findingsTruncated,
-            List<com.asmolabs.vectispire.core.scanning.PluginOutcome> plugins) {}
+            List<com.asmolabs.vectispire.core.scanning.PluginOutcome> plugins,
+            List<String> examinedTypes) {}
 
     @Operation(summary = "List scan history", description = "Returns historical security scans with filtering by repository or container target.")
     @ApiResponse(responseCode = "200", description = "Scan history retrieved successfully")
@@ -143,7 +149,10 @@ public class ScansController {
                 detail.findings().stream().map(ScansController::viewOf).toList(),
                 detail.findingsTotal(),
                 detail.findingsTruncated(),
-                scan.plugins());
+                scan.plugins(),
+                scan.examinedTypes()
+                        .map(types -> types.stream().map(FindingType::wireName).sorted().toList())
+                        .orElse(null));
     }
 
     /**

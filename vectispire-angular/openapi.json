@@ -5719,6 +5719,12 @@
       },
       "ScanDetail" : {
         "properties" : {
+          "examinedTypes" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "findings" : {
             "items" : {
               "$ref" : "#/components/schemas/FindingView"
