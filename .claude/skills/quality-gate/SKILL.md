@@ -99,6 +99,13 @@ cd .. && npm run generate:api --workspace @vectispire/frontend
 python3 scripts/check-doc-links.py && python3 scripts/check-doc-facts.py
 ```
 
+**The REST reference is also checked by the backend build.** `ApiReferenceTest` reads the route
+column of `docs/{en,fr}/api/rest_api_reference.md` and fails on a path the API does not answer — a
+query string in that column (`/coverage-imports?format=`) is such a path; name parameters in the
+description instead. A reference edited after `./gradlew build` ran has not been checked: run
+`./gradlew :vectispire-core:test --tests '*ApiReferenceTest*'` again. On 2026-09-28 it was the one red
+of a push whose every other check had run green locally.
+
 A behaviour change updates `docs-site/` and `docs/{en,fr}/` **in both languages**. If `docs-site/` or
 `mkdocs.yml` changed, build the site strictly with the hash-pinned requirements
 (`pip install --require-hashes --no-deps -r ci/docs/requirements.txt`, Python 3.12+, `mkdocs build
