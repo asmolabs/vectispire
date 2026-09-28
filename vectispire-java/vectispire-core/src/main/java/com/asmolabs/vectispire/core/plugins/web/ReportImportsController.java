@@ -71,7 +71,7 @@ public class ReportImportsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return imports.importCoverage(repositoryId, format, document, new ReportImportService.Stated(commit, branch),
-                uploader(principal, request));
+                uploader(principal, allowed(principal), request));
     }
 
     @Operation(summary = "Import test report", description = "A declared internal source's integration key only "
@@ -92,7 +92,7 @@ public class ReportImportsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return imports.importTestReport(repositoryId, request.getContentType(), document,
-                new ReportImportService.Stated(commit, branch), uploader(principal, request));
+                new ReportImportService.Stated(commit, branch), uploader(principal, allowed(principal), request));
     }
 
     @Operation(summary = "List repository's coverage imports", description = "The latest fifty. 404 for a repository "
@@ -115,9 +115,10 @@ public class ReportImportsController {
         return imports.testReportHistory(repositoryId, allowed(principal));
     }
 
-    private Optional<ReportImportService.Uploader> uploader(VectispirePrincipal principal, HttpServletRequest request) {
+    private static Optional<ReportImportService.Uploader> uploader(
+            VectispirePrincipal principal, Visibility allowed, HttpServletRequest request) {
         return principal.integration().map(integration -> new ReportImportService.Uploader(
-                integration.keyId(), integration.keyName(), allowed(principal), RequestActors.of(principal, request)));
+                integration.keyId(), integration.keyName(), allowed, RequestActors.of(principal, request)));
     }
 
     private Visibility allowed(VectispirePrincipal principal) {

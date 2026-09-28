@@ -2091,6 +2091,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repositoryId}/coverage-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List repository's coverage imports
+         * @description The latest fifty. 404 for a repository the caller cannot see.
+         */
+        get: operations["coverageHistory"];
+        put?: never;
+        /**
+         * Import coverage report
+         * @description A declared internal source's integration key only (scope report_import), for a source declared to deliver coverage. format is jacoco, cobertura or lcov — declared, never guessed; commit and branch are kept as stated. 403 for a session, an undeclared key or a source not declared for coverage; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that does not read as the format or counts no line.
+         */
+        post: operations["importCoverage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{repositoryId}/sarif-imports": {
         parameters: {
             query?: never;
@@ -2109,6 +2133,30 @@ export interface paths {
          * @description A declared internal source's integration key only (scope sarif_import). The report's tools must be declared for the source; every run must have succeeded and carry results; locations are relative to the repository. 403 for an undeclared key or tool, 404 for a repository outside the key's visibility or the source's scope, 413 past the size ceiling.
          */
         post: operations["importReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repositoryId}/test-report-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List repository's test-report imports
+         * @description The latest fifty, without their suites. 404 for a repository the caller cannot see.
+         */
+        get: operations["testReportHistory"];
+        put?: never;
+        /**
+         * Import test report
+         * @description A declared internal source's integration key only (scope report_import), for a source declared to deliver test_report. One JUnit XML document (application/xml) or a zip of them (application/zip); commit and branch are kept as stated. 403 for a session, an undeclared key or a source not declared for test reports; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that is not JUnit, a zip past its guards, or a report with no test case.
+         */
+        post: operations["importTestReport"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2227,7 +2275,7 @@ export interface paths {
         put?: never;
         /**
          * Declare SARIF source
-         * @description Platform governor only. Binds an integration key holding sarif_import to one project or repository and the tools it may deliver.
+         * @description Platform governor only. Binds an integration key to one project or repository and the report kinds it may deliver — sarif (the key holds sarif_import, and the tools are named), coverage and test_report (the key holds report_import). Kinds absent: sarif alone.
          */
         post: operations["declare_2"];
         delete?: never;
@@ -3631,6 +3679,33 @@ export interface components {
             scorePercentage: number;
             /** @enum {string} */
             status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+        };
+        CoverageImportView: {
+            /** Format: uuid */
+            apiKeyId?: string;
+            branch?: string;
+            /** Format: int64 */
+            branchesCovered?: number;
+            /** Format: int64 */
+            branchesTotal?: number;
+            commit?: string;
+            documentSha256?: string;
+            format?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            importedAt?: string;
+            importedBy?: string;
+            /** Format: int64 */
+            linesCovered: number;
+            /** Format: int64 */
+            linesTotal: number;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int64 */
+            sourceId?: number;
+            sourceSlug?: string;
+            toolVersion?: string;
         };
         CreateTicketRequest: {
             provider?: string;
@@ -5137,6 +5212,7 @@ export interface components {
             enabled: boolean;
             /** Format: int64 */
             id?: number;
+            kinds?: string[];
             name?: string;
             /** Format: int64 */
             projectId?: number;
@@ -5528,6 +5604,7 @@ export interface components {
         SourceDeclaration: {
             /** Format: uuid */
             api_key_id?: string;
+            kinds?: string[];
             name?: string;
             /** Format: int64 */
             project_id?: number;
@@ -5684,6 +5761,36 @@ export interface components {
             /** Format: int64 */
             id?: number;
             kind?: string;
+        };
+        TestReportImportView: {
+            /** Format: uuid */
+            apiKeyId?: string;
+            branch?: string;
+            commit?: string;
+            documentSha256?: string;
+            /** Format: int32 */
+            documentsCount: number;
+            /** Format: int32 */
+            errorsCount: number;
+            /** Format: int32 */
+            failuresCount: number;
+            format?: string;
+            /** Format: int64 */
+            id?: number;
+            /** Format: date-time */
+            importedAt?: string;
+            importedBy?: string;
+            /** Format: int64 */
+            repoId?: number;
+            /** Format: int32 */
+            skippedCount: number;
+            /** Format: int64 */
+            sourceId?: number;
+            sourceSlug?: string;
+            /** Format: int32 */
+            suitesCount: number;
+            /** Format: int32 */
+            testsCount: number;
         };
         TestResult: {
             message?: string;
@@ -9070,6 +9177,61 @@ export interface operations {
             };
         };
     };
+    coverageHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CoverageImportView"][];
+                };
+            };
+        };
+    };
+    importCoverage: {
+        parameters: {
+            query?: {
+                format?: string;
+                commit?: string;
+                branch?: string;
+            };
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+                "application/xml": string;
+                "text/plain": string;
+                "text/xml": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CoverageImportView"];
+                };
+            };
+        };
+    };
     history: {
         parameters: {
             query?: never;
@@ -9115,6 +9277,59 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["SarifImportView"];
+                };
+            };
+        };
+    };
+    testReportHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TestReportImportView"][];
+                };
+            };
+        };
+    };
+    importTestReport: {
+        parameters: {
+            query?: {
+                commit?: string;
+                branch?: string;
+            };
+            header?: never;
+            path: {
+                repositoryId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/xml": string;
+                "application/zip": string;
+                "text/xml": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TestReportImportView"];
                 };
             };
         };

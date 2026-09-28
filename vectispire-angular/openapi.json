@@ -1458,6 +1458,69 @@
         "required" : [ "scorePercentage" ],
         "type" : "object"
       },
+      "CoverageImportView" : {
+        "properties" : {
+          "apiKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "branch" : {
+            "type" : "string"
+          },
+          "branchesCovered" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "branchesTotal" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "commit" : {
+            "type" : "string"
+          },
+          "documentSha256" : {
+            "type" : "string"
+          },
+          "format" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "importedBy" : {
+            "type" : "string"
+          },
+          "linesCovered" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "linesTotal" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceSlug" : {
+            "type" : "string"
+          },
+          "toolVersion" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "linesCovered", "linesTotal" ],
+        "type" : "object"
+      },
       "CreateTicketRequest" : {
         "properties" : {
           "provider" : {
@@ -5477,6 +5540,12 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "kinds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "name" : {
             "type" : "string"
           },
@@ -6570,6 +6639,12 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "kinds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "name" : {
             "type" : "string"
           },
@@ -6976,6 +7051,74 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "TestReportImportView" : {
+        "properties" : {
+          "apiKeyId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "branch" : {
+            "type" : "string"
+          },
+          "commit" : {
+            "type" : "string"
+          },
+          "documentSha256" : {
+            "type" : "string"
+          },
+          "documentsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "errorsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "failuresCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "format" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "importedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "importedBy" : {
+            "type" : "string"
+          },
+          "repoId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "skippedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceSlug" : {
+            "type" : "string"
+          },
+          "suitesCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "testsCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "documentsCount", "errorsCount", "failuresCount", "skippedCount", "suitesCount", "testsCount" ],
         "type" : "object"
       },
       "TestResult" : {
@@ -11651,6 +11794,115 @@
         "tags" : [ "Repositories" ]
       }
     },
+    "/api/v1/repositories/{repositoryId}/coverage-imports" : {
+      "get" : {
+        "description" : "The latest fifty. 404 for a repository the caller cannot see.",
+        "operationId" : "coverageHistory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/CoverageImportView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List repository's coverage imports",
+        "tags" : [ "Report import" ]
+      },
+      "post" : {
+        "description" : "A declared internal source's integration key only (scope report_import), for a source declared to deliver coverage. format is jacoco, cobertura or lcov — declared, never guessed; commit and branch are kept as stated. 403 for a session, an undeclared key or a source not declared for coverage; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that does not read as the format or counts no line.",
+        "operationId" : "importCoverage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "format",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "commit",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "branch",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/octet-stream" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/xml" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "text/plain" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "text/xml" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CoverageImportView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Import coverage report",
+        "tags" : [ "Report import" ]
+      }
+    },
     "/api/v1/repositories/{repositoryId}/sarif-imports" : {
       "get" : {
         "description" : "The latest fifty. 404 for a repository the caller cannot see.",
@@ -11725,6 +11977,102 @@
         },
         "summary" : "Import SARIF report",
         "tags" : [ "SARIF import" ]
+      }
+    },
+    "/api/v1/repositories/{repositoryId}/test-report-imports" : {
+      "get" : {
+        "description" : "The latest fifty, without their suites. 404 for a repository the caller cannot see.",
+        "operationId" : "testReportHistory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/TestReportImportView"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List repository's test-report imports",
+        "tags" : [ "Report import" ]
+      },
+      "post" : {
+        "description" : "A declared internal source's integration key only (scope report_import), for a source declared to deliver test_report. One JUnit XML document (application/xml) or a zip of them (application/zip); commit and branch are kept as stated. 403 for a session, an undeclared key or a source not declared for test reports; 404 for a repository outside the key's visibility or the source's scope; 413 past the size ceiling; 400 for a body that is not JUnit, a zip past its guards, or a report with no test case.",
+        "operationId" : "importTestReport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "repositoryId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "commit",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "branch",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/xml" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "application/zip" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            },
+            "text/xml" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TestReportImportView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Import test report",
+        "tags" : [ "Report import" ]
       }
     },
     "/api/v1/rule-sets" : {
@@ -11940,7 +12288,7 @@
         "tags" : [ "SARIF import" ]
       },
       "post" : {
-        "description" : "Platform governor only. Binds an integration key holding sarif_import to one project or repository and the tools it may deliver.",
+        "description" : "Platform governor only. Binds an integration key to one project or repository and the report kinds it may deliver — sarif (the key holds sarif_import, and the tools are named), coverage and test_report (the key holds report_import). Kinds absent: sarif alone.",
         "operationId" : "declare_2",
         "requestBody" : {
           "content" : {
@@ -14240,6 +14588,9 @@
   }, {
     "description" : "Posture grades, security scorecards and SVG badges",
     "name" : "Scorecards"
+  }, {
+    "description" : "Coverage and test reports from declared internal sources",
+    "name" : "Report import"
   }, {
     "description" : "Attack Path Visualization and Exploit Scenario Correlation",
     "name" : "Attack Paths"
