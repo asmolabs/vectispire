@@ -235,6 +235,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   distant peut exécuter du code arbitraire ») disparaissent, aucune mise à niveau n'est proposée
   sans version corrigée enregistrée, et la page EPSS n'affiche plus un percentile de 0 pour une
   CVE que le fichier ne note pas.
+- **Les règles fournies ne s'accumulent plus dans le répertoire de travail.** Chaque démarrage du
+  plan de contrôle ou d'un agent les dépliait dans un nouveau répertoire
+  `vectispire-bundled-rules-*`, et aucun n'était jamais supprimé. Le répertoire disparaît désormais
+  à l'arrêt du processus, et le premier démarrage de cette version balaie ce que les précédents ont
+  laissé : seulement les répertoires de ce nom, appartenant à l'utilisateur du processus, plus
+  anciens que lui et tenus par aucun processus en cours.
 
 ### Sécurité
 

@@ -209,6 +209,11 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   ("a remote attacker may execute arbitrary code") are gone, no upgrade is proposed without a
   recorded fixed version, and the EPSS page no longer shows a percentile of 0 for a CVE the file
   does not score.
+- **The bundled rules no longer pile up in the work directory.** Each start of the control plane
+  or of an agent unpacked them to a new `vectispire-bundled-rules-*` directory and none was ever
+  removed. The directory now goes when the process stops, and the first start of this version
+  sweeps what earlier ones left: only directories of that name, owned by the process's user, older
+  than the process and held by no running one.
 
 ### Security
 

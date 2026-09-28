@@ -3,9 +3,21 @@ package com.asmolabs.vectispire.common.scanning;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.UserPrincipal;
+import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * The rules Vectispire ships, materialised where a scanner can read them.
@@ -36,17 +48,136 @@ public final class BundledRules {
 
     private BundledRules() {}
 
+    /** What every process's directory is named after, and all the sweep ever looks at. */
+    static final String PREFIX = "vectispire-bundled-rules-";
+
+    /** Held for the process's life inside its directory, beside the tree and never in it. */
+    static final String IN_USE = ".in-use";
+
+    /** The tree the scanners are handed; a subdirectory, so the lock is never copied into a workspace. */
+    static final String TREE = "tree";
+
     /**
-     * Copies the bundled tree to a directory and returns it.
+     * The locks this process holds. A {@link FileLock} lasts as long as its channel, and a channel
+     * nothing references is closed when it is collected — the directory would then look abandoned
+     * to the next process that starts.
+     */
+    private static final List<FileChannel> HELD = new CopyOnWriteArrayList<>();
+
+    /**
+     * Copies the bundled tree to a directory of its own and returns it, after sweeping the ones
+     * earlier processes left behind.
      *
      * <p>Done once at startup rather than per scan: the content never changes while the process
      * runs, and unpacking it for every scan would be work with no possible different outcome.
+     *
+     * <p><b>Each start made one, and nothing ever removed one.</b> In the composition the
+     * temporary directory is the host's work directory, which outlives every container, so a
+     * {@code vectispire-bundled-rules-*} accumulated there at each start of the control plane or
+     * the agent. The directory is now deleted when the process stops, and what a process that
+     * could not stop cleanly left is swept at the next start — see {@link #sweep}.
      */
     public static Path materialise() {
+        Path directory;
         try {
-            return materialise(Files.createTempDirectory("vectispire-bundled-rules-"));
+            directory = Files.createTempDirectory(PREFIX);
+            FileChannel lock = FileChannel.open(
+                    directory.resolve(IN_USE), StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            lock.lock();
+            HELD.add(lock);
         } catch (IOException failed) {
             throw new UncheckedIOException("Could not create a directory for the bundled rules", failed);
+        }
+        Runtime.getRuntime().addShutdownHook(Thread.ofPlatform().unstarted(() -> deleteTree(directory)));
+        ProcessHandle.current().info().startInstant().ifPresent(started -> {
+            try {
+                sweep(directory.getParent(), Files.getOwner(directory), started, directory);
+            } catch (IOException | UnsupportedOperationException noOwner) {
+                // No owner to compare with: nothing is swept, which leaves directories behind and
+                // deletes nothing that might not be ours.
+            }
+        });
+        return materialise(directory.resolve(TREE));
+    }
+
+    /**
+     * Deletes what earlier processes left in {@code parent}, and nothing else.
+     *
+     * <p>An entry goes only when all of these hold: its name has {@link #PREFIX}; it is a
+     * directory and not a link to one (a link is never followed, so a {@code
+     * vectispire-bundled-rules-x} pointing at {@code /} deletes nothing); it belongs to {@code
+     * owner}, this process's user; it was last written before {@code processStarted}; and no
+     * process holds the lock inside it. The last one is what the others cannot say: a control
+     * plane and an agent sharing a temporary directory, or two instances on one host, each start
+     * before the other's check, and "older than me" alone would have one delete the rules the
+     * other is scanning with. A dead process holds no lock — the kernel releases it however the
+     * process ended — so what is left unlocked is a leftover. A directory from a version before
+     * the lock has none, and is swept as the leftover it is.
+     *
+     * @param keep this process's own directory, never examined
+     */
+    static void sweep(Path parent, UserPrincipal owner, Instant processStarted, Path keep) {
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(parent, PREFIX + "*")) {
+            for (Path entry : entries) {
+                if (!entry.equals(keep) && abandoned(entry, owner, processStarted)) {
+                    deleteTree(entry);
+                }
+            }
+        } catch (IOException | UncheckedIOException unlisted) {
+            // A directory that cannot be listed is left as it is; the next start tries again.
+        }
+    }
+
+    private static boolean abandoned(Path entry, UserPrincipal owner, Instant processStarted) {
+        try {
+            BasicFileAttributes attributes =
+                    Files.readAttributes(entry, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!attributes.isDirectory()
+                    || !owner.equals(Files.getOwner(entry, LinkOption.NOFOLLOW_LINKS))
+                    || !attributes.lastModifiedTime().toInstant().isBefore(processStarted)) {
+                return false;
+            }
+            return !inUse(entry.resolve(IN_USE));
+        } catch (IOException | UnsupportedOperationException unreadable) {
+            return false;
+        }
+    }
+
+    private static boolean inUse(Path lockFile) throws IOException {
+        if (!Files.isRegularFile(lockFile, LinkOption.NOFOLLOW_LINKS)) {
+            return false;
+        }
+        try (FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS)) {
+            FileLock lock = channel.tryLock();
+            if (lock == null) {
+                return true;
+            }
+            lock.release();
+            return false;
+        } catch (OverlappingFileLockException heldHere) {
+            // This very JVM holds it: another materialisation of this process, in use.
+            return true;
+        }
+    }
+
+    /** Depth first, links removed as links and never followed; what fails is left for the next sweep. */
+    static void deleteTree(Path root) {
+        try {
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attributes) throws IOException {
+                    Files.deleteIfExists(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path directory, IOException failed) throws IOException {
+                    Files.deleteIfExists(directory);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException leftBehind) {
+            // Swept by the next start, which finds it unlocked.
         }
     }
 
