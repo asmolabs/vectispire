@@ -9,6 +9,7 @@ import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -42,5 +43,30 @@ class RowVisibilityTest {
     @DisplayName("a visible row comes back")
     void aVisibleRowIsReturned() {
         assertThat(RowVisibility.requireVisible(Optional.of("row"), SEVEN, Visibility.everything())).isEqualTo("row");
+    }
+
+    @Test
+    @DisplayName("a project is seen whole or not at all: everything, granted as such, or every one of its repositories")
+    void aProjectIsSeenWhole() {
+        List<Long> members = List.of(7L, 8L);
+        Visibility both = Visibility.only(List.of(SEVEN, new ScanTarget.Repository(8L)));
+
+        assertThat(RowVisibility.requireWhollyVisibleProject(3, Optional.of("Checkout"), members,
+                new VisibilityService.Allowance(Visibility.everything(), Set.of())).name()).isEqualTo("Checkout");
+        assertThat(RowVisibility.requireWhollyVisibleProject(3, Optional.of("Checkout"), members,
+                new VisibilityService.Allowance(both, Set.of())).projectId()).isEqualTo(3);
+        assertThat(RowVisibility.requireWhollyVisibleProject(3, Optional.of("Empty"), List.of(),
+                new VisibilityService.Allowance(Visibility.only(List.of()), Set.of(3L))).name()).isEqualTo("Empty");
+
+        Throwable absent = catchThrowable(() -> RowVisibility.requireWhollyVisibleProject(3, Optional.empty(), List.of(),
+                new VisibilityService.Allowance(Visibility.everything(), Set.of())));
+        assertThat(absent).hasMessage("Project not found.");
+        // Part of it, none of it, and every one of none: refused in the words of an absent project.
+        assertThatThrownBy(() -> RowVisibility.requireWhollyVisibleProject(3, Optional.of("Checkout"), members,
+                new VisibilityService.Allowance(ONLY_EIGHT, Set.of()))).hasMessage(absent.getMessage());
+        assertThatThrownBy(() -> RowVisibility.requireWhollyVisibleProject(3, Optional.of("Checkout"), members,
+                new VisibilityService.Allowance(Visibility.only(List.of()), Set.of()))).hasMessage(absent.getMessage());
+        assertThatThrownBy(() -> RowVisibility.requireWhollyVisibleProject(3, Optional.of("Empty"), List.of(),
+                new VisibilityService.Allowance(ONLY_EIGHT, Set.of(4L)))).hasMessage(absent.getMessage());
     }
 }

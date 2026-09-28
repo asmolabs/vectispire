@@ -25,7 +25,7 @@ class RequestBodyLimitFilterTest {
     private final RequestBodyLimitFilter filter =
             new RequestBodyLimitFilter(DataSize.ofBytes(10), DataSize.ofBytes(20), DataSize.ofBytes(30), DataSize.ofBytes(40),
                     DataSize.ofBytes(50), DataSize.ofBytes(70), DataSize.ofBytes(80), DataSize.ofBytes(90),
-                    DataSize.ofBytes(60), DataSize.ofBytes(5));
+                    DataSize.ofBytes(100), DataSize.ofBytes(60), DataSize.ofBytes(5));
 
     @Test
     @DisplayName("a body with no declared length is refused as soon as it passes the ceiling")
@@ -68,6 +68,8 @@ class RequestBodyLimitFilterTest {
         assertThat(declared("/api/v1/repositories/7/test-report-imports", 80)).isEqualTo(200);
         assertThat(declared("/api/v1/checklist-templates/release/versions", 91)).isEqualTo(413);
         assertThat(declared("/api/v1/checklist-templates/release/versions", 90)).isEqualTo(200);
+        assertThat(declared("/api/v1/projects/3/checklists/2/items/41/evidence/files", 101)).isEqualTo(413);
+        assertThat(declared("/api/v1/projects/3/checklists/2/items/41/evidence/files", 100)).isEqualTo(200);
         assertThat(declared("/api/v1/rule-sets", 61)).isEqualTo(413);
         assertThat(declared("/api/v1/rule-sets", 60)).isEqualTo(200);
     }
@@ -87,6 +89,10 @@ class RequestBodyLimitFilterTest {
                 .isEqualTo(413);
         assertThat(declared("/api/v1/checklist-templates/release/versions/2/publish", 6)).as("not the import")
                 .isEqualTo(413);
+        // A checklist's other routes carry JSON; only a proof's file has the evidence ceiling.
+        assertThat(declared("/api/v1/projects/3/checklists/2/items/41/evidence/links", 6)).as("not a file")
+                .isEqualTo(413);
+        assertThat(declared("/api/v1/projects/3/checklists/2/items/41/answers", 6)).as("not a file").isEqualTo(413);
     }
 
     @Test

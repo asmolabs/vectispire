@@ -664,7 +664,7 @@ public class ChecklistTemplateService {
     }
 
     /** A stored item as the domain reads it. Its key, evidence and rule were written from the domain's. */
-    private static ChecklistItem domain(ChecklistItemEntity item) {
+    static ChecklistItem domain(ChecklistItemEntity item) {
         EvidenceRequirement evidence = new EvidenceRequirement(
                 EvidenceRequirement.Kind.valueOf(item.getEvidenceKind().toUpperCase(Locale.ROOT)),
                 Optional.ofNullable(item.getEvidenceValidityMonths()));

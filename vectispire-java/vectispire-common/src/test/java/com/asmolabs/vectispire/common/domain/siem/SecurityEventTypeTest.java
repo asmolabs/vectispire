@@ -41,6 +41,8 @@ class SecurityEventTypeTest {
         expected.put("SARIF_SOURCE_CHANGED", "VECTI-SEC-022");
         expected.put("SARIF_IMPORT_REFUSED", "VECTI-SEC-023");
         expected.put("CHECKLIST_TEMPLATE_CHANGED", "VECTI-SEC-024");
+        expected.put("CHECKLIST_SIGNED_OFF", "VECTI-SEC-025");
+        expected.put("CHECKLIST_SIGN_OFF_REFUSED", "VECTI-SEC-026");
         expected.put("REPORT_IMPORT_REFUSED", "VECTI-SEC-027");
         expected.put("PING_TEST", "VECTI-SEC-999");
 
@@ -105,6 +107,20 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_ITEMS_PAIRED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_DERIVED)).isEmpty();
+        // A release attestation given, and one refused or sent back (decision 0032 §9).
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_SIGNED_OFF))
+                .contains(SecurityEventType.CHECKLIST_SIGNED_OFF);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_SIGN_OFF_REFUSED))
+                .contains(SecurityEventType.CHECKLIST_SIGN_OFF_REFUSED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_RETURNED))
+                .contains(SecurityEventType.CHECKLIST_SIGN_OFF_REFUSED);
+        // Filling a checklist is work, not a security event.
+        for (AuditOperation work : java.util.List.of(AuditOperation.CHECKLIST_OPENED,
+                AuditOperation.CHECKLIST_MOVED_TO_VERSION, AuditOperation.CHECKLIST_ANSWERED,
+                AuditOperation.CHECKLIST_EVIDENCE_ADDED, AuditOperation.CHECKLIST_EVIDENCE_WITHDRAWN,
+                AuditOperation.CHECKLIST_SUBMITTED, AuditOperation.CHECKLIST_REOPENED)) {
+            assertThat(SecurityEventType.signalledBy(work)).as(work.name()).isEmpty();
+        }
     }
 
     @Test

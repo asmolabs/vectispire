@@ -11,7 +11,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_13"];
+        get: operations["list_14"];
         put?: never;
         post: operations["create_9"];
         delete?: never;
@@ -299,7 +299,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_12"];
+        get: operations["list_13"];
         put?: never;
         post: operations["create_8"];
         delete?: never;
@@ -427,7 +427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_18"];
+        get: operations["list_19"];
         put?: never;
         post?: never;
         delete?: never;
@@ -959,7 +959,7 @@ export interface paths {
          * Compliance progression
          * @description Every framework's monthly captures, each attributed to what plausibly moved it.
          */
-        get: operations["history_1"];
+        get: operations["history_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1135,7 +1135,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_11"];
+        get: operations["list_12"];
         put?: never;
         post: operations["create_7"];
         delete?: never;
@@ -1451,7 +1451,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_17"];
+        get: operations["list_18"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1519,7 +1519,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_10"];
+        get: operations["list_11"];
         put?: never;
         post: operations["create_6"];
         delete?: never;
@@ -1647,7 +1647,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_16"];
+        get: operations["list_17"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1727,7 +1727,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_9"];
+        get: operations["list_10"];
         put?: never;
         post: operations["create_5"];
         delete?: never;
@@ -1899,7 +1899,7 @@ export interface paths {
          * List plugins
          * @description Every registered plugin, with the manifest it runs.
          */
-        get: operations["list_8"];
+        get: operations["list_9"];
         put?: never;
         /**
          * Register plugin
@@ -2015,6 +2015,290 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List project checklists
+         * @description Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.
+         */
+        get: operations["list_8"];
+        put?: never;
+        /**
+         * Open project checklist
+         * @description Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version.
+         */
+        post: operations["open"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/offered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List checklist versions offered to a project
+         * @description The published template versions the project's checklist may be opened on or moved to. 404 for a project the caller does not see whole.
+         */
+        get: operations["offered"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read project checklist
+         * @description One revision: its header, its lines with their current answer, proofs and what keeps each from a submission, and its authors. 404 for a project not seen whole or a revision it does not have.
+         */
+        get: operations["read"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download checklist proof
+         * @description An uploaded proof's bytes, always as an attachment and as application/octet-stream — the declared type is never trusted to render. 404 for a link, or a proof this revision does not have.
+         */
+        get: operations["download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/withdrawal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw checklist proof
+         * @description On a draft: the proof stops counting; its row stays, dated and attributed. 409 checklist-evidence-withdrawn, and those of answering.
+         */
+        post: operations["withdraw"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer checklist line
+         * @description On a draft: a new answer, the caller its author. no and not_applicable need a comment. edition is the one read. 400 for no edition, an answer that is none, a negative one without its comment, not_applicable on a version that does not offer it; 409 checklist-not-draft, checklist-line-changed, checklist-changed.
+         */
+        post: operations["answer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/confirmation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm carried checklist answer
+         * @description On a draft: the answer carried onto a line that changed still holds, under the caller's name. 409 checklist-nothing-to-confirm, and those of answering.
+         */
+        post: operations["confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach file to checklist line
+         * @description On a draft: the file as the raw body, its Content-Type stored and never trusted, 25 MB at most; name, performedOn (yyyy-MM-dd) and edition. Served back only as a download. 400 for an empty body, no name, no day; 413 past the ceiling; 409 as for answering.
+         */
+        post: operations["attachFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attach link to checklist line
+         * @description On a draft: an https: or http: link, at most 2,000 characters, and the day the work was done. 400 for a link or a day that is none, a day in the future; 409 as for answering.
+         */
+        post: operations["attachLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read checklist line history
+         * @description Every answer given on the line in this revision, with its author and instant, oldest first — never edited — and every proof, withdrawn ones included.
+         */
+        get: operations["history_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen project checklist
+         * @description The next revision of a signed-off one, on the same version, every answer and proof carried as current; the signed revision is never modified. 409 checklist-not-signed-off, checklist-not-latest, checklist-changed.
+         */
+        post: operations["reopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/return": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Return project checklist
+         * @description A submitted revision back to its authors, a draft again, with the reason. 400 without a reason; 409 checklist-not-submitted, checklist-changed.
+         */
+        post: operations["returnToAuthors"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/sign-off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign off project checklist
+         * @description An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission).
+         */
+        post: operations["signOff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{projectId}/checklists/{revision}/submission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit project checklist
+         * @description A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete.
+         */
+        post: operations["submit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/plugins": {
         parameters: {
             query?: never;
@@ -2026,7 +2310,7 @@ export interface paths {
          * List plugins switched on for project
          * @description 404 when the project does not exist.
          */
-        get: operations["list_15"];
+        get: operations["list_16"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2567,7 +2851,7 @@ export interface paths {
          * List scan history
          * @description Returns historical security scans with filtering by repository or container target.
          */
-        get: operations["list_14"];
+        get: operations["list_15"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3407,6 +3691,11 @@ export interface components {
             notApplicable?: string;
             yes?: string;
         };
+        AnswerWordsView: {
+            no?: string;
+            notApplicable?: string;
+            yes?: string;
+        };
         ApiContract: {
             contractPath?: string;
             declaredPaths?: string[];
@@ -3758,8 +4047,67 @@ export interface components {
             current_password?: string;
             new_password?: string;
         };
+        ChecklistAnswerRequest: {
+            comment?: string;
+            /** Format: int32 */
+            edition?: number;
+            value?: string;
+        };
+        ChecklistAnswerView: {
+            /** Format: date-time */
+            answeredAt?: string;
+            answeredBy?: string;
+            /** Format: date-time */
+            carriedAt?: string;
+            carriedBy?: string;
+            /** Format: int64 */
+            carriedFromId?: number;
+            comment?: string;
+            /** Format: int32 */
+            edition?: number;
+            /** Format: int64 */
+            id?: number;
+            /** Format: int64 */
+            itemId?: number;
+            /** Format: int64 */
+            measurementId?: number;
+            needsConfirmation: boolean;
+            value?: string;
+        };
         ChecklistDeriveRequest: {
             label?: string;
+        };
+        ChecklistEditionRequest: {
+            /** Format: int32 */
+            edition?: number;
+        };
+        ChecklistEvidenceView: {
+            /** Format: date-time */
+            addedAt?: string;
+            addedBy?: string;
+            /** Format: int64 */
+            carriedFromId?: number;
+            /** Format: int32 */
+            edition?: number;
+            fileName?: string;
+            fileSha256?: string;
+            /** Format: int64 */
+            fileSize?: number;
+            /** Format: int64 */
+            id?: number;
+            inDate: boolean;
+            /** Format: int64 */
+            itemId?: number;
+            kind?: string;
+            link?: string;
+            mediaType?: string;
+            /** Format: date */
+            performedOn?: string;
+            /** Format: date */
+            validUntil?: string;
+            /** Format: date-time */
+            withdrawnAt?: string;
+            withdrawnBy?: string;
         };
         ChecklistItemPair: {
             added?: string;
@@ -3800,12 +4148,106 @@ export interface components {
             lastItemRow?: number;
             sheet?: string;
         };
+        ChecklistLineHistory: {
+            answers?: components["schemas"]["ChecklistAnswerView"][];
+            evidence?: components["schemas"]["ChecklistEvidenceView"][];
+            /** Format: int64 */
+            itemId: number;
+            /** Format: int64 */
+            projectId: number;
+            /** Format: int32 */
+            revision: number;
+        };
+        ChecklistLineView: {
+            answer?: components["schemas"]["ChecklistAnswerView"];
+            contact?: string;
+            control?: string;
+            domain?: string;
+            /** Format: int32 */
+            edition: number;
+            evidence?: components["schemas"]["ChecklistEvidenceView"][];
+            evidenceKind?: string;
+            /** Format: int32 */
+            evidenceValidityMonths?: number;
+            /** Format: int64 */
+            itemId?: number;
+            itemKey?: string;
+            kpi?: string;
+            objective?: string;
+            /** Format: int32 */
+            position?: number;
+            problems?: string[];
+        };
+        ChecklistLinkRequest: {
+            /** Format: int32 */
+            edition?: number;
+            link?: string;
+            performedOn?: string;
+        };
+        ChecklistOfferedVersion: {
+            /** Format: int64 */
+            itemCount: number;
+            label?: string;
+            offersNotApplicable: boolean;
+            /** Format: int32 */
+            ordinal: number;
+            /** Format: date-time */
+            publishedAt?: string;
+            templateName?: string;
+            templateSlug?: string;
+        };
+        ChecklistOpenRequest: {
+            /** Format: int32 */
+            edition?: number;
+            template?: string;
+            /** Format: int32 */
+            version?: number;
+        };
         ChecklistPairsRequest: {
             pairs?: components["schemas"]["ChecklistItemPair"][];
         };
         ChecklistPublishRequest: {
             /** Format: int32 */
             revision?: number;
+        };
+        ChecklistReturnRequest: {
+            /** Format: int32 */
+            edition?: number;
+            reason?: string;
+        };
+        ChecklistRevisionSummary: {
+            author?: string;
+            /** Format: int32 */
+            edition: number;
+            /** Format: date-time */
+            openedAt?: string;
+            openedBy?: string;
+            /** Format: int64 */
+            projectId: number;
+            returnReason?: string;
+            /** Format: date-time */
+            returnedAt?: string;
+            returnedBy?: string;
+            /** Format: int32 */
+            revision: number;
+            signOffFourEyes?: boolean;
+            /** Format: date-time */
+            signedOffAt?: string;
+            signedOffBy?: string;
+            status?: string;
+            /** Format: date-time */
+            submittedAt?: string;
+            submittedBy?: string;
+            /** Format: date-time */
+            supersededAt?: string;
+            supersededBy?: string;
+            /** Format: int32 */
+            supersedesRevision?: number;
+            templateName?: string;
+            templateSlug?: string;
+            versionLabel?: string;
+            /** Format: int32 */
+            versionOrdinal: number;
         };
         ChecklistTemplatePreview: {
             cells?: components["schemas"]["PreviewCell"][];
@@ -3866,6 +4308,16 @@ export interface components {
             templateName?: string;
             templateSlug?: string;
             version?: components["schemas"]["ChecklistVersionSummary"];
+        };
+        ChecklistView: {
+            answerWords?: components["schemas"]["AnswerWordsView"];
+            authors?: string[];
+            checklist?: components["schemas"]["ChecklistRevisionSummary"];
+            fourEyesRequired: boolean;
+            lines?: components["schemas"]["ChecklistLineView"][];
+            offersNotApplicable: boolean;
+            projectName?: string;
+            readyToSubmit: boolean;
         };
         CompatibilityCell: {
             /** @enum {string} */
@@ -6422,7 +6874,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_13: {
+    list_14: {
         parameters: {
             query?: never;
             header?: never;
@@ -6881,7 +7333,7 @@ export interface operations {
             };
         };
     };
-    list_12: {
+    list_13: {
         parameters: {
             query?: never;
             header?: never;
@@ -7077,7 +7529,7 @@ export interface operations {
             };
         };
     };
-    list_18: {
+    list_19: {
         parameters: {
             query?: {
                 operation_type?: string;
@@ -7730,7 +8182,7 @@ export interface operations {
             };
         };
     };
-    history_1: {
+    history_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -7948,7 +8400,7 @@ export interface operations {
             };
         };
     };
-    list_11: {
+    list_12: {
         parameters: {
             query?: never;
             header?: never;
@@ -8418,7 +8870,7 @@ export interface operations {
             };
         };
     };
-    list_17: {
+    list_18: {
         parameters: {
             query?: never;
             header?: never;
@@ -8533,7 +8985,7 @@ export interface operations {
             };
         };
     };
-    list_10: {
+    list_11: {
         parameters: {
             query?: never;
             header?: never;
@@ -8730,7 +9182,7 @@ export interface operations {
             };
         };
     };
-    list_16: {
+    list_17: {
         parameters: {
             query?: {
                 state?: string;
@@ -8862,7 +9314,7 @@ export interface operations {
             };
         };
     };
-    list_9: {
+    list_10: {
         parameters: {
             query?: never;
             header?: never;
@@ -9132,7 +9584,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_9: {
         parameters: {
             query?: never;
             header?: never;
@@ -9360,7 +9812,402 @@ export interface operations {
             };
         };
     };
-    list_15: {
+    list_8: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistRevisionSummary"][];
+                };
+            };
+        };
+    };
+    open: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistOpenRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    offered: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistOfferedVersion"][];
+                };
+            };
+        };
+    };
+    read: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    download: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                evidenceId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
+    withdraw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                evidenceId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    answer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                itemId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                itemId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    attachFile: {
+        parameters: {
+            query?: {
+                name?: string;
+                performedOn?: string;
+                edition?: number;
+            };
+            header?: {
+                "Content-Type"?: string;
+            };
+            path: {
+                projectId: number;
+                revision: number;
+                itemId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "*/*": string;
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    attachLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                itemId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    history_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+                itemId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistLineHistory"];
+                };
+            };
+        };
+    };
+    reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    returnToAuthors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistReturnRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    signOff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    submit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChecklistEditionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    list_16: {
         parameters: {
             query?: never;
             header?: never;
@@ -10259,7 +11106,7 @@ export interface operations {
             };
         };
     };
-    list_14: {
+    list_15: {
         parameters: {
             query?: {
                 /** @description Filter by repository ID */

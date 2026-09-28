@@ -14,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>The settings screen asks them before switching four-eyes on: with no active account holding a
  * role that {@link Role#canApproveTriage() may approve}, every decision would wait in a queue nobody
  * can empty; with fewer than two that {@link Role#canWriteGovernance() write governance}, a checklist
- * template could never be published, since its author may not publish it (decision 0032, question 9). It read {@code UserRepository} itself until {@code access} became a module (a step-5 finding of
- * decision 0028); the count is the same query, answered here.
+ * template could never be published, since its author may not publish it (decision 0032, question 9);
+ * with fewer than two approvers, a project checklist its only approver wrote could never be signed off
+ * (question 2). It read {@code UserRepository} itself until {@code access} became a module (a step-5
+ * finding of decision 0028); the count is the same query, answered here.
  */
 @Service
 public class TriageApprovers {
@@ -53,5 +55,16 @@ public class TriageApprovers {
     @Transactional(readOnly = true)
     public boolean twoCanPublishTemplates() {
         return users.countActiveAdministratorsExcluding(PUBLISHER_ROLES, -1L) >= 2;
+    }
+
+    /**
+     * Two approvers, not one: under four-eyes a project checklist is signed off by an approver who
+     * wrote none of it, and approvers — a security champion above all — are who fills checklists in.
+     * With one, every revision that approver answered, opened or submitted would be submitted and
+     * never signed off, found at the first sign-off.
+     */
+    @Transactional(readOnly = true)
+    public boolean twoCanSignOffChecklists() {
+        return users.countActiveAdministratorsExcluding(APPROVER_ROLES, -1L) >= 2;
     }
 }

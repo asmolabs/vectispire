@@ -59,7 +59,10 @@ public class SettingsAdministrationService {
 
     private final SettingsService settings;
     private final AiReviewService aiReview;
-    /** Asked whether four-eyes could be honoured: an approver for triage, two publishers for templates. */
+    /**
+     * Asked whether four-eyes could be honoured: an approver for triage, two publishers for templates,
+     * two approvers for checklists.
+     */
     private final TriageApprovers approvers;
     private final TicketService tickets;
     private final NotificationService notifications;
@@ -214,6 +217,15 @@ public class SettingsAdministrationService {
                         "Fewer than two active accounts can publish a checklist template: under four-eyes its "
                                 + "author may not publish it, so no draft could ever be published. Create a second "
                                 + "platform governor, administrator or CISO first.");
+            }
+            // A project checklist is signed off by an approver who wrote none of it, and approvers fill
+            // checklists in: with one, whatever that approver answered would never be signed off.
+            if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value)
+                    && !approvers.twoCanSignOffChecklists()) {
+                throw new InvalidInputException(
+                        "Fewer than two active accounts can sign off a project checklist: under four-eyes none of its "
+                                + "authors may sign it off, so a checklist its only approver filled in could never be "
+                                + "signed off. Create a second administrator, CISO or security champion first.");
             }
             // **A credential has one door, and this is not it.** Each of these has a route that
             // encrypts the value before it reaches the database; this path stores what it is

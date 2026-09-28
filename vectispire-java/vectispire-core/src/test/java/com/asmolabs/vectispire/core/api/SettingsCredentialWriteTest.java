@@ -163,6 +163,32 @@ class SettingsCredentialWriteTest {
         verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
     }
 
+    @Test
+    @DisplayName("four-eyes cannot be switched on where a checklist's only approver would sign what they wrote")
+    void enablingNeedsASecondSignatory() {
+        // One approver — enough for a triage somebody else proposed — and two governance writers. A
+        // project checklist that approver answered could be submitted and never signed off.
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(1L);
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && !roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(2L);
+
+        assertThatThrownBy(() -> controller.update(
+                Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Fewer than two active accounts can sign off a project checklist");
+        verify(settings, never()).set(any(Setting.class), anyString());
+
+        // A second approver is what it takes.
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(2L);
+        controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request());
+        verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
+    }
+
     @ParameterizedTest(name = "{0} cannot be set through the generic route")
     @MethodSource("credentials")
     void theGenericRouteRefusesIt(Setting credential) {

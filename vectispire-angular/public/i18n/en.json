@@ -411,7 +411,17 @@
       "checklist_template_items_paired": "Checklist template items paired",
       "checklist_template_derived": "Checklist template version derived",
       "checklist_template_published": "Checklist template version published",
-      "checklist_template_retired": "Checklist template version retired"
+      "checklist_template_retired": "Checklist template version retired",
+      "checklist_opened": "Project checklist opened",
+      "checklist_moved_to_version": "Project checklist moved to another version",
+      "checklist_answered": "Checklist line answered",
+      "checklist_evidence_added": "Checklist proof attached",
+      "checklist_evidence_withdrawn": "Checklist proof withdrawn",
+      "checklist_submitted": "Project checklist submitted",
+      "checklist_returned": "Project checklist returned",
+      "checklist_signed_off": "Project checklist signed off",
+      "checklist_sign_off_refused": "Project checklist sign-off refused",
+      "checklist_reopened": "Project checklist reopened"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

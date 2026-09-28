@@ -400,10 +400,20 @@ class ArchitectureTest {
                 .because("a scan is refused by the service that reads it, not by a route that then "
                         + "hands the service its id")
                 .check(classes);
+        // A project's checklists speak for all of it, and the whole-project guard is its services'
+        // (decision 0032 §8): a route calling it would refuse, then hand the service a bare id.
+        ArchRuleDefinition.noClasses()
+                .that().resideInAnyPackage(layer(".web.."))
+                .should().callMethodWhere(DescribedPredicate.describe(
+                        "the whole-project guard",
+                        call -> call.getTargetOwner().isEquivalentTo(com.asmolabs.vectispire.core.access.RowVisibility.class)
+                                && call.getName().equals("requireWhollyVisibleProject")))
+                .because("a project is refused by the service that serves its checklists, whoever calls it")
+                .check(classes);
     }
 
     @Test
-    @DisplayName("a VisibleTarget is minted by the guard alone")
+    @DisplayName("a VisibleTarget, and a VisibleProject, is minted by the guard alone")
     void visibleTargetsAreMintedByTheGuard() {
         // Java cannot restrict a record's constructor to another package. `VisibleTarget` is worth
         // something only because the one way to obtain it is to have been permitted — a `new
@@ -414,6 +424,15 @@ class ArchitectureTest {
                         "a VisibleTarget's constructor",
                         call -> call.getTargetOwner().isEquivalentTo(
                                 com.asmolabs.vectispire.common.domain.access.VisibleTarget.class)))
+                .check(classes);
+        // The same for a project seen whole: a checklist service takes it only from the guard that
+        // refused a partial reader (decision 0032 §8).
+        ArchRuleDefinition.noClasses()
+                .that().doNotHaveFullyQualifiedName(com.asmolabs.vectispire.core.access.RowVisibility.class.getName())
+                .should().callConstructorWhere(DescribedPredicate.describe(
+                        "a VisibleProject's constructor",
+                        call -> call.getTargetOwner().isEquivalentTo(
+                                com.asmolabs.vectispire.common.domain.access.VisibleProject.class)))
                 .check(classes);
     }
 

@@ -1,9 +1,12 @@
 package com.asmolabs.vectispire.core.access;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.access.VisibleProject;
 import com.asmolabs.vectispire.common.domain.access.VisibleTarget;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.targets.ScanTarget;
+import java.util.Collection;
+import java.util.Optional;
 import java.util.function.Function;
 
 /**
@@ -29,6 +32,9 @@ public final class RowVisibility {
 
     /** The one sentence a refused target gets, whether it is absent or hidden. */
     private static final String TARGET_NOT_FOUND = "Target not found.";
+
+    /** The one sentence a refused project gets — absent, hidden, or seen only in part. */
+    private static final String PROJECT_NOT_FOUND = "Project not found.";
 
     private RowVisibility() {}
 
@@ -105,5 +111,39 @@ public final class RowVisibility {
             throw new NotFoundException(TARGET_NOT_FOUND);
         }
         return new VisibleTarget<>(target);
+    }
+
+    /**
+     * A project the caller sees <b>whole</b>, or "Project not found." — for a project that does not
+     * exist, one the caller sees nothing of, and one it sees only part of, alike (decision 0032 §8,
+     * open question 5).
+     *
+     * <p><b>Whole</b> means: the caller's visibility is everything; or the project is granted as such
+     * — which a key narrowed to a repository never carries ({@link VisibilityService#allowance}); or
+     * every one of its repositories is visible <em>and there is at least one</em>. "Every one of none"
+     * is the vacuous truth that would hand an empty project granted to nobody to anybody who asked.
+     *
+     * <p><b>Why a partial reader is refused rather than served less.</b> A project's checklist speaks
+     * for every repository in it, and a line's answer or comment names what it found there. Answers
+     * without the hidden repositories' figures would still leak through their words; a 404 in the
+     * words of an absent project leaks nothing, not even that the project exists.
+     *
+     * @param name the project's name, empty when there is no such project — passed here rather than
+     *     refused by the caller, whose own sentence would tell absent from hidden
+     * @param repositoryIds the repositories filed in the project now, as its owner answers them
+     * @return the proof a checklist service takes in place of the bare project — only this builds one
+     */
+    public static VisibleProject requireWhollyVisibleProject(
+            long projectId, Optional<String> name, Collection<Long> repositoryIds, VisibilityService.Allowance allowance) {
+        boolean whole = name.isPresent() && switch (allowance.visibility()) {
+            case Visibility.Everything ignored -> true;
+            case Visibility.Only only -> allowance.grantedProjects().contains(projectId)
+                    || (!repositoryIds.isEmpty()
+                            && repositoryIds.stream().allMatch(id -> only.permits(new ScanTarget.Repository(id))));
+        };
+        if (!whole) {
+            throw new NotFoundException(PROJECT_NOT_FOUND);
+        }
+        return new VisibleProject(projectId, name.get());
     }
 }

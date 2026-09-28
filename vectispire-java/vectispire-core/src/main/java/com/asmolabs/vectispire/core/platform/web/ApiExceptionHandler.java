@@ -12,6 +12,7 @@ import com.asmolabs.vectispire.core.access.web.security.ApiKeyRateLimitedExcepti
 import com.asmolabs.vectispire.core.access.web.security.CredentialNotAcceptedException;
 import com.asmolabs.vectispire.core.access.web.security.PasswordChangeRequiredException;
 import com.asmolabs.vectispire.core.access.web.security.RequestBodyTooLargeException;
+import com.asmolabs.vectispire.core.checklists.ChecklistFileTooLargeException;
 import com.asmolabs.vectispire.core.crypto.MissingEncryptionKeyException;
 import com.asmolabs.vectispire.core.exports.AttestationService;
 import com.asmolabs.vectispire.core.plugins.PluginConflictException;
@@ -23,6 +24,7 @@ import com.asmolabs.vectispire.core.scanning.CredentialWithheldException;
 import com.asmolabs.vectispire.core.scanning.ScanTriggerService;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -165,15 +167,25 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         PluginConflictException.class
     })
     ProblemDetail conflict(RuntimeException error) {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, error.getMessage());
+        // A route whose 409 has several causes names each, so that a client tells "read it again" from
+        // "a second person has to do it" by the type and not by a sentence that changes with its words.
+        if (error instanceof ConflictException conflict) {
+            conflict.conflictCause().ifPresent(cause -> problem.setType(URI.create(PROBLEM_TYPE + cause)));
+        }
+        return problem;
     }
+
+    /** What a problem's {@code type} starts with when its conflict names a cause; the cause ends it. */
+    public static final String PROBLEM_TYPE = "urn:vectispire:problem:";
 
     /**
      * A body past its route's ceiling, found while it was being read — by {@code access}'s
      * {@code RequestBodyLimitFilter}. A declared length over the ceiling is refused by the filter
      * itself, before this point.
      */
-    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class, ReportTooLargeException.class})
+    @ExceptionHandler({RequestBodyTooLargeException.class, SarifTooLargeException.class, ReportTooLargeException.class,
+        ChecklistFileTooLargeException.class})
     ProblemDetail contentTooLarge(RuntimeException error) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, error.getMessage());
     }

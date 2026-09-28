@@ -411,7 +411,17 @@
       "checklist_template_items_paired": "Lignes du modèle de checklist appariées",
       "checklist_template_derived": "Version de modèle de checklist dérivée",
       "checklist_template_published": "Version de modèle de checklist publiée",
-      "checklist_template_retired": "Version de modèle de checklist retirée"
+      "checklist_template_retired": "Version de modèle de checklist retirée",
+      "checklist_opened": "Checklist de projet ouverte",
+      "checklist_moved_to_version": "Checklist de projet passée à une autre version",
+      "checklist_answered": "Ligne de checklist répondue",
+      "checklist_evidence_added": "Preuve de checklist jointe",
+      "checklist_evidence_withdrawn": "Preuve de checklist retirée",
+      "checklist_submitted": "Checklist de projet soumise",
+      "checklist_returned": "Checklist de projet renvoyée",
+      "checklist_signed_off": "Checklist de projet approuvée",
+      "checklist_sign_off_refused": "Approbation de checklist de projet refusée",
+      "checklist_reopened": "Checklist de projet rouverte"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

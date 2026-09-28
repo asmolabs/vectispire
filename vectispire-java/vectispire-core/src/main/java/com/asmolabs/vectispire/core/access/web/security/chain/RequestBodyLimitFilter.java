@@ -60,6 +60,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       an organisation's checklist workbook is tens of kilobytes — a few sheets of text and a value
  *       list — and a large one with images a few megabytes (decision 0032 §3). Uploaded by a security
  *       lead, and read whole: the reader bounds it again once inflated, to 50 MB and 200 entries.
+ *   <li>Checklist evidence, 25 MB, {@code POST /api/v1/projects/{id}/checklists/{revision}/items/{item}/evidence/files}:
+ *       a proof attached to a checklist line — a penetration test report, a signed statement, a
+ *       scanned form — is a document of a few megabytes, a long report with its annexes some tens
+ *       (decision 0032 §5). Uploaded by a signed-in account that may write, stored whole in the
+ *       database; a larger document is attached as a link.
  *   <li>Rule-set upload, 64 MB, {@code POST /api/v1/rule-sets}: {@code RuleSet} accepts up to 32 MB
  *       of rule files, and the JSON carrying them escapes every quote and line break of their YAML. A
  *       set at the domain's own limit must still arrive, or this would be a second, smaller limit
@@ -72,7 +77,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *       are open to anyone, and their bodies were read by the JSON converter with no ceiling but the
  *       container's — the same buffering as the webhook's, offered to a client with no credential.
  * </ul>
- * All ten are properties, so an estate that needs more can say so. There is no multipart route
+ * All eleven are properties, so an estate that needs more can say so. There is no multipart route
  * today. One added later would have its parts parsed by the container from the raw request, past the
  * counting stream, so only the declared length would bound it here and Spring's multipart limits
  * would be the real ones — give it a line of its own rather than trust the default.
@@ -88,6 +93,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
     private final DataSize coverageImport;
     private final DataSize testReportImport;
     private final DataSize checklistTemplateImport;
+    private final DataSize checklistEvidence;
     private final DataSize ruleSetUpload;
     private final DataSize fallback;
 
@@ -96,6 +102,9 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
 
     /** The checklist templates' routes; only the import under it has a ceiling of its own. */
     static final String CHECKLIST_TEMPLATES_PREFIX = "/api/v1/checklist-templates/";
+
+    /** The projects' routes; only a checklist proof's file under it has a ceiling of its own. */
+    static final String PROJECTS_PREFIX = "/api/v1/projects/";
 
     public RequestBodyLimitFilter(
             @Value("${vectispire.http.max-body.ticket-webhook:1MB}") DataSize webhook,
@@ -106,6 +115,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
             @Value("${vectispire.http.max-body.coverage-import:16MB}") DataSize coverageImport,
             @Value("${vectispire.http.max-body.test-report-import:32MB}") DataSize testReportImport,
             @Value("${vectispire.http.max-body.checklist-template-import:10MB}") DataSize checklistTemplateImport,
+            @Value("${vectispire.http.max-body.checklist-evidence:25MB}") DataSize checklistEvidence,
             @Value("${vectispire.http.max-body.rule-set-upload:64MB}") DataSize ruleSetUpload,
             @Value("${vectispire.http.max-body.default:1MB}") DataSize fallback) {
         this.webhook = webhook;
@@ -116,6 +126,7 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         this.coverageImport = coverageImport;
         this.testReportImport = testReportImport;
         this.checklistTemplateImport = checklistTemplateImport;
+        this.checklistEvidence = checklistEvidence;
         this.ruleSetUpload = ruleSetUpload;
         this.fallback = fallback;
     }
@@ -168,6 +179,10 @@ public class RequestBodyLimitFilter extends OncePerRequestFilter {
         if (path.startsWith(CHECKLIST_TEMPLATES_PREFIX) && path.endsWith("/versions")
                 && path.indexOf('/', CHECKLIST_TEMPLATES_PREFIX.length()) == path.length() - "/versions".length()) {
             return Optional.of(checklistTemplateImport);
+        }
+        // A proof's file alone: the checklist's other routes carry a few bytes of JSON.
+        if (path.startsWith(PROJECTS_PREFIX) && path.contains("/checklists/") && path.endsWith("/evidence/files")) {
+            return Optional.of(checklistEvidence);
         }
         if (path.equals("/api/v1/rule-sets")) {
             return Optional.of(ruleSetUpload);

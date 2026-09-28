@@ -221,6 +221,20 @@
         },
         "type" : "object"
       },
+      "AnswerWordsView" : {
+        "properties" : {
+          "no" : {
+            "type" : "string"
+          },
+          "notApplicable" : {
+            "type" : "string"
+          },
+          "yes" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ApiContract" : {
         "properties" : {
           "contractPath" : {
@@ -1149,12 +1163,151 @@
         },
         "type" : "object"
       },
+      "ChecklistAnswerRequest" : {
+        "properties" : {
+          "comment" : {
+            "type" : "string"
+          },
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistAnswerView" : {
+        "properties" : {
+          "answeredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "answeredBy" : {
+            "type" : "string"
+          },
+          "carriedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "carriedBy" : {
+            "type" : "string"
+          },
+          "carriedFromId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "comment" : {
+            "type" : "string"
+          },
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "measurementId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "needsConfirmation" : {
+            "type" : "boolean"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "needsConfirmation" ],
+        "type" : "object"
+      },
       "ChecklistDeriveRequest" : {
         "properties" : {
           "label" : {
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "ChecklistEditionRequest" : {
+        "properties" : {
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistEvidenceView" : {
+        "properties" : {
+          "addedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "addedBy" : {
+            "type" : "string"
+          },
+          "carriedFromId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "fileName" : {
+            "type" : "string"
+          },
+          "fileSha256" : {
+            "type" : "string"
+          },
+          "fileSize" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "inDate" : {
+            "type" : "boolean"
+          },
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "link" : {
+            "type" : "string"
+          },
+          "mediaType" : {
+            "type" : "string"
+          },
+          "performedOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "withdrawnAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "withdrawnBy" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "inDate" ],
         "type" : "object"
       },
       "ChecklistItemPair" : {
@@ -1251,6 +1404,155 @@
         },
         "type" : "object"
       },
+      "ChecklistLineHistory" : {
+        "properties" : {
+          "answers" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistAnswerView"
+            },
+            "type" : "array"
+          },
+          "evidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistEvidenceView"
+            },
+            "type" : "array"
+          },
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "revision" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "itemId", "projectId", "revision" ],
+        "type" : "object"
+      },
+      "ChecklistLineView" : {
+        "properties" : {
+          "answer" : {
+            "$ref" : "#/components/schemas/ChecklistAnswerView"
+          },
+          "contact" : {
+            "type" : "string"
+          },
+          "control" : {
+            "type" : "string"
+          },
+          "domain" : {
+            "type" : "string"
+          },
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "evidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistEvidenceView"
+            },
+            "type" : "array"
+          },
+          "evidenceKind" : {
+            "type" : "string"
+          },
+          "evidenceValidityMonths" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "itemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "itemKey" : {
+            "type" : "string"
+          },
+          "kpi" : {
+            "type" : "string"
+          },
+          "objective" : {
+            "type" : "string"
+          },
+          "position" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "problems" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "edition" ],
+        "type" : "object"
+      },
+      "ChecklistLinkRequest" : {
+        "properties" : {
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "link" : {
+            "type" : "string"
+          },
+          "performedOn" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistOfferedVersion" : {
+        "properties" : {
+          "itemCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "offersNotApplicable" : {
+            "type" : "boolean"
+          },
+          "ordinal" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "publishedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "templateSlug" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "itemCount", "offersNotApplicable", "ordinal" ],
+        "type" : "object"
+      },
+      "ChecklistOpenRequest" : {
+        "properties" : {
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "template" : {
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "ChecklistPairsRequest" : {
         "properties" : {
           "pairs" : {
@@ -1269,6 +1571,100 @@
             "type" : "integer"
           }
         },
+        "type" : "object"
+      },
+      "ChecklistReturnRequest" : {
+        "properties" : {
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ChecklistRevisionSummary" : {
+        "properties" : {
+          "author" : {
+            "type" : "string"
+          },
+          "edition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "openedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "openedBy" : {
+            "type" : "string"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "returnReason" : {
+            "type" : "string"
+          },
+          "returnedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "returnedBy" : {
+            "type" : "string"
+          },
+          "revision" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "signOffFourEyes" : {
+            "type" : "boolean"
+          },
+          "signedOffAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "signedOffBy" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "submittedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "submittedBy" : {
+            "type" : "string"
+          },
+          "supersededAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "supersededBy" : {
+            "type" : "string"
+          },
+          "supersedesRevision" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "templateName" : {
+            "type" : "string"
+          },
+          "templateSlug" : {
+            "type" : "string"
+          },
+          "versionLabel" : {
+            "type" : "string"
+          },
+          "versionOrdinal" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "edition", "projectId", "revision", "versionOrdinal" ],
         "type" : "object"
       },
       "ChecklistTemplatePreview" : {
@@ -1444,6 +1840,42 @@
             "$ref" : "#/components/schemas/ChecklistVersionSummary"
           }
         },
+        "type" : "object"
+      },
+      "ChecklistView" : {
+        "properties" : {
+          "answerWords" : {
+            "$ref" : "#/components/schemas/AnswerWordsView"
+          },
+          "authors" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "checklist" : {
+            "$ref" : "#/components/schemas/ChecklistRevisionSummary"
+          },
+          "fourEyesRequired" : {
+            "type" : "boolean"
+          },
+          "lines" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ChecklistLineView"
+            },
+            "type" : "array"
+          },
+          "offersNotApplicable" : {
+            "type" : "boolean"
+          },
+          "projectName" : {
+            "type" : "string"
+          },
+          "readyToSubmit" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "fourEyesRequired", "offersNotApplicable", "readyToSubmit" ],
         "type" : "object"
       },
       "CompatibilityCell" : {
@@ -8295,7 +8727,7 @@
   "paths" : {
     "/api/v1/admin/agents" : {
       "get" : {
-        "operationId" : "list_13",
+        "operationId" : "list_14",
         "responses" : {
           "200" : {
             "content" : {
@@ -8845,7 +9277,7 @@
     },
     "/api/v1/api-keys" : {
       "get" : {
-        "operationId" : "list_12",
+        "operationId" : "list_13",
         "responses" : {
           "200" : {
             "content" : {
@@ -9051,7 +9483,7 @@
     },
     "/api/v1/audit-log" : {
       "get" : {
-        "operationId" : "list_18",
+        "operationId" : "list_19",
         "parameters" : [ {
           "in" : "query",
           "name" : "operation_type",
@@ -9951,7 +10383,7 @@
     "/api/v1/compliance/history" : {
       "get" : {
         "description" : "Every framework's monthly captures, each attributed to what plausibly moved it.",
-        "operationId" : "history_1",
+        "operationId" : "history_2",
         "responses" : {
           "200" : {
             "content" : {
@@ -10235,7 +10667,7 @@
     },
     "/api/v1/containers" : {
       "get" : {
-        "operationId" : "list_11",
+        "operationId" : "list_12",
         "responses" : {
           "200" : {
             "content" : {
@@ -10771,7 +11203,7 @@
     },
     "/api/v1/gate/policies" : {
       "get" : {
-        "operationId" : "list_17",
+        "operationId" : "list_18",
         "responses" : {
           "200" : {
             "content" : {
@@ -10923,7 +11355,7 @@
     },
     "/api/v1/git-tokens" : {
       "get" : {
-        "operationId" : "list_10",
+        "operationId" : "list_11",
         "responses" : {
           "200" : {
             "content" : {
@@ -11165,7 +11597,7 @@
     },
     "/api/v1/issues" : {
       "get" : {
-        "operationId" : "list_16",
+        "operationId" : "list_17",
         "parameters" : [ {
           "in" : "query",
           "name" : "state",
@@ -11417,7 +11849,7 @@
     },
     "/api/v1/issues/{issueId}/tickets" : {
       "get" : {
-        "operationId" : "list_9",
+        "operationId" : "list_10",
         "parameters" : [ {
           "in" : "path",
           "name" : "issueId",
@@ -11772,7 +12204,7 @@
     "/api/v1/plugins" : {
       "get" : {
         "description" : "Every registered plugin, with the manifest it runs.",
-        "operationId" : "list_8",
+        "operationId" : "list_9",
         "responses" : {
           "200" : {
             "content" : {
@@ -12067,10 +12499,732 @@
         "tags" : [ "Solutions" ]
       }
     },
+    "/api/v1/projects/{projectId}/checklists" : {
+      "get" : {
+        "description" : "Every revision of the project's checklist, newest first. 404 for a project the caller does not see whole.",
+        "operationId" : "list_8",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChecklistRevisionSummary"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List project checklists",
+        "tags" : [ "Project checklists" ]
+      },
+      "post" : {
+        "description" : "Opens the project's checklist on a published version, or moves it to another: a new revision, the previous one's answers carried — current where the line is unchanged, awaiting confirmation where it changed. edition is the newest revision's, as read; absent when the person saw none. 400 without template and version; 404 for a project not seen whole or a version that does not exist; 409 checklist-version-not-published, checklist-changed (a checklist opened or changed since), checklist-same-version.",
+        "operationId" : "open",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistOpenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Open project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/offered" : {
+      "get" : {
+        "description" : "The published template versions the project's checklist may be opened on or moved to. 404 for a project the caller does not see whole.",
+        "operationId" : "offered",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChecklistOfferedVersion"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "List checklist versions offered to a project",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}" : {
+      "get" : {
+        "description" : "One revision: its header, its lines with their current answer, proofs and what keeps each from a submission, and its authors. 404 for a project not seen whole or a revision it does not have.",
+        "operationId" : "read",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/file" : {
+      "get" : {
+        "description" : "An uploaded proof's bytes, always as an attachment and as application/octet-stream — the declared type is never trusted to render. 404 for a link, or a proof this revision does not have.",
+        "operationId" : "download",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "evidenceId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "format" : "byte",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Download checklist proof",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/withdrawal" : {
+      "post" : {
+        "description" : "On a draft: the proof stops counting; its row stays, dated and attributed. 409 checklist-evidence-withdrawn, and those of answering.",
+        "operationId" : "withdraw",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "evidenceId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEditionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Withdraw checklist proof",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/answers" : {
+      "post" : {
+        "description" : "On a draft: a new answer, the caller its author. no and not_applicable need a comment. edition is the one read. 400 for no edition, an answer that is none, a negative one without its comment, not_applicable on a version that does not offer it; 409 checklist-not-draft, checklist-line-changed, checklist-changed.",
+        "operationId" : "answer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "itemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Answer checklist line",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/confirmation" : {
+      "post" : {
+        "description" : "On a draft: the answer carried onto a line that changed still holds, under the caller's name. 409 checklist-nothing-to-confirm, and those of answering.",
+        "operationId" : "confirm",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "itemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEditionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Confirm carried checklist answer",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/files" : {
+      "post" : {
+        "description" : "On a draft: the file as the raw body, its Content-Type stored and never trusted, 25 MB at most; name, performedOn (yyyy-MM-dd) and edition. Served back only as a download. 400 for an empty body, no name, no day; 413 past the ceiling; 409 as for answering.",
+        "operationId" : "attachFile",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "itemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "name",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "performedOn",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "edition",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "Content-Type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "*/*" : {
+              "schema" : {
+                "format" : "byte",
+                "type" : "string"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Attach file to checklist line",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/evidence/links" : {
+      "post" : {
+        "description" : "On a draft: an https: or http: link, at most 2,000 characters, and the day the work was done. 400 for a link or a day that is none, a day in the future; 409 as for answering.",
+        "operationId" : "attachLink",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "itemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistLinkRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Attach link to checklist line",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/items/{itemId}/history" : {
+      "get" : {
+        "description" : "Every answer given on the line in this revision, with its author and instant, oldest first — never edited — and every proof, withdrawn ones included.",
+        "operationId" : "history_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "itemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistLineHistory"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read checklist line history",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/reopen" : {
+      "post" : {
+        "description" : "The next revision of a signed-off one, on the same version, every answer and proof carried as current; the signed revision is never modified. 409 checklist-not-signed-off, checklist-not-latest, checklist-changed.",
+        "operationId" : "reopen",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEditionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "summary" : "Reopen project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/return" : {
+      "post" : {
+        "description" : "A submitted revision back to its authors, a draft again, with the reason. 400 without a reason; 409 checklist-not-submitted, checklist-changed.",
+        "operationId" : "returnToAuthors",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Return project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/sign-off" : {
+      "post" : {
+        "description" : "An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission).",
+        "operationId" : "signOff",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEditionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Sign off project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/{revision}/submission" : {
+      "post" : {
+        "description" : "A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete.",
+        "operationId" : "submit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "revision",
+          "required" : true,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChecklistEditionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistView"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Submit project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
     "/api/v1/projects/{projectId}/plugins" : {
       "get" : {
         "description" : "404 when the project does not exist.",
-        "operationId" : "list_15",
+        "operationId" : "list_16",
         "parameters" : [ {
           "in" : "path",
           "name" : "projectId",
@@ -13288,7 +14442,7 @@
     "/api/v1/scans" : {
       "get" : {
         "description" : "Returns historical security scans with filtering by repository or container target.",
-        "operationId" : "list_14",
+        "operationId" : "list_15",
         "parameters" : [ {
           "description" : "Filter by repository ID",
           "in" : "query",
@@ -15435,6 +16589,9 @@
   }, {
     "description" : "User login, MFA, SSO and session management",
     "name" : "Authentication"
+  }, {
+    "description" : "A project's security checklist, answered by people. A 409 names its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, checklist-nothing-to-confirm, checklist-evidence-withdrawn.",
+    "name" : "Project checklists"
   }, {
     "description" : "Security findings, triage workflow, risk assessment and remediation",
     "name" : "Issues & Vulnerabilities"

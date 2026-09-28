@@ -331,7 +331,44 @@ public enum AuditOperation {
     CHECKLIST_TEMPLATE_PUBLISHED,
 
     /** A published version was retired — no new checklist opens on it — or a draft was set aside. */
-    CHECKLIST_TEMPLATE_RETIRED;
+    CHECKLIST_TEMPLATE_RETIRED,
+
+    /** A project's first checklist was opened on a published template version (decision 0032 §5). */
+    CHECKLIST_OPENED,
+
+    /**
+     * A project's checklist was moved to another template version: a new revision, the answers carried
+     * from the previous one — as current where the line is unchanged, to be confirmed where it changed.
+     */
+    CHECKLIST_MOVED_TO_VERSION,
+
+    /** A line was answered, or a carried answer confirmed: a new row of its history, never an edit. */
+    CHECKLIST_ANSWERED,
+
+    /** A proof — a link or a file, with its SHA-256 — was attached to a line. */
+    CHECKLIST_EVIDENCE_ADDED,
+
+    /** A proof was withdrawn from a draft's line; the row is kept, dated and attributed. */
+    CHECKLIST_EVIDENCE_WITHDRAWN,
+
+    /** A revision was submitted for sign-off: every line answered, commented and proven as it asks. */
+    CHECKLIST_SUBMITTED,
+
+    /** A submitted revision was returned to its authors, with a reason. */
+    CHECKLIST_RETURNED,
+
+    /** A submitted revision was signed off — the release attestation, and who gave it. */
+    CHECKLIST_SIGNED_OFF,
+
+    /**
+     * A sign-off was refused for what the revision or the signer is — the signer one of its authors
+     * while four-eyes is on, or a proof that stopped holding since the submission — rather than for
+     * the request's form.
+     */
+    CHECKLIST_SIGN_OFF_REFUSED,
+
+    /** A signed-off revision was reopened: the next revision, on the same version, every answer carried. */
+    CHECKLIST_REOPENED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

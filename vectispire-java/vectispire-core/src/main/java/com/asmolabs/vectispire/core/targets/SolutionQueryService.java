@@ -18,6 +18,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +116,28 @@ public class SolutionQueryService {
     public record Unfiled(int repositoryCount, OpenIssues openIssues, List<RepositoryRef> repositories) {}
 
     public record SolutionTree(List<SolutionNode> solutions, Unfiled unfiled) {}
+
+    /**
+     * A project and the repositories filed in it now — what a module that answers for a whole project
+     * needs to decide whether its caller sees all of it ({@code RowVisibility.requireWhollyVisibleProject}).
+     *
+     * @param repositoryIds every repository filed in the project at the moment of asking, visible or not:
+     *     the guard compares them with the caller's visibility, and a list narrowed first would let a
+     *     partial reader pass for a whole one
+     */
+    public record ProjectMembers(long projectId, String name, List<Long> repositoryIds) {
+
+        public ProjectMembers {
+            repositoryIds = List.copyOf(repositoryIds);
+        }
+    }
+
+    /** The project and its repositories, or empty when there is no such project. */
+    @Transactional(readOnly = true)
+    public Optional<ProjectMembers> members(long projectId) {
+        return projects.findById(projectId).map(project -> new ProjectMembers(project.getId(), project.getName(),
+                repositories.findIdsByProjectIdIn(List.of(project.getId()))));
+    }
 
     @Transactional(readOnly = true)
     public SolutionTree tree(VisibilityService.Allowance allowance) {

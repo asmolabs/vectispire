@@ -112,6 +112,19 @@ public enum SecurityEventType {
     CHECKLIST_TEMPLATE_CHANGED("VECTI-SEC-024", "Checklist template version published or retired", 6, Outcome.SUCCESS),
 
     /**
+     * A project's checklist was signed off: a release attestation was given, and by whom (decision
+     * 0032 §9). The entry states whether four-eyes required the signer to differ from its authors.
+     */
+    CHECKLIST_SIGNED_OFF("VECTI-SEC-025", "Checklist signed off", 5, Outcome.SUCCESS),
+
+    /**
+     * A checklist's sign-off was refused — its signer one of its authors while four-eyes is on, or a
+     * proof that stopped holding between submission and signature — or a submitted checklist was
+     * returned to its authors. Either a four-eyes refusal or evidence that stopped holding.
+     */
+    CHECKLIST_SIGN_OFF_REFUSED("VECTI-SEC-026", "Checklist sign-off refused or returned", 5, Outcome.FAILURE),
+
+    /**
      * A coverage or test report was refused for what it claimed: an undeclared or disabled key, a kind
      * its source is not declared for, a repository outside its scope — {@code VECTI-SEC-023}'s twin for
      * the reports a checklist reads (decision 0032). {@code 025} and {@code 026} are the checklists'.
@@ -205,6 +218,9 @@ public enum SecurityEventType {
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
             case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
             case CHECKLIST_TEMPLATE_PUBLISHED -> Optional.of(CHECKLIST_TEMPLATE_CHANGED);
+            case CHECKLIST_SIGNED_OFF -> Optional.of(CHECKLIST_SIGNED_OFF);
+            // Returned is refused by another name: what was submitted for signature did not get it.
+            case CHECKLIST_SIGN_OFF_REFUSED, CHECKLIST_RETURNED -> Optional.of(CHECKLIST_SIGN_OFF_REFUSED);
             // Listed rather than defaulted: a new operation has to be placed here, on one side or
             // the other, by whoever adds it — a default would decide for them, silently.
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
@@ -233,7 +249,10 @@ public enum SecurityEventType {
                     CHECKLIST_TEMPLATE_DERIVED,
                     // A published version retired is the event, and a draft set aside is not: its writer
                     // knows which, and names the event itself.
-                    CHECKLIST_TEMPLATE_RETIRED -> Optional.empty();
+                    CHECKLIST_TEMPLATE_RETIRED,
+                    // A checklist being filled is work, not a security event (§9): the sign-off is one.
+                    CHECKLIST_OPENED, CHECKLIST_MOVED_TO_VERSION, CHECKLIST_ANSWERED, CHECKLIST_EVIDENCE_ADDED,
+                    CHECKLIST_EVIDENCE_WITHDRAWN, CHECKLIST_SUBMITTED, CHECKLIST_REOPENED -> Optional.empty();
         };
     }
 }
