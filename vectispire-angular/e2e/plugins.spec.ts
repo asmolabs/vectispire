@@ -22,7 +22,7 @@ test.describe.configure({ mode: 'serial' });
 test.describe('Plugins and SARIF sources', () => {
     test.beforeEach(() => resetLoginThrottle());
 
-    test('an ordinary account reads the registry and is offered no change, nor the SARIF sources', async ({
+    test('an ordinary account reads the registry and is offered no change, nor the declared sources', async ({
         page
     }) => {
         await signInAs(page, 'USER');
@@ -30,14 +30,14 @@ test.describe('Plugins and SARIF sources', () => {
 
         await expect(page.getByRole('heading', { name: 'Plugins', level: 1 })).toBeVisible({ timeout: 15_000 });
         await expect(page.getByRole('button', { name: 'Register a plugin' })).toHaveCount(0);
-        await expect(page.getByRole('link', { name: 'SARIF sources' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Declared sources' })).toHaveCount(0);
     });
 
-    test('an auditor is offered the SARIF sources and cannot declare one', async ({ page }) => {
+    test('an auditor is offered the declared sources and cannot declare one', async ({ page }) => {
         await signInAs(page, 'AUDITOR');
         await goTo(page, '/sarif-sources');
 
-        await expect(page.getByRole('heading', { name: 'SARIF sources', level: 1 })).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole('heading', { name: 'Declared sources', level: 1 })).toBeVisible({ timeout: 15_000 });
         await expect(page.getByRole('button', { name: 'Declare a source' })).toHaveCount(0);
     });
 

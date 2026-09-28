@@ -2,6 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { SarifSourceDeclaration } from '../api.models';
 import { asSchema } from '../testing/contract';
 import { SOURCE } from '../testing/plugins.fixtures';
 import { SarifApi } from './sarif.api';
@@ -23,12 +24,13 @@ describe('the SARIF client', () => {
     afterEach(() => http.verify());
 
     it('declares a source with the body the server reads', () => {
-        const declaration = asSchema('SourceDeclaration', {
+        const declaration: SarifSourceDeclaration = asSchema('SourceDeclaration', {
             slug: 'payments-ci',
             name: 'Payments CI',
             api_key_id: SOURCE.apiKeyId,
             project_id: 12,
-            tools: ['Semgrep OSS']
+            tools: ['Semgrep OSS'],
+            kinds: ['sarif', 'coverage']
         });
         api.declareSarifSource(declaration).subscribe();
         const request = http.expectOne({ method: 'POST', url: '/api/v1/sarif-sources' });

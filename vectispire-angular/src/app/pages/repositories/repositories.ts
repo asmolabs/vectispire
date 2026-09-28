@@ -26,6 +26,7 @@ import type {
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
+import { ReportImports } from '../../shared/report-imports';
 import { SarifImports } from '../../shared/sarif-imports';
 
 import { RuleCoverageBanner } from '@/app/shared/rule-coverage-banner';
@@ -105,7 +106,8 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
         ScheduleFields,
         TranslatePipe,
         RuleCoverageBanner,
-        SarifImports
+        SarifImports,
+        ReportImports
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './repositories.html'
@@ -505,7 +507,7 @@ export class Repositories {
         });
     }
 
-    /** The repository whose SARIF import history is open; the history loads itself from the id. */
+    /** The repository whose imports are open — reports and SARIF; each panel loads itself from the id. */
     readonly sarifRepo = signal<MonitoredRepository | null>(null);
     readonly sarifVisible = signal(false);
 

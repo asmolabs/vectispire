@@ -91,8 +91,11 @@ describe('the repository list', () => {
         expect(link.getAttribute('href')).toBe('/solutions#project-11');
     });
 
-    /** The imported issues' evidence is per repository; the row must offer a way to it, for every account. */
-    it("opens the repository's SARIF import history from its row", () => {
+    /**
+     * The imported evidence is per repository — the SARIF behind imported issues, the coverage and
+     * test figures a checklist reads — and the row must offer a way to it, for every account.
+     */
+    it("opens the repository's imports from its row: latest coverage, latest test report, SARIF history", () => {
         load();
 
         const button = fixture.nativeElement.querySelector('[data-testid="sarif-imports-btn"] button') as HTMLElement;
@@ -101,8 +104,16 @@ describe('the repository list', () => {
         fixture.detectChanges();
 
         http.expectOne('/api/v1/repositories/5/sarif-imports').flush([]);
+        http.expectOne('/api/v1/repositories/5/coverage-imports').flush([]);
+        http.expectOne('/api/v1/repositories/5/test-report-imports').flush([]);
         fixture.detectChanges();
         expect(document.body.textContent).toContain('sarif_imports.none');
+        expect(document.querySelector('[data-testid="no-coverage"]')?.textContent).toContain(
+            'report_imports.no_coverage'
+        );
+        expect(document.querySelector('[data-testid="no-test-report"]')?.textContent).toContain(
+            'report_imports.no_tests'
+        );
     });
 
     it('shows a dash, and no link, for a repository in no project', () => {

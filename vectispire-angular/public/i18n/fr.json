@@ -1459,7 +1459,7 @@
     "git_tokens": "Jetons HTTPS",
     "solutions": "Solutions et projets",
     "plugins": "Plugins",
-    "sarif_sources": "Sources SARIF"
+    "sarif_sources": "Sources déclarées"
   },
   "mfa": {
     "title": "Authentification à deux facteurs (2FA)",
@@ -1718,9 +1718,10 @@
     "https_token_hint": "Seuls les jetons liés à l’hôte de cette URL sont proposés : un jeton n’est jamais envoyé à un autre hôte.",
     "grade_tag": "Note {{grade}}",
     "project": "Projet :",
-    "sarif_imports_btn": "SARIF",
-    "aria_sarif_imports": "Imports SARIF de {{name}}",
-    "header_sarif_imports": "Imports SARIF — {{name}}"
+    "imports_btn": "Imports",
+    "aria_imports": "Imports de {{name}}",
+    "header_imports": "Imports — {{name}}",
+    "sarif_imports_title": "Imports SARIF"
   },
   "roles": {
     "user": "Utilisateur",
@@ -2447,7 +2448,7 @@
     "notfound": "Page non trouvée",
     "solutions": "Solutions et projets",
     "plugins": "Plugins",
-    "sarif_sources": "Sources SARIF"
+    "sarif_sources": "Sources déclarées"
   },
   "topbar": {
     "account": "Mon compte",
@@ -2618,8 +2619,8 @@
     "error_load": "Impossible de charger les imports SARIF."
   },
   "sarif_sources": {
-    "title": "Sources SARIF",
-    "subtitle": "Les outils internes autorisés à déposer du SARIF dans un backlog — un SonarQube sur site, votre propre CI. Jamais un service hébergé hors de l'organisation. Seul le gouverneur de la plateforme en déclare une.",
+    "title": "Sources déclarées",
+    "subtitle": "Les outils internes autorisés à déposer des rapports pour un dépôt — du SARIF dans son backlog, de la couverture et des rapports de tests comme chiffres qu'une checklist lit. Un SonarQube sur site, votre propre CI ; jamais un service hébergé hors de l'organisation. Seul le gouverneur de la plateforme en déclare une.",
     "declare_btn": "Déclarer une source",
     "col_slug": "Identifiant",
     "col_scope": "Portée",
@@ -2632,16 +2633,16 @@
     "enable_btn": "Activer",
     "disable_btn": "Désactiver",
     "aria_remove": "Retirer la source {{slug}}",
-    "none": "Aucune source SARIF déclarée.",
-    "upload_hint": "Une source envoie avec POST /api/v1/repositories/{id}/sarif-imports et sa clé ; une session ne peut pas importer.",
-    "header_declare": "Déclarer une source SARIF",
-    "internal_only": "Ne déclarez qu'un producteur interne à l'organisation, qui dispose déjà du code. La liste d'outils est comparée au tool.driver.name de chaque exécution : un rapport de tout autre outil est refusé.",
+    "none": "Aucune source déclarée.",
+    "upload_hint": "Une source dépose avec sa clé — le SARIF par POST /api/v1/repositories/{id}/sarif-imports, la couverture par …/coverage-imports, les rapports de tests par …/test-report-imports ; une session ne peut pas importer.",
+    "header_declare": "Déclarer une source",
+    "internal_only": "Ne déclarez qu'un producteur interne à l'organisation, qui a déjà le code. Pour le SARIF, la liste d'outils est comparée au tool.driver.name de chaque run : un rapport d'un autre outil est refusé.",
     "field_name": "Nom",
     "slug_placeholder": "payments-ci",
     "slug_hint": "Fait partie de l'identité de chaque issue importée : nommez le producteur, pas la clé. Redéclarer le même identifiant avec une nouvelle clé prolonge le même backlog.",
-    "key_placeholder": "Choisissez une clé portant sarif_import",
+    "key_placeholder": "Choisir une clé portant les portées des types choisis",
     "key_hint": "Une clé, une source : la clé désigne la source lorsqu'elle envoie.",
-    "no_key": "Aucune clé utilisable ne porte la portée sarif_import. Émettez-en une sur l'écran des clés d'API, depuis un compte qui peut agir.",
+    "no_key": "Aucune clé utilisable ne porte les portées qu'exigent les types choisis — sarif_import pour le SARIF, report_import pour la couverture et les rapports de tests. Émettez-en une sur l'écran des clés d'API, depuis un compte qui peut agir.",
     "scope_project": "Projet",
     "scope_repository": "Dépôt",
     "scope_placeholder": "Choisir",
@@ -2651,11 +2652,39 @@
     "tools_placeholder": "Semgrep OSS, SonarQube",
     "tools_hint": "Séparés par des virgules, comparés sans tenir compte de la casse.",
     "header_remove": "Retirer la source",
-    "remove_consequence": "{{slug}} ne pourra plus importer. Les issues qu'elle a importées restent et gardent {{slug}} comme source.",
+    "remove_consequence": "{{slug}} ne pourra plus importer. Ce qu'elle a importé reste — constats, couverture et rapports de tests — et garde {{slug}} comme source.",
     "declared_notice": "{{slug}} déclarée.",
     "removed_notice": "{{slug}} retirée.",
-    "error_load": "Impossible de charger les sources SARIF.",
+    "error_load": "Impossible de charger les sources déclarées.",
     "error_declare": "La source n'a pas pu être déclarée.",
-    "error_change": "La source n'a pas pu être modifiée."
+    "error_change": "La source n'a pas pu être modifiée.",
+    "col_kinds": "Livre",
+    "kind_sarif": "SARIF",
+    "kind_coverage": "Couverture",
+    "kind_test_report": "Rapports de tests",
+    "kinds_hint": "Le SARIF exige une clé portant sarif_import et les outils qu'elle peut livrer ; la couverture et les rapports de tests exigent report_import, et sont des chiffres qu'une checklist lit, jamais des constats.",
+    "no_kind": "Choisissez au moins un type de rapport."
+  },
+  "report_imports": {
+    "explain": "Déposés par une source interne déclarée avec sa clé d'intégration, depuis la CI ; rien n'est déposé d'ici. Ce sont des chiffres qu'une checklist lit : ils n'ouvrent aucun constat et n'atteignent aucune barrière.",
+    "coverage_title": "Dernière couverture",
+    "tests_title": "Dernier rapport de tests",
+    "lines": "Lignes",
+    "branches": "Branches",
+    "no_branches": "Non comptées par le rapport",
+    "ratio": "{{percent}} % ({{covered}} / {{total}})",
+    "format": "Format",
+    "commit": "Commit",
+    "branch": "Branche",
+    "imported_at": "Importé le",
+    "source": "Source",
+    "stated": "Le commit et la branche sont ceux que le pipeline a déclarés ; rien ne les vérifie.",
+    "tests": "Tests",
+    "failures": "Échecs",
+    "errors": "Erreurs",
+    "skipped": "Ignorés",
+    "no_coverage": "Aucun rapport de couverture n'a été importé pour ce dépôt.",
+    "no_tests": "Aucun rapport de tests n'a été importé pour ce dépôt.",
+    "error_load": "Impossible de charger les rapports."
   }
 }

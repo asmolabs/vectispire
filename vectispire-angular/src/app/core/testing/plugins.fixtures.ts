@@ -48,6 +48,7 @@ export const SOURCE: SarifSource = asSchema('SarifSourceView', {
     projectId: 12,
     repositoryId: null,
     tools: ['Semgrep OSS', 'SonarQube'],
+    kinds: ['sarif'],
     enabled: true,
     createdAt: '2026-09-27T08:00:00Z',
     createdBy: 'admin'

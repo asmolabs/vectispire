@@ -150,9 +150,9 @@ const LINKS: Record<string, string> = {
     // produce a false conclusion. This is the only one of the two with a menu entry.
     '/rule-sets': 'Semgrep rules',
 
-    // Decision 0017: the registry is every account's, the SARIF sources are governance's.
+    // Decision 0017: the registry is every account's, the declared sources are governance's.
     '/plugins': 'Plugins',
-    '/sarif-sources': 'SARIF sources'
+    '/sarif-sources': 'Declared sources'
 };
 
 /** The role accounts' password, and the one the first use rotates it to. */

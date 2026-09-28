@@ -2133,8 +2133,19 @@ export type PluginOutcome = Refine<
 >;
 
 /**
- * A declared internal source of SARIF (decision 0017 §7): one integration key, exactly one scope —
- * a project or a repository, never both, never the estate — and the tools it may deliver.
+ * What a declared source may deliver (decision 0032 §7). The contract types them as strings; these
+ * are the values `SourceKind.wireName()` spells, and a key must hold `sarif_import` for the first and
+ * `report_import` for the two others.
+ */
+export type SourceKind = 'sarif' | 'coverage' | 'test_report';
+
+/** In the order the form offers them: SARIF first, since a source without kinds is SARIF alone. */
+export const SOURCE_KINDS: readonly SourceKind[] = ['sarif', 'coverage', 'test_report'];
+
+/**
+ * A declared internal source (decisions 0017 §7, 0032 §7): one integration key, exactly one scope —
+ * a project or a repository, never both, never the estate — the kinds of report it may deliver and,
+ * when SARIF is among them, the tools it may deliver. `tools` is empty for a source without SARIF.
  */
 export type SarifSource = Refine<
     Schema<'SarifSourceView'>,
@@ -2146,12 +2157,16 @@ export type SarifSource = Refine<
         projectId: number | null;
         repositoryId: number | null;
         tools: string[];
+        kinds: SourceKind[];
         createdAt: string | null;
         createdBy: string | null;
     }
 >;
 
-/** The body declaring a source. Exactly one of `project_id` and `repository_id`. */
+/**
+ * The body declaring a source. Exactly one of `project_id` and `repository_id`; `kinds` never empty
+ * (the server refuses a source delivering nothing), and `tools` empty unless SARIF is among them.
+ */
 export type SarifSourceDeclaration = Refine<
     Schema<'SourceDeclaration'>,
     {
@@ -2159,6 +2174,50 @@ export type SarifSourceDeclaration = Refine<
         name: string;
         api_key_id: string;
         tools: string[];
+        kinds: SourceKind[];
+    }
+>;
+
+/**
+ * One accepted coverage report (decision 0032 §7): a figure a checklist reads, never a finding.
+ * `branchesCovered`/`branchesTotal` are null when the report counted no branch; `commit` and
+ * `branch` are what the pipeline stated, verified against nothing.
+ */
+export type CoverageImport = Refine<
+    Schema<'CoverageImportView'>,
+    {
+        id: number;
+        sourceId: number | null;
+        sourceSlug: string;
+        repoId: number;
+        format: string;
+        toolVersion: string | null;
+        branchesCovered: number | null;
+        branchesTotal: number | null;
+        commit: string | null;
+        branch: string | null;
+        documentSha256: string;
+        importedAt: string;
+        importedBy: string | null;
+        apiKeyId: string | null;
+    }
+>;
+
+/** One accepted test report, its totals counted from the test cases; the suites are not listed. */
+export type TestReportImport = Refine<
+    Schema<'TestReportImportView'>,
+    {
+        id: number;
+        sourceId: number | null;
+        sourceSlug: string;
+        repoId: number;
+        format: string;
+        commit: string | null;
+        branch: string | null;
+        documentSha256: string;
+        importedAt: string;
+        importedBy: string | null;
+        apiKeyId: string | null;
     }
 >;
 

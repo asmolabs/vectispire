@@ -132,13 +132,11 @@
 
                         <p-button
                             icon="pi pi-file-import"
-                            [label]="'repositories.sarif_imports_btn' | translate"
+                            [label]="'repositories.imports_btn' | translate"
                             severity="secondary"
                             [outlined]="true"
                             size="small"
-                            [ariaLabel]="
-                                'repositories.aria_sarif_imports' | translate: { name: repository.displayName }
-                            "
+                            [ariaLabel]="'repositories.aria_imports' | translate: { name: repository.displayName }"
                             data-testid="sarif-imports-btn"
                             (onClick)="openSarifImports(repository)"
                         />
@@ -472,15 +470,17 @@
     </ng-template>
 </p-dialog>
 
-<!-- A repository's SARIF imports: read-only, the uploads come from CI with a declared key. -->
+<!-- A repository's imports — coverage, tests, SARIF: read-only, the uploads come from CI with a declared key. -->
 <p-dialog
     [visible]="sarifVisible()"
     (visibleChange)="sarifVisible.set($event)"
-    [header]="'repositories.header_sarif_imports' | translate: { name: sarifRepo()?.displayName || '' }"
+    [header]="'repositories.header_imports' | translate: { name: sarifRepo()?.displayName || '' }"
     [modal]="true"
     [style]="{ width: '960px', maxWidth: '95vw' }"
 >
     @if (sarifVisible() && sarifRepo(); as repo) {
+        <app-report-imports [repositoryId]="repo.id" />
+        <h3 class="text-base font-semibold mt-6 mb-2">{{ 'repositories.sarif_imports_title' | translate }}</h3>
         <app-sarif-imports [repositoryId]="repo.id" />
     }
 </p-dialog>
