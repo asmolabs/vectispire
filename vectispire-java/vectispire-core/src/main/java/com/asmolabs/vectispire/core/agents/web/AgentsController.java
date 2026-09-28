@@ -309,6 +309,62 @@ public class AgentsController {
         };
     }
 
+    /**
+     * @param attempt the attempt the claim handed the agent — {@code AgentTask.attempt}
+     * @param reason why the scan could not run, scrubbed by the agent and again on arrival
+     */
+    public record FailureReportRequest(Integer attempt, String reason) {}
+
+    /**
+     * @param retried back in the queue for another attempt; false when that was the last and the scan
+     *     failed for good
+     */
+    public record FailureReportResponse(boolean retried, int attempt, int maxAttempts) {}
+
+    /**
+     * "I could not run this scan": the clone refused, the workspace not made, a credential that would
+     * not open — anything before a result exists.
+     *
+     * <p><b>It used to be silence.</b> The agent dropped the scan, the lease took twenty minutes to
+     * lapse, the reclaim spent an attempt on it, and the reason stayed in a log on another machine. The
+     * report does what the lapse would have done, now, and leaves the reason on the scan.
+     *
+     * <p><b>Signed as a result is</b>, in the same header, under a context of its own; the body names
+     * the attempt, so a report applies once and to that attempt alone. 409 for a scan that is not this
+     * agent's at that attempt — which is also the answer to a report sent twice. <b>An older control
+     * plane answers 404</b>, and the agent then leaves the lease to lapse, as before.
+     */
+    @PostMapping("/jobs/{scanId}/failure")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            content = @io.swagger.v3.oas.annotations.media.Content(
+                    schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = FailureReportRequest.class)))
+    public FailureReportResponse reportFailure(
+            @PathVariable long scanId,
+            @RequestBody byte[] body,
+            @RequestHeader(name = ResultAttestation.HEADER, required = false) String signature,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+
+        AgentView agent = authenticate(principal);
+        AgentProtocolService.FailureOutcome outcome =
+                protocol.reportFailure(agent, scanId, body, signature, RequestActors.unnamed(request));
+
+        return switch (outcome) {
+            case AgentProtocolService.FailureOutcome.Recorded(boolean retried, int attempt, int maxAttempts) ->
+                    new FailureReportResponse(retried, attempt, maxAttempts);
+            case AgentProtocolService.FailureOutcome.NotAttested refused -> throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "This agent's reports must be signed: the " + ResultAttestation.HEADER
+                            + " header is absent or does not verify against the key pinned for \""
+                            + agent.name() + "\".");
+            case AgentProtocolService.FailureOutcome.Unreadable unreadable -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "A failure report needs a JSON body naming the attempt, from 1.");
+            case AgentProtocolService.FailureOutcome.NoLongerYours discarded -> throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This scan is not yours at that attempt: the report was already applied, or the lease was taken over.");
+        };
+    }
+
     private AgentView authenticate(VectispirePrincipal principal) {
         AgentView agent = principal == null
                 ? null

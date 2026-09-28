@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.scans.ScanQueue.Lapsed;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.targets.GitHostAllowlist;
 import com.asmolabs.vectispire.common.domain.targets.ImageReference;
@@ -149,8 +150,22 @@ public class ScanDispatcher {
         static final Dispatched NOTHING = new Dispatched(0, 0, 0);
     }
 
-    /** A task and the scan it will have to report against. */
-    public record AgentTask(long scanId, ScanTask task) {}
+    /**
+     * A task and the scan it will have to report against.
+     *
+     * @param attempt which attempt of the scan this claim is, counted from one. What a failure report
+     *     names, so it can only ever end the attempt it is about; an agent older than the report reads
+     *     past it
+     */
+    public record AgentTask(long scanId, int attempt, ScanTask task) {}
+
+    /**
+     * What an agent's report that it could not run its scan did.
+     *
+     * @param retried back in the queue for another attempt; false when that was the last and the scan
+     *     failed for good
+     */
+    public record AgentFailure(boolean retried, int attempt, int maxAttempts) {}
 
     /**
      * One dispatch round: reclaims lost leases, then claims and executes.
@@ -293,7 +308,7 @@ public class ScanDispatcher {
                 recordCredentialSent(agent, scan, "sealed for the agent's verified sealing key");
             }
 
-            return Optional.of(new AgentTask(scan.getId(), task));
+            return Optional.of(new AgentTask(scan.getId(), scan.getAttempts(), task));
         } catch (CredentialWithheldException refused) {
             throw refused;
         } catch (RuntimeException error) {
@@ -386,6 +401,39 @@ public class ScanDispatcher {
         boolean accepted = record(scanId, agent.id().toString(), artifacts);
         metrics.scanFinishedSince(claimedAt, accepted, true);
         return accepted;
+    }
+
+    /**
+     * An agent's word that it could not run the scan it claimed — the clone refused, the workspace
+     * not made, a credential that would not open: anything before a result exists.
+     *
+     * <p><b>The lapse's rule, without its twenty minutes.</b> The agent used to drop the scan and say
+     * nothing: the lease ran out, the reclaim requeued it with the attempt spent, and the reason stayed
+     * in a log on another machine. What the report changes is when, and that the reason is on the scan
+     * for the screen to show; what it does to the attempts is exactly what the lapse would have done.
+     *
+     * <p>Only while the scan is still this agent's, at that attempt: a report sent twice, or about an
+     * attempt since superseded, changes nothing.
+     *
+     * @param reason already scrubbed — see {@code FailureReason}
+     */
+    public Optional<AgentFailure> reportAgentFailure(long scanId, AgentView agent, int attempt, String reason) {
+        Instant claimedAt = queue.byId(scanId).map(ScanEntity::getClaimedAt).orElse(null);
+        Optional<ScanQueue.Abandoned> abandoned = queue.abandon(scanId, agent.id().toString(), attempt, outcome ->
+                "Attempt " + outcome.attempt() + " of " + outcome.maxAttempts() + " could not run on agent \""
+                        + agent.name() + "\""
+                        + (outcome.outcome() == Lapsed.FAIL ? ", and it was the last: " : "; the scan is back in the queue: ")
+                        + reason);
+        abandoned.ifPresent(done -> {
+            metrics.scanFinishedSince(claimedAt, false, true);
+            if (done.outcome() == Lapsed.FAIL) {
+                log.warn("Scan {} failed for good on agent \"{}\" after {} attempts.", scanId, agent.name(), done.attempt());
+            } else {
+                log.info("Scan {} could not run on agent \"{}\" (attempt {} of {}) — back in the queue.",
+                        scanId, agent.name(), done.attempt(), done.maxAttempts());
+            }
+        });
+        return abandoned.map(done -> new AgentFailure(done.outcome() == Lapsed.REQUEUE, done.attempt(), done.maxAttempts()));
     }
 
     private void reclaimLostLeases() {

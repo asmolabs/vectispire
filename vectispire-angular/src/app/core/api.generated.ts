@@ -148,6 +148,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/agent/jobs/{scanId}/failure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reportFailure"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/agent/jobs/{scanId}/heartbeat": {
         parameters: {
             query?: never;
@@ -3916,6 +3932,18 @@ export interface components {
             reason?: string;
             step?: string;
         };
+        FailureReportRequest: {
+            /** Format: int32 */
+            attempt?: number;
+            reason?: string;
+        };
+        FailureReportResponse: {
+            /** Format: int32 */
+            attempt: number;
+            /** Format: int32 */
+            maxAttempts: number;
+            retried: boolean;
+        };
         FindingView: {
             description?: string;
             filePath?: string;
@@ -6166,6 +6194,34 @@ export interface operations {
                 };
                 content: {
                     "*/*": Record<string, never>;
+                };
+            };
+        };
+    };
+    reportFailure: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Vectispire-Agent-Signature"?: string;
+            };
+            path: {
+                scanId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FailureReportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FailureReportResponse"];
                 };
             };
         };

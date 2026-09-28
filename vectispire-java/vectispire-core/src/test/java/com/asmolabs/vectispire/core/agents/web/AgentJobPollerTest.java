@@ -44,7 +44,7 @@ class AgentJobPollerTest {
         when(dispatcher.claimForAgent(any())).thenAnswer(call -> {
             // The deadline fires while the claim is being made.
             result.setResult(ResponseEntity.status(HttpStatus.NO_CONTENT).build());
-            return Optional.of(new ScanDispatcher.AgentTask(42L, null));
+            return Optional.of(new ScanDispatcher.AgentTask(42L, 1, null));
         });
         recheck.get().run();
 
@@ -58,7 +58,7 @@ class AgentJobPollerTest {
         when(dispatcher.claimForAgent(any())).thenReturn(Optional.empty());
         DeferredResult<ResponseEntity<Object>> result = poller.claim(agent, Duration.ofSeconds(30));
 
-        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, 1, null)));
         recheck.get().run();
 
         assertThat(result.getResult()).isNotNull();
@@ -80,7 +80,7 @@ class AgentJobPollerTest {
         assertThat(none.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(none.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");
 
-        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, null)));
+        when(dispatcher.claimForAgent(any())).thenReturn(Optional.of(new ScanDispatcher.AgentTask(42L, 1, null)));
         ResponseEntity<?> one = (ResponseEntity<?>) poller.claim(limited, Duration.ZERO).getResult();
         assertThat(one.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(one.getHeaders().getFirst(AgentConcurrency.HEADER)).isEqualTo("3");

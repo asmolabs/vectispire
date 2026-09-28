@@ -2278,6 +2278,35 @@
         },
         "type" : "object"
       },
+      "FailureReportRequest" : {
+        "properties" : {
+          "attempt" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FailureReportResponse" : {
+        "properties" : {
+          "attempt" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "maxAttempts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "retried" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "attempt", "maxAttempts", "retried" ],
+        "type" : "object"
+      },
       "FindingView" : {
         "properties" : {
           "description" : {
@@ -7951,6 +7980,50 @@
               "*/*" : {
                 "schema" : {
                   "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "agents-controller" ]
+      }
+    },
+    "/api/v1/agent/jobs/{scanId}/failure" : {
+      "post" : {
+        "operationId" : "reportFailure",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "scanId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Vectispire-Agent-Signature",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FailureReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FailureReportResponse"
                 }
               }
             },

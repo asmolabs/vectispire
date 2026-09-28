@@ -198,6 +198,9 @@ public enum SecurityEventType {
                     // change; and a feed refresh anybody with the lead role may ask for at will.
                     CERTIFIED_SCOPE_CHANGED, THREAT_INTEL_SYNCED,
                     AGENT_CREDENTIAL_SENT, AGENT_RESULT_SUBMITTED, BADGE_PUBLISHED,
+                    // A clone refused, a workspace not made: the operator's to read on the scan. An
+                    // unsigned report from an agent whose key is pinned is AGENT_RESULT_REFUSED.
+                    AGENT_SCAN_FAILED,
                     // Bookkeeping of an upgrade: counters given back, nothing anybody did.
                     SCAN_ATTEMPTS_REPAIRED,
                     // Every restart of every agent: the refusal is the event, the rotation is routine.

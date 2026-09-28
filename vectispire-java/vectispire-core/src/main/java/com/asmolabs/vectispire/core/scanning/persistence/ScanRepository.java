@@ -228,6 +228,29 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("error") String error);
 
     /**
+     * {@link #releaseOwned}, for one attempt of the scan only: what an agent's failure report applies.
+     *
+     * <p><b>The attempt is in the {@code where}</b>, beside the owner. A report names the attempt it
+     * is about; without it, a report delayed or sent twice would reach the next attempt when the same
+     * agent had taken the scan again — requeued by the first report, claimed by the next poll — and
+     * spend an attempt that had not failed.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update ScanEntity s
+               set s.status = :to, s.error = :error, s.claimedBy = null,
+                   s.claimedAt = null, s.leaseExpiresAt = null
+             where s.id = :id and s.status = :running and s.claimedBy = :owner and s.attempts = :attempt""")
+    int releaseOwnedAttempt(
+            @Param("id") Long id,
+            @Param("running") String running,
+            @Param("owner") String owner,
+            @Param("attempt") int attempt,
+            @Param("to") String to,
+            @Param("error") String error);
+
+    /**
      * Hands a scan back to the queue as {@link #releaseOwned} does, and gives back the attempt its
      * claim counted.
      *

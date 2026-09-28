@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.ResultAttestation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
+import com.asmolabs.vectispire.common.domain.scans.FailureReason;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.core.access.AgentView;
@@ -18,11 +19,12 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 /**
  * What the control plane decides when a remote agent speaks: whether its announcement is
- * acceptable, and whether a result it hands back is.
+ * acceptable, whether a result it hands back is, and what a scan it could not run becomes.
  *
  * <p>The agent is already authenticated when it gets here — that is the controller's, from the
  * principal. The outcomes are closed sets rather than exceptions because each one is a distinct
@@ -114,6 +116,31 @@ public class AgentProtocolService {
         /** The lease was taken over while the agent worked; its results were discarded. */
         record NoLongerYours() implements Submission {}
     }
+
+    /** What became of an agent's report that it could not run a scan. */
+    public sealed interface FailureOutcome {
+
+        /**
+         * @param retried back in the queue; false when that attempt was the last and the scan failed
+         */
+        record Recorded(boolean retried, int attempt, int maxAttempts) implements FailureOutcome {}
+
+        /** A signing key is pinned for this agent and the report does not carry its signature. Audited. */
+        record NotAttested() implements FailureOutcome {}
+
+        /** Not JSON, or no attempt named: there is nothing to apply. */
+        record Unreadable() implements FailureOutcome {}
+
+        /**
+         * The scan is not this agent's at that attempt: a report already applied, one about an
+         * attempt since superseded, or a lease that lapsed first. Nothing was written.
+         */
+        record NoLongerYours() implements FailureOutcome {}
+    }
+
+    /** A failure report's body, as the agent writes it. Unknown fields are a later agent's, and read past. */
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    record FailureReport(Integer attempt, String reason) {}
 
     /**
      * Whether this agent takes part in the protocol at all — every route of it asks first.
@@ -284,6 +311,68 @@ public class AgentProtocolService {
                 origin.userAgent()));
 
         return new Submission.Accepted();
+    }
+
+    /**
+     * An agent's word that it could not run a scan it claimed, applied at once instead of when the
+     * lease lapses — see {@link ScanDispatcher#reportAgentFailure} for what it does to the attempts.
+     *
+     * <p><b>Attested like a result</b>, under a context of its own: a report does not resolve anything,
+     * but it spends one of the scan's attempts and fails the scan at the last. Unsigned from an agent
+     * whose key is pinned, it would let a stolen API key keep any target from ever being scanned, so it
+     * is refused and audited as a result would be.
+     *
+     * <p><b>The reason is scrubbed again here</b>, although the agent scrubbed it: the agent knows the
+     * secrets it held and removes them by value, this side removes what has a secret's shape, and a
+     * report is text from another machine on its way to every account that sees the target.
+     */
+    public FailureOutcome reportFailure(AgentView agent, long scanId, byte[] body, String signature, RequestActor origin) {
+        String pinned = agent.signingPublicKey();
+        if (pinned != null && !pinned.isBlank() && !ResultAttestation.verifyFailure(pinned, scanId, body, signature)) {
+            audit.record(new AuditLogService.Record(
+                    AuditOperation.AGENT_RESULT_REFUSED,
+                    String.valueOf(scanId),
+                    (signature == null || signature.isBlank()
+                                    ? "Failure report submitted with no attestation"
+                                    : "Failure report submitted with an attestation that does not verify")
+                            + " by agent \"" + agent.name() + "\", whose signing key is pinned. The scan was left as it was.",
+                    agent.name(),
+                    origin.ipAddress(),
+                    origin.userAgent()));
+            return new FailureOutcome.NotAttested();
+        }
+
+        FailureReport report;
+        try {
+            report = json.readValue(body, FailureReport.class);
+        } catch (IOException unreadable) {
+            return new FailureOutcome.Unreadable();
+        }
+        if (report == null || report.attempt() == null || report.attempt() < 1) {
+            return new FailureOutcome.Unreadable();
+        }
+
+        // A sign of life, like a renewal: the agent is up, it simply could not run this one.
+        heardFrom(agent);
+        String reason = FailureReason.scrub(report.reason());
+        Optional<ScanDispatcher.AgentFailure> recorded = dispatcher.reportAgentFailure(
+                scanId, agent, report.attempt(), reason.isEmpty() ? "the agent gave no reason." : reason);
+        if (recorded.isEmpty()) {
+            return new FailureOutcome.NoLongerYours();
+        }
+
+        ScanDispatcher.AgentFailure failure = recorded.get();
+        audit.record(new AuditLogService.Record(
+                AuditOperation.AGENT_SCAN_FAILED,
+                String.valueOf(scanId),
+                "Agent \"" + agent.name() + "\" reported it could not run attempt " + failure.attempt() + " of "
+                        + failure.maxAttempts() + " of the scan"
+                        + (pinned == null || pinned.isBlank() ? " (not attested)" : ", attestation verified")
+                        + (failure.retried() ? "; back in the queue." : "; the scan failed."),
+                agent.name(),
+                origin.ipAddress(),
+                origin.userAgent()));
+        return new FailureOutcome.Recorded(failure.retried(), failure.attempt(), failure.maxAttempts());
     }
 
     /**

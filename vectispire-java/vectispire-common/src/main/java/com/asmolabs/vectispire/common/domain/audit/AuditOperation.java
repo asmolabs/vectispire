@@ -162,6 +162,16 @@ public enum AuditOperation {
     AGENT_RESULT_SUBMITTED,
 
     /**
+     * An agent reported that it could not run a scan it had claimed, and one of the scan's attempts
+     * was spent on its word: requeued, or failed for good at the last.
+     *
+     * <p>Beside {@link #AGENT_RESULT_SUBMITTED} because it is the other way an agent ends its hold on
+     * a scan, and a scan that failed "on an agent's say-so" is a question somebody asks afterwards. A
+     * report whose attestation does not verify is recorded as {@link #AGENT_RESULT_REFUSED}.
+     */
+    AGENT_SCAN_FAILED,
+
+    /**
      * A result was refused because its attestation did not verify.
      *
      * <p><b>The one entry nobody may miss.</b> An agent whose signing key is pinned and whose

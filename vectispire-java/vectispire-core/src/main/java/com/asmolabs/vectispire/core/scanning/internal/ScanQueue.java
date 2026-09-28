@@ -421,6 +421,50 @@ public class ScanQueue {
     }
 
     /**
+     * What became of an attempt its executor reported it could not run.
+     *
+     * @param outcome requeued with the attempt counted, or failed for good: the lapse's rule
+     * @param attempt the attempt that failed, counted from one
+     */
+    public record Abandoned(Lapsed outcome, int attempt, int maxAttempts) {}
+
+    /**
+     * Ends one attempt of this worker's scan on its executor's word, <b>as its lease lapsing would,
+     * without the wait</b>: back in the queue with the attempt counted, or failed for good at the
+     * limit — {@link com.asmolabs.vectispire.common.domain.scans.ScanQueue#afterLapse}, the one rule
+     * for both. The reason is stored either way, so a scan waiting for its next attempt says why the
+     * last one did not run.
+     *
+     * <p>Not {@link #fail}, which the built-in worker calls: that one fails for good at the first
+     * error, and it may, since the worker that failed is the only one that would take the scan again.
+     * A remote agent is one executor among several — a clone refused from one network segment may
+     * succeed from another — and until this existed its failure cost the scan an attempt anyway, only
+     * twenty minutes later and with no reason given.
+     *
+     * @param attempt the attempt the report is about, as the claim handed it to the executor
+     * @param reason the sentence stored on the scan, given what became of it
+     * @return empty when the scan is no longer this worker's, or no longer at that attempt — a report
+     *     already applied, or one about an attempt since superseded; nothing is written then
+     */
+    public Optional<Abandoned> abandon(
+            long scanId, String worker, int attempt, java.util.function.Function<Abandoned, String> reason) {
+        Optional<ScanEntity> held = scans.findById(scanId)
+                .filter(scan -> ScanStatus.SCANNING.wireName().equals(scan.getStatus()))
+                .filter(scan -> worker.equals(scan.getClaimedBy()))
+                .filter(scan -> scan.getAttempts() == attempt);
+        if (held.isEmpty()) {
+            return Optional.empty();
+        }
+        Abandoned abandoned = new Abandoned(afterLapse(attempt, policy), attempt, policy.maxAttempts());
+        String to = abandoned.outcome() == Lapsed.FAIL ? ScanStatus.FAILED.wireName() : ScanStatus.PENDING.wireName();
+        // The condition read above is repeated by the statement: between the two, the lease may have
+        // lapsed and the reclaim run, and the scan be taken again — by this very agent.
+        int changed = scans.releaseOwnedAttempt(
+                scanId, ScanStatus.SCANNING.wireName(), worker, attempt, to, truncate(reason.apply(abandoned)));
+        return changed > 0 ? Optional.of(abandoned) : Optional.empty();
+    }
+
+    /**
      * Keeps a reason inside the column.
      *
      * <p>A scanner's stack trace runs to tens of kilobytes, and the write that carries it whole

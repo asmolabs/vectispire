@@ -51,6 +51,7 @@ const OPERATION_KEYS: Record<string, string> = {
     AGENT_CREDENTIAL_SENT: 'audit_log.operations.agent_credential_sent',
     SCAN_ATTEMPTS_REPAIRED: 'audit_log.operations.scan_attempts_repaired',
     AGENT_RESULT_SUBMITTED: 'audit_log.operations.agent_result_submitted',
+    AGENT_SCAN_FAILED: 'audit_log.operations.agent_scan_failed',
     AGENT_RESULT_REFUSED: 'audit_log.operations.agent_result_refused',
     AGENT_SIGNING_KEY_PINNED: 'audit_log.operations.agent_signing_key_pinned',
     AGENT_SEALING_KEY_ACCEPTED: 'audit_log.operations.agent_sealing_key_accepted',

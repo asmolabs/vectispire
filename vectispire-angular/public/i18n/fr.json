@@ -379,6 +379,7 @@
       "agent_credential_sent": "Identifiant envoyé à un agent",
       "scan_attempts_repaired": "Tentatives d'analyse rendues à la mise à jour",
       "agent_result_submitted": "Résultat d'agent soumis",
+      "agent_scan_failed": "Scan impossible sur un agent",
       "agent_result_refused": "Résultat d'agent refusé",
       "agent_signing_key_pinned": "Clé de signature d'agent épinglée",
       "agent_sealing_key_accepted": "Clé de scellement d'agent acceptée",

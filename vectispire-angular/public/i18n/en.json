@@ -379,6 +379,7 @@
       "agent_credential_sent": "Credential sent to an agent",
       "scan_attempts_repaired": "Scan attempts given back at upgrade",
       "agent_result_submitted": "Agent result submitted",
+      "agent_scan_failed": "Scan could not run on an agent",
       "agent_result_refused": "Agent result refused",
       "agent_signing_key_pinned": "Agent signing key pinned",
       "agent_sealing_key_accepted": "Agent sealing key accepted",
