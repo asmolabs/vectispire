@@ -1,7 +1,7 @@
 # Versions in one place, so that "which Spring Boot is this?" has exactly one answer.
 [versions]
 springBoot = "4.1.1"
-archunit = "1.5.0"
+archunit = "1.5.1"
 junit = "6.1.3"
 assertj = "3.27.7"
 postgresql = "42.7.13"
@@ -32,7 +32,7 @@ jgit = "7.8.0.202609011348-r"
 # those types (`DockerHttpClient.Request`, in `OneRequestPerConnection`) makes javac warn that it
 # cannot read them — "unknown enum constant", which no `-Xlint` switch silences — and `-Werror`
 # fails the build. The version docker-java 3.7.1 itself compiles against; nothing of it is packaged.
-immutables = "2.10.1"
+immutables = "2.12.2"
 pdfbox = "3.0.8"
 bucket4j = "8.10.1"
 springdoc = "3.1.1"
