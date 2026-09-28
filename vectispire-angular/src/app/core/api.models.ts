@@ -2239,3 +2239,169 @@ export type SarifImport = Refine<
         apiKeyId: string | null;
     }
 >;
+
+/**
+ * Where a checklist template version stands (decision 0032 §3, §4) — `TemplateVersionStatus.wireName()`.
+ * A draft is being confirmed and nobody answers it; a published version is immutable; a retired one
+ * opens no new checklist, and a draft set aside is retired too, never having been published.
+ */
+export type ChecklistVersionStatus = 'draft' | 'published' | 'retired';
+
+/** What became of one item between the previous published version and this one (decision 0032 §4). */
+export type ChecklistChange = 'unchanged' | 'changed' | 'added' | 'removed';
+
+/** The columns a layout names — `ChecklistColumn.wireName()`; control, answer and comment are required. */
+export type ChecklistColumn = 'id' | 'domain' | 'objective' | 'control' | 'contact' | 'kpi' | 'answer' | 'comment';
+
+/** The header entries a layout may name — `HeaderCell.Field.wireName()`, each only when the template has it. */
+export type ChecklistHeaderField = 'date' | 'product' | 'author';
+
+/**
+ * A template version without its items. `revision` is the draft's edit counter, which publishing
+ * names; `draftAuthors` are the usernames that imported, derived, confirmed or paired it — with
+ * four-eyes on, none of them may publish or retire it.
+ */
+export type ChecklistVersionSummary = Refine<
+    Schema<'ChecklistVersionSummary'>,
+    {
+        id: number;
+        label: string | null;
+        status: ChecklistVersionStatus;
+        sourceSha256: string;
+        previousOrdinal: number | null;
+        derivedFromOrdinal: number | null;
+        draftAuthors: string[];
+        importedAt: string;
+        importedBy: string | null;
+        publishedAt: string | null;
+        publishedBy: string | null;
+        retiredAt: string | null;
+        retiredBy: string | null;
+    }
+>;
+
+/** A checklist template and its versions, oldest first, without their items. */
+export type ChecklistTemplate = Refine<
+    Schema<'ChecklistTemplateView'>,
+    {
+        id: number;
+        slug: string;
+        name: string;
+        createdAt: string;
+        createdBy: string | null;
+        versions: ChecklistVersionSummary[];
+    }
+>;
+
+/** A header entry: the label cell the renderer leaves alone and the value cell it writes (`B3`). */
+export type ChecklistHeaderCell = Refine<Schema<'HeaderCellForm'>, { label: string; value: string }>;
+
+/** The template's own words for yes and no, and for not applicable when the version offers it. */
+export type ChecklistAnswerWords = Refine<
+    Schema<'AnswerWordsForm'>,
+    { yes: string; no: string; notApplicable: string | null }
+>;
+
+/**
+ * A layout as the importer confirms it and as the API shows it back. Sent whole: the server refuses,
+ * in words, any part a layout cannot be.
+ */
+export type ChecklistLayout = Refine<
+    Schema<'ChecklistLayoutForm'>,
+    {
+        sheet: string;
+        columns: Partial<Record<ChecklistColumn, string>>;
+        firstItemRow: number;
+        lastItemRow: number;
+        header: Partial<Record<ChecklistHeaderField, ChecklistHeaderCell>>;
+        answers: ChecklistAnswerWords;
+    }
+>;
+
+/** One line of a version: the template's words as imported, its key and its content digest. */
+export type ChecklistItem = Refine<
+    Schema<'ChecklistItemView'>,
+    {
+        id: number;
+        itemKey: string;
+        position: number;
+        domain: string | null;
+        objective: string | null;
+        control: string;
+        contact: string | null;
+        kpi: string | null;
+        contentDigest: string;
+        sheetRow: number;
+        evidenceKind: string;
+        evidenceValidityMonths: number | null;
+        boundRule: string | null;
+    }
+>;
+
+/** "The added item is the removed one, reworded" — both named by their keys as the preview shows them. */
+export type ChecklistItemPair = Refine<Schema<'ChecklistItemPair'>, { added: string; removed: string }>;
+
+/** One version whole: its summary, its confirmed layout (null until confirmed), its items and pairs. */
+export type ChecklistVersion = Refine<
+    Schema<'ChecklistVersionView'>,
+    {
+        templateSlug: string;
+        templateName: string;
+        version: ChecklistVersionSummary;
+        layout: ChecklistLayout | null;
+        items: ChecklistItem[];
+        pairs: ChecklistItemPair[];
+    }
+>;
+
+/** One cell of the sheet as the reader sees it; `formula` marks a value recalculated at every opening. */
+export type ChecklistPreviewCell = Refine<Schema<'PreviewCell'>, { ref: string; column: string; text: string }>;
+
+/**
+ * Where the reader thinks the checklist is, found from the workbook's structure and never from its
+ * words. Any part it could not find is left out — null — for the importer to name.
+ */
+export type ChecklistProposedLayout = Refine<
+    Schema<'ProposedLayout'>,
+    {
+        sheet: string;
+        columnHeaderRow: number | null;
+        firstItemRow: number | null;
+        lastItemRow: number | null;
+        columns: Partial<Record<ChecklistColumn, string>>;
+        header: Partial<Record<ChecklistHeaderField, ChecklistHeaderCell>>;
+        answerValues: string[];
+    }
+>;
+
+/**
+ * One item's fate against the previous version. `readKey` is the new item's key as the layout read
+ * it — what a pair names as `added`; `previousKey` is what a pair names as `removed`.
+ */
+export type ChecklistPairingChange = Refine<
+    Schema<'PairingChange'>,
+    {
+        change: ChecklistChange;
+        readKey: string | null;
+        row: number | null;
+        control: string | null;
+        previousKey: string | null;
+        previousRow: number | null;
+        previousControl: string | null;
+    }
+>;
+
+/** What the importer looks at before confirming: the proposal, the confirmed layout, a sheet, the pairing. */
+export type ChecklistPreview = Refine<
+    Schema<'ChecklistTemplatePreview'>,
+    {
+        templateSlug: string;
+        version: ChecklistVersionSummary;
+        sheets: string[];
+        sheet: string;
+        cells: ChecklistPreviewCell[];
+        proposal: ChecklistProposedLayout;
+        layout: ChecklistLayout | null;
+        pairing: ChecklistPairingChange[];
+    }
+>;

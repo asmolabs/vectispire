@@ -124,6 +124,13 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/sarif-sources/sarif-sources').then((m) => m.SarifSources)
             },
             {
+                path: 'checklist-templates',
+                title: 'titles.checklist_templates',
+                canActivate: [requires('governance-read')],
+                loadComponent: () =>
+                    import('./app/pages/checklist-templates/checklist-templates').then((m) => m.ChecklistTemplates)
+            },
+            {
                 path: 'rule-sets',
                 title: 'titles.rule_sets',
                 canActivate: [requires('governance-read')],

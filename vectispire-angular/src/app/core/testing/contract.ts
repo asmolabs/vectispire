@@ -112,6 +112,8 @@ const FINDING_TYPES = [
 ]; // FindingType
 const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome.PRODUCED, NOT_APPLICABLE, ABSENT
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
+const CHECKLIST_VERSION_STATUSES = ['draft', 'published', 'retired']; // TemplateVersionStatus
+const CHECKLIST_CHANGES = ['unchanged', 'changed', 'added', 'removed']; // ChecklistTemplateService.change
 
 const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
 
@@ -132,7 +134,9 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     FindingView: { type: FINDING_TYPES },
     PluginOutcome: { state: PLUGIN_STATES },
     TriageRequest: { status: TRIAGE_STATUSES },
-    BulkTriageRequest: { status: TRIAGE_STATUSES }
+    BulkTriageRequest: { status: TRIAGE_STATUSES },
+    ChecklistVersionSummary: { status: CHECKLIST_VERSION_STATUSES },
+    PairingChange: { change: CHECKLIST_CHANGES }
 };
 
 function check(schemaName: string, value: unknown, path: string): string[] {

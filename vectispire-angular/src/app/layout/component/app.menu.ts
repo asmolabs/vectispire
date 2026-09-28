@@ -214,6 +214,13 @@ export class AppMenu {
                         label: this.i18n.t('menu.sarif_sources'),
                         icon: 'pi pi-fw pi-file-import',
                         routerLink: ['/sarif-sources']
+                    },
+                    // The checklist a project attests to is the organisation's own words: a governance
+                    // setting like the two above. The auditor reads it; the security leads write it.
+                    {
+                        label: this.i18n.t('menu.checklist_templates'),
+                        icon: 'pi pi-fw pi-list-check',
+                        routerLink: ['/checklist-templates']
                     }
                 );
             }

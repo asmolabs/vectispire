@@ -1,0 +1,848 @@
+<div class="mb-4">
+    <h1 class="text-2xl font-semibold m-0">{{ 'checklist_templates.title' | translate }}</h1>
+    <p class="text-muted-color mt-1 mb-0">{{ 'checklist_templates.subtitle' | translate }}</p>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="notice">{{
+        message
+    }}</p-message>
+}
+
+@if (writes()) {
+    <p-card styleClass="mb-4" data-testid="import-card">
+        <ng-template #title>{{ 'checklist_templates.import_title' | translate }}</ng-template>
+        <p class="text-sm text-muted-color mt-0">{{ 'checklist_templates.import_explain' | translate }}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-2">
+                <label for="checklist-slug" class="font-medium">{{
+                    'checklist_templates.field_slug' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="checklist-slug"
+                    list="checklist-slugs"
+                    autocomplete="off"
+                    [(ngModel)]="uploadSlug"
+                    [placeholder]="'checklist_templates.slug_placeholder' | translate"
+                />
+                <datalist id="checklist-slugs">
+                    @for (template of templates(); track template.slug) {
+                        <option [value]="template.slug"></option>
+                    }
+                </datalist>
+                <small class="text-muted-color">
+                    @if (isNewTemplate()) {
+                        {{ 'checklist_templates.slug_new_hint' | translate }}
+                    } @else {
+                        {{ 'checklist_templates.slug_existing_hint' | translate }}
+                    }
+                </small>
+            </div>
+            @if (isNewTemplate()) {
+                <div class="flex flex-col gap-2">
+                    <label for="checklist-name" class="font-medium">{{
+                        'checklist_templates.field_name' | translate
+                    }}</label>
+                    <input pInputText id="checklist-name" [(ngModel)]="uploadName" />
+                </div>
+            }
+            <div class="flex flex-col gap-2">
+                <label for="checklist-label" class="font-medium">{{
+                    'checklist_templates.field_label' | translate
+                }}</label>
+                <input
+                    pInputText
+                    id="checklist-label"
+                    [(ngModel)]="uploadLabel"
+                    [placeholder]="'checklist_templates.label_placeholder' | translate"
+                />
+            </div>
+            <div class="flex flex-col gap-2">
+                <label for="checklist-file" class="font-medium">{{
+                    'checklist_templates.field_file' | translate
+                }}</label>
+                <input
+                    id="checklist-file"
+                    type="file"
+                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    (change)="pick($event)"
+                    class="text-sm"
+                />
+                <small class="text-muted-color">{{ 'checklist_templates.file_hint' | translate }}</small>
+            </div>
+        </div>
+        @if (uploadError(); as message) {
+            <p-message severity="error" [closable]="false" styleClass="mt-3 w-full" data-testid="upload-error">
+                {{ message }}
+            </p-message>
+        }
+        <div class="mt-4">
+            <p-button
+                id="import-workbook"
+                icon="pi pi-upload"
+                [label]="'checklist_templates.import_btn' | translate"
+                [loading]="uploading()"
+                [disabled]="!canImport()"
+                (onClick)="importWorkbook()"
+            />
+        </div>
+    </p-card>
+}
+
+<p-card styleClass="mb-4">
+    <ng-template #title>{{ 'checklist_templates.list_title' | translate }}</ng-template>
+    @if (loading()) {
+        <p class="text-sm text-muted-color m-0">{{ 'common.loading' | translate }}</p>
+    } @else if (templates().length === 0) {
+        <p class="text-sm text-muted-color m-0" data-testid="no-template">
+            {{ 'checklist_templates.none' | translate }}
+        </p>
+    }
+    @for (template of templates(); track template.slug) {
+        <section class="mb-6" [attr.data-testid]="'template-' + template.slug">
+            <div class="flex items-start justify-between gap-4 mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold m-0">{{ template.name }}</h2>
+                    <div class="text-sm text-muted-color">
+                        <span class="font-mono">{{ template.slug }}</span>
+                        · {{ 'checklist_templates.created_by' | translate: { who: template.createdBy ?? '—' } }}
+                        {{ template.createdAt | date: 'dd/MM/yyyy' }}
+                    </div>
+                </div>
+                @if (writes()) {
+                    <p-button
+                        icon="pi pi-plus"
+                        size="small"
+                        [text]="true"
+                        [label]="'checklist_templates.new_version_btn' | translate"
+                        [disabled]="hasDraft(template)"
+                        (onClick)="newVersionOf(template)"
+                        [attr.data-testid]="'new-version-' + template.slug"
+                    />
+                }
+            </div>
+            <p-table [value]="template.versions" dataKey="id" styleClass="p-datatable-sm">
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'checklist_templates.col_version' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_status' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_items' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_imported' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_published' | translate }}</th>
+                        <th>{{ 'checklist_templates.col_retired' | translate }}</th>
+                        <th class="text-right">{{ 'common.actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-version>
+                    <tr
+                        [attr.data-testid]="'version-' + template.slug + '-' + version.ordinal"
+                        [class.font-semibold]="isOpen(template.slug, version.ordinal)"
+                    >
+                        <td>
+                            <span class="font-mono">{{ version.ordinal }}</span>
+                            @if (version.label) {
+                                <span class="text-muted-color"> · {{ version.label }}</span>
+                            }
+                        </td>
+                        <td>
+                            <p-tag [severity]="statusSeverity(version.status)" [value]="statusLabel(version.status)" />
+                        </td>
+                        <td>{{ version.itemCount }}</td>
+                        <td class="text-sm">
+                            {{ version.importedBy ?? '—' }}
+                            <div class="text-muted-color">{{ version.importedAt | date: 'dd/MM/yyyy HH:mm' }}</div>
+                        </td>
+                        <td class="text-sm">
+                            @if (version.publishedAt) {
+                                {{ version.publishedBy ?? '—' }}
+                                <div class="text-muted-color">{{ version.publishedAt | date: 'dd/MM/yyyy HH:mm' }}</div>
+                            } @else {
+                                —
+                            }
+                        </td>
+                        <td class="text-sm">
+                            @if (version.retiredAt) {
+                                {{ version.retiredBy ?? '—' }}
+                                <div class="text-muted-color">{{ version.retiredAt | date: 'dd/MM/yyyy HH:mm' }}</div>
+                            } @else {
+                                —
+                            }
+                        </td>
+                        <td class="text-right">
+                            <p-button
+                                icon="pi pi-eye"
+                                size="small"
+                                [text]="true"
+                                [label]="'checklist_templates.open_btn' | translate"
+                                [ariaLabel]="
+                                    'checklist_templates.aria_open'
+                                        | translate: { slug: template.slug, ordinal: version.ordinal }
+                                "
+                                (onClick)="open(template.slug, version.ordinal)"
+                            />
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </section>
+    }
+</p-card>
+
+@if (selected(); as open) {
+    <p-card data-testid="version-panel">
+        <ng-template #title>
+            {{ 'checklist_templates.panel_title' | translate: { slug: open.slug, ordinal: open.ordinal } }}
+        </ng-template>
+
+        @if (panelError(); as message) {
+            <p-message severity="error" [closable]="true" styleClass="mb-3 w-full" data-testid="panel-error">
+                {{ message }}
+            </p-message>
+        }
+        @if (refusal(); as refused) {
+            <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="refusal">
+                <div class="flex flex-col gap-2">
+                    <span>{{ refused.message }}</span>
+                    @if (refused.reload) {
+                        <div>
+                            <p-button
+                                id="reload-version"
+                                icon="pi pi-refresh"
+                                size="small"
+                                [label]="'checklist_templates.reload_btn' | translate"
+                                (onClick)="reloadShown()"
+                            />
+                        </div>
+                    }
+                </div>
+            </p-message>
+        }
+
+        @if (previewLoading() && !preview()) {
+            <p class="text-sm text-muted-color m-0">{{ 'common.loading' | translate }}</p>
+        }
+
+        @if (shown(); as summary) {
+            <dl class="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1 text-sm mt-0 mb-4">
+                <dt class="text-muted-color">{{ 'checklist_templates.col_status' | translate }}</dt>
+                <dd class="m-0" data-testid="shown-status">
+                    <p-tag [severity]="statusSeverity(summary.status)" [value]="statusLabel(summary.status)" />
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.revision' | translate }}</dt>
+                <dd class="m-0 font-mono" data-testid="shown-revision">{{ summary.revision }}</dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.workbook' | translate }}</dt>
+                <dd class="m-0 font-mono break-all">
+                    {{
+                        'checklist_templates.workbook_value'
+                            | translate: { size: summary.sourceSize, sha: summary.sourceSha256 }
+                    }}
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.previous' | translate }}</dt>
+                <dd class="m-0">
+                    @if (summary.previousOrdinal !== null) {
+                        {{ summary.previousOrdinal }}
+                    } @else {
+                        —
+                    }
+                    @if (summary.derivedFromOrdinal !== null) {
+                        <span class="text-muted-color">
+                            ·
+                            {{
+                                'checklist_templates.derived_from' | translate: { ordinal: summary.derivedFromOrdinal }
+                            }}
+                        </span>
+                    }
+                </dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.authors' | translate }}</dt>
+                <dd class="m-0" data-testid="shown-authors">{{ summary.draftAuthors.join(', ') || '—' }}</dd>
+                <dt class="text-muted-color">{{ 'checklist_templates.offers_na' | translate }}</dt>
+                <dd class="m-0">{{ (summary.offersNotApplicable ? 'common.yes' : 'common.no') | translate }}</dd>
+            </dl>
+        }
+
+        @if (preview(); as current) {
+            <!-- The sheet as the reader sees it, with the layout on screen drawn over it. -->
+            <h3 class="text-base font-semibold mb-2">{{ 'checklist_templates.sheet_title' | translate }}</h3>
+            <div class="flex flex-wrap items-center gap-3 mb-2">
+                <label for="checklist-sheet" class="font-medium text-sm">{{
+                    'checklist_templates.field_sheet' | translate
+                }}</label>
+                <p-select
+                    inputId="checklist-sheet"
+                    [options]="sheetOptions()"
+                    optionLabel="label"
+                    optionValue="value"
+                    [ngModel]="current.sheet"
+                    (ngModelChange)="showSheet($event)"
+                    appendTo="body"
+                />
+                @if (current.proposal.columnHeaderRow !== null) {
+                    <span class="text-sm text-muted-color" data-testid="column-header-row">
+                        {{
+                            'checklist_templates.column_header_row'
+                                | translate: { row: current.proposal.columnHeaderRow }
+                        }}
+                    </span>
+                }
+            </div>
+            <p class="text-xs text-muted-color mt-0">{{ 'checklist_templates.grid_legend' | translate }}</p>
+            @if (current.cellsTruncated) {
+                <p-message severity="info" [closable]="false" styleClass="mb-2 w-full">
+                    {{ 'checklist_templates.cells_truncated' | translate }}
+                </p-message>
+            }
+            <div class="overflow-auto max-h-[28rem] border border-surface rounded-border mb-4">
+                <table class="text-xs border-collapse" data-testid="sheet-grid">
+                    <caption class="sr-only">
+                        {{
+                            'checklist_templates.grid_caption' | translate: { sheet: current.sheet }
+                        }}
+                    </caption>
+                    <thead class="sticky top-0 bg-surface-100 dark:bg-surface-800">
+                        <tr>
+                            <th scope="col" class="px-2 py-1 border border-surface"></th>
+                            @for (letters of grid().columns; track letters) {
+                                <th
+                                    scope="col"
+                                    class="px-2 py-1 border border-surface text-left whitespace-nowrap"
+                                    [class.text-primary]="fieldsOfColumn().has(letters)"
+                                    [attr.data-testid]="'grid-column-' + letters"
+                                >
+                                    {{ columnHead(letters) }}
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (line of grid().rows; track line.row) {
+                            <tr
+                                [class.font-semibold]="isColumnHeaderRow(line.row)"
+                                [attr.data-testid]="'grid-row-' + line.row"
+                            >
+                                <th
+                                    scope="row"
+                                    class="px-2 py-1 border border-surface text-right font-mono"
+                                    [class]="isItemRow(line.row) ? 'bg-blue-100 dark:bg-blue-950/40' : ''"
+                                >
+                                    {{ line.row }}
+                                </th>
+                                @for (letters of grid().columns; track letters) {
+                                    <td
+                                        class="px-2 py-1 border border-surface align-top max-w-64 truncate"
+                                        [class]="cellClass(line.row, letters)"
+                                        [attr.title]="line.cells[letters]?.text ?? null"
+                                    >
+                                        {{ line.cells[letters]?.text ?? '' }}
+                                        @if (line.cells[letters]?.formula) {
+                                            <span class="text-muted-color font-mono">ƒ</span>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (layoutDraft(); as draft) {
+                <h3 class="text-base font-semibold mb-2">
+                    @if (current.layout) {
+                        {{ 'checklist_templates.layout_confirmed_title' | translate }}
+                    } @else {
+                        {{ 'checklist_templates.layout_proposed_title' | translate }}
+                    }
+                </h3>
+                @if (editable()) {
+                    <p class="text-sm text-muted-color mt-0">{{ 'checklist_templates.layout_explain' | translate }}</p>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3" data-testid="layout-form">
+                        @for (column of columns; track column) {
+                            <div class="flex flex-col gap-1">
+                                <label [for]="'layout-column-' + column" class="text-sm font-medium">
+                                    {{ columnLabel(column) }}
+                                    @if (required.includes(column)) {
+                                        <span class="text-red-600" aria-hidden="true">*</span>
+                                    }
+                                </label>
+                                <input
+                                    pInputText
+                                    class="font-mono uppercase"
+                                    maxlength="3"
+                                    [id]="'layout-column-' + column"
+                                    [ngModel]="draft.columns[column]"
+                                    (ngModelChange)="setColumn(column, $event)"
+                                />
+                            </div>
+                        }
+                        <div class="flex flex-col gap-1">
+                            <label for="layout-first-row" class="text-sm font-medium">
+                                {{ 'checklist_templates.first_row' | translate }}
+                            </label>
+                            <input
+                                pInputText
+                                type="number"
+                                min="1"
+                                id="layout-first-row"
+                                [ngModel]="draft.firstItemRow"
+                                (ngModelChange)="setDraft({ firstItemRow: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="layout-last-row" class="text-sm font-medium">
+                                {{ 'checklist_templates.last_row' | translate }}
+                            </label>
+                            <input
+                                pInputText
+                                type="number"
+                                min="1"
+                                id="layout-last-row"
+                                [ngModel]="draft.lastItemRow"
+                                (ngModelChange)="setDraft({ lastItemRow: $event })"
+                            />
+                        </div>
+                    </div>
+
+                    <h4 class="text-sm font-semibold mb-1">{{ 'checklist_templates.header_title' | translate }}</h4>
+                    <p class="text-xs text-muted-color mt-0">{{ 'checklist_templates.header_explain' | translate }}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        @for (field of headerFields; track field) {
+                            <fieldset class="border border-surface rounded-border p-2 m-0">
+                                <legend class="text-sm font-medium px-1">{{ headerLabel(field) }}</legend>
+                                <div class="flex gap-2">
+                                    <div class="flex flex-col gap-1">
+                                        <label [for]="'layout-header-' + field + '-label'" class="text-xs">
+                                            {{ 'checklist_templates.header_label_cell' | translate }}
+                                        </label>
+                                        <input
+                                            pInputText
+                                            class="font-mono uppercase w-24"
+                                            [id]="'layout-header-' + field + '-label'"
+                                            [ngModel]="draft.header[field].label"
+                                            (ngModelChange)="setHeader(field, 'label', $event)"
+                                        />
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <label [for]="'layout-header-' + field + '-value'" class="text-xs">
+                                            {{ 'checklist_templates.header_value_cell' | translate }}
+                                        </label>
+                                        <input
+                                            pInputText
+                                            class="font-mono uppercase w-24"
+                                            [id]="'layout-header-' + field + '-value'"
+                                            [ngModel]="draft.header[field].value"
+                                            (ngModelChange)="setHeader(field, 'value', $event)"
+                                        />
+                                    </div>
+                                </div>
+                            </fieldset>
+                        }
+                    </div>
+
+                    <h4 class="text-sm font-semibold mb-1">{{ 'checklist_templates.words_title' | translate }}</h4>
+                    <p class="text-xs text-muted-color mt-0">{{ 'checklist_templates.words_explain' | translate }}</p>
+                    @if (answerValues().length > 0) {
+                        <div class="flex flex-wrap items-center gap-2 mb-2 text-sm" data-testid="answer-values">
+                            <span class="text-muted-color">{{ 'checklist_templates.words_offered' | translate }}</span>
+                            @for (word of answerValues(); track word) {
+                                <p-tag severity="secondary" [value]="word" />
+                            }
+                        </div>
+                    } @else {
+                        <p class="text-xs text-muted-color mt-0" data-testid="no-answer-values">
+                            {{ 'checklist_templates.words_none' | translate }}
+                        </p>
+                    }
+                    <datalist id="checklist-answer-values">
+                        @for (word of answerValues(); track word) {
+                            <option [value]="word"></option>
+                        }
+                    </datalist>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                        <div class="flex flex-col gap-1">
+                            <label for="layout-word-yes" class="text-sm font-medium">{{
+                                'checklist_templates.word_yes' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="layout-word-yes"
+                                list="checklist-answer-values"
+                                [ngModel]="draft.yes"
+                                (ngModelChange)="setDraft({ yes: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="layout-word-no" class="text-sm font-medium">{{
+                                'checklist_templates.word_no' | translate
+                            }}</label>
+                            <input
+                                pInputText
+                                id="layout-word-no"
+                                list="checklist-answer-values"
+                                [ngModel]="draft.no"
+                                (ngModelChange)="setDraft({ no: $event })"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <div class="flex items-center gap-2">
+                                <p-checkbox
+                                    inputId="layout-offers-na"
+                                    [binary]="true"
+                                    [ngModel]="draft.offersNotApplicable"
+                                    (ngModelChange)="setDraft({ offersNotApplicable: $event })"
+                                />
+                                <label for="layout-offers-na" class="text-sm font-medium">
+                                    {{ 'checklist_templates.word_offers_na' | translate }}
+                                </label>
+                            </div>
+                            @if (draft.offersNotApplicable) {
+                                <label for="layout-word-na" class="sr-only">{{
+                                    'checklist_templates.word_na' | translate
+                                }}</label>
+                                <input
+                                    pInputText
+                                    id="layout-word-na"
+                                    list="checklist-answer-values"
+                                    [placeholder]="'checklist_templates.word_na' | translate"
+                                    [ngModel]="draft.notApplicable"
+                                    (ngModelChange)="setDraft({ notApplicable: $event })"
+                                />
+                                <small class="text-muted-color">{{
+                                    'checklist_templates.word_na_hint' | translate
+                                }}</small>
+                            }
+                        </div>
+                    </div>
+                    @if (formError(); as message) {
+                        <p-message
+                            severity="error"
+                            [closable]="false"
+                            styleClass="mb-3 w-full"
+                            data-testid="layout-error"
+                        >
+                            {{ message }}
+                        </p-message>
+                    }
+                    <p-button
+                        id="confirm-layout"
+                        icon="pi pi-check"
+                        [label]="'checklist_templates.confirm_layout_btn' | translate"
+                        [loading]="busy()"
+                        (onClick)="confirmLayout()"
+                    />
+                    @if (current.layout && (version()?.pairs ?? []).length > 0) {
+                        <small class="block text-muted-color mt-1">{{
+                            'checklist_templates.confirm_clears_pairs' | translate
+                        }}</small>
+                    }
+                } @else {
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm mt-0 mb-3" data-testid="layout-read">
+                        <dt class="text-muted-color">{{ 'checklist_templates.field_sheet' | translate }}</dt>
+                        <dd class="m-0">{{ draft.sheet }}</dd>
+                        @for (column of columns; track column) {
+                            @if (draft.columns[column]) {
+                                <dt class="text-muted-color">{{ columnLabel(column) }}</dt>
+                                <dd class="m-0 font-mono">{{ draft.columns[column] }}</dd>
+                            }
+                        }
+                        <dt class="text-muted-color">{{ 'checklist_templates.item_rows' | translate }}</dt>
+                        <dd class="m-0">{{ draft.firstItemRow ?? '?' }} – {{ draft.lastItemRow ?? '?' }}</dd>
+                        @for (field of headerFields; track field) {
+                            @if (draft.header[field].value) {
+                                <dt class="text-muted-color">{{ headerLabel(field) }}</dt>
+                                <dd class="m-0 font-mono">
+                                    {{ draft.header[field].label }} → {{ draft.header[field].value }}
+                                </dd>
+                            }
+                        }
+                        @if (current.layout) {
+                            <dt class="text-muted-color">{{ 'checklist_templates.word_yes' | translate }}</dt>
+                            <dd class="m-0">{{ draft.yes }}</dd>
+                            <dt class="text-muted-color">{{ 'checklist_templates.word_no' | translate }}</dt>
+                            <dd class="m-0">{{ draft.no }}</dd>
+                            <dt class="text-muted-color">{{ 'checklist_templates.word_na' | translate }}</dt>
+                            <dd class="m-0">{{ draft.offersNotApplicable ? draft.notApplicable : '—' }}</dd>
+                        }
+                    </dl>
+                }
+            }
+
+            <!-- The items the confirmed layout read, fill-down applied: what a project will answer. -->
+            @if (version(); as whole) {
+                @if (whole.items.length > 0) {
+                    <h3 class="text-base font-semibold mt-6 mb-2">
+                        {{ 'checklist_templates.items_title' | translate: { count: whole.items.length } }}
+                    </h3>
+                    <div class="overflow-auto max-h-[24rem] mb-4">
+                        <p-table [value]="whole.items" dataKey="id" styleClass="p-datatable-sm" data-testid="items">
+                            <ng-template #header>
+                                <tr>
+                                    <th>{{ 'checklist_templates.col_row' | translate }}</th>
+                                    <th>{{ 'checklist_templates.column_domain' | translate }}</th>
+                                    <th>{{ 'checklist_templates.column_objective' | translate }}</th>
+                                    <th>{{ 'checklist_templates.column_control' | translate }}</th>
+                                    <th>{{ 'checklist_templates.column_contact' | translate }}</th>
+                                    <th>{{ 'checklist_templates.column_kpi' | translate }}</th>
+                                </tr>
+                            </ng-template>
+                            <ng-template #body let-item>
+                                <tr>
+                                    <td class="font-mono">{{ item.sheetRow }}</td>
+                                    <td>{{ item.domain ?? '' }}</td>
+                                    <td>{{ item.objective ?? '' }}</td>
+                                    <td>{{ item.control }}</td>
+                                    <td>{{ item.contact ?? '' }}</td>
+                                    <td>{{ item.kpi ?? '' }}</td>
+                                </tr>
+                            </ng-template>
+                        </p-table>
+                    </div>
+                }
+            }
+
+            <!-- The pairing with the previous published version (decision 0032 §4). -->
+            @if (current.layout) {
+                <h3 class="text-base font-semibold mt-6 mb-2">{{ 'checklist_templates.pairing_title' | translate }}</h3>
+                @if (current.version.previousOrdinal === null) {
+                    <p class="text-sm text-muted-color mt-0" data-testid="no-previous">
+                        {{ 'checklist_templates.pairing_none' | translate }}
+                    </p>
+                } @else {
+                    <p class="text-sm text-muted-color mt-0">
+                        {{
+                            'checklist_templates.pairing_explain'
+                                | translate: { ordinal: current.version.previousOrdinal }
+                        }}
+                    </p>
+                    <div class="flex flex-wrap gap-2 mb-2 text-sm" data-testid="pairing-counts">
+                        <p-tag
+                            severity="secondary"
+                            [value]="
+                                'checklist_templates.count_unchanged' | translate: { count: pairingCounts().unchanged }
+                            "
+                        />
+                        <p-tag
+                            severity="warn"
+                            [value]="
+                                'checklist_templates.count_changed' | translate: { count: pairingCounts().changed }
+                            "
+                        />
+                        <p-tag
+                            severity="info"
+                            [value]="'checklist_templates.count_added' | translate: { count: pairingCounts().added }"
+                        />
+                        <p-tag
+                            severity="danger"
+                            [value]="
+                                'checklist_templates.count_removed' | translate: { count: pairingCounts().removed }
+                            "
+                        />
+                    </div>
+                    <p-table [value]="pairing()" styleClass="p-datatable-sm mb-3" data-testid="pairing">
+                        <ng-template #header>
+                            <tr>
+                                <th>{{ 'checklist_templates.col_change' | translate }}</th>
+                                <th>{{ 'checklist_templates.col_this_version' | translate }}</th>
+                                <th>{{ 'checklist_templates.col_previous_version' | translate }}</th>
+                                <th class="text-right">{{ 'common.actions' | translate }}</th>
+                            </tr>
+                        </ng-template>
+                        <ng-template #body let-change>
+                            <tr [attr.data-testid]="'change-' + change.change">
+                                <td>
+                                    <p-tag
+                                        [severity]="changeSeverity(change.change)"
+                                        [value]="changeLabel(change.change)"
+                                    />
+                                    @if (change.pairedByHand) {
+                                        <span class="block text-xs text-muted-color mt-1">
+                                            {{ 'checklist_templates.paired_by_hand' | translate }}
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-sm">
+                                    @if (change.row !== null) {
+                                        <span class="font-mono text-muted-color">{{ change.row }}</span>
+                                        {{ change.control }}
+                                    } @else {
+                                        —
+                                    }
+                                </td>
+                                <td class="text-sm">
+                                    @if (change.previousRow !== null) {
+                                        <span class="font-mono text-muted-color">{{ change.previousRow }}</span>
+                                        {{ change.previousControl }}
+                                    } @else {
+                                        —
+                                    }
+                                </td>
+                                <td class="text-right">
+                                    @if (editable() && change.pairedByHand) {
+                                        <p-button
+                                            icon="pi pi-times"
+                                            size="small"
+                                            [text]="true"
+                                            severity="danger"
+                                            [label]="'checklist_templates.unpair_btn' | translate"
+                                            [disabled]="busy()"
+                                            (onClick)="unpair(change)"
+                                        />
+                                    }
+                                </td>
+                            </tr>
+                        </ng-template>
+                    </p-table>
+                    @if (editable() && addedOptions().length > 0 && removedOptions().length > 0) {
+                        <div class="flex flex-wrap items-end gap-3 mb-4" data-testid="pair-form">
+                            <div class="flex flex-col gap-1">
+                                <label for="pair-added" class="text-sm font-medium">{{
+                                    'checklist_templates.pair_added' | translate
+                                }}</label>
+                                <p-select
+                                    inputId="pair-added"
+                                    [options]="addedOptions()"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    [(ngModel)]="pairAdded"
+                                    appendTo="body"
+                                    styleClass="w-80 max-w-full"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label for="pair-removed" class="text-sm font-medium">
+                                    {{ 'checklist_templates.pair_removed' | translate }}
+                                </label>
+                                <p-select
+                                    inputId="pair-removed"
+                                    [options]="removedOptions()"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    [(ngModel)]="pairRemoved"
+                                    appendTo="body"
+                                    styleClass="w-80 max-w-full"
+                                />
+                            </div>
+                            <p-button
+                                id="pair-items"
+                                icon="pi pi-link"
+                                [label]="'checklist_templates.pair_btn' | translate"
+                                [disabled]="!pairAdded() || !pairRemoved() || busy()"
+                                (onClick)="pair()"
+                            />
+                        </div>
+                        <p class="text-xs text-muted-color mt-0">
+                            {{ 'checklist_templates.pair_explain' | translate }}
+                        </p>
+                    }
+                }
+            }
+
+            <!-- The acts: publish or set aside a draft, derive from or retire a published version. -->
+            @if (writes() && current.version.status !== 'retired') {
+                <div class="border-t border-surface pt-4 mt-6 flex flex-col gap-3" data-testid="acts">
+                    @if (current.version.status === 'draft') {
+                        <p class="text-sm m-0">{{ 'checklist_templates.publish_explain' | translate }}</p>
+                        @if (wroteShown()) {
+                            <p-message
+                                severity="info"
+                                [closable]="false"
+                                styleClass="w-full"
+                                data-testid="four-eyes-hint"
+                            >
+                                {{ 'checklist_templates.four_eyes_hint' | translate }}
+                            </p-message>
+                        }
+                        @if (!current.version.layoutConfirmed) {
+                            <p class="text-sm text-muted-color m-0" data-testid="publish-needs-layout">
+                                {{ 'checklist_templates.publish_needs_layout' | translate }}
+                            </p>
+                        }
+                    }
+                    @if (confirming(); as pending) {
+                        <div class="flex flex-wrap items-center gap-3" data-testid="confirm-act">
+                            <span class="text-sm font-medium">
+                                @if (pending === 'publish') {
+                                    {{
+                                        'checklist_templates.confirm_publish'
+                                            | translate: { revision: current.version.revision }
+                                    }}
+                                } @else if (current.version.status === 'draft') {
+                                    {{ 'checklist_templates.confirm_set_aside' | translate }}
+                                } @else {
+                                    {{ 'checklist_templates.confirm_retire' | translate }}
+                                }
+                            </span>
+                            <p-button
+                                id="confirm-act"
+                                [severity]="pending === 'publish' ? 'success' : 'danger'"
+                                [label]="'common.confirm' | translate"
+                                [loading]="busy()"
+                                (onClick)="pending === 'publish' ? publish() : retire()"
+                            />
+                            <p-button
+                                [text]="true"
+                                [label]="'common.cancel' | translate"
+                                (onClick)="confirming.set(null)"
+                            />
+                        </div>
+                    } @else {
+                        <div class="flex flex-wrap items-end gap-3">
+                            @if (current.version.status === 'draft') {
+                                <p-button
+                                    id="publish-version"
+                                    icon="pi pi-send"
+                                    severity="success"
+                                    [label]="
+                                        'checklist_templates.publish_btn'
+                                            | translate: { revision: current.version.revision }
+                                    "
+                                    [disabled]="!current.version.layoutConfirmed || busy()"
+                                    (onClick)="confirming.set('publish')"
+                                />
+                                <p-button
+                                    id="retire-version"
+                                    icon="pi pi-times"
+                                    severity="secondary"
+                                    [outlined]="true"
+                                    [label]="'checklist_templates.set_aside_btn' | translate"
+                                    [disabled]="busy()"
+                                    (onClick)="confirming.set('retire')"
+                                />
+                            } @else {
+                                <div class="flex flex-col gap-1">
+                                    <label for="derive-label" class="text-sm font-medium">
+                                        {{ 'checklist_templates.derive_label' | translate }}
+                                    </label>
+                                    <input pInputText id="derive-label" [(ngModel)]="deriveLabel" />
+                                </div>
+                                <p-button
+                                    id="derive-version"
+                                    icon="pi pi-clone"
+                                    [label]="'checklist_templates.derive_btn' | translate"
+                                    [disabled]="busy()"
+                                    (onClick)="derive()"
+                                />
+                                <p-button
+                                    id="retire-version"
+                                    icon="pi pi-ban"
+                                    severity="danger"
+                                    [outlined]="true"
+                                    [label]="'checklist_templates.retire_btn' | translate"
+                                    [disabled]="busy()"
+                                    (onClick)="confirming.set('retire')"
+                                />
+                            }
+                        </div>
+                        @if (current.version.status === 'published') {
+                            <small class="text-muted-color">{{
+                                'checklist_templates.derive_explain' | translate
+                            }}</small>
+                        }
+                    }
+                </div>
+            }
+        }
+    </p-card>
+}
