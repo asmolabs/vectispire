@@ -10,7 +10,12 @@ import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.agents.internal.WithheldClaimRepair;
 import com.asmolabs.vectispire.core.agents.persistence.AgentEntity;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
+import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.maintenance.OneShotJobs;
+import com.asmolabs.vectispire.core.maintenance.persistence.OneShotJobRepository;
+import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
 import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
@@ -20,10 +25,18 @@ import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SshKeyRepository;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +47,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /**
@@ -90,6 +104,24 @@ class WithheldClaimRepairIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private OneShotJobRepository oneShotJobs;
+
+    @Autowired
+    private OneShotJobs once;
+
+    @Autowired
+    private ScanCatalog scanCatalog;
+
+    @Autowired
+    private TargetCatalog targetCatalog;
+
+    @Autowired
+    private AuditLogQueryService trail;
+
+    @Autowired
+    private PlatformTransactionManager transactions;
+
     private long keyed;
     private long open;
 
@@ -103,6 +135,7 @@ class WithheldClaimRepairIntegrationTest {
         // The application ran the repair at its start, on an empty database: forgetting that it did is
         // the only way to run it again. The trail is append-only for the application, not for a test.
         jdbc.update("delete from t_audit_log");
+        jdbc.update("delete from t_one_shot_job");
 
         SshKeyEntity key = new SshKeyEntity();
         key.setId(UUID.randomUUID());
@@ -173,6 +206,82 @@ class WithheldClaimRepairIntegrationTest {
         assertThat(attempts(scan)).isEqualTo(2);
         assertThat(entries()).singleElement().asString().startsWith("Upgrade check");
         assertThat(repair.repairOnce()).isEqualTo(new WithheldClaimRepair.Outcome.AlreadyDone());
+    }
+
+    /**
+     * Two instances starting together, forced into the interleaving that wrote two entries: the second
+     * reads the trail while the first is between its claim and its commit, so neither has written its
+     * entry yet and both pass the only check there used to be. Latches, not luck — left to timing,
+     * the first finishes before the second starts and the test proves nothing.
+     */
+    @Test
+    @DisplayName("two instances starting together: one runs it and writes the entry, the other writes nothing")
+    void twoInstancesAtOnce() throws Exception {
+        agent(CredentialsMode.DELEGATED);
+        long inflated = scan(keyed, null, ScanStatus.PENDING, 5);
+
+        CountDownLatch firstClaimed = new CountDownLatch(1);
+        CountDownLatch secondClaiming = new CountDownLatch(1);
+        // The first instance pauses right after its claim, before its work and its commit.
+        AgentRepository pausing = (AgentRepository) Proxy.newProxyInstance(
+                AgentRepository.class.getClassLoader(), new Class<?>[] {AgentRepository.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("findAll") && method.getParameterCount() == 0) {
+                        firstClaimed.countDown();
+                        assertThat(secondClaiming.await(30, TimeUnit.SECONDS)).isTrue();
+                    }
+                    try {
+                        return method.invoke(agents, args);
+                    } catch (InvocationTargetException thrown) {
+                        throw thrown.getCause();
+                    }
+                });
+        // The second says when it has read the trail — found no entry — and reaches for the claim.
+        OneShotJobs signalling = new OneShotJobs(oneShotJobs, Clock.systemUTC()) {
+            @Override
+            public boolean claim(String name) {
+                secondClaiming.countDown();
+                return super.claim(name);
+            }
+        };
+        WithheldClaimRepair first = new WithheldClaimRepair(
+                pausing, scanCatalog, targetCatalog, trail, audit, this.once, transactions);
+        WithheldClaimRepair second = new WithheldClaimRepair(
+                agents, scanCatalog, targetCatalog, trail, audit, signalling, transactions);
+
+        try (ExecutorService starts = Executors.newFixedThreadPool(2)) {
+            Future<WithheldClaimRepair.Outcome> one = starts.submit(first::repairOnce);
+            assertThat(firstClaimed.await(30, TimeUnit.SECONDS)).isTrue();
+            Future<WithheldClaimRepair.Outcome> other = starts.submit(second::repairOnce);
+
+            assertThat(List.of(one.get(60, TimeUnit.SECONDS), other.get(60, TimeUnit.SECONDS)))
+                    .containsExactly(
+                            new WithheldClaimRepair.Outcome.Repaired(List.of(inflated)),
+                            new WithheldClaimRepair.Outcome.ClaimedElsewhere());
+        }
+        assertThat(attempts(inflated)).isZero();
+        assertThat(entries()).singleElement().asString().contains("1 waiting scan(s)");
+    }
+
+    @Test
+    @DisplayName("a repair that fails half-way is not recorded as run: the next start does it")
+    void aFailedRunIsNotARun() {
+        agent(CredentialsMode.DELEGATED);
+        long inflated = scan(keyed, null, ScanStatus.PENDING, 3);
+        AgentRepository failing = (AgentRepository) Proxy.newProxyInstance(
+                AgentRepository.class.getClassLoader(), new Class<?>[] {AgentRepository.class},
+                (proxy, method, args) -> {
+                    throw new IllegalStateException("the database went away mid-repair");
+                });
+        WithheldClaimRepair broken = new WithheldClaimRepair(
+                failing, scanCatalog, targetCatalog, trail, audit, once, transactions);
+
+        broken.onApplicationReady();
+
+        assertThat(jdbc.queryForObject("select count(*) from t_one_shot_job", Integer.class))
+                .as("the claim rolled back with the work it was taken for")
+                .isZero();
+        assertThat(repair.repairOnce()).isEqualTo(new WithheldClaimRepair.Outcome.Repaired(List.of(inflated)));
     }
 
     private List<String> entries() {

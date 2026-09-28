@@ -66,6 +66,14 @@ nightly scan is due would queue it twice. The others either claim what already e
 operation whose second run costs nothing — and an election there would buy nothing while adding a
 lease that can expire mid-pass.
 
+**A job that runs once per database is claimed, not checked.** The repair of the attempts withheld
+claims counted ran while no `SCAN_ATTEMPTS_REPAIRED` entry existed: two instances starting together
+both found none, both ran, and both wrote one. `OneShotJobs.claim` inserts the job's name into
+`t_one_shot_job` (since `V46`) as the first statement of the transaction that does the work; the
+primary key lets one insert through, the other waits for that transaction and fails, and its
+instance writes nothing. A run that fails rolls its claim back with it, so the next start tries
+again.
+
 **Coordination is not the only thing they could have shared.** These four run on a scheduler of
 four threads, declared in `CoreConfiguration` rather than left to Spring Boot's default — which is
 a pool of **one**. On one thread the table above says nothing useful: a slow job does not delay the

@@ -70,6 +70,15 @@ qu'une analyse nocturne est due la mettraient deux fois en file. Les autres réc
 déjà ou répètent une opération dont la seconde exécution ne coûte rien — et une élection n'y
 apporterait rien tout en ajoutant un bail qui peut expirer en cours de passe.
 
+**Une tâche qui s'exécute une fois par base est réclamée, pas vérifiée.** La réparation des
+tentatives comptées par les réclamations retenues s'exécutait tant qu'aucune entrée
+`SCAN_ATTEMPTS_REPAIRED` n'existait : deux instances démarrant ensemble n'en trouvaient aucune,
+s'exécutaient toutes deux et en écrivaient chacune une. `OneShotJobs.claim` insère le nom de la
+tâche dans `t_one_shot_job` (depuis `V46`), première instruction de la transaction qui fait le
+travail ; la clé primaire laisse passer une insertion, l'autre attend cette transaction et échoue,
+et son instance n'écrit rien. Une exécution qui échoue annule sa réclamation avec elle, et le
+démarrage suivant réessaie.
+
 **La coordination n'est pas la seule chose qu'elles auraient pu partager.** Ces quatre tâches
 tournent sur un ordonnanceur de quatre threads, déclaré dans `CoreConfiguration` plutôt que laissé
 au défaut de Spring Boot — qui est un pool d'**un seul**. Sur un thread unique, le tableau ci-dessus

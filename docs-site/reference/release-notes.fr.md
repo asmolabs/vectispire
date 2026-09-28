@@ -24,7 +24,7 @@ démarrage.** Avant cette version, chaque interrogation d'un tel agent prenait u
 besoin d'un identifiant — une tentative — et le remettait en file : un scan que rien n'avait essayé
 pouvait échouer en « bail épuisé » à sa première vraie reprise. Sur une base qui déclare un agent
 `delegated`, les scans en attente de dépôts portant un identifiant qu'aucun agent n'a jamais reçu
-(pas d'`AGENT_CREDENTIAL_SENT`) voient leurs tentatives remises à 0, consigné une fois sous
+(pas d'`AGENT_CREDENTIAL_SENT`) voient leurs tentatives remises à 0, consigné une fois — par une seule instance, quand plusieurs démarrent ensemble — sous
 `SCAN_ATTEMPTS_REPAIRED`. Ne sont pas touchés : un scan livré au moins une fois, en cours, terminé ou
 déjà en échec — relancez à la main un scan en échec —, les scans d'images et les dépôts sans
 identifiant.
@@ -122,7 +122,7 @@ tâche de maintenance lance une demi-minute après le démarrage, un nouveau con
 EPSS — inconnu, et non zéro — et les scores déjà portés par les constats restent jusqu'à ce que le
 fichier les remplace.
 
-**Les migrations V32 à V45 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V46 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration

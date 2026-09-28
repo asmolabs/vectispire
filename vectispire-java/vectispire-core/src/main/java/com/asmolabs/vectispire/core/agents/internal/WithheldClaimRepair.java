@@ -5,10 +5,12 @@ import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.core.agents.persistence.AgentRepository;
 import com.asmolabs.vectispire.core.audit.AuditLogQueryService;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
+import com.asmolabs.vectispire.core.maintenance.OneShotJobs;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
 import com.asmolabs.vectispire.core.targets.TargetCatalog;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -16,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Gives back, once per database, the attempts that withheld claims counted on scans never delivered.
@@ -48,9 +52,14 @@ import org.springframework.stereotype.Component;
  * entry, whose hash chain is computed here. <b>Once, and the audit entry is the bookkeeping</b>, as
  * the weekly digest's is: the repair runs while no {@link AuditOperation#SCAN_ATTEMPTS_REPAIRED} entry
  * exists, writes one whatever it repaired, and never runs again — a later restart must not give back
- * the attempts of a scan that is genuinely jamming its workers. Two instances starting together may
- * both run it: the refund is conditional and the second finds nothing left, at the price of a second
- * entry saying so.
+ * the attempts of a scan that is genuinely jamming its workers.
+ *
+ * <p><b>And the database decides which instance runs it.</b> Two instances starting together both
+ * read no entry, both ran, and both wrote one — the second saying 0, the refund being conditional,
+ * but an entry the trail did not need and a count an assessor reads twice. The work now runs behind
+ * {@link OneShotJobs#claim}, in one transaction with the claim: the second instance's claim waits
+ * for the first to commit and fails, and it writes nothing. The entry is still read first, which is
+ * what a database that ran the repair before the claim existed holds instead of the row.
  */
 @Component
 public class WithheldClaimRepair {
@@ -60,29 +69,43 @@ public class WithheldClaimRepair {
     /** The audit column's width: past it the trail truncates, and a cut identifier would name another scan. */
     static final int DESCRIPTION_LENGTH = 255;
 
+    /** The name {@link OneShotJobs} holds this job by. */
+    static final String JOB = "withheld-claim-repair";
+
     private final AgentRepository agents;
     private final ScanCatalog scans;
     private final TargetCatalog targets;
     private final AuditLogQueryService trail;
     private final AuditLogService audit;
+    private final OneShotJobs once;
+    private final TransactionTemplate transactions;
 
     public WithheldClaimRepair(
             AgentRepository agents,
             ScanCatalog scans,
             TargetCatalog targets,
             AuditLogQueryService trail,
-            AuditLogService audit) {
+            AuditLogService audit,
+            OneShotJobs once,
+            PlatformTransactionManager transactions) {
         this.agents = agents;
         this.scans = scans;
         this.targets = targets;
         this.trail = trail;
         this.audit = audit;
+        this.once = once;
+        this.transactions = new TransactionTemplate(transactions);
     }
 
-    /** What one call did: nothing because it had run before, or the scans whose attempts it gave back. */
+    /**
+     * What one call did: nothing because it had run before, nothing because another instance claimed
+     * it, or the scans whose attempts it gave back.
+     */
     public sealed interface Outcome {
 
         record AlreadyDone() implements Outcome {}
+
+        record ClaimedElsewhere() implements Outcome {}
 
         record Repaired(List<Long> scans) implements Outcome {}
     }
@@ -102,7 +125,21 @@ public class WithheldClaimRepair {
             return new Outcome.AlreadyDone();
         }
 
-        List<Long> repaired = delegatedAgentDeclared() ? refundUndelivered() : List.of();
+        // Claimed and done in one transaction, the entry recorded after its commit: the audit log opens
+        // its own, and inside this one it would wait on SQLite's file lock until it timed out.
+        Optional<List<Long>> done = transactions.execute(status -> {
+            if (!once.claim(JOB)) {
+                // Rolled back here, by us: the failed insert has marked the transaction rollback-only,
+                // and a commit asked for now would throw instead of saying "not ours".
+                status.setRollbackOnly();
+                return Optional.<List<Long>>empty();
+            }
+            return Optional.of(delegatedAgentDeclared() ? refundUndelivered() : List.<Long>of());
+        });
+        if (done == null || done.isEmpty()) {
+            return new Outcome.ClaimedElsewhere();
+        }
+        List<Long> repaired = done.get();
         audit.record(AuditLogService.Record.of(
                 AuditOperation.SCAN_ATTEMPTS_REPAIRED,
                 "scans",

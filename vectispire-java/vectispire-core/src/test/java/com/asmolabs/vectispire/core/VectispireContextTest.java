@@ -108,6 +108,7 @@ public abstract class VectispireContextTest {
             "t_git_token",
             "t_semgrep_rule_set",
             "t_leader_lease",
+            "t_one_shot_job",
             "t_setting",
             "t_user");
 

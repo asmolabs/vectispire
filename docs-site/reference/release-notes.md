@@ -22,7 +22,7 @@ signing key on the **Agents** screen, then update the agents. See
 version each poll of such an agent took a scan needing a credential — one attempt — and put it
 back, so a scan nothing had tried could fail as "lease exhausted" at its first real takeover. On a
 database with a `delegated` agent, the waiting scans of repositories carrying a credential that no
-agent was ever handed (no `AGENT_CREDENTIAL_SENT`) have their attempts reset to 0, recorded once as
+agent was ever handed (no `AGENT_CREDENTIAL_SENT`) have their attempts reset to 0, recorded once — by one instance, when several start together — as
 `SCAN_ATTEMPTS_REPAIRED`. Not touched: a scan delivered at least once, running, completed or already
 failed — run a failed one again by hand — image scans, and repositories without a credential.
 
@@ -108,7 +108,7 @@ scans can close it. Until the first synchronisation, which the first maintenance
 minute after the start, a new finding gets no EPSS score — unknown, not zero — and scores already
 on issues stay until the file replaces them.
 
-**Schema migrations V32 to V45 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V46 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
