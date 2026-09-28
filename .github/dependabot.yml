@@ -61,7 +61,14 @@ updates:
     # removed `vitest/node` Angular's own test runner still imported. Angular, TypeScript and
     # vitest move together through `ng update`, which also migrates the code — a deliberate
     # change, not a weekly pull request. Angular 22 was done that way; Angular 23 will be too.
-    # jsdom 30 (#10) broke the download specs and needs its own look.
+    # happy-dom, the unit-test DOM, is held at its major for a different reason: it does not move
+    # with `ng update`, but a DOM major changes what every spec observes, and one needs its own
+    # look — jsdom 30 (#10) renamed a private Blob field vitest 4 reads and broke the download
+    # specs, which is why jsdom was replaced. Its minors and patches come through, and they matter:
+    # happy-dom has published five advisories since 2024, four of them fixed in a patch. The fifth,
+    # a VM escape, was fixed only in 20.0.0 — a major this rule would hold back, and nothing turns
+    # red for it: `npm-audit` fails on shipped dependencies only and merely records a dev one's.
+    # When happy-dom appears in that record, its major is moved by hand.
     #
     # TypeScript minors are held as well: Angular supports exactly one of them at a time
     # (22 accepts `>=6.0 <6.1`), so a 6.1 pull request cannot build before Angular moves.
@@ -78,7 +85,7 @@ updates:
         update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: vitest
         update-types: [version-update:semver-major]
-      - dependency-name: jsdom
+      - dependency-name: happy-dom
         update-types: [version-update:semver-major]
     groups:
       # Angular's packages move together or not at all: a half-applied framework bump does not

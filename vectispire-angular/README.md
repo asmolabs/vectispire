@@ -63,6 +63,13 @@ constraint is a disguised `=`: do not loosen it without reading the license. It 
 again for 8.0.1 during the Angular 22 move: the PrimeUI license, free only below a
 revenue and headcount threshold, with a license key and a ban on redistribution. Still no.
 
+**happy-dom, not jsdom, under the unit tests.** `@angular/build`'s Vitest runner takes
+happy-dom whenever it resolves and jsdom otherwise; there is no setting, so the choice is
+whichever package is installed. jsdom was held at 26 because jsdom 30 renamed a private
+`Blob` field Vitest 4 reads, which broke every download spec. happy-dom ran the suite
+unchanged, in less time. Keep it at 20.8.9 or later: earlier versions carry published
+advisories, one of them a VM escape.
+
 ## Asset checking
 
 `npm test` starts with `scripts/check-assets.mjs`, which rejects any reference to a

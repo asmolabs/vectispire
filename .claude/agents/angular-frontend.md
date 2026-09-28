@@ -103,6 +103,16 @@ is only visible in the DOM — a field that must exist, a link that must carry a
 through the DOM, not through the component: component tests all passed while a settings field had
 been missing for a month. **Mutation-check what you add**: break the code, see the test fail, restore.
 
+The unit-test DOM is **happy-dom** (jsdom 30 broke the download specs; the builder takes happy-dom
+whenever it is installed, so do not add jsdom back beside it). Its gaps are the tests' to know:
+canvas `getContext` returns `null`, so a chart renders nothing and a test about a chart reads its
+data, not pixels; no stylesheet is applied, so `textContent` includes text the page hides (assert
+the accessible name); an anchor `click()` calls `window.open(href, '_self')`, which is why the
+download specs replace `HTMLAnchorElement.prototype.click`. `URL.createObjectURL` accepts its
+`Blob`, and `checkValidity`/`validity` and `matchMedia` are real: do not polyfill them. An error
+thrown inside an `HttpTestingController.flush` subscriber is not a failed test but an "Unhandled
+Error" that turns the run red: read the summary, not only the pass count.
+
 The Playwright suite needs a running control plane; reproduce the `e2e` job of
 `.github/workflows/ci.yml` (boot jar on SQLite, `VECTISPIRE_DB_URL` exported to Playwright too). The
 A `p-multiselect`'s `inputId` lands on a hidden input: Playwright times out clicking it — click the
