@@ -1,6 +1,6 @@
 # 0017 — Les checks propres à une organisation arrivent en images de conteneur émettant du SARIF, et le SARIF n'est importé que de sources internes déclarées
 
-**Date :** 2026-09-27 · **Statut :** accepté · **Décideur :** Laurent Boucher
+**Date :** 2026-09-27 · **Statut :** accepté · **Décideur :** Laurent Boucher · **§7 amendé par :** [0032](0032-security-checklists.md) (imports de couverture et de rapports de tests)
 
 *Proposée le 2026-08-29 sous le titre « checks personnalisés en images de conteneur, pas en JAR » ;
 amendée et acceptée le 2026-09-27, quand les plugins ont été construits. Ce qui a changé depuis la

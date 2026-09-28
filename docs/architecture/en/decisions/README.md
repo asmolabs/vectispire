@@ -20,7 +20,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0014](0014-two-engines-and-a-test-fixture.md) | Two deployable engines, and SQLite as a test fixture | accepted |
 | [0015](0015-one-secrets-engine.md) | One secrets engine | accepted |
 | [0016](0016-no-spdx-document.md) | CycloneDX is the generated SBOM; SPDX is not produced | accepted |
-| [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images emitting SARIF, and SARIF only from declared internal sources | accepted |
+| [0017](0017-custom-checks-as-container-images.md) | Custom checks as container images emitting SARIF, and SARIF only from declared internal sources | accepted (amended by [0032](0032-security-checklists.md)) |
 | [0018](0018-the-docker-socket-is-never-mounted.md) | The Docker socket is never mounted into the control plane | accepted |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | The server sends a token; the screen holds the sentence | accepted |
 | [0020](0020-screenshots-stay-png.md) | Screenshots stay PNG, and the trigger to change that is named | accepted |
@@ -35,7 +35,7 @@ This directory contains the structural Architecture Decision Records (ADRs) for 
 | [0029](0029-core-domains-become-modules.md) | The core domains become modules, and the layered packages are gone | accepted |
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith verifies the module boundaries, and ArchUnit keeps the layers | accepted |
 | [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | An agent's sealing key is believed only on the word of its pinned signing key | accepted |
-| [0032](0032-security-checklists.md) | A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran | proposed |
+| [0032](0032-security-checklists.md) | A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran | accepted |
 
 **On length.** ADRs [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) and [0011](0011-liquibase-rather-than-flyway.md) are short

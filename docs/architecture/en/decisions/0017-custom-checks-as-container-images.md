@@ -1,6 +1,6 @@
 # 0017 — Organisation-specific checks arrive as container images emitting SARIF, and SARIF only from declared internal sources
 
-**Date:** 2026-09-27 · **Status:** accepted · **Decider:** Laurent Boucher
+**Date:** 2026-09-27 · **Status:** accepted · **Decider:** Laurent Boucher · **§7 amended by:** [0032](0032-security-checklists.md) (coverage and test-report imports)
 
 *Proposed on 2026-08-29 as "custom checks as container images, not uploaded JARs"; amended and accepted
 on 2026-09-27, when the plugins were built. What changed from the proposal is listed at the end.

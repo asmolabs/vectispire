@@ -1,6 +1,6 @@
 # 0032 — Une checklist de sécurité est le modèle de l'organisation, versionné, rempli par projet par des personnes, et prérempli seulement à partir de preuves qui ont été produites
 
-**Date :** 2026-09-28 · **Statut :** proposée · **Amenderait :** [0017](0017-custom-checks-as-container-images.md) §7 · **Décideur :** Laurent Boucher
+**Date :** 2026-09-28 · **Statut :** acceptée · **Amende :** [0017](0017-custom-checks-as-container-images.md) §7 · **Décideur :** Laurent Boucher
 
 ## Contexte
 
@@ -564,7 +564,9 @@ sans signature, sa feuille `Evidence` s'ouvrant sur *« Brouillon — non valid�
   que la 0017 énonce pour le SARIF, redite ici parce qu'une checklist est l'endroit où quelqu'un
   l'oubliera.
 
-## Questions ouvertes pour le responsable
+## Questions tranchées le 2026-09-28
+
+Le responsable a accepté chaque recommandation ci-dessous telle qu'elle est écrite ; chacune fait désormais partie de la décision.
 
 Chacune avec la recommandation de cette proposition.
 

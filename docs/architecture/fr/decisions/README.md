@@ -20,7 +20,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0014](0014-two-engines-and-a-test-fixture.md) | Deux moteurs déployables, et SQLite comme fixture de test | acceptée |
 | [0015](0015-one-secrets-engine.md) | Un seul moteur de secrets | acceptée |
 | [0016](0016-no-spdx-document.md) | CycloneDX est le SBOM généré ; SPDX n'est pas produit | acceptée |
-| [0017](0017-custom-checks-as-container-images.md) | Checks personnalisés en images de conteneur émettant du SARIF, et SARIF seulement de sources internes déclarées | acceptée |
+| [0017](0017-custom-checks-as-container-images.md) | Checks personnalisés en images de conteneur émettant du SARIF, et SARIF seulement de sources internes déclarées | acceptée (amendée par [0032](0032-security-checklists.md)) |
 | [0018](0018-the-docker-socket-is-never-mounted.md) | Le socket Docker n'est jamais monté dans le plan de contrôle | acceptée |
 | [0019](0019-screen-text-is-translated-on-the-client.md) | Le serveur envoie un jeton ; l'écran détient la phrase | acceptée |
 | [0020](0020-screenshots-stay-png.md) | Les captures restent en PNG, et le déclencheur qui changera cela est nommé | acceptée |
@@ -35,7 +35,7 @@ Ce répertoire répertorie l'ensemble des décisions structurelles d'architectur
 | [0029](0029-core-domains-become-modules.md) | Les domaines cœur deviennent des modules, et les paquetages par couche disparaissent | acceptée |
 | [0030](0030-modulith-verifies-the-module-boundaries.md) | Spring Modulith vérifie les frontières des modules, et ArchUnit garde les couches | acceptée |
 | [0031](0031-a-sealing-key-is-believed-only-on-the-pinned-key.md) | La clé de scellement d'un agent n'est crue que sur la parole de sa clé de signature épinglée | acceptée |
-| [0032](0032-security-checklists.md) | Une checklist de sécurité est le modèle de l'organisation, versionné, rempli par projet par des personnes, et prérempli seulement à partir de preuves qui ont été produites | proposée |
+| [0032](0032-security-checklists.md) | Une checklist de sécurité est le modèle de l'organisation, versionné, rempli par projet par des personnes, et prérempli seulement à partir de preuves qui ont été produites | acceptée |
 
 **Sur la longueur.** Les ADR [0004](0004-sqlite-and-postgresql-only.md),
 [0008](0008-postgresql-and-mysql.md) et [0011](0011-liquibase-rather-than-flyway.md) sont courtes

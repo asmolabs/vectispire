@@ -1,6 +1,6 @@
 # 0032 — A security checklist is the organisation's template, versioned, answered per project by people, and prefilled only from evidence that ran
 
-**Date:** 2026-09-28 · **Status:** proposed · **Would amend:** [0017](0017-custom-checks-as-container-images.md) §7 · **Decider:** Laurent Boucher
+**Date:** 2026-09-28 · **Status:** accepted · **Amends:** [0017](0017-custom-checks-as-container-images.md) §7 · **Decider:** Laurent Boucher
 
 ## Context
 
@@ -520,7 +520,9 @@ is the one that was signed. A draft or submitted revision renders on request, un
   to a declared key and hashed, and the document says which. That is the same limit 0017 states for
   SARIF, stated again here because a checklist is where somebody will forget it.
 
-## Open questions for the owner
+## Questions settled on 2026-09-28
+
+The owner accepted every recommendation below as written; each is now part of the decision.
 
 Each with the recommendation this proposal makes.
 
