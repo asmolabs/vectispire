@@ -2,6 +2,10 @@
 
 **Date:** 2026-09-26 · **Status:** accepted · **Amends:** [0003](0003-long-polling-for-agents.md) · **Decider:** Laurent Boucher
 
+> **Note (2026-09-28).** The SIEM signature identifiers this record names as `ZAN-SEC-nnn` are
+> emitted as `VECTI-SEC-nnn` since the release after 0.9.0 — same numbers, same meanings. The text
+> below is left as accepted; see the [SIEM catalogue](../../../../docs-site/integrations/siem.md#event-catalogue).
+
 ## Context
 
 An agent in `delegated` mode receives a repository's SSH key or HTTPS token with each task, sealed

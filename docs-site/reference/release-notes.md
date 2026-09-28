@@ -2,10 +2,45 @@
 
 ## Next release (after 0.9.0)
 
-Not tagged yet. Read **Before you upgrade** first: three of its points stop something working
+Not tagged yet. Read **Before you upgrade** first: four of its points stop something working
 until an operator acts, on purpose.
 
 ### Before you upgrade
+
+**SIEM signature identifiers are renamed from `ZAN-SEC-nnn` to `VECTI-SEC-nnn`, all at once.** The
+number and the meaning of every event stay the same; only the prefix changes, and no event carries
+the old one any more — not even those still queued when you upgrade, since the identifier is
+written when an event leaves. **A correlation rule, alert or dashboard filtering on `ZAN-SEC-` stops
+matching, without any error.** Before upgrading, change each one to the new prefix, or to match both
+while you roll out. The CEF `signatureId`, the syslog `MSGID` and the webhook's JSON all carry it.
+See [SIEM](../integrations/siem.md#event-catalogue).
+
+| Before | From this version | Event |
+|---|---|---|
+| `ZAN-SEC-002` | `VECTI-SEC-002` | Actively exploited vulnerability (KEV) detected |
+| `ZAN-SEC-003` | `VECTI-SEC-003` | Security gate refused a build |
+| `ZAN-SEC-005` | `VECTI-SEC-005` | Finding settled by triage |
+| `ZAN-SEC-006` | `VECTI-SEC-006` | MFA backup code consumed |
+| `ZAN-SEC-007` | `VECTI-SEC-007` | Sign-in failure ceiling reached |
+| `ZAN-SEC-008` | `VECTI-SEC-008` | MFA failure ceiling reached |
+| `ZAN-SEC-009` | `VECTI-SEC-009` | Bearer token failure ceiling reached |
+| `ZAN-SEC-010` | `VECTI-SEC-010` | Account privileges or credentials changed |
+| `ZAN-SEC-011` | `VECTI-SEC-011` | Team access grant changed |
+| `ZAN-SEC-012` | `VECTI-SEC-012` | API key issued |
+| `ZAN-SEC-013` | `VECTI-SEC-013` | API key revoked |
+| `ZAN-SEC-014` | `VECTI-SEC-014` | Agent declared or its credentials changed |
+| `ZAN-SEC-015` | `VECTI-SEC-015` | Agent result refused: attestation did not verify |
+| `ZAN-SEC-016` | `VECTI-SEC-016` | Four-eyes triage request approved |
+| `ZAN-SEC-017` | `VECTI-SEC-017` | Four-eyes triage request refused |
+| `ZAN-SEC-018` | `VECTI-SEC-018` | Audit log integrity verification failed |
+| `ZAN-SEC-019` | `VECTI-SEC-019` | Security-relevant setting changed |
+| `ZAN-SEC-020` | `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify |
+| `ZAN-SEC-021` | `VECTI-SEC-021` | Analysis plugin registered, changed or activated |
+| `ZAN-SEC-022` | `VECTI-SEC-022` | SARIF import source declared or changed |
+| `ZAN-SEC-023` | `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool |
+| `ZAN-SEC-024` | `VECTI-SEC-024` | Checklist template version published or retired |
+| `ZAN-SEC-027` | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope |
+| `ZAN-SEC-999` | `VECTI-SEC-999` | SIEM connector health check |
 
 **Delegated scans stop until each delegating agent is updated and has a pinned signing key.**
 An agent in `delegated` credentials mode receives a repository's SSH key or HTTPS token sealed for
@@ -226,7 +261,7 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   XML file or a zip of them (`…/test-report-imports`) — with a `report_import` key its source is
   declared for. The figures are kept, never the document; an empty report is refused rather than
   recorded as zero, and nothing opens or resolves an issue. Audited `COVERAGE_IMPORTED`,
-  `TEST_REPORT_IMPORTED` and `REPORT_IMPORT_REFUSED`, the refusal sent to the SIEM as `ZAN-SEC-027`.
+  `TEST_REPORT_IMPORTED` and `REPORT_IMPORT_REFUSED`, the refusal sent to the SIEM as `VECTI-SEC-027`.
   `scripts/vectispire-cli.sh` gains `coverage` and `test-report` — [Importing coverage and test reports](../administration/plugins.md#importing-coverage-and-test-reports).
 - **The scan page shows which steps examined the tree.** A *What this scan examined* card lists the
   built-in steps that produced and those that did not look — failed, or not run for that target —

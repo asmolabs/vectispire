@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter;
  *
  * <pre>
  *   &lt;PRI&gt;1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
- *   &lt;82&gt;1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - ZAN-SEC-007 - CEF:0|Vectispire|…
+ *   &lt;82&gt;1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - VECTI-SEC-007 - CEF:0|Vectispire|…
  * </pre>
  *
  * <ul>

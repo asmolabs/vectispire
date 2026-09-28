@@ -220,7 +220,7 @@ reads *credentials withheld* again and its delegated scans wait in the queue unt
 new signed key, at its next start or its next claim.
 
 A signature that does not verify is refused with **403**, written to the audit log as
-`AGENT_SEALING_KEY_REFUSED` and sent to the SIEM as `ZAN-SEC-020`: the agent's configured key is not
+`AGENT_SEALING_KEY_REFUSED` and sent to the SIEM as `VECTI-SEC-020`: the agent's configured key is not
 the pinned one, or the key was not made by the agent.
 
 **Upgrading.** An agent older than this version cannot sign its key: a current control plane hands

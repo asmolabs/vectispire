@@ -45,7 +45,7 @@ import org.springframework.util.unit.DataSize;
  *   <li><b>An integration key, never a session</b> (403) — the route accepts {@code report_import}
  *       keys, and a key without the scope is refused before the route (403).</li>
  *   <li><b>A key declared as a source, and enabled</b> (403, audited {@code REPORT_IMPORT_REFUSED}
- *       and signalled {@code ZAN-SEC-027}).</li>
+ *       and signalled {@code VECTI-SEC-027}).</li>
  *   <li><b>The kind among the source's</b>: a source declared for SARIF alone does not deposit
  *       coverage (403, audited and signalled). A key holding {@code report_import} whose source was
  *       declared without the kind is a pipeline sending what nobody declared.</li>

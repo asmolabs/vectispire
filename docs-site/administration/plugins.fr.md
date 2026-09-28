@@ -146,7 +146,7 @@ propre à chaque exécuteur, parce que c'est cette machine-là qui lance le code
 
 Seul le **gouverneur de la plateforme** enregistre, met à jour, active ou désactive un plugin : c'est
 du code tiers qui lira le source de chaque projet pour lequel il sera activé. Chaque changement est au
-journal d'audit avec le digest du manifeste, et transmis au SIEM (`ZAN-SEC-021`).
+journal d'audit avec le digest du manifeste, et transmis au SIEM (`VECTI-SEC-021`).
 
 **À l'écran**, **Plugins** — dans la barre latérale sous Configuration, pour tout compte — liste chaque
 plugin avec son état, ses langages, son exception réseau et le début du digest de son manifeste ; l'œil
@@ -294,7 +294,7 @@ scanner.
 Les issues importées disent d'où elles viennent : type **imported**, la source, le nom et la version de
 l'outil. Un auditeur distingue d'un coup d'œil « analysé par Vectispire » (types `plugin`, `sast`…) de
 « déclaré par la CI » (`imported`). Chaque import est conservé avec l'empreinte de son document et au
-journal d'audit ; un import refusé est un événement SIEM (`ZAN-SEC-023`).
+journal d'audit ; un import refusé est un événement SIEM (`VECTI-SEC-023`).
 
 Chaque ligne de [Dépôts](../guide/repositories.md) a **Imports**, qui ouvre la dernière couverture et
 le dernier rapport de tests de ce dépôt (voir [plus bas](#importer-des-rapports-de-couverture-et-de-tests))
@@ -447,7 +447,7 @@ depuis quelle source — et sur son dernier rapport de tests : tests, échecs, e
 n'est téléversé depuis l'interface.
 
 Chaque import accepté figure au journal d'audit (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`) ; un refus
-pour ce que la clé prétendait est audité `REPORT_IMPORT_REFUSED` et envoyé au SIEM comme `ZAN-SEC-027`.
+pour ce que la clé prétendait est audité `REPORT_IMPORT_REFUSED` et envoyé au SIEM comme `VECTI-SEC-027`.
 Les cinquante derniers imports de chaque type d'un dépôt se lisent à
 `GET /api/v1/repositories/{id}/coverage-imports` et `…/test-report-imports`.
 

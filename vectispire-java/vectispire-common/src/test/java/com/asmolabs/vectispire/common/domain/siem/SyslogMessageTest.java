@@ -18,7 +18,7 @@ class SyslogMessageTest {
         String message = SyslogMessage.format(SecurityEventType.SIGN_IN_THROTTLED, TS, "vectispire-1", "CEF:0|x");
 
         // Facility 10 × 8 + severity 3 (CEF 7 is "high", syslog "error") = 83.
-        assertThat(message).isEqualTo("<83>1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - ZAN-SEC-007 - CEF:0|x");
+        assertThat(message).isEqualTo("<83>1 2026-09-26T10:00:00.123Z vectispire-1 vectispire - VECTI-SEC-007 - CEF:0|x");
     }
 
     @Test
@@ -40,7 +40,7 @@ class SyslogMessageTest {
     @DisplayName("a hostname with a space or a control character cannot shift the header's fields")
     void hostnameIsAToken() {
         assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, "my host\n", "CEF"))
-                .startsWith("<85>1 2026-09-26T10:00:00.123Z myhost vectispire - ZAN-SEC-999 - ");
+                .startsWith("<85>1 2026-09-26T10:00:00.123Z myhost vectispire - VECTI-SEC-999 - ");
         assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, " ", "CEF"))
                 .contains(".123Z - vectispire ");
         assertThat(SyslogMessage.format(SecurityEventType.PING_TEST, TS, null, "CEF"))

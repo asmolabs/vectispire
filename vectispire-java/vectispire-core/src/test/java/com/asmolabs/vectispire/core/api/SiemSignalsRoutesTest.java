@@ -102,7 +102,7 @@ class SiemSignalsRoutesTest extends ApiTestBase {
             collector.setSoTimeout(3_000);
             exportTo("127.0.0.1:" + collector.getLocalPort());
 
-            String forged = "x|y\nCEF:0|Vectispire|ASPM|1|ZAN-SEC-018|forged|10|src=6.6.6.6 suser=admin";
+            String forged = "x|y\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|forged|10|src=6.6.6.6 suser=admin";
             for (int attempt = 0; attempt < 6; attempt++) {
                 login(forged, "wrong");
             }
@@ -113,13 +113,13 @@ class SiemSignalsRoutesTest extends ApiTestBase {
                 DatagramPacket datagram = new DatagramPacket(new byte[65_536], 65_536);
                 collector.receive(datagram);
                 String message = new String(datagram.getData(), 0, datagram.getLength(), StandardCharsets.UTF_8);
-                if (message.contains("|ZAN-SEC-007|")) {
+                if (message.contains("|VECTI-SEC-007|")) {
                     received = message;
                 }
             }
 
             assertThat(received).isNotNull().doesNotContain("\n").doesNotContain("\r");
-            assertThat(received).contains("suser=x|y\\nCEF:0|Vectispire|ASPM|1|ZAN-SEC-018|forged|10|src\\=6.6.6.6 suser\\=admin");
+            assertThat(received).contains("suser=x|y\\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|forged|10|src\\=6.6.6.6 suser\\=admin");
             assertThat(received).doesNotContain(" src=6.6.6.6");
         }
     }

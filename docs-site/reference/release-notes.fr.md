@@ -2,10 +2,45 @@
 
 ## Prochaine version (après 0.9.0)
 
-Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : trois de ses points arrêtent
+Pas encore étiquetée. Lisez d'abord **Avant la mise à jour** : quatre de ses points arrêtent
 quelque chose tant qu'un opérateur n'a pas agi, et c'est voulu.
 
 ### Avant la mise à jour
+
+**Les identifiants de signature SIEM passent de `ZAN-SEC-nnn` à `VECTI-SEC-nnn`, d'un coup.** Le numéro
+et le sens de chaque événement restent les mêmes ; seul le préfixe change, et plus aucun événement ne
+porte l'ancien — pas même ceux encore en file au moment de la mise à jour, puisque l'identifiant est
+écrit au départ de l'événement. **Une règle de corrélation, une alerte ou un tableau de bord qui filtre
+sur `ZAN-SEC-` cesse de correspondre, sans aucune erreur.** Avant la mise à jour, passez chacun au
+nouveau préfixe, ou faites-lui accepter les deux le temps du déploiement. Le `signatureId` CEF, le
+`MSGID` syslog et le JSON du webhook le portent tous. Voir [SIEM](../integrations/siem.md#catalogue-des-evenements).
+
+| Avant | À partir de cette version | Événement |
+|---|---|---|
+| `ZAN-SEC-002` | `VECTI-SEC-002` | Actively exploited vulnerability (KEV) detected |
+| `ZAN-SEC-003` | `VECTI-SEC-003` | Security gate refused a build |
+| `ZAN-SEC-005` | `VECTI-SEC-005` | Finding settled by triage |
+| `ZAN-SEC-006` | `VECTI-SEC-006` | MFA backup code consumed |
+| `ZAN-SEC-007` | `VECTI-SEC-007` | Sign-in failure ceiling reached |
+| `ZAN-SEC-008` | `VECTI-SEC-008` | MFA failure ceiling reached |
+| `ZAN-SEC-009` | `VECTI-SEC-009` | Bearer token failure ceiling reached |
+| `ZAN-SEC-010` | `VECTI-SEC-010` | Account privileges or credentials changed |
+| `ZAN-SEC-011` | `VECTI-SEC-011` | Team access grant changed |
+| `ZAN-SEC-012` | `VECTI-SEC-012` | API key issued |
+| `ZAN-SEC-013` | `VECTI-SEC-013` | API key revoked |
+| `ZAN-SEC-014` | `VECTI-SEC-014` | Agent declared or its credentials changed |
+| `ZAN-SEC-015` | `VECTI-SEC-015` | Agent result refused: attestation did not verify |
+| `ZAN-SEC-016` | `VECTI-SEC-016` | Four-eyes triage request approved |
+| `ZAN-SEC-017` | `VECTI-SEC-017` | Four-eyes triage request refused |
+| `ZAN-SEC-018` | `VECTI-SEC-018` | Audit log integrity verification failed |
+| `ZAN-SEC-019` | `VECTI-SEC-019` | Security-relevant setting changed |
+| `ZAN-SEC-020` | `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify |
+| `ZAN-SEC-021` | `VECTI-SEC-021` | Analysis plugin registered, changed or activated |
+| `ZAN-SEC-022` | `VECTI-SEC-022` | SARIF import source declared or changed |
+| `ZAN-SEC-023` | `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool |
+| `ZAN-SEC-024` | `VECTI-SEC-024` | Checklist template version published or retired |
+| `ZAN-SEC-027` | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope |
+| `ZAN-SEC-999` | `VECTI-SEC-999` | SIEM connector health check |
 
 **Les scans délégués s'arrêtent tant que chaque agent délégué n'est pas mis à jour et n'a pas de
 clé de signature épinglée.** Un agent en mode d'identifiants `delegated` reçoit la clé SSH ou le
@@ -257,7 +292,7 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `report_import` pour laquelle sa source est déclarée. Les chiffres sont gardés, jamais le document ;
   un rapport vide est refusé plutôt qu'enregistré comme zéro, et rien n'ouvre ni ne résout d'issue.
   Audités `COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED` et `REPORT_IMPORT_REFUSED`, le refus envoyé au
-  SIEM comme `ZAN-SEC-027`. `scripts/vectispire-cli.sh` gagne `coverage` et `test-report` —
+  SIEM comme `VECTI-SEC-027`. `scripts/vectispire-cli.sh` gagne `coverage` et `test-report` —
   [Importer des rapports de couverture et de tests](../administration/plugins.md#importer-des-rapports-de-couverture-et-de-tests).
 - **La page d'une analyse montre quelles étapes ont examiné l'arbre.** Une carte *Ce que ce scan a
   examiné* liste les étapes intégrées qui ont produit et celles qui n'ont pas regardé — en échec, ou

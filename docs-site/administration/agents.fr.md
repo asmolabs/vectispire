@@ -237,7 +237,7 @@ et ses analyses déléguées attendent dans la file qu'il annonce une nouvelle c
 prochain démarrage ou à sa prochaine prise en charge.
 
 Une signature qui ne se vérifie pas est refusée en **403**, écrite au journal d'audit sous
-`AGENT_SEALING_KEY_REFUSED` et envoyée au SIEM sous `ZAN-SEC-020` : la clé configurée sur l'agent
+`AGENT_SEALING_KEY_REFUSED` et envoyée au SIEM sous `VECTI-SEC-020` : la clé configurée sur l'agent
 n'est pas celle qui est épinglée, ou la clé de scellement n'a pas été fabriquée par l'agent.
 
 **Mise à niveau.** Un agent plus ancien que cette version ne sait pas signer sa clé : un plan de

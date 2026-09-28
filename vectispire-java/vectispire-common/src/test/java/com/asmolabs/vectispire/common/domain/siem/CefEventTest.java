@@ -27,7 +27,7 @@ class CefEventTest {
 
         String cef = event.toCefString("2.3.0");
 
-        assertThat(cef).startsWith("CEF:0|Vectispire|ASPM|2.3.0|ZAN-SEC-012|API key issued|5|");
+        assertThat(cef).startsWith("CEF:0|Vectispire|ASPM|2.3.0|VECTI-SEC-012|API key issued|5|");
         assertThat(cef).contains("rt=" + TS.toEpochMilli());
         assertThat(cef).contains("outcome=success");
         assertThat(cef).contains("suser=alice");
@@ -42,7 +42,7 @@ class CefEventTest {
     void noVersionIsAnEmptyField() {
         String cef = CefEvent.builder(SecurityEventType.PING_TEST).timestamp(TS).build().toCefString(null);
 
-        assertThat(cef).startsWith("CEF:0|Vectispire|ASPM||ZAN-SEC-999|");
+        assertThat(cef).startsWith("CEF:0|Vectispire|ASPM||VECTI-SEC-999|");
     }
 
     @Test
@@ -60,7 +60,7 @@ class CefEventTest {
     @DisplayName("an attacker-chosen username cannot forge a second event or a new field")
     void aUsernameCannotInjectAnEvent() {
         // Typed into the sign-in form, recorded as the audit entry's user, forwarded as suser.
-        String typed = "mallory\nCEF:0|Vectispire|ASPM|1|ZAN-SEC-018|forged|10|suser=admin\r\nsrc=1.2.3.4 act=x";
+        String typed = "mallory\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|forged|10|suser=admin\r\nsrc=1.2.3.4 act=x";
 
         String cef = CefEvent.builder(SecurityEventType.SIGN_IN_THROTTLED).timestamp(TS).user(typed).build()
                 .toCefString("1");
@@ -68,7 +68,7 @@ class CefEventTest {
         // One line, whatever the collector splits on.
         assertThat(cef).doesNotContain("\n").doesNotContain("\r");
         // The equals signs are escaped, so no parser reads "src=" or "suser=" as a field of ours.
-        assertThat(cef).contains("suser=mallory\\nCEF:0|Vectispire|ASPM|1|ZAN-SEC-018|forged|10|suser\\=admin\\r\\nsrc\\=1.2.3.4 act\\=x");
+        assertThat(cef).contains("suser=mallory\\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|forged|10|suser\\=admin\\r\\nsrc\\=1.2.3.4 act\\=x");
         // Exactly one unescaped "suser=" and no unescaped "src=".
         assertThat(cef.split("(?<!\\\\)suser=", -1)).hasSize(2);
         assertThat(cef).doesNotContainPattern("(?<!\\\\)src=");

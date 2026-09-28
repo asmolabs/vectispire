@@ -83,7 +83,7 @@ import org.springframework.util.unit.DataSize;
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
  * on SQLite would wait on this one's file lock. Publishing a version, and retiring a published one,
- * signal {@code ZAN-SEC-024} to the SIEM (§9).
+ * signal {@code VECTI-SEC-024} to the SIEM (§9).
  */
 @Service
 public class ChecklistTemplateService {

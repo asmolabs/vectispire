@@ -40,7 +40,7 @@ L1 and L2 have no dependency on the checklist and can start at once, in parallel
   tolerated and never loaded, entities refused, counts bounded, empty reports refused.
 - Routes `coverage-imports` and `test-report-imports` in `plugins`, the refusals of 0017 §7 in the
   same order; body limits in `RequestBodyLimitFilter`; `COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`,
-  `REPORT_IMPORT_REFUSED`; SIEM `ZAN-SEC-027`.
+  `REPORT_IMPORT_REFUSED`; SIEM `VECTI-SEC-027`.
 - `plugins` API: the latest coverage and test report per repository, as views (open question 7 may
   move this to a module of its own).
 - Frontend: the source form gains the kinds; the repository page lists the latest imports.
@@ -66,7 +66,7 @@ L1 and L2 have no dependency on the checklist and can start at once, in parallel
   `t_checklist_template_version`, `t_checklist_item`.
 - Routes: import (raw body, 10 MB), preview, confirm layout and answer words, pair items, derive,
   publish (four-eyes per open question 9), retire, list, read; `CHECKLIST_TEMPLATE_*` audit;
-  SIEM `ZAN-SEC-024`.
+  SIEM `VECTI-SEC-024`.
 - Frontend: an administration screen — upload, the proposed layout on a grid, the answer words, the
   pairing with the previous version, publish.
 - Docs: administration page "Checklist templates", fr/en.
@@ -80,7 +80,7 @@ L1 and L2 have no dependency on the checklist and can start at once, in parallel
   and `routesLeaveTheRefusalToTheirServices` cover the new routes.
 - Open, answer, history, evidence (links and files, served as downloads only), submit, return,
   sign-off with four-eyes (open question 2), reopen, move to a version with carried answers; the
-  `ProjectDeleted` listener (open question 10). Audit `CHECKLIST_*`; SIEM `ZAN-SEC-025`, `026`.
+  `ProjectDeleted` listener (open question 10). Audit `CHECKLIST_*`; SIEM `VECTI-SEC-025`, `026`.
 - Frontend: a checklist tab on the project — lines grouped by domain and objective, answer and
   comment, history per line, evidence, the submit and sign-off actions, the carried lines awaiting
   confirmation.

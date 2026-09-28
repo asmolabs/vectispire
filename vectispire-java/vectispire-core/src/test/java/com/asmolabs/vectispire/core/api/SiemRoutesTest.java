@@ -263,7 +263,7 @@ class SiemRoutesTest extends ApiTestBase {
             java.net.DatagramPacket packet = new java.net.DatagramPacket(new byte[8_192], 8_192);
             collector.receive(packet);
             assertThat(new String(packet.getData(), 0, packet.getLength(), java.nio.charset.StandardCharsets.UTF_8))
-                    .contains(" ZAN-SEC-999 - CEF:0|Vectispire|ASPM|");
+                    .contains(" VECTI-SEC-999 - CEF:0|Vectispire|ASPM|");
         }
     }
 

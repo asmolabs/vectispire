@@ -133,7 +133,7 @@ publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seco
 
 Chaque import, confirmation de disposition, appariement, dérivation, publication et retrait est inscrit
 au [journal d'audit](audit-log.fr.md). Publier une version, et retirer une version publiée, est aussi
-signalé au SIEM comme `ZAN-SEC-024`.
+signalé au SIEM comme `VECTI-SEC-024`.
 
 ## À lire aussi
 

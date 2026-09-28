@@ -2,6 +2,10 @@
 
 **Date :** 2026-09-26 · **Statut :** acceptée · **Amende :** [0003](0003-long-polling-for-agents.md) · **Décideur :** Laurent Boucher
 
+> **Note (2026-09-28).** Les identifiants de signature SIEM que cette décision nomme `ZAN-SEC-nnn`
+> sont émis en `VECTI-SEC-nnn` depuis la version qui suit la 0.9.0 — mêmes numéros, mêmes sens. Le
+> texte ci-dessous est laissé tel qu'accepté ; voir le [catalogue SIEM](../../../../docs-site/integrations/siem.fr.md#catalogue-des-evenements).
+
 ## Contexte
 
 Un agent en mode `delegated` reçoit avec chaque tâche la clé SSH ou le jeton HTTPS d'un dépôt,

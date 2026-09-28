@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
  *
  * <p>Several extension values come from whoever is on the other side of a form: the username a
  * sign-in attempt typed, a resource identifier, an audit description. A username of
- * {@code x\nCEF:0|Vectispire|ASPM|1|ZAN-SEC-018|…} written raw would be a second event in every
+ * {@code x\nCEF:0|Vectispire|ASPM|1|VECTI-SEC-018|…} written raw would be a second event in every
  * line-oriented collector — a forged alarm, or a forged all-clear. So:
  *
  * <ul>

@@ -18,7 +18,7 @@ when a security lead presses **Synchronize** on the **Threat Intelligence** sett
 says when it was last read, CISA's release date of the catalogue in use, and why the last attempt
 failed if it did — a failure keeps the catalogue in use rather than emptying it. An open issue is
 flagged when its CVE is listed and un-flagged when the catalogue stops listing it; a newly flagged
-one is sent to the SIEM as `ZAN-SEC-002`. Before the first synchronisation nothing is flagged, and
+one is sent to the SIEM as `VECTI-SEC-002`. Before the first synchronisation nothing is flagged, and
 the tab says *never synchronized* rather than a reassuring zero.
 
 The EPSS scores come from FIRST's daily file as the control plane last read it: once a day, and

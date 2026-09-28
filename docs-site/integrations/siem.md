@@ -102,33 +102,35 @@ the request path: a sign-in, a scan ingest or a sync never waits on your collect
 ## Event catalogue
 
 The signature identifier is a contract: correlation rules are written against it, and it will not
-change meaning.
+change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in the release after
+0.9.0 — same numbers, same meanings; see the [release notes](../reference/release-notes.md#before-you-upgrade).
 
 | Signature | Name | CEF severity | Emitted when |
 |---|---|---|---|
-| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | a synchronisation of the CISA KEV catalogue — every six hours, or asked from the threat-intelligence tab — finds an open issue whose CVE it newly lists. Once per issue: a CVE already flagged is not announced again, and one the catalogue stops listing is un-flagged without an event |
-| `ZAN-SEC-003` | Security gate refused a build | 7 | a CI gate verdict fails |
-| `ZAN-SEC-005` | Finding settled by triage | 5 | a finding is marked not affected or fixed without going through approval, by hand or by VEX import |
-| `ZAN-SEC-006` | MFA backup code consumed | 6 | an emergency recovery code is spent |
-| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | the password throttle refuses an attempt — at sign-in, or when a signed-in account changes its password |
-| `ZAN-SEC-008` | MFA failure ceiling reached | 7 | a second-factor challenge is destroyed after too many wrong codes, or the account's second factor locks |
-| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens — bearer or `X-API-Key` (once per window) |
-| `ZAN-SEC-010` | Account privileges or credentials changed | 6 | an account is created, deleted, changes role, activation, password, second factor or visible targets — from the screen or SCIM |
-| `ZAN-SEC-011` | Team access grant changed | 6 | a team's members or targets change, a repository is filed into a project or moved, or a project, repository or image that held grants is deleted |
-| `ZAN-SEC-012` | API key issued | 5 | an integration key is issued |
-| `ZAN-SEC-013` | API key revoked | 4 | an integration key is revoked — by hand, with the repository or image it was restricted to, or by a reset of its account's password (one event per key) |
-| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | an agent is declared, enabled, disabled, deleted, its signing key pinned or removed, or its sealing key reset by an administrator |
-| `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | an agent's signed result fails verification |
-| `ZAN-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |
-| `ZAN-SEC-017` | Four-eyes triage request refused | 4 | a pending request is sent back |
-| `ZAN-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
-| `ZAN-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
-| `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
-| `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, or switched on or off for a project — third-party code gains or loses read access to some of the source |
-| `ZAN-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |
-| `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | a SARIF upload is refused for what it claims — a key no source is declared for, a repository outside its source's scope, a tool its source is not declared for |
-| `ZAN-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
-| `ZAN-SEC-999` | SIEM connector health check | 1 | the connection test |
+| `VECTI-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | a synchronisation of the CISA KEV catalogue — every six hours, or asked from the threat-intelligence tab — finds an open issue whose CVE it newly lists. Once per issue: a CVE already flagged is not announced again, and one the catalogue stops listing is un-flagged without an event |
+| `VECTI-SEC-003` | Security gate refused a build | 7 | a CI gate verdict fails |
+| `VECTI-SEC-005` | Finding settled by triage | 5 | a finding is marked not affected or fixed without going through approval, by hand or by VEX import |
+| `VECTI-SEC-006` | MFA backup code consumed | 6 | an emergency recovery code is spent |
+| `VECTI-SEC-007` | Sign-in failure ceiling reached | 7 | the password throttle refuses an attempt — at sign-in, or when a signed-in account changes its password |
+| `VECTI-SEC-008` | MFA failure ceiling reached | 7 | a second-factor challenge is destroyed after too many wrong codes, or the account's second factor locks |
+| `VECTI-SEC-009` | Bearer token failure ceiling reached | 7 | an address exhausts its allowance of refused tokens — bearer or `X-API-Key` (once per window) |
+| `VECTI-SEC-010` | Account privileges or credentials changed | 6 | an account is created, deleted, changes role, activation, password, second factor or visible targets — from the screen or SCIM |
+| `VECTI-SEC-011` | Team access grant changed | 6 | a team's members or targets change, a repository is filed into a project or moved, or a project, repository or image that held grants is deleted |
+| `VECTI-SEC-012` | API key issued | 5 | an integration key is issued |
+| `VECTI-SEC-013` | API key revoked | 4 | an integration key is revoked — by hand, with the repository or image it was restricted to, or by a reset of its account's password (one event per key) |
+| `VECTI-SEC-014` | Agent declared or its credentials changed | 6 | an agent is declared, enabled, disabled, deleted, its signing key pinned or removed, or its sealing key reset by an administrator |
+| `VECTI-SEC-015` | Agent result refused: attestation did not verify | 8 | an agent's signed result fails verification |
+| `VECTI-SEC-016` | Four-eyes triage request approved | 5 | a second person settles a pending request |
+| `VECTI-SEC-017` | Four-eyes triage request refused | 4 | a pending request is sent back |
+| `VECTI-SEC-018` | Audit log integrity verification failed | 10 | a verification finds the hash chain broken or entries missing from the table |
+| `VECTI-SEC-019` | Security-relevant setting changed | 6 | the SIEM export itself, a gate policy, visibility, four-eyes, a private-URL or remote-model switch, a tracker or model destination, or a stored credential changes |
+| `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | an agent's sealing key announcement is refused: its signature does not verify against the pinned signing key, or it is older than the key already accepted; no credential is sealed for it |
+| `VECTI-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, or switched on or off for a project — third-party code gains or loses read access to some of the source |
+| `VECTI-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |
+| `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | a SARIF upload is refused for what it claims — a key no source is declared for, a repository outside its source's scope, a tool its source is not declared for |
+| `VECTI-SEC-024` | Checklist template version published or retired | 6 | a checklist template version is published, or a published one retired — what every project will attest to changes. Setting a draft aside is not signalled |
+| `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
+| `VECTI-SEC-999` | SIEM connector health check | 1 | the connection test |
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by
 environment variables and change only with a restart, so they emit no event; their change is a
@@ -137,7 +139,7 @@ deployment, not a setting.
 ### CEF fields
 
 ```
-CEF:0|Vectispire|ASPM|<version>|ZAN-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800123 outcome=failure suser=alice src=203.0.113.7 act=LOGIN_BLOCKED cs1Label=Target cs1=alice cs2Label=UserAgent cs2=curl/8.5 externalId=5b1c… msg=Attempt refused by the throttle (300s to wait)
+CEF:0|Vectispire|ASPM|<version>|VECTI-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800123 outcome=failure suser=alice src=203.0.113.7 act=LOGIN_BLOCKED cs1Label=Target cs1=alice cs2Label=UserAgent cs2=curl/8.5 externalId=5b1c… msg=Attempt refused by the throttle (300s to wait)
 ```
 
 | Field | Carries |

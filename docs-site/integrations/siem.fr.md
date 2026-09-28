@@ -111,33 +111,35 @@ synchronisation n'attendent jamais votre collecteur.
 ## Catalogue des événements
 
 L'identifiant de signature est un contrat : les règles de corrélation s'écrivent dessus, et il ne
-changera pas de sens.
+changera pas de sens. Son préfixe a changé une fois, de `ZAN-SEC-` à `VECTI-SEC-`, dans la version qui
+suit la 0.9.0 — mêmes numéros, mêmes sens ; voir les [notes de version](../reference/release-notes.md#avant-la-mise-a-jour).
 
 | Signature | Nom | Sévérité CEF | Émis quand |
 |---|---|---|---|
-| `ZAN-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | une synchronisation du catalogue CISA KEV — toutes les six heures, ou demandée depuis l'onglet Threat Intelligence — trouve un constat ouvert dont la CVE y est nouvellement listée. Une fois par constat : une CVE déjà marquée n'est pas annoncée à nouveau, et une que le catalogue cesse de lister perd son marquage sans événement |
-| `ZAN-SEC-003` | Security gate refused a build | 7 | un verdict de gate CI est un échec |
-| `ZAN-SEC-005` | Finding settled by triage | 5 | un constat est déclaré non affecté ou corrigé sans passer par l'approbation, à la main ou par import VEX |
-| `ZAN-SEC-006` | MFA backup code consumed | 6 | un code de secours est consommé |
-| `ZAN-SEC-007` | Sign-in failure ceiling reached | 7 | le limiteur de connexion par mot de passe refuse une tentative — à la connexion, ou quand un compte connecté change son mot de passe |
-| `ZAN-SEC-008` | MFA failure ceiling reached | 7 | un défi de second facteur est détruit après trop de codes faux, ou le second facteur du compte se verrouille |
-| `ZAN-SEC-009` | Bearer token failure ceiling reached | 7 | une adresse épuise son quota de jetons refusés — porteur ou `X-API-Key` (une fois par fenêtre) |
-| `ZAN-SEC-010` | Account privileges or credentials changed | 6 | un compte est créé, supprimé, change de rôle, d'activation, de mot de passe, de second facteur ou de cibles visibles — depuis l'écran ou par SCIM |
-| `ZAN-SEC-011` | Team access grant changed | 6 | les membres ou les cibles d'une équipe changent, un dépôt est classé dans un projet ou déplacé, ou un projet, un dépôt ou une image qui portait des droits est supprimé |
-| `ZAN-SEC-012` | API key issued | 5 | une clé d'intégration est émise |
-| `ZAN-SEC-013` | API key revoked | 4 | une clé d'intégration est révoquée — à la main, avec le dépôt ou l'image auquel elle était restreinte, ou par la réinitialisation du mot de passe de son compte (un événement par clé) |
-| `ZAN-SEC-014` | Agent declared or its credentials changed | 6 | un agent est déclaré, activé, désactivé, supprimé, sa clé de signature épinglée ou retirée, ou sa clé de scellement réinitialisée par un administrateur |
-| `ZAN-SEC-015` | Agent result refused: attestation did not verify | 8 | le résultat signé d'un agent ne se vérifie pas |
-| `ZAN-SEC-016` | Four-eyes triage request approved | 5 | une seconde personne tranche une demande en attente |
-| `ZAN-SEC-017` | Four-eyes triage request refused | 4 | une demande en attente est renvoyée |
-| `ZAN-SEC-018` | Audit log integrity verification failed | 10 | une vérification trouve la chaîne de hachage rompue ou des entrées manquantes dans la table |
-| `ZAN-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change |
-| `ZAN-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | l'annonce de la clé de scellement d'un agent est refusée : sa signature ne se vérifie pas contre la clé de signature épinglée, ou elle est plus ancienne que la clé déjà acceptée ; aucun identifiant n'est scellé pour elle |
-| `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | un plugin est enregistré, mis à jour, activé ou désactivé par le gouverneur de la plateforme, ou activé ou désactivé pour un projet — du code tiers gagne ou perd l'accès en lecture à une partie du source |
-| `ZAN-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |
-| `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | un téléversement SARIF est refusé pour ce qu'il prétend — une clé pour laquelle aucune source n'est déclarée, un dépôt hors du périmètre de sa source, un outil pour lequel sa source n'est pas déclarée |
-| `ZAN-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
-| `ZAN-SEC-999` | SIEM connector health check | 1 | le test de connexion |
+| `VECTI-SEC-002` | Actively exploited vulnerability (KEV) detected | 10 | une synchronisation du catalogue CISA KEV — toutes les six heures, ou demandée depuis l'onglet Threat Intelligence — trouve un constat ouvert dont la CVE y est nouvellement listée. Une fois par constat : une CVE déjà marquée n'est pas annoncée à nouveau, et une que le catalogue cesse de lister perd son marquage sans événement |
+| `VECTI-SEC-003` | Security gate refused a build | 7 | un verdict de gate CI est un échec |
+| `VECTI-SEC-005` | Finding settled by triage | 5 | un constat est déclaré non affecté ou corrigé sans passer par l'approbation, à la main ou par import VEX |
+| `VECTI-SEC-006` | MFA backup code consumed | 6 | un code de secours est consommé |
+| `VECTI-SEC-007` | Sign-in failure ceiling reached | 7 | le limiteur de connexion par mot de passe refuse une tentative — à la connexion, ou quand un compte connecté change son mot de passe |
+| `VECTI-SEC-008` | MFA failure ceiling reached | 7 | un défi de second facteur est détruit après trop de codes faux, ou le second facteur du compte se verrouille |
+| `VECTI-SEC-009` | Bearer token failure ceiling reached | 7 | une adresse épuise son quota de jetons refusés — porteur ou `X-API-Key` (une fois par fenêtre) |
+| `VECTI-SEC-010` | Account privileges or credentials changed | 6 | un compte est créé, supprimé, change de rôle, d'activation, de mot de passe, de second facteur ou de cibles visibles — depuis l'écran ou par SCIM |
+| `VECTI-SEC-011` | Team access grant changed | 6 | les membres ou les cibles d'une équipe changent, un dépôt est classé dans un projet ou déplacé, ou un projet, un dépôt ou une image qui portait des droits est supprimé |
+| `VECTI-SEC-012` | API key issued | 5 | une clé d'intégration est émise |
+| `VECTI-SEC-013` | API key revoked | 4 | une clé d'intégration est révoquée — à la main, avec le dépôt ou l'image auquel elle était restreinte, ou par la réinitialisation du mot de passe de son compte (un événement par clé) |
+| `VECTI-SEC-014` | Agent declared or its credentials changed | 6 | un agent est déclaré, activé, désactivé, supprimé, sa clé de signature épinglée ou retirée, ou sa clé de scellement réinitialisée par un administrateur |
+| `VECTI-SEC-015` | Agent result refused: attestation did not verify | 8 | le résultat signé d'un agent ne se vérifie pas |
+| `VECTI-SEC-016` | Four-eyes triage request approved | 5 | une seconde personne tranche une demande en attente |
+| `VECTI-SEC-017` | Four-eyes triage request refused | 4 | une demande en attente est renvoyée |
+| `VECTI-SEC-018` | Audit log integrity verification failed | 10 | une vérification trouve la chaîne de hachage rompue ou des entrées manquantes dans la table |
+| `VECTI-SEC-019` | Security-relevant setting changed | 6 | l'export SIEM lui-même, une politique de gate, la visibilité, le double contrôle, un interrupteur d'URL privée ou de modèle distant, une destination de tracker ou de modèle, ou un secret enregistré change |
+| `VECTI-SEC-020` | Agent sealing key refused: signature or generation did not verify | 8 | l'annonce de la clé de scellement d'un agent est refusée : sa signature ne se vérifie pas contre la clé de signature épinglée, ou elle est plus ancienne que la clé déjà acceptée ; aucun identifiant n'est scellé pour elle |
+| `VECTI-SEC-021` | Analysis plugin registered, changed or activated | 6 | un plugin est enregistré, mis à jour, activé ou désactivé par le gouverneur de la plateforme, ou activé ou désactivé pour un projet — du code tiers gagne ou perd l'accès en lecture à une partie du source |
+| `VECTI-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |
+| `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | un téléversement SARIF est refusé pour ce qu'il prétend — une clé pour laquelle aucune source n'est déclarée, un dépôt hors du périmètre de sa source, un outil pour lequel sa source n'est pas déclarée |
+| `VECTI-SEC-024` | Checklist template version published or retired | 6 | une version de modèle de checklist est publiée, ou une version publiée retirée — ce à quoi chaque projet atteste change. Écarter un brouillon n'est pas signalé |
+| `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
+| `VECTI-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.
 
@@ -148,7 +150,7 @@ règlent par variables d'environnement et ne changent qu'au redémarrage : ils n
 ### Champs CEF
 
 ```
-CEF:0|Vectispire|ASPM|<version>|ZAN-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800123 outcome=failure suser=alice src=203.0.113.7 act=LOGIN_BLOCKED cs1Label=Target cs1=alice cs2Label=UserAgent cs2=curl/8.5 externalId=5b1c… msg=Attempt refused by the throttle (300s to wait)
+CEF:0|Vectispire|ASPM|<version>|VECTI-SEC-007|Sign-in failure ceiling reached|7|rt=1790416800123 outcome=failure suser=alice src=203.0.113.7 act=LOGIN_BLOCKED cs1Label=Target cs1=alice cs2Label=UserAgent cs2=curl/8.5 externalId=5b1c… msg=Attempt refused by the throttle (300s to wait)
 ```
 
 | Champ | Porte |

@@ -2,6 +2,10 @@
 
 **Date :** 2026-09-28 · **Statut :** acceptée · **Amende :** [0017](0017-custom-checks-as-container-images.md) §7 · **Décideur :** Laurent Boucher
 
+> **Note (2026-09-28).** Les identifiants de signature SIEM que cette décision nomme `ZAN-SEC-nnn`
+> sont émis en `VECTI-SEC-nnn` depuis la version qui suit la 0.9.0 — mêmes numéros, mêmes sens. Le
+> texte ci-dessous est laissé tel qu'accepté ; voir le [catalogue SIEM](../../../../docs-site/integrations/siem.fr.md#catalogue-des-evenements).
+
 ## Contexte
 
 Avant la mise en service d'un produit, beaucoup d'organisations demandent à l'équipe qui le

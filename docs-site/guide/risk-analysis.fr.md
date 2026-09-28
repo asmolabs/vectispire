@@ -21,7 +21,7 @@ Intelligence** des paramètres. Cet onglet indique quand il a été lu, la date 
 catalogue en usage, et pourquoi la dernière tentative a échoué le cas échéant — un échec conserve le
 catalogue en usage au lieu de le vider. Un constat ouvert est marqué quand sa CVE est listée, et ne
 l'est plus quand le catalogue cesse de la lister ; un constat nouvellement marqué est envoyé au SIEM
-sous `ZAN-SEC-002`. Avant la première synchronisation rien n'est marqué, et l'onglet indique
+sous `VECTI-SEC-002`. Avant la première synchronisation rien n'est marqué, et l'onglet indique
 *jamais synchronisé* plutôt qu'un zéro rassurant.
 
 Les scores EPSS viennent du fichier quotidien du FIRST tel que le plan de contrôle l'a lu en dernier :

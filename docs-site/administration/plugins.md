@@ -144,7 +144,7 @@ setting, because it is that machine that runs the code.
 
 Only the **platform governor** registers, updates, enables or disables a plugin: it is third-party
 code that will read the source of every project it is switched on for. Every change is in the audit
-log with the manifest's digest, and forwarded to the SIEM (`ZAN-SEC-021`).
+log with the manifest's digest, and forwarded to the SIEM (`VECTI-SEC-021`).
 
 **On screen**, **Plugins** — in the sidebar under Configuration, for every account — lists each plugin
 with its state, languages, network exception and the start of its manifest digest; the eye opens its
@@ -295,7 +295,7 @@ version. An auditor tells "analysed by Vectispire" (types `plugin`, `sast`…) f
 "declared by payments-ci · SonarQube"), its type filter offers both, and an issue's page has a
 **Provenance** card with the plugin or the source, the tool and version, and the tool key that scopes
 its resolution. Every import is kept with its document hash and in the audit log; a refused
-one is a SIEM event (`ZAN-SEC-023`).
+one is a SIEM event (`VECTI-SEC-023`).
 
 ### Example: GitLab CI running Semgrep
 
@@ -434,7 +434,7 @@ from which source — and its latest test report: tests, failures, errors and sk
 uploaded from the interface.
 
 Each accepted import is in the audit log (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`); a refusal for
-what the key claimed is audited as `REPORT_IMPORT_REFUSED` and sent to the SIEM as `ZAN-SEC-027`. A
+what the key claimed is audited as `REPORT_IMPORT_REFUSED` and sent to the SIEM as `VECTI-SEC-027`. A
 repository's latest fifty imports of each kind are read at `GET /api/v1/repositories/{id}/coverage-imports`
 and `…/test-report-imports`.
 

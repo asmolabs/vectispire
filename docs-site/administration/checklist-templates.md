@@ -126,7 +126,7 @@ With four-eyes on, the platform refuses to be left with a single account able to
 
 Every import, layout confirmation, pairing, derivation, publication and retirement is written to the
 [audit log](audit-log.md). Publishing a version, and retiring a published one, is also signalled to
-the SIEM as `ZAN-SEC-024`.
+the SIEM as `VECTI-SEC-024`.
 
 ## Related
 

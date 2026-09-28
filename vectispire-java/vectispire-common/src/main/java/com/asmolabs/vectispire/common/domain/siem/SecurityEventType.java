@@ -11,7 +11,7 @@ import java.util.Optional;
  * {@code Signature ID}, not on the name and not on this constant: renaming a constant is free,
  * changing an identifier silently disarms every rule written against it, in somebody else's SIEM,
  * with nothing on this side to notice. An identifier that is retired is never reused for another
- * meaning — {@code ZAN-SEC-001} (secret leak) and {@code ZAN-SEC-004} (SLA breach) were declared
+ * meaning — {@code VECTI-SEC-001} (secret leak) and {@code VECTI-SEC-004} (SLA breach) were declared
  * and never emitted, and are kept out of circulation for that reason. See decision 0025.
  *
  * <p><b>Only what is actually emitted is listed.</b> The previous catalogue declared seven events
@@ -24,102 +24,102 @@ import java.util.Optional;
 public enum SecurityEventType {
 
     /** A finding under watch was newly listed by CISA as exploited in the wild. */
-    CRITICAL_KEV_DETECTED("ZAN-SEC-002", "Actively exploited vulnerability (KEV) detected", 10, Outcome.DETECTED),
+    CRITICAL_KEV_DETECTED("VECTI-SEC-002", "Actively exploited vulnerability (KEV) detected", 10, Outcome.DETECTED),
 
     /** A CI pipeline asked the gate and was refused: a build was blocked by policy. */
-    SECURITY_GATE_FAILED("ZAN-SEC-003", "Security gate refused a build", 7, Outcome.FAILURE),
+    SECURITY_GATE_FAILED("VECTI-SEC-003", "Security gate refused a build", 7, Outcome.FAILURE),
 
     /**
      * A triage decision took a finding out of the way — not affected, or declared fixed — without
      * going through an approval. The decision that makes a dashboard look better is the one a SOC
      * wants to be able to question.
      */
-    TRIAGE_SETTLED("ZAN-SEC-005", "Finding settled by triage", 5, Outcome.SUCCESS),
+    TRIAGE_SETTLED("VECTI-SEC-005", "Finding settled by triage", 5, Outcome.SUCCESS),
 
     /** An emergency MFA recovery code was consumed: either a lost phone or a stolen code sheet. */
-    MFA_BACKUP_CODE_USED("ZAN-SEC-006", "MFA backup code consumed", 6, Outcome.SUCCESS),
+    MFA_BACKUP_CODE_USED("VECTI-SEC-006", "MFA backup code consumed", 6, Outcome.SUCCESS),
 
     /** The password sign-in throttle refused an attempt: the failure ceiling was reached. */
-    SIGN_IN_THROTTLED("ZAN-SEC-007", "Sign-in failure ceiling reached", 7, Outcome.FAILURE),
+    SIGN_IN_THROTTLED("VECTI-SEC-007", "Sign-in failure ceiling reached", 7, Outcome.FAILURE),
 
     /** A second-factor challenge was destroyed after too many wrong codes. */
-    MFA_FAILURE_CEILING("ZAN-SEC-008", "MFA failure ceiling reached", 7, Outcome.FAILURE),
+    MFA_FAILURE_CEILING("VECTI-SEC-008", "MFA failure ceiling reached", 7, Outcome.FAILURE),
 
     /** An address presented too many refused bearer tokens and is answered 429 until the window refills. */
-    BEARER_TOKEN_THROTTLED("ZAN-SEC-009", "Bearer token failure ceiling reached", 7, Outcome.FAILURE),
+    BEARER_TOKEN_THROTTLED("VECTI-SEC-009", "Bearer token failure ceiling reached", 7, Outcome.FAILURE),
 
     /** An account was created, deleted, changed role, activation, password, second factor or visible targets. */
-    ACCOUNT_CHANGED("ZAN-SEC-010", "Account privileges or credentials changed", 6, Outcome.SUCCESS),
+    ACCOUNT_CHANGED("VECTI-SEC-010", "Account privileges or credentials changed", 6, Outcome.SUCCESS),
 
     /** A team's members or targets changed: somebody gained or lost access to part of the estate. */
-    ACCESS_GRANT_CHANGED("ZAN-SEC-011", "Team access grant changed", 6, Outcome.SUCCESS),
+    ACCESS_GRANT_CHANGED("VECTI-SEC-011", "Team access grant changed", 6, Outcome.SUCCESS),
 
     /** An integration API key was issued. */
-    API_KEY_ISSUED("ZAN-SEC-012", "API key issued", 5, Outcome.SUCCESS),
+    API_KEY_ISSUED("VECTI-SEC-012", "API key issued", 5, Outcome.SUCCESS),
 
     /** An integration API key was revoked. */
-    API_KEY_REVOKED("ZAN-SEC-013", "API key revoked", 4, Outcome.SUCCESS),
+    API_KEY_REVOKED("VECTI-SEC-013", "API key revoked", 4, Outcome.SUCCESS),
 
     /**
      * A remote agent was declared, enabled, disabled, deleted, its signing key pinned or removed, or
      * its sealing key reset.
      */
-    AGENT_CHANGED("ZAN-SEC-014", "Agent declared or its credentials changed", 6, Outcome.SUCCESS),
+    AGENT_CHANGED("VECTI-SEC-014", "Agent declared or its credentials changed", 6, Outcome.SUCCESS),
 
     /** An agent's result was refused because its attestation did not verify. */
-    AGENT_RESULT_REFUSED("ZAN-SEC-015", "Agent result refused: attestation did not verify", 8, Outcome.FAILURE),
+    AGENT_RESULT_REFUSED("VECTI-SEC-015", "Agent result refused: attestation did not verify", 8, Outcome.FAILURE),
 
     /** A four-eyes request was approved by a second person: the finding is now settled. */
-    TRIAGE_APPROVED("ZAN-SEC-016", "Four-eyes triage request approved", 5, Outcome.SUCCESS),
+    TRIAGE_APPROVED("VECTI-SEC-016", "Four-eyes triage request approved", 5, Outcome.SUCCESS),
 
     /** A four-eyes request was sent back rather than approved. */
-    TRIAGE_REFUSED("ZAN-SEC-017", "Four-eyes triage request refused", 4, Outcome.FAILURE),
+    TRIAGE_REFUSED("VECTI-SEC-017", "Four-eyes triage request refused", 4, Outcome.FAILURE),
 
     /** The audit log's hash chain, or its mirror, no longer agrees with itself. */
-    AUDIT_CHAIN_BROKEN("ZAN-SEC-018", "Audit log integrity verification failed", 10, Outcome.FAILURE),
+    AUDIT_CHAIN_BROKEN("VECTI-SEC-018", "Audit log integrity verification failed", 10, Outcome.FAILURE),
 
     /** A setting that governs security changed: SIEM export, four-eyes, visibility, a gate policy, a credential. */
-    SECURITY_SETTING_CHANGED("ZAN-SEC-019", "Security-relevant setting changed", 6, Outcome.SUCCESS),
+    SECURITY_SETTING_CHANGED("VECTI-SEC-019", "Security-relevant setting changed", 6, Outcome.SUCCESS),
 
     /**
      * An agent's sealing key was refused: its signature did not verify against the key pinned for
      * the agent, or it was older than the key already accepted. No credential is sealed for it.
      */
-    AGENT_SEALING_KEY_REFUSED("ZAN-SEC-020", "Agent sealing key refused: signature or generation did not verify", 8,
+    AGENT_SEALING_KEY_REFUSED("VECTI-SEC-020", "Agent sealing key refused: signature or generation did not verify", 8,
             Outcome.FAILURE),
 
     /**
      * A plugin was registered, changed, enabled, disabled, or switched on or off for a project:
      * third-party code gained or lost read access to some of the estate's source.
      */
-    PLUGIN_CHANGED("ZAN-SEC-021", "Analysis plugin registered, changed or activated", 6, Outcome.SUCCESS),
+    PLUGIN_CHANGED("VECTI-SEC-021", "Analysis plugin registered, changed or activated", 6, Outcome.SUCCESS),
 
     /** A SARIF source was declared, changed or removed: who may deposit findings, and for what. */
-    SARIF_SOURCE_CHANGED("ZAN-SEC-022", "SARIF import source declared or changed", 6, Outcome.SUCCESS),
+    SARIF_SOURCE_CHANGED("VECTI-SEC-022", "SARIF import source declared or changed", 6, Outcome.SUCCESS),
 
     /**
      * A SARIF upload was refused for what it claimed: an undeclared key, a repository outside its
      * source's scope, a tool its source is not declared for. Either a misconfigured pipeline or a
      * key used for something it was not issued for.
      */
-    SARIF_IMPORT_REFUSED("ZAN-SEC-023", "SARIF import refused: undeclared source, scope or tool", 5, Outcome.FAILURE),
+    SARIF_IMPORT_REFUSED("VECTI-SEC-023", "SARIF import refused: undeclared source, scope or tool", 5, Outcome.FAILURE),
 
     /**
      * A checklist template version was published, or a published one retired: what every project's
      * checklist attests to has changed (decision 0032 §9). A draft set aside, never published, changes
      * nothing any project attests to and is not this event.
      */
-    CHECKLIST_TEMPLATE_CHANGED("ZAN-SEC-024", "Checklist template version published or retired", 6, Outcome.SUCCESS),
+    CHECKLIST_TEMPLATE_CHANGED("VECTI-SEC-024", "Checklist template version published or retired", 6, Outcome.SUCCESS),
 
     /**
      * A coverage or test report was refused for what it claimed: an undeclared or disabled key, a kind
-     * its source is not declared for, a repository outside its scope — {@code ZAN-SEC-023}'s twin for
+     * its source is not declared for, a repository outside its scope — {@code VECTI-SEC-023}'s twin for
      * the reports a checklist reads (decision 0032). {@code 025} and {@code 026} are the checklists'.
      */
-    REPORT_IMPORT_REFUSED("ZAN-SEC-027", "Report import refused: undeclared source, kind or scope", 5, Outcome.FAILURE),
+    REPORT_IMPORT_REFUSED("VECTI-SEC-027", "Report import refused: undeclared source, kind or scope", 5, Outcome.FAILURE),
 
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
-    PING_TEST("ZAN-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
+    PING_TEST("VECTI-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
     /**
      * The CEF {@code outcome} an event of this type carries.

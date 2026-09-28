@@ -19,30 +19,30 @@ class SecurityEventTypeTest {
         // Changing one of these silently disarms every correlation rule written against it, in
         // somebody else's SIEM. A change here has to be a decision, made in this file on purpose.
         Map<String, String> expected = new LinkedHashMap<>();
-        expected.put("CRITICAL_KEV_DETECTED", "ZAN-SEC-002");
-        expected.put("SECURITY_GATE_FAILED", "ZAN-SEC-003");
-        expected.put("TRIAGE_SETTLED", "ZAN-SEC-005");
-        expected.put("MFA_BACKUP_CODE_USED", "ZAN-SEC-006");
-        expected.put("SIGN_IN_THROTTLED", "ZAN-SEC-007");
-        expected.put("MFA_FAILURE_CEILING", "ZAN-SEC-008");
-        expected.put("BEARER_TOKEN_THROTTLED", "ZAN-SEC-009");
-        expected.put("ACCOUNT_CHANGED", "ZAN-SEC-010");
-        expected.put("ACCESS_GRANT_CHANGED", "ZAN-SEC-011");
-        expected.put("API_KEY_ISSUED", "ZAN-SEC-012");
-        expected.put("API_KEY_REVOKED", "ZAN-SEC-013");
-        expected.put("AGENT_CHANGED", "ZAN-SEC-014");
-        expected.put("AGENT_RESULT_REFUSED", "ZAN-SEC-015");
-        expected.put("TRIAGE_APPROVED", "ZAN-SEC-016");
-        expected.put("TRIAGE_REFUSED", "ZAN-SEC-017");
-        expected.put("AUDIT_CHAIN_BROKEN", "ZAN-SEC-018");
-        expected.put("SECURITY_SETTING_CHANGED", "ZAN-SEC-019");
-        expected.put("AGENT_SEALING_KEY_REFUSED", "ZAN-SEC-020");
-        expected.put("PLUGIN_CHANGED", "ZAN-SEC-021");
-        expected.put("SARIF_SOURCE_CHANGED", "ZAN-SEC-022");
-        expected.put("SARIF_IMPORT_REFUSED", "ZAN-SEC-023");
-        expected.put("CHECKLIST_TEMPLATE_CHANGED", "ZAN-SEC-024");
-        expected.put("REPORT_IMPORT_REFUSED", "ZAN-SEC-027");
-        expected.put("PING_TEST", "ZAN-SEC-999");
+        expected.put("CRITICAL_KEV_DETECTED", "VECTI-SEC-002");
+        expected.put("SECURITY_GATE_FAILED", "VECTI-SEC-003");
+        expected.put("TRIAGE_SETTLED", "VECTI-SEC-005");
+        expected.put("MFA_BACKUP_CODE_USED", "VECTI-SEC-006");
+        expected.put("SIGN_IN_THROTTLED", "VECTI-SEC-007");
+        expected.put("MFA_FAILURE_CEILING", "VECTI-SEC-008");
+        expected.put("BEARER_TOKEN_THROTTLED", "VECTI-SEC-009");
+        expected.put("ACCOUNT_CHANGED", "VECTI-SEC-010");
+        expected.put("ACCESS_GRANT_CHANGED", "VECTI-SEC-011");
+        expected.put("API_KEY_ISSUED", "VECTI-SEC-012");
+        expected.put("API_KEY_REVOKED", "VECTI-SEC-013");
+        expected.put("AGENT_CHANGED", "VECTI-SEC-014");
+        expected.put("AGENT_RESULT_REFUSED", "VECTI-SEC-015");
+        expected.put("TRIAGE_APPROVED", "VECTI-SEC-016");
+        expected.put("TRIAGE_REFUSED", "VECTI-SEC-017");
+        expected.put("AUDIT_CHAIN_BROKEN", "VECTI-SEC-018");
+        expected.put("SECURITY_SETTING_CHANGED", "VECTI-SEC-019");
+        expected.put("AGENT_SEALING_KEY_REFUSED", "VECTI-SEC-020");
+        expected.put("PLUGIN_CHANGED", "VECTI-SEC-021");
+        expected.put("SARIF_SOURCE_CHANGED", "VECTI-SEC-022");
+        expected.put("SARIF_IMPORT_REFUSED", "VECTI-SEC-023");
+        expected.put("CHECKLIST_TEMPLATE_CHANGED", "VECTI-SEC-024");
+        expected.put("REPORT_IMPORT_REFUSED", "VECTI-SEC-027");
+        expected.put("PING_TEST", "VECTI-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
                 .collect(Collectors.toMap(Enum::name, SecurityEventType::signatureId, (a, b) -> a, LinkedHashMap::new));
@@ -54,7 +54,7 @@ class SecurityEventTypeTest {
     void identifiersAreUniqueAndRetiredOnesStayRetired() {
         assertThat(Arrays.stream(SecurityEventType.values()).map(SecurityEventType::signatureId))
                 .doesNotHaveDuplicates()
-                .doesNotContain("ZAN-SEC-001", "ZAN-SEC-004");
+                .doesNotContain("VECTI-SEC-001", "VECTI-SEC-004");
     }
 
     @Test
@@ -117,7 +117,7 @@ class SecurityEventTypeTest {
         assertThat(SecurityEventType.signalledBy(AuditOperation.ISSUE_TRIAGED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.ACCESS_DENIED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(AuditOperation.LOGIN_SUCCESS)).isEmpty();
-        // A published version retired is ZAN-SEC-024, a draft set aside is nothing: the writer names it.
+        // A published version retired is VECTI-SEC-024, a draft set aside is nothing: the writer names it.
         assertThat(SecurityEventType.signalledBy(AuditOperation.CHECKLIST_TEMPLATE_RETIRED)).isEmpty();
         assertThat(SecurityEventType.signalledBy(null)).isEmpty();
     }

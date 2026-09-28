@@ -65,7 +65,7 @@ import org.junit.jupiter.api.Test;
 class SyslogSenderTest {
 
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-    private static final String MESSAGE = "<85>1 2026-09-26T10:00:00.000Z h vectispire - ZAN-SEC-999 - CEF:0|Vectispire|é";
+    private static final String MESSAGE = "<85>1 2026-09-26T10:00:00.000Z h vectispire - VECTI-SEC-999 - CEF:0|Vectispire|é";
 
     private static final OutboundUrlGuard GUARD = new OutboundUrlGuard(hostname -> List.of(new byte[] {127, 0, 0, 1}));
 

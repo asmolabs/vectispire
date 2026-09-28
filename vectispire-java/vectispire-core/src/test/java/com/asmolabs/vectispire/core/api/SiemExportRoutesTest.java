@@ -86,13 +86,13 @@ class SiemExportRoutesTest extends ApiTestBase {
             List<String> received = receive(collector, 3_000);
             assertThat(received).anySatisfy(message -> assertThat(message)
                     .startsWith("<")
-                    .contains(" vectispire - ZAN-SEC-012 - CEF:0|Vectispire|ASPM|")
-                    .contains("|ZAN-SEC-012|API key issued|5|")
+                    .contains(" vectispire - VECTI-SEC-012 - CEF:0|Vectispire|ASPM|")
+                    .contains("|VECTI-SEC-012|API key issued|5|")
                     .contains("act=API_KEY_CREATED")
                     .contains("suser=admin-")
                     .contains("externalId="));
             // The save of the configuration itself is a security-relevant change, and says so.
-            assertThat(received).anySatisfy(message -> assertThat(message).contains("|ZAN-SEC-019|"));
+            assertThat(received).anySatisfy(message -> assertThat(message).contains("|VECTI-SEC-019|"));
             assertThat(siemRows()).allSatisfy(row -> assertThat(row.getStatus()).isEqualTo("sent"));
         }
     }
