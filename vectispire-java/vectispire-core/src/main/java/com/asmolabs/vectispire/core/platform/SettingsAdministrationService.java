@@ -59,7 +59,7 @@ public class SettingsAdministrationService {
 
     private final SettingsService settings;
     private final AiReviewService aiReview;
-    /** Asked one question only: is anybody left to approve? */
+    /** Asked whether four-eyes could be honoured: an approver for triage, two publishers for templates. */
     private final TriageApprovers approvers;
     private final TicketService tickets;
     private final NotificationService notifications;
@@ -205,6 +205,15 @@ public class SettingsAdministrationService {
                         "No active account can approve a triage: switching four-eyes on would put "
                                 + "every decision in a queue nobody can empty. Create an "
                                 + "administrator, a CISO or a security lead first.");
+            }
+            // A checklist template is published by someone other than its author, and both acts take
+            // a governance writer: with one, every draft would be imported and never published.
+            if (setting == Setting.FOUR_EYES_APPROVAL_REQUIRED && isTruthy(value)
+                    && !approvers.twoCanPublishTemplates()) {
+                throw new InvalidInputException(
+                        "Fewer than two active accounts can publish a checklist template: under four-eyes its "
+                                + "author may not publish it, so no draft could ever be published. Create a second "
+                                + "platform governor, administrator or CISO first.");
             }
             // **A credential has one door, and this is not it.** Each of these has a route that
             // encrypts the value before it reaches the database; this path stores what it is

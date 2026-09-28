@@ -32,6 +32,11 @@ that blocks instead of controlling, and whose failure only shows at the first tr
 
 Create an administrator, a CISO or a security lead first.
 
+It also refuses while **fewer than two active accounts can publish a checklist template** — the
+platform governor, an administrator or a CISO. Under four-eyes a template version is published by
+somebody other than its author, and writing it takes the same role: with a single such account,
+every draft could be imported and none ever published. Create a second one first.
+
 Switching it **off** stays possible either way: it is enabling that needs a second person.
 
 ## Decisions that arrive from a tracker

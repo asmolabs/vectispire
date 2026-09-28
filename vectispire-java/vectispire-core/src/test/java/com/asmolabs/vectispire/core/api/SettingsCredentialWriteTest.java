@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -134,6 +135,32 @@ class SettingsCredentialWriteTest {
         controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "false"),
                 as(Role.SUPERUSER), request());
         verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "false");
+    }
+
+    @Test
+    @DisplayName("four-eyes cannot be switched on where a template's author would be its only publisher")
+    void enablingNeedsASecondPublisher() {
+        // Approvers exist — a champion can approve a triage — but a single account writes governance:
+        // it could import a checklist template that nobody would then be allowed to publish.
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(3L);
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && !roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(1L);
+
+        assertThatThrownBy(() -> controller.update(
+                Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Fewer than two active accounts can publish a checklist template");
+        verify(settings, never()).set(any(Setting.class), anyString());
+
+        // A second governance writer is what it takes, and then the setting goes through.
+        when(users.countActiveAdministratorsExcluding(
+                argThat(roles -> roles != null && !roles.contains(Role.SECURITY_CHAMPION.name())), any(Long.class)))
+                .thenReturn(2L);
+        controller.update(Map.of(Setting.FOUR_EYES_APPROVAL_REQUIRED.key(), "true"), as(Role.SUPERUSER), request());
+        verify(settings).set(Setting.FOUR_EYES_APPROVAL_REQUIRED, "true");
     }
 
     @ParameterizedTest(name = "{0} cannot be set through the generic route")

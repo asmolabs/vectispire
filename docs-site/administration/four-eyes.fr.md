@@ -34,6 +34,11 @@ contrôle qui bloque au lieu de contrôler, et dont la panne ne se voit qu'au pr
 
 Créez d'abord un administrateur, un CISO ou un référent sécurité.
 
+Il refuse aussi tant que **moins de deux comptes actifs peuvent publier un modèle de checklist** — le
+gouverneur de la plateforme, un administrateur ou un CISO. Sous les quatre yeux, une version de modèle
+est publiée par quelqu'un d'autre que son auteur, et l'écrire demande le même rôle : avec un seul tel
+compte, chaque brouillon pourrait être importé et aucun jamais publié. Créez-en d'abord un second.
+
 L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demande un second.
 
 ## Les décisions venues d'un traqueur

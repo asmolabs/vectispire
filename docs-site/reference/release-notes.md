@@ -211,6 +211,10 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 - **A declared source states its `kinds`** (V50 adds `t_sarif_source.kinds`): `sarif`, `coverage`,
   `test_report`. A declaration without them is `sarif` alone, and every source declared before this
   version stays a SARIF source. `tools` is required with `sarif` and refused without it.
+- **Switching four-eyes on needs two accounts that can publish a checklist template** — the platform
+  governor, an administrator or a CISO — besides an account that can approve a triage: under
+  four-eyes a template's author may not publish it. The setting is refused with a sentence saying
+  so; a deployment where it is already on is not changed. See [Four-eyes](../administration/four-eyes.md).
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.

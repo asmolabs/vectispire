@@ -240,6 +240,11 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 - **Une source déclarée énonce ses `kinds`** (V50 ajoute `t_sarif_source.kinds`) : `sarif`, `coverage`,
   `test_report`. Une déclaration sans eux vaut `sarif` seul, et toute source déclarée avant cette
   version reste une source SARIF. `tools` est obligatoire avec `sarif` et refusé sans lui.
+- **Activer les quatre yeux demande deux comptes capables de publier un modèle de checklist** — le
+  gouverneur de la plateforme, un administrateur ou un CISO — en plus d'un compte capable d'approuver
+  un triage : sous les quatre yeux, l'auteur d'un modèle ne peut pas le publier. Le réglage est refusé
+  par une phrase qui le dit ; un déploiement où il est déjà actif n'est pas modifié. Voir
+  [Quatre yeux](../administration/four-eyes.md).
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.
