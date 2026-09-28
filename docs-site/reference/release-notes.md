@@ -121,7 +121,7 @@ attempts in seconds; the built-in worker failed a scan for good at its first err
 message. A sub-path the clone does not hold now fails the scan before any scanner runs, where each
 analyser used to report it.
 
-**Schema migrations V32 to V48 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V49 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -203,9 +203,18 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   older agent — or unknown reads as transient. The answer adds `permanent` and `retryAt`, the instant
   the scan can be claimed again. A scan's summary (`GET /api/v1/scans`, `GET /api/v1/scans/{id}`) adds
   `notBefore`, set on a waiting scan whose last attempt could not run.
+- **A scan's detail adds `examinedTypes`** (V49 adds `t_scan.examined_types`): the built-in finding
+  types whose step produced in that scan, as wire names — `vulnerability`, `secret`, `iac`, `sast`,
+  `quality`, `eol`, `license`. A type left out was not examined, and its issues were left as they
+  were. `null` means *not recorded* — a scan from before this version, or one that never ran — and
+  never *examined nothing*, which is `[]`. Plugins stay in `plugins`, in their three states.
 
 ### New
 
+- **The scan page shows which steps examined the tree.** A *What this scan examined* card lists the
+  built-in steps that produced and those that did not look — failed, or not run for that target —
+  so a clean list of findings reads as clean only for the steps that ran. Scans from before this
+  version say *Not recorded* until the target is scanned again — [Scans](../guide/scans.md#reading-a-scan).
 - **Solutions and projects**: a solution holds projects, a project references repositories, and a
   grant may name a whole project — [Solutions and projects](../administration/solutions-and-projects.md).
 - **Analysis plugins**: third-party analysers packaged as container images, registered by the

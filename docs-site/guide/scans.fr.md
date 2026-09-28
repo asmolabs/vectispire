@@ -40,6 +40,17 @@ catalogueur l'a produit, et la sortie brute du moteur de rapprochement — à fi
 ce que vous remettez à quelqu'un qui veut re-dériver vos conclusions plutôt que les prendre
 pour argent comptant.
 
+Une carte **Ce que ce scan a examiné** dit quelles étapes intégrées ont regardé l'arbre :
+vulnérabilités, secrets, IaC, analyse du code (sécurité et qualité ensemble), fin de vie, licences.
+Une étape rangée sous **Examiné** a produit — un type sans constat dans ce scan a été recherché et
+non trouvé, et ses issues ouvertes sur la cible ont été résolues. Une étape sous **Non examiné** n'a
+pas regardé — elle a échoué (le message du scan dit laquelle et pourquoi), ou ce scan ne la lance
+pas, comme une analyse d'image ne lance ni IaC ni analyse du code — et ses issues sont restées en
+l'état. Un scan antérieur à cet enregistrement affiche **Non enregistré** plutôt que de montrer
+chaque étape comme non examinée : rien n'a noté ce qu'il a regardé, et le prochain scan de la cible
+l'enregistre. C'est ce même enregistrement qu'une checklist lit pour dire qu'un dépôt a été examiné :
+une étape en échec ne compte jamais comme une étape passée sans constat.
+
 Quand des [plugins](../administration/plugins.md) ont tourné, une carte **Plugins** liste chacun dans
 l'un de trois états, dessinés distinctement : **produit** (vert, avec le nombre de constats de son
 rapport), **non applicable** (gris — aucun de ses langages n'est dans l'arbre ; pas un échec) et

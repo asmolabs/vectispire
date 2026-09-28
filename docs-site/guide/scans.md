@@ -36,6 +36,16 @@ The raw outputs are kept alongside the normalised findings — the SBOM as the c
 produced it, and the raw matcher output — for audit purposes. They are what you hand to
 somebody who wants to re-derive your conclusions rather than take them.
 
+A **What this scan examined** card says which built-in steps looked at the tree: vulnerabilities,
+secrets, IaC, source analysis (security and quality together), end of life, licences. A step listed
+under **Examined** produced — a type with no finding in this scan was looked for and not found, and
+its open issues on the target were resolved. A step under **Not examined** did not look — it failed
+(the scan's message says which and why), or this scan does not run it, as an image scan runs no IaC
+or source analysis — and its issues were left as they were. A scan from before this was recorded
+says **Not recorded** rather than showing every step as not examined: nothing wrote down what it
+looked at, and the next scan of the target records it. The same record is what a checklist reads to
+say a repository was examined, so a step that failed never counts as one that ran clean.
+
 When [plugins](../administration/plugins.md) ran, a **Plugins** card lists each one in one of three
 states, drawn apart: **produced** (green, with the number of findings in its report), **not
 applicable** (grey — none of its languages is in the tree; not a failure) and **absent — failed** (red,

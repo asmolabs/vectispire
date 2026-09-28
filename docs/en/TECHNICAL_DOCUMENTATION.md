@@ -157,6 +157,7 @@ erDiagram
         datetime lease_expires_at
         int attempts
         datetime not_before "claimable from, after a failed attempt"
+        string examined_types "built-in types whose step produced; null = unrecorded"
         text error
         datetime created_at
     }

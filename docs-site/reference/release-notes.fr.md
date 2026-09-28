@@ -136,7 +136,7 @@ tentatives en quelques secondes ; le worker intégré faisait échouer une analy
 première erreur, avec le message brut. Un sous-chemin absent du clone fait désormais échouer l'analyse
 avant tout analyseur, là où chacun le signalait.
 
-**Les migrations V32 à V48 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V49 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -231,9 +231,20 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `permanent` et `retryAt`, l'instant à partir duquel l'analyse peut être reprise. Le résumé d'une
   analyse (`GET /api/v1/scans`, `GET /api/v1/scans/{id}`) ajoute `notBefore`, renseigné sur une analyse
   en attente dont la dernière tentative n'a pas pu s'exécuter.
+- **Le détail d'une analyse ajoute `examinedTypes`** (V49 ajoute `t_scan.examined_types`) : les types
+  de constat intégrés dont l'étape a produit dans cette analyse, par leur nom de fil —
+  `vulnerability`, `secret`, `iac`, `sast`, `quality`, `eol`, `license`. Un type absent de la liste
+  n'a pas été examiné, et ses issues sont restées en l'état. `null` signifie *non enregistré* — une
+  analyse antérieure à cette version, ou qui ne s'est jamais exécutée — et jamais *rien examiné*, qui
+  est `[]`. Les plugins restent dans `plugins`, dans leurs trois états.
 
 ### Nouveautés
 
+- **La page d'une analyse montre quelles étapes ont examiné l'arbre.** Une carte *Ce que ce scan a
+  examiné* liste les étapes intégrées qui ont produit et celles qui n'ont pas regardé — en échec, ou
+  non lancées pour cette cible — de sorte qu'une liste de constats vide ne se lit comme propre que
+  pour les étapes qui ont tourné. Les analyses antérieures à cette version affichent *Non
+  enregistré* jusqu'à la prochaine analyse de la cible — [Scans](../guide/scans.md#lire-un-scan).
 - **Solutions et projets** : une solution contient des projets, un projet référence des dépôts,
   et un droit peut viser un projet entier — [Solutions et projets](../administration/solutions-and-projects.md).
 - **Plugins d'analyse** : des analyseurs tiers livrés en images de conteneur, enregistrés par le

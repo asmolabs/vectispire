@@ -45,7 +45,7 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Repositories** | `POST` | `/api/v1/repositories/{id}/scan` | Admin | Enqueue an immediate full security scan. |
 | **Repositories** | `DELETE` | `/api/v1/repositories/{id}` | Admin | Delete repository and cascade removal of its scans and findings. |
 | **Scans** | `GET` | `/api/v1/scans` | Account | Security scans execution history with target filters. |
-| **Scans** | `GET` | `/api/v1/scans/{id}` | Account | Detailed scan result and observed security findings. |
+| **Scans** | `GET` | `/api/v1/scans/{id}` | Account | Detailed scan result and observed security findings; `examinedTypes` names the built-in steps that produced (`null`: not recorded, never "examined nothing"). |
 | **Scans** | `GET` | `/api/v1/scans/{id}/sbom` | Account | Download the raw Software Bill of Materials, as Syft produced it (native JSON). The generated CycloneDX-with-VEX document is `/api/v1/cyclonedx` — see [decision 0016](../../architecture/en/decisions/0016-no-spdx-document.md). |
 | **Vulnerabilities** | `GET` | `/api/v1/issues` | Account | Query active and resolved vulnerability issues backlog. |
 | **Vulnerabilities** | `GET` | `/api/v1/issues/{id}` | Account | Query vulnerability finding details and remediation history. |

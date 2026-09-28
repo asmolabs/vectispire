@@ -160,6 +160,7 @@ erDiagram
         datetime lease_expires_at
         int attempts
         datetime not_before "reprenable à partir de, après une tentative échouée"
+        string examined_types "types intégrés dont l'étape a produit ; null = non enregistré"
         text error
         datetime created_at
     }
