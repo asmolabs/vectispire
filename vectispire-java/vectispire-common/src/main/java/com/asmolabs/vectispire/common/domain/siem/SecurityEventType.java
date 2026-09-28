@@ -104,6 +104,13 @@ public enum SecurityEventType {
      */
     SARIF_IMPORT_REFUSED("ZAN-SEC-023", "SARIF import refused: undeclared source, scope or tool", 5, Outcome.FAILURE),
 
+    /**
+     * A coverage or test report was refused for what it claimed: an undeclared or disabled key, a kind
+     * its source is not declared for, a repository outside its scope — {@code ZAN-SEC-023}'s twin for
+     * the reports a checklist reads (decision 0032). {@code 024} to {@code 026} are the checklists'.
+     */
+    REPORT_IMPORT_REFUSED("ZAN-SEC-027", "Report import refused: undeclared source, kind or scope", 5, Outcome.FAILURE),
+
     /** The connection test. Sent whatever the severity filter says, since it tests the filter's destination. */
     PING_TEST("ZAN-SEC-999", "SIEM connector health check", 1, Outcome.SUCCESS);
 
@@ -189,6 +196,7 @@ public enum SecurityEventType {
                     Optional.of(PLUGIN_CHANGED);
             case SARIF_SOURCE_CHANGED -> Optional.of(SARIF_SOURCE_CHANGED);
             case SARIF_IMPORT_REFUSED -> Optional.of(SARIF_IMPORT_REFUSED);
+            case REPORT_IMPORT_REFUSED -> Optional.of(REPORT_IMPORT_REFUSED);
             // Listed rather than defaulted: a new operation has to be placed here, on one side or
             // the other, by whoever adds it — a default would decide for them, silently.
             case LOGIN_SUCCESS, LOGIN_FAILURE, LOGIN_BLOCKED, SETTING_UPDATED, ISSUE_TRIAGED,
@@ -211,7 +219,7 @@ public enum SecurityEventType {
                     SOLUTION_UPDATED, PROJECT_UPDATED,
                     // Routine: a pipeline's upload, as frequent as its builds. What it did is in the
                     // entry; a refusal is the event.
-                    SARIF_IMPORTED -> Optional.empty();
+                    SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED -> Optional.empty();
         };
     }
 }

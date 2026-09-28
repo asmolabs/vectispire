@@ -289,7 +289,22 @@ public enum AuditOperation {
      * An import was refused for what it claimed rather than for its form: no declared source for the
      * key, a repository outside the source's scope, a tool the source is not declared for.
      */
-    SARIF_IMPORT_REFUSED;
+    SARIF_IMPORT_REFUSED,
+
+    /**
+     * A declared source's coverage report was accepted for a repository: the figure a checklist
+     * reads, bound to the key that sent it and the document's SHA-256 (decision 0032 §7).
+     */
+    COVERAGE_IMPORTED,
+
+    /** A declared source's test report was accepted for a repository, with its totals. */
+    TEST_REPORT_IMPORTED,
+
+    /**
+     * A coverage or test report was refused for what it claimed rather than for its form: no enabled
+     * source for the key, a kind its source is not declared for, a repository outside its scope.
+     */
+    REPORT_IMPORT_REFUSED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

@@ -78,6 +78,13 @@ export class ApiKeys {
                 label: this.i18n.t('api_keys.scopes_list.sarif_import'),
                 hint: this.i18n.t('api_keys.scopes_list.sarif_import_hint')
             },
+            // The same two conditions for coverage and test reports (decision 0032 §7): offered
+            // unticked, and inert until the governor declares the key for those kinds.
+            {
+                value: 'report_import',
+                label: this.i18n.t('api_keys.scopes_list.report_import'),
+                hint: this.i18n.t('api_keys.scopes_list.report_import_hint')
+            },
             {
                 value: 'agent',
                 label: this.i18n.t('api_keys.scopes_list.agent'),

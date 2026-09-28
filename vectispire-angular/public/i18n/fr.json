@@ -166,7 +166,9 @@
       "agent": "Agent",
       "agent_hint": "Réclamer et exécuter des scans. Cette portée exécute du code : ne l'accordez qu'à un agent.",
       "sarif_import": "Import SARIF",
-      "sarif_import_hint": "Déposer le rapport SARIF d'un outil interne dans le backlog d'un dépôt. Jamais accordé par défaut, et insuffisant seul : le gouverneur de la plateforme doit aussi déclarer cette clé comme source SARIF, liée à un projet ou à un dépôt. Émettez-la depuis un compte qui peut agir — pas un auditeur."
+      "sarif_import_hint": "Déposer le rapport SARIF d'un outil interne dans le backlog d'un dépôt. Jamais accordé par défaut, et insuffisant seul : le gouverneur de la plateforme doit aussi déclarer cette clé comme source SARIF, liée à un projet ou à un dépôt. Émettez-la depuis un compte qui peut agir — pas un auditeur.",
+      "report_import": "Import de rapports",
+      "report_import_hint": "Déposer le rapport de couverture ou de tests d'un pipeline interne pour un dépôt — un chiffre qu'une checklist lit, jamais un constat. Jamais accordé par défaut, et insuffisant seul : le gouverneur de la plateforme doit aussi déclarer cette clé comme source livrant de la couverture ou des rapports de tests, liée à un projet ou à un dépôt. Émettez-la depuis un compte qui peut agir — pas un auditeur."
     },
     "subtitle": "Jetons d'authentification programmatique pour pipelines CI/CD et scanners externes.",
     "target": "Cible",
@@ -400,7 +402,10 @@
       "plugin_deactivated": "Plugin désactivé pour un projet",
       "sarif_source_changed": "Source SARIF modifiée",
       "sarif_imported": "Rapport SARIF importé",
-      "sarif_import_refused": "Import SARIF refusé"
+      "sarif_import_refused": "Import SARIF refusé",
+      "coverage_imported": "Rapport de couverture enregistré",
+      "test_report_imported": "Rapport de tests enregistré",
+      "report_import_refused": "Import de rapport refusé"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",

@@ -73,6 +73,9 @@ const OPERATION_KEYS: Record<string, string> = {
     SARIF_SOURCE_CHANGED: 'audit_log.operations.sarif_source_changed',
     SARIF_IMPORTED: 'audit_log.operations.sarif_imported',
     SARIF_IMPORT_REFUSED: 'audit_log.operations.sarif_import_refused',
+    COVERAGE_IMPORTED: 'audit_log.operations.coverage_imported',
+    TEST_REPORT_IMPORTED: 'audit_log.operations.test_report_imported',
+    REPORT_IMPORT_REFUSED: 'audit_log.operations.report_import_refused',
     // Named by no `AuditOperation`: kept so that an entry recorded under one still reads.
     LOGIN: 'audit_log.operations.login',
     LOGOUT: 'audit_log.operations.logout',

@@ -66,6 +66,16 @@ describe('the API key form', () => {
         expect(issue().scopes).toContain('sarif_import');
     });
 
+    it('offers the report import scope the same way: unticked, explained, sent only once ticked', () => {
+        openForm();
+
+        expect(document.querySelector('#report_import')).not.toBeNull();
+        expect(fixture.componentInstance.form.scopes).not.toContain('report_import');
+        expect(document.body.textContent).toContain('api_keys.scopes_list.report_import_hint');
+        fixture.componentInstance.toggleScope('report_import', true);
+        expect(issue().scopes).toEqual(['read', 'scan', 'export', 'report_import']);
+    });
+
     it('still does not offer the agent scope', () => {
         openForm();
         expect(document.querySelector('#agent')).toBeNull();

@@ -40,6 +40,7 @@ class SecurityEventTypeTest {
         expected.put("PLUGIN_CHANGED", "ZAN-SEC-021");
         expected.put("SARIF_SOURCE_CHANGED", "ZAN-SEC-022");
         expected.put("SARIF_IMPORT_REFUSED", "ZAN-SEC-023");
+        expected.put("REPORT_IMPORT_REFUSED", "ZAN-SEC-027");
         expected.put("PING_TEST", "ZAN-SEC-999");
 
         Map<String, String> actual = Arrays.stream(SecurityEventType.values())
@@ -91,6 +92,10 @@ class SecurityEventTypeTest {
                 .contains(SecurityEventType.SARIF_IMPORT_REFUSED);
         // A pipeline's upload is as frequent as its builds: the entry, not an event.
         assertThat(SecurityEventType.signalledBy(AuditOperation.SARIF_IMPORTED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.REPORT_IMPORT_REFUSED))
+                .contains(SecurityEventType.REPORT_IMPORT_REFUSED);
+        assertThat(SecurityEventType.signalledBy(AuditOperation.COVERAGE_IMPORTED)).isEmpty();
+        assertThat(SecurityEventType.signalledBy(AuditOperation.TEST_REPORT_IMPORTED)).isEmpty();
     }
 
     @Test

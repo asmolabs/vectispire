@@ -166,7 +166,9 @@
       "agent": "Agent",
       "agent_hint": "Claim and run scans. This scope executes code: grant it only to an agent.",
       "sarif_import": "SARIF import",
-      "sarif_import_hint": "Deposit an internal tool's SARIF report into a repository's backlog. Never granted by default, and not enough on its own: the platform governor must also declare this key as a SARIF source, bound to one project or repository. Issue it from an account that can act — not an auditor."
+      "sarif_import_hint": "Deposit an internal tool's SARIF report into a repository's backlog. Never granted by default, and not enough on its own: the platform governor must also declare this key as a SARIF source, bound to one project or repository. Issue it from an account that can act — not an auditor.",
+      "report_import": "Report import",
+      "report_import_hint": "Deposit an internal pipeline's coverage or test report for a repository — a figure a checklist reads, never a finding. Never granted by default, and not enough on its own: the platform governor must also declare this key as a source delivering coverage or test reports, bound to one project or repository. Issue it from an account that can act — not an auditor."
     },
     "subtitle": "The keys that authenticate automated calls.",
     "target": "Target",
@@ -400,7 +402,10 @@
       "plugin_deactivated": "Plugin switched off for a project",
       "sarif_source_changed": "SARIF source changed",
       "sarif_imported": "SARIF report imported",
-      "sarif_import_refused": "SARIF import refused"
+      "sarif_import_refused": "SARIF import refused",
+      "coverage_imported": "Coverage report recorded",
+      "test_report_imported": "Test report recorded",
+      "report_import_refused": "Report import refused"
     },
     "error_verify": "Verifying the chain did not complete. Its state is unknown, which is not the same thing as broken.",
     "error_load": "Could not load the log.",

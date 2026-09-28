@@ -26,6 +26,16 @@ public enum ApiKeyScope {
     SARIF_IMPORT(false),
 
     /**
+     * Depositing an internal pipeline's coverage or test report for a repository (decision 0032 §7).
+     *
+     * <p><b>Never granted by default, and not enough on its own</b>, like {@link #SARIF_IMPORT}: the
+     * platform governor must declare the key as a source delivering {@code coverage} or {@code
+     * test_report}. A scope of its own rather than {@code sarif_import}'s, so a key issued to send a
+     * coverage figure never deposits findings, which open and resolve issues.
+     */
+    REPORT_IMPORT(false),
+
+    /**
      * Running scans as an agent.
      *
      * <p><b>Never granted implicitly.</b> It is the scope that lets a holder execute work on
