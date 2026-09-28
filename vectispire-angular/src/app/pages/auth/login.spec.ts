@@ -34,7 +34,7 @@ describe('the sign-in screen', () => {
     beforeEach(async () => {
         // **The runner's `localStorage` is not usable**, which surfaces here and nowhere else:
         // the client identifier is the only thing this application persists in the browser. An
-        // in-memory double keeps the test about the sign-in flow rather than about jsdom.
+        // in-memory double keeps the test about the sign-in flow rather than about the test DOM.
         const store = new Map<string, string>();
         Object.defineProperty(globalThis, 'localStorage', {
             configurable: true,

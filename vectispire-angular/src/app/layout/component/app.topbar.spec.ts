@@ -118,7 +118,7 @@ describe('la barre du haut', () => {
      * announced three of them, indistinguishable, one of which ends the session.
      *
      * Nothing said so, and this file is one reason. It looks the button up by `textContent`, which
-     * jsdom exposes because it applies no stylesheet — the test was reading a DOM nobody sees. The
+     * the unit-test DOM exposes because no stylesheet is applied to it — the test was reading a DOM nobody sees. The
      * browser did say so: the Playwright suite waited two minutes for a button named "Sign out",
      * three times over, from 15 September. This assertion is about what both of them look at.
      */

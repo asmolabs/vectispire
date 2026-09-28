@@ -16,9 +16,12 @@ import { asSchema } from '@/app/core/testing/contract';
  * credential.
  */
 /**
- * jsdom refuses a real navigation and prints a stack for it. `saveDocument` clicks an anchor to
- * hand the blob to the browser, which is the behaviour under test — the noise is the environment
- * saying it is not a browser, and left in it would hide a genuine error in the same output.
+ * `saveDocument` clicks an anchor to hand the blob to the browser, which is the behaviour under
+ * test — but what the DOM does with that click is not. jsdom refused the navigation and printed a
+ * stack that would have hidden a genuine error in the same output; happy-dom calls
+ * `window.open(href, '_self')`, and all that keeps it from navigating the window the component is
+ * mounted in is that vitest builds that window outside happy-dom's `Browser` API. Neither is a
+ * browser saving a file, so the click stops here.
  */
 function silenceAnchorNavigation(): void {
     HTMLAnchorElement.prototype.click = function click() {};
