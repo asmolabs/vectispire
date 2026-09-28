@@ -150,6 +150,16 @@ lui fallait une heure.
 | `local` (défaut) | rien | la machine de l'agent a son propre accès git — en SSH : un dépôt privé en HTTPS ne peut pas être cloné dans ce mode. Un agent compromis ne livre que ce qui avait été accordé à cette machine. Cet accès est le `.ssh` du home du processus de l'agent — dans le profil `with-agent`, `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, vide sauf si vous y placez une clé dédiée ; la composition ne monte aucun `~/.ssh` à vous. |
 | `delegated` | la clé de déploiement ou le jeton HTTPS, par travail | une machine de confiance seulement. |
 
+**Le premier clone SSH d'un agent `local` demande un `known_hosts` que vous avez rempli.** Il clone
+avec l'accès SSH de sa propre machine, et ssh refuse un hôte que son `known_hosts` ne liste pas —
+l'analyse échoue avec *« The host key of … was refused by this machine's own known_hosts »*. Ce
+refus est le comportement par défaut de ssh et il est conservé : inscrivez les clés de la forge
+dans `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts` (le profil `with-agent`) avec
+`ssh-keyscan`, **après avoir comparé leurs empreintes à celles que publie la forge** — les
+commandes sont dans
+[Un agent `local` : remplir `known_hosts`](../guide/repositories.md#ssh-known-hosts-local-agent).
+Un agent `delegated` inscrit lui-même un premier contact et refuse une clé changée.
+
 En mode `delegated`, la clé ou le jeton **ne part jamais que scellé** pour le processus de l'agent
 lui-même, et jamais en clair — en HTTPS ou non. Il n'est jamais écrit sur le disque de l'agent — il
 est lu en mémoire et remis au transport — et chaque remise est auditée.

@@ -49,6 +49,41 @@ The file is `<home>/.ssh/known_hosts` of the executor's process. In the shipped
 clone with a key: no identity, no agent, no `config` — a `Host` alias, a `Port`, a `ProxyJump` or a
 `StrictHostKeyChecking` there has no effect on it. Put the real host and port in the repository URL.
 
+#### A `local` agent: fill in `known_hosts` before its first clone {#ssh-known-hosts-local-agent}
+
+An agent in `local` mode receives no key, and clones with its machine's own SSH access — the
+identity, `config` and `known_hosts` of its home's `.ssh`, used whole. That is ssh's own
+behaviour, and it **refuses a host its `known_hosts` does not list**: nobody is there to answer
+"are you sure?". The first scan then fails with *"The host key of … was refused by this machine's
+own known_hosts: the host is not listed there, or its key has changed."* This is deliberate — a
+first contact recorded without a check is the moment an interception would be believed — so the
+file is filled in once, by you, after checking the key.
+
+The file is `<home>/.ssh/known_hosts` of the agent's process: in the `with-agent` profile,
+`$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts`; for the agent image run on its own,
+`/home/vectispire/.ssh/known_hosts` unless you set `-Duser.home`. On the agent's host:
+
+```bash
+# 1. Fetch the forge's host keys (add -p <port> for a non-standard port).
+ssh-keyscan -t ed25519,ecdsa,rsa gitlab.example.com > known_hosts.new
+
+# 2. Print their fingerprints and compare EACH with the ones the forge publishes — GitHub and
+#    GitLab.com list theirs in their documentation; for your own server, ask its administrator for
+#    the output of `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`. Any difference: stop.
+ssh-keygen -lf known_hosts.new
+
+# 3. Install the file for the agent's user (1000:1000 in the images).
+home="${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}/home"
+sudo install -d -m 0700 -o 1000 -g 1000 "$home/.ssh"
+sudo install -m 0644 -o 1000 -g 1000 known_hosts.new "$home/.ssh/known_hosts"
+```
+
+`ssh-keyscan` fetches the keys over the same network an interception would sit on: step 2, against
+a fingerprint obtained some other way, is the check, and skipping it records whatever answered.
+The identity the agent clones with goes beside it (`$home/.ssh/id_ed25519`, mode 0600, owned by
+1000) — a key dedicated to this agent, never your own. Do not set `StrictHostKeyChecking no` in a
+`config` there to get past the refusal: it would accept any server, a changed key included.
+
 ### Over HTTPS, with a token
 
 A repository reachable only over HTTPS clones with an **HTTPS token** — a personal, project or

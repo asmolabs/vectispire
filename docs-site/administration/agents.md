@@ -142,6 +142,15 @@ in as many polls and fails with the reason, where it used to take an hour.
 | `local` (default) | nothing | the agent's machine has its own git access — over SSH: a private repository over HTTPS cannot be cloned in this mode. A compromised agent yields only what that machine was granted. That access is the `.ssh` of the agent process's home — in the `with-agent` profile, `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, empty unless you put a dedicated key there; the composition mounts no `~/.ssh` of yours. |
 | `delegated` | the deploy key or HTTPS token, per job | a trusted machine only. |
 
+**A `local` agent's first SSH clone needs a `known_hosts` you filled in.** It clones with its
+machine's own SSH access, and ssh refuses a host its `known_hosts` does not list — the scan fails
+with *"The host key of … was refused by this machine's own known_hosts"*. That refusal is ssh's
+default and is kept: write the forge's keys to `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts`
+(the `with-agent` profile) with `ssh-keyscan`, **after comparing their fingerprints with the ones the
+forge publishes** — the commands are in
+[A `local` agent: fill in `known_hosts`](../guide/repositories.md#ssh-known-hosts-local-agent). A
+`delegated` agent records a first contact itself and refuses a changed key.
+
 In `delegated` mode the key or token **only ever leaves sealed** for the agent's own process, and
 never in the clear — over HTTPS or not. It is never written to disk on the agent — it is parsed in
 memory and handed to the transport — and every delivery is audited.

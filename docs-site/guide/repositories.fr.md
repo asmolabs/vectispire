@@ -50,6 +50,44 @@ livré, c'est `$VECTISPIRE_WORK_DIR/home/.ssh/known_hosts` pour le plan de contr
 clone avec clé : ni identité, ni agent, ni `config` — un alias `Host`, un `Port`, un `ProxyJump` ou
 un `StrictHostKeyChecking` y sont sans effet. Mettez l'hôte et le port réels dans l'URL du dépôt.
 
+#### Un agent `local` : remplir `known_hosts` avant son premier clone {#ssh-known-hosts-local-agent}
+
+Un agent en mode `local` ne reçoit aucune clé et clone avec l'accès SSH de sa propre machine —
+l'identité, la `config` et le `known_hosts` du `.ssh` de son home, utilisés tels quels. C'est le
+comportement de ssh lui-même, et il **refuse un hôte que son `known_hosts` ne liste pas** :
+personne n'est là pour répondre « êtes-vous sûr ? ». La première analyse échoue alors avec *« The
+host key of … was refused by this machine's own known_hosts: the host is not listed there, or its
+key has changed. »* C'est voulu — un premier contact inscrit sans vérification est le moment où
+une interception serait crue — et le fichier est donc rempli une fois, par vous, après avoir
+vérifié la clé.
+
+Le fichier est `<home>/.ssh/known_hosts` du processus de l'agent : dans le profil `with-agent`,
+`$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts` ; pour l'image de l'agent lancée seule,
+`/home/vectispire/.ssh/known_hosts` sauf si vous réglez `-Duser.home`. Sur l'hôte de l'agent :
+
+```bash
+# 1. Récupérer les clés d'hôte de la forge (ajoutez -p <port> pour un port non standard).
+ssh-keyscan -t ed25519,ecdsa,rsa gitlab.example.com > known_hosts.new
+
+# 2. Afficher leurs empreintes et comparer CHACUNE à celles que publie la forge — GitHub et
+#    GitLab.com listent les leurs dans leur documentation ; pour votre propre serveur, demandez à
+#    son administrateur la sortie de `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.
+#    Une différence : arrêtez-vous.
+ssh-keygen -lf known_hosts.new
+
+# 3. Installer le fichier pour l'utilisateur de l'agent (1000:1000 dans les images).
+home="${VECTISPIRE_AGENT_WORK_DIR:-/var/lib/vectispire/agent-work}/home"
+sudo install -d -m 0700 -o 1000 -g 1000 "$home/.ssh"
+sudo install -m 0644 -o 1000 -g 1000 known_hosts.new "$home/.ssh/known_hosts"
+```
+
+`ssh-keyscan` récupère les clés par le même réseau que celui où se tiendrait une interception :
+l'étape 2, contre une empreinte obtenue par un autre chemin, est la vérification, et la sauter
+inscrit ce qui a répondu. L'identité avec laquelle l'agent clone se place à côté
+(`$home/.ssh/id_ed25519`, mode 0600, propriété de 1000) — une clé dédiée à cet agent, jamais la
+vôtre. Ne mettez pas `StrictHostKeyChecking no` dans une `config` de ce répertoire pour passer
+outre le refus : il accepterait n'importe quel serveur, clé changée comprise.
+
 ### En HTTPS, avec un jeton
 
 Un dépôt joignable seulement en HTTPS se clone avec un **jeton HTTPS** — un jeton personnel, de
