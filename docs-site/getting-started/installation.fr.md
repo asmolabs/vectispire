@@ -92,6 +92,18 @@ docker compose --profile with-agent up -d
       montez un répertoire de l'hôte au même chemin et faites-y pointer le répertoire temporaire de
       la JVM (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<chemin>`). Laissé au `/tmp` du conteneur, chaque
       analyseur reçoit un répertoire vide et chaque analyse échoue.
+    - **Le même répertoire porte le home du processus**, `home/` en dessous (`-Duser.home`) : les
+      images tournent en 1000 sans compte de ce numéro, si bien que sans lui le home est `/`, que
+      cet utilisateur ne peut pas écrire — et chaque clone SSH avec clé de déploiement échouait
+      (« The known-hosts file could not be prepared: /.ssh »). C'est là que les clés d'hôte des
+      forges sont inscrites, `home/.ssh/known_hosts`, et conservées d'un redémarrage à l'autre ;
+      l'agent a le sien sous `VECTISPIRE_AGENT_WORK_DIR`. Pour les épingler à l'avance, voir
+      [En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys). Hors de cette
+      composition, ajoutez aussi `-Duser.home=<chemin>/home` à `JDK_JAVA_OPTIONS`.
+    - **Votre propre `~/.ssh` n'est pas monté**, et `VECTISPIRE_HOST_SSH` vaut `false` ici :
+      attachez une clé de déploiement à chaque dépôt privé. La composition le montait en lecture
+      seule, là où le processus ne le lisait jamais — et l'eût-il lu, il aurait remis toutes vos
+      clés au processus qui détient `ENCRYPTION_KEY`.
     - Sous Docker Desktop, le chemin est dans sa machine virtuelle, pas sur votre Mac ou votre PC,
       et c'est ce qu'il faut : les deux côtés du montage s'y trouvent.
 
@@ -186,7 +198,7 @@ de protéger qui que ce soit.
 
 | Réglage | Défaut | Le changer quand |
 |---|---|---|
-| `VECTISPIRE_HOST_SSH` | `true` | **Plus d'une équipe partage l'installation.** Avec le repli actif, un dépôt sans clé propre est cloné avec l'identité `~/.ssh` de l'hôte — donc ajouter une URL suffit à faire cloner Vectispire sous cette identité. Sur une installation mono-équipe, la clé de l'hôte atteint déjà toutes les cibles et le repli ne coûte rien ; sur une installation partagée, mettez-le à `false` et attachez une clé de déploiement par dépôt. |
+| `VECTISPIRE_HOST_SSH` | `true` | **Plus d'une équipe partage l'installation.** Avec le repli actif, un dépôt sans clé propre est cloné avec l'identité `~/.ssh` de l'hôte — donc ajouter une URL suffit à faire cloner Vectispire sous cette identité. Sur une installation mono-équipe, la clé de l'hôte atteint déjà toutes les cibles et le repli ne coûte rien ; sur une installation partagée, mettez-le à `false` et attachez une clé de déploiement par dépôt. Le `docker-compose.yml` livré le met à `false` et ne monte aucun `~/.ssh` : dans son conteneur, il n'y a pas de clé d'hôte sur laquelle se replier. |
 | `TICKET_WEBHOOK_SECRET` | non posé | **Vous branchez un webhook de tracker.** Non posé, la route de webhook accepte les appels non authentifiés plutôt que de les refuser — choisi pour qu'une mise à jour n'interrompe pas silencieusement une synchronisation de triage existante. Posez-le dès que la route est joignable par quoi que ce soit que vous ne contrôlez pas. Notez que la vérification n'est pas liée à un anti-rejeu : un message légitime rejoué réapplique sa décision. |
 
 Les deux sont consignés avec leur raisonnement dans le modèle de menaces du projet.

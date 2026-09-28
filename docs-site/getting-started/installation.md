@@ -89,6 +89,18 @@ docker compose --profile with-agent up -d
       directory at the same path and point the JVM's temporary directory at it
       (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<path>`). Left at the container's own `/tmp`, every
       scanner is handed an empty directory and every scan fails.
+    - **The same directory holds the process's home**, `home/` under it (`-Duser.home`): the
+      images run as 1000 with no account of that number, so without it the home is `/`, which that
+      user cannot write — and every SSH clone with a deploy key failed ("The known-hosts file could
+      not be prepared: /.ssh"). That is where the forges' host keys are recorded,
+      `home/.ssh/known_hosts`, and kept across restarts; the agent has its own under
+      `VECTISPIRE_AGENT_WORK_DIR`. To pin them in advance, see
+      [Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys). Outside this
+      composition, add `-Duser.home=<path>/home` to `JDK_JAVA_OPTIONS` as well.
+    - **Your own `~/.ssh` is not mounted**, and `VECTISPIRE_HOST_SSH` is `false` here: attach a
+      deploy key to each private repository. The composition used to mount it read-only, where the
+      process never read it — and had it been read, it would have handed every key you hold to the
+      process that holds `ENCRYPTION_KEY`.
     - On Docker Desktop the path is in its virtual machine, not on your Mac or PC, which is what
       you want: both sides of the mount are there.
 
@@ -181,7 +193,7 @@ counts the proxy's address rather than the caller's and stops protecting anyone.
 
 | Setting | Default | Change it when |
 |---|---|---|
-| `VECTISPIRE_HOST_SSH` | `true` | **More than one team shares the install.** With the fallback on, a repository with no key of its own is cloned using the host's `~/.ssh` identity — so adding a URL is enough to have Vectispire clone it as that identity. On a single-team install the host key already reaches every target and the fallback costs nothing; on a shared one, set it to `false` and attach a deployment key per repository. |
+| `VECTISPIRE_HOST_SSH` | `true` | **More than one team shares the install.** With the fallback on, a repository with no key of its own is cloned using the host's `~/.ssh` identity — so adding a URL is enough to have Vectispire clone it as that identity. On a single-team install the host key already reaches every target and the fallback costs nothing; on a shared one, set it to `false` and attach a deployment key per repository. The shipped `docker-compose.yml` sets it to `false` and mounts no `~/.ssh`: inside its container there is no host key to fall back on. |
 | `TICKET_WEBHOOK_SECRET` | unset | **You wire a tracker webhook.** Unset, the webhook route accepts unauthenticated calls rather than refusing them — chosen so that an upgrade does not silently stop existing triage synchronisation. Set it as soon as the route is reachable by anything you do not control. Note that verification is not replay-bound: a legitimate payload replayed re-applies its decision. |
 
 Both are recorded with their reasoning in the project's threat model.

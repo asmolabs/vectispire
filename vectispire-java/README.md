@@ -224,6 +224,21 @@ forty lines and nothing says so; this is how it was, and it is why the policy is
 interception, at the cost that a rotated host key blocks scans until an operator clears the
 entry — and `TrustEveryHost()`, named plainly because that is what the previous behaviour was.
 
+**And the type still did not decide.** `AcceptNew` handed JGit's `OpenSshServerKeyDatabase` the
+session's configuration, and that database decides by `StrictHostKeyChecking` read from the ssh
+config — `ask` when nothing says otherwise, which refuses when there is nobody to ask. So the policy
+named "accept new" accepted no new host: a first contact failed with "Server key did not validate"
+unless the host was already in the file, and a `config` beside the file saying
+`StrictHostKeyChecking no` would have switched the check off. The database is now handed a
+configuration of the policy's own — this file only, accept-new while it can be written, match-only
+when it cannot (accept-new on a read-only file accepts and records nothing, every time) — and a
+keyed clone reads no ssh config at all. `SshCloneTest` runs it against a real SSH server; nothing
+had, which is how both survived.
+
+**Where the file lives is the process's home, and a container may have none.** The images run as
+1000 with no passwd entry, so `user.home` is `/`: `/.ssh` cannot be created and every keyed clone
+failed. The composition sets `-Duser.home` under the work directory, one per executor.
+
 ### Cryptography
 
 Passwords go through **Argon2id**; everything else hashes through `Digests`. Both are
@@ -404,6 +419,8 @@ easy to carry forward unnoticed. The reasoning lives in the code; this is the in
 | A revoked key on a claim was logged as a failed claim and retried every ten seconds for ever | `AgentLoop.claim` |
 | A repository or image with any triage history could not be deleted: the purge queued its child rows' removal, the bulk delete of the issues ran first, the cascade took the children, and the commit failed on rows already gone. No test had ever deleted a target carrying history | `IssueRepository.deleteByIdIn`, `ScanRepository.deleteByIdIn`, `TargetDeletionTest` |
 | `known_hosts` was prepared by check-then-create: two first clones in parallel, and the second failed its scan | `GitClone.prepareKnownHosts` |
+| The host-key policy called accept-new accepted no new host: JGit decided by the ssh config's `StrictHostKeyChecking`, `ask` by default, which refuses with nobody to ask — every first contact failed "Server key did not validate", and a `config` beside the file could have turned the check off. The policy now hands JGit its own configuration, a read-only file is match-only, a keyed clone reads no ssh config, and a refused key is explained as one | `GitClone.AcceptNewDatabase`, `SshCloneTest` |
+| No SSH clone with a deploy key ever succeeded through the shipped composition: the image has no passwd entry, `user.home` was `/`, and the known-hosts file could not be created — a diagnosis JGit wrapped, so the scan said only "the clone failed". The composition sets each executor's home under its work directory and mounts no operator's `~/.ssh` (it was never read, and would have handed every key the operator holds to the process holding `ENCRYPTION_KEY`); `scripts/composition-scan-check.sh` clones over SSH through it and changes the host key | `docker-compose.yml`, `GitClone.clone`, `scripts/composition-scan-check.sh` |
 | A plugin's output was a directory of the workspace bound writable, and a bind mount carries no size: a plugin could fill the executor's disk. `HostConfig.Tmpfs` was the obvious bound and cannot be read back — the archive API does not see a container's tmpfs — so the output is a tmpfs volume declared in the create and kept by a holder, measured by the kernel's `df` | `ContainerRunner`, `ContainerRun.BoundedOutput` |
 | Every scan downloaded the matcher's database into its own workspace — some 3 GB, a minute and a half, sixteen times over for sixteen scans at once — and the matcher kept the network for it. One generation per host now, fetched under a lock and mounted read-only, and the matcher runs offline | `VulnerabilityDatabase`, `DependencyScanner` |
 | Once the matcher ran as the workspace's owner rather than root, it could not write its `/tmp`: the daemon copies the image's own mode onto a tmpfs, the matcher's image ships a `/tmp` only root may write, and every scan's vulnerability matching was absent ("unable to create listing temp file", then "database does not exist"). The scratch mounts are now `mode=1777` | `ContainerRunner`, `VulnerabilityDatabaseIntegrationTest` |

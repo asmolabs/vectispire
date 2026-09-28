@@ -10,6 +10,10 @@ hébergeur Git avec un accès **en lecture seule**. Vectispire ne pousse jamais.
 Le stockage d'une clé est **refusé net** tant que `ENCRYPTION_KEY` ou `ENCRYPTION_KEY_FILE`
 n'est pas posé. La moitié privée est chiffrée au repos avec.
 
+Un clone avec la clé vérifie aussi la **clé d'hôte** de la forge : apprise au premier contact,
+refusée si elle change ensuite, ou épinglée par vous à l'avance — voir
+[En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys).
+
 ## Après une rotation de clé
 
 Changez la clé de chiffrement et les valeurs existantes cessent de se déchiffrer. Déclarez la

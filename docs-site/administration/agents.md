@@ -109,7 +109,7 @@ left; once they lapse they no longer count, even before the queue puts them back
 
 | Mode | What the controller sends | When |
 |---|---|---|
-| `local` (default) | nothing | the agent's machine has its own git access — over SSH: a private repository over HTTPS cannot be cloned in this mode. A compromised agent yields only what that machine was granted. |
+| `local` (default) | nothing | the agent's machine has its own git access — over SSH: a private repository over HTTPS cannot be cloned in this mode. A compromised agent yields only what that machine was granted. That access is the `.ssh` of the agent process's home — in the `with-agent` profile, `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, empty unless you put a dedicated key there; the composition mounts no `~/.ssh` of yours. |
 | `delegated` | the deploy key or HTTPS token, per job | a trusted machine only. |
 
 In `delegated` mode the key or token **only ever leaves sealed** for the agent's own process, and

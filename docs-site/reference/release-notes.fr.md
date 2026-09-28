@@ -79,6 +79,33 @@ lire.
 Si vous avez construit la vôtre et que son volume du miroir d'audit existe déjà, remettez-le une
 fois : `docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
 
+**Les clones SSH avec clé de déploiement fonctionnent à travers la composition — et elle ne monte
+plus votre `~/.ssh`.** À travers le `docker-compose.yml` livré, aucun de ces clones n'avait jamais
+réussi : les images n'ont pas de compte pour leur utilisateur, le home était `/`, et le fichier
+known-hosts ne pouvait pas être créé (*« The known-hosts file could not be prepared: /.ssh »*,
+affiché *« The clone of … failed. »*). Derrière cela, la vérification de clé d'hôte refusait tout
+hôte jamais rencontré (*« Server key did not validate »*) — hors de la composition aussi, sauf si
+l'hôte figurait déjà dans le `~/.ssh/known_hosts` de l'utilisateur qui fait tourner le processus.
+Désormais un premier contact est inscrit et une clé changée refusée, le home du processus est
+`$VECTISPIRE_WORK_DIR/home` (celui de l'agent sous `$VECTISPIRE_AGENT_WORK_DIR`), et le montage de
+`${HOME}/.ssh` a disparu, `VECTISPIRE_HOST_SSH` valant désormais `false` dans la composition. Ce
+qu'il faut faire :
+
+- Rien, si vos dépôts privés portent une clé de déploiement : `docker compose up` crée le home.
+- Si vous comptiez sur le montage — seules les images construites depuis le `Dockerfile` l'ont
+  jamais lu — attachez une clé de déploiement à chacun de ces dépôts dans l'écran **Clés SSH**. Un
+  agent `local` du profil `with-agent` clone avec `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, vide sauf
+  si vous y placez une clé dédiée.
+- **Votre propre composition ou vos manifestes :** ajoutez `-Duser.home=<répertoire de travail>/home`
+  à `JDK_JAVA_OPTIONS`.
+- **Hors conteneur,** un clone avec clé ne lit plus le `~/.ssh/config` de l'utilisateur : un alias
+  `Host`, un `Port` ou un `ProxyJump` qui s'y trouve cesse de s'y appliquer. Mettez l'hôte et le
+  port réels dans l'URL du dépôt. Les hôtes déjà présents dans `~/.ssh/known_hosts` restent
+  vérifiés contre lui.
+
+Voir [En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys) pour épingler les
+clés à l'avance.
+
 **Les scores EPSS viennent du fichier quotidien du FIRST, et les scans n'appellent plus
 `api.first.org`.** Chaque scan envoyait les CVE trouvées à l'API du FIRST — ce qui apprenait à un
 tiers à quoi chaque dépôt était vulnérable — et, sur un parc sans accès sortant, tous les scores

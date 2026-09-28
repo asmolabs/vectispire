@@ -115,7 +115,7 @@ ait remises en attente.
 
 | Mode | Ce que le contrôleur envoie | Quand |
 |---|---|---|
-| `local` (défaut) | rien | la machine de l'agent a son propre accès git — en SSH : un dépôt privé en HTTPS ne peut pas être cloné dans ce mode. Un agent compromis ne livre que ce qui avait été accordé à cette machine. |
+| `local` (défaut) | rien | la machine de l'agent a son propre accès git — en SSH : un dépôt privé en HTTPS ne peut pas être cloné dans ce mode. Un agent compromis ne livre que ce qui avait été accordé à cette machine. Cet accès est le `.ssh` du home du processus de l'agent — dans le profil `with-agent`, `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, vide sauf si vous y placez une clé dédiée ; la composition ne monte aucun `~/.ssh` à vous. |
 | `delegated` | la clé de déploiement ou le jeton HTTPS, par travail | une machine de confiance seulement. |
 
 En mode `delegated`, la clé ou le jeton **ne part jamais que scellé** pour le processus de l'agent

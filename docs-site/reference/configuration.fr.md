@@ -91,6 +91,12 @@ route répond `413`, par un document de problème dont le `detail` donne la limi
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *aucun* | Hôtes, séparés par des virgules, depuis lesquels les dépôts peuvent être clonés — `gitlab.corp.example, *.corp.example`. Vide, tout hôte est permis sauf les adresses link-local, toujours refusées. Vérifié à la saisie de l'URL et avant chaque analyse. |
 
+Un clone SSH avec clé de déploiement vérifie la clé d'hôte de la forge contre
+`<home>/.ssh/known_hosts` de l'exécutant : inscrite au premier contact, refusée si elle change,
+seulement comparée quand le fichier est en lecture seule — voir
+[En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys). Aucune `config` ssh
+n'est lue pour un tel clone.
+
 ## Espaces de travail des analyses
 
 L'espace de travail d'une analyse — et, sauf réglage ci-dessous, la base de vulnérabilités — est
@@ -101,7 +107,7 @@ sans quoi chaque analyseur reçoit un répertoire vide.
 
 | Variable | Défaut | Notes |
 |---|---|---|
-| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` seulement. Le répertoire de l'hôte monté dans le plan de contrôle au même chemin, préparé pour son utilisateur (1000:1000, 0700) par le service `work-dir`, et donné comme `-Djava.io.tmpdir` par `JDK_JAVA_OPTIONS`. Contient le clone de chaque analyse en cours et la base du rapprocheur (quelque 3 Go). Hors de la composition, faites de même à la main. |
+| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` seulement. Le répertoire de l'hôte monté dans le plan de contrôle au même chemin, préparé pour son utilisateur (1000:1000, 0700) par le service `work-dir`, et donné comme `-Djava.io.tmpdir` par `JDK_JAVA_OPTIONS`. Contient le clone de chaque analyse en cours et la base du rapprocheur (quelque 3 Go), et sous `home/` le home du processus (`-Duser.home`), où les clés d'hôte SSH sont inscrites — l'image n'a pas de compte pour son utilisateur, et son home serait sinon `/`. Hors de la composition, faites de même à la main. |
 | `VECTISPIRE_AGENT_WORK_DIR` | `/var/lib/vectispire/agent-work` | `docker-compose.yml`, profil `with-agent` : la même chose pour l'agent, dans un répertoire à lui. |
 
 ## Base de vulnérabilités

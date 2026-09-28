@@ -27,6 +27,29 @@ hébergeur — Vectispire ne fait jamais que cloner.
 La moitié privée est chiffrée au repos avec votre `ENCRYPTION_KEY`. Le stockage d'une clé est
 refusé net tant que cette variable n'est pas posée.
 
+### En SSH : la clé d'hôte de la forge {#ssh-host-keys}
+
+Un clone avec une clé de déploiement vérifie la **clé d'hôte** du serveur contre un fichier
+`known_hosts` tenu par l'exécutant qui mène le scan — le worker intégré du plan de contrôle ou un
+agent :
+
+- **Premier contact :** la clé est acceptée et inscrite dans ce fichier.
+- **Chaque clone suivant :** la clé doit correspondre. Sinon le scan échoue avec *« The host key of
+  … has changed since the last clone. Check it is the same server before running again. »* et rien
+  n'est récupéré. Après une vraie rotation chez la forge, supprimez la ligne de cet hôte dans le
+  fichier ; le scan suivant inscrit la nouvelle clé.
+- **Épinglée plutôt qu'apprise :** écrivez vous-même les clés de la forge dans le fichier (issues de
+  `ssh-keyscan`, comparées aux empreintes que publie votre forge) et rendez le fichier **en lecture
+  seule** pour l'exécutant. Il n'est alors que comparé : un hôte qu'il ne liste pas est refusé, et
+  rien n'y est jamais ajouté.
+
+Le fichier est `<home>/.ssh/known_hosts` du processus de l'exécutant. Dans le `docker-compose.yml`
+livré, c'est `$VECTISPIRE_WORK_DIR/home/.ssh/known_hosts` pour le plan de contrôle et
+`$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts` pour l'agent — voir
+[Installation](../getting-started/installation.md). Rien d'autre de ce répertoire n'est lu pour un
+clone avec clé : ni identité, ni agent, ni `config` — un alias `Host`, un `Port`, un `ProxyJump` ou
+un `StrictHostKeyChecking` y sont sans effet. Mettez l'hôte et le port réels dans l'URL du dépôt.
+
 ### En HTTPS, avec un jeton
 
 Un dépôt joignable seulement en HTTPS se clone avec un **jeton HTTPS** — un jeton personnel, de

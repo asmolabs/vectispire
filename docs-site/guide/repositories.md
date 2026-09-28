@@ -27,6 +27,28 @@ Vectispire only ever clones.
 The private half is encrypted at rest with your `ENCRYPTION_KEY`. Storing a key is refused
 outright until that variable is set.
 
+### Over SSH: the forge's host key {#ssh-host-keys}
+
+A clone with a deploy key checks the server's **host key** against a `known_hosts` file kept by
+whichever executor runs the scan — the control plane's built-in worker or an agent:
+
+- **First contact:** the key is accepted and written to that file.
+- **Every clone after it:** the key must match. If it does not, the scan fails with *"The host key
+  of … has changed since the last clone. Check it is the same server before running again."* and
+  nothing is fetched. After a genuine rotation at the forge, delete that host's line from the file;
+  the next scan records the new key.
+- **Pinned instead of learned:** write the forge's keys into the file yourself (from
+  `ssh-keyscan`, compared with the fingerprints your forge publishes) and make the file
+  **read-only** for the executor. It is then only matched against: a host it does not list is
+  refused, and nothing is ever added.
+
+The file is `<home>/.ssh/known_hosts` of the executor's process. In the shipped
+`docker-compose.yml` that is `$VECTISPIRE_WORK_DIR/home/.ssh/known_hosts` for the control plane and
+`$VECTISPIRE_AGENT_WORK_DIR/home/.ssh/known_hosts` for the agent — see
+[Installation](../getting-started/installation.md). Nothing else of that directory is read for a
+clone with a key: no identity, no agent, no `config` — a `Host` alias, a `Port`, a `ProxyJump` or a
+`StrictHostKeyChecking` there has no effect on it. Put the real host and port in the repository URL.
+
 ### Over HTTPS, with a token
 
 A repository reachable only over HTTPS clones with an **HTTPS token** — a personal, project or

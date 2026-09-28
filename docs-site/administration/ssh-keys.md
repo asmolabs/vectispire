@@ -10,6 +10,10 @@ provider with **read-only** access. Vectispire never pushes.
 Storing a key is **refused outright** until `ENCRYPTION_KEY` or `ENCRYPTION_KEY_FILE` is
 set. The private half is encrypted at rest with it.
 
+A clone with the key also checks the forge's **host key**: learned at the first contact, refused if
+it changes afterwards, or pinned by you in advance — see
+[Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys).
+
 ## After a key rotation
 
 Change the encryption key and existing values stop decrypting. List the previous key so

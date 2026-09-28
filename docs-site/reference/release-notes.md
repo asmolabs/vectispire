@@ -70,6 +70,29 @@ rather than as root, which could not read it.
 own and its audit mirror volume already exists, hand it over once:
 `docker run --rm -v vectispire_audit:/a alpine chown -R 1000:1000 /a`.
 
+**SSH clones with a deploy key work through the composition — and it no longer mounts your
+`~/.ssh`.** Through the shipped `docker-compose.yml` no such clone had ever succeeded: the images
+have no account for their user, the home was `/`, and the known-hosts file could not be created
+(*"The known-hosts file could not be prepared: /.ssh"*, shown as *"The clone of … failed."*).
+Behind that, the host-key check refused every host it had not met before (*"Server key did not
+validate"*) — outside the composition too, unless the host was already in the running user's
+`~/.ssh/known_hosts`. Now a first contact is recorded and a changed key refused, the process's home
+is `$VECTISPIRE_WORK_DIR/home` (the agent's under `$VECTISPIRE_AGENT_WORK_DIR`), and the
+`${HOME}/.ssh` mount is gone, with `VECTISPIRE_HOST_SSH` now `false` in the composition. What to do:
+
+- Nothing, if your private repositories carry a deploy key: `docker compose up` creates the home.
+- If you relied on the mount — only images you built from the `Dockerfile` ever read it — attach a
+  deploy key to each of those repositories on the **SSH keys** screen. A `local` agent of the
+  `with-agent` profile clones with `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, empty unless you put a
+  dedicated key there.
+- **Your own composition or manifests:** add `-Duser.home=<work dir>/home` to `JDK_JAVA_OPTIONS`.
+- **Outside a container,** a clone with a key no longer reads the running user's `~/.ssh/config`:
+  a `Host` alias, `Port` or `ProxyJump` there stops applying to it. Put the real host and port in
+  the repository URL. Hosts already in `~/.ssh/known_hosts` stay checked against it.
+
+See [Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys) for pinning the keys
+in advance.
+
 **EPSS scores come from FIRST's daily file, and scans no longer call `api.first.org`.** Each scan
 used to send the CVE it had found to FIRST's API — which told a third party what each repository was
 vulnerable to — and on an estate without outbound access every score stayed unknown. The control

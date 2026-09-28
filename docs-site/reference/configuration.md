@@ -90,6 +90,11 @@ is never held to the default. Past its limit a route answers `413`, as a problem
 |---|---|---|
 | `VECTISPIRE_GIT_ALLOWED_HOSTS` | *none* | Comma-separated hosts repositories may be cloned from — `gitlab.corp.example, *.corp.example`. Empty allows every host but link-local ones, which are always refused. Checked when a URL is entered and again before each scan. |
 
+A clone over SSH with a deploy key checks the forge's host key against `<home>/.ssh/known_hosts` of
+the executor: recorded at the first contact, refused when it changes, only matched against when the
+file is read-only — see [Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys).
+No ssh `config` is read for such a clone.
+
 ## Scan workspaces
 
 A scan's workspace — and, unless set below, the vulnerability database — is created in the JVM's
@@ -99,7 +104,7 @@ host directory mounted at the **same absolute path**, or every scanner receives 
 
 | Variable | Default | Notes |
 |---|---|---|
-| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` only. The host directory mounted into the control plane at the same path, prepared for its user (1000:1000, 0700) by the `work-dir` service, and set as `-Djava.io.tmpdir` through `JDK_JAVA_OPTIONS`. Holds each running scan's clone and the matcher's database (some 3 GB). Outside the composition, do the same by hand. |
+| `VECTISPIRE_WORK_DIR` | `/var/lib/vectispire/work` | `docker-compose.yml` only. The host directory mounted into the control plane at the same path, prepared for its user (1000:1000, 0700) by the `work-dir` service, and set as `-Djava.io.tmpdir` through `JDK_JAVA_OPTIONS`. Holds each running scan's clone and the matcher's database (some 3 GB), and under `home/` the process's home (`-Duser.home`), where the SSH host keys are recorded — the image has no account for its user, and its home would otherwise be `/`. Outside the composition, do the same by hand. |
 | `VECTISPIRE_AGENT_WORK_DIR` | `/var/lib/vectispire/agent-work` | `docker-compose.yml`, `with-agent` profile: the same for the agent, a directory of its own. |
 
 ## Vulnerability database
