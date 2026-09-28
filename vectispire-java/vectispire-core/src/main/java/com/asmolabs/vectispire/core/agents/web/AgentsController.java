@@ -332,7 +332,8 @@ public class AgentsController {
      *
      * <p><b>It used to be silence.</b> The agent dropped the scan, the lease took twenty minutes to
      * lapse, the reclaim spent an attempt on it, and the reason stayed in a log on another machine. The
-     * report does what the lapse would have done, now, and leaves the reason on the scan.
+     * report ends the attempt now and leaves the reason on the scan: a permanent failure fails the scan,
+     * a transient one — or a report with no {@code kind} — requeues it with a wait before its next claim.
      *
      * <p><b>Signed as a result is</b>, in the same header, under a context of its own; the body names
      * the attempt, so a report applies once and to that attempt alone. 409 for a scan that is not this

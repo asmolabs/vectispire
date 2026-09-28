@@ -415,10 +415,11 @@ public class ScanDispatcher {
      * An agent's word that it could not run the scan it claimed — the clone refused, the workspace
      * not made, a credential that would not open: anything before a result exists.
      *
-     * <p><b>The lapse's rule, without its twenty minutes.</b> The agent used to drop the scan and say
-     * nothing: the lease ran out, the reclaim requeued it with the attempt spent, and the reason stayed
-     * in a log on another machine. What the report changes is when, and that the reason is on the scan
-     * for the screen to show; what it does to the attempts is exactly what the lapse would have done.
+     * <p><b>Without the lapse's twenty minutes.</b> The agent used to drop the scan and say nothing:
+     * the lease ran out, the reclaim requeued it with the attempt spent, and the reason stayed in a log
+     * on another machine. The report ends the attempt now, with the reason on the scan for the screen
+     * to show; a transient failure then does to the attempts what the lapse would have done, and a
+     * permanent one fails the scan at once.
      *
      * <p>Only while the scan is still this agent's, at that attempt: a report sent twice, or about an
      * attempt since superseded, changes nothing.
