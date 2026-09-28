@@ -136,7 +136,7 @@ tentatives en quelques secondes ; le worker intégré faisait échouer une analy
 première erreur, avec le message brut. Un sous-chemin absent du clone fait désormais échouer l'analyse
 avant tout analyseur, là où chacun le signalait.
 
-**Les migrations V32 à V49 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V50 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -237,9 +237,23 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   n'a pas été examiné, et ses issues sont restées en l'état. `null` signifie *non enregistré* — une
   analyse antérieure à cette version, ou qui ne s'est jamais exécutée — et jamais *rien examiné*, qui
   est `[]`. Les plugins restent dans `plugins`, dans leurs trois états.
+- **Une source déclarée énonce ses `kinds`** (V50 ajoute `t_sarif_source.kinds`) : `sarif`, `coverage`,
+  `test_report`. Une déclaration sans eux vaut `sarif` seul, et toute source déclarée avant cette
+  version reste une source SARIF. `tools` est obligatoire avec `sarif` et refusé sans lui.
+- **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
+  couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
+  de couverture ne dépose jamais de constats.
 
 ### Nouveautés
 
+- **Couverture et rapports de tests depuis les sources déclarées.** Un pipeline envoie un rapport de
+  couverture JaCoCo, Cobertura ou lcov (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) ou
+  un rapport JUnit — un fichier XML ou un zip de plusieurs (`…/test-report-imports`) — avec une clé
+  `report_import` pour laquelle sa source est déclarée. Les chiffres sont gardés, jamais le document ;
+  un rapport vide est refusé plutôt qu'enregistré comme zéro, et rien n'ouvre ni ne résout d'issue.
+  Audités `COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED` et `REPORT_IMPORT_REFUSED`, le refus envoyé au
+  SIEM comme `ZAN-SEC-027`. `scripts/vectispire-cli.sh` gagne `coverage` et `test-report` —
+  [Importer des rapports de couverture et de tests](../administration/plugins.md#importer-des-rapports-de-couverture-et-de-tests).
 - **La page d'une analyse montre quelles étapes ont examiné l'arbre.** Une carte *Ce que ce scan a
   examiné* liste les étapes intégrées qui ont produit et celles qui n'ont pas regardé — en échec, ou
   non lancées pour cette cible — de sorte qu'une liste de constats vide ne se lit comme propre que

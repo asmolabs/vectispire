@@ -12,6 +12,10 @@ Ce guide explique comment intégrer **Vectispire** au cœur de vos pipelines d'i
 * `scan` : Déclenche une analyse de sécurité sur un dépôt ou un conteneur et attend optionnellement sa finalisation (`--wait`).
 * `gate` : Évalue la politique de Quality Gate configurée dans Vectispire et termine avec le code de sortie `0` (Succès) ou `1` (Échec / Blocage du build).
 * `sbom` : Télécharge le SBOM brut, dans le format JSON natif de Syft.
+* `coverage` : Envoie le rapport de couverture JaCoCo, Cobertura ou lcov d'un dépôt (`--format` est obligatoire, jamais deviné).
+* `test-report` : Envoie le rapport JUnit d'un dépôt — un fichier XML, ou un zip de plusieurs.
+
+`coverage` et `test-report` demandent une clé détenant `report_import` dont la source est déclarée pour ce type ; voir [Importer des rapports de couverture et de tests](../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests).
 
 ---
 

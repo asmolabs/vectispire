@@ -127,6 +127,7 @@ change meaning.
 | `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | a plugin is registered, updated, enabled or disabled by the platform governor, or switched on or off for a project — third-party code gains or loses read access to some of the source |
 | `ZAN-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |
 | `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | a SARIF upload is refused for what it claims — a key no source is declared for, a repository outside its source's scope, a tool its source is not declared for |
+| `ZAN-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | the connection test |
 
 Single sign-on, the MFA requirement for single sign-on and the allowed Git hosts are set by

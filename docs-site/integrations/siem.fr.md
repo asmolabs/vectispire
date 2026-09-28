@@ -136,6 +136,7 @@ changera pas de sens.
 | `ZAN-SEC-021` | Analysis plugin registered, changed or activated | 6 | un plugin est enregistré, mis à jour, activé ou désactivé par le gouverneur de la plateforme, ou activé ou désactivé pour un projet — du code tiers gagne ou perd l'accès en lecture à une partie du source |
 | `ZAN-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |
 | `ZAN-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | un téléversement SARIF est refusé pour ce qu'il prétend — une clé pour laquelle aucune source n'est déclarée, un dépôt hors du périmètre de sa source, un outil pour lequel sa source n'est pas déclarée |
+| `ZAN-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
 | `ZAN-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 
 Les noms d'événements restent en anglais : ce sont ceux que reçoit le SIEM.

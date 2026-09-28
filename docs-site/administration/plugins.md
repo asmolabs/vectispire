@@ -251,10 +251,13 @@ curl -X POST https://vectispire.example/api/v1/sarif-sources \
 The slug is part of every imported issue's identity: name the producer, not the key. Declaring the same
 slug again with a new key — to rotate it — continues the same backlog.
 
-**On screen**, **SARIF sources**, in the Administration section for the governance roles, lists the
-declarations — slug and name, the scope by project or repository name, the tools, the key, who declared
-it. The governor has **Declare a source**: the key is chosen among the unexpired keys holding
-`sarif_import`, the scope is a project *or* a repository, the tools are separated by commas. Disabling
+**On screen**, **Declared sources**, in the Administration section for the governance roles, lists the
+declarations — slug and name, the scope by project or repository name, what each **delivers** (SARIF,
+coverage, test reports), the tools, the key, who declared it. The governor has **Declare a source**:
+the kinds are ticked (SARIF by default, at least one), the key is chosen among the unexpired keys
+holding the scope of every ticked kind — `sarif_import` for SARIF, `report_import` for the other two —
+the scope is a project *or* a repository, and the tools, separated by commas, are asked only while
+SARIF is ticked. Disabling
 stops a source's imports; removing it keeps the issues it imported, under its slug.
 
 ### 3. Upload
@@ -281,8 +284,9 @@ CI is unknown to Vectispire, so an absolute path is refused. Each run's tool is 
 report from the same tool resolves what it no longer reports on that repository, and touches nothing
 else — no other tool's issues, no plugin's, no scanner's.
 
-Every repository row on [Repositories](../guide/repositories.md) has **SARIF**, which opens that
-repository's import history, read-only: when and by which source and account, the tools, the counts
+Every repository row on [Repositories](../guide/repositories.md) has **Imports**, which opens that
+repository's latest coverage and test report (see [below](#importing-coverage-and-test-reports)) and
+then its SARIF import history, read-only: when and by which source and account, the tools, the counts
 opened, resolved and reopened, and the document's SHA-256. Nothing is uploaded from the interface.
 
 Imported issues say where they came from: type **imported**, the source, and the tool's name and
@@ -338,6 +342,101 @@ one producer and one scope; **a tool allow-list** that refuses a report from any
 of every accepted document**, to match a report to the pipeline run that produced it; and **a SIEM
 event on every refusal**. Who holds a declared key is then your organisation's discipline, and the
 audit trail makes it reviewable.
+
+## Importing coverage and test reports
+
+The same declared sources can send **a coverage report** and **a JUnit test report** for a
+repository — the figures a security checklist will read ([decision 0032](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0032-security-checklists.md)).
+They follow the SARIF rules above, from inside the organisation and from a declared source, and differ
+in one respect: **they open and resolve no issue**. A coverage figure is not a finding.
+
+### 1. Issue the key and declare what the source delivers
+
+A source declares its **kinds**: `sarif`, `coverage`, `test_report`, one or several. One pipeline is
+one source, even when it sends SARIF and coverage. Each kind needs its own scope on the key:
+
+| Kind | The key holds | Tools |
+|---|---|---|
+| `sarif` | `sarif_import` | required: the tools it may deliver |
+| `coverage`, `test_report` | `report_import` | none — refused on a source that delivers no SARIF |
+
+`report_import` is never granted by default, and it is a scope of its own so that a key issued to send
+a coverage figure never deposits findings. A declaration without `kinds` is `sarif` alone, which is
+what every source declared before this version stays.
+
+```bash
+curl -X POST https://vectispire.example/api/v1/sarif-sources \
+  -H "Authorization: Bearer $GOVERNOR_SESSION" -H "Content-Type: application/json" \
+  -d '{"slug": "payments-ci", "name": "Payments CI", "api_key_id": "<key id>",
+       "project_id": 12, "kinds": ["coverage", "test_report"]}'
+```
+
+### 2. Upload
+
+**Coverage** — JaCoCo XML, Cobertura XML or an lcov tracefile. The format is **declared**, never
+guessed: a truncated JaCoCo file is not read as lcov by accident.
+
+```bash
+curl --fail-with-body -X POST \
+  "https://vectispire.example/api/v1/repositories/42/coverage-imports?format=jacoco&commit=$CI_COMMIT_SHA&branch=$CI_COMMIT_REF_NAME" \
+  -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" \
+  -H "Content-Type: application/xml" \
+  --data-binary @target/site/jacoco/jacoco.xml
+```
+
+`format` is `jacoco`, `cobertura` or `lcov` (send lcov as `text/plain`). The answer (`201`) carries the
+lines covered and total, the branches when the report counted any (`null` otherwise — never 0 of 0),
+the tool version when the report names one, and the document's SHA-256.
+
+**Test report** — one JUnit XML document as `application/xml`, or a zip of them as `application/zip`,
+since most build tools write one file per test class:
+
+```bash
+(cd target/surefire-reports && zip -q ../surefire-reports.zip TEST-*.xml)
+curl --fail-with-body -X POST \
+  "https://vectispire.example/api/v1/repositories/42/test-report-imports?commit=$CI_COMMIT_SHA" \
+  -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" \
+  -H "Content-Type: application/zip" \
+  --data-binary @target/surefire-reports.zip
+```
+
+The answer carries the documents, suites and tests counted, with the failures, errors and skipped.
+Vectispire keeps **the figures, never the document**: the counts, each suite's totals, the
+document's hash, the source and the key. `commit` and `branch` are optional and kept as the pipeline
+states them — they are its word, verified against nothing.
+
+`scripts/vectispire-cli.sh` does both, and prints the server's refusal when there is one:
+
+```bash
+./vectispire-cli.sh coverage --repo-id 42 --format jacoco --file target/site/jacoco/jacoco.xml --commit "$CI_COMMIT_SHA"
+./vectispire-cli.sh test-report --repo-id 42 --file target/surefire-reports.zip --commit "$CI_COMMIT_SHA"
+```
+
+Refused with:
+
+| Status | Why |
+|---|---|
+| `403` | not an integration key, a key without `report_import`, a key no enabled source is declared for, or a kind its source is not declared for |
+| `404` | a repository the key cannot see, or outside the source's scope — answered as if it did not exist |
+| `400` | a format not declared or not one of the three, a body that does not read as it, a report that counts no line or no test, a commit that is not a hexadecimal name, a zip past its guards |
+| `413` | larger than `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 MB) or `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 MB) |
+
+**An empty report is refused**, not recorded as zero: a coverage report with no line, or a test report
+with no test case, says the step did not run — and "ran, found nothing" is a different claim
+([decision 0007](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/en/decisions/0007-none-is-not-an-empty-list.md)).
+The readers load no DTD and resolve no entity; a zip is inflated in memory and counted as it comes out,
+at most 5,000 entries, 32 MB each and 256 MB in all, and an archive inside it is refused.
+
+**On screen**, the repository's **Imports** dialog opens with its latest coverage — lines and
+branches as a percentage with their counts, or *Not counted by the report* when there were no
+branches, the format and tool version, the commit and branch as the pipeline stated them, when and
+from which source — and its latest test report: tests, failures, errors and skipped. Nothing is
+uploaded from the interface.
+
+Each accepted import is in the audit log (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`); a refusal for
+what the key claimed is audited as `REPORT_IMPORT_REFUSED` and sent to the SIEM as `ZAN-SEC-027`. A
+repository's latest fifty imports of each kind are read at `GET /api/v1/repositories/{id}/coverage-imports`
+and `…/test-report-imports`.
 
 ## Analysers that compile
 

@@ -12,6 +12,10 @@ This guide explains how to integrate **Vectispire** into your continuous integra
 * `scan` : Enqueue a security scan on a repository or container and optionally wait for completion (`--wait`).
 * `gate` : Evaluate the active Security Quality Gate policy and exit with code `0` (PASS) or `1` (FAIL / break build).
 * `sbom` : Download the raw Software Bill of Materials, in Syft's native JSON.
+* `coverage` : Send a JaCoCo, Cobertura or lcov coverage report for a repository (`--format` is required, never guessed).
+* `test-report` : Send a JUnit report — one XML file, or a zip of them — for a repository.
+
+`coverage` and `test-report` take a key holding `report_import` whose source is declared for that kind; see [Importing coverage and test reports](../../docs-site/administration/plugins.md#importing-coverage-and-test-reports).
 
 ---
 

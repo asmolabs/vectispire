@@ -121,7 +121,7 @@ attempts in seconds; the built-in worker failed a scan for good at its first err
 message. A sub-path the clone does not hold now fails the scan before any scanner runs, where each
 analyser used to report it.
 
-**Schema migrations V32 to V49 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V50 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -208,9 +208,22 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   `quality`, `eol`, `license`. A type left out was not examined, and its issues were left as they
   were. `null` means *not recorded* — a scan from before this version, or one that never ran — and
   never *examined nothing*, which is `[]`. Plugins stay in `plugins`, in their three states.
+- **A declared source states its `kinds`** (V50 adds `t_sarif_source.kinds`): `sarif`, `coverage`,
+  `test_report`. A declaration without them is `sarif` alone, and every source declared before this
+  version stays a SARIF source. `tools` is required with `sarif` and refused without it.
+- **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
+  test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
+  findings.
 
 ### New
 
+- **Coverage and test reports from declared sources.** A pipeline sends a JaCoCo, Cobertura or lcov
+  coverage report (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) or a JUnit report — one
+  XML file or a zip of them (`…/test-report-imports`) — with a `report_import` key its source is
+  declared for. The figures are kept, never the document; an empty report is refused rather than
+  recorded as zero, and nothing opens or resolves an issue. Audited `COVERAGE_IMPORTED`,
+  `TEST_REPORT_IMPORTED` and `REPORT_IMPORT_REFUSED`, the refusal sent to the SIEM as `ZAN-SEC-027`.
+  `scripts/vectispire-cli.sh` gains `coverage` and `test-report` — [Importing coverage and test reports](../administration/plugins.md#importing-coverage-and-test-reports).
 - **The scan page shows which steps examined the tree.** A *What this scan examined* card lists the
   built-in steps that produced and those that did not look — failed, or not run for that target —
   so a clean list of findings reads as clean only for the steps that ran. Scans from before this

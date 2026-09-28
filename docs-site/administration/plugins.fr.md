@@ -256,10 +256,13 @@ curl -X POST https://vectispire.example/api/v1/sarif-sources \
 Le slug fait partie de l'identité de chaque issue importée : nommez le producteur, pas la clé. Déclarer à
 nouveau le même slug avec une nouvelle clé — pour la faire tourner — prolonge le même backlog.
 
-**À l'écran**, **Sources SARIF**, dans la section Administration pour les rôles de gouvernance, liste
-les déclarations — identifiant et nom, la portée par nom de projet ou de dépôt, les outils, la clé, qui
-l'a déclarée. Le gouverneur a **Déclarer une source** : la clé se choisit parmi les clés non expirées
-portant `sarif_import`, la portée est un projet *ou* un dépôt, les outils sont séparés par des virgules.
+**À l'écran**, **Sources déclarées**, dans la section Administration pour les rôles de gouvernance,
+liste les déclarations — identifiant et nom, la portée par nom de projet ou de dépôt, ce que chacune
+**livre** (SARIF, couverture, rapports de tests), les outils, la clé, qui l'a déclarée. Le gouverneur a
+**Déclarer une source** : les types se cochent (SARIF par défaut, au moins un), la clé se choisit parmi
+les clés non expirées portant la portée de chaque type coché — `sarif_import` pour le SARIF,
+`report_import` pour les deux autres —, la portée est un projet *ou* un dépôt, et les outils, séparés
+par des virgules, ne sont demandés que tant que SARIF est coché.
 Désactiver arrête les imports d'une source ; la retirer conserve les issues qu'elle a importées, sous son
 identifiant.
 
@@ -293,8 +296,9 @@ l'outil. Un auditeur distingue d'un coup d'œil « analysé par Vectispire » (t
 « déclaré par la CI » (`imported`). Chaque import est conservé avec l'empreinte de son document et au
 journal d'audit ; un import refusé est un événement SIEM (`ZAN-SEC-023`).
 
-Chaque ligne de [Dépôts](../guide/repositories.md) a **SARIF**, qui ouvre l'historique des imports de
-ce dépôt, en lecture seule : quand et par quelle source et quel compte, les outils, les nombres
+Chaque ligne de [Dépôts](../guide/repositories.md) a **Imports**, qui ouvre la dernière couverture et
+le dernier rapport de tests de ce dépôt (voir [plus bas](#importer-des-rapports-de-couverture-et-de-tests))
+puis l'historique de ses imports SARIF, en lecture seule : quand et par quelle source et quel compte, les outils, les nombres
 d'issues ouvertes, résolues et rouvertes, et le SHA-256 du document. Rien n'est téléversé depuis
 l'interface. Dans le backlog, une issue importée dit d'où elle vient sous son type (« déclaré par
 payments-ci · SonarQube »), le filtre par type propose **plugin** et **importé**, et la page d'une issue
@@ -347,6 +351,105 @@ refuse un rapport de toute autre provenance ; **l'empreinte de chaque document a
 un rapport de l'exécution de CI qui l'a produit ; et **un événement SIEM à chaque refus**. Qui détient
 une clé déclarée relève alors de la discipline de votre organisation, et la piste d'audit la rend
 vérifiable.
+
+## Importer des rapports de couverture et de tests
+
+Les mêmes sources déclarées peuvent envoyer **un rapport de couverture** et **un rapport de tests
+JUnit** pour un dépôt — les chiffres qu'une checklist de sécurité lira
+([décision 0032](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0032-security-checklists.md)).
+Ils suivent les règles du SARIF ci-dessus, depuis l'intérieur de l'organisation et par une source
+déclarée, et en diffèrent sur un point : **ils n'ouvrent ni ne résolvent aucune issue**. Un chiffre de
+couverture n'est pas un constat.
+
+### 1. Émettre la clé et déclarer ce que la source livre
+
+Une source déclare ses **types** : `sarif`, `coverage`, `test_report`, un ou plusieurs. Un pipeline est
+une source, même quand il envoie du SARIF et de la couverture. Chaque type demande sa portée sur la clé :
+
+| Type | La clé détient | Outils |
+|---|---|---|
+| `sarif` | `sarif_import` | obligatoires : les outils qu'elle peut livrer |
+| `coverage`, `test_report` | `report_import` | aucun — refusés sur une source qui ne livre pas de SARIF |
+
+`report_import` n'est jamais accordée par défaut, et c'est une portée à part pour qu'une clé émise pour
+envoyer un chiffre de couverture ne dépose jamais de constats. Une déclaration sans `kinds` est `sarif`
+seul, ce que reste toute source déclarée avant cette version.
+
+```bash
+curl -X POST https://vectispire.example/api/v1/sarif-sources \
+  -H "Authorization: Bearer $GOVERNOR_SESSION" -H "Content-Type: application/json" \
+  -d '{"slug": "payments-ci", "name": "Payments CI", "api_key_id": "<id de la clé>",
+       "project_id": 12, "kinds": ["coverage", "test_report"]}'
+```
+
+### 2. Téléverser
+
+**Couverture** — JaCoCo XML, Cobertura XML ou un fichier lcov. Le format est **déclaré**, jamais
+deviné : un fichier JaCoCo tronqué n'est pas lu comme du lcov par accident.
+
+```bash
+curl --fail-with-body -X POST \
+  "https://vectispire.example/api/v1/repositories/42/coverage-imports?format=jacoco&commit=$CI_COMMIT_SHA&branch=$CI_COMMIT_REF_NAME" \
+  -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" \
+  -H "Content-Type: application/xml" \
+  --data-binary @target/site/jacoco/jacoco.xml
+```
+
+`format` vaut `jacoco`, `cobertura` ou `lcov` (envoyez le lcov en `text/plain`). La réponse (`201`)
+porte les lignes couvertes et totales, les branches quand le rapport en a compté (`null` sinon — jamais
+0 sur 0), la version de l'outil quand le rapport la nomme, et le SHA-256 du document.
+
+**Rapport de tests** — un document JUnit XML en `application/xml`, ou un zip de plusieurs en
+`application/zip`, puisque la plupart des outils de build écrivent un fichier par classe de test :
+
+```bash
+(cd target/surefire-reports && zip -q ../surefire-reports.zip TEST-*.xml)
+curl --fail-with-body -X POST \
+  "https://vectispire.example/api/v1/repositories/42/test-report-imports?commit=$CI_COMMIT_SHA" \
+  -H "Authorization: Bearer $VECTISPIRE_REPORT_KEY" \
+  -H "Content-Type: application/zip" \
+  --data-binary @target/surefire-reports.zip
+```
+
+La réponse porte les documents, suites et tests comptés, avec les échecs, erreurs et tests ignorés.
+Vectispire garde **les chiffres, jamais le document** : les totaux, ceux de chaque suite, l'empreinte
+du document, la source et la clé. `commit` et `branch` sont facultatifs et gardés tels que le pipeline
+les énonce — c'est sa parole, vérifiée contre rien.
+
+`scripts/vectispire-cli.sh` fait les deux, et affiche le refus du serveur quand il y en a un :
+
+```bash
+./vectispire-cli.sh coverage --repo-id 42 --format jacoco --file target/site/jacoco/jacoco.xml --commit "$CI_COMMIT_SHA"
+./vectispire-cli.sh test-report --repo-id 42 --file target/surefire-reports.zip --commit "$CI_COMMIT_SHA"
+```
+
+Refusé avec :
+
+| Statut | Pourquoi |
+|---|---|
+| `403` | pas une clé d'intégration, une clé sans `report_import`, une clé pour laquelle aucune source active n'est déclarée, ou un type pour lequel sa source n'est pas déclarée |
+| `404` | un dépôt que la clé ne voit pas, ou hors du périmètre de la source — répondu comme s'il n'existait pas |
+| `400` | un format non déclaré ou hors des trois, un corps qui ne se lit pas comme lui, un rapport qui ne compte aucune ligne ou aucun test, un commit qui n'est pas un nom hexadécimal, un zip au-delà de ses garde-fous |
+| `413` | plus grand que `VECTISPIRE_MAX_BODY_COVERAGE_IMPORT` (16 Mo) ou `VECTISPIRE_MAX_BODY_TEST_REPORT_IMPORT` (32 Mo) |
+
+**Un rapport vide est refusé**, pas enregistré comme zéro : un rapport de couverture sans aucune ligne,
+ou un rapport de tests sans aucun cas, dit que l'étape n'a pas tourné — et « a tourné, n'a rien
+trouvé » est une autre affirmation
+([décision 0007](https://github.com/asmolabs/vectispire/blob/main/docs/architecture/fr/decisions/0007-none-is-not-an-empty-list.md)).
+Les lecteurs ne chargent aucune DTD et ne résolvent aucune entité ; un zip est décompressé en mémoire et
+compté à mesure, au plus 5 000 entrées, 32 Mo chacune et 256 Mo en tout, et une archive à l'intérieur
+est refusée.
+
+**À l'écran**, la fenêtre **Imports** du dépôt s'ouvre sur sa dernière couverture — lignes et branches
+en pourcentage avec leurs nombres, ou *Non comptées par le rapport* quand il n'y avait pas de branches,
+le format et la version de l'outil, le commit et la branche tels que le pipeline les a énoncés, quand et
+depuis quelle source — et sur son dernier rapport de tests : tests, échecs, erreurs et ignorés. Rien
+n'est téléversé depuis l'interface.
+
+Chaque import accepté figure au journal d'audit (`COVERAGE_IMPORTED`, `TEST_REPORT_IMPORTED`) ; un refus
+pour ce que la clé prétendait est audité `REPORT_IMPORT_REFUSED` et envoyé au SIEM comme `ZAN-SEC-027`.
+Les cinquante derniers imports de chaque type d'un dépôt se lisent à
+`GET /api/v1/repositories/{id}/coverage-imports` et `…/test-report-imports`.
 
 ## Les analyseurs qui compilent
 

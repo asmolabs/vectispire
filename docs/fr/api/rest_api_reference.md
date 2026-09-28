@@ -81,10 +81,13 @@ L'API Vectispire utilise trois mécanismes d'authentification selon le type d'ap
 | **Plugins** | `GET` | `/api/v1/plugins/{id}/projects` | Gouvernance | Les projets pour lesquels un plugin est activé. |
 | **Plugins** | `GET` | `/api/v1/projects/{id}/plugins` | Gouvernance | Les plugins activés pour un projet. |
 | **Plugins** | `PUT` / `DELETE` | `/api/v1/projects/{id}/plugins/{pluginId}` | Lead/Admin | Activer ou désactiver un plugin pour un projet. |
-| **Import SARIF** | `GET` / `POST` | `/api/v1/sarif-sources` | Gouvernance / Gouverneur | Les sources SARIF internes déclarées : une clé d'intégration, un projet ou un dépôt, les outils qu'elle peut livrer. |
+| **Import SARIF** | `GET` / `POST` | `/api/v1/sarif-sources` | Gouvernance / Gouverneur | Les sources internes déclarées : une clé d'intégration, un projet ou un dépôt, les types qu'elle peut livrer (`sarif`, `coverage`, `test_report` ; absent vaut `sarif`) et, pour le SARIF, les outils. |
 | **Import SARIF** | `PUT` / `DELETE` | `/api/v1/sarif-sources/{id}[/enabled]` | Gouverneur | Suspendre, reprendre ou supprimer une source déclarée. |
 | **Import SARIF** | `POST` | `/api/v1/repositories/{id}/sarif-imports` | Clé `sarif_import` | Déposer le rapport SARIF 2.1.0 d'une source déclarée dans le backlog d'un dépôt ; voir [Plugins et imports SARIF](../../../docs-site/administration/plugins.fr.md). |
 | **Import SARIF** | `GET` | `/api/v1/repositories/{id}/sarif-imports` | Compte | Les derniers imports du dépôt, avec l'empreinte de leur document et ce que chacun a fait. |
+| **Import de rapports** | `POST` | `/api/v1/repositories/{id}/coverage-imports?format=` | Clé `report_import` | Enregistrer le rapport de couverture (JaCoCo, Cobertura, lcov) d'une source déclarée pour un dépôt ; voir [Importer des rapports de couverture et de tests](../../../docs-site/administration/plugins.fr.md#importer-des-rapports-de-couverture-et-de-tests). |
+| **Import de rapports** | `POST` | `/api/v1/repositories/{id}/test-report-imports` | Clé `report_import` | Enregistrer le rapport JUnit d'une source déclarée — un document XML ou un zip de plusieurs — pour un dépôt. |
+| **Import de rapports** | `GET` | `/api/v1/repositories/{id}/coverage-imports`, `/test-report-imports` | Compte | Les cinquante derniers imports de chaque type du dépôt, avec leurs chiffres et l'empreinte de leur document. |
 | **Agent** | `GET` | `/api/v1/agent/plugins/{id}/{digest}` | Clé d'agent | Le manifeste qu'une tâche a nommé, par id et digest ; l'agent refuse celui qui ne correspond pas au digest. |
 | **Cryptographie** | `GET` | `/api/v1/crypto/public-key.pub` | Public | Clé publique ECDSA pour vérification des signatures Cosign / Sigstore. |
 
