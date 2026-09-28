@@ -56,6 +56,62 @@ class ScanQueueTest {
     }
 
     @Test
+    @DisplayName("a permanent failure fails at once, on the first attempt as on the last")
+    void aPermanentFailureFailsAtOnce() {
+        assertThat(ScanQueue.afterFailure(1, FailureKind.PERMANENT, NOW, POLICY)).isEqualTo(new ScanQueue.Next.Fail(true));
+        assertThat(ScanQueue.afterFailure(POLICY.maxAttempts(), FailureKind.PERMANENT, NOW, POLICY))
+                .isEqualTo(new ScanQueue.Next.Fail(true));
+    }
+
+    @Test
+    @DisplayName("a transient failure waits one minute, then five, and fails at the attempt limit")
+    void aTransientFailureWaitsLongerEachTime() {
+        assertThat(ScanQueue.afterFailure(1, FailureKind.TRANSIENT, NOW, POLICY))
+                .isEqualTo(new ScanQueue.Next.Retry(NOW.plus(Duration.ofMinutes(1))));
+        assertThat(ScanQueue.afterFailure(2, FailureKind.TRANSIENT, NOW, POLICY))
+                .isEqualTo(new ScanQueue.Next.Retry(NOW.plus(Duration.ofMinutes(5))));
+        // The third delay exists for a limit above three; at the default limit the third attempt is the last.
+        assertThat(ScanQueue.afterFailure(3, FailureKind.TRANSIENT, NOW, POLICY)).isEqualTo(new ScanQueue.Next.Fail(false));
+    }
+
+    @Test
+    @DisplayName("past the list the last delay repeats, and a refunded count waits the first")
+    void delaysAreBoundedByTheList() {
+        ScanQueue.Policy five = new ScanQueue.Policy(Duration.ofMinutes(20), 5, 12, ScanQueue.Policy.DEFAULT_RETRY_DELAYS);
+
+        assertThat(ScanQueue.retryDelay(3, five)).isEqualTo(Duration.ofMinutes(15));
+        assertThat(ScanQueue.retryDelay(4, five)).isEqualTo(Duration.ofMinutes(15));
+        assertThat(ScanQueue.retryDelay(0, five)).isEqualTo(Duration.ofMinutes(1));
+        assertThat(ScanQueue.afterFailure(4, FailureKind.TRANSIENT, NOW, five))
+                .isEqualTo(new ScanQueue.Next.Retry(NOW.plus(Duration.ofMinutes(15))));
+        assertThat(ScanQueue.afterFailure(5, FailureKind.TRANSIENT, NOW, five)).isEqualTo(new ScanQueue.Next.Fail(false));
+    }
+
+    @Test
+    @DisplayName("the delays are configuration: none configured is no wait, a negative one is refused")
+    void delaysAreConfigured() {
+        ScanQueue.Policy none = new ScanQueue.Policy(Duration.ofMinutes(20), 3, 12, java.util.List.of());
+        assertThat(ScanQueue.afterFailure(1, FailureKind.TRANSIENT, NOW, none)).isEqualTo(new ScanQueue.Next.Retry(NOW));
+
+        ScanQueue.Policy quick = new ScanQueue.Policy(Duration.ofMinutes(20), 3, 12, java.util.List.of(Duration.ofSeconds(7)));
+        assertThat(ScanQueue.afterFailure(2, FailureKind.TRANSIENT, NOW, quick))
+                .isEqualTo(new ScanQueue.Next.Retry(NOW.plusSeconds(7)));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new ScanQueue.Policy(
+                        Duration.ofMinutes(20), 3, 12, java.util.List.of(Duration.ofMinutes(-1))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("negative");
+    }
+
+    @Test
+    @DisplayName("the default policy carries the decided delays")
+    void theDefaultDelays() {
+        assertThat(POLICY.retryDelays())
+                .containsExactly(Duration.ofMinutes(1), Duration.ofMinutes(5), Duration.ofMinutes(15));
+        assertThat(new ScanQueue.Policy(Duration.ofMinutes(20), 3, 12).retryDelays()).isEqualTo(POLICY.retryDelays());
+    }
+
+    @Test
     @DisplayName("the failure message tells the operator where to look")
     void messageIsActionable() {
         assertThat(ScanQueue.LEASE_EXHAUSTED_MESSAGE).contains("agent's logs").contains("run the scan again");
