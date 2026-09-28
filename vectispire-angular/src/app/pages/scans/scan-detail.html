@@ -104,6 +104,57 @@
     </div>
 
     <!--
+        **Which built-in steps looked (decision 0032).** A clean list of findings reads as "nothing
+        found" only for the steps that produced; a step that failed or was not run looked at nothing,
+        and a scan from before the control plane recorded it says so rather than showing every step
+        as not examined.
+    -->
+    @if (examination(detail); as examination) {
+        <p-card styleClass="mb-4" data-testid="scan-examined">
+            <ng-template #title>{{ 'scans.examined_title' | translate }}</ng-template>
+            @if (examination.state === 'unrecorded') {
+                <p class="text-muted-color text-sm m-0" data-testid="scan-examined-unrecorded">
+                    {{ 'scans.examined_unrecorded' | translate }}
+                </p>
+            } @else {
+                <p class="text-muted-color text-sm mt-0">{{ 'scans.examined_explain' | translate }}</p>
+                @if (examination.examined.length === 0) {
+                    <p class="text-sm m-0 mb-2" data-testid="scan-examined-none">
+                        {{ 'scans.examined_none' | translate }}
+                    </p>
+                } @else {
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm font-medium">{{ 'scans.examined_steps' | translate }}</span>
+                        @for (type of examination.examined; track type.value) {
+                            <p-tag
+                                severity="success"
+                                icon="pi pi-check-circle"
+                                [value]="type.label"
+                                data-testid="examined-type"
+                                [attr.data-type]="type.value"
+                            />
+                        }
+                    </div>
+                }
+                @if (examination.notExamined.length > 0) {
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-sm font-medium">{{ 'scans.not_examined_steps' | translate }}</span>
+                        @for (type of examination.notExamined; track type.value) {
+                            <p-tag
+                                severity="secondary"
+                                icon="pi pi-minus-circle"
+                                [value]="type.label"
+                                data-testid="not-examined-type"
+                                [attr.data-type]="type.value"
+                            />
+                        }
+                    </div>
+                }
+            }
+        </p-card>
+    }
+
+    <!--
         **Each plugin's end, in one of three states (decision 0017).** Not applicable and absent both
         leave the plugin's issues as they were, and are told apart because only one of them is
         somebody's problem: a Java plugin on a Python tree is not a failure, a plugin whose report

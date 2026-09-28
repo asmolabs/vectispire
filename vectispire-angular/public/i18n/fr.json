@@ -1825,6 +1825,12 @@
     "findings_subtitle": "— ce que ce scan a observé, et non le backlog de la cible",
     "findings_truncated": "{{total}} constats au total ; les {{shown}} premiers sont affichés.",
     "fixed_in": "corrigé en {{versions}}",
+    "examined_title": "Ce que ce scan a examiné",
+    "examined_explain": "Une étape qui a produit a examiné l'arbre : un type sans constat ici a été recherché et non trouvé, et ses issues ouvertes sur cette cible ont été résolues. Une étape qui n'a pas produit n'a pas regardé — elle a échoué, ou ce scan ne l'a pas lancée — et ses issues sont restées en l'état. Les plugins sont listés plus bas, dans leurs trois états.",
+    "examined_steps": "Examiné",
+    "not_examined_steps": "Non examiné",
+    "examined_none": "Aucune étape n'a examiné l'arbre dans ce scan.",
+    "examined_unrecorded": "Non enregistré : ce scan est antérieur à la version qui enregistre les étapes ayant examiné l'arbre. Le prochain scan de cette cible l'enregistrera.",
     "plugins_title": "Plugins",
     "plugins_explain": "Non applicable n'est pas un échec : aucun des langages du plugin n'est présent dans cet arbre, il n'a pas été lancé, et ses issues restent en l'état. Absent est un échec : le plugin aurait dû s'exécuter et n'a rendu aucun rapport exploitable ; ses issues restent en l'état et le scan signale l'échec.",
     "plugin_state": {

@@ -407,7 +407,9 @@ describe('every screen', () => {
                     findingsTotal: 0,
                     findingsTruncated: false,
                     // Always sent since plugins exist: an empty list for a scan that ran none.
-                    plugins: []
+                    plugins: [],
+                    // Null is what a scan from before the control plane recorded it sends.
+                    examinedTypes: null
                 })
             );
         }

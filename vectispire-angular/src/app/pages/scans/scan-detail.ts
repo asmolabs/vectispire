@@ -13,7 +13,8 @@ import { saveDocument } from '../../core/download';
 import type { ScanDetail, ScanSummary } from '../../core/api.models';
 import { LastScanTag } from '../../shared/last-scan';
 import { RuleCoverageBanner } from '../../shared/rule-coverage-banner';
-import { findingTypeLabel } from '../../shared/finding-types';
+import { findingTypeLabel, findingTypeOptions, isToolProvenance } from '../../shared/finding-types';
+import type { FindingTypeOption } from '../../shared/finding-types';
 
 const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
     critical: 'danger',
@@ -25,6 +26,13 @@ const SEVERITY_SEVERITY: Record<string, 'danger' | 'warn' | 'secondary'> = {
 };
 
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+
+/**
+ * Which built-in steps looked at the tree (decision 0032). `unrecorded` is a scan from before the
+ * control plane kept it — never "examined nothing", which is `recorded` with an empty `examined`.
+ */
+export type Examination =
+    { state: 'unrecorded' } | { state: 'recorded'; examined: FindingTypeOption[]; notExamined: FindingTypeOption[] };
 
 @Component({
     selector: 'app-scan-detail',
@@ -71,6 +79,32 @@ export class ScanDetailPage {
     /** A digest shortened like an image's: enough to compare two scans, not enough to crush a row. */
     shortDigest(digest: string | null): string {
         return digest ? digest.slice(0, 12) : '—';
+    }
+
+    /**
+     * What the scan examined, or null where there is nothing to say: a scan still waiting or running
+     * has examined nothing yet, and one that failed before running shows its error instead.
+     *
+     * **Null from the server is "not recorded", and it is said.** Read as an empty list, a scan from
+     * before the upgrade would show every step as not examined — telling an assessor that a tree was
+     * never searched for secrets, when nothing wrote down whether it was.
+     */
+    examination(detail: ScanDetail): Examination | null {
+        const recorded = detail.examinedTypes;
+        if (recorded === null || recorded === undefined) {
+            return detail.scan.status === 'completed' ? { state: 'unrecorded' } : null;
+        }
+        const builtIn = findingTypeOptions(this.i18n).filter((option) => !isToolProvenance(option.value));
+        const known = new Set(builtIn.map((option) => option.value));
+        return {
+            state: 'recorded',
+            // A name this screen does not know yet is shown raw rather than dropped: it did examine.
+            examined: [
+                ...builtIn.filter((option) => recorded.includes(option.value)),
+                ...recorded.filter((type) => !known.has(type)).map((type) => ({ value: type, label: type }))
+            ],
+            notExamined: builtIn.filter((option) => !recorded.includes(option.value))
+        };
     }
 
     severityOf(severity: string): 'danger' | 'warn' | 'secondary' {

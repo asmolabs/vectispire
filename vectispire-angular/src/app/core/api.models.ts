@@ -996,6 +996,12 @@ export type ScanDetail = Refine<
          * not a claim that everything expected ran.
          */
         plugins: PluginOutcome[];
+        /**
+         * The built-in finding types whose step produced in this scan, as wire names. `null` is
+         * "not recorded" — a scan from before the control plane kept it, or one that never ran —
+         * and never "examined nothing", which is the empty list.
+         */
+        examinedTypes: string[] | null;
     }
 >;
 

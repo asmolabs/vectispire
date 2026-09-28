@@ -1825,6 +1825,12 @@
     "findings_subtitle": "— what this scan observed, not the target's backlog",
     "findings_truncated": "{{total}} findings in total; the first {{shown}} are shown.",
     "fixed_in": "fixed in {{versions}}",
+    "examined_title": "What this scan examined",
+    "examined_explain": "A step that produced examined the tree: a type with no finding here was looked for and not found, and its open issues on this target were resolved. A step that did not produce did not look — it failed, or this scan did not run it — and its issues were left as they were. Plugins are listed below, in their own three states.",
+    "examined_steps": "Examined",
+    "not_examined_steps": "Not examined",
+    "examined_none": "No step examined the tree in this scan.",
+    "examined_unrecorded": "Not recorded: this scan predates the version that records which steps examined the tree. The next scan of this target records it.",
     "plugins_title": "Plugins",
     "plugins_explain": "Not applicable is not a failure: none of the plugin's languages is in this tree, it was not started, and its issues are left as they were. Absent is a failure: the plugin should have run and gave no usable report; its issues are left as they were and the scan lists the failure.",
     "plugin_state": {

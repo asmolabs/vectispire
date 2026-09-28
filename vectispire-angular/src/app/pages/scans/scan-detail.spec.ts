@@ -62,7 +62,8 @@ describe('the scan detail', () => {
                 link: null
             }
         ],
-        plugins: []
+        plugins: [],
+        examinedTypes: ['secret', 'vulnerability']
     });
 
     /** One plugin in each of its three states, as `PluginOutcome.of` writes them. */
@@ -293,6 +294,56 @@ describe('the scan detail', () => {
         // The type's own label, a literal key: the dynamic `issues.types.${type}` it replaces was
         // invisible to the i18n check.
         expect(fixture.nativeElement.textContent as string).toContain('issues.types.plugin');
+    });
+
+    /**
+     * **Which built-in steps looked (decision 0032).** A step that produced examined the tree; one
+     * left out did not look, and its issues were left as they were. Read from the DOM: each type in
+     * its own group, by its wire name.
+     */
+    it('shows which built-in steps examined the tree, and which did not', async () => {
+        await load({ ...DETAIL, examinedTypes: ['secret', 'vulnerability'] });
+
+        const root = fixture.nativeElement as HTMLElement;
+        const typesOf = (testId: string) =>
+            Array.from(root.querySelectorAll(`[data-testid="${testId}"]`)).map((tag) => tag.getAttribute('data-type'));
+        expect(root.querySelector('[data-testid="scan-examined"]')).not.toBeNull();
+        expect(typesOf('examined-type')).toEqual(['vulnerability', 'secret']);
+        expect(typesOf('not-examined-type')).toEqual(['iac', 'license', 'eol', 'sast', 'quality']);
+        // The tool-scoped types are no step of the scan's own: plugins have their card.
+        expect(typesOf('not-examined-type')).not.toContain('plugin');
+        expect(root.querySelector('[data-testid="scan-examined-unrecorded"]')).toBeNull();
+    });
+
+    /**
+     * **Null is "not recorded", and the screen says it.** Read as an empty list, a scan from before
+     * the upgrade would show every step as not examined — a tree "never searched for secrets" when
+     * nothing wrote down whether it was.
+     */
+    it('says a completed scan from before the upgrade did not record what it examined', async () => {
+        await load({ ...DETAIL, examinedTypes: null });
+
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('[data-testid="scan-examined-unrecorded"]')?.textContent).toContain(
+            'scans.examined_unrecorded'
+        );
+        expect(root.querySelectorAll('[data-testid="not-examined-type"]')).toHaveLength(0);
+        expect(root.querySelectorAll('[data-testid="examined-type"]')).toHaveLength(0);
+    });
+
+    it('says a recorded scan in which no step produced examined nothing', async () => {
+        await load({ ...DETAIL, scan: { ...DETAIL.scan, status: 'failed' }, examinedTypes: [] });
+
+        const root = fixture.nativeElement as HTMLElement;
+        expect(root.querySelector('[data-testid="scan-examined-none"]')).not.toBeNull();
+        expect(root.querySelector('[data-testid="scan-examined-unrecorded"]')).toBeNull();
+        expect(root.querySelectorAll('[data-testid="not-examined-type"]')).toHaveLength(7);
+    });
+
+    it('says nothing of an examination for a scan that has not run yet', async () => {
+        await load({ ...DETAIL, scan: { ...DETAIL.scan, status: 'pending' }, examinedTypes: null });
+
+        expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid="scan-examined"]')).toBeNull();
     });
 
     it('stays quiet when the estate is covered, so the one that matters stays visible', async () => {
