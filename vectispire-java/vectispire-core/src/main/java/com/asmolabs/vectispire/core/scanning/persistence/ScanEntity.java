@@ -58,6 +58,14 @@ public class ScanEntity {
     @Column(name = "plugin_steps")
     private String pluginSteps;
 
+    /**
+     * The built-in types this scan examined, as wire names — see {@code ExaminedTypes}. Null for a scan
+     * whose examination was never recorded (every scan from before V49, and one that never ran), which
+     * is not "examined nothing": that is the empty string.
+     */
+    @Column(name = "examined_types", length = 255)
+    private String examinedTypes;
+
     @Column(name = "duration_ms")
     private Long durationMs;
 
@@ -174,6 +182,14 @@ public class ScanEntity {
 
     public void setPluginSteps(String pluginSteps) {
         this.pluginSteps = pluginSteps;
+    }
+
+    public String getExaminedTypes() {
+        return examinedTypes;
+    }
+
+    public void setExaminedTypes(String examinedTypes) {
+        this.examinedTypes = examinedTypes;
     }
 
     public Long getDurationMs() {

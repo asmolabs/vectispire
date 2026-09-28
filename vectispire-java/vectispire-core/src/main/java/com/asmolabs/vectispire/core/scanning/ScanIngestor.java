@@ -40,6 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Getting it wrong resolves a type's entire history in silence — no error, no log line, and
  * nobody notices before the next audit.
  *
+ * <p>The set is also left on the scan, as {@link ExaminedTypes}, for the dispatcher to write with the
+ * rest of the result: what a scan examined is read afterwards by what attests to it (decision 0032).
+ *
  * <p><b>What crosses its ports carries no row.</b> Enrichment, end of life, the inventory and the
  * backlog are other modules' work — {@code threatintel}, {@code inventory}, {@code issues} — and they
  * used to receive the scan's {@code FindingEntity} and {@code ScanEntity}, mutable, to fill in place.
@@ -432,6 +435,11 @@ public class ScanIngestor {
 
         scan.setNewIssuesCount(result.created());
         scan.setResolvedIssuesCount(result.resolved());
+        // **The set the backlog was handed, kept on the scan** — it used to be dropped here, and
+        // afterwards nothing could tell a completed scan whose secret detection ran clean from one
+        // whose secret detection failed (decision 0032, §6). The very set, not a second computation
+        // of it: two derivations of "which steps ran" are two answers the day one of them changes.
+        scan.setExaminedTypes(ExaminedTypes.write(scannedTypes));
         return result;
     }
 

@@ -1,8 +1,11 @@
 package com.asmolabs.vectispire.core.scanning;
 
 import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * A scan as the layers above the services hold it: the row's properties under their own names, not
@@ -10,6 +13,10 @@ import java.util.List;
  *
  * <p>The SBOM and the CVE list travel with it because the scan's own routes serve them; the
  * strings are shared with the row that was read, not copied.
+ *
+ * @param examinedTypes the built-in types whose step produced in this scan; empty when nobody recorded
+ *     it — every scan from before V49, and one that never ran — which is not the empty set, "recorded,
+ *     and no step produced" (see {@link ExaminedTypes})
  */
 public record ScanView(
         Long id,
@@ -35,7 +42,8 @@ public record ScanView(
         Instant leaseExpiresAt,
         int attempts,
         Instant notBefore,
-        List<PluginOutcome> plugins) {
+        List<PluginOutcome> plugins,
+        Optional<Set<FindingType>> examinedTypes) {
 
     public static ScanView of(ScanEntity scan) {
         return new ScanView(
@@ -62,6 +70,7 @@ public record ScanView(
                 scan.getLeaseExpiresAt(),
                 scan.getAttempts(),
                 scan.getNotBefore(),
-                PluginOutcome.read(scan.getPluginSteps()));
+                PluginOutcome.read(scan.getPluginSteps()),
+                ExaminedTypes.read(scan.getExaminedTypes()));
     }
 }

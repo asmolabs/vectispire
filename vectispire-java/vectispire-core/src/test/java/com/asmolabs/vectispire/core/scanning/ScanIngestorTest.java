@@ -209,6 +209,63 @@ class ScanIngestorTest {
         }
     }
 
+    /**
+     * The set the backlog resolved against, kept on the scan (decision 0032, §6). Absent steps must
+     * stay out of it: a scan whose secret detection failed would otherwise read, afterwards, as a scan
+     * that searched the tree for secrets and found none.
+     */
+    @Nested
+    @DisplayName("keeping what ran on the scan")
+    class Examined {
+
+        @Test
+        @DisplayName("an absent step is left out, a step that found nothing is kept")
+        void absentStepsAreLeftOut() {
+            ScanEntity scan = scan();
+            ScanIngestor.EndOfLifeSource failing = mock(ScanIngestor.EndOfLifeSource.class);
+            when(failing.isEnabled()).thenReturn(true);
+            when(failing.findings(any())).thenReturn(Optional.empty());
+            ScanIngestor.LicenseSource licences = mock(ScanIngestor.LicenseSource.class);
+            when(licences.findings(any())).thenReturn(List.of());
+
+            // Dependencies and source analysis absent, secrets clean, the IaC step with one finding,
+            // end of life's lookup failed, a plugin produced: only the built-in types that produced.
+            ingestor(Optional.empty(), Optional.of(failing), Optional.of(licences)).ingest(scan, ScanArtifacts.builder()
+                    .secrets(List.of())
+                    .iac(List.of(new IacFinding("CKV_AWS_20", "S3 not public", "main.tf", 4, null, "x")))
+                    .sbom(sbom())
+                    .plugin(new com.asmolabs.vectispire.common.scanning.PluginStep.Produced(
+                            "ran", "d".repeat(64), "t", "1", List.of()))
+                    .build(Duration.ZERO));
+
+            assertThat(scan.getExaminedTypes()).isEqualTo("iac,license,secret");
+            assertThat(ExaminedTypes.read(scan.getExaminedTypes()))
+                    .as("the very set the backlog was handed, not a second derivation of it")
+                    .contains(scannedTypes());
+        }
+
+        @Test
+        @DisplayName("a scan in which no step produced records the empty set, not nothing")
+        void nothingProducedIsRecorded() {
+            ScanEntity scan = scan();
+
+            ingestor.ingest(scan, ScanArtifacts.builder().build(Duration.ZERO));
+
+            assertThat(scan.getExaminedTypes()).as("recorded, and empty: null is 'unrecorded'").isEmpty();
+            assertThat(ExaminedTypes.read(scan.getExaminedTypes())).contains(Set.of());
+        }
+
+        @Test
+        @DisplayName("source analysis keeps both of its types")
+        void sastKeepsQuality() {
+            ScanEntity scan = scan();
+
+            ingestor.ingest(scan, ScanArtifacts.builder().sast(List.of()).dependencies(List.of()).build(Duration.ZERO));
+
+            assertThat(scan.getExaminedTypes()).isEqualTo("quality,sast,vulnerability");
+        }
+    }
+
     @Nested
     @DisplayName("the findings produced")
     class Findings {

@@ -653,6 +653,9 @@ public class ScanDispatcher {
         // Each plugin's outcome, the not-applicable ones included — which are nobody's failure and
         // would otherwise be recorded nowhere.
         scan.setPluginSteps(PluginOutcome.write(artifacts.plugins()));
+        // The built-in types that examined the tree are already on the row: the ingestor left there
+        // the very set it resolved the backlog against (`ExaminedTypes`), and it is written here,
+        // for the built-in worker and for an agent's result alike.
         scan.setClaimedBy(null);
         scan.setClaimedAt(null);
         scan.setLeaseExpiresAt(null);
