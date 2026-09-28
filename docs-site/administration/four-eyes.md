@@ -36,6 +36,8 @@ It also refuses while **fewer than two active accounts can publish a checklist t
 platform governor, an administrator or a CISO. Under four-eyes a template version is published by
 somebody other than its author, and writing it takes the same role: with a single such account,
 every draft could be imported and none ever published. Create a second one first.
+[Checklist templates](checklist-templates.md#4-publish) describes what the author of a draft is
+told when the server refuses them as its publisher.
 
 Switching it **off** stays possible either way: it is enabling that needs a second person.
 
@@ -51,4 +53,5 @@ records the integration as the author with any claimed name kept beside it as re
 
 - [Issues and triage](../guide/issues.md) — where a decision is proposed.
 - [Users and teams](users-and-teams.md) — the roles and what each may do.
+- [Checklist templates](checklist-templates.md) — a template version published by somebody other than its author.
 - [Audit log](audit-log.md) — where every decision and every setting change is recorded.
