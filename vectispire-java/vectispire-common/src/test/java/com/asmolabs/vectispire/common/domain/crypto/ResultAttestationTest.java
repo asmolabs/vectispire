@@ -98,6 +98,25 @@ class ResultAttestationTest {
         assertThat(ResultAttestation.isUsablePublicKey(null)).isFalse();
     }
 
+    /**
+     * A failure report and a result are signed by the same key over the same kind of bytes: only the
+     * context tells them apart, and a signature that crossed from one route to the other would let a
+     * captured report be posted as a result, or the reverse.
+     */
+    @Test
+    @DisplayName("a failure report's signature is not a result's, nor the other way round")
+    void failureReportsHaveTheirOwnContext() {
+        ResultAttestation.KeyPair pair = ResultAttestation.generate();
+
+        String report = ResultAttestation.signFailure(pair.privateKey(), 42L, BODY);
+        String result = ResultAttestation.sign(pair.privateKey(), 42L, BODY);
+
+        assertThat(ResultAttestation.verifyFailure(pair.publicKey(), 42L, BODY, report)).isTrue();
+        assertThat(ResultAttestation.verifyFailure(pair.publicKey(), 43L, BODY, report)).isFalse();
+        assertThat(ResultAttestation.verify(pair.publicKey(), 42L, BODY, report)).isFalse();
+        assertThat(ResultAttestation.verifyFailure(pair.publicKey(), 42L, BODY, result)).isFalse();
+    }
+
     @Test
     @DisplayName("generates a distinct pair every time")
     void freshPairs() {

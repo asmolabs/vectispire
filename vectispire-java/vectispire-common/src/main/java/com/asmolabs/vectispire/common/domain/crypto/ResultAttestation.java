@@ -57,6 +57,11 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
  *       places where a signature quietly stops covering anything.
  * </ul>
  *
+ * <p><b>A failure report is signed the same way</b>, under {@code "vectispire:agent-failure:v1"}: it
+ * does not resolve anything, but it spends one of the scan's attempts and fails the scan at the last,
+ * and a stolen API key that could post it unsigned would keep a target from ever being scanned. Its
+ * body names the attempt, so a report captured once cannot fail the scan's next attempt.
+ *
  * <p>Ed25519 through BouncyCastle's lightweight API, for the reason given in {@link Digests}:
  * which implementation runs should not be a property of the host.
  */
@@ -67,6 +72,15 @@ public final class ResultAttestation {
 
     /** Separates this signature from anything else ever signed by the same key. */
     private static final byte[] CONTEXT = "vectispire:agent-result:v1".getBytes(StandardCharsets.UTF_8);
+
+    /**
+     * The context of a failure report — "I could not run this scan".
+     *
+     * <p><b>Its own, never the result's.</b> A report spends one of the scan's attempts, a result
+     * resolves a backlog; a signature valid for one must not be valid for the other, whatever the two
+     * bodies happen to parse as on the other route.
+     */
+    private static final byte[] FAILURE_CONTEXT = "vectispire:agent-failure:v1".getBytes(StandardCharsets.UTF_8);
 
     private static final int SEED_LENGTH_BYTES = Ed25519PrivateKeyParameters.KEY_SIZE;
     private static final int PUBLIC_LENGTH_BYTES = Ed25519PublicKeyParameters.KEY_SIZE;
@@ -110,13 +124,27 @@ public final class ResultAttestation {
 
     /** @throws IllegalArgumentException when the configured key is not a 32-byte seed */
     public static String sign(String base64PrivateKey, long scanId, byte[] body) {
+        return sign(CONTEXT, base64PrivateKey, scanId, body);
+    }
+
+    /** A failure report's signature: the same key over the same kind of bytes, in its own context. */
+    public static String signFailure(String base64PrivateKey, long scanId, byte[] body) {
+        return sign(FAILURE_CONTEXT, base64PrivateKey, scanId, body);
+    }
+
+    /** {@link #verify}, for a failure report — false for a result's signature on the same bytes. */
+    public static boolean verifyFailure(String base64PublicKey, long scanId, byte[] body, String base64Signature) {
+        return verify(FAILURE_CONTEXT, base64PublicKey, scanId, body, base64Signature);
+    }
+
+    private static String sign(byte[] context, String base64PrivateKey, long scanId, byte[] body) {
         byte[] seed = decode(base64PrivateKey, SEED_LENGTH_BYTES)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "The configured result-signing key is not 32 bytes of base64."));
 
         Ed25519Signer signer = new Ed25519Signer();
         signer.init(true, new Ed25519PrivateKeyParameters(seed, 0));
-        byte[] message = message(scanId, body);
+        byte[] message = message(context, scanId, body);
         signer.update(message, 0, message.length);
         return Base64.getEncoder().encodeToString(signer.generateSignature());
     }
@@ -127,6 +155,11 @@ public final class ResultAttestation {
      * telling them apart from the outside says which of the four the caller got right.
      */
     public static boolean verify(String base64PublicKey, long scanId, byte[] body, String base64Signature) {
+        return verify(CONTEXT, base64PublicKey, scanId, body, base64Signature);
+    }
+
+    private static boolean verify(
+            byte[] context, String base64PublicKey, long scanId, byte[] body, String base64Signature) {
         Optional<byte[]> key = decode(base64PublicKey, PUBLIC_LENGTH_BYTES);
         Optional<byte[]> signature = decode(base64Signature, SIGNATURE_LENGTH_BYTES);
         if (key.isEmpty() || signature.isEmpty() || body == null) {
@@ -136,7 +169,7 @@ public final class ResultAttestation {
         try {
             Ed25519Signer verifier = new Ed25519Signer();
             verifier.init(false, new Ed25519PublicKeyParameters(key.get(), 0));
-            byte[] message = message(scanId, body);
+            byte[] message = message(context, scanId, body);
             verifier.update(message, 0, message.length);
             return verifier.verifySignature(signature.get());
         } catch (RuntimeException rejected) {
@@ -154,9 +187,9 @@ public final class ResultAttestation {
      * {@link Digests} then applies to a fixed-length field, which is what keeps
      * {@code scanId=1, hash="2…"} from colliding with {@code scanId=12, hash="…"}.
      */
-    private static byte[] message(long scanId, byte[] body) {
+    private static byte[] message(byte[] context, long scanId, byte[] body) {
         return Digests.sha256(
-                CONTEXT,
+                context,
                 separator(),
                 Long.toString(scanId).getBytes(StandardCharsets.UTF_8),
                 separator(),
