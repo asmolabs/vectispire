@@ -150,6 +150,16 @@ and an agent without a verified sealing key has the repositories carrying a cred
 its selection (`ScanQueue.claimWithin`). A refund (`ScanQueue.requeueRefunded`) is for a race the
 next selection closes, never for a path that can repeat.
 
+**A failed claim statement is not a lost claim.** Where a key arbitrates between instances
+(`OneShotJobs.claim`), the loser's insert fails — and so does one that hit a lock timeout or a
+dropped connection, and on SQLite the key's refusal is not even a `DataIntegrityViolationException`.
+Read every failure as "taken elsewhere" and a claim that failed reports the job as run while nobody
+ran it. Let the transaction roll back, then ask the committed row (`OneShotJobs.hasRun`). And on
+SQLite a transaction that has already read cannot wait for the write lock — `SQLITE_BUSY` at once,
+the busy timeout never consulted — so a read-then-write (the audit chain's head, then its insert)
+beside another writer's open transaction fails in milliseconds: the audit entry is tried again on a
+lock refusal, and the test forces the writer to hold its transaction open (latches, as ever).
+
 **An `in (:list)` whose list the data sizes is a query that fails one day.** One bind parameter per
 element, and the PostgreSQL driver refuses a statement past 65,535 (a MySQL server-side one too,
 SQLite's default build past 32,766): the claim's exclusion of every waiting repository carrying a
@@ -413,6 +423,12 @@ mutated.
 agent-claim lock survived a barrage of eight concurrent polls with the lock removed: the polls read
 the same oldest row and the conditional update turned the loser away on its own. Only a test that
 makes two polls read different rows — latches, not luck — killed the mutant.
+
+**A process's start instant is not exact on Linux.** `ProcessHandle.Info.startInstant()` adds the
+start in clock ticks to `/proc/stat`'s boot time, whole seconds truncated, so it reads up to a second
+early; macOS reports it exactly. A comparison of a start against a file's mtime passes locally and
+fails on every CI runner (`BundledRulesLifetimeTest`) — make the product err the safe way and the
+test leave more than the second.
 
 **Engine-sensitive changes run `integrationTestAll` before they are pushed.** Migrations, any
 `core/<module>/persistence/` (queries, `Specification`s, entities), `core/config/`, the integration
