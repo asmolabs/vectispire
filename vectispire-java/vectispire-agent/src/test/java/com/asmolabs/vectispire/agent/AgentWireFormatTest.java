@@ -106,6 +106,33 @@ class AgentWireFormatTest {
     }
 
     /**
+     * A claim's answer through the agent's own mapper, as the control plane now writes it — with the
+     * attempt — and as an older one did, without: the second must still be read, as a task whose
+     * failure there is nowhere to report.
+     */
+    @Test
+    @DisplayName("a claim is read with its attempt, and without one from an older control plane")
+    void aClaimIsReadWithOrWithoutItsAttempt() throws Exception {
+        String task = json.writeValueAsString(new com.asmolabs.vectispire.common.scanning.ScanTask(
+                new com.asmolabs.vectispire.common.scanning.ScanTask.Target.Image(
+                        new com.asmolabs.vectispire.common.domain.targets.ImageReference("docker.io", "library/alpine", "3"),
+                        null),
+                null,
+                java.util.Set.of(com.asmolabs.vectispire.common.scanning.ScanTask.Step.DEPENDENCIES)));
+
+        AgentProtocol.AssignedTask current =
+                json.readValue("{\"scanId\":7,\"attempt\":2,\"task\":" + task + "}", AgentProtocol.AssignedTask.class);
+        AgentProtocol.AssignedTask older =
+                json.readValue("{\"scanId\":7,\"task\":" + task + "}", AgentProtocol.AssignedTask.class);
+
+        assertThat(current.scanId()).isEqualTo(7L);
+        assertThat(current.attempt()).isEqualTo(2);
+        assertThat(current.task()).isNotNull();
+        assertThat(older.attempt()).isNull();
+        assertThat(older.task()).isNotNull();
+    }
+
+    /**
      * The result could not be written at all: {@code ScanArtifacts} is a record of
      * {@code Optional}s, Jackson 2 refuses one without the {@code jdk8} module, and every remote
      * scan ended in "The result could not be serialized". {@code AgentProtocolTest} mocks the

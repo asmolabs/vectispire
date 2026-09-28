@@ -41,8 +41,57 @@ public class AgentProtocol {
     public record Identity(
             String id, String name, String contractVersion, int maxConcurrent, String credentialsMode) {}
 
-    /** A received task: what the runner expects, plus the identifier to report against. */
-    public record AssignedTask(long scanId, ScanTask task) {}
+    /**
+     * A received task: what the runner expects, plus the identifier to report against.
+     *
+     * @param attempt which attempt of the scan the claim is, which a failure report names; null from a
+     *     control plane older than the report, which has no route to send it to either
+     */
+    public record AssignedTask(long scanId, Integer attempt, ScanTask task) {
+
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public AssignedTask {}
+
+        public AssignedTask(long scanId, ScanTask task) {
+            this(scanId, null, task);
+        }
+    }
+
+    /** What became of a report that a claimed scan could not run. */
+    public enum FailureReported {
+        /** Recorded: the scan is back in the queue, with the attempt counted. */
+        RETRIED,
+        /** Recorded: that was the scan's last attempt, and it failed. */
+        FAILED,
+        /** Not this agent's at that attempt any more (409): the lease lapsed first, or it was already reported. */
+        NOT_YOURS,
+        /** The control plane predates the report (404, or no attempt on the claim): the lease will lapse. */
+        NOT_SUPPORTED
+    }
+
+    /**
+     * A task that arrived and cannot be used — a sealed credential that will not open, a clear one
+     * where a sealed one was due. The scan is claimed all the same, so it is the caller's to report.
+     *
+     * <p>An {@link IllegalStateException}, as the refusal it wraps was before the report existed: a
+     * caller that treats it as a failed claim still does.
+     */
+    public static class UnusableTaskException extends IllegalStateException {
+
+        private static final long serialVersionUID = 1L;
+
+        private final transient AssignedTask assigned;
+
+        public UnusableTaskException(AssignedTask assigned, String message) {
+            super(message);
+            this.assigned = assigned;
+        }
+
+        /** As received, before anything was opened — what the report names, and the secrets to scrub. */
+        public AssignedTask assigned() {
+            return assigned;
+        }
+    }
 
     /**
      * The answer to a claim: a task or none, and the limit the control plane held it to.
@@ -293,7 +342,13 @@ public class AgentProtocol {
         }
         refuseIfFailed(response, "Claim refused");
 
-        return new Claim(Optional.of(unseal(read(response.body(), AssignedTask.class))), limit);
+        AssignedTask received = read(response.body(), AssignedTask.class);
+        try {
+            return new Claim(Optional.of(unseal(received)), limit);
+        } catch (IllegalStateException unusable) {
+            // The control plane counted the claim; the scan is this agent's until it says otherwise.
+            throw new UnusableTaskException(received, unusable.getMessage());
+        }
     }
 
     /**
@@ -318,7 +373,9 @@ public class AgentProtocol {
         // Through the task's own `with…`, never a copy made here: this one named the fields it
         // copied and left the plugins out, so a credentialed repository ran none of them.
         return new AssignedTask(
-                assigned.scanId(), assigned.task().withTarget(repository.withPrivateKey(key).withHttps(https)));
+                assigned.scanId(),
+                assigned.attempt(),
+                assigned.task().withTarget(repository.withPrivateKey(key).withHttps(https)));
     }
 
     /**
@@ -463,6 +520,54 @@ public class AgentProtocol {
         }
         refuseIfFailed(response, "Result refused");
         return true;
+    }
+
+    /**
+     * Tells the control plane this agent could not run a scan it claimed, and why.
+     *
+     * <p><b>Instead of silence.</b> The agent used to drop the scan: its lease lapsed twenty minutes
+     * later, the reclaim spent an attempt on it, and the reason stayed in this process's log. The
+     * report spends the same attempt at once and leaves the reason on the scan. <b>Signed as a result
+     * is</b>, over the exact bytes, under a context of its own ({@code ResultAttestation.signFailure}).
+     *
+     * <p><b>Never an exception for an answer the control plane gives on purpose</b>: whatever it says,
+     * nothing more is to be done with this scan here, and the caller logs which it was.
+     *
+     * @param reason already scrubbed — see {@code FailureReason}
+     * @throws UnauthorizedException when the report's attestation, or the API key, is refused
+     */
+    public FailureReported reportFailure(AssignedTask assigned, String reason) {
+        if (assigned.attempt() == null) {
+            // A claim without an attempt comes from a control plane without the route.
+            return FailureReported.NOT_SUPPORTED;
+        }
+        String body = write(Map.of("attempt", assigned.attempt(), "reason", reason == null ? "" : reason));
+        Map<String, String> headers = signingKey.isEmpty()
+                ? Map.of()
+                : Map.of(
+                        ResultAttestation.HEADER,
+                        ResultAttestation.signFailure(
+                                signingKey, assigned.scanId(), body.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+
+        AgentHttp.Response response = http.call(
+                "/api/v1/agent/jobs/" + assigned.scanId() + "/failure",
+                "POST",
+                new AgentHttp.RawJson(body),
+                Duration.ofSeconds(30),
+                headers);
+
+        return switch (response.status()) {
+            case 404 -> FailureReported.NOT_SUPPORTED;
+            case 409 -> FailureReported.NOT_YOURS;
+            case 403 -> throw new UnauthorizedException(response.messageOr(
+                    "The control plane refused this report's attestation. The key in "
+                            + "vectispire.agent.signing-key does not match the one pinned for this agent."));
+            default -> {
+                refuseIfUnauthorized(response);
+                refuseIfFailed(response, "Failure report refused");
+                yield response.body().path("retried").asBoolean(false) ? FailureReported.RETRIED : FailureReported.FAILED;
+            }
+        };
     }
 
     /** Null when unreadable: an agent that cannot sign its key still runs what needs no credential. */

@@ -221,6 +221,82 @@ class AgentProtocolTest {
     }
 
     @Test
+    @DisplayName("a claim reads the attempt it is, and a task that cannot be opened is still named for its report")
+    void theClaimCarriesItsAttempt() throws Exception {
+        answers(200, "{\"scanId\":7,\"attempt\":2,\"task\":" + JSON.writeValueAsString(assignedWith(null).task()) + "}");
+        assertThat(protocol.claim(Duration.ofSeconds(1)).task().orElseThrow().attempt()).isEqualTo(2);
+
+        String sealed = envelopes.seal(envelopes.generateKeyPair().publicKey(), PRIVATE_KEY);
+        answers(200, "{\"scanId\":8,\"attempt\":1,\"task\":" + JSON.writeValueAsString(assignedWith(sealed).task()) + "}");
+        assertThatThrownBy(() -> protocol.claim(Duration.ofSeconds(1)))
+                .isInstanceOfSatisfying(AgentProtocol.UnusableTaskException.class, unusable -> {
+                    assertThat(unusable.assigned().scanId()).isEqualTo(8L);
+                    assertThat(unusable.assigned().attempt()).isEqualTo(1);
+                });
+    }
+
+    @Test
+    @DisplayName("a failure report names the attempt, and its answer says what became of the scan")
+    void aFailureReportIsSent() throws Exception {
+        AgentProtocol.AssignedTask assigned = new AgentProtocol.AssignedTask(7L, 2, assignedWith(null).task());
+        reportAnswers(200, "{\"retried\":true,\"attempt\":2,\"maxAttempts\":3}");
+
+        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.RETRIED);
+        ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
+        verify(http).call(eq("/api/v1/agent/jobs/7/failure"), eq("POST"), body.capture(), any(), any());
+        JsonNode sent = JSON.readTree(((AgentHttp.RawJson) body.getValue()).text());
+        assertThat(sent.path("attempt").asInt()).isEqualTo(2);
+        assertThat(sent.path("reason").asText()).isEqualTo("clone refused");
+
+        reportAnswers(200, "{\"retried\":false,\"attempt\":3,\"maxAttempts\":3}");
+        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.FAILED);
+        reportAnswers(409, "{\"detail\":\"Not yours.\"}");
+        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.NOT_YOURS);
+        reportAnswers(403, "{\"detail\":\"Unsigned.\"}");
+        assertThatThrownBy(() -> protocol.reportFailure(assigned, "clone refused"))
+                .isInstanceOf(AgentProtocol.UnauthorizedException.class);
+    }
+
+    /** The compatibility half: an older control plane has no such route, and says so with a 404. */
+    @Test
+    @DisplayName("an older control plane — a 404, or a claim with no attempt — is 'not supported', not an error")
+    void anOlderControlPlaneTakesNoReport() {
+        reportAnswers(404, "{\"detail\":\"Not Found\"}");
+        assertThat(protocol.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "x"))
+                .isEqualTo(AgentProtocol.FailureReported.NOT_SUPPORTED);
+
+        assertThat(protocol.reportFailure(assignedWith(null), "x")).isEqualTo(AgentProtocol.FailureReported.NOT_SUPPORTED);
+        verify(http, times(1)).call(anyString(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a report is signed with the pinned key, over the bytes sent, as a failure and not as a result")
+    void aFailureReportIsSigned() throws Exception {
+        var signing = com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.generate();
+        AgentProtocol signed = new AgentProtocol(http, JSON, keyPair, signing.privateKey());
+        reportAnswers(200, "{\"retried\":true}");
+
+        signed.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "clone refused");
+
+        ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.Map<String, String>> headers = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(http).call(eq("/api/v1/agent/jobs/7/failure"), eq("POST"), body.capture(), any(), headers.capture());
+        byte[] sent = ((AgentHttp.RawJson) body.getValue()).text().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        String signature = headers.getValue().get(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.HEADER);
+        assertThat(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.verifyFailure(
+                        signing.publicKey(), 7L, sent, signature))
+                .isTrue();
+        assertThat(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.verify(signing.publicKey(), 7L, sent, signature))
+                .isFalse();
+    }
+
+    private void reportAnswers(int status, String body) {
+        when(http.call(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(new AgentHttp.Response(status, parse(body)));
+    }
+
+    @Test
     void aRefusedRuleSetDoesNotFallBackToTheBundledRules() {
         answers(404, "{\"detail\":\"No rule set with hash abc.\"}");
 

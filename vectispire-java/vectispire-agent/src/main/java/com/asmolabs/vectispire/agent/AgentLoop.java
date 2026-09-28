@@ -1,10 +1,13 @@
 package com.asmolabs.vectispire.agent;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.common.domain.scans.FailureReason;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -122,7 +125,8 @@ public class AgentLoop {
      * Asks {@link #serve} to stop claiming. Running scans are left to finish and hand back.
      *
      * <p><b>Waiting, not abandoning, and the reason is what abandoning costs.</b> The protocol has
-     * no call to give a scan back, so an abandoned scan keeps its lease until it lapses — twenty
+     * no call to give a scan back unrun — the failure report spends an attempt and says the scan
+     * could not run, and a stop is neither — so an abandoned scan keeps its lease until it lapses — twenty
      * minutes by default — then goes back to the queue having used one of its attempts, and every
      * minute of work already done is thrown away. Waiting costs the orchestrator's grace period,
      * which is the operator's to set; if it runs out first, the process is killed and the leases
@@ -166,6 +170,11 @@ public class AgentLoop {
             claim = protocol.claim(properties.claimWait());
         } catch (AgentProtocol.UnauthorizedException | AgentProtocol.ContractMismatchException fatal) {
             throw fatal;
+        } catch (AgentProtocol.UnusableTaskException unusable) {
+            // Claimed on the control plane's side, unusable on this one: a failed claim that is also
+            // a scan this agent holds, so it is reported rather than left to its lease.
+            reportFailure(unusable.assigned(), unusable.getMessage());
+            return Optional.empty();
         } catch (RuntimeException failed) {
             // A failed claim is not a lost scan: the control plane keeps the row queued, and
             // another agent — or this one next turn — will take it.
@@ -195,18 +204,22 @@ public class AgentLoop {
         AtomicBoolean lost = new AtomicBoolean();
         ScheduledFuture<?> beating = startHeartbeat(assigned.scanId(), lost);
 
-        ScanArtifacts artifacts;
+        ScanArtifacts artifacts = null;
+        RuntimeException failure = null;
         try {
             artifacts = execute.apply(assigned.task());
         } catch (RuntimeException failed) {
-            // **Nothing is handed back.** An agent posting an empty result after a failed run
-            // would silently resolve the whole backlog of the types it did not look at — absent
-            // versus empty, the distinction this entire system protects. The lease lapses, the
-            // scan returns to the queue, and another agent takes it.
-            log.warn("Scan {} abandoned: {}", assigned.scanId(), failed.getMessage());
-            return new Result(0, 1, 0);
+            failure = failed;
         } finally {
             beating.cancel(true);
+        }
+        if (failure != null) {
+            // **No result is handed back.** An agent posting an empty result after a failed run
+            // would silently resolve the whole backlog of the types it did not look at — absent
+            // versus empty, the distinction this entire system protects. A failure report resolves
+            // nothing: it spends the attempt the lapsing lease would have spent, now, with the reason.
+            reportFailure(assigned, failure.getMessage() == null ? failure.toString() : failure.getMessage());
+            return new Result(0, 1, 0);
         }
 
         if (lost.get()) {
@@ -230,6 +243,52 @@ public class AgentLoop {
             log.warn("Scan {}: result not delivered ({}).", assigned.scanId(), failed.getMessage());
             return new Result(0, 1, 0);
         }
+    }
+
+    /**
+     * Tells the control plane a claimed scan could not run, or says in the log why it could not be
+     * told.
+     *
+     * <p><b>Scrubbed here of every secret this process holds</b> — the task's deployment key and
+     * token, the API key, the signing key — by value, before the text leaves: the control plane
+     * scrubs again by shape, but it cannot know what this side was handed. The same scrubbed text is
+     * what the log shows.
+     *
+     * <p><b>Whatever the answer, nothing more is done with the scan here.</b> An older control plane
+     * (404) and a report that did not arrive leave it to the lease, which is how every failure ended
+     * before; the log says so, since the reason is then nowhere else.
+     */
+    private void reportFailure(AgentProtocol.AssignedTask assigned, String raw) {
+        String reason = FailureReason.scrub(raw, secretsOf(assigned.task()));
+        try {
+            switch (protocol.reportFailure(assigned, reason)) {
+                case RETRIED -> log.warn("Scan {} could not run, reported; it is back in the queue: {}",
+                        assigned.scanId(), reason);
+                case FAILED -> log.warn("Scan {} could not run, reported; it was its last attempt, the scan failed: {}",
+                        assigned.scanId(), reason);
+                case NOT_YOURS -> log.warn("Scan {} could not run, and was no longer ours to report: {}",
+                        assigned.scanId(), reason);
+                case NOT_SUPPORTED -> log.warn("Scan {} abandoned: {} — the control plane takes no failure report "
+                        + "(older than this agent); the scan goes back to the queue when its lease lapses.",
+                        assigned.scanId(), reason);
+            }
+        } catch (RuntimeException unreported) {
+            log.warn("Scan {} abandoned: {} — the failure could not be reported ({}); the scan goes back to the "
+                            + "queue when its lease lapses.",
+                    assigned.scanId(), reason, FailureReason.scrub(unreported.getMessage(), secretsOf(assigned.task())));
+        }
+    }
+
+    private List<String> secretsOf(ScanTask task) {
+        // Nulls and blanks included: the scrub skips them, and a list that refused one would lose the rest.
+        List<String> secrets = new ArrayList<>();
+        secrets.add(properties.token());
+        secrets.add(properties.signingKey());
+        if (task != null && task.target() instanceof ScanTask.Target.Repository repository) {
+            secrets.add(repository.privateKey());
+            secrets.add(repository.https() == null ? null : repository.https().token());
+        }
+        return secrets;
     }
 
     /**

@@ -3,6 +3,7 @@ package com.asmolabs.vectispire.agent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import java.util.function.Function;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 @DisplayName("one turn of a remote agent")
 class AgentLoopTest {
@@ -66,6 +68,65 @@ class AgentLoopTest {
         // Posting an empty result would silently resolve the whole backlog of the types this
         // agent did not look at — absent versus empty, the distinction the system protects.
         verify(protocol, never()).submit(anyLong(), any());
+    }
+
+    /**
+     * The silence this report replaced: the scan was dropped, its lease lapsed twenty minutes later,
+     * an attempt was spent, and the reason stayed in this log.
+     */
+    @Test
+    @DisplayName("a scan that could not run is reported with its reason, scrubbed of the task's key")
+    void aFailedRunIsReported() {
+        String key = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ\n-----END OPENSSH PRIVATE KEY-----";
+        AgentProtocol.AssignedTask assigned = new AgentProtocol.AssignedTask(
+                7L, 2, new ScanTask(
+                        new ScanTask.Target.Repository("git@example.invalid:team/service.git", "main", "", key),
+                        null,
+                        Set.of(ScanTask.Step.DEPENDENCIES)));
+        when(protocol.claim(any())).thenReturn(new AgentProtocol.Claim(Optional.of(assigned), OptionalInt.empty()));
+        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.RETRIED);
+        loop = loopWith(task -> {
+            throw new IllegalStateException("The host key of ssh://git@gitea/team/app.git changed; key line "
+                    + "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ, token zsk-token");
+        });
+
+        assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
+        ArgumentCaptor<String> reason = ArgumentCaptor.forClass(String.class);
+        verify(protocol).reportFailure(org.mockito.ArgumentMatchers.eq(assigned), reason.capture());
+        assertThat(reason.getValue())
+                .contains("The host key of ssh://git@gitea/team/app.git changed")
+                .doesNotContain("b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ")
+                .doesNotContain("zsk-token");
+        verify(protocol, never()).submit(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("a control plane without the report, or a report that does not arrive, leaves the scan to its lease")
+    void anUnreportedFailureFallsBackToTheLease() {
+        assigned();
+        loop = loopWith(task -> {
+            throw new IllegalStateException("clone refused");
+        });
+
+        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.NOT_SUPPORTED);
+        assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
+
+        when(protocol.reportFailure(any(), anyString())).thenThrow(new IllegalStateException("connection reset"));
+        assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
+        verify(protocol, never()).submit(anyLong(), any());
+    }
+
+    @Test
+    @DisplayName("a claimed task that cannot be used is reported, and costs the loop a turn, not the agent")
+    void anUnusableTaskIsReported() {
+        AgentProtocol.AssignedTask received = task(9L);
+        when(protocol.claim(any())).thenThrow(new AgentProtocol.UnusableTaskException(
+                received, "The sealed deployment key could not be opened."));
+        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.RETRIED);
+        loop = loopWith(task -> artifacts());
+
+        assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 0, 0));
+        verify(protocol).reportFailure(received, "The sealed deployment key could not be opened.");
     }
 
     @Test
