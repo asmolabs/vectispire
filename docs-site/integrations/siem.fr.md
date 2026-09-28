@@ -138,6 +138,8 @@ suit la 0.9.0 — mêmes numéros, mêmes sens ; voir les [notes de version](../
 | `VECTI-SEC-022` | SARIF import source declared or changed | 6 | une source SARIF est déclarée, activée, désactivée ou supprimée : quelle clé peut déposer des constats, pour quel projet ou dépôt, depuis quels outils |
 | `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | un téléversement SARIF est refusé pour ce qu'il prétend — une clé pour laquelle aucune source n'est déclarée, un dépôt hors du périmètre de sa source, un outil pour lequel sa source n'est pas déclarée |
 | `VECTI-SEC-024` | Checklist template version published or retired | 6 | une version de modèle de checklist est publiée, ou une version publiée retirée — ce à quoi chaque projet atteste change. Écarter un brouillon n'est pas signalé |
+| `VECTI-SEC-025` | Checklist signed off | 5 | la checklist d'un projet est approuvée — une attestation de mise en production, et qui l'a donnée ; l'entrée dit si le double contrôle exigeait que l'approbateur ne soit aucun de ses auteurs |
+| `VECTI-SEC-026` | Checklist sign-off refused or returned | 5 | une approbation est refusée parce que l'approbateur est l'un des auteurs de la checklist sous double contrôle, ou parce qu'une preuve a cessé de tenir depuis la soumission ; ou une checklist soumise est renvoyée à ses auteurs |
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | un rapport de couverture ou de tests est refusé pour ce qu'il prétend — une clé pour laquelle aucune source active n'est déclarée, un type pour lequel sa source n'est pas déclarée, un dépôt hors du périmètre de sa source |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | le test de connexion |
 

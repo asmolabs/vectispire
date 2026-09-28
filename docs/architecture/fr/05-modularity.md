@@ -42,7 +42,7 @@ décision 0032, le dernier — et les paquetages par couche ont disparu :
 | `tickets` | domaine | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domaine | `access`, `issues`, `scanning`, `targets` — implémente le port `ScanPlugins` de `scanning` ; la route des manifestes des agents l'atteint par ce port |
-| `checklists` | domaine | `access` — les marqueurs des routes et le compte connecté que compare le double contrôle ; la décision 0032 §1 liste ce que ses lots suivants ajouteront |
+| `checklists` | domaine | `access` — les marqueurs des routes, le compte connecté que compare le double contrôle, l'autorisation de l'appelant et le garde du projet entier ; `targets` — les dépôts d'un projet, et `ProjectDeleted` ; la décision 0032 §1 liste ce que ses lots suivants ajouteront |
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 

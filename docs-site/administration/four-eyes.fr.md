@@ -41,7 +41,23 @@ compte, chaque brouillon pourrait être importé et aucun jamais publié. Créez
 [Modèles de checklists](checklist-templates.fr.md#4-publier) décrit ce qu'on dit à l'auteur d'un
 brouillon quand le serveur refuse qu'il le publie lui-même.
 
+Et il refuse tant que **moins de deux comptes actifs peuvent approuver** — un administrateur, un CISO
+ou un référent sécurité. Sous les quatre yeux, la checklist d'un projet est approuvée par un
+approbateur qui n'en a rien écrit — qui ne l'a pas ouverte, n'a répondu à ni confirmé aucune ligne,
+n'a joint ni retiré aucune preuve, ni ne l'a soumise — et ce sont souvent les approbateurs qui
+remplissent les checklists : avec un seul, ce qu'il aurait répondu pourrait être soumis et jamais
+approuvé. Créez-en d'abord un second.
+
 L'**éteindre** reste possible dans tous les cas : c'est l'activation qui demande un second.
+
+## Approuver une checklist
+
+La checklist d'un projet est approuvée par un approbateur. Double contrôle activé, le serveur refuse
+l'approbation par **n'importe lequel des auteurs de la révision** — le compte qui l'a ouverte, a
+répondu à, reporté ou confirmé une ligne, joint ou retiré une preuve, ou l'a soumise, comparé comme
+compte et comme nom. Le refus est inscrit au journal d'audit et envoyé au SIEM (`VECTI-SEC-026`) ;
+une approbation indique si la règle s'appliquait. Double contrôle éteint, un approbateur peut
+approuver ce qu'il a écrit.
 
 ## Les décisions venues d'un traqueur
 
@@ -57,4 +73,5 @@ restant à côté comme une donnée rapportée.
 - [Constats et triage](../guide/issues.fr.md) — là où une décision se propose.
 - [Utilisateurs et équipes](users-and-teams.fr.md) — les rôles et ce que chacun peut faire.
 - [Modèles de checklists](checklist-templates.fr.md) — une version de modèle publiée par quelqu'un d'autre que son auteur.
+- [SIEM](../integrations/siem.fr.md#catalogue-des-evenements) — une checklist approuvée (`VECTI-SEC-025`), une approbation refusée ou une checklist renvoyée (`VECTI-SEC-026`).
 - [Journal d'audit](audit-log.fr.md) — où chaque décision et chaque changement de réglage sont inscrits.

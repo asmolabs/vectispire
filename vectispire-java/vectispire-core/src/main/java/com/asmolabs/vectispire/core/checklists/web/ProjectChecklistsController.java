@@ -240,7 +240,9 @@ public class ProjectChecklistsController {
             @AuthenticationPrincipal VectispirePrincipal principal) {
         ChecklistEvidenceDownload file = checklists.download(projectId, revision, evidenceId, allowanceOf(principal));
         // An uploaded HTML or SVG file served inline would be a script on the control plane's origin: an
-        // attachment, an opaque type and no sniffing, whatever the uploader declared.
+        // attachment, an opaque type and no sniffing, whatever the uploader declared. The filter chain's
+        // default headers send nosniff on every response already; it is stated here as well, so that this
+        // download does not rest on a default somebody may one day switch off for another route.
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(file.fileName(), StandardCharsets.UTF_8).build().toString())

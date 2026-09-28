@@ -39,7 +39,21 @@ every draft could be imported and none ever published. Create a second one first
 [Checklist templates](checklist-templates.md#4-publish) describes what the author of a draft is
 told when the server refuses them as its publisher.
 
+And it refuses while **fewer than two active accounts can approve** — an administrator, a CISO or a
+security champion. Under four-eyes a project's checklist is signed off by an approver who wrote none
+of it — who did not open it, answer or confirm a line, attach or withdraw a proof, nor submit it —
+and approvers are often who fill checklists in: with a single one, whatever that approver answered
+could be submitted and never signed off. Create a second one first.
+
 Switching it **off** stays possible either way: it is enabling that needs a second person.
+
+## Signing a checklist off
+
+A project's checklist is signed off by an approver. With four-eyes on, the server refuses the
+sign-off by **any of the revision's authors** — the account that opened it, answered, carried or
+confirmed a line, attached or withdrew a proof, or submitted it, compared as an account and as a name.
+The refusal is recorded in the audit log and sent to the SIEM (`VECTI-SEC-026`); a sign-off records
+whether the rule applied. With four-eyes off, an approver may sign what they wrote.
 
 ## Decisions that arrive from a tracker
 
@@ -54,4 +68,5 @@ records the integration as the author with any claimed name kept beside it as re
 - [Issues and triage](../guide/issues.md) — where a decision is proposed.
 - [Users and teams](users-and-teams.md) — the roles and what each may do.
 - [Checklist templates](checklist-templates.md) — a template version published by somebody other than its author.
+- [SIEM](../integrations/siem.md#event-catalogue) — a checklist signed off (`VECTI-SEC-025`), a sign-off refused or a checklist returned (`VECTI-SEC-026`).
 - [Audit log](audit-log.md) — where every decision and every setting change is recorded.

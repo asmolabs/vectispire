@@ -42,7 +42,7 @@ layered packages are gone:
 | `tickets` | domain | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domain | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domain | `access`, `issues`, `scanning`, `targets` — implements `scanning`'s `ScanPlugins` port; the agents' manifest route reaches it through that port |
-| `checklists` | domain | `access` — the routes' markers and the signed-in account four-eyes compares; decision 0032 §1 lists what its later lots will add |
+| `checklists` | domain | `access` — the routes' markers, the signed-in account four-eyes compares, the caller's allowance and the whole-project guard; `targets` — a project's repositories, and `ProjectDeleted`; decision 0032 §1 lists what its later lots will add |
 | `platform` | the shell | any; used by none |
 | `config` | infrastructure | — |
 

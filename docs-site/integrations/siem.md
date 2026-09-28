@@ -129,6 +129,8 @@ change meaning. Its prefix changed once, from `ZAN-SEC-` to `VECTI-SEC-`, in the
 | `VECTI-SEC-022` | SARIF import source declared or changed | 6 | a SARIF source is declared, enabled, disabled or removed: which key may deposit findings, for which project or repository, from which tools |
 | `VECTI-SEC-023` | SARIF import refused: undeclared source, scope or tool | 5 | a SARIF upload is refused for what it claims — a key no source is declared for, a repository outside its source's scope, a tool its source is not declared for |
 | `VECTI-SEC-024` | Checklist template version published or retired | 6 | a checklist template version is published, or a published one retired — what every project will attest to changes. Setting a draft aside is not signalled |
+| `VECTI-SEC-025` | Checklist signed off | 5 | a project's checklist is signed off — a release attestation, and who gave it; the entry says whether four-eyes required the signer to be none of its authors |
+| `VECTI-SEC-026` | Checklist sign-off refused or returned | 5 | a sign-off is refused because the signer is one of the checklist's authors while four-eyes is on, or because a proof stopped holding since the submission; or a submitted checklist is returned to its authors |
 | `VECTI-SEC-027` | Report import refused: undeclared source, kind or scope | 5 | a coverage or test report is refused for what it claims — a key no enabled source is declared for, a kind its source is not declared for, a repository outside its source's scope |
 | `VECTI-SEC-999` | SIEM connector health check | 1 | the connection test |
 

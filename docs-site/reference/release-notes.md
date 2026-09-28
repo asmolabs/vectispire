@@ -250,12 +250,30 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   governor, an administrator or a CISO — besides an account that can approve a triage: under
   four-eyes a template's author may not publish it. The setting is refused with a sentence saying
   so; a deployment where it is already on is not changed. See [Four-eyes](../administration/four-eyes.md).
+- **Switching four-eyes on also needs two accounts that can approve** — an administrator, a CISO or
+  a security champion: under four-eyes a project's checklist is signed off by an approver who wrote
+  none of it, and the approver who filled one in cannot sign it. Refused with a sentence saying so; a
+  deployment where the setting is already on is not changed. See [Four-eyes](../administration/four-eyes.md#signing-a-checklist-off).
+- **A 409 may name its cause** in the problem's `type`, `urn:vectispire:problem:<cause>`, where a route
+  refuses for several reasons that call for different gestures — the project checklists' routes do
+  (`checklist-changed`, `checklist-line-changed`, `checklist-four-eyes`, `checklist-incomplete`, …).
+  A problem without a cause keeps `about:blank`; the `detail` is unchanged.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.
 
 ### New
 
+- **Project checklists, answered by people** (V52 adds `t_checklist`, `t_checklist_answer`,
+  `t_checklist_evidence`, `t_checklist_file`). A project's checklist is opened on a published template
+  version (`POST /api/v1/projects/{id}/checklists`), answered line by line — every answer kept, with
+  its author and instant — proven by links and files (25 MB, served back only as downloads),
+  submitted, returned, signed off by an approver, reopened, or moved to a newer version with its
+  answers carried: current where the line did not change, awaiting confirmation where it did. Only a
+  caller who sees the **whole** project reads or writes it; anybody else is answered 404. Every write
+  names the `edition` read. Audited `CHECKLIST_*`; a sign-off is sent to the SIEM as `VECTI-SEC-025`, a
+  refused sign-off or a return as `VECTI-SEC-026`. Deleting a project deletes its checklists; the audit
+  entries stay. The screens come with the interface's half of this lot.
 - **Coverage and test reports from declared sources.** A pipeline sends a JaCoCo, Cobertura or lcov
   coverage report (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) or a JUnit report — one
   XML file or a zip of them (`…/test-report-imports`) — with a `report_import` key its source is

@@ -280,12 +280,32 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   un triage : sous les quatre yeux, l'auteur d'un modèle ne peut pas le publier. Le réglage est refusé
   par une phrase qui le dit ; un déploiement où il est déjà actif n'est pas modifié. Voir
   [Quatre yeux](../administration/four-eyes.md).
+- **Activer les quatre yeux demande aussi deux comptes capables d'approuver** — un administrateur, un
+  CISO ou un référent sécurité : sous les quatre yeux, la checklist d'un projet est approuvée par un
+  approbateur qui n'en a rien écrit, et celui qui l'a remplie ne peut pas l'approuver. Refusé par une
+  phrase qui le dit ; un déploiement où le réglage est déjà actif n'est pas modifié. Voir
+  [Quatre yeux](../administration/four-eyes.fr.md#approuver-une-checklist).
+- **Un 409 peut nommer sa cause** dans le `type` du problème, `urn:vectispire:problem:<cause>`, là où une
+  route refuse pour plusieurs raisons qui appellent des gestes différents — celles des checklists de
+  projet le font (`checklist-changed`, `checklist-line-changed`, `checklist-four-eyes`,
+  `checklist-incomplete`, …). Un problème sans cause garde `about:blank` ; le `detail` ne change pas.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.
 
 ### Nouveautés
 
+- **Checklists de projet, remplies par des personnes** (V52 ajoute `t_checklist`, `t_checklist_answer`,
+  `t_checklist_evidence`, `t_checklist_file`). La checklist d'un projet s'ouvre sur une version de modèle
+  publiée (`POST /api/v1/projects/{id}/checklists`), se remplit ligne par ligne — chaque réponse gardée,
+  avec son auteur et son instant — se prouve par des liens et des fichiers (25 Mo, rendus seulement en
+  téléchargement), se soumet, se renvoie, s'approuve par un approbateur, se rouvre, ou passe à une
+  version plus récente avec ses réponses reportées : courantes là où la ligne n'a pas changé, à
+  confirmer là où elle a changé. Seul qui voit le projet **entier** la lit ou l'écrit ; tout autre reçoit
+  un 404. Chaque écriture nomme l'`edition` lue. Auditées `CHECKLIST_*` ; une approbation part au SIEM
+  en `VECTI-SEC-025`, une approbation refusée ou un renvoi en `VECTI-SEC-026`. Supprimer un projet
+  supprime ses checklists ; les entrées d'audit restent. Les écrans viennent avec la moitié interface de
+  ce lot.
 - **Couverture et rapports de tests depuis les sources déclarées.** Un pipeline envoie un rapport de
   couverture JaCoCo, Cobertura ou lcov (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) ou
   un rapport JUnit — un fichier XML ou un zip de plusieurs (`…/test-report-imports`) — avec une clé
