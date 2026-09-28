@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
 import com.asmolabs.vectispire.core.issues.IssueView;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
@@ -313,13 +314,18 @@ public class AiReviewService {
         return java.time.Duration.ofSeconds(seconds > 0 ? seconds : AiReview.DEFAULT_TIMEOUT_SECONDS);
     }
 
-    public AiVulnerabilityAdvice explainVulnerability(IssueView issue) {
+    /**
+     * An issue explained by the model, or by this product when none answers.
+     *
+     * @param exploitation what the stored feeds say about it, resolved by the caller: the issue's
+     *     own {@code isKev} reads false before the catalogue was ever read, and was sent to the
+     *     model as {@code KEV: false} — a fact nobody had established
+     */
+    public AiVulnerabilityAdvice explainVulnerability(IssueView issue, Exploitation exploitation) {
         String id = issue.identifier() != null ? issue.identifier() : "VULN-" + issue.id();
-        String pkg = issue.packageName();
-        String ver = issue.packageVersion();
-        String fix = issue.fixVersions();
-        boolean isKev = issue.isKev();
-        Double epss = issue.epssScore();
+        String pkg = present(issue.packageName());
+        String ver = present(issue.packageVersion());
+        String fix = present(issue.fixVersions());
 
         if (isEnabled()) {
             try {
@@ -331,11 +337,17 @@ public class AiReviewService {
                 // model offered the `code_not_reachable` option produces a plausible and unfounded
                 // exemption, which arrives pre-filled in front of a developer. Exempting stays a
                 // person's decision; the model explains and proposes a fix.
+                //
+                // **An unknown is sent as "unknown", and the model is told not to fill it in.**
+                // This sent `KEV: false` for a catalogue never read and `EPSS: null` for a CVE
+                // nobody scored, and a model asked to explain fills a gap with a plausible figure.
+                // The same six facts leave as before; only their spelling changed.
                 String prompt = String.format(
                         "Explain this vulnerability in French for a developer: CVE: %s, Package: %s, Version: %s, Fixed: %s, KEV: %s, EPSS: %s. "
+                                + "A value given as unknown is unknown: say so, and never estimate it. "
                                 + "Nothing has established whether the application invokes the vulnerable code: say so in `exposure`, and say what to check, never that it is or is not invoked. "
                                 + "Respond ONLY with valid JSON: {\"summary\":\"...\",\"mechanics\":\"...\",\"exposure\":\"...\",\"fix_action\":\"...\",\"cli_command\":\"...\",\"code_snippet\":\"...\",\"vex_status\":\"affected|under_investigation\",\"vex_statement\":\"...\"}",
-                        id, pkg, ver, fix, isKev, epss);
+                        id, orUnknown(pkg), orUnknown(ver), orUnknown(fix), kevFact(exploitation), epssFact(exploitation));
 
                 String text = chat(List.of(
                         Map.of("role", "system", "content", "You are an AppSec assistant. Respond ONLY with valid JSON without markdown wrapping."),
@@ -347,21 +359,30 @@ public class AiReviewService {
                 if (parsed != null && parsed.isObject()) {
                     return new AiVulnerabilityAdvice(
                             id,
-                            "Model analysis for " + id + " (" + (pkg != null ? pkg : "the component") + ")",
+                            "Model analysis for " + id + (pkg != null ? " (" + pkg + ")" : ""),
                             parsed.path("summary").asText(""),
                             parsed.path("mechanics").asText(""),
                             parsed.path("exposure").asText(""),
                             new AiVulnerabilityAdvice.RemediationAdvice(
-                                    parsed.path("fix_action").asText("Upgrade to " + (fix != null ? fix : "the fixed version")),
-                                    fix != null ? fix : "the fixed version",
+                                    parsed.path("fix_action").asText(fix != null
+                                            ? "Upgrade to " + fix + "."
+                                            : "No fixed version is recorded for this vulnerability."),
+                                    fix,
                                     parsed.path("code_snippet").asText(""),
                                     parsed.path("cli_command").asText("")),
                             new AiVulnerabilityAdvice.VexSuggestion(
-                                    parsed.path("vex_status").asText("under_investigation"),
-                                    parsed.path("vex_justification").asText("vulnerable_code_cannot_be_controlled_by_adversary"),
+                                    offeredStatus(parsed.path("vex_status").asText("")),
+                                    // **No justification, whatever the model says.** This defaulted
+                                    // to `vulnerable_code_cannot_be_controlled_by_adversary` — a
+                                    // `not_affected` justification the prompt never asks for, so
+                                    // every model advice carried it, and "apply the suggestion"
+                                    // pre-filled it into the triage form.
+                                    null,
                                     parsed.path("vex_statement").asText(""),
-                                    "Apply the fix."),
-                            List.of("https://nvd.nist.gov/vuln/detail/" + id, "https://www.first.org/epss"),
+                                    fix != null
+                                            ? "Apply the fix by upgrading to version " + fix + "."
+                                            : "No fixed version is recorded: follow the advisory for a mitigation."),
+                            AiVulnerabilityAdvice.references(issue.identifier()),
                             // Null on purpose: a model wrote the prose above, so there is nothing
                             // for a screen to rebuild — and pretending otherwise would have it
                             // render this product's words over the model's.
@@ -372,7 +393,35 @@ public class AiReviewService {
             }
         }
 
-        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, isKev, epss);
+        return AiVulnerabilityAdvice.generateDeterministic(id, pkg, ver, fix, exploitation);
+    }
+
+    /**
+     * The model's status if it is one the prompt offered, an investigation otherwise: a model that
+     * answers {@code not_affected} anyway has produced the exemption the prompt withholds.
+     */
+    private static String offeredStatus(String answered) {
+        return "affected".equals(answered) ? "affected" : "under_investigation";
+    }
+
+    private static String kevFact(Exploitation exploitation) {
+        return switch (exploitation.kev()) {
+            case LISTED -> "listed in the CISA KEV catalogue";
+            case NOT_LISTED -> "not listed in the CISA KEV catalogue";
+            case UNKNOWN -> "unknown";
+        };
+    }
+
+    private static String epssFact(Exploitation exploitation) {
+        return exploitation.epssScore() == null ? "unknown" : String.valueOf(exploitation.epssScore());
+    }
+
+    private static String orUnknown(String value) {
+        return value == null ? "unknown" : value;
+    }
+
+    private static String present(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private OutboundPolicy policy() {

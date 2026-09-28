@@ -124,10 +124,17 @@
   },
   "ai": {
     "exposure_not_assessed": "Exposition non évaluée : Vectispire n'analyse pas si votre code appelle ce composant. Vérifiez si des parcours utilisateur atteignent les fonctions de cette bibliothèque.",
+    "epss": "Probabilité EPSS : {{chance}} %.",
+    "epss_unknown": "Probabilité EPSS : inconnue.",
     "fix_action": "Mettre à jour « {{package}} » de la version {{version}} vers {{target}}.",
-    "mechanics_generic": "Un attaquant peut envoyer des entrées malveillantes via les points d'entrée qui utilisent « {{package}} » pour déclencher un comportement non prévu.",
-    "mechanics_kev": "Attention : cette faille figure au catalogue CISA KEV et fait l'objet d'exploitations actives (probabilité EPSS : {{chance}} %). Un attaquant distant peut exécuter du code arbitraire ou contourner les contrôles d'accès.",
-    "summary": "La vulnérabilité {{id}} affecte le composant « {{package}} » (version {{version}}). Elle permet d'altérer la sécurité ou la disponibilité du service."
+    "fix_action_no_component": "Mettre à jour le composant concerné vers {{target}}.",
+    "fix_none": "Aucune version corrigée n'est enregistrée pour cette vulnérabilité.",
+    "kev_listed": "Inscrite au catalogue CISA KEV : une exploitation active a été signalée.",
+    "kev_not_listed": "Absente du catalogue CISA KEV en vigueur.",
+    "kev_unknown": "Exploitation active inconnue : aucun catalogue CISA KEV synchronisé ne répond pour cet identifiant.",
+    "summary": "La vulnérabilité {{id}} est signalée dans le composant « {{package}} », version {{version}}.",
+    "summary_no_component": "Vulnérabilité {{id}} : le composant concerné est inconnu.",
+    "unknown": "inconnue"
   },
   "api_keys": {
     "aria_revoke": "Révoquer {{name}}",
@@ -1157,7 +1164,7 @@
     "ai_apply_vex": "Reprendre cette justification dans le triage",
     "ai_dialog_title": "Assistance au triage et à la remédiation",
     "ai_explain": "Expliquer et proposer une remédiation (IA)",
-    "ai_mechanism": "Mécanisme d'Exploitation",
+    "ai_mechanism": "Exploitation",
     "ai_exposure": "Exposition",
     "ai_remediation": "Remédiation Recommandée",
     "ai_running": "Analyse de la vulnérabilité et calcul de remédiation en cours...",

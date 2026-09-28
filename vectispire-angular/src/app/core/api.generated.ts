@@ -3765,10 +3765,11 @@ export interface components {
             nodes?: components["schemas"]["GraphNode"][];
         };
         Deterministic: {
-            activelyExploited: boolean;
             currentVersion?: string;
             /** Format: double */
             exploitProbability?: number;
+            /** @enum {string} */
+            kev?: "LISTED" | "NOT_LISTED" | "UNKNOWN";
             packageName?: string;
             targetVersion?: string;
         };

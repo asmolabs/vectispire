@@ -1875,15 +1875,16 @@
       },
       "Deterministic" : {
         "properties" : {
-          "activelyExploited" : {
-            "type" : "boolean"
-          },
           "currentVersion" : {
             "type" : "string"
           },
           "exploitProbability" : {
             "format" : "double",
             "type" : "number"
+          },
+          "kev" : {
+            "enum" : [ "LISTED", "NOT_LISTED", "UNKNOWN" ],
+            "type" : "string"
           },
           "packageName" : {
             "type" : "string"
@@ -1892,7 +1893,6 @@
             "type" : "string"
           }
         },
-        "required" : [ "activelyExploited" ],
         "type" : "object"
       },
       "Document" : {

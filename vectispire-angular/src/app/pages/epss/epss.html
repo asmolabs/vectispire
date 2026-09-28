@@ -415,15 +415,7 @@
                                      a model wrote it, ours from the bundles when it did not. -->
                                 <p class="m-0">
                                     @if (explanation.deterministic; as own) {
-                                        {{
-                                            'ai.summary'
-                                                | translate
-                                                    : {
-                                                          id: explanation.identifier,
-                                                          package: own.packageName,
-                                                          version: own.currentVersion
-                                                      }
-                                        }}
+                                        {{ adviceSummary(explanation, own) }}
                                     } @else {
                                         {{ explanation.summaryExplanation }}
                                     }
@@ -431,14 +423,7 @@
                                 @if (explanation.exploitMechanics) {
                                     <p class="m-0 text-xs text-muted-color">
                                         @if (explanation.deterministic; as own) {
-                                            @if (own.activelyExploited) {
-                                                {{
-                                                    'ai.mechanics_kev'
-                                                        | translate: { chance: kevChance(own.exploitProbability) }
-                                                }}
-                                            } @else {
-                                                {{ 'ai.mechanics_generic' | translate: { package: own.packageName } }}
-                                            }
+                                            {{ adviceExploitation(own) }}
                                         } @else {
                                             {{ explanation.exploitMechanics }}
                                         }
@@ -448,15 +433,7 @@
                                     <p class="m-0 text-xs">
                                         <strong>{{ 'epss.explain_fix' | translate }}</strong>
                                         @if (explanation.deterministic; as own) {
-                                            {{
-                                                'ai.fix_action'
-                                                    | translate
-                                                        : {
-                                                              package: own.packageName,
-                                                              version: own.currentVersion,
-                                                              target: own.targetVersion
-                                                          }
-                                            }}
+                                            {{ adviceFix(own) }}
                                         } @else {
                                             {{ explanation.remediation.fixAction }}
                                         }

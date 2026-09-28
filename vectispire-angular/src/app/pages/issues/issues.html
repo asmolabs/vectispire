@@ -485,15 +485,7 @@
                     -->
                     <p class="text-sm text-purple-900 dark:text-purple-300 leading-relaxed">
                         @if (aiAdvice()!.deterministic; as own) {
-                            {{
-                                'ai.summary'
-                                    | translate
-                                        : {
-                                              id: aiAdvice()!.identifier,
-                                              package: own.packageName,
-                                              version: own.currentVersion
-                                          }
-                            }}
+                            {{ adviceSummary(aiAdvice()!, own) }}
                         } @else {
                             {{ aiAdvice()!.summaryExplanation }}
                         }
@@ -511,11 +503,7 @@
                     </h5>
                     <p class="text-xs text-muted-color leading-relaxed">
                         @if (aiAdvice()!.deterministic; as own) {
-                            @if (own.activelyExploited) {
-                                {{ 'ai.mechanics_kev' | translate: { chance: kevChance(own.exploitProbability) } }}
-                            } @else {
-                                {{ 'ai.mechanics_generic' | translate: { package: own.packageName } }}
-                            }
+                            {{ adviceExploitation(own) }}
                         } @else {
                             {{ aiAdvice()!.exploitMechanics }}
                         }
@@ -550,14 +538,21 @@
                     <h5 class="font-semibold text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                         <i class="pi pi-wrench"></i> {{ 'issues.ai_remediation' | translate }}
                     </h5>
-                    <span
-                        class="text-xs font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded font-semibold"
-                    >
-                        {{ 'issues.target_label' | translate }} {{ aiAdvice()!.remediation.suggestedVersion }}
-                    </span>
+                    <!-- No badge without a recorded fix: it read "Target: the fixed version". -->
+                    @if (aiAdvice()!.remediation.suggestedVersion) {
+                        <span
+                            class="text-xs font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded font-semibold"
+                        >
+                            {{ 'issues.target_label' | translate }} {{ aiAdvice()!.remediation.suggestedVersion }}
+                        </span>
+                    }
                 </div>
                 <p class="text-xs text-surface-700 dark:text-surface-300 mb-3">
-                    {{ aiAdvice()!.remediation.fixAction }}
+                    @if (aiAdvice()!.deterministic; as own) {
+                        {{ adviceFix(own) }}
+                    } @else {
+                        {{ aiAdvice()!.remediation.fixAction }}
+                    }
                 </p>
 
                 @if (aiAdvice()!.remediation.cliCommand) {
@@ -590,10 +585,12 @@
                             [severity]="aiAdvice()!.vexSuggestion.status === 'not_affected' ? 'success' : 'warn'"
                         />
                     </div>
-                    <p class="text-xs text-muted-color mb-1">
-                        <strong>{{ 'issues.rule' | translate }}</strong>
-                        <code class="text-purple-600">{{ aiAdvice()!.vexSuggestion.justification }}</code>
-                    </p>
+                    @if (aiAdvice()!.vexSuggestion.justification) {
+                        <p class="text-xs text-muted-color mb-1">
+                            <strong>{{ 'issues.rule' | translate }}</strong>
+                            <code class="text-purple-600">{{ aiAdvice()!.vexSuggestion.justification }}</code>
+                        </p>
+                    }
                     <p class="text-xs text-surface-600 dark:text-surface-300 italic mb-3">
                         "{{ aiAdvice()!.vexSuggestion.impactStatement }}"
                     </p>

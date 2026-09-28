@@ -42,7 +42,16 @@ describe('EPSS prioritisation', () => {
             },
             // Deliberately not the English the server carries: a case asserting on the same words
             // could not tell a translated sentence from the fallback printed as it stands.
-            ai: { summary: 'TRANSLATED: {{id}} touche {{package}} {{version}}' }
+            ai: {
+                summary: 'TRANSLATED: {{id}} touche {{package}} {{version}}',
+                summary_no_component: 'TRANSLATED: {{id}}, composant inconnu',
+                kev_listed: 'KEV: inscrite.',
+                kev_not_listed: 'KEV: absente.',
+                kev_unknown: 'KEV: inconnue.',
+                epss: 'EPSS: {{chance}} %.',
+                epss_unknown: 'EPSS: inconnue.',
+                fix_none: 'Aucun correctif enregistré.'
+            }
         });
 
         fixture = TestBed.createComponent(Epss);
@@ -221,7 +230,7 @@ describe('EPSS prioritisation', () => {
                 packageName: 'log4j-core',
                 currentVersion: '2.14.1',
                 targetVersion: '2.17.1',
-                activelyExploited: false,
+                kev: 'NOT_LISTED',
                 exploitProbability: null
             }
         });
@@ -230,6 +239,77 @@ describe('EPSS prioritisation', () => {
         const text = document.body.textContent ?? '';
         expect(text).toContain('TRANSLATED: CVE-2021-44228 touche log4j-core 2.14.1');
         expect(text).not.toContain('ENGLISH FALLBACK FROM THE SERVER');
+    });
+
+    /**
+     * A CVE the estate does not carry, asked about before either feed was read.
+     *
+     * The server answered 75 % and "actively exploited" for CVE-2021-44228 because its identifier
+     * was typed into the code; and had it sent no score, this screen would have printed 85 %.
+     */
+    it('says unknown for an exploitation nobody measured, and fills in no component or fix', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
+            identifier: 'CVE-2021-44228',
+            title: '',
+            summaryExplanation: 'ENGLISH FALLBACK FROM THE SERVER',
+            exploitMechanics: 'ENGLISH MECHANICS FROM THE SERVER',
+            exposureAssessment: '',
+            remediation: {
+                fixAction: 'ENGLISH FIX FROM THE SERVER',
+                suggestedVersion: null,
+                codeSnippetOrDiff: '',
+                cliCommand: ''
+            },
+            vexSuggestion: {
+                status: 'under_investigation',
+                justification: '',
+                impactStatement: '',
+                actionStatement: ''
+            },
+            references: [],
+            deterministic: {
+                packageName: null,
+                currentVersion: null,
+                targetVersion: null,
+                kev: 'UNKNOWN',
+                exploitProbability: null
+            }
+        });
+        fixture.detectChanges();
+
+        const text = document.body.textContent ?? '';
+        expect(text).toContain('TRANSLATED: CVE-2021-44228, composant inconnu');
+        expect(text).toContain('KEV: inconnue. EPSS: inconnue.');
+        expect(text).toContain('Aucun correctif enregistré.');
+        expect(text).not.toContain('85');
+        expect(text).not.toContain('ENGLISH MECHANICS FROM THE SERVER');
+    });
+
+    it('states the listing and the score the feeds hold, unrounded to zero', () => {
+        lookup();
+        fixture.componentInstance.explain();
+        http.expectOne((request) => request.url.includes('/ai-advisor/explain/cve/')).flush({
+            identifier: 'CVE-2021-44228',
+            title: '',
+            summaryExplanation: '',
+            exploitMechanics: 'ENGLISH MECHANICS FROM THE SERVER',
+            exposureAssessment: '',
+            remediation: { fixAction: '', suggestedVersion: null, codeSnippetOrDiff: '', cliCommand: '' },
+            vexSuggestion: { status: 'affected', justification: '', impactStatement: '', actionStatement: '' },
+            references: [],
+            deterministic: {
+                packageName: null,
+                currentVersion: null,
+                targetVersion: null,
+                kev: 'LISTED',
+                exploitProbability: 0.00043
+            }
+        });
+        fixture.detectChanges();
+
+        expect(document.body.textContent ?? '').toContain('KEV: inscrite. EPSS: 0.043 %.');
     });
 
     it("leaves a model's own words alone", () => {

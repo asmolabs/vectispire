@@ -124,10 +124,17 @@
   },
   "ai": {
     "exposure_not_assessed": "Exposure not assessed: Vectispire does not analyse whether your code calls this component. Check whether any user flow reaches this library's functions.",
+    "epss": "EPSS probability: {{chance}} %.",
+    "epss_unknown": "EPSS probability: unknown.",
     "fix_action": "Upgrade “{{package}}” from version {{version}} to {{target}}.",
-    "mechanics_generic": "An attacker may send malicious input through the entry points that use “{{package}}” to trigger unintended behaviour.",
-    "mechanics_kev": "Warning: this flaw is in the CISA KEV catalogue and is being actively exploited (EPSS probability: {{chance}} %). A remote attacker may execute arbitrary code or bypass access controls.",
-    "summary": "Vulnerability {{id}} affects component “{{package}}” (version {{version}}). It allows the security or the availability of the service to be degraded."
+    "fix_action_no_component": "Upgrade the affected component to {{target}}.",
+    "fix_none": "No fixed version is recorded for this vulnerability.",
+    "kev_listed": "Listed in the CISA KEV catalogue: exploitation in the wild has been reported.",
+    "kev_not_listed": "Not listed in the CISA KEV catalogue in use.",
+    "kev_unknown": "Exploitation in the wild is unknown: no synchronised CISA KEV catalogue answers for this identifier.",
+    "summary": "Vulnerability {{id}} is reported in component “{{package}}”, version {{version}}.",
+    "summary_no_component": "Vulnerability {{id}}: the affected component is unknown.",
+    "unknown": "unknown"
   },
   "api_keys": {
     "aria_revoke": "Revoke {{name}}",
@@ -1157,7 +1164,7 @@
     "ai_apply_vex": "Carry this justification into the triage",
     "ai_dialog_title": "Triage and remediation assistance",
     "ai_explain": "Explain and suggest a fix (AI)",
-    "ai_mechanism": "How it is exploited",
+    "ai_mechanism": "Exploitation",
     "ai_exposure": "Exposure",
     "ai_remediation": "What to do about it",
     "ai_running": "Reading the vulnerability and working out what to do…",

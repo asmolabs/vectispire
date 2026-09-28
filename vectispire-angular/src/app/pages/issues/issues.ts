@@ -19,7 +19,8 @@ import { IntelApi } from '@/app/core/api/intel.api';
 import { TargetsApi } from '@/app/core/api/targets.api';
 import { IssuesApi } from '@/app/core/api/issues.api';
 import { SessionStore } from '@/app/core/session.store';
-import { Issue, TriageRequest, AiVulnerabilityAdvice } from '@/app/core/api.models';
+import { Issue, TriageRequest, AiVulnerabilityAdvice, AiDeterministic } from '@/app/core/api.models';
+import * as wording from '@/app/shared/ai-advice';
 import { findingTypeLabel, findingTypeOptions } from '@/app/shared/finding-types';
 
 /** The VEX justifications for a `not_affected` statement, as the standard names them. */
@@ -537,13 +538,19 @@ export class Issues {
     readonly aiAdviceError = signal<string | null>(null);
 
     /**
-     * The exploit probability as a percentage, for the deterministic wording.
-     *
-     * The bundles hold the sentence; the number is formatted here because neither screen imports a
-     * decimal pipe, and a raw float in a sentence reads like a bug.
+     * The product's own sentences, in the reader's language, from exactly the values it sent —
+     * unknown said as unknown. This formatted a missing EPSS score as 85 %.
      */
-    kevChance(probability: number | null | undefined): string {
-        return ((probability ?? 0.85) * 100).toFixed(1);
+    adviceSummary(advice: AiVulnerabilityAdvice, own: AiDeterministic): string {
+        return wording.adviceSummary(this.i18n, advice.identifier, own);
+    }
+
+    adviceExploitation(own: AiDeterministic): string {
+        return wording.adviceExploitation(this.i18n, own);
+    }
+
+    adviceFix(own: AiDeterministic): string {
+        return wording.adviceFix(this.i18n, own);
     }
 
     aiModalOpen = false;

@@ -1504,10 +1504,15 @@ export type NotificationTestResult = Refine<
     { type: string; message: string; testedAt: string }
 >;
 
-/** What the model proposes to do, and what it proposes to declare. Two named shapes. */
+/**
+ * What the model proposes to do, and what it proposes to declare. Two named shapes.
+ *
+ * `suggestedVersion` is null when no fixed version is recorded: it read "the fixed version", a
+ * version nobody had said existed, printed as the target of the upgrade.
+ */
 export type AiRemediationAdvice = Refine<
     Schema<'RemediationAdvice'>,
-    { fixAction: string; suggestedVersion: string; codeSnippetOrDiff: string; cliCommand: string }
+    { fixAction: string; suggestedVersion: string | null; codeSnippetOrDiff: string; cliCommand: string }
 >;
 
 export type AiVexSuggestion = Refine<
@@ -1518,16 +1523,18 @@ export type AiVexSuggestion = Refine<
 /**
  * The values the product's own wording was built from.
  *
- * Claimed as always sent: the server fills every one of them whenever it writes this record, and
- * the document cannot say so because they are reference types. `exploitProbability` is the
- * exception that is genuinely absent — EPSS has nothing for every CVE.
+ * Always sent, and null when unknown: the component, its version and the fixed version were filled
+ * with words that read as values — "the component", "current", "the latest fixed version" — and
+ * `kev` was a boolean that said false before any catalogue had been read. `UNKNOWN` and a null
+ * `exploitProbability` are what the screen says when nothing answered.
  */
 export type AiDeterministic = Refine<
     Schema<'Deterministic'>,
     {
-        packageName: string;
-        currentVersion: string;
-        targetVersion: string;
+        packageName: string | null;
+        currentVersion: string | null;
+        targetVersion: string | null;
+        kev: NonNullable<Schema<'Deterministic'>['kev']>;
         exploitProbability: number | null;
     }
 >;

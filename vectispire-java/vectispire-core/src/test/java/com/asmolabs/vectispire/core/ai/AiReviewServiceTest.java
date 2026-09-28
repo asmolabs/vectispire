@@ -17,7 +17,12 @@ import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
 import com.asmolabs.vectispire.common.domain.net.OutboundPolicy;
 import com.asmolabs.vectispire.common.domain.net.UnsafeUrlException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
+import com.asmolabs.vectispire.common.domain.aireview.AiVulnerabilityAdvice;
+import com.asmolabs.vectispire.common.domain.threatintel.Exploitation;
+import com.asmolabs.vectispire.common.domain.threatintel.KevListing;
 import com.asmolabs.vectispire.core.crypto.EncryptionService;
+import com.asmolabs.vectispire.core.issues.IssueView;
+import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.outbound.OutboundJson;
 import com.asmolabs.vectispire.core.outbound.OutboundPost;
 import com.asmolabs.vectispire.core.settings.SettingsService;
@@ -211,6 +216,89 @@ class AiReviewServiceTest {
                 org.mockito.ArgumentCaptor.forClass(java.time.Duration.class);
         verify(post).postForResponse(anyString(), any(), any(), anyString(), any(), timeout.capture());
         assertThat(timeout.getValue()).isEqualTo(java.time.Duration.ofSeconds(120));
+    }
+
+    /** An open issue with no fix recorded, never flagged and never scored. */
+    private static IssueView unscoredIssue() {
+        IssueEntity issue = new IssueEntity();
+        issue.setId(7L);
+        issue.setIdentifier("CVE-2022-42889");
+        issue.setPackageName("commons-text");
+        issue.setPackageVersion("1.9");
+        issue.setKev(false);
+        return IssueView.of(issue);
+    }
+
+    /**
+     * What nobody established is sent as unknown, and the model is told not to estimate it.
+     *
+     * <p>The prompt said {@code KEV: false} for a catalogue never read and {@code EPSS: null} for a
+     * CVE nobody scored — and a model asked to explain fills a gap with a plausible figure. The same
+     * six facts leave; nothing new does.
+     */
+    @Test
+    @DisplayName("the prompt says unknown for what nobody established, and nothing more leaves")
+    @SuppressWarnings("unchecked")
+    void thePromptStatesNoInventedFact() {
+        when(settings.isEnabled(Setting.AI_REVIEW_ENABLED)).thenReturn(true);
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
+                .thenReturn("{\"message\":{\"content\":\"{}\"}}");
+
+        service.explainVulnerability(unscoredIssue(), Exploitation.unknown());
+
+        org.mockito.ArgumentCaptor<Object> body = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(post).postForResponse(anyString(), body.capture(), any(), anyString(), any(), any());
+        java.util.List<java.util.Map<String, String>> messages =
+                (java.util.List<java.util.Map<String, String>>) ((java.util.Map<String, Object>) body.getValue()).get("messages");
+        String prompt = messages.get(1).get("content");
+        assertThat(prompt)
+                .contains("CVE: CVE-2022-42889, Package: commons-text, Version: 1.9, Fixed: unknown, KEV: unknown, EPSS: unknown.")
+                .contains("never estimate it")
+                .doesNotContain("KEV: false")
+                .doesNotContain("null");
+    }
+
+    @Test
+    @DisplayName("a listing and a score the feeds hold are sent as they hold them")
+    @SuppressWarnings("unchecked")
+    void thePromptStatesWhatTheFeedsHold() {
+        when(settings.isEnabled(Setting.AI_REVIEW_ENABLED)).thenReturn(true);
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
+                .thenReturn("{\"message\":{\"content\":\"{}\"}}");
+
+        service.explainVulnerability(unscoredIssue(), new Exploitation(KevListing.NOT_LISTED, 0.05));
+
+        org.mockito.ArgumentCaptor<Object> body = org.mockito.ArgumentCaptor.forClass(Object.class);
+        verify(post).postForResponse(anyString(), body.capture(), any(), anyString(), any(), any());
+        java.util.List<java.util.Map<String, String>> messages =
+                (java.util.List<java.util.Map<String, String>>) ((java.util.Map<String, Object>) body.getValue()).get("messages");
+        assertThat(messages.get(1).get("content"))
+                .contains("KEV: not listed in the CISA KEV catalogue, EPSS: 0.05.");
+    }
+
+    /**
+     * The suggestion the model makes is pre-filled into the triage form: it carries no exemption.
+     *
+     * <p>The justification defaulted to {@code vulnerable_code_cannot_be_controlled_by_adversary} —
+     * a {@code not_affected} justification the prompt never asks for — so every model advice carried
+     * one; and a model answering {@code not_affected} anyway was passed straight through.
+     */
+    @Test
+    @DisplayName("a model's advice carries no exemption, whatever the model answered")
+    void aModelAdviceCarriesNoExemption() {
+        when(settings.isEnabled(Setting.AI_REVIEW_ENABLED)).thenReturn(true);
+        when(post.postForResponse(anyString(), any(), any(), anyString(), any(), any()))
+                .thenReturn("{\"message\":{\"content\":\"{\\\"summary\\\":\\\"s\\\",\\\"vex_status\\\":\\\"not_affected\\\","
+                        + "\\\"vex_justification\\\":\\\"code_not_reachable\\\"}\"}}");
+
+        AiVulnerabilityAdvice advice = service.explainVulnerability(unscoredIssue(), Exploitation.unknown());
+
+        assertThat(advice.summaryExplanation()).isEqualTo("s");
+        assertThat(advice.deterministic()).isNull();
+        assertThat(advice.vexSuggestion().status()).isEqualTo("under_investigation");
+        assertThat(advice.vexSuggestion().justification()).isNull();
+        // No fix recorded: none is invented for the badge.
+        assertThat(advice.remediation().suggestedVersion()).isNull();
     }
 
     @Test

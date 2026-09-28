@@ -5,7 +5,8 @@ import { SessionStore } from '@/app/core/session.store';
 import { IntelApi } from '../../core/api/intel.api';
 import { messageOf } from '../../core/api-error';
 import { I18nService } from '../../core/i18n/i18n.service';
-import { AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
+import { AiDeterministic, AiVulnerabilityAdvice, EpssFleetSummary, ThreatIntelRecord } from '../../core/api.models';
+import * as wording from '../../shared/ai-advice';
 import { ButtonModule } from '@openng/optimus-ui/button';
 import { InputTextModule } from '@openng/optimus-ui/inputtext';
 import { TableModule } from '@openng/optimus-ui/table';
@@ -68,13 +69,20 @@ export class Epss implements OnInit {
     readonly advice = signal<AiVulnerabilityAdvice | null>(null);
 
     /**
-     * The exploit probability as a percentage, for the deterministic wording.
-     *
-     * The bundles hold the sentence; the number is formatted here because neither screen imports a
-     * decimal pipe, and a raw float in a sentence reads like a bug.
+     * The product's own sentences, in the reader's language, from exactly the values it sent —
+     * unknown said as unknown. This formatted a missing EPSS score as 85 %, beside a server that
+     * made up 75 % for every CVE the estate does not carry.
      */
-    kevChance(probability: number | null | undefined): string {
-        return ((probability ?? 0.85) * 100).toFixed(1);
+    adviceSummary(advice: AiVulnerabilityAdvice, own: AiDeterministic): string {
+        return wording.adviceSummary(this.i18n, advice.identifier, own);
+    }
+
+    adviceExploitation(own: AiDeterministic): string {
+        return wording.adviceExploitation(this.i18n, own);
+    }
+
+    adviceFix(own: AiDeterministic): string {
+        return wording.adviceFix(this.i18n, own);
     }
 
     readonly adviceLoading = signal<boolean>(false);
