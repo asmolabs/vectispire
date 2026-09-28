@@ -312,6 +312,21 @@ describe('EPSS prioritisation', () => {
         expect(document.body.textContent ?? '').toContain('KEV: inscrite. EPSS: 0.043 %.');
     });
 
+    it('shows no percentile for a CVE the EPSS file does not score', () => {
+        fixture.componentInstance.cveSearchQuery = 'CVE-2021-44228';
+        fixture.componentInstance.searchCve();
+        http.expectOne((call) => call.url.includes('/api/v1/epss/cve/')).flush({
+            ...RECORD,
+            epssScore: null,
+            epssPercentile: null
+        });
+        fixture.detectChanges();
+
+        // The card printed "0.0e %" — a rank nobody computed — beside an EPSS shown as "—".
+        const text = document.body.textContent ?? '';
+        expect(text).not.toContain('0.0e');
+    });
+
     it("leaves a model's own words alone", () => {
         lookup();
         fixture.componentInstance.explain();

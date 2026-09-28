@@ -395,8 +395,14 @@
                         <span class="text-[11px] uppercase font-bold text-surface-500">{{
                             'epss.percentile' | translate
                         }}</span>
+                        <!-- A CVE the catalogue lists and the EPSS file does not score has no
+                             percentile: it showed "0.0e %", a rank nobody computed. -->
                         <span class="text-xl font-extrabold text-indigo-600 block mt-1">
-                            {{ ((lookupResult()!.epssPercentile ?? 0) * 100).toFixed(1) }}e %
+                            {{
+                                lookupResult()!.epssPercentile != null
+                                    ? ((lookupResult()!.epssPercentile ?? 0) * 100).toFixed(1) + 'e %'
+                                    : '—'
+                            }}
                         </span>
                     </div>
                 </div>
