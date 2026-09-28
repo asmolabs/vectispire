@@ -152,7 +152,10 @@ const LINKS: Record<string, string> = {
 
     // Decision 0017: the registry is every account's, the declared sources are governance's.
     '/plugins': 'Plugins',
-    '/sarif-sources': 'Declared sources'
+    '/sarif-sources': 'Declared sources',
+
+    // Decision 0032 §8: governance reads the checklist templates, the security leads write them.
+    '/checklist-templates': 'Checklist templates'
 };
 
 /** The role accounts' password, and the one the first use rotates it to. */
