@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.agent;
 
 import com.asmolabs.vectispire.common.domain.agents.AgentConcurrency;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.domain.scans.FailureReason;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
@@ -173,7 +174,7 @@ public class AgentLoop {
         } catch (AgentProtocol.UnusableTaskException unusable) {
             // Claimed on the control plane's side, unusable on this one: a failed claim that is also
             // a scan this agent holds, so it is reported rather than left to its lease.
-            reportFailure(unusable.assigned(), unusable.getMessage());
+            reportFailure(unusable.assigned(), unusable.getMessage(), FailureKind.of(unusable));
             return Optional.empty();
         } catch (RuntimeException failed) {
             // A failed claim is not a lost scan: the control plane keeps the row queued, and
@@ -217,8 +218,11 @@ public class AgentLoop {
             // **No result is handed back.** An agent posting an empty result after a failed run
             // would silently resolve the whole backlog of the types it did not look at — absent
             // versus empty, the distinction this entire system protects. A failure report resolves
-            // nothing: it spends the attempt the lapsing lease would have spent, now, with the reason.
-            reportFailure(assigned, failure.getMessage() == null ? failure.toString() : failure.getMessage());
+            // nothing: it spends the attempt the lapsing lease would have spent, now, with the reason
+            // — and says whether another attempt could pass, which only this side can tell: the
+            // exception is here, and the reason that leaves is words.
+            reportFailure(assigned, failure.getMessage() == null ? failure.toString() : failure.getMessage(),
+                    FailureKind.of(failure));
             return new Result(0, 1, 0);
         }
 
@@ -258,13 +262,15 @@ public class AgentLoop {
      * (404) and a report that did not arrive leave it to the lease, which is how every failure ended
      * before; the log says so, since the reason is then nowhere else.
      */
-    private void reportFailure(AgentProtocol.AssignedTask assigned, String raw) {
+    private void reportFailure(AgentProtocol.AssignedTask assigned, String raw, FailureKind kind) {
         String reason = FailureReason.scrub(raw, secretsOf(assigned.task()));
         try {
-            switch (protocol.reportFailure(assigned, reason)) {
-                case RETRIED -> log.warn("Scan {} could not run, reported; it is back in the queue: {}",
-                        assigned.scanId(), reason);
-                case FAILED -> log.warn("Scan {} could not run, reported; it was its last attempt, the scan failed: {}",
+            switch (protocol.reportFailure(assigned, reason, kind)) {
+                case RETRIED -> log.warn("Scan {} could not run, reported; it is back in the queue and waits before its "
+                        + "next attempt: {}", assigned.scanId(), reason);
+                case FAILED -> log.warn(kind == FailureKind.PERMANENT
+                                ? "Scan {} could not run, reported; another attempt would fail the same way, the scan failed: {}"
+                                : "Scan {} could not run, reported; it was its last attempt, the scan failed: {}",
                         assigned.scanId(), reason);
                 case NOT_YOURS -> log.warn("Scan {} could not run, and was no longer ours to report: {}",
                         assigned.scanId(), reason);

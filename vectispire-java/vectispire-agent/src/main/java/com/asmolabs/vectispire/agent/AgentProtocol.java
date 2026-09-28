@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.common.domain.crypto.SealingKeyAttestation;
 import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
 import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.rules.RuleSet.StoredFile;
+import com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -59,9 +61,9 @@ public class AgentProtocol {
 
     /** What became of a report that a claimed scan could not run. */
     public enum FailureReported {
-        /** Recorded: the scan is back in the queue, with the attempt counted. */
+        /** Recorded: the scan is back in the queue, with the attempt counted, and waits before its next claim. */
         RETRIED,
-        /** Recorded: that was the scan's last attempt, and it failed. */
+        /** Recorded: the scan failed for good — the failure was permanent, or that was its last attempt. */
         FAILED,
         /** Not this agent's at that attempt any more (409): the lease lapsed first, or it was already reported. */
         NOT_YOURS,
@@ -75,8 +77,12 @@ public class AgentProtocol {
      *
      * <p>An {@link IllegalStateException}, as the refusal it wraps was before the report existed: a
      * caller that treats it as a failed claim still does.
+     *
+     * <p><b>Permanent</b>: the credential this agent was handed will not open for it, and taking the
+     * scan again would hand it the same one — the owner's decision of 2026-09-28. The scan fails with
+     * the reason rather than spending its attempts on it.
      */
-    public static class UnusableTaskException extends IllegalStateException {
+    public static class UnusableTaskException extends IllegalStateException implements ClassifiedFailure {
 
         private static final long serialVersionUID = 1L;
 
@@ -90,6 +96,11 @@ public class AgentProtocol {
         /** As received, before anything was opened — what the report names, and the secrets to scrub. */
         public AssignedTask assigned() {
             return assigned;
+        }
+
+        @Override
+        public FailureKind failureKind() {
+            return FailureKind.PERMANENT;
         }
     }
 
@@ -534,15 +545,23 @@ public class AgentProtocol {
      * nothing more is to be done with this scan here, and the caller logs which it was. A refused
      * attestation is the exception, as for a result, since its fix is this agent's configuration.
      *
+     * <p><b>With the failure's kind</b>, decided here from the exception, where it is known — see
+     * {@link FailureKind#of}. A control plane older than the field reads past it and applies the lapse's
+     * rule, as it always did.
+     *
      * @param reason already scrubbed — see {@code FailureReason}
+     * @param kind whether another attempt could pass: permanent fails the scan at once
      * @throws UnauthorizedException when the report's attestation, or the API key, is refused
      */
-    public FailureReported reportFailure(AssignedTask assigned, String reason) {
+    public FailureReported reportFailure(AssignedTask assigned, String reason, FailureKind kind) {
         if (assigned.attempt() == null) {
             // A claim without an attempt comes from a control plane without the route.
             return FailureReported.NOT_SUPPORTED;
         }
-        String body = write(Map.of("attempt", assigned.attempt(), "reason", reason == null ? "" : reason));
+        String body = write(Map.of(
+                "attempt", assigned.attempt(),
+                "reason", reason == null ? "" : reason,
+                "kind", (kind == null ? FailureKind.TRANSIENT : kind).wireName()));
         Map<String, String> headers = signingKey.isEmpty()
                 ? Map.of()
                 : Map.of(

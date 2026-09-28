@@ -1,5 +1,7 @@
 package com.asmolabs.vectispire.agent;
 
+import static com.asmolabs.vectispire.common.domain.scans.FailureKind.PERMANENT;
+import static com.asmolabs.vectispire.common.domain.scans.FailureKind.TRANSIENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -241,19 +243,20 @@ class AgentProtocolTest {
         AgentProtocol.AssignedTask assigned = new AgentProtocol.AssignedTask(7L, 2, assignedWith(null).task());
         reportAnswers(200, "{\"retried\":true,\"attempt\":2,\"maxAttempts\":3}");
 
-        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.RETRIED);
+        assertThat(protocol.reportFailure(assigned, "clone refused", TRANSIENT)).isEqualTo(AgentProtocol.FailureReported.RETRIED);
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
         verify(http).call(eq("/api/v1/agent/jobs/7/failure"), eq("POST"), body.capture(), any(), any());
         JsonNode sent = JSON.readTree(((AgentHttp.RawJson) body.getValue()).text());
         assertThat(sent.path("attempt").asInt()).isEqualTo(2);
         assertThat(sent.path("reason").asText()).isEqualTo("clone refused");
+        assertThat(sent.path("kind").asText()).isEqualTo("transient");
 
         reportAnswers(200, "{\"retried\":false,\"attempt\":3,\"maxAttempts\":3}");
-        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.FAILED);
+        assertThat(protocol.reportFailure(assigned, "clone refused", TRANSIENT)).isEqualTo(AgentProtocol.FailureReported.FAILED);
         reportAnswers(409, "{\"detail\":\"Not yours.\"}");
-        assertThat(protocol.reportFailure(assigned, "clone refused")).isEqualTo(AgentProtocol.FailureReported.NOT_YOURS);
+        assertThat(protocol.reportFailure(assigned, "clone refused", TRANSIENT)).isEqualTo(AgentProtocol.FailureReported.NOT_YOURS);
         reportAnswers(403, "{\"detail\":\"Unsigned.\"}");
-        assertThatThrownBy(() -> protocol.reportFailure(assigned, "clone refused"))
+        assertThatThrownBy(() -> protocol.reportFailure(assigned, "clone refused", TRANSIENT))
                 .isInstanceOf(AgentProtocol.UnauthorizedException.class);
     }
 
@@ -262,10 +265,10 @@ class AgentProtocolTest {
     @DisplayName("an older control plane — a 404, or a claim with no attempt — is 'not supported', not an error")
     void anOlderControlPlaneTakesNoReport() {
         reportAnswers(404, "{\"detail\":\"Not Found\"}");
-        assertThat(protocol.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "x"))
+        assertThat(protocol.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "x", TRANSIENT))
                 .isEqualTo(AgentProtocol.FailureReported.NOT_SUPPORTED);
 
-        assertThat(protocol.reportFailure(assignedWith(null), "x")).isEqualTo(AgentProtocol.FailureReported.NOT_SUPPORTED);
+        assertThat(protocol.reportFailure(assignedWith(null), "x", TRANSIENT)).isEqualTo(AgentProtocol.FailureReported.NOT_SUPPORTED);
         verify(http, times(1)).call(anyString(), anyString(), any(), any(), any());
     }
 
@@ -276,7 +279,7 @@ class AgentProtocolTest {
         AgentProtocol signed = new AgentProtocol(http, JSON, keyPair, signing.privateKey());
         reportAnswers(200, "{\"retried\":true}");
 
-        signed.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "clone refused");
+        signed.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()), "clone refused", PERMANENT);
 
         ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
         @SuppressWarnings("unchecked")
@@ -289,6 +292,22 @@ class AgentProtocolTest {
                 .isTrue();
         assertThat(com.asmolabs.vectispire.common.domain.crypto.ResultAttestation.verify(signing.publicKey(), 7L, sent, signature))
                 .isFalse();
+    }
+
+    @Test
+    @DisplayName("a permanent failure is reported as such, and the unusable task says it is one")
+    void aPermanentFailureIsSentAsSuch() throws Exception {
+        reportAnswers(200, "{\"retried\":false,\"permanent\":true,\"attempt\":1,\"maxAttempts\":3}");
+
+        assertThat(protocol.reportFailure(new AgentProtocol.AssignedTask(7L, 1, assignedWith(null).task()),
+                        "host key changed", PERMANENT))
+                .isEqualTo(AgentProtocol.FailureReported.FAILED);
+        ArgumentCaptor<Object> body = ArgumentCaptor.forClass(Object.class);
+        verify(http).call(eq("/api/v1/agent/jobs/7/failure"), eq("POST"), body.capture(), any(), any());
+        assertThat(JSON.readTree(((AgentHttp.RawJson) body.getValue()).text()).path("kind").asText()).isEqualTo("permanent");
+
+        assertThat(new AgentProtocol.UnusableTaskException(assignedWith(null), "sealed for somebody else").failureKind())
+                .isEqualTo(PERMANENT);
     }
 
     private void reportAnswers(int status, String body) {

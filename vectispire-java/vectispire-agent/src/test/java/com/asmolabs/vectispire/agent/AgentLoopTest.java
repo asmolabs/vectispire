@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.scanning.ScanArtifacts;
+import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.scanning.ScanTask;
 import java.time.Duration;
 import java.util.Optional;
@@ -84,7 +85,7 @@ class AgentLoopTest {
                         null,
                         Set.of(ScanTask.Step.DEPENDENCIES)));
         when(protocol.claim(any())).thenReturn(new AgentProtocol.Claim(Optional.of(assigned), OptionalInt.empty()));
-        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.RETRIED);
+        when(protocol.reportFailure(any(), anyString(), any())).thenReturn(AgentProtocol.FailureReported.RETRIED);
         loop = loopWith(task -> {
             throw new IllegalStateException("The host key of ssh://git@gitea/team/app.git changed; key line "
                     + "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ, token zsk-token");
@@ -92,7 +93,9 @@ class AgentLoopTest {
 
         assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
         ArgumentCaptor<String> reason = ArgumentCaptor.forClass(String.class);
-        verify(protocol).reportFailure(org.mockito.ArgumentMatchers.eq(assigned), reason.capture());
+        // Words that read like a host key refused, and no type that says so: transient.
+        verify(protocol).reportFailure(org.mockito.ArgumentMatchers.eq(assigned), reason.capture(),
+                org.mockito.ArgumentMatchers.eq(FailureKind.TRANSIENT));
         assertThat(reason.getValue())
                 .contains("The host key of ssh://git@gitea/team/app.git changed")
                 .doesNotContain("b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQ")
@@ -108,10 +111,10 @@ class AgentLoopTest {
             throw new IllegalStateException("clone refused");
         });
 
-        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.NOT_SUPPORTED);
+        when(protocol.reportFailure(any(), anyString(), any())).thenReturn(AgentProtocol.FailureReported.NOT_SUPPORTED);
         assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
 
-        when(protocol.reportFailure(any(), anyString())).thenThrow(new IllegalStateException("connection reset"));
+        when(protocol.reportFailure(any(), anyString(), any())).thenThrow(new IllegalStateException("connection reset"));
         assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 1, 0));
         verify(protocol, never()).submit(anyLong(), any());
     }
@@ -122,11 +125,42 @@ class AgentLoopTest {
         AgentProtocol.AssignedTask received = task(9L);
         when(protocol.claim(any())).thenThrow(new AgentProtocol.UnusableTaskException(
                 received, "The sealed deployment key could not be opened."));
-        when(protocol.reportFailure(any(), anyString())).thenReturn(AgentProtocol.FailureReported.RETRIED);
+        when(protocol.reportFailure(any(), anyString(), any())).thenReturn(AgentProtocol.FailureReported.FAILED);
         loop = loopWith(task -> artifacts());
 
         assertThat(loop.runOnce()).isEqualTo(new AgentLoop.Result(0, 0, 0));
-        verify(protocol).reportFailure(received, "The sealed deployment key could not be opened.");
+        // A credential that will not open for this agent will not open on its next attempt either.
+        verify(protocol).reportFailure(received, "The sealed deployment key could not be opened.", FailureKind.PERMANENT);
+    }
+
+    /** A failure that says what it is, as a clone's does — {@code CloneFailureException} is the runner's. */
+    private static final class Declared extends IllegalStateException
+            implements com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure {
+        private final FailureKind kind;
+
+        Declared(String message, FailureKind kind) {
+            super(message);
+            this.kind = kind;
+        }
+
+        @Override
+        public FailureKind failureKind() {
+            return kind;
+        }
+    }
+
+    @Test
+    @DisplayName("a run that failed for a permanent reason is reported as permanent, wrapped or not")
+    void aPermanentFailureIsReportedAsSuch() {
+        assigned();
+        when(protocol.reportFailure(any(), anyString(), any())).thenReturn(AgentProtocol.FailureReported.FAILED);
+        loop = loopWith(task -> {
+            throw new RuntimeException("scan", new Declared("The host key has changed.", FailureKind.PERMANENT));
+        });
+
+        loop.runOnce();
+
+        verify(protocol).reportFailure(any(), anyString(), org.mockito.ArgumentMatchers.eq(FailureKind.PERMANENT));
     }
 
     @Test
