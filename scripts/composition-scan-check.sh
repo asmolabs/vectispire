@@ -336,28 +336,23 @@ until [[ "$("${compose[@]}" logs sshfixture 2>/dev/null)" == *"Server listening"
   sleep 2
 done
 changed="has changed since the last clone"
-if [ "$MODE" = embedded ]; then
-  scan "$ssh_repo"
-  printf '%s' "$detail" | CHANGED="$changed" python3 -c '
+# Read off the scan in both modes. An agent hands no result back for a scan it could not run — an
+# empty one would resolve the backlog — and it used to hand back nothing at all: the scan waited for
+# its lease to lapse, and the refusal was in the agent's log alone. It reports the failure now, so
+# the scan fails with the reason, each attempt in one poll — a lapse would take twenty minutes each.
+started=$(date +%s)
+scan "$ssh_repo"
+printf '%s' "$detail" | CHANGED="$changed" MODE="$MODE" python3 -c '
 import json, os, sys
-s = json.load(sys.stdin)["scan"]
-if s["status"] != "failed" or os.environ["CHANGED"] not in (s["error"] or ""):
-    print("✗ a changed host key was not refused as one: " + s["status"] + " — " + str(s["error"]), file=sys.stderr); sys.exit(1)'
-else
-  # An agent hands nothing back for a scan it could not run — an empty result would resolve the
-  # backlog — so the scan waits for its lease to lapse and the refusal is in the agent's log alone.
-  scan_id="$(queue "$ssh_repo")"
-  deadline=$(( $(date +%s) + 300 ))
-  until said="$("${compose[@]}" logs --no-color agent 2>/dev/null | grep "Scan $scan_id abandoned:")"; do
-    [ "$(date +%s)" -lt "$deadline" ] || fail "the agent neither refused nor ran scan $scan_id in 300s"
-    sleep 3
-  done
-  echo "$said"
-  case "$said" in
-    *"$changed"*) ;;
-    *) fail "a changed host key was not refused as one" ;;
-  esac
-  status="$(curl -sf -H "$bearer" "$base/api/v1/scans/$scan_id" | json 'd["scan"]["status"]')"
-  [ "$status" != completed ] || fail "scan $scan_id completed against a changed host key"
+s = json.load(sys.stdin)["scan"]; error = s["error"] or ""
+problems = []
+if s["status"] != "failed" or os.environ["CHANGED"] not in error:
+    problems.append("a changed host key was not refused as one: " + s["status"] + " — " + error)
+if os.environ["MODE"] == "agent" and "could not run on agent" not in error:
+    problems.append("the agent did not report the failure: " + error)
+if problems:
+    print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)'
+if [ "$MODE" = agent ] && [ $(( $(date +%s) - started )) -ge 600 ]; then
+  fail "the agent's failure took $(( $(date +%s) - started ))s to reach the scan: it waited for a lease, not a report"
 fi
 echo "✓ a changed host key is refused, and said to be one"
