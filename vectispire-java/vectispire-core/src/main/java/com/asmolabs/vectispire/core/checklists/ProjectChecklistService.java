@@ -1158,11 +1158,12 @@ public class ProjectChecklistService {
 
     private List<ChecklistLineView> lines(ChecklistEntity checklist, LocalDate today) {
         Map<Long, ChecklistAnswerEntity> current = new LinkedHashMap<>();
-        answers.findByChecklistIdOrderByIdAsc(checklist.getId()).forEach(row -> current.put(row.getItemId(), row));
         Map<Long, List<ChecklistEvidenceEntity>> proofs = new HashMap<>();
         Map<Long, Integer> editions = new HashMap<>();
-        answers.findByChecklistIdOrderByIdAsc(checklist.getId())
-                .forEach(row -> editions.merge(row.getItemId(), row.getEdition(), Math::max));
+        for (ChecklistAnswerEntity row : answers.findByChecklistIdOrderByIdAsc(checklist.getId())) {
+            current.put(row.getItemId(), row);
+            editions.merge(row.getItemId(), row.getEdition(), Math::max);
+        }
         for (ChecklistEvidenceEntity row : evidence.findByChecklistIdOrderByIdAsc(checklist.getId())) {
             proofs.computeIfAbsent(row.getItemId(), id -> new ArrayList<>()).add(row);
             editions.merge(row.getItemId(), row.getEdition(), Math::max);
