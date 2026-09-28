@@ -114,6 +114,12 @@ public final class BundledRules {
      * process ended — so what is left unlocked is a leftover. A directory from a version before
      * the lock has none, and is swept as the leftover it is.
      *
+     * <p>On Linux {@code processStarted} reads up to a second early: the JDK adds the start in
+     * clock ticks to a boot time counted in whole seconds. The error only ever keeps — a
+     * leftover of a process killed in the second before this one started waits for the next
+     * sweep — and never deletes, so it is accepted rather than corrected with a margin that
+     * would narrow what the lock does not cover.
+     *
      * @param keep this process's own directory, never examined
      */
     static void sweep(Path parent, UserPrincipal owner, Instant processStarted, Path keep) {

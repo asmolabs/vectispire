@@ -117,12 +117,24 @@ class BundledRulesLifetimeTest {
         Child killed = Child.start(tmp);
         killed.kill();
         assertThat(killed.directory()).as("a killed process deletes nothing").isDirectory();
+        // The next start must begin measurably after the leftover was last written. On Linux a
+        // process's start instant is the boot time — whole seconds, truncated — plus its start in
+        // clock ticks, so it reads up to a second early: started a few hundred milliseconds after
+        // the kill, the next child saw the leftover as "not older than me" and kept it. That
+        // passed on macOS, whose start instant is exact, and failed on every Linux runner.
+        awaitClockPast(Files.getLastModifiedTime(killed.directory()).toInstant().plusSeconds(2));
         Child next = Child.start(tmp);
         try {
             assertThat(killed.directory()).as("and its directory is a leftover the next start sweeps").doesNotExist();
             assertThat(next.directory()).isDirectory();
         } finally {
             next.stop();
+        }
+    }
+
+    private static void awaitClockPast(Instant instant) throws InterruptedException {
+        while (!Instant.now().isAfter(instant)) {
+            Thread.sleep(50);
         }
     }
 
