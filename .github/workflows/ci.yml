@@ -445,12 +445,16 @@ jobs:
       # workspaces were in the container's own `/tmp`, which the daemon cannot see, and behind that
       # four scanners ran as a root that could not read the workspace. The script starts the file as
       # shipped (under its own project name), registers a local fixture repository and runs one scan
-      # with the cataloguer and the secrets scanner for real — the matcher's 3 GB database is left
-      # out on purpose — and fails unless both read the tree. Then the same repository over SSH with
-      # a deploy key registered through the API, which had never once cloned through the composition
-      # (no home for the image's user, and a host-key check that refused every first contact), and
-      # again after the fixture changes its host key, which must be refused. Minutes, not the
-      # campaign's forty.
+      # with every scanner at the digest the product pins, SAST switched on, and fails unless each
+      # reports what the fixture planted for it: a secret, an IaC finding, the bundled SAST rule's
+      # hit, an SBOM, and the matcher's match against a one-advisory database published in the
+      # worker's cache the way a download is — not the publisher's 3 GB, and no network during the
+      # match. A scanner that runs as root again, or cannot read the 0700 workspace, fails its step
+      # and the check. Then the same repository over SSH with a deploy key registered through the
+      # API, which had never once cloned through the composition (no home for the image's user, and
+      # a host-key check that refused every first contact), and again after the fixture changes its
+      # host key, which must be refused. About a minute and a half with the images present; the
+      # pulls of the IaC checker, the SAST engine and the matcher add some 630 MB compressed.
       - name: the composition scans
         run: ./scripts/composition-scan-check.sh
       - if: always()

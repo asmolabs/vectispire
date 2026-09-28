@@ -67,6 +67,9 @@ jobs:
       # The composition's scan check on this route's images, and through the `with-agent` profile:
       # `docker compose build` produces these, and the push pipeline only runs the Jib ones with the
       # built-in worker. Both images run as 1000:1000, which is who `work-dir` hands the directory to.
+      # Every scanner runs on the agent here, the matcher against the fixture database published in
+      # the agent's own cache: the agent's `VulnerabilityDatabase` is another directory than the
+      # built-in worker's, and a scanner that could read one and not the other would pass `images`.
       - name: the composition scans, through its agent, on the Dockerfile images
         env:
           MODE: agent
