@@ -1,6 +1,9 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -12,12 +15,17 @@ import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFileSource;
 import com.asmolabs.vectispire.core.threatintel.persistence.EpssScoreRepository;
+import com.asmolabs.vectispire.core.threatintel.persistence.KnownEpssScore;
+import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,7 +46,8 @@ import org.springframework.beans.factory.annotation.Autowired;
  * <p>The feed is written over many short transactions, so no row lock serialises two writers the way
  * the KEV catalogue's single transaction does; the lease is what does. These are the two
  * interleavings it exists for: a second request while the first holds it, and a first one so slow
- * that its lease ran out and another took over.
+ * that its lease ran out and another took over. And one between a reader and a synchronisation: the
+ * reader held between reading the row and reading the scores of the generation it named.
  */
 @DisplayName("two EPSS synchronisations at once")
 class EpssFeedConcurrencyTest extends VectispireContextTest {
@@ -138,6 +147,51 @@ class EpssFeedConcurrencyTest extends VectispireContextTest {
         assertThat(scores.count()).as("the stale generation was discarded").isEqualTo(ROWS + 1);
         assertThat(feed.scoresOf(java.util.List.of(EpssFiles.cve(7))).get(EpssFiles.cve(7)).score())
                 .isEqualTo(EpssFiles.score(7, 0));
+    }
+
+    @Test
+    @DisplayName("a reader that read the generation just before a switch still finds its scores")
+    void aReaderOfTheReplacedGenerationFindsItsRows() throws Exception {
+        when(source.fetch()).thenReturn(EpssFiles.gzip(ROWS, "v2025.03.14", START, 0));
+        assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+
+        // The reader's two statements with the switch forced between them: the row read, then held
+        // until the next file is applied, then the scores of the generation the row named.
+        CountDownLatch rowRead = new CountDownLatch(1);
+        CountDownLatch switched = new CountDownLatch(1);
+        ThreatIntelSyncRepository pausing = mock(ThreatIntelSyncRepository.class, delegatesTo(syncs));
+        doAnswer(call -> {
+                    Optional<ThreatIntelSyncEntity> row = syncs.findById(call.getArgument(0));
+                    rowRead.countDown();
+                    assertThat(switched.await(30, TimeUnit.SECONDS)).isTrue();
+                    return row;
+                })
+                .when(pausing)
+                .findById(any());
+        EpssFeed reader = new EpssFeed(scores, pausing, issues, source, clock);
+        Future<Map<String, KnownEpssScore>> read = executor.submit(() -> reader.scoresOf(List.of(EpssFiles.cve(7))));
+        assertThat(rowRead.await(30, TimeUnit.SECONDS)).isTrue();
+
+        when(source.fetch()).thenReturn(EpssFiles.gzip(ROWS, "v2025.03.14", START.plusSeconds(86_400), 5));
+        assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+        switched.countDown();
+
+        assertThat(read.get(30, TimeUnit.SECONDS))
+                .as("the generation the reader read was deleted under it")
+                .containsKey(EpssFiles.cve(7));
+        assertThat(read.get().get(EpssFiles.cve(7)).score()).isEqualTo(EpssFiles.score(7, 0));
+        assertThat(feed.scoresOf(List.of(EpssFiles.cve(7))).get(EpssFiles.cve(7)).score())
+                .isEqualTo(EpssFiles.score(7, 5));
+
+        // Kept one file longer, not for ever: the third file deletes the first.
+        ThreatIntelSyncEntity second = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
+        when(source.fetch()).thenReturn(EpssFiles.gzip(ROWS, "v2025.03.14", START.plusSeconds(2 * 86_400), 9));
+        assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+        ThreatIntelSyncEntity third = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
+        assertThat(third.getEpssPreviousGeneration()).isEqualTo(second.getEpssGeneration());
+        assertThat(scores.generationsOtherThan(List.of(third.getEpssGeneration(), third.getEpssPreviousGeneration())))
+                .isEmpty();
+        assertThat(scores.count()).isEqualTo(2L * ROWS);
     }
 
     /** A clock the test moves. */

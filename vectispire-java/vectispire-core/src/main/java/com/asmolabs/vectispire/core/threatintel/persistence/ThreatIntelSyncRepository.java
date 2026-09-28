@@ -102,19 +102,25 @@ public interface ThreatIntelSyncRepository extends JpaRepository<ThreatIntelSync
      * Puts a whole, checked file in use: its generation, what its header said, and the lease given
      * back — only if this synchronisation still holds the claim.
      *
+     * @param previous the generation in use until now, kept as the previous one (see {@code
+     *     EpssFeed}); passed rather than copied from the column in the statement, because MySQL
+     *     assigns left to right with the values it has just set and the other engines with the old
+     *     ones — only the claim's holder moves the generation, so the value it read is the column's
      * @return 0 when the claim was lost — the lease ran out and another synchronisation took it
      */
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             update ThreatIntelSyncEntity s
-               set s.epssGeneration = :generation, s.epssStatus = 'SYNCED', s.epssSyncedAt = :now,
+               set s.epssGeneration = :generation, s.epssPreviousGeneration = :previous,
+                   s.epssStatus = 'SYNCED', s.epssSyncedAt = :now,
                    s.epssModelVersion = :modelVersion, s.epssScoreDate = :scoreDate, s.epssCount = :count,
                    s.epssError = null, s.epssLeaseUntil = null, s.epssClaim = null
              where s.id = :id and s.epssClaim = :generation""")
     int applyEpss(
             @Param("id") long id,
             @Param("generation") long generation,
+            @Param("previous") Long previous,
             @Param("now") Instant now,
             @Param("modelVersion") String modelVersion,
             @Param("scoreDate") Instant scoreDate,

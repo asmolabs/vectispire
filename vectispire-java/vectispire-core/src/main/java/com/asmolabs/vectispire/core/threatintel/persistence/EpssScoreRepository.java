@@ -34,9 +34,14 @@ public interface EpssScoreRepository extends JpaRepository<EpssScoreEntity, Epss
 
     long countByGeneration(long generation);
 
-    /** Every generation stored but this one: those a refused or interrupted synchronisation left. */
-    @Query("select distinct e.generation from EpssScoreEntity e where e.generation <> :keep")
-    List<Long> generationsOtherThan(@Param("keep") long keep);
+    /**
+     * Every generation stored but these: those a refused or interrupted synchronisation left, and the
+     * one replaced two files ago.
+     *
+     * @param keep never empty — an empty {@code in} list is a syntax error on some engines
+     */
+    @Query("select distinct e.generation from EpssScoreEntity e where e.generation not in :keep")
+    List<Long> generationsOtherThan(@Param("keep") Collection<Long> keep);
 
     /**
      * The identifiers of one generation, in key order, a page at a time — used for one row, the

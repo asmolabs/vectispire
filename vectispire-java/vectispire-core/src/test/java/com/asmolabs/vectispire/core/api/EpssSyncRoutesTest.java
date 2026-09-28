@@ -126,7 +126,7 @@ class EpssSyncRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("a newer file replaces the scores, and the generation it replaced is deleted")
+    @DisplayName("a newer file replaces the scores; the one it replaced is kept until the next")
     void aNewerFileReplaces() throws Exception {
         IssueEntity open = issue(EpssFiles.cve(7), "open", null);
         file(EpssFiles.gzip(ROWS, "v2025.03.14", YESTERDAY, 0));
@@ -139,7 +139,14 @@ class EpssSyncRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.epss.totalScored").value(ROWS + 5));
 
         assertThat(issuesRepo.findById(open.getId()).orElseThrow().getEpssScore()).isEqualTo(EpssFiles.score(7, 500));
-        assertThat(scores.count()).as("yesterday's generation is gone").isEqualTo(ROWS + 5);
+        // Yesterday's generation is kept a file longer, for a reader that read the row before the switch.
+        assertThat(scores.count()).isEqualTo(ROWS + ROWS + 5);
+        mvc.perform(authenticated(get("/api/v1/epss/cve/" + EpssFiles.cve(7)), asCiso()))
+                .andExpect(jsonPath("$.epssScore").value(EpssFiles.score(7, 500)));
+
+        file(EpssFiles.gzip(ROWS + 9, "v2025.03.14", TODAY.plusSeconds(86_400), 900));
+        mvc.perform(authenticated(post("/api/v1/epss/sync"), asCiso())).andExpect(status().isOk());
+        assertThat(scores.count()).as("the day before yesterday's generation is gone").isEqualTo(ROWS + 5 + ROWS + 9);
     }
 
     @Test

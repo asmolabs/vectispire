@@ -99,7 +99,7 @@ class NoOutboundDuringIngestionTest extends VectispireContextTest {
         Instant now = Instant.now();
         syncs.save(new ThreatIntelSyncEntity());
         syncs.claimEpss(ThreatIntelSyncEntity.SINGLETON_ID, now, now.plusSeconds(60), generation);
-        assertThat(syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, now, "v2025.03.14", now, 1))
+        assertThat(syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, null, now, "v2025.03.14", now, 1))
                 .isEqualTo(1);
     }
 

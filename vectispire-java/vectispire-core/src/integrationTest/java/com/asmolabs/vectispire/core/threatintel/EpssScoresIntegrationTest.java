@@ -1,29 +1,38 @@
 package com.asmolabs.vectispire.core.threatintel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.asmolabs.vectispire.common.domain.threatintel.ThreatIntelSyncStatus.State;
 import com.asmolabs.vectispire.core.VectispireApplication;
+import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.persistence.Engine;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFeed;
 import com.asmolabs.vectispire.core.threatintel.internal.EpssFileSource;
 import com.asmolabs.vectispire.core.threatintel.persistence.EpssScoreRepository;
+import com.asmolabs.vectispire.core.threatintel.persistence.KnownEpssScore;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncEntity;
 import com.asmolabs.vectispire.core.threatintel.persistence.ThreatIntelSyncRepository;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -94,6 +103,9 @@ class EpssScoresIntegrationTest {
     private IssueRepository issues;
 
     @Autowired
+    private IssueCatalog issueCatalog;
+
+    @Autowired
     private JdbcTemplate jdbc;
 
     @MockitoBean
@@ -112,7 +124,7 @@ class EpssScoresIntegrationTest {
     }
 
     @Test
-    @DisplayName("a whole file is written, applied and read back; a newer one replaces it and the old one is deleted")
+    @DisplayName("a whole file is written, applied and read back; a newer one replaces it, and the one after deletes the first")
     void writesAndReplacesAWholeFile() {
         List<IssueEntity> open = openIssues();
         when(source.fetch()).thenReturn(file(ROWS, DAY.minusSeconds(86_400), 0));
@@ -135,9 +147,11 @@ class EpssScoresIntegrationTest {
         long secondMillis = elapsed(started);
 
         assertThat(second.outcome()).as(String.valueOf(second.reason())).isEqualTo(EpssFeed.Outcome.APPLIED);
-        assertThat(scores.count()).as("the replaced generation is deleted, whole").isEqualTo(ROWS + 7);
-        long current = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow().getEpssGeneration();
-        assertThat(scores.generationsOtherThan(current)).isEmpty();
+        ThreatIntelSyncEntity afterSecond = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
+        // The replaced generation is kept, for a reader that read the row just before the switch.
+        assertThat(scores.count()).isEqualTo(ROWS + ROWS + 7);
+        assertThat(scores.generationsOtherThan(List.of(afterSecond.getEpssGeneration())))
+                .containsExactly(afterSecond.getEpssPreviousGeneration());
         assertThat(issues.findById(open.get(10).getId()).orElseThrow().getEpssScore())
                 .isEqualTo(score(row(10), 11));
 
@@ -146,9 +160,60 @@ class EpssScoresIntegrationTest {
         long confirmMillis = elapsed(started);
         assertThat(again.outcome()).isEqualTo(EpssFeed.Outcome.UNCHANGED);
 
+        when(source.fetch()).thenReturn(file(ROWS + 9, DAY.plusSeconds(86_400), 13));
+        started = System.nanoTime();
+        assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+        long thirdMillis = elapsed(started);
+        ThreatIntelSyncEntity afterThird = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
+        assertThat(afterThird.getEpssPreviousGeneration()).isEqualTo(afterSecond.getEpssGeneration());
+        assertThat(scores.count()).as("the first generation is deleted, whole").isEqualTo(ROWS + 7 + ROWS + 9);
+        assertThat(scores.generationsOtherThan(
+                        List.of(afterThird.getEpssGeneration(), afterThird.getEpssPreviousGeneration())))
+                .isEmpty();
+
         System.out.printf(Locale.ROOT,
-                "EPSS-BENCH engine=%s rows=%d first=%d ms replace=%d ms same-file=%d ms (open issues re-scored: %d)%n",
-                ENGINE.name().toLowerCase(Locale.ROOT), ROWS, firstMillis, secondMillis, confirmMillis, OPEN_ISSUES);
+                "EPSS-BENCH engine=%s rows=%d first=%d ms replace=%d ms same-file=%d ms replace-and-delete=%d ms"
+                        + " (open issues re-scored: %d)%n",
+                ENGINE.name().toLowerCase(Locale.ROOT), ROWS, firstMillis, secondMillis, confirmMillis, thirdMillis,
+                OPEN_ISSUES);
+    }
+
+    @Test
+    @DisplayName("a reader that read the generation just before a switch still finds its scores")
+    void aReaderOfTheReplacedGenerationFindsItsRows() throws Exception {
+        when(source.fetch()).thenReturn(file(120_000, DAY.minusSeconds(86_400), 0));
+        assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+
+        // The reader's two statements, with the switch forced between them.
+        CountDownLatch rowRead = new CountDownLatch(1);
+        CountDownLatch switched = new CountDownLatch(1);
+        ThreatIntelSyncRepository pausing = mock(ThreatIntelSyncRepository.class, delegatesTo(syncs));
+        doAnswer(call -> {
+                    Optional<ThreatIntelSyncEntity> row = syncs.findById(call.getArgument(0));
+                    rowRead.countDown();
+                    assertThat(switched.await(60, TimeUnit.SECONDS)).isTrue();
+                    return row;
+                })
+                .when(pausing)
+                .findById(any());
+        EpssFeed reader = new EpssFeed(scores, pausing, issueCatalog, source, Clock.systemUTC());
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<Map<String, KnownEpssScore>> read = pool.submit(() -> reader.scoresOf(List.of(cve(7))));
+            assertThat(rowRead.await(60, TimeUnit.SECONDS)).isTrue();
+
+            when(source.fetch()).thenReturn(file(120_000, DAY, 5));
+            assertThat(feed.sync().outcome()).isEqualTo(EpssFeed.Outcome.APPLIED);
+            switched.countDown();
+
+            assertThat(read.get(60, TimeUnit.SECONDS))
+                    .as("the generation the reader read was deleted under it")
+                    .containsKey(cve(7));
+            assertThat(read.get().get(cve(7)).score()).isEqualTo(score(7, 0));
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(feed.scoresOf(List.of(cve(7))).get(cve(7)).score()).isEqualTo(score(7, 5));
     }
 
     @Test

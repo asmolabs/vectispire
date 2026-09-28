@@ -164,7 +164,7 @@ class EpssRoutesTest extends ApiTestBase {
         Instant now = Instant.now();
         syncs.save(new ThreatIntelSyncEntity());
         syncs.claimEpss(ThreatIntelSyncEntity.SINGLETON_ID, now, now.plusSeconds(60), generation);
-        syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, now, "v2025.03.14", now, 1);
+        syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, null, now, "v2025.03.14", now, 1);
         mvc.perform(authenticated(get("/api/v1/epss/cve/cve-2021-44228"), token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cveId").value("CVE-2021-44228"))

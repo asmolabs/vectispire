@@ -71,6 +71,13 @@ public class ThreatIntelSyncEntity {
     @Column(name = "epss_generation")
     private Long epssGeneration;
 
+    /**
+     * The generation in use before the current one, kept until the next file is applied: a reader
+     * that read the row just before the switch still finds the rows it asks for (V47).
+     */
+    @Column(name = "epss_previous_generation")
+    private Long epssPreviousGeneration;
+
     @Column(name = "epss_attempt_at")
     private Instant epssAttemptAt;
 
@@ -131,6 +138,14 @@ public class ThreatIntelSyncEntity {
 
     public void setEpssGeneration(Long epssGeneration) {
         this.epssGeneration = epssGeneration;
+    }
+
+    public Long getEpssPreviousGeneration() {
+        return epssPreviousGeneration;
+    }
+
+    public void setEpssPreviousGeneration(Long epssPreviousGeneration) {
+        this.epssPreviousGeneration = epssPreviousGeneration;
     }
 
     public Instant getEpssAttemptAt() {

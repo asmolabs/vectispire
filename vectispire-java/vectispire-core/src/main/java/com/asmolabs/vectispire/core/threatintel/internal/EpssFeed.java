@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -41,8 +42,15 @@ import org.springframework.stereotype.Component;
  * held for the 380,000 rows and SQLite's writers wait milliseconds, not seconds — then checks it and
  * points the sync row at it ({@link ThreatIntelSyncRepository#applyEpss}). Every reader reads the
  * generation the row names: until that update commits the previous scores are the ones in use, and a
- * file refused half-way, or a synchronisation that dies, leaves nothing a reader sees. The generation
- * that was replaced, or the one that was refused, is deleted afterwards in batches.
+ * file refused half-way, or a synchronisation that dies, leaves nothing a reader sees. A refused
+ * generation is deleted afterwards in batches.
+ *
+ * <p><b>The generation replaced is kept until the next one is applied.</b> A reader reads the row,
+ * then the scores of the generation it names — two statements, and a switch can fall between them.
+ * The replaced generation was deleted the moment the new one was applied, so a scan enriched at that
+ * instant asked for rows that were gone and got no score for any of its CVE: unknown, where the file
+ * in use scored every one, and nothing said so. The row now names the previous generation too, and
+ * applying file N deletes N-2 rather than N-1 — a reader of N-1 has a whole day to finish.
  *
  * <p><b>The generation is random, not the next number.</b> It is also the claim's token: a
  * synchronisation whose lease ran out while it was still writing must not share a generation with the
@@ -96,9 +104,6 @@ public class EpssFeed {
 
     /** Identifiers per lookup, under every engine's bind-parameter ceiling. */
     static final int LOOKUP_BATCH = 500;
-
-    /** Never a generation: the lookup of "every generation but the one in use" before there is one. */
-    private static final long NO_GENERATION = -1;
 
     private static final int ERROR_MAX = 500;
 
@@ -204,11 +209,12 @@ public class EpssFeed {
     private Attempt run(long generation) {
         ThreatIntelSyncEntity before = syncs.findById(ThreatIntelSyncEntity.SINGLETON_ID).orElseThrow();
         Long current = before.getEpssGeneration();
+        Long previous = before.getEpssPreviousGeneration();
 
         EpssFile.Read read;
         try {
             // Left by a synchronisation that was refused or died before it cleaned up.
-            discardAllBut(current, generation);
+            discardAllBut(generation, current, previous);
             // Fetched whole before anything is written: no transaction and no row wait on the network.
             byte[] file = source.fetch();
             read = EpssFile.read(new ByteArrayInputStream(file), WRITE_BATCH, new Writer(before, generation));
@@ -227,7 +233,7 @@ public class EpssFeed {
                         + " were stored: its rows were removed while it was written, by a synchronisation that took "
                         + "over an expired claim");
             }
-            if (syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, clock.instant(),
+            if (syncs.applyEpss(ThreatIntelSyncEntity.SINGLETON_ID, generation, current, clock.instant(),
                             read.header().modelVersion(), read.header().scoreDate(), read.rows())
                     == 0) {
                 throw new IllegalStateException("the claim on the EPSS feed ran out before the file was applied");
@@ -250,8 +256,10 @@ public class EpssFeed {
         } catch (RuntimeException failure) {
             log.warn("EPSS file applied, but the open issues were not all re-scored: {}", reason(failure));
         }
-        if (current != null) {
-            discardQuietly(current);
+        // N-2, not the generation just replaced: a reader that read the row before the switch is
+        // still reading that one.
+        if (previous != null && !previous.equals(current)) {
+            discardQuietly(previous);
         }
         log.info("EPSS file {} of {} synchronised: {} CVE scored, {} open issue(s) re-scored.",
                 read.header().modelVersion(), read.header().scoreDate(), read.rows(), rescored);
@@ -345,12 +353,13 @@ public class EpssFeed {
         }
     }
 
-    /** Every generation but the one in use and the one being written. */
-    private void discardAllBut(Long current, long writing) {
-        for (long generation : scores.generationsOtherThan(current == null ? NO_GENERATION : current)) {
-            if (generation != writing) {
-                discard(generation);
-            }
+    /** Every generation but the one being written, the one in use and the one it replaced. */
+    private void discardAllBut(long writing, Long current, Long previous) {
+        List<Long> keep = new ArrayList<>(List.of(writing));
+        Optional.ofNullable(current).ifPresent(keep::add);
+        Optional.ofNullable(previous).ifPresent(keep::add);
+        for (long generation : scores.generationsOtherThan(keep)) {
+            discard(generation);
         }
     }
 
