@@ -7,7 +7,8 @@ la même table, listées ensemble sur la page **Agents**.
 configuration — ce qui est pourquoi une installation mono-machine fonctionne d'emblée.
 
 **Les agents distants** sont des processus de travail séparés sur d'autres machines, parlant un
-protocole court : `hello`, `sealing-key` (pour un agent `delegated`), `jobs`, `rules`, `heartbeat`, `result`.
+protocole court : `hello`, `sealing-key` (pour un agent `delegated`), `jobs`, `rules`, `heartbeat`, `result`,
+et `failure` pour une analyse prise qu'il n'a pas pu exécuter.
 
 Deux durées le traversent, sous deux formes différentes, pour qui écrit un client d'après le
 contrat publié. `GET /api/v1/agent/jobs?wait=30` prend l'attente du long-poll en **secondes
@@ -100,8 +101,9 @@ relevée ou abaissée, sans redémarrage.
 
 **Arrêter un agent attend ses analyses.** Sur `SIGTERM` — `docker stop`, une mise à jour progressive
 — il cesse de prendre du travail et attend que les analyses en cours soient rendues. Les abandonner
-coûterait plus cher qu'attendre : le protocole n'a pas d'appel pour rendre une analyse, donc une
-analyse abandonnée garde son bail jusqu'à ce qu'il expire (20 minutes après son dernier signe de
+coûterait plus cher qu'attendre : le protocole n'a pas d'appel pour rendre une analyse sans l'avoir
+exécutée — `failure` dit qu'elle n'a pas pu l'être et consomme une tentative, et un arrêt n'est ni l'un
+ni l'autre —, donc une analyse abandonnée garde son bail jusqu'à ce qu'il expire (20 minutes après son dernier signe de
 vie), puis revient dans la file en ayant consommé l'une de ses trois tentatives, et son travail est
 perdu. Donnez au conteneur un délai d'arrêt aussi long que votre analyse la plus longue —
 `stop_grace_period: 30m` dans compose ; le défaut de Docker est de 10 secondes.
@@ -110,6 +112,36 @@ Si le processus est tué avant — ou si la machine tombe —, c'est exactement 
 produit. Jusque-là ses analyses comptent encore dans sa limite, si bien qu'un agent redémarré aussitôt
 ne prend que ce qui reste ; une fois expirées, elles ne comptent plus, avant même que la file les
 ait remises en attente.
+
+### Quand une analyse ne peut pas s'exécuter sur un agent
+
+Un clonage refusé — une clé d'hôte qui a changé, une clé de déploiement que la forge ne connaît pas —,
+un espace de travail impossible à créer, un identifiant délégué qui ne s'ouvre pas : tout ce qui arrête
+l'agent avant qu'un résultat existe. **L'agent le dit aussitôt** (`POST /api/v1/agent/jobs/{id}/failure`),
+et l'analyse va là où l'expiration de son bail l'aurait envoyée vingt minutes plus tard : de retour
+dans la file avec la tentative comptée, ou en échec définitif à la troisième. **La raison est sur
+l'analyse**, dans l'historique et sur sa page — *Attempt 1 of 3 could not run on agent "edge"; the scan
+is back in the queue: …* —, y compris pendant qu'elle attend sa tentative suivante, et chaque rapport
+est audité sous `AGENT_SCAN_FAILED`.
+
+- **Nettoyée avant de quitter l'agent, et de nouveau à l'arrivée.** L'agent retire du texte, par leur
+  valeur, la clé de déploiement, le jeton, sa clé API et sa clé de signature ; le plan de contrôle
+  retire tout ce qui a la forme d'un secret (la partie utilisateur d'une URL, un bloc de clé privée, un
+  jeton porteur). Une ligne, 1 000 caractères au plus.
+- **Signée comme un résultat.** Un agent dont la clé de signature est épinglée signe le rapport avec
+  elle (dans un contexte propre : la signature d'un résultat ne vaut pas pour un rapport), faute de quoi
+  il est refusé en 403 et audité sous `AGENT_RESULT_REFUSED` — sans quoi une clé API volée pourrait
+  consommer toutes les tentatives de toutes les analyses qu'elle prend.
+- **Une fois, pour cette tentative.** Le rapport nomme la tentative que la prise a remise à l'agent ;
+  un rapport envoyé deux fois, ou portant sur une tentative que l'analyse a dépassée depuis, reçoit un
+  409 et ne change rien — tout comme celui d'un agent qui ne détient pas l'analyse.
+- **Un plan de contrôle plus ancien répond 404**, et l'agent revient à ce qu'il a toujours fait — le
+  bail expire, et la raison n'est que dans le journal de l'agent, qui le dit. Un agent plus ancien face
+  à ce plan de contrôle n'envoie pas de rapport, et ses échecs se terminent comme avant.
+
+Une nouvelle tentative, c'est souvent le même agent : avec un seul agent, une analyse dont le clonage
+est refusé consomme ses trois tentatives en autant d'interrogations et échoue avec la raison, là où il
+lui fallait une heure.
 
 ## Modes d'identifiants {#credentials-modes}
 
@@ -209,7 +241,8 @@ VECTISPIRE_AGENT_SIGNING_KEY=<la valeur affichée une seule fois>
 ```
 
 Posez-la dans la configuration de l'agent et redémarrez-le. Tant qu'il ne l'a pas, ses résultats
-sont refusés en 403 et le refus est écrit au journal d'audit sous `AGENT_RESULT_REFUSED`.
+sont refusés en 403 et le refus est écrit au journal d'audit sous `AGENT_RESULT_REFUSED` ; ses rapports
+d'échec aussi.
 
 Préférez générer la paire vous-même si vous tenez à ce que la moitié privée n'ait jamais existé
 ici : `PUT /api/v1/admin/agents/{id}/signing-key` accepte une clé publique en base64 à la place du

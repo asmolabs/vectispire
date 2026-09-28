@@ -7,7 +7,8 @@ table, listed together on the **Agents** page.
 configuration — which is why a single-machine install works out of the box.
 
 **Remote agents** are separate worker processes on other machines, speaking a short
-protocol: `hello`, `sealing-key` (for a `delegated` agent), `jobs`, `rules`, `heartbeat`, `result`.
+protocol: `hello`, `sealing-key` (for a `delegated` agent), `jobs`, `rules`, `heartbeat`, `result`,
+and `failure` for a scan it claimed and could not run.
 
 Two durations cross it, in two different forms, for anyone writing a client against the
 published contract. `GET /api/v1/agent/jobs?wait=30` takes the long-poll wait as **whole
@@ -96,7 +97,8 @@ poll — raised or lowered, without a restart.
 
 **Stopping an agent waits for its scans.** On `SIGTERM` — `docker stop`, a rolling update — it stops
 claiming and waits for the scans in progress to be handed back. Abandoning them would cost more
-than waiting: the protocol has no call to give a scan back, so an abandoned scan keeps its lease
+than waiting: the protocol has no call to give a scan back unrun — `failure` says the scan could
+not run and spends an attempt, and a stop is neither — so an abandoned scan keeps its lease
 until it lapses (20 minutes after its last heartbeat), then returns to the queue having used one of
 its three attempts, and its work is lost. Give the container a grace period as long as your longest
 scan — `stop_grace_period: 30m` in compose; Docker's default is 10 seconds.
@@ -104,6 +106,34 @@ scan — `stop_grace_period: 30m` in compose; Docker's default is 10 seconds.
 If the process is killed first — or the machine dies — that lapse is exactly what happens. Until
 then its scans still count against its limit, so an agent restarted at once claims only what is
 left; once they lapse they no longer count, even before the queue puts them back.
+
+### When a scan cannot run on an agent
+
+A clone refused — a host key that changed, a deployment key the forge does not know — a workspace
+that could not be made, a delegated credential that would not open: anything that stops the agent
+before a result exists. **The agent says so at once** (`POST /api/v1/agent/jobs/{id}/failure`), and
+the scan goes where its lapsing lease would have sent it twenty minutes later: back in the queue with
+the attempt counted, or failed for good at its third. **The reason is on the scan**, in the history
+and the scan's page — *Attempt 1 of 3 could not run on agent "edge"; the scan is back in the queue:
+…* — while it waits for its next attempt too, and each report is audited as `AGENT_SCAN_FAILED`.
+
+- **Scrubbed before it leaves the agent, and again on arrival.** The agent removes the deployment key,
+  the token, its API key and its signing key from the text by value; the control plane removes
+  whatever has a secret's shape (a URL's user part, a private key block, a bearer token). One line, at
+  most 1,000 characters.
+- **Signed like a result.** An agent whose signing key is pinned signs the report with it (its own
+  context: a result's signature does not pass for a report's), or it is refused with 403 and audited
+  as `AGENT_RESULT_REFUSED` — otherwise a stolen API key could spend every attempt of every scan it
+  claims.
+- **Once, for that attempt.** The report names the attempt the claim handed the agent; a report sent
+  twice, or one about an attempt the scan has since moved past, answers 409 and changes nothing — as
+  does one from an agent that does not hold the scan.
+- **An older control plane answers 404**, and the agent falls back to what it always did — the lease
+  lapses, and the reason is in the agent's log only; it says so there. An older agent against this
+  control plane sends no report, and its failures end as they did.
+
+A retry is often the same agent: with one agent, a scan whose clone is refused uses its three attempts
+in as many polls and fails with the reason, where it used to take an hour.
 
 ## Credentials modes
 
@@ -194,7 +224,8 @@ VECTISPIRE_AGENT_SIGNING_KEY=<the value shown once>
 ```
 
 Put it in the agent's configuration and restart it. Until it has the key, its results are refused
-with 403 and the refusal is written to the audit log as `AGENT_RESULT_REFUSED`.
+with 403 and the refusal is written to the audit log as `AGENT_RESULT_REFUSED`; so are its failure
+reports.
 
 Prefer generating the pair yourself if you would rather the private half never existed here at all:
 `PUT /api/v1/admin/agents/{id}/signing-key` accepts a base64 public key instead of the word

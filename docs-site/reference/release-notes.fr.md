@@ -184,6 +184,13 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `targetVersion` et `remediation.suggestedVersion` valent null quand rien n'est enregistré, au lieu
   de « the component », « current » ou « the fixed version », et l'avis d'un modèle ne porte plus
   de justification VEX.
+- **Le protocole des agents a un septième appel**, `POST /api/v1/agent/jobs/{id}/failure` : une analyse
+  que l'agent a prise et n'a pas pu exécuter est signalée aussitôt avec sa raison — remise en file avec
+  la tentative comptée, ou en échec à la dernière — au lieu d'attendre vingt minutes l'expiration de
+  son bail. La réponse à la prise porte l'`attempt` que le rapport nomme ; un agent plus ancien l'ignore.
+  Signé comme un résultat quand la clé de l'agent est épinglée, audité sous `AGENT_SCAN_FAILED`. Un
+  agent de cette version revient à l'expiration face à un plan de contrôle plus ancien (404). Voir
+  [Agents](../administration/agents.md#quand-une-analyse-ne-peut-pas-sexecuter-sur-un-agent).
 
 ### Nouveautés
 

@@ -162,6 +162,12 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   any catalogue had been read. `deterministic.packageName`, `currentVersion`, `targetVersion` and
   `remediation.suggestedVersion` are null when nothing is recorded, rather than "the component",
   "current" or "the fixed version", and a model's advice no longer carries a VEX justification.
+- **The agent protocol has a seventh call**, `POST /api/v1/agent/jobs/{id}/failure`: a scan the agent
+  claimed and could not run is reported at once with its reason — requeued with the attempt counted,
+  or failed at the last — instead of waiting twenty minutes for its lease to lapse. The claim's answer
+  carries the `attempt` the report names; an older agent reads past it. Signed like a result when the
+  agent's key is pinned, audited as `AGENT_SCAN_FAILED`. An agent of this version falls back to the
+  lapse against an older control plane (404). See [Agents](../administration/agents.md#when-a-scan-cannot-run-on-an-agent).
 
 ### New
 
