@@ -97,7 +97,9 @@ qu'il faut faire :
   agent `local` du profil `with-agent` clone avec `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, vide sauf
   si vous y placez une clé dédiée.
 - **Votre propre composition ou vos manifestes :** ajoutez `-Duser.home=<répertoire de travail>/home`
-  à `JDK_JAVA_OPTIONS`.
+  à `JDK_JAVA_OPTIONS`. Sans cela, les images se rabattent désormais sur `HOME=/home/vectispire`,
+  qu'un simple `docker run` peut écrire mais qui disparaît avec le conteneur — les hôtes qui y
+  sont inscrits sont rencontrés à nouveau comme nouveaux.
 - **Hors conteneur,** un clone avec clé ne lit plus le `~/.ssh/config` de l'utilisateur : un alias
   `Host`, un `Port` ou un `ProxyJump` qui s'y trouve cesse de s'y appliquer. Mettez l'hôte et le
   port réels dans l'URL du dépôt. Les hôtes déjà présents dans `~/.ssh/known_hosts` restent

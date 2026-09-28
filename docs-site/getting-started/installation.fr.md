@@ -92,14 +92,16 @@ docker compose --profile with-agent up -d
       montez un répertoire de l'hôte au même chemin et faites-y pointer le répertoire temporaire de
       la JVM (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<chemin>`). Laissé au `/tmp` du conteneur, chaque
       analyseur reçoit un répertoire vide et chaque analyse échoue.
-    - **Le même répertoire porte le home du processus**, `home/` en dessous (`-Duser.home`) : les
-      images tournent en 1000 sans compte de ce numéro, si bien que sans lui le home est `/`, que
-      cet utilisateur ne peut pas écrire — et chaque clone SSH avec clé de déploiement échouait
-      (« The known-hosts file could not be prepared: /.ssh »). C'est là que les clés d'hôte des
-      forges sont inscrites, `home/.ssh/known_hosts`, et conservées d'un redémarrage à l'autre ;
-      l'agent a le sien sous `VECTISPIRE_AGENT_WORK_DIR`. Pour les épingler à l'avance, voir
-      [En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys). Hors de cette
-      composition, ajoutez aussi `-Duser.home=<chemin>/home` à `JDK_JAVA_OPTIONS`.
+    - **Le même répertoire porte le home du processus**, `home/` en dessous (`-Duser.home`). C'est
+      là que les clés d'hôte des forges sont inscrites, `home/.ssh/known_hosts`, et conservées d'un
+      redémarrage à l'autre ; l'agent a le sien sous `VECTISPIRE_AGENT_WORK_DIR`. Pour les épingler
+      à l'avance, voir [En SSH : la clé d'hôte de la forge](../guide/repositories.md#ssh-host-keys).
+      Les images tournent en 1000 sans compte de ce numéro et portent `HOME=/home/vectispire`, si
+      bien qu'un simple `docker run` a lui aussi un home inscriptible — mais dans la couche propre
+      du conteneur, perdue avec lui : un hôte qui y est inscrit est rencontré à nouveau comme
+      nouveau après une recréation, et sous `--read-only` le home ne peut pas être écrit du tout.
+      Hors de cette composition, ajoutez aussi `-Duser.home=<chemin>/home` à `JDK_JAVA_OPTIONS`,
+      ou montez un volume sur `/home/vectispire` ; l'option l'emporte sur le `HOME` de l'image.
     - **Votre propre `~/.ssh` n'est pas monté**, et `VECTISPIRE_HOST_SSH` vaut `false` ici :
       attachez une clé de déploiement à chaque dépôt privé. La composition le montait en lecture
       seule, là où le processus ne le lisait jamais — et l'eût-il lu, il aurait remis toutes vos

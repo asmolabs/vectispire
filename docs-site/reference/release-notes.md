@@ -86,6 +86,8 @@ is `$VECTISPIRE_WORK_DIR/home` (the agent's under `$VECTISPIRE_AGENT_WORK_DIR`),
   `with-agent` profile clones with `$VECTISPIRE_AGENT_WORK_DIR/home/.ssh`, empty unless you put a
   dedicated key there.
 - **Your own composition or manifests:** add `-Duser.home=<work dir>/home` to `JDK_JAVA_OPTIONS`.
+  Without it, the images now fall back to `HOME=/home/vectispire`, which a plain `docker run` can
+  write but which is lost with the container — hosts recorded there are met again as new.
 - **Outside a container,** a clone with a key no longer reads the running user's `~/.ssh/config`:
   a `Host` alias, `Port` or `ProxyJump` there stops applying to it. Put the real host and port in
   the repository URL. Hosts already in `~/.ssh/known_hosts` stay checked against it.

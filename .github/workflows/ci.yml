@@ -421,6 +421,24 @@ jobs:
             fi
             sleep 1
           done
+      # **A plain `docker run` has a home its user can write, and a `-Duser.home` still wins.** The
+      # images run as 1000 with no passwd entry, so outside the composition `user.home` was `/` and
+      # every keyed SSH clone failed ("The known-hosts file could not be prepared: /.ssh"). The home
+      # is the image's `HOME`, which the JVM falls back to only when the account names none — a flag
+      # in Jib's `jvmFlags` would have come after `JDK_JAVA_OPTIONS` and overridden the composition's.
+      - name: both images have a writable home, and the composition's flag wins
+        run: |
+          for img in vectispire:latest vectispire-agent:latest; do
+            docker run --rm --entrypoint sh "$img" -c '
+              home=$(java -XshowSettings:properties -version 2>&1 | sed -n "s/^ *user.home = //p")
+              [ "$home" = /home/vectispire ] || { echo "user.home is [$home]"; exit 1; }
+              mkdir -p "$home/.ssh" && : > "$home/.ssh/known_hosts"' \
+              || { echo "$img: no writable home"; exit 1; }
+            home=$(docker run --rm --entrypoint java -e JDK_JAVA_OPTIONS=-Duser.home=/tmp/elsewhere "$img" \
+              -XshowSettings:properties -version 2>&1 | sed -n 's/^ *user.home = //p')
+            [ "$home" = /tmp/elsewhere ] || { echo "$img: -Duser.home lost to the image, got [$home]"; exit 1; }
+          done
+          echo "both images: home /home/vectispire, overridden by JDK_JAVA_OPTIONS"
       # **And the composition is asked to scan something, because nothing ever did.** Every job here
       # and in the nightly started the control plane with its worker off, so for as long as
       # `docker-compose.yml` existed its scans failed on every host and no machine noticed: the

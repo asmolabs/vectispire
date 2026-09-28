@@ -215,13 +215,16 @@ services:
       # `JDK_JAVA_OPTIONS` rather than `JAVA_TOOL_OPTIONS`: the launcher reads it, and an operator
       # who sets the other one for a proxy does not silently take this away.
       #
-      # **And the home is set, because the image has none.** It runs as 1000 with no passwd entry,
-      # so `user.home` was `/`: the known-hosts file an SSH clone records its hosts in could not be
-      # created, and every clone with a deployment key failed ("The known-hosts file could not be
-      # prepared: /.ssh"), along with JGit's own configuration ("Creating directories for
-      # /.config/jgit failed"). Under the work directory it is writable, this process's alone — the
-      # agent has its own — and it survives a restart, so a host recorded once is checked against
-      # from then on rather than met again. Scanners are handed their workspace, never this.
+      # **And the home is set, because the image's own does not last.** It runs as 1000 with no
+      # passwd entry; until the image carried `HOME=/home/vectispire`, `user.home` was `/`: the
+      # known-hosts file an SSH clone records its hosts in could not be created, and every clone
+      # with a deployment key failed ("The known-hosts file could not be prepared: /.ssh"), along
+      # with JGit's own configuration ("Creating directories for /.config/jgit failed"). The image's
+      # home is in the container's writable layer, gone with the container. Under the work directory
+      # it is this process's alone — the agent has its own — and it survives a re-creation, so a host
+      # recorded once is checked against from then on rather than met again. This flag wins over the
+      # image's `HOME`, which the JVM reads only when nothing names the home. Scanners are handed
+      # their workspace, never this.
       JDK_JAVA_OPTIONS: >-
         -Djava.io.tmpdir=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}
         -Duser.home=${VECTISPIRE_WORK_DIR:-/var/lib/vectispire/work}/home

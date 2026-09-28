@@ -89,14 +89,16 @@ docker compose --profile with-agent up -d
       directory at the same path and point the JVM's temporary directory at it
       (`JDK_JAVA_OPTIONS=-Djava.io.tmpdir=<path>`). Left at the container's own `/tmp`, every
       scanner is handed an empty directory and every scan fails.
-    - **The same directory holds the process's home**, `home/` under it (`-Duser.home`): the
-      images run as 1000 with no account of that number, so without it the home is `/`, which that
-      user cannot write — and every SSH clone with a deploy key failed ("The known-hosts file could
-      not be prepared: /.ssh"). That is where the forges' host keys are recorded,
-      `home/.ssh/known_hosts`, and kept across restarts; the agent has its own under
-      `VECTISPIRE_AGENT_WORK_DIR`. To pin them in advance, see
-      [Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys). Outside this
-      composition, add `-Duser.home=<path>/home` to `JDK_JAVA_OPTIONS` as well.
+    - **The same directory holds the process's home**, `home/` under it (`-Duser.home`). That is
+      where the forges' host keys are recorded, `home/.ssh/known_hosts`, and kept across restarts;
+      the agent has its own under `VECTISPIRE_AGENT_WORK_DIR`. To pin them in advance, see
+      [Over SSH: the forge's host key](../guide/repositories.md#ssh-host-keys). The images run as
+      1000 with no account of that number and carry `HOME=/home/vectispire`, so a plain
+      `docker run` has a writable home too — but in the container's own layer, lost with the
+      container: a host recorded there is met again as new after a re-creation, and under
+      `--read-only` the home cannot be written at all. Outside this composition, add
+      `-Duser.home=<path>/home` to `JDK_JAVA_OPTIONS` as well, or mount a volume at
+      `/home/vectispire`; the flag wins over the image's `HOME`.
     - **Your own `~/.ssh` is not mounted**, and `VECTISPIRE_HOST_SSH` is `false` here: attach a
       deploy key to each private repository. The composition used to mount it read-only, where the
       process never read it — and had it been read, it would have handed every key you hold to the

@@ -409,6 +409,14 @@ jib {
         mainClass = "com.asmolabs.vectispire.core.VectispireApplication"
         creationTime = "EPOCH"
         jvmFlags = listOf("-XX:MaxRAMPercentage=75")
+        // **A home, because the image has no account.** 1000 has no passwd entry here, so the JVM
+        // falls back to `HOME`, which Docker sets to `/` when the image names none: `user.home` was
+        // `/`, and outside the composition every keyed SSH clone failed with "The known-hosts file
+        // could not be prepared: /.ssh". The fallback is the JDK's, taken only when the account
+        // gives no home — and that is why it is `HOME` and not `-Duser.home` in `jvmFlags`: those
+        // come after `JDK_JAVA_OPTIONS` on the command line and would win over the composition's
+        // `-Duser.home` under the work directory, which is persistent where this one is not.
+        environment = mapOf("HOME" to "/home/vectispire")
     }
     extraDirectories {
         // The licence and the notice travel with every copy — Apache-2.0 clause 4 — and the audit
@@ -425,7 +433,9 @@ jib {
         // The sticky bit would narrow it further, and Jib will not take one — it accepts three
         // octal digits only. What keeps 777 defensible is that a single process runs here, as a
         // single unprivileged user, in a container whose root filesystem it does not own.
-        permissions = mapOf("/var/lib/vectispire/audit" to "777")
+        // The home takes 777 for the same reason: root-owned, it must still let 1000 create `.ssh`
+        // (which is then 1000's own) and JGit's `.config`.
+        permissions = mapOf("/var/lib/vectispire/audit" to "777", "/home/vectispire" to "777")
     }
 }
 
@@ -441,6 +451,7 @@ val jibExtras = tasks.register<Copy>("jibExtras") {
         // ownership included, so this directory existing is what stops the volume arriving
         // root-owned and every audit-mirror append failing on a permission error.
         layout.buildDirectory.dir("jib-extra/var/lib/vectispire/audit").get().asFile.mkdirs()
+        layout.buildDirectory.dir("jib-extra/home/vectispire").get().asFile.mkdirs()
     }
 }
 

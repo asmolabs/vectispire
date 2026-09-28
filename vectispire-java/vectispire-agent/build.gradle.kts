@@ -127,9 +127,16 @@ jib {
         mainClass = "com.asmolabs.vectispire.agent.VectispireAgentApplication"
         creationTime = "EPOCH"
         jvmFlags = listOf("-XX:MaxRAMPercentage=75")
+        // A home the JVM falls back to, the account having none — see the control plane's image:
+        // same defect ("The known-hosts file could not be prepared: /.ssh" on a plain `docker run`),
+        // same cure, and `HOME` rather than a flag so the composition's `-Duser.home` still wins.
+        environment = mapOf("HOME" to "/home/vectispire")
     }
     extraDirectories {
         setPaths(listOf(layout.buildDirectory.dir("jib-extra").get().asFile))
+        // Root-owned whatever is asked (Jib sets no owner), so writable by all for 1000 to create
+        // its `.ssh` in; one process, one user, in a container.
+        permissions = mapOf("/home/vectispire" to "777")
     }
 }
 
@@ -139,6 +146,9 @@ val jibExtras = tasks.register<Copy>("jibExtras") {
         into("app")
     }
     into(layout.buildDirectory.dir("jib-extra"))
+    doLast {
+        layout.buildDirectory.dir("jib-extra/home/vectispire").get().asFile.mkdirs()
+    }
 }
 
 tasks.matching { it.name.startsWith("jib") && it.name != "jibExtras" }.configureEach {
