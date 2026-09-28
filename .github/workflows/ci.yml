@@ -428,7 +428,11 @@ jobs:
       # four scanners ran as a root that could not read the workspace. The script starts the file as
       # shipped (under its own project name), registers a local fixture repository and runs one scan
       # with the cataloguer and the secrets scanner for real — the matcher's 3 GB database is left
-      # out on purpose — and fails unless both read the tree. Minutes, not the campaign's forty.
+      # out on purpose — and fails unless both read the tree. Then the same repository over SSH with
+      # a deploy key registered through the API, which had never once cloned through the composition
+      # (no home for the image's user, and a host-key check that refused every first contact), and
+      # again after the fixture changes its host key, which must be refused. Minutes, not the
+      # campaign's forty.
       - name: the composition scans
         run: ./scripts/composition-scan-check.sh
       - if: always()
