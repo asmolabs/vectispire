@@ -135,6 +135,16 @@ describe('the solutions tree', () => {
         useEnglish();
     }, 20_000);
 
+    it('links a project seen whole to its security checklist, and a partial one to nothing: it would answer 404', async () => {
+        await mount('AUDITOR');
+
+        const ledger = page().querySelector('[data-testid="project-12"] [data-testid="project-checklist"]');
+        expect(ledger?.getAttribute('href')).toBe('/projects/12/checklist');
+        expect(ledger?.getAttribute('aria-label')).toBe('Security checklist of Ledger');
+        expect(page().querySelector('[data-testid="project-21"] [data-testid="project-checklist"]')).not.toBeNull();
+        expect(page().querySelector('[data-testid="project-11"] [data-testid="project-checklist"]')).toBeNull();
+    });
+
     it('draws solutions, their projects and their repositories, with counts and severities', async () => {
         await mount('USER');
 

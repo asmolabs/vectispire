@@ -2405,3 +2405,150 @@ export type ChecklistPreview = Refine<
         pairing: ChecklistPairingChange[];
     }
 >;
+
+/**
+ * Where a revision of a project's checklist stands (decision 0032 §5) — `ChecklistStatus.wireName()`.
+ * A draft is answered; a submitted one waits for a sign-off or a return; a signed-off one is never
+ * modified again, only reopened as the next revision; a superseded one is an open revision set aside
+ * by a move to another version.
+ */
+export type ChecklistStatus = 'draft' | 'submitted' | 'signed_off' | 'superseded';
+
+/** An answer, `ChecklistAnswer.wireName()`; `not_applicable` only on a version that offers it. */
+export type ChecklistAnswerValue = 'yes' | 'no' | 'not_applicable';
+
+/**
+ * What keeps a line from a submission, in the order a person fixes them — `ProjectChecklistService.problems`.
+ * A proof is asked of a "yes" only.
+ */
+export type ChecklistLineProblem =
+    'unanswered' | 'awaiting_confirmation' | 'comment_required' | 'evidence_required' | 'evidence_expired';
+
+/** What a line asks as proof of a "yes" — `EvidenceRequirement.Kind.wireName()`. */
+export type ChecklistEvidenceKind = 'none' | 'link_or_file' | 'file';
+
+/**
+ * One revision as a listing shows it. `edition` counts its writes: every write names the edition
+ * the person read, and the server refuses one that is stale.
+ */
+export type ChecklistRevisionSummary = Refine<
+    Schema<'ChecklistRevisionSummary'>,
+    {
+        status: ChecklistStatus;
+        templateSlug: string;
+        templateName: string;
+        versionLabel: string | null;
+        author: string;
+        openedAt: string;
+        openedBy: string;
+        supersedesRevision: number | null;
+        submittedAt: string | null;
+        submittedBy: string | null;
+        returnedAt: string | null;
+        returnedBy: string | null;
+        returnReason: string | null;
+        signedOffAt: string | null;
+        signedOffBy: string | null;
+        signOffFourEyes: boolean | null;
+        supersededAt: string | null;
+        supersededBy: string | null;
+    }
+>;
+
+/**
+ * One answer as given, a row of the line's history. A carried copy keeps the author and instant of
+ * the answer it came from and names who carried it; `needsConfirmation` marks one carried onto a
+ * line that changed.
+ */
+export type ChecklistAnswer = Refine<
+    Schema<'ChecklistAnswerView'>,
+    {
+        id: number;
+        itemId: number;
+        value: ChecklistAnswerValue;
+        comment: string | null;
+        answeredBy: string;
+        answeredAt: string;
+        measurementId: number | null;
+        carriedFromId: number | null;
+        carriedBy: string | null;
+        carriedAt: string | null;
+        edition: number;
+    }
+>;
+
+/** A proof: a link, or a file known by its name, size and digest — its bytes only as a download. */
+export type ChecklistEvidence = Refine<
+    Schema<'ChecklistEvidenceView'>,
+    {
+        id: number;
+        itemId: number;
+        kind: 'link' | 'file';
+        link: string | null;
+        fileName: string | null;
+        mediaType: string | null;
+        fileSize: number | null;
+        fileSha256: string | null;
+        performedOn: string;
+        validUntil: string | null;
+        addedBy: string;
+        addedAt: string;
+        carriedFromId: number | null;
+        edition: number;
+        withdrawnBy: string | null;
+        withdrawnAt: string | null;
+    }
+>;
+
+/** One line: the template's words, the current answer (null while unanswered), its proofs and its problems. */
+export type ChecklistLine = Refine<
+    Schema<'ChecklistLineView'>,
+    {
+        itemId: number;
+        itemKey: string;
+        position: number;
+        domain: string | null;
+        objective: string | null;
+        control: string;
+        contact: string | null;
+        kpi: string | null;
+        evidenceKind: ChecklistEvidenceKind;
+        evidenceValidityMonths: number | null;
+        answer: ChecklistAnswer | null;
+        evidence: ChecklistEvidence[];
+        problems: ChecklistLineProblem[];
+    }
+>;
+
+/** The template's own words, as the importer mapped them; `notApplicable` null when not offered. */
+export type ChecklistWords = Refine<
+    Schema<'AnswerWordsView'>,
+    { yes: string; no: string; notApplicable: string | null }
+>;
+
+/**
+ * One revision whole. `authors` are everybody who wrote it — with four-eyes on, none of them signs
+ * it off; `fourEyesRequired` is the setting now. Both are for a hint: the server decides.
+ */
+export type ChecklistView = Refine<
+    Schema<'ChecklistView'>,
+    {
+        checklist: ChecklistRevisionSummary;
+        projectName: string;
+        answerWords: ChecklistWords;
+        authors: string[];
+        lines: ChecklistLine[];
+    }
+>;
+
+/** Every answer and every proof of one line, oldest first, withdrawn proofs included. */
+export type ChecklistLineHistory = Refine<
+    Schema<'ChecklistLineHistory'>,
+    { answers: ChecklistAnswer[]; evidence: ChecklistEvidence[] }
+>;
+
+/** A published template version a project's checklist may be opened on or moved to. */
+export type ChecklistOfferedVersion = Refine<
+    Schema<'ChecklistOfferedVersion'>,
+    { templateSlug: string; templateName: string; label: string | null; publishedAt: string }
+>;

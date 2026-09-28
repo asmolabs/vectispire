@@ -1,10 +1,17 @@
 import type {
+    ChecklistAnswer,
+    ChecklistEvidence,
     ChecklistItem,
     ChecklistLayout,
+    ChecklistLine,
+    ChecklistLineHistory,
+    ChecklistOfferedVersion,
     ChecklistPreview,
+    ChecklistRevisionSummary,
     ChecklistTemplate,
     ChecklistVersion,
-    ChecklistVersionSummary
+    ChecklistVersionSummary,
+    ChecklistView
 } from '../api.models';
 import { asSchema } from './contract';
 
@@ -206,4 +213,239 @@ export const VERSION: ChecklistVersion = asSchema('ChecklistVersionView', {
         item(3, 'Dependencies carry no known critical vulnerability', { kpi: 'Zero critical' })
     ],
     pairs: []
+});
+
+// ---------------------------------------------------------------------- a project's checklist
+
+/**
+ * Project 7, "Gateway", answering version 1 of `release`. Revision 2 is a draft at edition 5, moved
+ * from the signed-off revision 1: line 1 answered and ready, line 2's answer carried onto a line
+ * that changed and awaiting confirmation — with its link proof carried beside it — and line 3, in
+ * another domain, unanswered.
+ */
+export const PROJECT_ID = 7;
+
+export const SIGNED_REVISION: ChecklistRevisionSummary = asSchema('ChecklistRevisionSummary', {
+    projectId: PROJECT_ID,
+    revision: 1,
+    status: 'signed_off',
+    edition: 9,
+    templateSlug: 'release',
+    templateName: 'Release checklist',
+    versionOrdinal: 1,
+    versionLabel: EDITIONS[0],
+    author: 'carol',
+    openedAt: '2026-09-10T08:00:00Z',
+    openedBy: 'carol',
+    supersedesRevision: null,
+    submittedAt: '2026-09-12T08:00:00Z',
+    submittedBy: 'carol',
+    returnedAt: null,
+    returnedBy: null,
+    returnReason: null,
+    signedOffAt: '2026-09-13T08:00:00Z',
+    signedOffBy: 'bob',
+    signOffFourEyes: true,
+    supersededAt: null,
+    supersededBy: null
+});
+
+export const DRAFT_REVISION: ChecklistRevisionSummary = asSchema('ChecklistRevisionSummary', {
+    ...SIGNED_REVISION,
+    revision: 2,
+    status: 'draft',
+    edition: 5,
+    openedAt: '2026-09-20T08:00:00Z',
+    supersedesRevision: 1,
+    submittedAt: null,
+    submittedBy: null,
+    signedOffAt: null,
+    signedOffBy: null,
+    signOffFourEyes: null
+});
+
+const answer = (itemId: number, extra: Partial<ChecklistAnswer> = {}): ChecklistAnswer =>
+    asSchema('ChecklistAnswerView', {
+        id: 500 + itemId,
+        itemId,
+        value: 'yes',
+        comment: null,
+        answeredBy: 'carol',
+        answeredAt: '2026-09-11T08:00:00Z',
+        measurementId: null,
+        carriedFromId: null,
+        carriedBy: null,
+        carriedAt: null,
+        needsConfirmation: false,
+        edition: 2,
+        ...extra
+    });
+
+export const LINK_PROOF: ChecklistEvidence = asSchema('ChecklistEvidenceView', {
+    id: 900,
+    itemId: 102,
+    kind: 'link',
+    link: 'https://wiki.example.invalid/rotation',
+    fileName: null,
+    mediaType: null,
+    fileSize: null,
+    fileSha256: null,
+    performedOn: '2026-09-01',
+    validUntil: '2027-09-01',
+    addedBy: 'carol',
+    addedAt: '2026-09-11T08:00:00Z',
+    carriedFromId: 800,
+    edition: 1,
+    withdrawnBy: null,
+    withdrawnAt: null,
+    inDate: true
+});
+
+export const FILE_PROOF: ChecklistEvidence = asSchema('ChecklistEvidenceView', {
+    ...LINK_PROOF,
+    id: 901,
+    itemId: 101,
+    kind: 'file',
+    link: null,
+    fileName: 'pentest-report.pdf',
+    mediaType: 'application/pdf',
+    fileSize: 2048,
+    fileSha256: 'c'.repeat(64),
+    validUntil: null,
+    carriedFromId: null,
+    edition: 3
+});
+
+const line = (position: number, control: string, extra: Partial<ChecklistLine> = {}): ChecklistLine =>
+    asSchema('ChecklistLineView', {
+        itemId: 100 + position,
+        itemKey: `text:${control.toLowerCase()}`,
+        position,
+        domain: 'Access',
+        objective: 'Least privilege',
+        control,
+        contact: null,
+        kpi: null,
+        evidenceKind: 'none',
+        evidenceValidityMonths: null,
+        answer: null,
+        evidence: [],
+        edition: 0,
+        problems: [],
+        ...extra
+    });
+
+export const READY_LINE = line(1, 'Service accounts hold no interactive login', {
+    contact: 'Platform team',
+    answer: answer(101),
+    evidence: [FILE_PROOF],
+    edition: 3
+});
+
+export const CARRIED_LINE = line(2, 'Secrets are rotated every ninety days', {
+    evidenceKind: 'link_or_file',
+    evidenceValidityMonths: 12,
+    answer: answer(102, {
+        carriedFromId: 402,
+        carriedBy: 'dave',
+        carriedAt: '2026-09-20T08:00:00Z',
+        needsConfirmation: true,
+        edition: 1
+    }),
+    evidence: [LINK_PROOF],
+    edition: 1,
+    problems: ['awaiting_confirmation']
+});
+
+export const OPEN_LINE = line(3, 'Dependencies carry no known critical vulnerability', {
+    domain: 'Supply chain',
+    objective: 'Known vulnerabilities',
+    kpi: 'Zero critical',
+    problems: ['unanswered']
+});
+
+export const CHECKLIST: ChecklistView = asSchema('ChecklistView', {
+    checklist: DRAFT_REVISION,
+    projectName: 'Gateway',
+    offersNotApplicable: true,
+    answerWords: { yes: 'Oui', no: 'Non', notApplicable: 'N/A' },
+    authors: ['carol', 'dave'],
+    fourEyesRequired: true,
+    readyToSubmit: false,
+    lines: [READY_LINE, CARRIED_LINE, OPEN_LINE]
+});
+
+/** The same revision with every line ready: what a submission can be made from. */
+export const READY_CHECKLIST: ChecklistView = asSchema('ChecklistView', {
+    ...CHECKLIST,
+    readyToSubmit: true,
+    lines: [
+        READY_LINE,
+        { ...CARRIED_LINE, answer: { ...CARRIED_LINE.answer!, needsConfirmation: false }, problems: [] },
+        { ...OPEN_LINE, answer: answer(103, { value: 'no', comment: 'Two criticals, fix planned.' }), problems: [] }
+    ]
+});
+
+/** The ready revision, submitted by carol — who, under four-eyes, may not sign it off. */
+export const SUBMITTED_CHECKLIST: ChecklistView = asSchema('ChecklistView', {
+    ...READY_CHECKLIST,
+    readyToSubmit: false,
+    checklist: {
+        ...DRAFT_REVISION,
+        status: 'submitted',
+        edition: 8,
+        submittedAt: '2026-09-25T08:00:00Z',
+        submittedBy: 'carol'
+    }
+});
+
+export const SIGNED_CHECKLIST: ChecklistView = asSchema('ChecklistView', {
+    ...SUBMITTED_CHECKLIST,
+    checklist: {
+        ...SUBMITTED_CHECKLIST.checklist,
+        status: 'signed_off',
+        edition: 9,
+        signedOffAt: '2026-09-26T08:00:00Z',
+        signedOffBy: 'bob',
+        signOffFourEyes: true
+    }
+});
+
+export const OFFERED: ChecklistOfferedVersion[] = [
+    asSchema('ChecklistOfferedVersion', {
+        templateSlug: 'release',
+        templateName: 'Release checklist',
+        ordinal: 1,
+        label: EDITIONS[0],
+        itemCount: 3,
+        offersNotApplicable: true,
+        publishedAt: '2026-09-02T09:00:00Z'
+    }),
+    asSchema('ChecklistOfferedVersion', {
+        templateSlug: 'release',
+        templateName: 'Release checklist',
+        ordinal: 2,
+        label: EDITIONS[1],
+        itemCount: 3,
+        offersNotApplicable: true,
+        publishedAt: '2026-09-27T09:00:00Z'
+    })
+];
+
+export const LINE_HISTORY: ChecklistLineHistory = asSchema('ChecklistLineHistory', {
+    projectId: PROJECT_ID,
+    revision: 2,
+    itemId: 102,
+    answers: [
+        answer(102, {
+            id: 610,
+            value: 'no',
+            comment: 'Not yet automated.',
+            answeredBy: 'erin',
+            answeredAt: '2026-09-21T08:00:00Z',
+            edition: 2
+        }),
+        answer(102, { id: 611, answeredBy: 'dave', answeredAt: '2026-09-22T08:00:00Z', edition: 3 })
+    ],
+    evidence: [{ ...LINK_PROOF, withdrawnBy: 'dave', withdrawnAt: '2026-09-22T09:00:00Z', inDate: false }]
 });

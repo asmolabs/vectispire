@@ -1,0 +1,801 @@
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
+import { SessionStore } from '@/app/core/session.store';
+import {
+    CHECKLIST,
+    DRAFT_REVISION,
+    LINE_HISTORY,
+    OFFERED,
+    PROJECT_ID,
+    READY_CHECKLIST,
+    SIGNED_CHECKLIST,
+    SIGNED_REVISION,
+    SUBMITTED_CHECKLIST
+} from '@/app/core/testing/checklists.fixtures';
+import { useEnglish } from '@/app/core/testing/english';
+import english from '../../../../public/i18n/en.json';
+import french from '../../../../public/i18n/fr.json';
+import {
+    ANSWER_KEYS,
+    CONFLICT_KEYS,
+    CONFLICT_TYPES,
+    EVIDENCE_KIND_KEYS,
+    groupsOf,
+    PROBLEM_KEYS,
+    ProjectChecklist,
+    signOffBlockOf,
+    STATUS_KEYS
+} from './project-checklist';
+
+/**
+ * A project's security checklist (decision 0032 §4, §5, §8), through the DOM.
+ *
+ * What it must get right is who is offered what — the auditor and the platform governor read, the
+ * roles that cause effects write, approvers sign off and, under four-eyes, not an author — that
+ * every write names the edition on screen and adopts the one it gets back, and that each refusal
+ * the server names by its problem type reaches the person as a sentence they can act on.
+ */
+describe('the project checklist screen', () => {
+    let fixture: ComponentFixture<ProjectChecklist>;
+    let http: HttpTestingController;
+
+    const BASE = `/api/v1/projects/${PROJECT_ID}/checklists`;
+
+    // A request left open fails its own case; the reset in `finally` keeps it from failing every case
+    // after it, which would bury the one that matters under forty that do not.
+    afterEach(() => {
+        try {
+            http?.verify();
+        } finally {
+            TestBed.resetTestingModule();
+        }
+    });
+
+    interface Start {
+        revisions?: ChecklistRevisionSummary[];
+        view?: ChecklistView;
+    }
+
+    async function start(role: string, username = 'someone', given: Start = {}): Promise<void> {
+        const view = given.view ?? CHECKLIST;
+        const revisions = given.revisions ?? [view.checklist, SIGNED_REVISION];
+        await TestBed.configureTestingModule({
+            imports: [ProjectChecklist],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        TestBed.inject(SessionStore).open('token', {
+            username,
+            displayName: null,
+            role,
+            mustChangePassword: false,
+            mfaEnabled: false
+        });
+        useEnglish();
+        fixture = TestBed.createComponent(ProjectChecklist);
+        fixture.componentRef.setInput('projectId', String(PROJECT_ID));
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne({ method: 'GET', url: BASE }).flush(revisions);
+        // The versions a checklist may be opened on or moved to are read for those who write only.
+        for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush(OFFERED);
+        if (revisions.length > 0) {
+            http.expectOne({ method: 'GET', url: `${BASE}/${revisions[0].revision}` }).flush(view);
+        }
+        fixture.detectChanges();
+    }
+
+    const dom = () => fixture.nativeElement as HTMLElement;
+    const text = (selector: string) => dom().querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    /** The `<button>` a `p-button` renders, found by the host's id or by its accessible name. */
+    function button(idOrName: string): HTMLButtonElement {
+        const host = dom().querySelector(`[id="${idOrName}"]`);
+        const found =
+            host?.tagName === 'BUTTON'
+                ? host
+                : (host?.querySelector('button') ??
+                  Array.from(dom().querySelectorAll('button')).find(
+                      (candidate) =>
+                          candidate.getAttribute('aria-label') === idOrName ||
+                          candidate.textContent?.trim() === idOrName
+                  ));
+        if (!found) throw new Error(`no button ${idOrName}`);
+        return found as HTMLButtonElement;
+    }
+
+    const has = (selector: string) => dom().querySelector(selector) !== null;
+
+    function type(selector: string, value: string): void {
+        const input = dom().querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
+        input.value = value;
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+    }
+
+    function choose(selector: string, value: string): void {
+        const select = dom().querySelector(selector) as HTMLSelectElement;
+        const index = Array.from(select.options).findIndex((option) => option.textContent?.trim() === value);
+        if (index < 0) throw new Error(`no option ${value} in ${selector}`);
+        select.selectedIndex = index;
+        select.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+    }
+
+    function click(idOrName: string): void {
+        button(idOrName).click();
+        fixture.detectChanges();
+    }
+
+    function tick(selector: string): void {
+        (dom().querySelector(selector) as HTMLInputElement).click();
+        fixture.detectChanges();
+    }
+
+    /** A write's view, one edition on: what every later write must name. */
+    const after = (view: ChecklistView, edition: number): ChecklistView => ({
+        ...view,
+        checklist: { ...view.checklist, edition }
+    });
+
+    function post(url: string): TestRequest {
+        const request = http.expectOne({ method: 'POST', url });
+        return request;
+    }
+
+    function refuse(
+        request: TestRequest,
+        type: string,
+        detail = 'An English sentence the screen must not show.'
+    ): void {
+        request.flush({ type, title: 'Conflict', status: 409, detail }, { status: 409, statusText: 'Conflict' });
+        fixture.detectChanges();
+    }
+
+    // ------------------------------------------------------------------ roles
+
+    it.each([
+        ['AUDITOR', 'reads everything and writes nothing'],
+        ['SUPERUSER', 'governs the platform and fills no checklist']
+    ])('shows the %s — who %s — every line and no write control', async (role) => {
+        await start(role);
+
+        expect(text('[data-testid="line-1"] [data-testid="control"]')).toBe(
+            'Service accounts hold no interactive login'
+        );
+        expect(text('[data-testid="read-only-role"]')).toBe('You read this checklist; your role does not change it.');
+        expect(has('[data-testid="acts"]')).toBe(false);
+        expect(has('[id="answer-101"]')).toBe(false);
+        expect(has('[id="add-evidence-101"]')).toBe(false);
+        expect(has('[id="confirm-102"]')).toBe(false);
+        expect(dom().querySelector('[data-testid="proof-900"]')?.textContent).not.toContain('Withdraw');
+        // The history is read by whoever reads the checklist.
+        expect(has('[id="history-101"]')).toBe(true);
+        http.expectNone(`${BASE}/offered`);
+    });
+
+    it('offers the roles that cause effects the line acts and the revision acts', async () => {
+        await start('USER');
+
+        expect(has('[data-testid="read-only-role"]')).toBe(false);
+        expect(button('Answer line 3').textContent).toContain('Answer');
+        expect(button('Answer line 1').textContent).toContain('Change the answer');
+        expect(has('[id="add-evidence-103"]')).toBe(true);
+        expect(has('#submit-checklist')).toBe(true);
+        expect(has('[data-testid="move"]')).toBe(true);
+    });
+
+    it('says a project it cannot show does not exist or is not visible, without telling which', async () => {
+        await TestBed.configureTestingModule({
+            imports: [ProjectChecklist],
+            providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
+        }).compileComponents();
+        TestBed.inject(SessionStore).open('token', {
+            username: 'erin',
+            displayName: null,
+            role: 'USER',
+            mustChangePassword: false,
+            mfaEnabled: false
+        });
+        useEnglish();
+        fixture = TestBed.createComponent(ProjectChecklist);
+        fixture.componentRef.setInput('projectId', String(PROJECT_ID));
+        http = TestBed.inject(HttpTestingController);
+        fixture.detectChanges();
+        http.expectOne(BASE).flush(
+            { type: 'about:blank', title: 'Not Found', status: 404, detail: 'Project not found.' },
+            { status: 404, statusText: 'Not Found' }
+        );
+        fixture.detectChanges();
+
+        expect(text('[data-testid="not-found"]')).toBe(
+            "This project does not exist or is not visible to you. A project's checklist is shown only to those who see the whole project."
+        );
+        expect(has('[data-testid="no-checklist"]')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ opening
+
+    it('offers a writer the published versions when there is no checklist, and opens one naming no edition', async () => {
+        await start('USER', 'carol', { revisions: [] });
+
+        expect(text('[data-testid="no-checklist"]')).toContain('This project has no security checklist yet.');
+        expect(button('open-checklist').disabled).toBe(true);
+        choose('#open-version', 'Release checklist — version 1 (2025 edition)');
+        click('open-checklist');
+
+        const request = post(BASE);
+        expect(request.request.body).toEqual({ template: 'release', version: 1 });
+        request.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+        http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION]);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="notice"]')).toBe('The checklist is open: revision 2.');
+        expect(text('[data-testid="shown-revision"]')).toBe('Revision 2');
+    });
+
+    it('tells a reader there is no checklist yet, and offers nothing to open', async () => {
+        await start('AUDITOR', 'audrey', { revisions: [] });
+
+        expect(text('[data-testid="no-checklist"]')).toContain('Somebody with write access opens one');
+        expect(has('#open-version')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ the header and the lines
+
+    it('states the header: template, version, revision, status, author, and the four-eyes rule in force', async () => {
+        await start('USER');
+
+        expect(text('[data-testid="header"]')).toContain('Release checklist');
+        expect(text('[data-testid="version"]')).toBe('version 1 (2025 edition)');
+        expect(text('[data-testid="status"]')).toBe('Draft');
+        expect(text('[data-testid="header"]')).toContain('opened from revision 1');
+        expect(text('[data-testid="four-eyes"]')).toBe(
+            'On: whoever signs it off must have written none of this revision.'
+        );
+        expect(text('[data-testid="authors"]')).toBe('carol, dave');
+    });
+
+    it('groups the lines by domain then objective, and shows each line problems plainly', async () => {
+        await start('USER');
+
+        expect(text('[data-testid="domain-0"] h3')).toBe('Access');
+        expect(text('[data-testid="domain-1"] h3')).toBe('Supply chain');
+        expect(text('[data-testid="domain-1"] h4')).toBe('Known vulnerabilities');
+        expect(text('[data-testid="line-1"] [data-testid="problems"]')).toBe('Ready');
+        expect(text('[data-testid="line-3"] [data-testid="problems"]')).toBe('Not answered yet');
+        expect(text('[data-testid="line-3"]')).toContain('Zero critical');
+        expect(text('[data-testid="line-1"]')).toContain('Platform team');
+        expect(text('[data-testid="line-2"]')).toContain('A yes needs a link or a file as evidence');
+        expect(text('[data-testid="line-2"]')).toContain('a proof holds 12 months');
+    });
+
+    it('makes a carried line awaiting confirmation stand out, and confirms it naming the edition', async () => {
+        await start('USER');
+
+        expect(text('[data-testid="awaiting-2"]')).toContain('Carried, awaiting confirmation');
+        expect(text('[data-testid="line-2"] [data-testid="answer"]')).toContain('carried by dave');
+        expect(has('[data-testid="awaiting-1"]')).toBe(false);
+        click('Confirm the answer to line 2');
+
+        const request = post(`${BASE}/2/items/102/confirmation`);
+        expect(request.request.body).toEqual({ edition: 5 });
+        request.flush(after(READY_CHECKLIST, 6), { status: 201, statusText: 'Created' });
+        fixture.detectChanges();
+        expect(has('[data-testid="awaiting-2"]')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ answering
+
+    it('answers yes without a comment, adopts the view it gets back, and names its edition next', async () => {
+        await start('USER');
+
+        click('Answer line 3');
+        tick('#answer-103-yes');
+        click('save-answer-103');
+        const first = post(`${BASE}/2/items/103/answers`);
+        expect(first.request.body).toEqual({ value: 'yes', edition: 5 });
+        first.flush(after(CHECKLIST, 6), { status: 201, statusText: 'Created' });
+        fixture.detectChanges();
+        expect(has('[data-testid="answer-form-3"]')).toBe(false);
+
+        // The edition moved on with the write: the next one names 6, not the 5 first read.
+        click('Answer line 1');
+        tick('#answer-101-yes');
+        click('save-answer-101');
+        const second = post(`${BASE}/2/items/101/answers`);
+        expect(second.request.body).toEqual({ value: 'yes', edition: 6 });
+        second.flush(after(CHECKLIST, 7), { status: 201, statusText: 'Created' });
+    });
+
+    it('refuses a no without its comment before sending it, and sends it with one', async () => {
+        await start('USER');
+
+        click('Answer line 3');
+        tick('#answer-103-no');
+        click('save-answer-103');
+        expect(text('[data-testid="answer-error"]')).toBe('A no or not applicable answer needs a comment saying why.');
+        http.expectNone({ method: 'POST', url: `${BASE}/2/items/103/answers` });
+
+        type('#comment-103', 'Two criticals, fix planned.');
+        click('save-answer-103');
+        const request = post(`${BASE}/2/items/103/answers`);
+        expect(request.request.body).toEqual({ value: 'no', comment: 'Two criticals, fix planned.', edition: 5 });
+        request.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+    });
+
+    it('refuses an answer chosen from nothing', async () => {
+        await start('USER');
+
+        click('Answer line 3');
+        click('save-answer-103');
+        expect(text('[data-testid="answer-error"]')).toBe('Choose an answer.');
+        http.expectNone({ method: 'POST', url: `${BASE}/2/items/103/answers` });
+    });
+
+    it('offers not applicable only on a version whose importer mapped a word to it, beside the template word', async () => {
+        await start('USER');
+        click('Answer line 3');
+        expect(text('label[for="answer-103-not_applicable"]')).toBe('Not applicable (N/A)');
+        expect(text('label[for="answer-103-yes"]')).toBe('Yes (Oui)');
+        fixture.destroy();
+        http.verify();
+        TestBed.resetTestingModule();
+
+        await start('USER', 'someone', {
+            view: {
+                ...CHECKLIST,
+                offersNotApplicable: false,
+                answerWords: { yes: 'Oui', no: 'Non', notApplicable: null }
+            }
+        });
+        click('Answer line 3');
+        expect(has('#answer-103-not_applicable')).toBe(false);
+        expect(has('#answer-103-no')).toBe(true);
+    });
+
+    // ------------------------------------------------------------------ evidence
+
+    it('attaches a link with the day the work was done and the edition', async () => {
+        await start('USER');
+
+        click('Add evidence to line 2');
+        type('#evidence-link-102', 'ftp://files.example.invalid/rotation');
+        type('#evidence-day-102', '2026-09-01');
+        click('save-evidence-102');
+        expect(text('[data-testid="evidence-error"]')).toBe('A link proof is an https: or http: address.');
+        http.expectNone({ method: 'POST', url: `${BASE}/2/items/102/evidence/links` });
+
+        type('#evidence-link-102', 'https://wiki.example.invalid/rotation-2026');
+        click('save-evidence-102');
+        const request = post(`${BASE}/2/items/102/evidence/links`);
+        expect(request.request.body).toEqual({
+            link: 'https://wiki.example.invalid/rotation-2026',
+            performedOn: '2026-09-01',
+            edition: 5
+        });
+        request.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+    });
+
+    it('refuses a proof dated in the future before sending it', async () => {
+        await start('USER');
+
+        click('Add evidence to line 2');
+        type('#evidence-link-102', 'https://wiki.example.invalid/rotation');
+        type('#evidence-day-102', '2999-01-01');
+        click('save-evidence-102');
+        expect(text('[data-testid="evidence-error"]')).toBe(
+            'State the day the work was done: a day, and not in the future.'
+        );
+        http.expectNone({ method: 'POST', url: `${BASE}/2/items/102/evidence/links` });
+    });
+
+    function pick(selector: string, file: File): void {
+        const input = dom().querySelector(selector) as HTMLInputElement;
+        Object.defineProperty(input, 'files', { value: [file], configurable: true });
+        input.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+    }
+
+    it('attaches a file as the raw body, with its name, day and edition in the query', async () => {
+        await start('USER');
+
+        click('Add evidence to line 1');
+        tick('#evidence-kind-101-file');
+        const report = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'pentest-2026.pdf', {
+            type: 'application/pdf'
+        });
+        pick('#evidence-file-101', report);
+        type('#evidence-day-101', '2026-09-02');
+        click('save-evidence-101');
+
+        const request = http.expectOne((call) => call.url === `${BASE}/2/items/101/evidence/files`);
+        expect(request.request.body).toBe(report);
+        expect(request.request.headers.get('Content-Type')).toBe('application/pdf');
+        expect(request.request.params.get('name')).toBe('pentest-2026.pdf');
+        expect(request.request.params.get('performedOn')).toBe('2026-09-02');
+        expect(request.request.params.get('edition')).toBe('5');
+        request.flush(CHECKLIST, { status: 201, statusText: 'Created' });
+    });
+
+    it('refuses a file past twenty-five megabytes before sending it, in the words the server uses', async () => {
+        await start('USER');
+
+        click('Add evidence to line 1');
+        tick('#evidence-kind-101-file');
+        pick('#evidence-file-101', new File([new Uint8Array(25 * 1024 * 1024 + 1)], 'huge.pdf'));
+
+        expect(text('[data-testid="evidence-error"]')).toBe(
+            'The request body is larger than the 26214400 bytes this route accepts.'
+        );
+        expect(button('save-evidence-101').disabled).toBe(true);
+        http.expectNone((call) => call.method === 'POST');
+    });
+
+    it('withdraws a proof naming the edition, and shows a withdrawn one as withdrawn', async () => {
+        await start('USER');
+
+        click('Withdraw the evidence https://wiki.example.invalid/rotation');
+        const request = post(`${BASE}/2/evidence/900/withdrawal`);
+        expect(request.request.body).toEqual({ edition: 5 });
+        const withdrawn = {
+            ...CHECKLIST.lines[1].evidence[0],
+            withdrawnBy: 'dave',
+            withdrawnAt: '2026-09-22T09:00:00Z',
+            inDate: false
+        };
+        request.flush({
+            ...after(CHECKLIST, 6),
+            lines: [CHECKLIST.lines[0], { ...CHECKLIST.lines[1], evidence: [withdrawn] }, CHECKLIST.lines[2]]
+        });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="proof-900"] [data-testid="withdrawn"]')).toContain('withdrawn by dave');
+        expect(text('[data-testid="proof-900"]')).not.toContain('Withdraw ');
+    });
+
+    it('downloads a file proof through the client, under its own name, and never opens it in the page', async () => {
+        await start('AUDITOR');
+
+        const saved: string[] = [];
+        const original = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+            saved.push(this.download);
+        };
+        try {
+            click('Download pentest-report.pdf');
+            const request = http.expectOne({ method: 'GET', url: `${BASE}/2/evidence/901/file` });
+            expect(request.request.responseType).toBe('blob');
+            request.flush(new Blob(['%PDF']), {
+                headers: { 'Content-Disposition': 'attachment; filename="other.bin"' }
+            });
+        } finally {
+            HTMLAnchorElement.prototype.click = original;
+        }
+        expect(saved).toEqual(['pentest-report.pdf']);
+    });
+
+    // ------------------------------------------------------------------ history
+
+    it('reads a line history on demand: every answer with who and when, withdrawn proofs included', async () => {
+        await start('AUDITOR');
+
+        click('History of line 2');
+        http.expectOne({ method: 'GET', url: `${BASE}/2/items/102/history` }).flush(LINE_HISTORY);
+        fixture.detectChanges();
+
+        const history = text('[data-testid="history-2"]');
+        expect(history).toContain('Answers, oldest first');
+        expect(history).toMatch(/No — erin, .*Not yet automated\..*Yes — dave/);
+        expect(history).toContain('withdrawn by dave');
+
+        click('History of line 2');
+        expect(has('[data-testid="history-2"]')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ submitting
+
+    it('greys out the submission while lines need attention, and names them', async () => {
+        await start('USER');
+
+        expect(button('submit-checklist').disabled).toBe(true);
+        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: lines 2, 3 still need attention.');
+    });
+
+    it('submits a ready draft naming the edition, and shows it submitted', async () => {
+        await start('USER', 'carol', { view: READY_CHECKLIST });
+
+        expect(button('submit-checklist').disabled).toBe(false);
+        expect(has('[data-testid="submit-blocked"]')).toBe(false);
+        click('submit-checklist');
+        const request = post(`${BASE}/2/submission`);
+        expect(request.request.body).toEqual({ edition: 5 });
+        request.flush(SUBMITTED_CHECKLIST);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="notice"]')).toBe('Revision 2 submitted for sign-off.');
+        expect(text('[data-testid="status"]')).toBe('Submitted');
+        expect(text('[data-testid="revision-2"]')).toContain('Submitted');
+        expect(has('[id="answer-101"]')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ each refusal, by its type
+
+    const SENTENCES: [string, string, boolean][] = [
+        [
+            'checklist-changed',
+            'The checklist changed since you read it. Reload it, look at what changed, then try again.',
+            true
+        ],
+        [
+            'checklist-line-changed',
+            'Somebody else wrote on this line since you read it. Reload the checklist to see their answer or evidence.',
+            true
+        ],
+        [
+            'checklist-not-draft',
+            'This revision is no longer a draft: it was submitted, signed off or set aside meanwhile. Reload it.',
+            true
+        ],
+        ['checklist-not-submitted', 'This revision is no longer waiting for a sign-off. Reload it.', true],
+        ['checklist-not-signed-off', 'Only a signed-off revision is reopened. Reload the checklist.', true],
+        [
+            'checklist-not-latest',
+            'A newer revision of this checklist exists: act on that one. Reload the checklist.',
+            true
+        ],
+        [
+            'checklist-four-eyes',
+            'Four-eyes approval: you wrote part of this revision, so a second person must sign it off. Written by: carol, dave.',
+            false
+        ],
+        [
+            'checklist-version-not-published',
+            'That version is no longer published. Reload to see the versions offered.',
+            true
+        ],
+        [
+            'checklist-same-version',
+            'The checklist is already on that version. After a sign-off, reopen the signed revision to start again on it.',
+            true
+        ],
+        [
+            'checklist-nothing-to-confirm',
+            'This line no longer has a carried answer awaiting confirmation. Reload the checklist.',
+            true
+        ],
+        ['checklist-evidence-withdrawn', 'That evidence was already withdrawn. Reload the checklist.', true],
+        ['checklist-incomplete', 'Not every line is ready any more. Reload the checklist to see which.', true]
+    ];
+
+    it.each(SENTENCES)('explains a 409 %s in one sentence of its own', async (token, sentence, reload) => {
+        await start('USER', 'carol', { view: READY_CHECKLIST });
+
+        click('submit-checklist');
+        refuse(post(`${BASE}/2/submission`), `urn:vectispire:problem:${token}`);
+
+        expect(text('[data-testid="refusal-message"]')).toBe(sentence);
+        expect(has('#reload-checklist')).toBe(reload);
+    });
+
+    it('names the lines an incomplete refusal is about when the screen shows them', async () => {
+        await start('USER');
+
+        // The button is greyed out on this draft; the sign-off meets the same refusal when a proof
+        // lapsed since the submission. Called directly to read the sentence built from the lines shown.
+        fixture.componentInstance.submit();
+        refuse(post(`${BASE}/2/submission`), 'urn:vectispire:problem:checklist-incomplete');
+        fixture.detectChanges();
+
+        expect(text('[data-testid="refusal"]')).toContain('Not every line is ready: lines 2, 3 still need attention.');
+    });
+
+    it('shows a line refusal on the line itself, and reloads the checklist when asked', async () => {
+        await start('USER');
+
+        click('Answer line 3');
+        tick('#answer-103-yes');
+        click('save-answer-103');
+        refuse(post(`${BASE}/2/items/103/answers`), 'urn:vectispire:problem:checklist-line-changed');
+
+        expect(text('[data-testid="line-3"] [data-testid="refusal"]')).toContain(
+            'Somebody else wrote on this line since you read it.'
+        );
+        click('reload-checklist');
+        http.expectOne({ method: 'GET', url: BASE }).flush([DRAFT_REVISION, SIGNED_REVISION]);
+        http.expectOne({ method: 'GET', url: `${BASE}/offered` }).flush(OFFERED);
+        http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(after(CHECKLIST, 7));
+        fixture.detectChanges();
+        expect(has('[data-testid="refusal"]')).toBe(false);
+    });
+
+    it("falls back to the server's own sentence for a refusal it names no cause for", async () => {
+        await start('USER', 'carol', { view: READY_CHECKLIST });
+
+        click('submit-checklist');
+        post(`${BASE}/2/submission`).flush(
+            { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'State the edition you read.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
+        fixture.detectChanges();
+
+        expect(text('[data-testid="refusal-message"]')).toBe('State the edition you read.');
+        expect(has('#reload-checklist')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ signing off
+
+    it('greys out the sign-off for an author under four-eyes, and says a second person must give it', async () => {
+        await start('CISO', 'Carol', { view: SUBMITTED_CHECKLIST });
+
+        expect(button('sign-off-checklist').disabled).toBe(true);
+        expect(text('[data-testid="sign-off-blocked"]')).toBe(
+            'Four-eyes approval is on and you wrote part of this revision: a second person must sign it off.'
+        );
+    });
+
+    it('greys out the sign-off for a role that approves nothing, and says who does', async () => {
+        await start('USER', 'erin', { view: SUBMITTED_CHECKLIST });
+
+        expect(button('sign-off-checklist').disabled).toBe(true);
+        expect(text('[data-testid="sign-off-blocked"]')).toBe(
+            'Signing off is an approval: an administrator, a CISO or a security champion gives it.'
+        );
+    });
+
+    it('lets an approver who wrote none of it sign off, naming the edition', async () => {
+        await start('SECURITY_CHAMPION', 'bob', { view: SUBMITTED_CHECKLIST });
+
+        expect(has('[data-testid="sign-off-blocked"]')).toBe(false);
+        click('sign-off-checklist');
+        const request = post(`${BASE}/2/sign-off`);
+        expect(request.request.body).toEqual({ edition: 8 });
+        request.flush(SIGNED_CHECKLIST);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="notice"]')).toBe('Revision 2 signed off.');
+        expect(text('[data-testid="signed-off"]')).toContain('bob');
+        expect(text('[data-testid="four-eyes"]')).toBe('Applied: whoever signed it off wrote none of it.');
+    });
+
+    it('lets an author sign off when four-eyes is off', async () => {
+        await start('ADMIN', 'carol', { view: { ...SUBMITTED_CHECKLIST, fourEyesRequired: false } });
+
+        expect(button('sign-off-checklist').disabled).toBe(false);
+    });
+
+    it('returns a submitted revision with its reason, and refuses one without', async () => {
+        await start('USER', 'erin', { view: SUBMITTED_CHECKLIST });
+
+        click('return-checklist');
+        click('confirm-return');
+        expect(text('[data-testid="return-error"]')).toBe(
+            'Say why the checklist is returned: its authors read the reason.'
+        );
+        http.expectNone({ method: 'POST', url: `${BASE}/2/return` });
+
+        type('#return-reason', 'Line 3 needs its evidence.');
+        click('confirm-return');
+        const request = post(`${BASE}/2/return`);
+        expect(request.request.body).toEqual({ reason: 'Line 3 needs its evidence.', edition: 8 });
+        request.flush(READY_CHECKLIST);
+        fixture.detectChanges();
+        expect(text('[data-testid="notice"]')).toBe('Revision 2 returned to its authors, a draft again.');
+    });
+
+    // ------------------------------------------------------------------ reopening, moving, earlier revisions
+
+    it('reopens a signed-off revision as the next one, naming its edition', async () => {
+        await start('USER', 'erin', { view: SIGNED_CHECKLIST });
+
+        expect(has('#submit-checklist')).toBe(false);
+        click('reopen-checklist');
+        const request = post(`${BASE}/2/reopen`);
+        expect(request.request.body).toEqual({ edition: 9 });
+        const reopened = {
+            ...READY_CHECKLIST,
+            checklist: { ...DRAFT_REVISION, revision: 3, edition: 1, supersedesRevision: 2 }
+        };
+        request.flush(reopened, { status: 201, statusText: 'Created' });
+        http.expectOne({ method: 'GET', url: BASE }).flush([reopened.checklist, SIGNED_CHECKLIST.checklist]);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="notice"]')).toBe('Revision 3 opened from the signed-off revision.');
+        expect(text('[data-testid="shown-revision"]')).toBe('Revision 3');
+    });
+
+    it('moves the checklist to another published version, naming the newest revision edition', async () => {
+        await start('USER');
+
+        const options = Array.from((dom().querySelector('#move-version') as HTMLSelectElement).options).map((option) =>
+            option.textContent?.trim()
+        );
+        // The version it is on is not offered: moving onto it is refused.
+        expect(options).toEqual(['—', 'Release checklist — version 2 (2026 edition)']);
+        choose('#move-version', 'Release checklist — version 2 (2026 edition)');
+        click('move-checklist');
+
+        const request = post(BASE);
+        expect(request.request.body).toEqual({ template: 'release', version: 2, edition: 5 });
+        const moved = { ...CHECKLIST, checklist: { ...DRAFT_REVISION, revision: 3, edition: 1, versionOrdinal: 2 } };
+        request.flush(moved, { status: 201, statusText: 'Created' });
+        http.expectOne({ method: 'GET', url: BASE }).flush([moved.checklist]);
+        fixture.detectChanges();
+        expect(text('[data-testid="notice"]')).toBe('Revision 3 opened on version 2.');
+    });
+
+    it('lists the earlier revisions and reads one, read-only', async () => {
+        await start('USER');
+
+        expect(text('[data-testid="revision-1"]')).toContain('Signed off');
+        click('Read revision 1');
+        http.expectOne({ method: 'GET', url: `${BASE}/1` }).flush({ ...SIGNED_CHECKLIST, checklist: SIGNED_REVISION });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="shown-revision"]')).toBe('Revision 1');
+        expect(text('[data-testid="read-only-old"]')).toBe(
+            'An earlier revision, shown as it stands: it is never changed again.'
+        );
+        expect(has('[data-testid="acts"]')).toBe(false);
+        expect(has('[id="answer-101"]')).toBe(false);
+    });
+});
+
+describe('the project checklist, by its rules', () => {
+    it('groups by domain then objective in the order of the positions', () => {
+        const groups = groupsOf([...CHECKLIST.lines].reverse());
+        expect(groups.map((group) => group.domain)).toEqual(['Access', 'Supply chain']);
+        expect(groups[0].objectives[0].lines.map((line) => line.position)).toEqual([1, 2]);
+    });
+
+    it('blocks the sign-off for a non-approver, and for an author under four-eyes only, compared without case', () => {
+        expect(signOffBlockOf(SUBMITTED_CHECKLIST, false, 'bob')).toBe('not_approver');
+        expect(signOffBlockOf(SUBMITTED_CHECKLIST, true, ' CAROL ')).toBe('four_eyes');
+        expect(signOffBlockOf(SUBMITTED_CHECKLIST, true, 'bob')).toBeNull();
+        expect(signOffBlockOf({ ...SUBMITTED_CHECKLIST, fourEyesRequired: false }, true, 'carol')).toBeNull();
+    });
+
+    it('knows every cause the server names, and no other', () => {
+        // `ChecklistConflict.Cause`, token for token — a cause added there and not here falls back to
+        // the English detail, which is survivable; a token misspelt here never matches, which is not.
+        expect(Object.keys(CONFLICT_TYPES).sort()).toEqual(
+            [
+                'changed',
+                'line-changed',
+                'not-draft',
+                'not-submitted',
+                'not-signed-off',
+                'not-latest',
+                'incomplete',
+                'four-eyes',
+                'version-not-published',
+                'same-version',
+                'nothing-to-confirm',
+                'evidence-withdrawn'
+            ]
+                .map((token) => `urn:vectispire:problem:checklist-${token}`)
+                .sort()
+        );
+    });
+
+    it('has every mapped key in both bundles — the i18n check cannot see them', () => {
+        const lookup = (bundle: unknown, key: string) =>
+            key
+                .split('.')
+                .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], bundle);
+        const keys = [
+            ...Object.values(STATUS_KEYS),
+            ...Object.values(ANSWER_KEYS),
+            ...Object.values(PROBLEM_KEYS),
+            ...Object.values(EVIDENCE_KIND_KEYS),
+            ...Object.values(CONFLICT_KEYS)
+        ];
+        for (const key of keys) {
+            expect(typeof lookup(english, key), `${key} in en.json`).toBe('string');
+            expect(typeof lookup(french, key), `${key} in fr.json`).toBe('string');
+        }
+    });
+});

@@ -1,0 +1,1006 @@
+<div class="mb-4 flex items-start justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-semibold m-0">
+            {{ 'project_checklist.title' | translate }}
+            @if (view(); as shown) {
+                <span class="text-muted-color font-normal">— {{ shown.projectName }}</span>
+            }
+        </h1>
+        <p class="text-muted-color mt-1 mb-0">{{ 'project_checklist.subtitle' | translate }}</p>
+    </div>
+    <a routerLink="/solutions" [fragment]="'project-' + id()" class="whitespace-nowrap text-sm">
+        <i class="pi pi-arrow-left" aria-hidden="true"></i>
+        {{ 'project_checklist.back' | translate }}
+    </a>
+</div>
+
+@if (error(); as message) {
+    <p-message severity="error" [closable]="true" styleClass="mb-4 w-full" data-testid="error">{{ message }}</p-message>
+}
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="notice">{{
+        message
+    }}</p-message>
+}
+
+<!-- A refusal that concerns no single line: the checklist's own, shown above everything. -->
+<ng-template #refusalBlock let-refused>
+    <div
+        class="mb-4 p-3 rounded-md border flex flex-wrap items-center justify-between gap-3"
+        style="border-color: var(--p-orange-400)"
+        role="alert"
+        data-testid="refusal"
+    >
+        <span data-testid="refusal-message">{{ refused.message }}</span>
+        @if (refused.reload) {
+            <p-button
+                id="reload-checklist"
+                icon="pi pi-refresh"
+                size="small"
+                [outlined]="true"
+                [label]="'project_checklist.reload_btn' | translate"
+                (onClick)="reload()"
+            />
+        }
+    </div>
+</ng-template>
+
+@if (refusal(); as refused) {
+    @if (refused.itemId === null) {
+        <ng-container *ngTemplateOutlet="refusalBlock; context: { $implicit: refused }" />
+    }
+}
+
+@if (loading() && !view() && !notFound()) {
+    <p class="text-muted-color">{{ 'common.loading' | translate }}</p>
+} @else if (notFound()) {
+    <p-card styleClass="mb-4">
+        <p class="m-0" data-testid="not-found">{{ 'project_checklist.not_found' | translate }}</p>
+    </p-card>
+} @else if (!view()) {
+    <!-- No checklist yet: those who write open one on a published version. -->
+    <p-card styleClass="mb-4" data-testid="no-checklist">
+        <p class="mt-0" [class.mb-0]="!writes()">
+            {{ writes() ? ('project_checklist.none' | translate) : ('project_checklist.none_reader' | translate) }}
+        </p>
+        @if (writes()) {
+            @if (openOptions().length === 0) {
+                <p class="text-muted-color m-0" data-testid="no-offered">
+                    {{ 'project_checklist.no_offered' | translate }}
+                </p>
+            } @else {
+                <p class="text-sm text-muted-color">{{ 'project_checklist.open_explain' | translate }}</p>
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex flex-col gap-2">
+                        <label for="open-version" class="font-medium">{{
+                            'project_checklist.open_field' | translate
+                        }}</label>
+                        <select
+                            id="open-version"
+                            [(ngModel)]="openChoice"
+                            class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                        >
+                            <option [ngValue]="null">—</option>
+                            @for (option of openOptions(); track option.value) {
+                                <option [ngValue]="option.value">{{ option.label }}</option>
+                            }
+                        </select>
+                    </div>
+                    <p-button
+                        id="open-checklist"
+                        icon="pi pi-plus"
+                        [label]="'project_checklist.open_btn' | translate"
+                        [loading]="busy()"
+                        [disabled]="!openChoice() || busy()"
+                        (onClick)="openChecklist()"
+                    />
+                </div>
+            }
+        }
+    </p-card>
+} @else if (view(); as shown) {
+    @if (shown.checklist; as current) {
+        <!-- The header: what is answered, where it stands, and who moved it through its life. -->
+        <p-card styleClass="mb-4" data-testid="header">
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+                <h2 class="text-xl font-semibold m-0" data-testid="shown-revision">
+                    {{ 'project_checklist.revision_title' | translate: { revision: current.revision } }}
+                </h2>
+                <p-tag
+                    [severity]="statusSeverity(current.status)"
+                    [value]="statusLabel(current.status)"
+                    data-testid="status"
+                />
+            </div>
+            @if (!isLatest()) {
+                <p-message severity="secondary" [closable]="false" styleClass="mb-3 w-full" data-testid="read-only-old">
+                    {{ 'project_checklist.read_only_old' | translate }}
+                </p-message>
+            } @else if (!writes()) {
+                <p-message
+                    severity="secondary"
+                    [closable]="false"
+                    styleClass="mb-3 w-full"
+                    data-testid="read-only-role"
+                >
+                    {{ 'project_checklist.read_only_role' | translate }}
+                </p-message>
+            }
+            <dl class="grid grid-cols-1 md:grid-cols-[max-content_1fr] gap-x-6 gap-y-1 m-0 text-sm">
+                <dt class="font-medium">{{ 'project_checklist.field_template' | translate }}</dt>
+                <dd class="m-0">
+                    {{ current.templateName }}
+                    <span class="font-mono text-muted-color">{{ current.templateSlug }}</span>
+                </dd>
+                <dt class="font-medium">{{ 'project_checklist.field_version' | translate }}</dt>
+                <dd class="m-0" data-testid="version">
+                    {{ 'project_checklist.version_n' | translate: { ordinal: current.versionOrdinal } }}
+                    @if (current.versionLabel) {
+                        ({{ current.versionLabel }})
+                    }
+                </dd>
+                <dt class="font-medium">{{ 'project_checklist.field_author' | translate }}</dt>
+                <dd class="m-0">{{ current.author }}</dd>
+                <dt class="font-medium">{{ 'project_checklist.field_opened' | translate }}</dt>
+                <dd class="m-0">
+                    {{
+                        'project_checklist.by_at'
+                            | translate
+                                : { who: current.openedBy, at: (current.openedAt | date: 'dd/MM/yyyy HH:mm') ?? '' }
+                    }}
+                    @if (current.supersedesRevision) {
+                        · {{ 'project_checklist.moved_from' | translate: { revision: current.supersedesRevision } }}
+                    }
+                </dd>
+                @if (current.submittedAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_submitted' | translate }}</dt>
+                    <dd class="m-0" data-testid="submitted">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.submittedBy ?? '—',
+                                          at: (current.submittedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    </dd>
+                }
+                @if (current.returnedAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_returned' | translate }}</dt>
+                    <dd class="m-0" data-testid="returned">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.returnedBy ?? '—',
+                                          at: (current.returnedAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                        @if (current.returnReason) {
+                            — {{ current.returnReason }}
+                        }
+                    </dd>
+                }
+                @if (current.signedOffAt) {
+                    <dt class="font-medium">{{ 'project_checklist.field_signed_off' | translate }}</dt>
+                    <dd class="m-0" data-testid="signed-off">
+                        {{
+                            'project_checklist.by_at'
+                                | translate
+                                    : {
+                                          who: current.signedOffBy ?? '—',
+                                          at: (current.signedOffAt | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                      }
+                        }}
+                    </dd>
+                }
+                <dt class="font-medium">{{ 'project_checklist.field_four_eyes' | translate }}</dt>
+                <dd class="m-0" data-testid="four-eyes">
+                    @if (current.status === 'signed_off') {
+                        {{
+                            current.signOffFourEyes
+                                ? ('project_checklist.four_eyes_applied' | translate)
+                                : ('project_checklist.four_eyes_not_applied' | translate)
+                        }}
+                    } @else {
+                        {{
+                            shown.fourEyesRequired
+                                ? ('project_checklist.four_eyes_on' | translate)
+                                : ('project_checklist.four_eyes_off' | translate)
+                        }}
+                    }
+                </dd>
+                @if (shown.authors.length > 0) {
+                    <dt class="font-medium">{{ 'project_checklist.field_authors' | translate }}</dt>
+                    <dd class="m-0" data-testid="authors">{{ shown.authors.join(', ') }}</dd>
+                }
+            </dl>
+        </p-card>
+
+        <!-- The acts the revision's status allows, to those who may make them. -->
+        @if (writes() && isLatest()) {
+            <p-card styleClass="mb-4" data-testid="acts">
+                <ng-template #title>{{ 'project_checklist.actions_title' | translate }}</ng-template>
+                @if (current.status === 'draft') {
+                    <div class="flex flex-wrap items-center gap-3">
+                        <p-button
+                            id="submit-checklist"
+                            icon="pi pi-send"
+                            [label]="'project_checklist.submit_btn' | translate"
+                            [disabled]="!shown.readyToSubmit || busy()"
+                            [loading]="busy()"
+                            (onClick)="submit()"
+                        />
+                        @if (!shown.readyToSubmit) {
+                            <span class="text-sm text-muted-color" data-testid="submit-blocked">
+                                {{ 'project_checklist.submit_blocked' | translate: { lines: unready().join(', ') } }}
+                            </span>
+                        }
+                    </div>
+                }
+                @if (current.status === 'submitted') {
+                    <div class="flex flex-wrap items-center gap-3">
+                        <p-button
+                            id="sign-off-checklist"
+                            icon="pi pi-verified"
+                            severity="success"
+                            [label]="'project_checklist.sign_off_btn' | translate"
+                            [disabled]="signOffBlock() !== null || busy()"
+                            [loading]="busy()"
+                            (onClick)="signOff()"
+                        />
+                        @if (signOffBlock() === 'not_approver') {
+                            <span class="text-sm text-muted-color" data-testid="sign-off-blocked">
+                                {{ 'project_checklist.sign_off_not_approver' | translate }}
+                            </span>
+                        } @else if (signOffBlock() === 'four_eyes') {
+                            <span class="text-sm text-muted-color" data-testid="sign-off-blocked">
+                                {{ 'project_checklist.sign_off_four_eyes' | translate }}
+                            </span>
+                        }
+                        <p-button
+                            id="return-checklist"
+                            icon="pi pi-undo"
+                            [outlined]="true"
+                            [label]="'project_checklist.return_btn' | translate"
+                            [disabled]="busy()"
+                            (onClick)="startReturn()"
+                        />
+                    </div>
+                    @if (returning()) {
+                        <div class="flex flex-col gap-2 mt-3" data-testid="return-form">
+                            <label for="return-reason" class="font-medium">{{
+                                'project_checklist.field_return' | translate
+                            }}</label>
+                            <textarea
+                                pTextarea
+                                id="return-reason"
+                                rows="3"
+                                maxlength="4000"
+                                [(ngModel)]="returnReason"
+                            ></textarea>
+                            @if (returnError(); as message) {
+                                <small class="text-red-500" data-testid="return-error">{{ message }}</small>
+                            }
+                            <div class="flex gap-2">
+                                <p-button
+                                    id="confirm-return"
+                                    [label]="'project_checklist.confirm_return_btn' | translate"
+                                    [disabled]="busy()"
+                                    (onClick)="confirmReturn()"
+                                />
+                                <p-button
+                                    [text]="true"
+                                    [label]="'common.cancel' | translate"
+                                    (onClick)="returning.set(false)"
+                                />
+                            </div>
+                        </div>
+                    }
+                }
+                @if (current.status === 'signed_off') {
+                    <div class="flex flex-wrap items-center gap-3">
+                        <p-button
+                            id="reopen-checklist"
+                            icon="pi pi-replay"
+                            [label]="'project_checklist.reopen_btn' | translate"
+                            [disabled]="busy()"
+                            (onClick)="reopen()"
+                        />
+                        <span class="text-sm text-muted-color">{{
+                            'project_checklist.reopen_explain' | translate
+                        }}</span>
+                    </div>
+                }
+
+                <div class="border-t mt-4 pt-4" style="border-color: var(--surface-border)" data-testid="move">
+                    <h3 class="text-base font-semibold mt-0 mb-1">{{ 'project_checklist.move_title' | translate }}</h3>
+                    <p class="text-sm text-muted-color mt-0">{{ 'project_checklist.move_explain' | translate }}</p>
+                    @if (moveOptions().length === 0) {
+                        <p class="text-sm text-muted-color m-0" data-testid="move-none">
+                            {{ 'project_checklist.move_none' | translate }}
+                        </p>
+                    } @else {
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div class="flex flex-col gap-2">
+                                <label for="move-version" class="font-medium">{{
+                                    'project_checklist.move_field' | translate
+                                }}</label>
+                                <select
+                                    id="move-version"
+                                    [(ngModel)]="moveChoice"
+                                    class="p-2 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                >
+                                    <option [ngValue]="null">—</option>
+                                    @for (option of moveOptions(); track option.value) {
+                                        <option [ngValue]="option.value">{{ option.label }}</option>
+                                    }
+                                </select>
+                            </div>
+                            <p-button
+                                id="move-checklist"
+                                icon="pi pi-arrow-right-arrow-left"
+                                [outlined]="true"
+                                [label]="'project_checklist.move_btn' | translate"
+                                [disabled]="!moveChoice() || busy()"
+                                (onClick)="moveChecklist()"
+                            />
+                        </div>
+                    }
+                </div>
+            </p-card>
+        }
+
+        <!-- The lines, grouped as the template groups them: by domain, then by objective. -->
+        <p-card styleClass="mb-4">
+            <ng-template #title>{{ 'project_checklist.lines_title' | translate }}</ng-template>
+            @for (group of groups(); track group.domain) {
+                <section class="mb-6" [attr.data-testid]="'domain-' + $index">
+                    <h3 class="text-lg font-semibold mt-0 mb-2">
+                        {{ group.domain ?? ('project_checklist.no_domain' | translate) }}
+                    </h3>
+                    @for (objective of group.objectives; track objective.objective) {
+                        <h4 class="text-base font-medium text-muted-color mt-3 mb-2">
+                            {{ objective.objective ?? ('project_checklist.no_objective' | translate) }}
+                        </h4>
+                        <ul class="list-none p-0 m-0 flex flex-col gap-3">
+                            @for (line of objective.lines; track line.itemId) {
+                                <li
+                                    class="border rounded-md p-3"
+                                    [style.border-color]="
+                                        awaiting(line) ? 'var(--p-orange-400)' : 'var(--surface-border)'
+                                    "
+                                    [class.border-2]="awaiting(line)"
+                                    [attr.data-testid]="'line-' + line.position"
+                                >
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="text-sm text-muted-color">
+                                                {{
+                                                    'project_checklist.line_position'
+                                                        | translate: { position: line.position }
+                                                }}
+                                            </div>
+                                            <div class="font-medium" data-testid="control">{{ line.control }}</div>
+                                            @if (line.kpi) {
+                                                <div class="text-sm mt-1">
+                                                    <span class="font-medium">{{
+                                                        'project_checklist.label_kpi' | translate
+                                                    }}</span>
+                                                    {{ line.kpi }}
+                                                </div>
+                                            }
+                                            @if (line.contact) {
+                                                <div class="text-sm mt-1">
+                                                    <span class="font-medium">{{
+                                                        'project_checklist.label_contact' | translate
+                                                    }}</span>
+                                                    {{ line.contact }}
+                                                </div>
+                                            }
+                                            @if (line.evidenceKind !== 'none') {
+                                                <div class="text-sm text-muted-color mt-1">
+                                                    {{ evidenceKindLabel(line.evidenceKind) }}
+                                                    @if (line.evidenceValidityMonths) {
+                                                        ·
+                                                        {{
+                                                            'project_checklist.validity'
+                                                                | translate: { months: line.evidenceValidityMonths }
+                                                        }}
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="flex flex-wrap gap-1 justify-end" data-testid="problems">
+                                            @for (problem of line.problems; track problem) {
+                                                <p-tag
+                                                    [severity]="problem === 'awaiting_confirmation' ? 'warn' : 'danger'"
+                                                    [value]="problemLabel(problem)"
+                                                />
+                                            } @empty {
+                                                <p-tag
+                                                    severity="success"
+                                                    [value]="'project_checklist.ready_tag' | translate"
+                                                />
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <!-- The answer as it stands. -->
+                                    <div class="mt-3 text-sm" data-testid="answer">
+                                        <span class="font-medium">{{
+                                            'project_checklist.label_answer' | translate
+                                        }}</span>
+                                        @if (line.answer; as given) {
+                                            <strong data-testid="answer-value">{{ answerLabel(given.value) }}</strong>
+                                            <span class="text-muted-color">
+                                                ·
+                                                {{
+                                                    'project_checklist.answered_by'
+                                                        | translate
+                                                            : {
+                                                                  who: given.answeredBy,
+                                                                  at:
+                                                                      (given.answeredAt | date: 'dd/MM/yyyy HH:mm') ??
+                                                                      ''
+                                                              }
+                                                }}
+                                                @if (given.carriedBy) {
+                                                    ·
+                                                    {{
+                                                        'project_checklist.carried_by'
+                                                            | translate
+                                                                : {
+                                                                      who: given.carriedBy,
+                                                                      at:
+                                                                          (given.carriedAt
+                                                                              | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                                                  }
+                                                    }}
+                                                }
+                                            </span>
+                                            @if (given.comment) {
+                                                <div class="mt-1 whitespace-pre-line" data-testid="answer-comment">
+                                                    <span class="font-medium">{{
+                                                        'project_checklist.label_comment' | translate
+                                                    }}</span>
+                                                    {{ given.comment }}
+                                                </div>
+                                            }
+                                        } @else {
+                                            <span class="text-muted-color">{{
+                                                'project_checklist.unanswered_value' | translate
+                                            }}</span>
+                                        }
+                                    </div>
+
+                                    @if (awaiting(line)) {
+                                        <div
+                                            class="mt-2 flex flex-wrap items-center gap-3 text-sm"
+                                            [attr.data-testid]="'awaiting-' + line.position"
+                                        >
+                                            <p-tag
+                                                severity="warn"
+                                                [value]="'project_checklist.awaiting_tag' | translate"
+                                            />
+                                            <span>{{ 'project_checklist.awaiting_explain' | translate }}</span>
+                                            @if (editable()) {
+                                                <p-button
+                                                    [id]="'confirm-' + line.itemId"
+                                                    icon="pi pi-check"
+                                                    size="small"
+                                                    [label]="'project_checklist.confirm_btn' | translate"
+                                                    [ariaLabel]="
+                                                        'project_checklist.aria_confirm'
+                                                            | translate: { position: line.position }
+                                                    "
+                                                    [disabled]="busy()"
+                                                    (onClick)="confirmAnswer(line)"
+                                                />
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- The proofs: links open elsewhere, files are only ever downloaded. -->
+                                    <div class="mt-3 text-sm" data-testid="evidence">
+                                        <span class="font-medium">{{
+                                            'project_checklist.label_evidence' | translate
+                                        }}</span>
+                                        @if (line.evidence.length === 0) {
+                                            <span class="text-muted-color">{{
+                                                'project_checklist.evidence_none' | translate
+                                            }}</span>
+                                        }
+                                        <ul class="list-none p-0 m-0 mt-1 flex flex-col gap-1">
+                                            @for (proof of line.evidence; track proof.id) {
+                                                <li
+                                                    class="flex flex-wrap items-center gap-2"
+                                                    [class.line-through]="!!proof.withdrawnAt"
+                                                    [attr.data-testid]="'proof-' + proof.id"
+                                                >
+                                                    @if (proof.kind === 'link') {
+                                                        <i class="pi pi-link text-muted-color" aria-hidden="true"></i>
+                                                        <a
+                                                            [href]="proof.link"
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            >{{ proof.link }}</a
+                                                        >
+                                                    } @else {
+                                                        <i class="pi pi-file text-muted-color" aria-hidden="true"></i>
+                                                        <span>{{ proof.fileName }}</span>
+                                                        <p-button
+                                                            icon="pi pi-download"
+                                                            size="small"
+                                                            [text]="true"
+                                                            [label]="'common.download' | translate"
+                                                            [ariaLabel]="
+                                                                'project_checklist.aria_download'
+                                                                    | translate: { name: proof.fileName ?? '' }
+                                                            "
+                                                            (onClick)="download(proof)"
+                                                        />
+                                                    }
+                                                    <span class="text-muted-color">
+                                                        {{
+                                                            'project_checklist.evidence_performed'
+                                                                | translate: { day: proof.performedOn }
+                                                        }}
+                                                        @if (proof.validUntil) {
+                                                            ·
+                                                            {{
+                                                                'project_checklist.evidence_valid_until'
+                                                                    | translate: { day: proof.validUntil }
+                                                            }}
+                                                        }
+                                                        ·
+                                                        {{
+                                                            'project_checklist.evidence_added'
+                                                                | translate
+                                                                    : {
+                                                                          who: proof.addedBy,
+                                                                          at:
+                                                                              (proof.addedAt
+                                                                                  | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                                                      }
+                                                        }}
+                                                    </span>
+                                                    @if (proof.carriedFromId) {
+                                                        <p-tag
+                                                            severity="secondary"
+                                                            [value]="'project_checklist.evidence_carried' | translate"
+                                                        />
+                                                    }
+                                                    @if (proof.withdrawnAt) {
+                                                        <span class="text-muted-color" data-testid="withdrawn">
+                                                            {{
+                                                                'project_checklist.evidence_withdrawn'
+                                                                    | translate
+                                                                        : {
+                                                                              who: proof.withdrawnBy ?? '—',
+                                                                              at:
+                                                                                  (proof.withdrawnAt
+                                                                                      | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                                                          }
+                                                            }}
+                                                        </span>
+                                                    } @else {
+                                                        @if (!proof.inDate) {
+                                                            <p-tag
+                                                                severity="danger"
+                                                                [value]="
+                                                                    'project_checklist.evidence_out_of_date' | translate
+                                                                "
+                                                            />
+                                                        }
+                                                        @if (editable()) {
+                                                            <p-button
+                                                                icon="pi pi-times"
+                                                                size="small"
+                                                                severity="danger"
+                                                                [text]="true"
+                                                                [label]="'project_checklist.withdraw_btn' | translate"
+                                                                [ariaLabel]="
+                                                                    'project_checklist.aria_withdraw'
+                                                                        | translate
+                                                                            : {
+                                                                                  name:
+                                                                                      proof.fileName ?? proof.link ?? ''
+                                                                              }
+                                                                "
+                                                                [disabled]="busy()"
+                                                                (onClick)="withdraw(proof)"
+                                                            />
+                                                        }
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    </div>
+
+                                    @if (refusal(); as refused) {
+                                        @if (refused.itemId === line.itemId) {
+                                            <div class="mt-3">
+                                                <ng-container
+                                                    *ngTemplateOutlet="refusalBlock; context: { $implicit: refused }"
+                                                />
+                                            </div>
+                                        }
+                                    }
+
+                                    <!-- The line's acts, for those who write, on the newest draft. -->
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        @if (editable()) {
+                                            <p-button
+                                                [id]="'answer-' + line.itemId"
+                                                icon="pi pi-pencil"
+                                                size="small"
+                                                [outlined]="true"
+                                                [label]="
+                                                    line.answer
+                                                        ? ('project_checklist.change_answer_btn' | translate)
+                                                        : ('project_checklist.answer_btn' | translate)
+                                                "
+                                                [ariaLabel]="
+                                                    'project_checklist.aria_answer'
+                                                        | translate: { position: line.position }
+                                                "
+                                                (onClick)="startAnswer(line)"
+                                            />
+                                            <p-button
+                                                [id]="'add-evidence-' + line.itemId"
+                                                icon="pi pi-paperclip"
+                                                size="small"
+                                                [outlined]="true"
+                                                [label]="'project_checklist.add_evidence_btn' | translate"
+                                                [ariaLabel]="
+                                                    'project_checklist.aria_add_evidence'
+                                                        | translate: { position: line.position }
+                                                "
+                                                (onClick)="startEvidence(line)"
+                                            />
+                                        }
+                                        <p-button
+                                            [id]="'history-' + line.itemId"
+                                            icon="pi pi-history"
+                                            size="small"
+                                            [text]="true"
+                                            [label]="
+                                                historyOpen(line)
+                                                    ? ('project_checklist.hide_history_btn' | translate)
+                                                    : ('project_checklist.history_btn' | translate)
+                                            "
+                                            [ariaLabel]="
+                                                'project_checklist.aria_history'
+                                                    | translate: { position: line.position }
+                                            "
+                                            (onClick)="toggleHistory(line)"
+                                        />
+                                    </div>
+
+                                    @if (answering(); as draft) {
+                                        @if (draft.itemId === line.itemId) {
+                                            <div
+                                                class="mt-3 p-3 rounded-md bg-surface-50 dark:bg-surface-800 flex flex-col gap-2"
+                                                [attr.data-testid]="'answer-form-' + line.position"
+                                            >
+                                                <fieldset class="border-0 p-0 m-0 flex flex-wrap gap-4">
+                                                    <legend class="font-medium mb-1">
+                                                        {{ 'project_checklist.label_answer' | translate }}
+                                                    </legend>
+                                                    @for (value of offeredAnswers(); track value) {
+                                                        <label
+                                                            class="flex items-center gap-2"
+                                                            [for]="'answer-' + line.itemId + '-' + value"
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                [id]="'answer-' + line.itemId + '-' + value"
+                                                                [name]="'answer-' + line.itemId"
+                                                                [checked]="draft.value === value"
+                                                                (change)="setAnswer({ value })"
+                                                            />
+                                                            {{ answerLabel(value) }}
+                                                            @if (templateWord(value); as word) {
+                                                                <span class="text-muted-color text-sm"
+                                                                    >({{ word }})</span
+                                                                >
+                                                            }
+                                                        </label>
+                                                    }
+                                                </fieldset>
+                                                <label [for]="'comment-' + line.itemId" class="font-medium">{{
+                                                    'project_checklist.label_comment' | translate
+                                                }}</label>
+                                                <textarea
+                                                    pTextarea
+                                                    [id]="'comment-' + line.itemId"
+                                                    rows="3"
+                                                    maxlength="4000"
+                                                    [ngModel]="draft.comment"
+                                                    (ngModelChange)="setAnswer({ comment: $event })"
+                                                ></textarea>
+                                                <small class="text-muted-color">{{
+                                                    'project_checklist.comment_hint' | translate
+                                                }}</small>
+                                                @if (answerError(); as message) {
+                                                    <small class="text-red-500" data-testid="answer-error">{{
+                                                        message
+                                                    }}</small>
+                                                }
+                                                <div class="flex gap-2">
+                                                    <p-button
+                                                        [id]="'save-answer-' + line.itemId"
+                                                        [label]="'project_checklist.save_answer_btn' | translate"
+                                                        [disabled]="busy()"
+                                                        (onClick)="saveAnswer(line)"
+                                                    />
+                                                    <p-button
+                                                        [text]="true"
+                                                        [label]="'common.cancel' | translate"
+                                                        (onClick)="answering.set(null)"
+                                                    />
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+
+                                    @if (proving(); as draft) {
+                                        @if (draft.itemId === line.itemId) {
+                                            <div
+                                                class="mt-3 p-3 rounded-md bg-surface-50 dark:bg-surface-800 flex flex-col gap-2"
+                                                [attr.data-testid]="'evidence-form-' + line.position"
+                                            >
+                                                <fieldset class="border-0 p-0 m-0 flex flex-wrap gap-4">
+                                                    <legend class="font-medium mb-1">
+                                                        {{ 'project_checklist.label_evidence' | translate }}
+                                                    </legend>
+                                                    <label
+                                                        class="flex items-center gap-2"
+                                                        [for]="'evidence-kind-' + line.itemId + '-link'"
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            [id]="'evidence-kind-' + line.itemId + '-link'"
+                                                            [name]="'evidence-kind-' + line.itemId"
+                                                            [checked]="draft.kind === 'link'"
+                                                            (change)="setEvidence({ kind: 'link' })"
+                                                        />
+                                                        {{ 'project_checklist.evidence_link' | translate }}
+                                                    </label>
+                                                    <label
+                                                        class="flex items-center gap-2"
+                                                        [for]="'evidence-kind-' + line.itemId + '-file'"
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            [id]="'evidence-kind-' + line.itemId + '-file'"
+                                                            [name]="'evidence-kind-' + line.itemId"
+                                                            [checked]="draft.kind === 'file'"
+                                                            (change)="setEvidence({ kind: 'file' })"
+                                                        />
+                                                        {{ 'project_checklist.evidence_file' | translate }}
+                                                    </label>
+                                                </fieldset>
+                                                @if (draft.kind === 'link') {
+                                                    @if (line.evidenceKind === 'file') {
+                                                        <small class="text-muted-color">{{
+                                                            'project_checklist.file_asked_hint' | translate
+                                                        }}</small>
+                                                    }
+                                                    <label [for]="'evidence-link-' + line.itemId" class="font-medium">{{
+                                                        'project_checklist.field_link' | translate
+                                                    }}</label>
+                                                    <input
+                                                        pInputText
+                                                        type="url"
+                                                        maxlength="2000"
+                                                        [id]="'evidence-link-' + line.itemId"
+                                                        [ngModel]="draft.link"
+                                                        (ngModelChange)="setEvidence({ link: $event })"
+                                                    />
+                                                } @else {
+                                                    <label [for]="'evidence-file-' + line.itemId" class="font-medium">{{
+                                                        'project_checklist.field_file' | translate
+                                                    }}</label>
+                                                    <input
+                                                        type="file"
+                                                        class="text-sm"
+                                                        [id]="'evidence-file-' + line.itemId"
+                                                        (change)="pickEvidence($event)"
+                                                    />
+                                                }
+                                                <label [for]="'evidence-day-' + line.itemId" class="font-medium">{{
+                                                    'project_checklist.field_performed_on' | translate
+                                                }}</label>
+                                                <input
+                                                    pInputText
+                                                    type="date"
+                                                    class="w-fit"
+                                                    [id]="'evidence-day-' + line.itemId"
+                                                    [max]="today"
+                                                    [ngModel]="draft.performedOn"
+                                                    (ngModelChange)="setEvidence({ performedOn: $event })"
+                                                />
+                                                @if (evidenceError(); as message) {
+                                                    <small class="text-red-500" data-testid="evidence-error">{{
+                                                        message
+                                                    }}</small>
+                                                }
+                                                <div class="flex gap-2">
+                                                    <p-button
+                                                        [id]="'save-evidence-' + line.itemId"
+                                                        [label]="'project_checklist.save_evidence_btn' | translate"
+                                                        [disabled]="busy() || (draft.kind === 'file' && !draft.file)"
+                                                        (onClick)="saveEvidence(line)"
+                                                    />
+                                                    <p-button
+                                                        [text]="true"
+                                                        [label]="'common.cancel' | translate"
+                                                        (onClick)="proving.set(null)"
+                                                    />
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+
+                                    <!-- The history: every answer and proof, never edited, oldest first. -->
+                                    @if (historyOpen(line)) {
+                                        <div class="mt-3 text-sm" [attr.data-testid]="'history-' + line.position">
+                                            @if (histories()[line.itemId]; as history) {
+                                                <h5 class="font-semibold mt-0 mb-1">
+                                                    {{ 'project_checklist.history_answers' | translate }}
+                                                </h5>
+                                                @if (history.answers.length === 0 && history.evidence.length === 0) {
+                                                    <p class="text-muted-color m-0">
+                                                        {{ 'project_checklist.history_empty' | translate }}
+                                                    </p>
+                                                }
+                                                <ol class="m-0 pl-5">
+                                                    @for (row of history.answers; track row.id) {
+                                                        <li>
+                                                            <strong>{{ answerLabel(row.value) }}</strong>
+                                                            —
+                                                            {{
+                                                                'project_checklist.by_at'
+                                                                    | translate
+                                                                        : {
+                                                                              who: row.answeredBy,
+                                                                              at:
+                                                                                  (row.answeredAt
+                                                                                      | date: 'dd/MM/yyyy HH:mm') ?? ''
+                                                                          }
+                                                            }}
+                                                            @if (row.carriedBy) {
+                                                                ·
+                                                                {{
+                                                                    'project_checklist.carried_by'
+                                                                        | translate
+                                                                            : {
+                                                                                  who: row.carriedBy,
+                                                                                  at:
+                                                                                      (row.carriedAt
+                                                                                          | date: 'dd/MM/yyyy HH:mm') ??
+                                                                                      ''
+                                                                              }
+                                                                }}
+                                                            } @else if (row.carriedFromId) {
+                                                                ·
+                                                                {{
+                                                                    'project_checklist.history_confirmation' | translate
+                                                                }}
+                                                            }
+                                                            @if (row.comment) {
+                                                                <div class="whitespace-pre-line text-muted-color">
+                                                                    {{ row.comment }}
+                                                                </div>
+                                                            }
+                                                        </li>
+                                                    }
+                                                </ol>
+                                                @if (history.evidence.length > 0) {
+                                                    <h5 class="font-semibold mt-2 mb-1">
+                                                        {{ 'project_checklist.history_evidence' | translate }}
+                                                    </h5>
+                                                    <ol class="m-0 pl-5">
+                                                        @for (proof of history.evidence; track proof.id) {
+                                                            <li>
+                                                                {{
+                                                                    proof.kind === 'link' ? proof.link : proof.fileName
+                                                                }}
+                                                                —
+                                                                {{
+                                                                    'project_checklist.evidence_added'
+                                                                        | translate
+                                                                            : {
+                                                                                  who: proof.addedBy,
+                                                                                  at:
+                                                                                      (proof.addedAt
+                                                                                          | date: 'dd/MM/yyyy HH:mm') ??
+                                                                                      ''
+                                                                              }
+                                                                }}
+                                                                @if (proof.withdrawnAt) {
+                                                                    ·
+                                                                    {{
+                                                                        'project_checklist.evidence_withdrawn'
+                                                                            | translate
+                                                                                : {
+                                                                                      who: proof.withdrawnBy ?? '—',
+                                                                                      at:
+                                                                                          (proof.withdrawnAt
+                                                                                              | date
+                                                                                                  : 'dd/MM/yyyy HH:mm') ??
+                                                                                          ''
+                                                                                  }
+                                                                    }}
+                                                                }
+                                                            </li>
+                                                        }
+                                                    </ol>
+                                                }
+                                            } @else {
+                                                <p class="text-muted-color m-0">{{ 'common.loading' | translate }}</p>
+                                            }
+                                        </div>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            }
+        </p-card>
+
+        <!-- Every revision, newest first: the earlier ones stay readable, never changed. -->
+        <p-card styleClass="mb-4" data-testid="revisions">
+            <ng-template #title>{{ 'project_checklist.revisions_title' | translate }}</ng-template>
+            <p-table [value]="revisions()" dataKey="revision" styleClass="p-datatable-sm">
+                <ng-template #header>
+                    <tr>
+                        <th>{{ 'project_checklist.col_revision' | translate }}</th>
+                        <th>{{ 'project_checklist.field_status' | translate }}</th>
+                        <th>{{ 'project_checklist.field_version' | translate }}</th>
+                        <th>{{ 'project_checklist.field_opened' | translate }}</th>
+                        <th>{{ 'project_checklist.field_signed_off' | translate }}</th>
+                        <th class="text-right">{{ 'common.actions' | translate }}</th>
+                    </tr>
+                </ng-template>
+                <ng-template #body let-row>
+                    <tr [attr.data-testid]="'revision-' + row.revision">
+                        <td>{{ row.revision }}</td>
+                        <td><p-tag [severity]="statusSeverity(row.status)" [value]="statusLabel(row.status)" /></td>
+                        <td>
+                            {{ row.templateName }} ·
+                            {{ 'project_checklist.version_n' | translate: { ordinal: row.versionOrdinal } }}
+                        </td>
+                        <td>{{ row.openedBy }} {{ row.openedAt | date: 'dd/MM/yyyy' }}</td>
+                        <td>
+                            @if (row.signedOffAt) {
+                                {{ row.signedOffBy }} {{ row.signedOffAt | date: 'dd/MM/yyyy' }}
+                            } @else {
+                                —
+                            }
+                        </td>
+                        <td class="text-right">
+                            @if (row.revision === current.revision) {
+                                <p-tag severity="info" [value]="'project_checklist.shown_tag' | translate" />
+                            } @else {
+                                <p-button
+                                    icon="pi pi-eye"
+                                    size="small"
+                                    [text]="true"
+                                    [label]="'project_checklist.show_revision_btn' | translate"
+                                    [ariaLabel]="
+                                        'project_checklist.aria_show_revision' | translate: { revision: row.revision }
+                                    "
+                                    (onClick)="read(row.revision)"
+                                />
+                            }
+                        </td>
+                    </tr>
+                </ng-template>
+            </p-table>
+        </p-card>
+    }
+}

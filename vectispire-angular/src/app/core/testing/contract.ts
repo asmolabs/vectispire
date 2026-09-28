@@ -114,6 +114,10 @@ const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
 const CHECKLIST_VERSION_STATUSES = ['draft', 'published', 'retired']; // TemplateVersionStatus
 const CHECKLIST_CHANGES = ['unchanged', 'changed', 'added', 'removed']; // ChecklistTemplateService.change
+const CHECKLIST_STATUSES = ['draft', 'submitted', 'signed_off', 'superseded']; // ChecklistStatus
+const CHECKLIST_ANSWERS = ['yes', 'no', 'not_applicable']; // ChecklistAnswer
+const CHECKLIST_EVIDENCE_KINDS = ['none', 'link_or_file', 'file']; // EvidenceRequirement.Kind
+const CHECKLIST_PROOF_KINDS = ['link', 'file']; // t_checklist_evidence.kind
 
 const ISSUE = { state: ISSUE_STATES, severity: ISSUE_SEVERITIES, type: FINDING_TYPES, triageStatus: TRIAGE_STATUSES };
 
@@ -136,7 +140,13 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     TriageRequest: { status: TRIAGE_STATUSES },
     BulkTriageRequest: { status: TRIAGE_STATUSES },
     ChecklistVersionSummary: { status: CHECKLIST_VERSION_STATUSES },
-    PairingChange: { change: CHECKLIST_CHANGES }
+    PairingChange: { change: CHECKLIST_CHANGES },
+    ChecklistRevisionSummary: { status: CHECKLIST_STATUSES },
+    ChecklistAnswerView: { value: CHECKLIST_ANSWERS },
+    ChecklistAnswerRequest: { value: CHECKLIST_ANSWERS },
+    ChecklistLineView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
+    ChecklistItemView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
+    ChecklistEvidenceView: { kind: CHECKLIST_PROOF_KINDS }
 };
 
 function check(schemaName: string, value: unknown, path: string): string[] {

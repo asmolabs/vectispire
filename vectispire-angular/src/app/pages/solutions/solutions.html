@@ -147,6 +147,22 @@
                                         />
                                     </div>
                                 </div>
+                                <!-- A partial project answers 404 on its checklist: a reader who sees part
+                                     of it would read, in one line, the state of repositories hidden from
+                                     them (decision 0032 §8). No link, rather than one to a refusal. -->
+                                @if (!project.partial) {
+                                    <a
+                                        [routerLink]="['/projects', project.id, 'checklist']"
+                                        class="inline-flex items-center gap-2 text-sm px-2 py-1"
+                                        [attr.aria-label]="
+                                            'solutions.aria_checklist' | translate: { name: project.name }
+                                        "
+                                        data-testid="project-checklist"
+                                    >
+                                        <i class="pi pi-list-check" aria-hidden="true"></i>
+                                        {{ 'solutions.checklist_btn' | translate }}
+                                    </a>
+                                }
                                 @if (readsGovernance()) {
                                     <p-button
                                         icon="pi pi-th-large"

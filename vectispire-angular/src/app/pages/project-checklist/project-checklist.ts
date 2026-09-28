@@ -1,0 +1,794 @@
+import { CommonModule } from '@angular/common';
+import { HttpHeaders } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import type { Observable } from 'rxjs';
+import { ButtonModule } from '@openng/optimus-ui/button';
+import { CardModule } from '@openng/optimus-ui/card';
+import { InputTextModule } from '@openng/optimus-ui/inputtext';
+import { MessageModule } from '@openng/optimus-ui/message';
+import { TableModule } from '@openng/optimus-ui/table';
+import { TagModule } from '@openng/optimus-ui/tag';
+import { TextareaModule } from '@openng/optimus-ui/textarea';
+import { messageOf } from '../../core/api-error';
+import { ChecklistsApi, MAX_EVIDENCE_BYTES } from '../../core/api/checklists.api';
+import type {
+    ChecklistAnswerValue,
+    ChecklistEvidence,
+    ChecklistEvidenceKind,
+    ChecklistLine,
+    ChecklistLineHistory,
+    ChecklistLineProblem,
+    ChecklistOfferedVersion,
+    ChecklistRevisionSummary,
+    ChecklistStatus,
+    ChecklistView
+} from '../../core/api.models';
+import { saveDocument } from '../../core/download';
+import { I18nService } from '../../core/i18n/i18n.service';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { LatestRequest } from '../../core/latest-request';
+import { SessionStore } from '../../core/session.store';
+
+// Literal keys, so the i18n check sees each value's translation and a new one cannot ship as a raw
+// key (decision 0019). The check counts none of these — they are not `t('…')` calls — so the spec
+// reads each against both bundles.
+export const STATUS_KEYS = {
+    draft: 'project_checklist.status_draft',
+    submitted: 'project_checklist.status_submitted',
+    signed_off: 'project_checklist.status_signed_off',
+    superseded: 'project_checklist.status_superseded'
+} as const satisfies Record<ChecklistStatus, string>;
+
+export const ANSWER_KEYS = {
+    yes: 'project_checklist.answer_yes',
+    no: 'project_checklist.answer_no',
+    not_applicable: 'project_checklist.answer_not_applicable'
+} as const satisfies Record<ChecklistAnswerValue, string>;
+
+export const PROBLEM_KEYS = {
+    unanswered: 'project_checklist.problem_unanswered',
+    awaiting_confirmation: 'project_checklist.problem_awaiting_confirmation',
+    comment_required: 'project_checklist.problem_comment_required',
+    evidence_required: 'project_checklist.problem_evidence_required',
+    evidence_expired: 'project_checklist.problem_evidence_expired'
+} as const satisfies Record<ChecklistLineProblem, string>;
+
+export const EVIDENCE_KIND_KEYS = {
+    none: 'project_checklist.evidence_kind_none',
+    link_or_file: 'project_checklist.evidence_kind_link_or_file',
+    file: 'project_checklist.evidence_kind_file'
+} as const satisfies Record<ChecklistEvidenceKind, string>;
+
+/**
+ * Why the server refused a checklist write for the state it found: `ChecklistConflict.Cause`, read
+ * from the problem's `type` — never from its English `detail`, whose wording is free to change.
+ */
+export type ConflictCause =
+    | 'changed'
+    | 'line_changed'
+    | 'not_draft'
+    | 'not_submitted'
+    | 'not_signed_off'
+    | 'not_latest'
+    | 'incomplete'
+    | 'four_eyes'
+    | 'version_not_published'
+    | 'same_version'
+    | 'nothing_to_confirm'
+    | 'evidence_withdrawn';
+
+/** `ApiExceptionHandler.PROBLEM_TYPE` followed by `Cause.token()`, one per cause. */
+export const CONFLICT_TYPES: Readonly<Record<string, ConflictCause>> = {
+    'urn:vectispire:problem:checklist-changed': 'changed',
+    'urn:vectispire:problem:checklist-line-changed': 'line_changed',
+    'urn:vectispire:problem:checklist-not-draft': 'not_draft',
+    'urn:vectispire:problem:checklist-not-submitted': 'not_submitted',
+    'urn:vectispire:problem:checklist-not-signed-off': 'not_signed_off',
+    'urn:vectispire:problem:checklist-not-latest': 'not_latest',
+    'urn:vectispire:problem:checklist-incomplete': 'incomplete',
+    'urn:vectispire:problem:checklist-four-eyes': 'four_eyes',
+    'urn:vectispire:problem:checklist-version-not-published': 'version_not_published',
+    'urn:vectispire:problem:checklist-same-version': 'same_version',
+    'urn:vectispire:problem:checklist-nothing-to-confirm': 'nothing_to_confirm',
+    'urn:vectispire:problem:checklist-evidence-withdrawn': 'evidence_withdrawn'
+};
+
+export const CONFLICT_KEYS = {
+    changed: 'project_checklist.conflict_changed',
+    line_changed: 'project_checklist.conflict_line_changed',
+    not_draft: 'project_checklist.conflict_not_draft',
+    not_submitted: 'project_checklist.conflict_not_submitted',
+    not_signed_off: 'project_checklist.conflict_not_signed_off',
+    not_latest: 'project_checklist.conflict_not_latest',
+    incomplete: 'project_checklist.conflict_incomplete',
+    four_eyes: 'project_checklist.conflict_four_eyes',
+    version_not_published: 'project_checklist.conflict_version_not_published',
+    same_version: 'project_checklist.conflict_same_version',
+    nothing_to_confirm: 'project_checklist.conflict_nothing_to_confirm',
+    evidence_withdrawn: 'project_checklist.conflict_evidence_withdrawn'
+} as const satisfies Record<ConflictCause, string>;
+
+/** Why the sign-off is greyed out for the person on screen — a hint: the server decides. */
+export type SignOffBlock = 'not_approver' | 'four_eyes';
+
+/** A refusal explained, whether reloading is what it asks for, and the line it concerns, if one. */
+interface Refusal {
+    message: string;
+    reload: boolean;
+    itemId: number | null;
+}
+
+/** The answer being written on one line. */
+interface AnswerDraft {
+    itemId: number;
+    value: ChecklistAnswerValue | null;
+    comment: string;
+}
+
+/** The proof being attached to one line. */
+interface EvidenceDraft {
+    itemId: number;
+    kind: 'link' | 'file';
+    link: string;
+    file: File | null;
+    performedOn: string;
+}
+
+/** A domain of the checklist, its objectives in the template's order, each with its lines. */
+export interface DomainGroup {
+    domain: string | null;
+    objectives: { objective: string | null; lines: ChecklistLine[] }[];
+}
+
+/**
+ * A project's security checklist (decision 0032 §4, §5, §8), answered by people.
+ *
+ * **Read by whoever sees the whole project, and by nobody else.** The server answers 404 to a
+ * reader who sees part of it — the words of an absent project — and the screen says exactly that,
+ * without guessing which of the two it is.
+ *
+ * **Every write names the edition on screen, and adopts the checklist it gets back.** The edition
+ * moves on at every write, so the view each write returns replaces the one shown; a write from a
+ * stale screen is refused by the server (409), and the refusal is explained from the problem's
+ * `type` — a changed line, a changed checklist, the four-eyes rule — with a reload offered where
+ * reloading is the remedy.
+ *
+ * **Writes are offered to the roles that cause effects** (`@RequiresWriteAccount`); the auditor and
+ * the platform governor read. The sign-off is an approver's and, under four-eyes, somebody who wrote
+ * none of the revision: the button says why it is greyed out, from the `authors` and
+ * `fourEyesRequired` the view carries, and the server has the last word.
+ */
+@Component({
+    selector: 'app-project-checklist',
+    standalone: true,
+    imports: [
+        CommonModule,
+        FormsModule,
+        RouterLink,
+        ButtonModule,
+        CardModule,
+        InputTextModule,
+        MessageModule,
+        TableModule,
+        TagModule,
+        TextareaModule,
+        TranslatePipe
+    ],
+    changeDetection: ChangeDetectionStrategy.Eager,
+    templateUrl: './project-checklist.html'
+})
+export class ProjectChecklist {
+    private readonly api = inject(ChecklistsApi);
+    private readonly i18n = inject(I18nService);
+    private readonly session = inject(SessionStore);
+    // The revision shown can be switched faster than the server answers; the older answer must not
+    // land over the newer one.
+    private readonly readRequest = new LatestRequest();
+
+    /** The route's `:projectId`, bound by `withComponentInputBinding`. */
+    readonly projectId = input.required<string>();
+    readonly id = computed(() => Number(this.projectId()));
+
+    readonly maxEvidenceBytes = MAX_EVIDENCE_BYTES;
+    readonly answerValues: readonly ChecklistAnswerValue[] = ['yes', 'no', 'not_applicable'];
+
+    /** `@RequiresWriteAccount`: open, answer, prove, submit, return, reopen, move. */
+    readonly writes = this.session.canCauseEffects;
+    /** `canApproveTriage`: who may sign off at all. */
+    readonly approves = this.session.canApproveTriage;
+
+    readonly revisions = signal<ChecklistRevisionSummary[]>([]);
+    readonly view = signal<ChecklistView | null>(null);
+    readonly offered = signal<ChecklistOfferedVersion[]>([]);
+    readonly loading = signal(true);
+    readonly notFound = signal(false);
+    readonly error = signal<string | null>(null);
+    readonly notice = signal<string | null>(null);
+    readonly refusal = signal<Refusal | null>(null);
+    readonly busy = signal(false);
+
+    readonly openChoice = signal<string | null>(null);
+    readonly moveChoice = signal<string | null>(null);
+    readonly answering = signal<AnswerDraft | null>(null);
+    readonly answerError = signal<string | null>(null);
+    readonly proving = signal<EvidenceDraft | null>(null);
+    readonly evidenceError = signal<string | null>(null);
+    readonly returning = signal(false);
+    readonly returnReason = signal('');
+    readonly returnError = signal<string | null>(null);
+    /** The histories open, by line; `null` while one is being read. */
+    readonly histories = signal<Record<number, ChecklistLineHistory | null>>({});
+
+    readonly summary = computed(() => this.view()?.checklist ?? null);
+    readonly latest = computed(() => this.revisions()[0] ?? null);
+    readonly isLatest = computed(() => {
+        const shown = this.summary();
+        return !!shown && shown.revision === this.latest()?.revision;
+    });
+    readonly status = computed(() => this.summary()?.status ?? null);
+    /** Lines are answered and proven on the newest revision while it is a draft, by those who write. */
+    readonly editable = computed(() => this.writes() && this.isLatest() && this.status() === 'draft');
+    readonly groups = computed(() => groupsOf(this.view()?.lines ?? []));
+    readonly unready = computed(() =>
+        (this.view()?.lines ?? []).filter((line) => line.problems.length > 0).map((line) => line.position)
+    );
+    readonly signOffBlock = computed<SignOffBlock | null>(() =>
+        signOffBlockOf(this.view(), this.approves(), this.session.user()?.username)
+    );
+    readonly openOptions = computed(() => this.offered().map((version) => this.option(version)));
+    /** Every published version but the one the checklist is on: moving to it again is refused. */
+    readonly moveOptions = computed(() => {
+        const shown = this.summary();
+        return this.offered()
+            .filter(
+                (version) =>
+                    !shown || version.templateSlug !== shown.templateSlug || version.ordinal !== shown.versionOrdinal
+            )
+            .map((version) => this.option(version));
+    });
+    readonly today = todayUtc();
+
+    constructor() {
+        // An effect rather than a call in the constructor: a signal input is not bound yet there.
+        effect(() => {
+            const id = this.id();
+            untracked(() => this.load(id));
+        });
+    }
+
+    // ------------------------------------------------------------------ reading
+
+    /** Everything read again, the newest revision shown — what a refusal for a stale screen asks for. */
+    reload(): void {
+        this.load(this.id());
+    }
+
+    private load(projectId: number): void {
+        this.loading.set(true);
+        this.error.set(null);
+        this.refusal.set(null);
+        this.closeForms();
+        this.readRequest.run(this.api.projectChecklists(projectId), {
+            next: (revisions) => {
+                this.revisions.set(revisions);
+                this.notFound.set(false);
+                if (this.writes()) this.loadOffered(projectId);
+                if (revisions.length === 0) {
+                    this.view.set(null);
+                    this.loading.set(false);
+                    return;
+                }
+                this.read(revisions[0].revision);
+            },
+            error: (failure) => this.failed(failure)
+        });
+    }
+
+    /** One revision, the newest or an earlier one, read-only unless it is the newest draft. */
+    read(revision: number): void {
+        this.loading.set(true);
+        this.closeForms();
+        this.readRequest.run(this.api.projectChecklist(this.id(), revision), {
+            next: (view) => {
+                this.view.set(view);
+                this.histories.set({});
+                this.loading.set(false);
+            },
+            error: (failure) => this.failed(failure)
+        });
+    }
+
+    private failed(failure: unknown): void {
+        this.loading.set(false);
+        // A project that does not exist and one not seen whole are the same 404 by design: the
+        // screen cannot tell them apart and must not pretend to.
+        if ((failure as { status?: number } | null)?.status === 404) {
+            this.notFound.set(true);
+            this.view.set(null);
+            this.revisions.set([]);
+            return;
+        }
+        this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_load')));
+    }
+
+    private loadOffered(projectId: number): void {
+        this.api.offeredChecklistVersions(projectId).subscribe({
+            next: (offered) => this.offered.set(offered),
+            error: () => this.offered.set([])
+        });
+    }
+
+    /** The revisions listed again after a write opened one, without touching the view shown. */
+    private refreshRevisions(): void {
+        this.api.projectChecklists(this.id()).subscribe({
+            next: (revisions) => this.revisions.set(revisions),
+            error: () => undefined
+        });
+    }
+
+    // ------------------------------------------------------------------ labels
+
+    statusLabel(status: string): string {
+        this.i18n.translations();
+        const key = (STATUS_KEYS as Record<string, string | undefined>)[status];
+        return key ? this.i18n.t(key) : status;
+    }
+
+    statusSeverity(status: string): 'warn' | 'info' | 'success' | 'secondary' {
+        return status === 'draft'
+            ? 'warn'
+            : status === 'submitted'
+              ? 'info'
+              : status === 'signed_off'
+                ? 'success'
+                : 'secondary';
+    }
+
+    answerLabel(value: string): string {
+        this.i18n.translations();
+        const key = (ANSWER_KEYS as Record<string, string | undefined>)[value];
+        return key ? this.i18n.t(key) : value;
+    }
+
+    /** The template's own word for an answer, as the importer mapped it — what the signed document will write. */
+    templateWord(value: ChecklistAnswerValue): string | null {
+        const words = this.view()?.answerWords;
+        if (!words) return null;
+        return value === 'yes' ? words.yes : value === 'no' ? words.no : words.notApplicable;
+    }
+
+    /** A carried answer onto a line that changed: the line stands out until somebody answers or confirms it. */
+    awaiting(line: ChecklistLine): boolean {
+        return !!line.answer?.needsConfirmation;
+    }
+
+    problemLabel(problem: string): string {
+        this.i18n.translations();
+        const key = (PROBLEM_KEYS as Record<string, string | undefined>)[problem];
+        return key ? this.i18n.t(key) : problem;
+    }
+
+    evidenceKindLabel(kind: string): string {
+        this.i18n.translations();
+        const key = (EVIDENCE_KIND_KEYS as Record<string, string | undefined>)[kind];
+        return key ? this.i18n.t(key) : kind;
+    }
+
+    /** The answers the version offers: "not applicable" only where its importer mapped a word to it. */
+    offeredAnswers(): readonly ChecklistAnswerValue[] {
+        return this.view()?.offersNotApplicable
+            ? this.answerValues
+            : this.answerValues.filter((v) => v !== 'not_applicable');
+    }
+
+    private option(version: ChecklistOfferedVersion): { value: string; label: string } {
+        this.i18n.translations();
+        const ordinal = this.i18n.t('project_checklist.version_n', { ordinal: version.ordinal });
+        return {
+            value: `${version.templateSlug}:${version.ordinal}`,
+            label: `${version.templateName} — ${ordinal}${version.label ? ` (${version.label})` : ''}`
+        };
+    }
+
+    // ------------------------------------------------------------------ opening, moving
+
+    /** The first checklist of the project: no edition, since the screen showed none. */
+    openChecklist(): void {
+        const choice = parseChoice(this.openChoice());
+        if (!choice) return;
+        this.write(this.api.openProjectChecklist(this.id(), choice.slug, choice.ordinal, null), null, (view) => {
+            this.openChoice.set(null);
+            this.notice.set(this.i18n.t('project_checklist.opened_notice', { revision: view.checklist.revision }));
+            this.refreshRevisions();
+        });
+    }
+
+    /** A new revision on another version, from the newest one — the edition read on it. */
+    moveChecklist(): void {
+        const choice = parseChoice(this.moveChoice());
+        const shown = this.summary();
+        if (!choice || !shown) return;
+        this.write(
+            this.api.openProjectChecklist(this.id(), choice.slug, choice.ordinal, shown.edition),
+            null,
+            (view) => {
+                this.moveChoice.set(null);
+                this.notice.set(
+                    this.i18n.t('project_checklist.moved_notice', {
+                        revision: view.checklist.revision,
+                        ordinal: view.checklist.versionOrdinal
+                    })
+                );
+                this.refreshRevisions();
+            }
+        );
+    }
+
+    reopen(): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.write(this.api.reopenChecklist(this.id(), shown.revision, shown.edition), null, (view) => {
+            this.notice.set(this.i18n.t('project_checklist.reopened_notice', { revision: view.checklist.revision }));
+            this.refreshRevisions();
+        });
+    }
+
+    // ------------------------------------------------------------------ answering
+
+    startAnswer(line: ChecklistLine): void {
+        this.proving.set(null);
+        this.answerError.set(null);
+        this.answering.set({
+            itemId: line.itemId,
+            value: line.answer?.value ?? null,
+            comment: line.answer?.comment ?? ''
+        });
+    }
+
+    setAnswer(patch: Partial<Pick<AnswerDraft, 'value' | 'comment'>>): void {
+        this.answering.update((draft) => (draft ? { ...draft, ...patch } : draft));
+    }
+
+    /** Refused here as the server would: no answer chosen, or a negative one without its reason. */
+    saveAnswer(line: ChecklistLine): void {
+        const draft = this.answering();
+        const shown = this.summary();
+        if (!draft || !shown || draft.itemId !== line.itemId) return;
+        if (!draft.value) {
+            this.answerError.set(this.i18n.t('project_checklist.problem_choose'));
+            return;
+        }
+        if (draft.value !== 'yes' && !draft.comment.trim()) {
+            this.answerError.set(this.i18n.t('project_checklist.problem_comment'));
+            return;
+        }
+        this.answerError.set(null);
+        this.write(
+            this.api.answerChecklistLine(
+                this.id(),
+                shown.revision,
+                line.itemId,
+                draft.value,
+                draft.comment,
+                shown.edition
+            ),
+            line.itemId,
+            () => this.answering.set(null)
+        );
+    }
+
+    confirmAnswer(line: ChecklistLine): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.write(this.api.confirmChecklistAnswer(this.id(), shown.revision, line.itemId, shown.edition), line.itemId);
+    }
+
+    // ------------------------------------------------------------------ evidence
+
+    startEvidence(line: ChecklistLine): void {
+        this.answering.set(null);
+        this.evidenceError.set(null);
+        this.proving.set({
+            itemId: line.itemId,
+            kind: line.evidenceKind === 'file' ? 'file' : 'link',
+            link: '',
+            file: null,
+            performedOn: this.today
+        });
+    }
+
+    setEvidence(patch: Partial<Pick<EvidenceDraft, 'kind' | 'link' | 'performedOn'>>): void {
+        this.proving.update((draft) => (draft ? { ...draft, ...patch } : draft));
+    }
+
+    /**
+     * Refused past the route's ceiling before anything is sent, in the sentence the server's body
+     * filter answers with — twenty-five megabytes uploaded to be told no is the refusal that costs.
+     */
+    pickEvidence(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0] ?? null;
+        this.evidenceError.set(null);
+        if (file && file.size > MAX_EVIDENCE_BYTES) {
+            input.value = '';
+            this.proving.update((draft) => (draft ? { ...draft, file: null } : draft));
+            this.evidenceError.set(this.i18n.t('project_checklist.too_large', { limit: MAX_EVIDENCE_BYTES }));
+            return;
+        }
+        this.proving.update((draft) => (draft ? { ...draft, file } : draft));
+    }
+
+    saveEvidence(line: ChecklistLine): void {
+        const draft = this.proving();
+        const shown = this.summary();
+        if (!draft || !shown || draft.itemId !== line.itemId) return;
+        if (!DAY.test(draft.performedOn) || draft.performedOn > this.today) {
+            this.evidenceError.set(this.i18n.t('project_checklist.problem_day'));
+            return;
+        }
+        let request: Observable<ChecklistView>;
+        if (draft.kind === 'link') {
+            if (!LINK.test(draft.link.trim())) {
+                this.evidenceError.set(this.i18n.t('project_checklist.problem_link'));
+                return;
+            }
+            request = this.api.attachChecklistLink(
+                this.id(),
+                shown.revision,
+                line.itemId,
+                draft.link,
+                draft.performedOn,
+                shown.edition
+            );
+        } else {
+            if (!draft.file) {
+                this.evidenceError.set(this.i18n.t('project_checklist.problem_file'));
+                return;
+            }
+            request = this.api.attachChecklistFile(
+                this.id(),
+                shown.revision,
+                line.itemId,
+                draft.file,
+                draft.performedOn,
+                shown.edition
+            );
+        }
+        this.evidenceError.set(null);
+        this.write(request, line.itemId, () => this.proving.set(null));
+    }
+
+    withdraw(proof: ChecklistEvidence): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.write(
+            this.api.withdrawChecklistEvidence(this.id(), shown.revision, proof.id, shown.edition),
+            proof.itemId
+        );
+    }
+
+    /**
+     * Saved as a download under the name the list shows, never opened in the page. The name is the
+     * one the proof was stored under, rather than the header's, which `filenameOf` reads only in its
+     * plain form and a name outside ASCII does not take.
+     */
+    download(proof: ChecklistEvidence): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.api.checklistEvidenceFile(this.id(), shown.revision, proof.id).subscribe({
+            next: (response) =>
+                saveDocument(response.clone({ headers: new HttpHeaders() }), proof.fileName ?? 'evidence'),
+            error: (failure) => this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_download')))
+        });
+    }
+
+    // ------------------------------------------------------------------ history
+
+    historyOpen(line: ChecklistLine): boolean {
+        return line.itemId in this.histories();
+    }
+
+    toggleHistory(line: ChecklistLine): void {
+        const shown = this.summary();
+        if (!shown) return;
+        if (this.historyOpen(line)) {
+            this.histories.update((open) => {
+                const rest = { ...open };
+                delete rest[line.itemId];
+                return rest;
+            });
+            return;
+        }
+        this.histories.update((open) => ({ ...open, [line.itemId]: null }));
+        this.api.checklistLineHistory(this.id(), shown.revision, line.itemId).subscribe({
+            next: (history) => this.histories.update((open) => ({ ...open, [line.itemId]: history })),
+            error: (failure) => {
+                this.histories.update((open) => {
+                    const rest = { ...open };
+                    delete rest[line.itemId];
+                    return rest;
+                });
+                this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_history')));
+            }
+        });
+    }
+
+    // ------------------------------------------------------------------ submitting, returning, signing off
+
+    submit(): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.write(this.api.submitChecklist(this.id(), shown.revision, shown.edition), null, (view) =>
+            this.notice.set(this.i18n.t('project_checklist.submitted_notice', { revision: view.checklist.revision }))
+        );
+    }
+
+    startReturn(): void {
+        this.returning.set(true);
+        this.returnReason.set('');
+        this.returnError.set(null);
+    }
+
+    confirmReturn(): void {
+        const shown = this.summary();
+        if (!shown) return;
+        if (!this.returnReason().trim()) {
+            this.returnError.set(this.i18n.t('project_checklist.problem_reason'));
+            return;
+        }
+        this.returnError.set(null);
+        this.write(
+            this.api.returnChecklist(this.id(), shown.revision, this.returnReason(), shown.edition),
+            null,
+            (view) => {
+                this.returning.set(false);
+                this.notice.set(
+                    this.i18n.t('project_checklist.returned_notice', { revision: view.checklist.revision })
+                );
+            }
+        );
+    }
+
+    signOff(): void {
+        const shown = this.summary();
+        if (!shown) return;
+        this.write(this.api.signOffChecklist(this.id(), shown.revision, shown.edition), null, (view) =>
+            this.notice.set(this.i18n.t('project_checklist.signed_notice', { revision: view.checklist.revision }))
+        );
+    }
+
+    // ------------------------------------------------------------------ writing
+
+    /**
+     * One write: the view it answers replaces the one shown — its edition is the one the next write
+     * names — and the revision's row in the list follows. A refusal is explained, never swallowed.
+     */
+    private write(
+        request: Observable<ChecklistView>,
+        itemId: number | null,
+        done?: (view: ChecklistView) => void
+    ): void {
+        this.busy.set(true);
+        this.refusal.set(null);
+        this.error.set(null);
+        this.notice.set(null);
+        request.subscribe({
+            next: (view) => {
+                this.busy.set(false);
+                this.adopt(view);
+                done?.(view);
+            },
+            error: (failure) => {
+                this.busy.set(false);
+                this.refusal.set(this.explain(failure, itemId));
+            }
+        });
+    }
+
+    private adopt(view: ChecklistView): void {
+        this.view.set(view);
+        this.histories.set({});
+        const summary = view.checklist;
+        this.revisions.update((revisions) =>
+            revisions.some((one) => one.revision === summary.revision)
+                ? revisions.map((one) => (one.revision === summary.revision ? summary : one))
+                : [summary, ...revisions]
+        );
+    }
+
+    /** A cause named by the problem's type gets its sentence; anything else, the server's own words. */
+    private explain(failure: unknown, itemId: number | null): Refusal {
+        const cause = conflictOf(failure);
+        if (!cause) {
+            return {
+                message: messageOf(failure, this.i18n.t('project_checklist.error_write')),
+                reload: false,
+                itemId
+            };
+        }
+        const lines = this.unready();
+        const message =
+            cause === 'incomplete' && lines.length === 0
+                ? this.i18n.t('project_checklist.conflict_incomplete_reload')
+                : this.i18n.t(CONFLICT_KEYS[cause], {
+                      lines: lines.join(', '),
+                      authors: (this.view()?.authors ?? []).join(', ')
+                  });
+        // Four-eyes is the one cause reloading does not cure: the person is who they are.
+        return { message, reload: cause !== 'four_eyes', itemId };
+    }
+
+    private closeForms(): void {
+        this.answering.set(null);
+        this.proving.set(null);
+        this.returning.set(false);
+        this.answerError.set(null);
+        this.evidenceError.set(null);
+    }
+}
+
+// ---------------------------------------------------------------------- pure helpers
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/** What the server accepts as a link proof: `https:` or `http:` with a host. It checks again. */
+const LINK = /^https?:\/\/[^\s/?#]+/i;
+
+/** The cause a checklist refusal names in its problem type, or `null` for any other refusal. */
+export function conflictOf(failure: unknown): ConflictCause | null {
+    const type = (failure as { error?: { type?: unknown } } | null)?.error?.type;
+    return typeof type === 'string' ? (CONFLICT_TYPES[type] ?? null) : null;
+}
+
+/**
+ * Lines grouped by domain, then by objective, each in the order its first line appears — the
+ * template's own order, which the positions carry.
+ */
+export function groupsOf(lines: ChecklistLine[]): DomainGroup[] {
+    const groups: DomainGroup[] = [];
+    for (const line of [...lines].sort((a, b) => a.position - b.position)) {
+        let group = groups.find((one) => one.domain === line.domain);
+        if (!group) {
+            group = { domain: line.domain, objectives: [] };
+            groups.push(group);
+        }
+        let objective = group.objectives.find((one) => one.objective === line.objective);
+        if (!objective) {
+            objective = { objective: line.objective, lines: [] };
+            group.objectives.push(objective);
+        }
+        objective.lines.push(line);
+    }
+    return groups;
+}
+
+/**
+ * Why the person on screen may not sign this revision off, if they may not: not an approver, or,
+ * under four-eyes, one of its authors — compared by name without case, the side of the server's
+ * comparison the screen can make.
+ */
+export function signOffBlockOf(
+    view: ChecklistView | null,
+    approves: boolean,
+    username: string | null | undefined
+): SignOffBlock | null {
+    if (!approves) return 'not_approver';
+    const me = username?.trim().toLowerCase();
+    if (view?.fourEyesRequired && !!me && view.authors.some((author) => author.trim().toLowerCase() === me)) {
+        return 'four_eyes';
+    }
+    return null;
+}
+
+function parseChoice(choice: string | null): { slug: string; ordinal: number } | null {
+    if (!choice) return null;
+    const at = choice.lastIndexOf(':');
+    const ordinal = Number(choice.slice(at + 1));
+    return at > 0 && Number.isInteger(ordinal) ? { slug: choice.slice(0, at), ordinal } : null;
+}
+
+/** Today as the server reads a proof's day — in UTC, so that a day it calls future is not offered. */
+function todayUtc(): string {
+    return new Date().toISOString().slice(0, 10);
+}

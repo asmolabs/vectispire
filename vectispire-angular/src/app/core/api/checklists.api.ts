@@ -1,12 +1,18 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import type {
+    ChecklistAnswerValue,
     ChecklistItemPair,
     ChecklistLayout,
+    ChecklistLineHistory,
+    ChecklistOfferedVersion,
     ChecklistPreview,
+    ChecklistRevisionSummary,
     ChecklistTemplate,
-    ChecklistVersion
+    ChecklistVersion,
+    ChecklistView,
+    Schema
 } from '../api.models';
 
 /** The type the import route consumes; the server also takes `application/octet-stream`. */
@@ -20,12 +26,23 @@ export const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsh
 export const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024;
 
 /**
- * The organisation's checklist templates (decision 0032 §3, §4, §8): a workbook imported as a
- * draft, its layout and answer words confirmed, its items paired with the previous version, then
- * published by somebody who may — and, under four-eyes, somebody who did not write it.
+ * The ceiling on a checklist proof's file (`vectispire.http.max-body.checklist-evidence`, `25MB`),
+ * refused by the screen before a byte is sent, for the same reason as the workbook's.
+ */
+export const MAX_EVIDENCE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * The checklists (decision 0032): the organisation's templates, and each project's checklist
+ * answered against one of their published versions.
  *
- * One stateless client per domain; no absolute URL, for the CSP's `connect-src 'self'`. Reading is
- * governance (`@RequiresGovernanceRead`, the auditor included); every write is `@RequiresSecurityLead`.
+ * **Templates** (§3, §4): a workbook imported as a draft, its layout and answer words confirmed, its
+ * items paired with the previous version, then published by somebody who may — and, under
+ * four-eyes, somebody who did not write it. Reading is governance (`@RequiresGovernanceRead`, the
+ * auditor included); every write is `@RequiresSecurityLead`.
+ *
+ * **A project's checklist** (§5, §8): below, under its own heading.
+ *
+ * One stateless client per domain; no absolute URL, for the CSP's `connect-src 'self'`.
  */
 @Injectable({ providedIn: 'root' })
 export class ChecklistsApi {
@@ -131,8 +148,168 @@ export class ChecklistsApi {
     retireChecklistVersion(slug: string, ordinal: number): Observable<ChecklistVersion> {
         return this.http.post<ChecklistVersion>(`${versionPath(slug, ordinal)}/retire`, {});
     }
+
+    // ------------------------------------------------------------------ a project's checklist
+    //
+    // Readable by any account that sees the whole project — anything less is a 404, the words of an
+    // absent project; written by `@RequiresWriteAccount`. **Every write names the edition of the
+    // checklist on screen** and answers the checklist as it now is, whose edition has moved on: the
+    // screen replaces its view with it, or its next write would be refused as stale.
+
+    /** Every revision of the project's checklist, newest first. */
+    projectChecklists(projectId: number): Observable<ChecklistRevisionSummary[]> {
+        return this.http.get<ChecklistRevisionSummary[]>(projectPath(projectId));
+    }
+
+    /** The published versions the checklist may be opened on or moved to. */
+    offeredChecklistVersions(projectId: number): Observable<ChecklistOfferedVersion[]> {
+        return this.http.get<ChecklistOfferedVersion[]>(`${projectPath(projectId)}/offered`);
+    }
+
+    /**
+     * Opens the project's checklist on a published version, or moves it to another. `edition` is the
+     * newest revision's as read, and **left out when the screen showed no checklist**: a checklist
+     * somebody opened meanwhile is then refused rather than silently moved.
+     */
+    openProjectChecklist(
+        projectId: number,
+        template: string,
+        version: number,
+        edition: number | null
+    ): Observable<ChecklistView> {
+        const body: Schema<'ChecklistOpenRequest'> = { template, version };
+        if (edition !== null) body.edition = edition;
+        return this.http.post<ChecklistView>(projectPath(projectId), body);
+    }
+
+    projectChecklist(projectId: number, revision: number): Observable<ChecklistView> {
+        return this.http.get<ChecklistView>(revisionPath(projectId, revision));
+    }
+
+    checklistLineHistory(projectId: number, revision: number, itemId: number): Observable<ChecklistLineHistory> {
+        return this.http.get<ChecklistLineHistory>(`${linePath(projectId, revision, itemId)}/history`);
+    }
+
+    /** A new answer on a draft's line. `no` and `not_applicable` need a comment; a blank one is left out. */
+    answerChecklistLine(
+        projectId: number,
+        revision: number,
+        itemId: number,
+        value: ChecklistAnswerValue,
+        comment: string | null,
+        edition: number
+    ): Observable<ChecklistView> {
+        const body: Schema<'ChecklistAnswerRequest'> = { value, edition };
+        const trimmed = comment?.trim();
+        if (trimmed) body.comment = trimmed;
+        return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/answers`, body);
+    }
+
+    /** The answer carried onto a line that changed still holds, under the caller's name. */
+    confirmChecklistAnswer(
+        projectId: number,
+        revision: number,
+        itemId: number,
+        edition: number
+    ): Observable<ChecklistView> {
+        const body: Schema<'ChecklistEditionRequest'> = { edition };
+        return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/confirmation`, body);
+    }
+
+    /** `performedOn` is the day the work was done, `yyyy-MM-dd`. */
+    attachChecklistLink(
+        projectId: number,
+        revision: number,
+        itemId: number,
+        link: string,
+        performedOn: string,
+        edition: number
+    ): Observable<ChecklistView> {
+        const body: Schema<'ChecklistLinkRequest'> = { link: link.trim(), performedOn, edition };
+        return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/evidence/links`, body);
+    }
+
+    /**
+     * The file as the raw body — no multipart route, for the same reason as the workbook — typed as
+     * the file says, the name, the day and the edition as parameters. The server stores the type and
+     * never trusts it to serve the file back.
+     */
+    attachChecklistFile(
+        projectId: number,
+        revision: number,
+        itemId: number,
+        file: File,
+        performedOn: string,
+        edition: number
+    ): Observable<ChecklistView> {
+        const params = new HttpParams().set('name', file.name).set('performedOn', performedOn).set('edition', edition);
+        return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/evidence/files`, file, {
+            params,
+            headers: new HttpHeaders({ 'Content-Type': file.type || 'application/octet-stream' })
+        });
+    }
+
+    /**
+     * A proof's bytes, through `HttpClient` — the token lives in memory and a navigation would carry
+     * none — to be saved as a download. Never rendered: the server sends it as an opaque attachment,
+     * and an uploaded HTML file opened in the page would be a script on this origin.
+     */
+    checklistEvidenceFile(projectId: number, revision: number, evidenceId: number): Observable<HttpResponse<Blob>> {
+        return this.http.get(`${revisionPath(projectId, revision)}/evidence/${evidenceId}/file`, {
+            responseType: 'blob',
+            observe: 'response'
+        });
+    }
+
+    /** The proof stops counting; its row stays, dated and attributed. */
+    withdrawChecklistEvidence(
+        projectId: number,
+        revision: number,
+        evidenceId: number,
+        edition: number
+    ): Observable<ChecklistView> {
+        const body: Schema<'ChecklistEditionRequest'> = { edition };
+        return this.http.post<ChecklistView>(
+            `${revisionPath(projectId, revision)}/evidence/${evidenceId}/withdrawal`,
+            body
+        );
+    }
+
+    submitChecklist(projectId: number, revision: number, edition: number): Observable<ChecklistView> {
+        const body: Schema<'ChecklistEditionRequest'> = { edition };
+        return this.http.post<ChecklistView>(`${revisionPath(projectId, revision)}/submission`, body);
+    }
+
+    /** A submitted revision back to its authors, a draft again, with the reason they will read. */
+    returnChecklist(projectId: number, revision: number, reason: string, edition: number): Observable<ChecklistView> {
+        const body: Schema<'ChecklistReturnRequest'> = { reason: reason.trim(), edition };
+        return this.http.post<ChecklistView>(`${revisionPath(projectId, revision)}/return`, body);
+    }
+
+    signOffChecklist(projectId: number, revision: number, edition: number): Observable<ChecklistView> {
+        const body: Schema<'ChecklistEditionRequest'> = { edition };
+        return this.http.post<ChecklistView>(`${revisionPath(projectId, revision)}/sign-off`, body);
+    }
+
+    /** The next revision of a signed-off one, every answer carried as current; the signed one never changes. */
+    reopenChecklist(projectId: number, revision: number, edition: number): Observable<ChecklistView> {
+        const body: Schema<'ChecklistEditionRequest'> = { edition };
+        return this.http.post<ChecklistView>(`${revisionPath(projectId, revision)}/reopen`, body);
+    }
 }
 
 function versionPath(slug: string, ordinal: number): string {
     return `/api/v1/checklist-templates/${encodeURIComponent(slug)}/versions/${ordinal}`;
+}
+
+function projectPath(projectId: number): string {
+    return `/api/v1/projects/${projectId}/checklists`;
+}
+
+function revisionPath(projectId: number, revision: number): string {
+    return `${projectPath(projectId)}/${revision}`;
+}
+
+function linePath(projectId: number, revision: number, itemId: number): string {
+    return `${revisionPath(projectId, revision)}/items/${itemId}`;
 }

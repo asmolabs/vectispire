@@ -52,6 +52,14 @@ export const appRoutes: Routes = [
                 loadComponent: () => import('./app/pages/solutions/solutions').then((m) => m.Solutions)
             },
             {
+                // Readable by every account that sees the whole project, and no role guard can say
+                // which those are: the server answers 404 to the others, and the page says so.
+                path: 'projects/:projectId/checklist',
+                title: 'titles.project_checklist',
+                loadComponent: () =>
+                    import('./app/pages/project-checklist/project-checklist').then((m) => m.ProjectChecklist)
+            },
+            {
                 // Readable by every account, like the server's GET: an image, arguments and
                 // languages name no target. The page offers the writes to the platform governor only.
                 path: 'plugins',
