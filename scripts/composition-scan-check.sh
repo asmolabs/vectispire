@@ -26,14 +26,41 @@
 # host's key must be written down, and once the fixture changes its host key the next scan must be
 # refused as a changed host — never accepted.
 #
-# **Cheap by choice.** The cataloguer and the secrets scanner run for real — they read the tree, one
-# of them read-only and one writing its report, which is what the first two defects broke. The
-# matcher, the IaC checker and the SAST engine are pointed at an image that does not exist, so their
-# steps are absent in seconds: the matcher's database alone is 3 GB, and what this check is about is
-# whether a scanner container sees the workspace at all, not what each tool finds in it. The fixture
-# is a local repository served by `git daemon` from a container on the composition's own network,
-# with a token generated for the run, and by `sshd` from another — nothing is cloned from the
-# internet, nothing looks like a secret in this file.
+# **Every scanner, for real, and each must find what was planted for it** (2026-09-28). The matcher,
+# the IaC checker and the SAST engine used to be pointed at an image that does not exist, so only the
+# cataloguer and the secrets scanner were proved to read the tree — and the second defect above was
+# found for those three by hand, on a real repository. They now run at the digests the product pins,
+# the way it runs them, and the scan must carry: a secret (a token generated for the run), an IaC
+# finding (a Terraform bucket with none of its controls), the bundled SAST rule's finding
+# (`vectispire.python.eval-on-input` on an `eval` of input — the rules the jar ships, so the step
+# fetches nothing), an SBOM (a pinned requirement), and the matcher's match on that requirement.
+# Any failed step fails the check: none is expected any more.
+#
+# **The matcher's database is a fixture, not the publisher's.** The real one is some 3 GB unpacked;
+# what this is about is whether the matcher, started through the composition, runs as the workspace's
+# owner, reads the SBOM and a database handed to it read-only and offline, and answers. So
+# `composition-scan-fixture/matcher-db.py` writes a database in the pinned matcher's own schema with
+# one advisory, `VSCHECK-2026-0001`, against a package nobody publishes; the pinned matcher imports it
+# itself (`db import`, which writes the digest it later checks), and it is published in the executor's
+# cache as `VulnerabilityDatabase` publishes a download — a generation, the `current` pointer, and the
+# time of the last freshness check, so nothing is asked of the network. The match then takes the
+# product's own path: `mountable()` resolves that generation, and the matcher mounts it read-only,
+# without network, as the workspace's owner. A match on that advisory can only come from that file; a
+# matcher running as root, unable to read the 0700 workspace, or finding no database fails the step.
+# What is not run is the download itself (`db update`), which needs the publisher and the 3 GB.
+#
+# The fixture is a local repository served by `git daemon` from a container on the composition's own
+# network, with a token generated for the run, and by `sshd` from another — nothing is cloned from the
+# internet, nothing looks like a secret in this file. Both run an image built here from
+# `composition-scan-fixture/Dockerfile`, on a base pinned by digest and with its packages installed at
+# build time: nothing is installed when a fixture starts.
+#
+# **On Docker Desktop the scans' directories live in its VM**, because its file sharing answers a
+# read of a shared host path whatever the owner and the mode: a scanner running as a root with no
+# capability reads a 0700 directory of another user there, and the check would pass on exactly the
+# defect it exists for — measured on 2026-09-28. Inside the VM the daemon is a Linux one and a mode is
+# a mode. On a Linux host they stay under this run's temporary directory. Either way the script
+# reaches them only through containers, as the daemon's host sees them.
 #
 # **It never touches a deployment.** The composition runs under its own project name, and an override
 # resets every fixed container, network and volume name so none of them is `vectispire-*`: a
@@ -43,24 +70,36 @@
 #   scripts/composition-scan-check.sh                        # images vectispire:latest, vectispire-agent:latest
 #   MODE=agent scripts/composition-scan-check.sh             # the scans run on the `with-agent` profile's agent
 #   CONTROL_PLANE_IMAGE=vectispire:x AGENT_IMAGE=vectispire-agent:x scripts/composition-scan-check.sh
+#   DAEMON_DIR=/somewhere scripts/composition-scan-check.sh  # the scans' directories, on the daemon's host
 #   KEEP=1 scripts/composition-scan-check.sh                 # leave it up to poke at
 set -euo pipefail
 [ -z "${TRACE:-}" ] || set -x
 
 cd "$(dirname "$0")/.."
 root="$PWD"
+started_at=$SECONDS
 
 MODE="${MODE:-embedded}"
 PROJECT="${PROJECT:-vectispire-scan-check}"
 CONTROL_PLANE_IMAGE="${CONTROL_PLANE_IMAGE:-vectispire:latest}"
 AGENT_IMAGE="${AGENT_IMAGE:-vectispire-agent:latest}"
-# The fixture's server: `git daemon`, since a repository URL is https, ssh or git — plain http is
-# refused, and a certificate for a throwaway host would be more fixture than check. Alpine with its
-# `git-daemon` package, installed when the fixture starts: the images that ship git leave it out.
-FIXTURE_IMAGE="${FIXTURE_IMAGE:-alpine:3.22}"
+# The fixture's servers: `git daemon`, since a repository URL is https, ssh or git — plain http is
+# refused, and a certificate for a throwaway host would be more fixture than check — and `sshd`.
+fixture_dir="$root/scripts/composition-scan-fixture"
+FIXTURE_IMAGE="$PROJECT-fixture:local"
+# Its base, for the containers that only need a shell: one digest, read where it is pinned.
+BASE_IMAGE="$(sed -n 's/^FROM //p' "$fixture_dir/Dockerfile")"
+# The matcher the product runs, read where the product pins it: the fixture database is imported by
+# the very binary that will match against it.
+GRYPE_IMAGE="$(grep -o 'anchore/grype@sha256:[0-9a-f]\{64\}' \
+  "$root/vectispire-java/vectispire-common/src/main/java/com/asmolabs/vectispire/common/scanning/scanners/ScannerImages.java")"
 PORT="${PORT:-3189}"
-# An image nobody publishes: `.invalid` is reserved (RFC 2606), so the pull fails at once.
-SKIPPED="vectispire-scan-check.invalid/skipped:0"
+# The one the executors run as: `work-dir` hands the directory to it, and the images run as it.
+EXECUTOR_USER=1000:1000
+# What the fixture plants for each scanner.
+PACKAGE=vectispire-scan-check
+ADVISORY=VSCHECK-2026-0001
+SAST_RULE=vectispire.python.eval-on-input
 
 case "$MODE" in
   embedded | agent) ;;
@@ -68,6 +107,14 @@ case "$MODE" in
 esac
 
 work="$(mktemp -d)"
+if [ -n "${DAEMON_DIR:-}" ]; then
+  daemon_dir="$DAEMON_DIR"
+elif [ "$(docker info --format '{{.OperatingSystem}}' 2>/dev/null)" = "Docker Desktop" ]; then
+  # Not shared with the Mac, so resolved in the VM: created there by the daemon, empty.
+  daemon_dir="/var/lib/$PROJECT/$(basename "$work")"
+else
+  daemon_dir="$work"
+fi
 compose=(docker compose --project-directory "$root" -p "$PROJECT" -f "$root/docker-compose.yml"
          -f "$work/override.yml" --env-file "$work/.env" --profile with-agent)
 
@@ -79,20 +126,28 @@ cleanup() {
   fi
   if [ -z "${KEEP:-}" ]; then
     "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
-    # The scans' directory is a bind of the daemon's host, created by the daemon: removed the same
-    # way, through a container, since the files in it are the control plane's user's.
-    docker run --rm --entrypoint rm -v "$work:/w" "$FIXTURE_IMAGE" -rf /w/scans /w/agent-scans >/dev/null 2>&1 || true
+    # The scans' directories are binds of the daemon's host, created by the daemon: removed the same
+    # way, through a container, since the files in them are the executors' user's.
+    docker run --rm --network none -u 0:0 --entrypoint rm -v "$daemon_dir:/w" "$BASE_IMAGE" \
+      -rf /w/scans /w/agent-scans >/dev/null 2>&1 || true
+    if [ "$daemon_dir" != "$work" ] && [ -z "${DAEMON_DIR:-}" ]; then
+      docker run --rm --network none -u 0:0 --entrypoint rmdir -v "$(dirname "$daemon_dir"):/w" "$BASE_IMAGE" \
+        "/w/$(basename "$daemon_dir")" >/dev/null 2>&1 || true
+    fi
+    docker image rm "$FIXTURE_IMAGE" >/dev/null 2>&1 || true
     rm -rf "$work"
   else
-    echo "kept: project $PROJECT, files in $work"
+    echo "kept: project $PROJECT, files in $work, scans in $daemon_dir"
   fi
   exit "$status"
 }
 trap cleanup EXIT
 
 fail() { echo "✗ $*" >&2; exit 1; }
+elapsed() { echo "$(( SECONDS - $1 ))s"; }
 
-# ── The throwaway secrets, generated here and never written anywhere else.
+# ── The throwaway secrets, generated here and never written anywhere else. No scanner image is
+# named: blank keeps the digests `ScannerImages` pins, which is what an installation runs.
 umask 077
 cat > "$work/.env" <<EOF
 MYSQL_PASSWORD=$(openssl rand -hex 16)
@@ -102,16 +157,19 @@ VECTISPIRE_BOOTSTRAP_PASSWORD=Check-$(openssl rand -hex 12)!
 VECTISPIRE_SIGNING_KEY=
 VECTISPIRE_OIDC_CLIENT_SECRET=
 VECTISPIRE_PORT=$PORT
-VECTISPIRE_WORK_DIR=$work/scans
-VECTISPIRE_AGENT_WORK_DIR=$work/agent-scans
-VECTISPIRE_IMAGE_GRYPE=$SKIPPED
-VECTISPIRE_IMAGE_CHECKOV=$SKIPPED
-VECTISPIRE_IMAGE_SEMGREP=$SKIPPED
+VECTISPIRE_WORK_DIR=$daemon_dir/scans
+VECTISPIRE_AGENT_WORK_DIR=$daemon_dir/agent-scans
 VECTISPIRE_EMBEDDED_WORKER=$([ "$MODE" = embedded ] && echo true || echo false)
 VECTISPIRE_HOST_SSH=false
 EOF
 umask 022
 password="$(grep '^VECTISPIRE_BOOTSTRAP_PASSWORD=' "$work/.env" | cut -d= -f2-)"
+
+echo "── building the fixture's image, and the matcher's database"
+docker build -q -t "$FIXTURE_IMAGE" "$fixture_dir" >/dev/null
+mkdir -p "$work/matcher"
+python3 "$fixture_dir/matcher-db.py" "$work/matcher/vulnerability.db" "$PACKAGE" 2.0
+chmod 644 "$work/matcher/vulnerability.db"
 
 # ── The SSH fixture's keys: two host keys — the one it starts with and the one it changes to — and
 # the deployment key the repository is registered with. Readable by the fixture's root, which copies
@@ -123,12 +181,14 @@ ssh-keygen -q -t ed25519 -N '' -C scan-check-deploy -f "$work/ssh/deploy"
 cp "$work/ssh/deploy.pub" "$work/ssh/authorized_keys"
 chmod 644 "$work/ssh/"*
 
-# ── The fixture: one commit, one generated token, served by `git daemon`.
+# ── The fixture: one commit, one thing for each scanner to find, served by `git daemon`.
 mkdir -p "$work/fixture/src" "$work/fixture/srv"
 # Not `tr < /dev/urandom | head`: `head` closing the pipe is a SIGPIPE, and `pipefail` makes it fatal.
 token="ghp_$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-36)"
 printf 'GITHUB_TOKEN=%s\n' "$token" > "$work/fixture/src/deploy.env"
 printf 'resource "aws_s3_bucket" "b" {\n  bucket = "scan-check"\n}\n' > "$work/fixture/src/main.tf"
+printf '%s==1.0.0\n' "$PACKAGE" > "$work/fixture/src/requirements.txt"
+printf 'import sys\n\nprint(eval(sys.argv[1]))\n' > "$work/fixture/src/app.py"
 git -C "$work/fixture/src" init -q -b main
 git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid add .
 git -C "$work/fixture/src" -c user.name=check -c user.email=check@example.invalid commit -q -m fixture
@@ -156,12 +216,9 @@ services:
     image: $AGENT_IMAGE
   agent-docker-proxy:
     container_name: !reset null
+  # The image's own command: \`git daemon\`, as its unprivileged user.
   fixture:
     image: $FIXTURE_IMAGE
-    # safe.directory: the repository belongs to whoever ran this script, not to the daemon's root.
-    entrypoint: ["sh", "-c"]
-    command:
-      - apk add --no-cache -q git-daemon && exec git -c safe.directory='*' daemon --reuseaddr --export-all --base-path=/srv /srv
     volumes:
       - $work/fixture/srv:/srv:ro
     networks:
@@ -171,13 +228,12 @@ services:
   # changing it recreates the container, which is the fixture's way of being another server.
   sshfixture:
     image: $FIXTURE_IMAGE
+    user: "0:0"
     environment:
       HOST_KEY: \${FIXTURE_HOST_KEY:-a}
     entrypoint: ["sh", "-c"]
     command:
       - >-
-        apk add --no-cache -q openssh-server git &&
-        adduser -D -s /usr/bin/git-shell git && sed -i 's/^git:!/git:*/' /etc/shadow &&
         install -d -o git -m 700 /home/git/.ssh && install -o git -m 600 /keys/authorized_keys /home/git/.ssh/ &&
         install -m 600 /keys/host_\$\$HOST_KEY /etc/ssh/host_key &&
         exec /usr/sbin/sshd -D -e -o HostKey=/etc/ssh/host_key -o PasswordAuthentication=no
@@ -208,6 +264,22 @@ EOF
 base="http://127.0.0.1:$PORT"
 json() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
 
+# Publishes the fixture database in an executor's cache, laid out as `VulnerabilityDatabase` lays out
+# what it downloads: `generations/<millis>-<8 hex>`, named by `current`, and `checked` just now so
+# that `mountable()` takes it as it is instead of asking the publisher whether it is stale. Written as
+# the executor's user, like everything else in that directory: the matcher has to read it as that
+# user, and a root-owned file there would be one the executor could never retire.
+publish_matcher_database() { # executor directory, on the daemon's host
+  local generation
+  generation="$(python3 -c 'import time; print(int(time.time() * 1000))')-$(openssl rand -hex 4)"
+  docker run --rm --network none -u "$EXECUTOR_USER" -v "$1:/work" -v "$work/matcher:/in:ro" \
+    -e "GRYPE_DB_CACHE_DIR=/work/vectispire-vulnerability-db/generations/$generation" \
+    -e GRYPE_CHECK_FOR_APP_UPDATE=false "$GRYPE_IMAGE" db import /in/vulnerability.db >/dev/null
+  docker run --rm --network none -u "$EXECUTOR_USER" -v "$1:/work" --entrypoint sh "$BASE_IMAGE" -c '
+    cd /work/vectispire-vulnerability-db && printf %s "$1" > current && date -u +%Y-%m-%dT%H:%M:%SZ > checked' \
+    sh "$generation"
+}
+
 echo "── starting the composition ($MODE)"
 "${compose[@]}" up -d --no-build --pull missing db docker-proxy work-dir control-plane fixture sshfixture >/dev/null
 deadline=$(( $(date +%s) + 300 ))
@@ -225,6 +297,10 @@ first="$(login "$password")"
 curl -sf -o /dev/null -X POST -H 'Content-Type: application/json' -H "Authorization: Bearer $first" \
   -d "{\"current_password\":\"$password\",\"new_password\":\"$rotated\"}" "$base/api/v1/auth/change-password"
 bearer="Authorization: Bearer $(login "$rotated")"
+# The SAST step is off on a fresh installation (`sast_enabled`), and the dispatcher leaves it off the
+# task: without this the engine never starts, and no step fails to say so.
+sast="$(curl -s -X PUT -H "$bearer" -H 'Content-Type: application/json' -d '{"sast_enabled":"true"}' "$base/api/v1/settings")"
+[ "$(printf '%s' "$sast" | json 'd["updated"]' 2>/dev/null)" = 1 ] || fail "SAST could not be switched on: $sast"
 
 if [ "$MODE" = agent ]; then
   echo "── declaring the agent and starting it"
@@ -240,6 +316,12 @@ if [ "$MODE" = agent ]; then
   VECTISPIRE_AGENT_TOKEN="$(printf '%s' "$declared" | json 'd["secret"]')" VECTISPIRE_AGENT_SIGNING_KEY="$signing" \
     "${compose[@]}" up -d --no-build --pull missing agent-docker-proxy agent-work-dir agent >/dev/null
 fi
+
+executor=control-plane; executor_dir="$daemon_dir/scans"
+[ "$MODE" = agent ] && { executor=agent; executor_dir="$daemon_dir/agent-scans"; }
+# After `work-dir` handed the directory over, before anything is queued.
+publish_matcher_database "$executor_dir"
+echo "── ready in $(elapsed "$started_at")"
 
 register() { # body -> repository id
   local repository
@@ -257,7 +339,7 @@ queue() { # repository id -> scan id
 
 # Queues a scan of repository $1, waits for it to finish, prints it, and leaves its detail in $detail.
 scan() {
-  local scan_id status deadline
+  local scan_id status deadline began=$SECONDS
   scan_id="$(queue "$1")"
   deadline=$(( $(date +%s) + 900 ))
   while :; do
@@ -271,31 +353,40 @@ scan() {
     sleep 5
   done
   printf '%s' "$detail" | python3 -c '
-import json, sys
+import collections, json, sys
 d = json.load(sys.stdin); s = d["scan"]
-print("status:", s["status"], "| findings:", d["findingsTotal"], "| SBOM:", d["hasSbom"], "| by:", s["claimedBy"])
+kinds = collections.Counter(f["type"] for f in d["findings"])
+print("status:", s["status"], "| findings:", d["findingsTotal"], dict(kinds), "| SBOM:", d["hasSbom"])
 print("steps that failed:", s["error"] or "none")'
+  echo "   in $(elapsed "$began")"
 }
 
-# What the check is for: the two scanners that ran for real read the tree. The skipped ones are
-# expected in the error, and nothing else is. In agent mode the control plane's worker is off, so a
-# completed scan is the agent's: a finished scan names no claimant any more, and needs none here.
+# What the check is for: every scanner read the tree and reported what was planted for it. No step
+# may fail. In agent mode the control plane's worker is off, so a completed scan is the agent's: a
+# finished scan names no claimant any more, and needs none here.
 scanned_the_tree() {
-  printf '%s' "$detail" | SKIPPED="$SKIPPED" python3 -c '
+  printf '%s' "$detail" | ADVISORY="$ADVISORY" PACKAGE="$PACKAGE" SAST_RULE="$SAST_RULE" python3 -c '
 import json, os, sys
-d = json.load(sys.stdin); s = d["scan"]; error = s["error"] or ""
+d = json.load(sys.stdin); s = d["scan"]; findings = d["findings"]
+def found(kind, identifier=None):
+    return any(f["type"] == kind and (identifier is None or f["identifier"] == identifier) for f in findings)
 problems = []
 if s["status"] != "completed":
     problems.append("the scan is " + s["status"] + ", not completed")
+for step in (s["error"] or "").split(" | "):
+    if step:
+        problems.append("a step failed: " + step)
 if not d["hasSbom"]:
     problems.append("no SBOM: the cataloguer did not read the tree")
-if not any(f["type"] == "secret" for f in d["findings"]):
+if not found("secret"):
     problems.append("no secret found: the secrets scanner did not read the tree")
-for step in error.split(" | "):
-    # The matcher runs after the cataloguer, so its missing image is the dependencies step failing.
-    if step and not (step.startswith("dependencies:") and os.environ["SKIPPED"] in step
-                     or step.startswith("IaC:") or step.startswith("SAST:")):
-        problems.append("unexpected failure: " + step)
+if not found("iac"):
+    problems.append("no IaC finding: the IaC checker did not read the tree")
+if not found("sast", os.environ["SAST_RULE"]):
+    problems.append("no " + os.environ["SAST_RULE"] + " finding: the SAST engine did not read the tree with the bundled rules")
+if not found("vulnerability", os.environ["ADVISORY"]):
+    problems.append("no " + os.environ["ADVISORY"] + " on " + os.environ["PACKAGE"]
+                    + ": the matcher did not read the SBOM against the database published for it")
 if problems:
     print("\n".join("✗ " + p for p in problems), file=sys.stderr); sys.exit(1)'
 }
@@ -304,7 +395,7 @@ if problems:
 plain_repo="$(register '{"url":"git://fixture/fixture.git","branch":"main","name":"scan-check"}')"
 scan "$plain_repo"
 scanned_the_tree
-echo "✓ the composition scans: the tree reached the scanners, and they read it"
+echo "✓ the composition scans: the tree reached every scanner, and each read it"
 
 # ── Over SSH, with a managed key.
 echo "── the same repository over SSH, with a deployment key registered through the API"
@@ -314,10 +405,9 @@ key_id="$(python3 -c 'import json, sys; print(json.dumps({"name": "scan-check", 
 ssh_repo="$(register "{\"url\":\"ssh://git@sshfixture/srv/fixture.git\",\"branch\":\"main\",\"name\":\"scan-check-ssh\",\"sshKeyId\":\"$key_id\"}")"
 scan "$ssh_repo"
 scanned_the_tree
-executor=control-plane; executor_dir="$work/scans"
-[ "$MODE" = agent ] && { executor=agent; executor_dir="$work/agent-scans"; }
 # Read through a container: the directory is 0700 and the executor's user's, not this script's.
-recorded="$(docker run --rm --entrypoint cat -v "$executor_dir:/w:ro" "$FIXTURE_IMAGE" /w/home/.ssh/known_hosts 2>&1 || true)"
+recorded="$(docker run --rm --network none -u "$EXECUTOR_USER" --entrypoint cat -v "$executor_dir:/w:ro" "$BASE_IMAGE" \
+  /w/home/.ssh/known_hosts 2>&1 || true)"
 printf '%s\n' "$recorded" | grep -qF "$(cut -d' ' -f2 "$work/ssh/host_a.pub")" \
   || fail "the fixture's host key was not written to the executor's known_hosts: $recorded"
 # Captured, then searched: `logs | grep -q` stops reading at the first match, `logs` dies of SIGPIPE,
@@ -356,3 +446,4 @@ if [ "$MODE" = agent ] && [ $(( $(date +%s) - started )) -ge 600 ]; then
   fail "the agent's failure took $(( $(date +%s) - started ))s to reach the scan: it waited for a lease, not a report"
 fi
 echo "✓ a changed host key is refused, and said to be one"
+echo "── done in $(elapsed "$started_at")"
