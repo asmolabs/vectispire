@@ -42,7 +42,7 @@ module, and Spring Modulith verifies the boundaries between modules against the 
 declares. That is a genuine step down: a rule, or a line in a list, can be changed by the same commit
 that needs it; a missing dependency cannot.
 
-**Inside `vectispire-core`, twenty-five modules.** The control plane is divided into domains over a
+**Inside `vectispire-core`, twenty-six modules.** The control plane is divided into domains over a
 foundation every domain may use (`settings`, `outbound`, `crypto`, `audit`, `outbox`, `reporting`,
 `maintenance`), with `platform` on top — the settings screen that composes four domains, the
 foundation's routes, the error handler and the OpenAPI configuration; it may use any module and none
@@ -83,7 +83,7 @@ and listed in `MaintenanceJobsTest.COMPOSITION`: the tick knows none of the work
 
 **Spring Modulith is the authority on the module boundaries.** `ModularityTest` calls `verify()` and
 fails the build on a cycle between modules, a reach into another module's internals, or a dependency a
-list does not carry; it sees twenty-six modules (the twenty-five above, seven of them shared, and
+list does not carry; it sees twenty-seven modules (the twenty-six above, seven of them shared, and
 `config`) and writes their canvases and diagrams into `build/modulith-docs/`
 ([05](../docs/architecture/en/05-modularity.md)). `ArchitectureTest` keeps what Modulith cannot say:
 the layers inside a module, and the six modules that use `access` for their routes only. A JPQL string
@@ -142,7 +142,9 @@ same name; decision records written before that date keep the names they had.
 | The key can come from a secret file, and a failed mount stops the application | `EncryptionKeyFileTest`, `EncryptionKeyFileDatabaseTest` |
 | Entities agree with the schema, on both engines and the SQLite fixture | `SchemaParityIntegrationTest` |
 | A migration version lives in `common` once or in every engine's directory, and a common one names no engine | `MigrationLayoutTest` |
-| Each type placeholder is what the engine declares and keeps (`datetime(6)`, identity never reused) | `MigrationPlaceholdersIntegrationTest` |
+| Each type placeholder is what the engine declares and keeps (`datetime(6)`, identity never reused, bytes whole past 64 KiB) | `MigrationPlaceholdersIntegrationTest` |
+| A checklist template's workbook is kept byte for byte in the engine's binary type, never a large object, and every change to a version is a conditional statement on the revision its writer read | `ChecklistTemplateStorageIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| A checklist template version is a draft until a person confirms its layout, and, with four-eyes on, is published or retired by none of the accounts that wrote it, at the revision its publisher reviewed | `ChecklistTemplatesRoutesTest` |
 | An expired session, a reset password and a role change all close the sessions; a reset also revokes the account's integration keys | `AccountAdministrationService`, `ApiKeyIntegrationRoutesTest` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -327,8 +329,10 @@ on, a migration that differs between engines only by its column types is written
 with the placeholders `MigrationDialect` spells per engine and `MigrationPlaceholders` hands to
 Flyway: `${ts}`, `${id}` (the whole identity column, `primary key` included — SQLite accepts
 `autoincrement` only on the exact phrase `integer primary key`), `${bool}`, `${true}`, `${false}`,
-`${text}`, `${double}`. A migration whose structure diverges — a foreign key, a column change, date
-arithmetic, a data repair — is written in each vendor directory. `MigrationLayoutTest` fails the
+`${text}`, `${double}`, `${bytes}` (a file's bytes: `longblob`, `bytea`, `blob` — mapped with an
+explicit JDBC type, never `@Lob`, which is an `oid` on PostgreSQL). A migration whose structure
+diverges — a foreign key, a column change, date arithmetic, a data repair — is written in each vendor
+directory. `MigrationLayoutTest` fails the
 build when a version sits in one or two vendor directories, in both places, or under a name Flyway
 would skip, and refuses an engine token in `common`. **V1 to V39 stay where they are**: Flyway
 checks the checksum of every applied migration, and a moved or edited file stops every existing
@@ -346,7 +350,7 @@ historically experienced with abstractions:
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all forty-seven tables are created by name, and that the twenty-seven foreign keys of the
+that all fifty-five tables are created by name, and that the twenty-seven foreign keys of the
 seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on

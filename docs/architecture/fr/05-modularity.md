@@ -9,7 +9,7 @@
 > si davantage atteint le jar ou si l'un de ses beans devient actif. Les couches à l'intérieur d'un
 > module restent celles d'[`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java).
 
-## Ce que Modulith détecte : vingt-cinq domaines et `config`
+## Ce que Modulith détecte : vingt-six domaines et `config`
 
 Modulith prend pour modules les paquetages situés directement sous la classe de l'application,
 `com.asmolabs.vectispire.core`. L'étape 2 en trouvait cinq, les couches d'un code découpé par couche —
@@ -19,8 +19,8 @@ entrailles d'un seul module.
 Les étapes 3 à 5 ont déplacé chaque domaine dans un paquetage à lui
 ([0028](decisions/0028-vertical-modules.md), [0029](decisions/0029-core-domains-become-modules.md)) :
 `core.<domaine>` pour l'API, `.web` pour les contrôleurs, `.internal` pour l'implémentation,
-`.persistence` pour les entités et les repositories. Modulith trouve désormais **26 modules** — `plugins`, ajouté avec la
-décision 0017, le dernier — et les paquetages par couche ont disparu :
+`.persistence` pour les entités et les repositories. Modulith trouve désormais **27 modules** — `checklists`, ajouté avec la
+décision 0032, le dernier — et les paquetages par couche ont disparu :
 
 | Module | Nature | Autres domaines dont il dépend |
 |---|---|---|
@@ -42,6 +42,7 @@ décision 0017, le dernier — et les paquetages par couche ont disparu :
 | `tickets` | domaine | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domaine | `access`, `issues`, `scanning`, `targets` — implémente le port `ScanPlugins` de `scanning` ; la route des manifestes des agents l'atteint par ce port |
+| `checklists` | domaine | `access` — les marqueurs des routes et le compte connecté que compare le double contrôle ; la décision 0032 §1 liste ce que ses lots suivants ajouteront |
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 

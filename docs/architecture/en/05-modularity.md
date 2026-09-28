@@ -9,7 +9,7 @@
 > of it reaches the jar or one of its beans becomes active. The layers inside a module stay
 > [`ArchitectureTest`](../../../vectispire-java/vectispire-core/src/test/java/com/asmolabs/vectispire/core/ArchitectureTest.java)'s.
 
-## What Modulith detects: twenty-five domains and `config`
+## What Modulith detects: twenty-six domains and `config`
 
 Modulith takes the packages directly under the application class, `com.asmolabs.vectispire.core`, as
 its modules. Step 2 found five, the layers of a code base packaged by layer — `api`, `services`,
@@ -19,8 +19,8 @@ internals.
 Steps 3 to 5 moved every domain into a package of its own ([0028](decisions/0028-vertical-modules.md),
 [0029](decisions/0029-core-domains-become-modules.md)): `core.<domain>` for the API, `.web` for the
 controllers, `.internal` for the implementation, `.persistence` for the entities and repositories.
-Modulith now finds **26 modules** — `plugins`, added with decision 0017, the latest — and the layered
-packages are gone:
+Modulith now finds **27 modules** — `checklists`, added with decision 0032, the latest — and the
+layered packages are gone:
 
 | Module | Kind | Other domains it depends on |
 |---|---|---|
@@ -42,6 +42,7 @@ packages are gone:
 | `tickets` | domain | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domain | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domain | `access`, `issues`, `scanning`, `targets` — implements `scanning`'s `ScanPlugins` port; the agents' manifest route reaches it through that port |
+| `checklists` | domain | `access` — the routes' markers and the signed-in account four-eyes compares; decision 0032 §1 lists what its later lots will add |
 | `platform` | the shell | any; used by none |
 | `config` | infrastructure | — |
 
