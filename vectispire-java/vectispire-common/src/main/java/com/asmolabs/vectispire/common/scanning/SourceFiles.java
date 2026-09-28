@@ -86,8 +86,8 @@ public final class SourceFiles {
         Path root = source.toRealPath();
         Path candidate = relative.isEmpty() ? root : root.resolve(relative).normalize();
         if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
-            // Absent from this checkout: the analysers report that themselves, and it is not a
-            // way out of the clone.
+            // Absent from this checkout: not a way out of the clone, and the scan's own refusal to
+            // make (`ScanRunner.scanRoot`) — a permanent failure, not an analyser's.
             return candidate;
         }
         Path real = candidate.toRealPath();

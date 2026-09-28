@@ -2,23 +2,37 @@ package com.asmolabs.vectispire.common.scanning;
 
 import com.asmolabs.vectispire.common.domain.net.LinkLocalHosts;
 import com.asmolabs.vectispire.common.domain.targets.RepositoryUrl;
+import com.asmolabs.vectispire.common.scanning.CloneFailureException.Kind;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
+import java.text.MessageFormat;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntConsumer;
+import org.apache.sshd.common.SshConstants;
+import org.apache.sshd.common.SshException;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.TransportConfigCallback;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.InvalidRemoteException;
 import org.eclipse.jgit.api.errors.TransportException;
+import org.eclipse.jgit.errors.NoRemoteRepositoryException;
+import org.eclipse.jgit.internal.JGitText;
 import org.eclipse.jgit.transport.CredentialItem;
 import org.eclipse.jgit.transport.CredentialsProvider;
 import org.eclipse.jgit.transport.SshTransport;
@@ -228,13 +242,14 @@ public final class GitClone {
     public static void clone(Request request) {
         Optional<String> refused = RepositoryUrl.validate(request.url());
         if (refused.isPresent()) {
-            throw new CloneFailureException("Repository URL refused: " + refused.get(), "");
+            throw new CloneFailureException(Kind.URL_REFUSED, "Repository URL refused: " + refused.get(), "");
         }
         String host = hostJGitConnectsTo(request.url());
         // The literal was refused above; a name is only known to point there once resolved, and
         // resolving is this machine's business — the agent's network, not the control plane's.
         if (LinkLocalHosts.resolvesToLinkLocal(host)) {
             throw new CloneFailureException(
+                    Kind.URL_REFUSED,
                     "Repository URL refused: its host resolves to a link-local address, where the instance metadata lives.",
                     "");
         }
@@ -244,7 +259,7 @@ public final class GitClone {
             // otherwise just stay silent and the forge answer "authentication required".
             if (!request.url().trim().toLowerCase(Locale.ROOT).startsWith("https://")
                     || !RepositoryUrl.hasHost(request.url(), request.https().host())) {
-                throw new CloneFailureException("The HTTPS token is issued for " + request.https().host()
+                throw new CloneFailureException(Kind.CREDENTIAL, "The HTTPS token is issued for " + request.https().host()
                         + " and is sent to no other host; " + RepositoryUrl.redact(request.url()) + " names another.", "");
             }
         }
@@ -253,7 +268,20 @@ public final class GitClone {
         // connection time, and an unreadable key would then be indistinguishable from a refused
         // one — sending the operator to the provider's settings for a key that never parsed.
         Iterable<KeyPair> keys = request.hasKey() ? loadKey(request.privateKey()) : List.of();
+        fetch(request, keys);
+    }
 
+    /**
+     * The clone itself, once every check before the network has passed — and its failure diagnosed.
+     *
+     * <p>Package-private so the diagnosis can be measured against a local plain-HTTP forge, which
+     * {@link #clone} refuses, through the same connection wiring this method installs rather than
+     * through a copy of it.
+     */
+    static void fetch(Request request, Iterable<KeyPair> keys) {
+        // The last HTTP status the forge answered, read off the connection: JGit turns a 401 and a 403
+        // into a transport failure whose only trace of either is its English text.
+        AtomicInteger lastStatus = new AtomicInteger();
         try (Git repository = Git.cloneRepository()
                 .setURI(request.url())
                 .setDirectory(request.into().toFile())
@@ -262,7 +290,7 @@ public final class GitClone {
                 .setDepth(DEPTH)
                 .setCloneSubmodules(false)
                 .setTimeout((int) request.timeout().toSeconds())
-                .setTransportConfigCallback(transportCallback(request, keys))
+                .setTransportConfigCallback(transportCallback(request, keys, lastStatus::set))
                 .setCredentialsProvider(request.hasToken() ? new HostBoundCredentials(request.https()) : null)
                 .call()) {
             // The handle is closed at once: the scanners read the working tree on disk, and
@@ -284,8 +312,10 @@ public final class GitClone {
             }
             // JGit's own text may quote the URL too; masked like the explanation, although nothing
             // displays it today — the day something does, it will not carry the token.
+            Diagnosis diagnosis = diagnose(request, failure, lastStatus.get());
             throw new CloneFailureException(
-                    explain(request, failure),
+                    diagnosis.kind(),
+                    diagnosis.sentence(),
                     rootMessage(failure).replace(request.url(), RepositoryUrl.redact(request.url())));
         }
     }
@@ -316,7 +346,7 @@ public final class GitClone {
         try {
             parsed = new URIish(url);
         } catch (java.net.URISyntaxException unreadable) {
-            throw new CloneFailureException("Repository URL refused: it cannot be read as a git remote.", "");
+            throw new CloneFailureException(Kind.URL_REFUSED, "Repository URL refused: it cannot be read as a git remote.", "");
         }
         boolean scp = !url.contains("://");
         String expectedScheme = scp ? null : url.substring(0, url.indexOf("://"));
@@ -326,6 +356,7 @@ public final class GitClone {
                 || !parsed.getHost().equalsIgnoreCase(validated.get())
                 || !java.util.Objects.equals(parsed.getScheme(), expectedScheme)) {
             throw new CloneFailureException(
+                    Kind.URL_REFUSED,
                     "Repository URL refused: its host part reads differently to the clone than to the checks."
                             + " Use the address the forge gives for cloning.", "");
         }
@@ -340,11 +371,16 @@ public final class GitClone {
      * refusal by hand would pass the day this callback stopped installing it.
      */
     static TransportConfigCallback transportCallback(Request request, Iterable<KeyPair> keys) {
+        return transportCallback(request, keys, status -> {});
+    }
+
+    /** @param statuses told every HTTP status the forge answers — see {@code diagnose} */
+    static TransportConfigCallback transportCallback(Request request, Iterable<KeyPair> keys, IntConsumer statuses) {
         return transport -> {
             if (transport instanceof TransportHttp http) {
                 // No redirect, to any host: the URL checked above is the only one this clone may
                 // reach. See RedirectRefusingConnections for why this, not http.followRedirects.
-                http.setHttpConnectionFactory(new RedirectRefusingConnections(http.getHttpConnectionFactory()));
+                http.setHttpConnectionFactory(new RedirectRefusingConnections(http.getHttpConnectionFactory(), statuses));
                 return;
             }
             if (transport instanceof SshTransport ssh) {
@@ -401,6 +437,7 @@ public final class GitClone {
                     null, () -> "deployment key", stream, null);
         } catch (IOException | GeneralSecurityException unreadable) {
             throw new CloneFailureException(
+                    Kind.CREDENTIAL,
                     "The deployment key attached to this repository could not be read: " + unreadable.getMessage(), "");
         }
 
@@ -409,6 +446,7 @@ public final class GitClone {
         // operator to the provider's settings to look for a key that never parsed here.
         if (identities == null || !identities.iterator().hasNext()) {
             throw new CloneFailureException(
+                    Kind.CREDENTIAL,
                     "The deployment key attached to this repository could not be read: no key recognized in it. "
                             + "Expected an OpenSSH or PEM private key.",
                     "");
@@ -431,62 +469,183 @@ public final class GitClone {
     }
 
     /**
-     * Turns a failure into a sentence that says what to do.
+     * What stopped a clone, and the sentence that says what to do about it.
      *
-     * <p>Git's raw message is correct and unusable: "Permission denied (publickey)" says neither
-     * which repository, nor that Vectispire holds a key, nor where to declare it. The error lands
-     * in an agent's log, hours after the action that caused it.
-     *
-     * <p>Dispatched on the exception <b>type</b> where JGit provides one, and on its text only
-     * where it does not — the remaining text matches are the ones JGit funnels through a generic
-     * transport failure.
+     * @param kind decided from JGit's and Apache MINA's types and the forge's HTTP status — never from
+     *     a message's words, save JGit's own sentence for an absent branch, which no type carries
+     * @param sentence what the scan, the agent's log and the screen show
      */
-    static String explain(Request request, Throwable failure) {
-        String message = rootMessage(failure);
-        // Every message below names the URL, and each one reaches the scan's error, the agent's
-        // log and the screen: a credential in it would travel with it.
-        String url = RepositoryUrl.redact(request.url());
+    record Diagnosis(Kind kind, String sentence) {}
 
+    /**
+     * Diagnoses a failed clone: its kind from what is typed, its sentence from the kind.
+     *
+     * <p><b>The types choose the scan's fate, the words only the sentence.</b> Where nothing typed
+     * says what happened, the sentence still reads JGit's text as it always did — a message that names
+     * the cause is worth more than "the clone failed" — but the kind stays {@link Kind#UNCLASSIFIED},
+     * transient: a pattern that matched the wrong message would otherwise fail a scan for good. What
+     * each kind is told by, as JGit 7.8 and MINA 2.19 report it, was measured against a real SSH
+     * server and a real HTTP one ({@code SshCloneTest}, {@code CloneFailureKindTest}).
+     *
+     * @param httpStatus the last status the forge answered over HTTP, zero when none — JGit reports a
+     *     401 and a 403 as a {@code TransportException} saying "not authorized" and "not permitted",
+     *     with no type and no status of its own
+     */
+    static Diagnosis diagnose(Request request, Throwable failure, int httpStatus) {
+        Kind kind = typedKind(request, failure, httpStatus);
+        Kind worded = kind == Kind.UNCLASSIFIED ? wordedKind(request, failure) : kind;
+        return new Diagnosis(kind, sentence(request, worded));
+    }
+
+    /** The sentence alone, for a failure that carries no HTTP status. */
+    static String explain(Request request, Throwable failure) {
+        return diagnose(request, failure, 0).sentence();
+    }
+
+    private static Kind typedKind(Request request, Throwable failure, int httpStatus) {
+        List<Throwable> causes = causesOf(failure);
+        for (Throwable cause : causes) {
+            if (cause instanceof SshException ssh) {
+                // MINA sets the disconnect reason (RFC 4253 §11.1) on what it raises when the server
+                // key is refused and when every authentication method has been tried; JGit keeps it
+                // as the cause.
+                if (ssh.getDisconnectCode() == SshConstants.SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE) {
+                    return Kind.HOST_KEY;
+                }
+                if (ssh.getDisconnectCode() == SshConstants.SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE) {
+                    return Kind.AUTHENTICATION;
+                }
+            }
+            // JGit's answer to a 404 over HTTP and to "not found" from an SSH forge alike.
+            if (cause instanceof NoRemoteRepositoryException || cause instanceof InvalidRemoteException) {
+                return Kind.NOT_FOUND;
+            }
+        }
+        if (httpStatus == 401 || httpStatus == 403) {
+            return Kind.AUTHENTICATION;
+        }
+        if (httpStatus == 404 || httpStatus == 410) {
+            return Kind.NOT_FOUND;
+        }
+        if (httpStatus == 429 || httpStatus >= 500) {
+            return Kind.UNAVAILABLE;
+        }
+        if (isAbsentBranch(request, causes)) {
+            return Kind.BRANCH_ABSENT;
+        }
+        // A timeout first: SocketTimeoutException is an InterruptedIOException, and JGit may wrap
+        // it with a SocketException on the way.
+        if (causes.stream().anyMatch(InterruptedIOException.class::isInstance)) {
+            return Kind.TIMEOUT;
+        }
+        if (causes.stream().anyMatch(cause -> cause instanceof UnknownHostException || cause instanceof SocketException)) {
+            return Kind.NETWORK;
+        }
+        return Kind.UNCLASSIFIED;
+    }
+
+    /**
+     * Whether JGit said the branch is absent, <b>in its own words, formatted as it formats them</b>.
+     *
+     * <p>The one kind no type carries: the fetch raises a plain {@code TransportException}. Matched
+     * against {@code JGitText}'s own sentence for the request's branch rather than an English literal,
+     * so a JGit that rewords it — or a translation bundle on the class path — changes both sides of
+     * the comparison at once, and a message about anything else never matches.
+     */
+    private static boolean isAbsentBranch(Request request, List<Throwable> causes) {
+        String absent = MessageFormat.format(JGitText.get().remoteBranchNotFound, request.branch());
+        return causes.stream().anyMatch(cause -> absent.equals(cause.getMessage()));
+    }
+
+    /**
+     * The kind the words suggest, <b>for the sentence only</b> — see {@link #diagnose}.
+     *
+     * <p>These are the matches the explanation always made, where JGit funnels a failure through a
+     * generic transport failure.
+     */
+    private static Kind wordedKind(Request request, Throwable failure) {
+        String message = rootMessage(failure);
         if (failure instanceof InvalidRemoteException || message.contains("not found")
                 || message.contains("Remote branch")) {
-            if (message.contains("Remote branch") || message.contains("branch")) {
-                return "Branch \"" + request.branch() + "\" does not exist on " + url + ".";
-            }
-            return url + " could not be found.";
+            return message.contains("Remote branch") || message.contains("branch") ? Kind.BRANCH_ABSENT : Kind.NOT_FOUND;
         }
         if (request.hasToken() && (message.contains("not authorized") || message.contains("401")
                 || message.contains("Authentication is required") || message.contains("403"))) {
-            return "Authentication refused by " + url + ". Is the HTTPS token still valid, and allowed to read "
-                    + "this repository?";
+            return Kind.AUTHENTICATION;
         }
         if (message.contains("Auth fail") || message.contains("publickey") || message.contains("not authorized")) {
-            return request.hasKey()
-                    ? "Authentication refused by " + url
-                            + ". Is the deployment key attached to it declared with the provider?"
-                    : url + " requires authentication. Attach an SSH key to this repository.";
+            return Kind.AUTHENTICATION;
         }
         // "Server key did not validate" is what JGit says when the database refuses the key, and it
         // said nothing that matched below it: a changed host key read as "the clone failed".
         if (message.contains("Server key did not validate") || message.contains("KeyExchange")
                 || message.contains("host key") || message.contains("HostKey")) {
-            if (!request.hasKey() && request.withoutKey() == WithoutKey.HOST_SSH) {
-                // The host's own configuration decides here, and by default it refuses a host its
-                // known_hosts does not list: the key may be new rather than changed.
-                return "The host key of " + url + " was refused by this machine's own known_hosts: the host is not"
-                        + " listed there, or its key has changed. Check it is the right server, then add its key.";
-            }
-            if (request.hostKeys() instanceof HostKeyPolicy.AcceptNew pinned && isPinned(pinned.knownHosts())) {
-                return "The host key of " + url + " is not the one listed in " + pinned.knownHosts()
-                        + ", or the host is not listed there: that file is read-only, so it is matched against and"
-                        + " never added to.";
-            }
-            return "The host key of " + url
-                    + " has changed since the last clone. Check it is the same server before running again.";
+            return Kind.HOST_KEY;
         }
         if (failure instanceof TransportException && (message.contains("timeout") || message.contains("timed out"))) {
-            return "The clone of " + url + " timed out. Is the repository reachable from this machine?";
+            return Kind.TIMEOUT;
         }
-        return "The clone of " + url + " failed.";
+        return Kind.UNCLASSIFIED;
+    }
+
+    /**
+     * Turns a kind into a sentence that says what to do.
+     *
+     * <p>Git's raw message is correct and unusable: "Permission denied (publickey)" says neither
+     * which repository, nor that Vectispire holds a key, nor where to declare it. The error lands
+     * in an agent's log, hours after the action that caused it.
+     */
+    private static String sentence(Request request, Kind kind) {
+        // Every message below names the URL, and each one reaches the scan's error, the agent's
+        // log and the screen: a credential in it would travel with it.
+        String url = RepositoryUrl.redact(request.url());
+        return switch (kind) {
+            case BRANCH_ABSENT -> "Branch \"" + request.branch() + "\" does not exist on " + url + ".";
+            case NOT_FOUND -> url + " could not be found.";
+            case AUTHENTICATION -> {
+                if (request.hasToken()) {
+                    yield "Authentication refused by " + url + ". Is the HTTPS token still valid, and allowed to read "
+                            + "this repository?";
+                }
+                yield request.hasKey()
+                        ? "Authentication refused by " + url
+                                + ". Is the deployment key attached to it declared with the provider?"
+                        : url + " requires authentication. Attach "
+                                + (request.url().trim().toLowerCase(Locale.ROOT).startsWith("https://")
+                                        ? "an HTTPS token" : "an SSH key")
+                                + " to this repository.";
+            }
+            case HOST_KEY -> {
+                if (!request.hasKey() && request.withoutKey() == WithoutKey.HOST_SSH) {
+                    // The host's own configuration decides here, and by default it refuses a host its
+                    // known_hosts does not list: the key may be new rather than changed.
+                    yield "The host key of " + url + " was refused by this machine's own known_hosts: the host is not"
+                            + " listed there, or its key has changed. Check it is the right server, then add its key.";
+                }
+                if (request.hostKeys() instanceof HostKeyPolicy.AcceptNew pinned && isPinned(pinned.knownHosts())) {
+                    yield "The host key of " + url + " is not the one listed in " + pinned.knownHosts()
+                            + ", or the host is not listed there: that file is read-only, so it is matched against and"
+                            + " never added to.";
+                }
+                yield "The host key of " + url
+                        + " has changed since the last clone. Check it is the same server before running again.";
+            }
+            case TIMEOUT -> "The clone of " + url + " timed out. Is the repository reachable from this machine?";
+            case NETWORK -> "The clone of " + url + " could not reach its host. Is the repository reachable from this"
+                    + " machine?";
+            case UNAVAILABLE -> "The forge answered the clone of " + url + " with an error of its own; the next attempt"
+                    + " may succeed.";
+            case CREDENTIAL, URL_REFUSED, SUB_PATH, UNCLASSIFIED -> "The clone of " + url + " failed.";
+        };
+    }
+
+    private static List<Throwable> causesOf(Throwable failure) {
+        List<Throwable> causes = new java.util.ArrayList<>();
+        Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+            causes.add(cause);
+        }
+        return causes;
     }
 
     private static String rootMessage(Throwable failure) {
@@ -518,7 +677,9 @@ public final class GitClone {
         } catch (java.nio.file.FileAlreadyExistsException present) {
             // The outcome we wanted, whoever created it.
         } catch (IOException e) {
-            throw new CloneFailureException("The known-hosts file could not be prepared: " + e.getMessage(), "");
+            // Transient: this executor's own disk, which another executor — or a freed one — does not share.
+            throw new CloneFailureException(
+                    Kind.UNCLASSIFIED, "The known-hosts file could not be prepared: " + e.getMessage(), "");
         }
     }
 

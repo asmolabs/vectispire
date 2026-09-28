@@ -124,17 +124,8 @@ public final class ScanRunner {
                     repository.url(), repository.branch(), workspace.source(),
                     repository.privateKey(), Duration.ofMinutes(5), hostKeys, withoutKey, repository.https()));
 
-            // **Checked against the clone, not only as text.** The raw value used to go straight into
-            // Path.resolve — "/" or "../.." walked the host or the other scans' clones — and a
-            // directory of the repository may itself be a link out of it. A sub-path refused here
-            // fails the scan: nothing was examined, and saying so beats scanning something else.
-            String subPath = RepositorySubPath.normalize(repository.subPath());
-            java.nio.file.Path scanRoot;
-            try {
-                scanRoot = SourceFiles.within(workspace.source(), subPath);
-            } catch (java.io.IOException unresolvable) {
-                throw new java.io.UncheckedIOException("The clone could not be resolved.", unresolvable);
-            }
+            String subPath = normalizedSubPath(repository.subPath());
+            Path scanRoot = scanRoot(workspace.source(), subPath, repository.branch());
 
             // **Not a step, and not wrapped in one.** Reading a manifest is a file read, not an
             // analysis: it produces no finding, resolves no backlog, and its absence is an
@@ -274,6 +265,46 @@ public final class ScanRunner {
                 artifacts.failed("plugin " + absent.pluginId(), absent.reason());
             }
         }
+    }
+
+    /** The sub-path as the scanners are handed it, or the scan's refusal — see {@link #scanRoot}. */
+    static String normalizedSubPath(String subPath) {
+        try {
+            return RepositorySubPath.normalize(subPath);
+        } catch (IllegalArgumentException refused) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH,
+                    "The repository's sub-path is refused: " + refused.getMessage(), "");
+        }
+    }
+
+    /**
+     * The directory the scan examines, proven to lie inside the clone and to be there.
+     *
+     * <p><b>Checked against the clone, not only as text.</b> The raw value used to go straight into
+     * Path.resolve — "/" or "../.." walked the host or the other scans' clones — and a directory of
+     * the repository may itself be a link out of it. A sub-path refused here fails the scan: nothing
+     * was examined, and saying so beats scanning something else.
+     *
+     * <p><b>An absent one fails it too, for good.</b> It used to be handed on, for the analysers to
+     * report — each as a failed step, or as an empty result over a directory that is not there — and
+     * the scan ended as one that ran. It is a scan that could not run: the branch holds no such
+     * directory, and no later attempt on the same commit will find one. A permanent failure, with the
+     * sub-path and the branch named so the operator knows which of the two to correct.
+     */
+    static Path scanRoot(Path source, String subPath, String branch) {
+        Path root;
+        try {
+            root = SourceFiles.within(source, subPath);
+        } catch (IllegalArgumentException outside) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH, outside.getMessage(), "");
+        } catch (java.io.IOException unresolvable) {
+            throw new java.io.UncheckedIOException("The clone could not be resolved.", unresolvable);
+        }
+        if (!java.nio.file.Files.isDirectory(root)) {
+            throw new CloneFailureException(CloneFailureException.Kind.SUB_PATH,
+                    "The sub-path \"" + subPath + "\" is not a directory of branch \"" + branch + "\".", "");
+        }
+        return root;
     }
 
     /** Is the daemon reachable? Asked before claiming a scan rather than in the middle of one. */

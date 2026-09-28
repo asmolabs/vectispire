@@ -109,6 +109,9 @@ class HttpsTokenBindingTest {
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> GitClone.clone(request))
                 .isInstanceOf(CloneFailureException.class)
                 .hasMessageContaining("sent to no other host")
-                .hasMessageNotContaining("glpat-secret-token");
+                .hasMessageNotContaining("glpat-secret-token")
+                .extracting(failure -> ((CloneFailureException) failure).kind())
+                .as("a credential that cannot be used here, whatever the attempt")
+                .isEqualTo(CloneFailureException.Kind.CREDENTIAL);
     }
 }

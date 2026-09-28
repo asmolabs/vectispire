@@ -28,7 +28,9 @@ class GitCloneTest {
         // makes git itself run a command.
         assertThatThrownBy(() -> GitClone.clone(request(url, null)))
                 .isInstanceOf(CloneFailureException.class)
-                .hasMessageContaining("Repository URL refused");
+                .hasMessageContaining("Repository URL refused")
+                .extracting(failure -> ((CloneFailureException) failure).kind())
+                .isEqualTo(CloneFailureException.Kind.URL_REFUSED);
     }
 
     @Test
@@ -38,7 +40,9 @@ class GitCloneTest {
         // was never parseable in the first place.
         assertThatThrownBy(() -> GitClone.clone(request("ssh://git@example.com/org/project.git", "not a key")))
                 .isInstanceOf(CloneFailureException.class)
-                .hasMessageContaining("could not be read");
+                .hasMessageContaining("could not be read")
+                .extracting(failure -> ((CloneFailureException) failure).kind())
+                .isEqualTo(CloneFailureException.Kind.CREDENTIAL);
     }
 
     @Test

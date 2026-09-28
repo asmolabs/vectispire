@@ -7,6 +7,7 @@ import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URL;
 import java.security.GeneralSecurityException;
+import java.util.function.IntConsumer;
 import org.eclipse.jgit.transport.http.HttpConnection;
 import org.eclipse.jgit.transport.http.HttpConnectionFactory;
 import org.eclipse.jgit.transport.http.HttpConnectionFactory2;
@@ -33,23 +34,30 @@ import org.eclipse.jgit.transport.http.HttpConnectionFactory2;
  * 404 would say something the server did not. An unchecked {@link CloneFailureException} leaves
  * every JGit layer untouched — {@code CloneCommand} cleans up the half-made directory and rethrows —
  * and reaches {@code GitClone.clone}, which rethrows a diagnosed failure as it is.
+ *
+ * <p><b>Every status it reads is also told to the clone.</b> JGit answers a 401 and a 403 with a
+ * plain {@code TransportException} whose text is all that says which, and a scan's fate cannot hang
+ * on text: an authentication refused fails at once, a passing error retries. The connection is where
+ * the status is still a number.
  */
 final class RedirectRefusingConnections implements HttpConnectionFactory2 {
 
     private final HttpConnectionFactory delegate;
+    private final IntConsumer statuses;
 
-    RedirectRefusingConnections(HttpConnectionFactory delegate) {
+    RedirectRefusingConnections(HttpConnectionFactory delegate, IntConsumer statuses) {
         this.delegate = delegate;
+        this.statuses = statuses;
     }
 
     @Override
     public HttpConnection create(URL url) throws IOException {
-        return refusingRedirects(delegate.create(url));
+        return refusingRedirects(delegate.create(url), statuses);
     }
 
     @Override
     public HttpConnection create(URL url, java.net.Proxy proxy) throws IOException {
-        return refusingRedirects(delegate.create(url, proxy));
+        return refusingRedirects(delegate.create(url, proxy), statuses);
     }
 
     /**
@@ -80,11 +88,11 @@ final class RedirectRefusingConnections implements HttpConnectionFactory2 {
         };
     }
 
-    private static HttpConnection refusingRedirects(HttpConnection connection) {
+    private static HttpConnection refusingRedirects(HttpConnection connection, IntConsumer statuses) {
         return (HttpConnection) Proxy.newProxyInstance(
                 HttpConnection.class.getClassLoader(),
                 new Class<?>[] {HttpConnection.class},
-                new Refusing(connection));
+                new Refusing(connection, statuses));
     }
 
     private static HttpConnection unwrap(HttpConnection connection) {
@@ -95,7 +103,7 @@ final class RedirectRefusingConnections implements HttpConnectionFactory2 {
     }
 
     /** Delegates every call, and turns a 3xx into a refusal the moment its status is read. */
-    private record Refusing(HttpConnection connection) implements InvocationHandler {
+    private record Refusing(HttpConnection connection, IntConsumer statuses) implements InvocationHandler {
 
         @Override
         public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) throws Throwable {
@@ -105,9 +113,13 @@ final class RedirectRefusingConnections implements HttpConnectionFactory2 {
             } catch (InvocationTargetException thrown) {
                 throw thrown.getCause();
             }
+            if ("getResponseCode".equals(method.getName()) && result instanceof Integer status) {
+                statuses.accept(status);
+            }
             if ("getResponseCode".equals(method.getName()) && result instanceof Integer status
                     && status >= 300 && status < 400) {
                 throw new CloneFailureException(
+                        CloneFailureException.Kind.URL_REFUSED,
                         "The repository at " + connection.getURL().getHost() + " answered with a redirect ("
                                 + status + ")" + destination(connection.getHeaderField("Location"))
                                 + ". A clone follows no redirect, because the host it would reach was never checked: "

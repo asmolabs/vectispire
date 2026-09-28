@@ -78,6 +78,9 @@ class CloneRedirectTest {
         assertThat(failure)
                 .isInstanceOf(CloneFailureException.class)
                 .hasMessageContaining("answered with a redirect (302) to 127.0.0.1")
-                .hasMessageContaining("follows no redirect");
+                .hasMessageContaining("follows no redirect")
+                .extracting(refused -> ((CloneFailureException) refused).kind())
+                .as("the clone's own guard, which the next attempt meets again")
+                .isEqualTo(CloneFailureException.Kind.URL_REFUSED);
     }
 }

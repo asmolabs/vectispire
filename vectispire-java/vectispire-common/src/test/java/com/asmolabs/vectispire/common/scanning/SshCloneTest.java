@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.common.scanning;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -105,6 +106,9 @@ class SshCloneTest {
         assertThat(refused)
                 .isInstanceOf(CloneFailureException.class)
                 .hasMessageContaining("has changed since the last clone");
+        assertThat(((CloneFailureException) refused).kind())
+                .as("told by MINA's disconnect reason, and permanent")
+                .isEqualTo(CloneFailureException.Kind.HOST_KEY);
         assertThat(uploads).as("nothing was fetched from the impostor").hasValue(0);
         assertThat(knownHosts).as("the recorded key was not replaced").hasContent(before.strip());
     }
@@ -173,6 +177,86 @@ class SshCloneTest {
         assertThat(refused)
                 .isInstanceOf(CloneFailureException.class)
                 .hasMessageContaining("The known-hosts file could not be prepared");
+        assertThat(((CloneFailureException) refused).failureKind())
+                .as("this executor's own disk: another attempt, elsewhere or later, may pass")
+                .isEqualTo(com.asmolabs.vectispire.common.domain.scans.FailureKind.TRANSIENT);
+    }
+
+    @Test
+    @DisplayName("a deployment key the forge does not know is an authentication refused, permanent")
+    void anUnknownKeyIsRefused() throws Exception {
+        GitClone.Request stranger = new GitClone.Request(
+                "ssh://git@127.0.0.1:" + port() + "/fixture", "main", dir.resolve("stranger"),
+                openSsh(KeyUtils.generateKeyPair(KeyPairProvider.ECDSA_SHA2_NISTP256, 256)), Duration.ofSeconds(30),
+                new GitClone.HostKeyPolicy.AcceptNew(dir.resolve("home/.ssh/known_hosts")), GitClone.WithoutKey.NONE);
+
+        CloneFailureException refused = catchThrowableOfType(CloneFailureException.class, () -> GitClone.clone(stranger));
+
+        assertThat(refused.kind()).isEqualTo(CloneFailureException.Kind.AUTHENTICATION);
+        assertThat(refused).hasMessageContaining("declared with the provider");
+    }
+
+    @Test
+    @DisplayName("a repository the forge does not have is not found, permanent")
+    void anAbsentRepositoryIsNotFound() throws Exception {
+        GitClone.Request absent = new GitClone.Request(
+                "ssh://git@127.0.0.1:" + port() + "/missing", "main", dir.resolve("missing"), openSsh(deployKey),
+                Duration.ofSeconds(30), new GitClone.HostKeyPolicy.AcceptNew(dir.resolve("home/.ssh/known_hosts")),
+                GitClone.WithoutKey.NONE);
+
+        CloneFailureException refused = catchThrowableOfType(CloneFailureException.class, () -> GitClone.clone(absent));
+
+        assertThat(refused.kind()).isEqualTo(CloneFailureException.Kind.NOT_FOUND);
+        assertThat(refused).hasMessageContaining("could not be found");
+    }
+
+    @Test
+    @DisplayName("a branch the repository does not have is absent, permanent, and named")
+    void anAbsentBranchIsNamed() throws Exception {
+        GitClone.Request absent = new GitClone.Request(
+                "ssh://git@127.0.0.1:" + port() + "/fixture", "release", dir.resolve("release"), openSsh(deployKey),
+                Duration.ofSeconds(30), new GitClone.HostKeyPolicy.AcceptNew(dir.resolve("home/.ssh/known_hosts")),
+                GitClone.WithoutKey.NONE);
+
+        CloneFailureException refused = catchThrowableOfType(CloneFailureException.class, () -> GitClone.clone(absent));
+
+        assertThat(refused.kind()).isEqualTo(CloneFailureException.Kind.BRANCH_ABSENT);
+        assertThat(refused).hasMessageContaining("Branch \"release\" does not exist");
+    }
+
+    @Test
+    @DisplayName("a scan whose sub-path the clone does not hold fails before any scanner, for good")
+    void aScanOfAnAbsentSubPathFails() throws Exception {
+        // Through the runner, so the check is the one a scan meets: handed on, the missing directory
+        // reached every analyser, each of which reported it — or an empty result over nothing.
+        ContainerRunner containers = org.mockito.Mockito.mock(ContainerRunner.class);
+        ScanRunner runner = new ScanRunner(containers, com.asmolabs.vectispire.common.scanning.scanners.ScannerImages.PINNED,
+                dir.resolve("rules"), hash -> java.util.List.of(),
+                new GitClone.HostKeyPolicy.AcceptNew(dir.resolve("home/.ssh/known_hosts")), GitClone.WithoutKey.NONE,
+                java.time.Clock.systemUTC());
+        ScanTask task = new ScanTask(
+                new ScanTask.Target.Repository("ssh://git@127.0.0.1:" + port() + "/fixture", "main", "services/api",
+                        openSsh(deployKey)),
+                null, java.util.Set.of(ScanTask.Step.DEPENDENCIES));
+
+        CloneFailureException refused = catchThrowableOfType(CloneFailureException.class, () -> runner.run(task));
+
+        assertThat(refused.kind()).isEqualTo(CloneFailureException.Kind.SUB_PATH);
+        assertThat(uploads).as("the clone ran").hasValue(1);
+        org.mockito.Mockito.verifyNoInteractions(containers);
+    }
+
+    @Test
+    @DisplayName("a forge that is down is the network, transient")
+    void aForgeThatIsDownIsTheNetwork() throws Exception {
+        Path knownHosts = dir.resolve("home/.ssh/known_hosts");
+        GitClone.Request request = request(knownHosts, "down");
+        server.stop(true);
+
+        CloneFailureException refused = catchThrowableOfType(CloneFailureException.class, () -> GitClone.clone(request));
+
+        assertThat(refused.kind()).isEqualTo(CloneFailureException.Kind.NETWORK);
+        assertThat(refused.failureKind()).isEqualTo(com.asmolabs.vectispire.common.domain.scans.FailureKind.TRANSIENT);
     }
 
     private GitClone.Request request(Path knownHosts, String into) throws Exception {
