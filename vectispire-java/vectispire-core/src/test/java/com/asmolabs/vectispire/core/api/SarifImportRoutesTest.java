@@ -237,6 +237,8 @@ class SarifImportRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$.resultsCount").value(2))
                     .andExpect(jsonPath("$.createdCount").value(2))
                     .andExpect(jsonPath("$.tools").value("Semgrep OSS 1.90.0"))
+                    // The tool keys the import accepted, what a checklist reads to know the tool produced.
+                    .andExpect(jsonPath("$.toolKeys").value("import:team-ci/semgrep oss"))
                     .andExpect(jsonPath("$.documentSha256").value(Matchers.matchesPattern("[0-9a-f]{64}")));
 
             assertThat(openImported(inScope)).hasSize(2).allSatisfy(issue -> {

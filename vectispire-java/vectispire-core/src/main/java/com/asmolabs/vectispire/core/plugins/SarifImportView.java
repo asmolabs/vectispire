@@ -9,6 +9,8 @@ import java.util.UUID;
  * key, and what it did to the repository's backlog.
  *
  * @param tools the tools the report declared, {@code name version}, comma-separated
+ * @param toolKeys the tool keys whose runs were accepted, sorted, comma-separated; null for an import
+ *     accepted before they were recorded
  * @param documentSha256 of the bytes uploaded — what lets a pipeline prove which report it sent
  */
 public record SarifImportView(
@@ -17,6 +19,7 @@ public record SarifImportView(
         String sourceSlug,
         Long repoId,
         String tools,
+        String toolKeys,
         String documentSha256,
         int resultsCount,
         int createdCount,
@@ -28,7 +31,7 @@ public record SarifImportView(
 
     static SarifImportView of(SarifImportEntity row) {
         return new SarifImportView(row.getId(), row.getSourceId(), row.getSourceSlug(), row.getRepoId(), row.getTools(),
-                row.getDocumentSha256(), row.getResultsCount(), row.getCreatedCount(), row.getResolvedCount(),
+                row.getToolKeys(), row.getDocumentSha256(), row.getResultsCount(), row.getCreatedCount(), row.getResolvedCount(),
                 row.getReopenedCount(), row.getImportedAt(), row.getImportedBy(), row.getApiKeyId());
     }
 }

@@ -416,7 +416,7 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
      */
     @Query("""
             select new com.asmolabs.vectispire.core.scanning.persistence.queries.ExaminingScanRow(
-                       s.repoId, s.id, s.createdAt)
+                       s.repoId, s.id, s.createdAt, case when s.sbom is null then false else true end)
               from ScanEntity s
              where s.repoId in :repoIds
                and s.id = (select max(l.id) from ScanEntity l
@@ -428,6 +428,53 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("repoIds") Collection<Long> repoIds,
             @Param("status") String status,
             @Param("since") Instant since,
+            @Param("pattern") String pattern);
+
+    /**
+     * Per repository, its scans with this status created at or after {@code since}, and how many of
+     * them hold no {@code examined_types} — scans from before the record, which say nothing of whether
+     * a step ran (decision 0032, §6). A repository with no such scan is absent from the answer.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select s.repoId, count(s.id), sum(case when s.examinedTypes is null then 1 else 0 end)
+              from ScanEntity s
+             where s.repoId in :repoIds and s.status = :status and s.createdAt >= :since
+             group by s.repoId""")
+    List<Object[]> countScansWithin(
+            @Param("repoIds") Collection<Long> repoIds, @Param("status") String status, @Param("since") Instant since);
+
+    /**
+     * The scans with this status created at or after {@code since} whose {@code plugin_steps} names a
+     * plugin — {@code pattern} is {@code %"pluginId":"<id>"%}, which a plugin id's own characters (lowercase
+     * letters, digits, inner hyphens) cannot escape — with the column, for the caller to read the
+     * plugin's state. Newest first within a repository.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select s.repoId, s.id, s.createdAt, s.pluginSteps
+              from ScanEntity s
+             where s.repoId in :repoIds and s.status = :status and s.createdAt >= :since
+               and s.pluginSteps like :pattern
+             order by s.repoId asc, s.id desc""")
+    List<Object[]> findNamingPluginWithin(
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("status") String status,
+            @Param("since") Instant since,
+            @Param("pattern") String pattern);
+
+    /** The repositories among these with a scan of this status before {@code before} naming the plugin. */
+    @Query("""
+            select distinct s.repoId
+              from ScanEntity s
+             where s.repoId in :repoIds and s.status = :status and s.createdAt < :before
+               and s.pluginSteps like :pattern""")
+    List<Long> findNamingPluginBefore(
+            @Param("repoIds") Collection<Long> repoIds,
+            @Param("status") String status,
+            @Param("before") Instant before,
             @Param("pattern") String pattern);
 
     /**

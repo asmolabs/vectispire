@@ -176,6 +176,10 @@ class SchemaParityIntegrationTest {
         assertThat(indexedFirstColumns("t_checklist_item"))
                 .as("a version's items are read in order, counted in every listing, replaced by every edit")
                 .contains("version_id");
+        assertThat(indexedFirstColumns("t_checklist_measurement"))
+                .as("a submission's and a sign-off's measurements are read back by revision at every sign-off and "
+                        + "every read of a signed revision, and purged with its project")
+                .contains("checklist_id");
 
         // The child tables of a scan: read with it, purged with it by the `TargetDeleted` listeners.
         // Three of them carried an index that led with the wrong column, which is the case this

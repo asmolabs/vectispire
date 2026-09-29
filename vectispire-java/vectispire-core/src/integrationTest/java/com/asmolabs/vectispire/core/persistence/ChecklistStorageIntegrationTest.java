@@ -13,6 +13,8 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceEnti
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistRepository;
 import com.asmolabs.vectispire.core.targets.SolutionAdministrationService;
 import java.sql.Connection;
@@ -79,6 +81,9 @@ class ChecklistStorageIntegrationTest {
 
     @Autowired
     private ChecklistFileRepository files;
+
+    @Autowired
+    private ChecklistMeasurementRepository measurements;
 
     @Autowired
     private SolutionAdministrationService solutions;
@@ -179,7 +184,8 @@ class ChecklistStorageIntegrationTest {
     }
 
     @Test
-    @DisplayName("deleting a project takes its checklists, answers, proofs and files, in its transaction, and nobody else's")
+    @DisplayName("deleting a project takes its checklists, answers, proofs, files and measurements, in its transaction, "
+            + "and nobody else's")
     void deletingAProjectPurges() {
         long solution = solutions.createSolution("Purge " + System.nanoTime(), null, ACTOR).id();
         long doomed = solutions.createProject(solution, "Doomed", null, ACTOR).id();
@@ -193,11 +199,18 @@ class ChecklistStorageIntegrationTest {
         assertThat(answers.findByChecklistIdOrderByIdAsc(doomedChecklist)).isEmpty();
         assertThat(evidence.findByChecklistIdOrderByIdAsc(doomedChecklist)).isEmpty();
         assertThat(files.findAll()).noneMatch(file -> file.getProjectId() == doomed);
+        assertThat(measurements.findByChecklistIdAndPurposeOrderByIdAsc(doomedChecklist, "sign_off")).isEmpty();
 
         assertThat(checklists.findByProjectIdOrderByRevisionDesc(kept)).hasSize(1);
         assertThat(answers.findByChecklistIdOrderByIdAsc(keptChecklist)).hasSize(1);
         assertThat(evidence.findByChecklistIdOrderByIdAsc(keptChecklist)).hasSize(1);
         assertThat(files.findAll()).anyMatch(file -> file.getProjectId() == kept);
+        assertThat(measurements.findByChecklistIdAndPurposeOrderByIdAsc(keptChecklist, "sign_off")).singleElement()
+                .satisfies(row -> {
+                    // The evidence is long text on every engine: a project's figures run past a varchar.
+                    assertThat(row.getEvidence()).hasSize(70_000);
+                    assertThat(row.getAsOf()).isEqualTo(NOW);
+                });
     }
 
     /** A checklist with an answer, a proof and its file; the checklist's id. */
@@ -225,6 +238,22 @@ class ChecklistStorageIntegrationTest {
         proof.setAddedAt(NOW);
         proof.setEdition(2);
         evidence.save(proof);
+        ChecklistMeasurementEntity measured = new ChecklistMeasurementEntity();
+        measured.setChecklistId(checklistId);
+        measured.setItemId(21L);
+        measured.setPurpose("sign_off");
+        measured.setRuleKind("findings_threshold");
+        measured.setRuleDigest("2".repeat(64));
+        measured.setBoundRule("{\"kind\":\"findings_threshold\"}");
+        measured.setOutcome("pass");
+        measured.setAsOf(NOW);
+        measured.setComputedAt(NOW);
+        measured.setComputedBy("ciso");
+        measured.setAnswerValue("yes");
+        measured.setReconciliation("consistent");
+        measured.setEvidenceDigest("3".repeat(64));
+        measured.setEvidence("e".repeat(70_000));
+        measurements.save(measured);
         return checklistId;
     }
 

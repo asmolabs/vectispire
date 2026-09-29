@@ -38,6 +38,16 @@ public class SarifImportEntity {
     @Column(name = "tools", length = 1000, nullable = false)
     private String tools;
 
+    /**
+     * The tool keys whose runs the import accepted — {@code import:<source>/<tool>}, sorted, comma-
+     * separated — what a checklist reads to know the tool produced (decision 0032 §6). Null for an import
+     * accepted before the column existed: which of its tools ran was never written down, and a reader
+     * must not infer it from {@code tools}, which is the document's words, clipped.
+     */
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Column(name = "tool_keys")
+    private String toolKeys;
+
     @Column(name = "document_sha256", length = 64, nullable = false)
     private String documentSha256;
 
@@ -97,6 +107,14 @@ public class SarifImportEntity {
 
     public String getTools() {
         return tools;
+    }
+
+    public String getToolKeys() {
+        return toolKeys;
+    }
+
+    public void setToolKeys(String toolKeys) {
+        this.toolKeys = toolKeys;
     }
 
     public void setTools(String tools) {

@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.plugins;
 
 import com.asmolabs.vectispire.core.plugins.persistence.CoverageImportRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity;
 import com.asmolabs.vectispire.core.plugins.persistence.TestReportImportRepository;
 import com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultRepository;
@@ -14,8 +15,9 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 /**
- * The newest coverage and test report of each repository, as views — what a checklist's measurement
- * reads (decision 0032 §6), without reaching this module's repositories.
+ * The newest coverage and test report of each repository, and its newest SARIF import carrying a tool,
+ * as views — what a checklist's measurement reads (decision 0032 §6), without reaching this module's
+ * repositories.
  *
  * <p><b>The caller has already decided what may be read.</b> These answer for the repositories they
  * are given: a checklist asks for the repositories of a project it has refused unless wholly visible,
@@ -34,12 +36,14 @@ public class ReportImportCatalog {
     private final CoverageImportRepository coverage;
     private final TestReportImportRepository testReports;
     private final TestSuiteResultRepository suites;
+    private final SarifImportRepository sarif;
 
-    public ReportImportCatalog(
-            CoverageImportRepository coverage, TestReportImportRepository testReports, TestSuiteResultRepository suites) {
+    public ReportImportCatalog(CoverageImportRepository coverage, TestReportImportRepository testReports,
+            TestSuiteResultRepository suites, SarifImportRepository sarif) {
         this.coverage = coverage;
         this.testReports = testReports;
         this.suites = suites;
+        this.sarif = sarif;
     }
 
     /** The newest coverage import per repository; a repository with none is absent from the map. */
@@ -70,6 +74,35 @@ public class ReportImportCatalog {
             }
         }
         return newest;
+    }
+
+    /**
+     * The newest SARIF import of each repository whose accepted runs include the tool — {@code
+     * import:<source>/<tool>}, the fingerprint's key — at any age. A repository with none is absent:
+     * never imported for that tool, or only before the tools of an import were recorded, which {@link
+     * #unrecordedSince} tells apart. Accepted means produced: a result-less or failed run is refused at
+     * the door (decision 0017 §7).
+     */
+    public Map<Long, SarifImportView> newestCarrying(Collection<Long> repositoryIds, String toolKey) {
+        String pattern = "%," + toolKey.replace("!", "!!").replace("%", "!%").replace("_", "!_") + ",%";
+        Map<Long, SarifImportView> newest = new HashMap<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            sarif.findNewestCarrying(batch, pattern).forEach(row -> newest.put(row.getRepoId(), SarifImportView.of(row)));
+        }
+        return newest;
+    }
+
+    /**
+     * Those of these repositories holding an import from the source, at or after {@code since},
+     * accepted before the tools of an import were recorded: it may have carried the tool, and nothing
+     * wrote down whether it did.
+     */
+    public java.util.Set<Long> unrecordedSince(Collection<Long> repositoryIds, String sourceSlug, java.time.Instant since) {
+        java.util.Set<Long> unrecorded = new java.util.HashSet<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            unrecorded.addAll(sarif.findUnrecordedSince(batch, sourceSlug, since));
+        }
+        return unrecorded;
     }
 
     private static List<List<Long>> batches(Collection<Long> repositoryIds) {

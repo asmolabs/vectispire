@@ -53,6 +53,18 @@ public class ChecklistConflict extends ConflictException {
         NOTHING_TO_CONFIRM("checklist-nothing-to-confirm"),
         /** The proof is already withdrawn. */
         EVIDENCE_WITHDRAWN("checklist-evidence-withdrawn"),
+        /**
+         * A line is answered "yes" where its measurement fails (decision 0032, question 3): refused at
+         * submission — a false positive is settled by triage, a rule the organisation disagrees with is
+         * changed in a new version, visibly.
+         */
+        MEASUREMENT_CONTRADICTED("checklist-measurement-contradicted"),
+        /**
+         * A line's measurement is not what it was when the person read it — at the sign-off, not what it
+         * was at the submission; for an answer resting on a measurement, not the one the person saw. A
+         * signature must not attest to evidence that stopped being true in between.
+         */
+        MEASUREMENT_CHANGED("checklist-measurement-changed"),
 
         // The template versions' causes (decision 0032 §3, §4, §8).
 
@@ -102,6 +114,27 @@ public class ChecklistConflict extends ConflictException {
         super(message, reason.token(), members);
         this.reason = reason;
     }
+
+    /**
+     * A {@link Cause#MEASUREMENT_CONTRADICTED} or {@link Cause#MEASUREMENT_CHANGED} refusal naming its
+     * lines as data too, in the problem's {@code lines} member.
+     */
+    static ChecklistConflict measured(Cause cause, String message, List<MeasuredLine> lines) {
+        return new ChecklistConflict(cause, message, Map.of("lines", List.copyOf(lines)));
+    }
+
+    /**
+     * One line whose measurement refused a submission or a sign-off, as the problem's {@code lines}
+     * member states it.
+     *
+     * @param answer the line's current answer, {@code yes}, {@code no} or {@code not_applicable}; null
+     *     when it has none
+     * @param outcome and {@code reason}: what the rule finds now
+     * @param submittedOutcome and {@code submittedReason}: what it found at the submission, for a
+     *     sign-off's refusal; null otherwise, and null when the submission measured nothing
+     */
+    public record MeasuredLine(long itemId, int position, String answer, String outcome, String reason,
+            String submittedOutcome, String submittedReason) {}
 
     /**
      * One line keeping a revision from a submission or a sign-off, as the problem's {@code lines} member

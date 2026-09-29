@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.checklists.ChecklistEvidenceDownload;
 import com.asmolabs.vectispire.core.checklists.ChecklistLineHistory;
+import com.asmolabs.vectispire.core.checklists.ChecklistMeasurementsView;
 import com.asmolabs.vectispire.core.checklists.ChecklistOfferedVersion;
 import com.asmolabs.vectispire.core.checklists.ChecklistProjectContext;
 import com.asmolabs.vectispire.core.checklists.ChecklistRevisionSummary;
@@ -50,9 +51,11 @@ import org.springframework.web.bind.annotation.RestController;
  * checklist-line-changed} (the line did), {@code checklist-not-draft}, {@code checklist-not-submitted},
  * {@code checklist-not-signed-off}, {@code checklist-not-latest}, {@code checklist-incomplete}, {@code
  * checklist-four-eyes}, {@code checklist-version-not-published}, {@code checklist-same-version},
- * {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}. A {@code
+ * {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}, {@code
+ * checklist-measurement-contradicted}, {@code checklist-measurement-changed}. A {@code
  * checklist-incomplete} problem also names its lines as data, in a {@code lines} member — each line's
- * {@code itemId}, {@code position} and {@code problems} — so that a client shows them in its own words.
+ * {@code itemId}, {@code position} and {@code problems} — so that a client shows them in its own words;
+ * so do the two measurement causes, each line with its answer and the measurement's outcome and reason.
  *
  * <p>A proof's file arrives as the raw body — there is no multipart route, and the body filter bounds
  * a raw body where it could not bound a part — capped at {@code
@@ -62,7 +65,8 @@ import org.springframework.web.bind.annotation.RestController;
         + "its cause in the problem's type, urn:vectispire:problem:<cause>: checklist-changed, checklist-line-changed, "
         + "checklist-not-draft, checklist-not-submitted, checklist-not-signed-off, checklist-not-latest, "
         + "checklist-incomplete, checklist-four-eyes, checklist-version-not-published, checklist-same-version, "
-        + "checklist-nothing-to-confirm, checklist-evidence-withdrawn.")
+        + "checklist-nothing-to-confirm, checklist-evidence-withdrawn, checklist-measurement-contradicted, "
+        + "checklist-measurement-changed.")
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/checklists")
 public class ProjectChecklistsController {
@@ -83,8 +87,12 @@ public class ProjectChecklistsController {
      */
     public record ChecklistOpenRequest(String template, Integer version, Integer edition) {}
 
-    /** @param value {@code yes}, {@code no} or {@code not_applicable}; the comment is required but for yes */
-    public record ChecklistAnswerRequest(String value, String comment, Integer edition) {}
+    /**
+     * @param value {@code yes}, {@code no} or {@code not_applicable}; the comment is required but for yes
+     * @param measurementDigest the {@code evidenceDigest} of the line's measurement the person read, for an
+     *     answer resting on it — the one click a measured line offers; absent for an answer resting on none
+     */
+    public record ChecklistAnswerRequest(String value, String comment, String measurementDigest, Integer edition) {}
 
     /** @param edition the edition the person read */
     public record ChecklistEditionRequest(Integer edition) {}
@@ -166,10 +174,30 @@ public class ProjectChecklistsController {
         return checklists.history(projectId, revision, itemId, allowanceOf(principal));
     }
 
+    @Operation(summary = "Read checklist measurements", description = "The lines bound to a rule, each with what "
+            + "the rule finds — outcome pass, fail or no_data with its reason, the instant it is as of, the evidence "
+            + "per repository (the scan or import read, its date and digest) and the figures — beside the line's "
+            + "answer and their reconciliation. For a draft or a submitted revision the measurements are computed for "
+            + "this read and stored nowhere (id null); a submitted one also carries those of its submission; a "
+            + "signed-off one's are those frozen by the sign-off. 404 for a project the caller does not see whole or a "
+            + "revision it does not have.")
+    @GetMapping("/{revision}/measurements")
+    @RequiresAccount
+    public ChecklistMeasurementsView measurements(
+            @PathVariable long projectId,
+            @PathVariable int revision,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return checklists.measurements(projectId, revision, allowanceOf(principal), participant(principal, request));
+    }
+
     @Operation(summary = "Answer checklist line", description = "On a draft: a new answer, the caller its author. "
-            + "no and not_applicable need a comment. edition is the one read. 400 for no edition, an answer that is "
-            + "none, a negative one without its comment, not_applicable on a version that does not offer it; 409 "
-            + "checklist-not-draft, checklist-line-changed, checklist-changed.")
+            + "no and not_applicable need a comment. measurementDigest, the evidenceDigest of the line's measurement "
+            + "as read, rests the answer on that measurement, applied again and stored with it. edition is the one "
+            + "read. 400 for no edition, an answer that is none, a negative one without its comment, not_applicable "
+            + "on a version that does not offer it, a measurement named on a line bound to no rule; 409 "
+            + "checklist-not-draft, checklist-line-changed, checklist-changed, checklist-measurement-changed (the "
+            + "measurement is not the one read).")
     @PostMapping("/{revision}/items/{itemId}/answers")
     @ResponseStatus(HttpStatus.CREATED)
     @RequiresWriteAccount
@@ -181,7 +209,8 @@ public class ProjectChecklistsController {
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return checklists.answer(projectId, revision, itemId, allowanceOf(principal), body == null ? null : body.value(),
-                body == null ? null : body.comment(), body == null ? null : body.edition(), participant(principal, request));
+                body == null ? null : body.comment(), body == null ? null : body.measurementDigest(),
+                body == null ? null : body.edition(), participant(principal, request));
     }
 
     @Operation(summary = "Confirm carried checklist answer", description = "On a draft: the answer carried onto a "
@@ -281,9 +310,12 @@ public class ProjectChecklistsController {
 
     @Operation(summary = "Submit project checklist", description = "A draft, at the edition read, for sign-off: every "
             + "line answered, every negative answer commented, every proof a yes needs attached and in date, no carried "
-            + "answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete — whose "
-            + "problem names the lines in its lines member as well as in its detail: each line's itemId, position and "
-            + "problems, the tokens a line's view carries.")
+            + "answer awaiting confirmation. The lines bound to a rule are measured again and reconciled: a yes where "
+            + "the measurement fails is refused, a yes where it has no data needs a comment and a proof in date; the "
+            + "measurements are stored with the submission. 409 checklist-not-draft, checklist-changed, "
+            + "checklist-incomplete — whose problem names the lines in its lines member as well as in its detail: each "
+            + "line's itemId, position and problems, the tokens a line's view carries — and "
+            + "checklist-measurement-contradicted, its lines in the same member.")
     @PostMapping("/{revision}/submission")
     @RequiresWriteAccount
     public ChecklistView submit(
@@ -312,8 +344,11 @@ public class ProjectChecklistsController {
 
     @Operation(summary = "Sign off project checklist", description = "An approver — administrator, CISO, security "
             + "champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its "
-            + "authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, "
-            + "checklist-incomplete (a proof lapsed since the submission; its lines in the problem's lines member).")
+            + "authors. The lines bound to a rule are measured again, and the sign-off is refused when one's outcome "
+            + "or reason is not what the submission stored; accepted, the measurements are frozen with it. 403 for "
+            + "another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete "
+            + "(a proof lapsed since the submission), checklist-measurement-changed (a measurement changed since the "
+            + "submission) — their lines in the problem's lines member.")
     @PostMapping("/{revision}/sign-off")
     @RequiresWriteAccount
     public ChecklistView signOff(

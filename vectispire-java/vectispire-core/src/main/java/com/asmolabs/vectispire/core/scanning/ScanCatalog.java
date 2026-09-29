@@ -172,6 +172,104 @@ public class ScanCatalog {
     /** How many identifiers one statement binds: far under every engine's limit. */
     static final int LOOKUP_BATCH = 1_000;
 
+    /**
+     * A repository's completed scans within an age, and how many of them are from before {@code
+     * examined_types} — what tells "every step absent" from "nobody recorded it" when no scan within
+     * the age examined a type (decision 0032, §6).
+     */
+    public record ScansWithin(long repositoryId, long completed, long unrecorded) {}
+
+    /**
+     * Each of these repositories' completed scans created at or after {@code since}, counted, the
+     * unrecorded among them apart. A repository with none is absent. Batched as {@link #newestExamining}.
+     */
+    public Map<Long, ScansWithin> completedWithin(Collection<Long> repositoryIds, Instant since) {
+        Map<Long, ScansWithin> counted = new java.util.HashMap<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            for (Object[] row : scans.countScansWithin(batch,
+                    com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName(), since)) {
+                long repository = ((Number) row[0]).longValue();
+                counted.put(repository, new ScansWithin(repository, ((Number) row[1]).longValue(),
+                        row[2] == null ? 0 : ((Number) row[2]).longValue()));
+            }
+        }
+        return Map.copyOf(counted);
+    }
+
+    /** One plugin's outcome in one completed scan of a repository. */
+    public record PluginRun(long repositoryId, long scanId, Instant createdAt, PluginOutcome outcome) {}
+
+    /**
+     * Each of these repositories' completed scans created at or after {@code since} that name the
+     * plugin, with its outcome in each — {@code produced}, {@code not_applicable} or {@code absent},
+     * decision 0017's three states kept apart — newest first. A repository whose scans within the age
+     * never name the plugin is absent from the answer: they ran without it, which the reader counts as
+     * absent (with {@link #completedWithin}), never as clean.
+     *
+     * <p><b>Read from the scan's own record</b>, {@code plugin_steps}: the plugin's issues say nothing of
+     * whether it ran, and {@code examined_types} never holds a tool-scoped type. The statement narrows
+     * the rows by the plugin's id in the column's text; the outcome is then read back as {@link
+     * ScanView#plugins()} reads it, so a row the text matched by accident — an id inside another
+     * field — names no outcome and is left out.
+     *
+     * @param pluginId a plugin id, lowercase letters, digits and inner hyphens — nothing a {@code like}
+     *     pattern reads as a wildcard
+     */
+    public Map<Long, List<PluginRun>> pluginRunsWithin(Collection<Long> repositoryIds, String pluginId, Instant since) {
+        String pattern = pluginPattern(pluginId);
+        Map<Long, List<PluginRun>> runs = new java.util.HashMap<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            for (Object[] row : scans.findNamingPluginWithin(batch,
+                    com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName(), since, pattern)) {
+                long repository = ((Number) row[0]).longValue();
+                long scanId = ((Number) row[1]).longValue();
+                Instant createdAt = (Instant) row[2];
+                PluginOutcome.read((String) row[3]).stream()
+                        .filter(outcome -> pluginId.equals(outcome.pluginId()))
+                        .findFirst()
+                        .ifPresent(outcome -> runs.computeIfAbsent(repository, key -> new java.util.ArrayList<>())
+                                .add(new PluginRun(repository, scanId, createdAt, outcome)));
+            }
+        }
+        Map<Long, List<PluginRun>> answer = new java.util.HashMap<>();
+        runs.forEach((repository, list) -> answer.put(repository, List.copyOf(list)));
+        return Map.copyOf(answer);
+    }
+
+    /** Those of these repositories with a completed scan created before {@code before} that names the plugin. */
+    public java.util.Set<Long> namingPluginBefore(Collection<Long> repositoryIds, String pluginId, Instant before) {
+        String pattern = pluginPattern(pluginId);
+        java.util.Set<Long> named = new java.util.HashSet<>();
+        for (List<Long> batch : batches(repositoryIds)) {
+            named.addAll(scans.findNamingPluginBefore(batch,
+                    com.asmolabs.vectispire.common.domain.scans.ScanStatus.COMPLETED.wireName(), before, pattern));
+        }
+        return java.util.Set.copyOf(named);
+    }
+
+    /**
+     * {@code %"pluginId":"<id>"%}, the id closed by its quote so that {@code java} never matches {@code
+     * java-arch}. Refused for anything but an id's characters: a {@code %} or {@code _} in it would be a
+     * wildcard, and a quote would end the field.
+     */
+    private static String pluginPattern(String pluginId) {
+        if (pluginId == null || pluginId.isEmpty() || !pluginId.chars().allMatch(c -> (c >= 'a' && c <= 'z')
+                || (c >= '0' && c <= '9') || c == '-')) {
+            // A caller's defect, never a user's input: the scope was parsed as a plugin id before it came here.
+            throw new UnsupportedOperationException("Not a plugin id: " + pluginId);
+        }
+        return "%\"pluginId\":\"" + pluginId + "\"%";
+    }
+
+    private static List<List<Long>> batches(Collection<Long> repositoryIds) {
+        List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repositoryIds));
+        List<List<Long>> batches = new java.util.ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            batches.add(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())));
+        }
+        return batches;
+    }
+
     /** Scans with this status, newest first, as identifier and target only. */
     public List<ScanOfTarget> withStatusNewestFirst(String status) {
         return scans.idsAndTargetsNewestFirst(status).stream()

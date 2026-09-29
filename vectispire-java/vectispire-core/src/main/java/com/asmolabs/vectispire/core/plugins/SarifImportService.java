@@ -192,6 +192,7 @@ public class SarifImportService {
             row.setSourceSlug(source.getSlug());
             row.setRepoId(repositoryId);
             row.setTools(tools);
+            row.setToolKeys(String.join(",", new java.util.TreeSet<>(byTool.keySet())));
             row.setDocumentSha256(sha256);
             row.setResultsCount(resultsCount);
             row.setCreatedCount(folded.created());

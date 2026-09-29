@@ -14,5 +14,7 @@ import java.time.Instant;
  * <p>Top-level for the reason {@link LatestScanRow} gives: a JPQL {@code new} cannot name a nested type.
  *
  * @param createdAt when the scan was queued, the instant every other screen dates a scan by
+ * @param sbomStored whether the scan still holds its SBOM — a dependency rule asks it, and the
+ *     payload's retention may have purged it; asked in the query so that no SBOM is loaded to learn it
  */
-public record ExaminingScanRow(Long repositoryId, Long scanId, Instant createdAt) {}
+public record ExaminingScanRow(Long repositoryId, Long scanId, Instant createdAt, boolean sbomStored) {}

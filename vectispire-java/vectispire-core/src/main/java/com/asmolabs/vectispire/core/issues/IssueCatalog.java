@@ -41,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IssueCatalog {
 
-    /** Issues per flag update, under every engine's bind-parameter ceiling. */
+    /** Issues per flag update, and repositories per grouped count, under every engine's bind-parameter ceiling. */
     private static final int FLAG_BATCH = 1_000;
 
     private final IssueRepository issues;
@@ -228,6 +228,42 @@ public class IssueCatalog {
     public List<RepositoryCount> countOpenByTargetRepositoryWithin(
             String state, String type, Collection<Long> repoIds, int limit) {
         return byRepository(issues.countOpenByTargetRepositoryWithin(state, type, repoIds, Limit.of(limit)));
+    }
+
+    /** Issues of one repository, severity and state in one scope — the rows a checklist's figures add up. */
+    public record ScopeCount(long repositoryId, String severity, String state, long count) {}
+
+    /**
+     * These repositories' issues of one built-in type, per repository, severity and state, settled
+     * triage left out — a triage status this version does not know is counted (decision 0032 §6). The
+     * resolved ones are counted too: a resolved ratio needs both sides. Every state is answered as
+     * stored, and the reader counts one it does not know as open.
+     *
+     * <p><b>A thousand identifiers per statement</b>: a project's repositories are sized by the data,
+     * and the PostgreSQL driver refuses a statement past 65,535 bind parameters.
+     */
+    public List<ScopeCount> countUnsettledOfTypeWithin(String type, Collection<Long> repoIds) {
+        return scopeCounts(repoIds, batch -> issues.countUnsettledOfTypeWithin(batch, type,
+                com.asmolabs.vectispire.common.domain.issues.TriageStatus.settledWireNames()));
+    }
+
+    /** The same, for one tool's issues, by the fingerprint's tool key: {@code plugin:<id>}, {@code import:<source>/<tool>}. */
+    public List<ScopeCount> countUnsettledOfToolWithin(String toolKey, Collection<Long> repoIds) {
+        return scopeCounts(repoIds, batch -> issues.countUnsettledOfToolWithin(batch, toolKey,
+                com.asmolabs.vectispire.common.domain.issues.TriageStatus.settledWireNames()));
+    }
+
+    private static List<ScopeCount> scopeCounts(Collection<Long> repoIds,
+            java.util.function.Function<List<Long>, List<Object[]>> query) {
+        List<Long> distinct = List.copyOf(new java.util.LinkedHashSet<>(repoIds));
+        List<ScopeCount> counts = new ArrayList<>();
+        for (int from = 0; from < distinct.size(); from += FLAG_BATCH) {
+            for (Object[] row : query.apply(distinct.subList(from, Math.min(from + FLAG_BATCH, distinct.size())))) {
+                counts.add(new ScopeCount(((Number) row[0]).longValue(), (String) row[1], (String) row[2],
+                        ((Number) row[3]).longValue()));
+            }
+        }
+        return List.copyOf(counts);
     }
 
     // ------------------------------------------------------------------ one target, one issue

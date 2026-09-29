@@ -400,6 +400,33 @@ public interface IssueRepository
             @Param("state") String state, @Param("type") String type,
             @Param("repoIds") Collection<Long> repoIds, Limit limit);
 
+    /**
+     * These repositories' issues of one built-in type, counted per repository, severity and state, the
+     * settled triage left out — by {@code not in}, so that a triage status this version does not know
+     * is counted (decision 0032 §6). Every state is counted, the reader deciding which is resolved.
+     *
+     * <p>{@code repoIds} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("""
+            select i.repoId, i.severity, i.state, count(i.id) from IssueEntity i
+             where i.repoId in :repoIds and i.type = :type and i.triageStatus not in :settled
+             group by i.repoId, i.severity, i.state""")
+    List<Object[]> countUnsettledOfTypeWithin(
+            @Param("repoIds") Collection<Long> repoIds, @Param("type") String type,
+            @Param("settled") Collection<String> settled);
+
+    /**
+     * The same, for one tool's issues — {@code plugin:<id>} or {@code import:<source>/<tool>}, the
+     * fingerprint's own tool key — never a type, which would count every plugin's issues as one's.
+     */
+    @Query("""
+            select i.repoId, i.severity, i.state, count(i.id) from IssueEntity i
+             where i.repoId in :repoIds and i.tool = :tool and i.triageStatus not in :settled
+             group by i.repoId, i.severity, i.state""")
+    List<Object[]> countUnsettledOfToolWithin(
+            @Param("repoIds") Collection<Long> repoIds, @Param("tool") String tool,
+            @Param("settled") Collection<String> settled);
+
     @Query("""
             select count(i.id) from IssueEntity i
              where i.state = :state and i.type = :type and i.repoId in :repoIds""")

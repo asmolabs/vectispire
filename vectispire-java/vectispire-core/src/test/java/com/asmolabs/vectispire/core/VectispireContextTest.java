@@ -60,7 +60,9 @@ public abstract class VectispireContextTest {
             // No foreign key either (V51, common). Left out, a template imported by one test would hold
             // its slug's next version number, and its draft, in the next test.
             // No foreign key either (V52, common). Left out, a project's checklist would hold the next
-            // test's open slot, and its revision numbers.
+            // test's open slot, and its revision numbers. The measurements (V54, common) likewise: left
+            // out, a sign-off would compare with another test's submission.
+            "t_checklist_measurement",
             "t_checklist_file",
             "t_checklist_evidence",
             "t_checklist_answer",
