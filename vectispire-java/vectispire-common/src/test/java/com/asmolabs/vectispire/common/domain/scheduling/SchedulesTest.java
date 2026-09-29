@@ -124,4 +124,48 @@ class SchedulesTest {
             assertThat(Schedules.isDue(target, NOW)).isFalse();
         }
     }
+
+    @Nested
+    @DisplayName("running at least once a period")
+    class Cadence {
+
+        /** Every day at 02:00, UTC, written by hand so that no parser is under test here. */
+        private final CronSchedule daily = from -> {
+            Instant today = from.truncatedTo(java.time.temporal.ChronoUnit.DAYS).plus(Duration.ofHours(2));
+            return Optional.of(today.isAfter(from) ? today : today.plus(Duration.ofDays(1)));
+        };
+
+        /** Every hour of the first five days of each thirty-day block: often, then a long silence. */
+        private final CronSchedule burst = from -> {
+            Instant next = from.truncatedTo(java.time.temporal.ChronoUnit.HOURS).plus(Duration.ofHours(1));
+            long day = Math.floorMod(next.getEpochSecond() / 86_400, 30);
+            return Optional.of(day < 5 ? next : next.plus(Duration.ofDays(30 - day)).truncatedTo(java.time.temporal.ChronoUnit.DAYS));
+        };
+
+        @Test
+        @DisplayName("a daily expression runs at least weekly, and not at least twice a day")
+        void daily() {
+            assertThat(Schedules.runsAtLeastEvery(Optional.of(daily), Duration.ZERO, Duration.ofDays(7), NOW)).isTrue();
+            assertThat(Schedules.runsAtLeastEvery(Optional.of(daily), Duration.ZERO, Duration.ofHours(12), NOW)).isFalse();
+        }
+
+        @Test
+        @DisplayName("every gap is compared, not only the next occurrence")
+        void everyGap() {
+            // From the start of a burst: the next occurrence is an hour away, the silence twenty-five days on.
+            Instant burstStart = Instant.ofEpochSecond(86_400L * 30 * 684);
+            assertThat(Schedules.runsAtLeastEvery(Optional.of(burst), Duration.ZERO, Duration.ofDays(7), burstStart))
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("an interval runs as often as it says, and no schedule or a broken one never does")
+        void intervalsAndNone() {
+            assertThat(Schedules.runsAtLeastEvery(Optional.empty(), Duration.ofDays(1), Duration.ofDays(7), NOW)).isTrue();
+            assertThat(Schedules.runsAtLeastEvery(Optional.empty(), Duration.ofDays(8), Duration.ofDays(7), NOW)).isFalse();
+            assertThat(Schedules.runsAtLeastEvery(Optional.empty(), Duration.ZERO, Duration.ofDays(7), NOW)).isFalse();
+            assertThat(Schedules.runsAtLeastEvery(Optional.of(CronSchedule.NEVER), Duration.ofDays(1), Duration.ofDays(7),
+                    NOW)).as("a broken expression does not fall back to the interval").isFalse();
+        }
+    }
 }

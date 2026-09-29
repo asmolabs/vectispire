@@ -76,4 +76,45 @@ public final class Schedules {
         }
         return cron.nextAfter(lastScheduledAt).map(next -> !next.isAfter(now)).orElse(false);
     }
+
+    /** The most occurrences {@link #runsAtLeastEvery} walks before it stops believing a schedule. */
+    static final int CADENCE_STEPS = 20_000;
+
+    /**
+     * Whether a target's schedule runs it at least once in every window of {@code period} from
+     * {@code now} on — what a dependency rule asking for a matching schedule reads (decision 0032 §6).
+     *
+     * <p><b>The cron expression wins, as it does for {@link #isDue}</b>; without one, the interval,
+     * which runs at least as often as the period when it is at most the period. No schedule — manual
+     * only — does not.
+     *
+     * <p><b>Every gap, not the next one.</b> "Every minute of the first five days of the month" fires
+     * often and then waits twenty-five days; a check of the next occurrence alone would call it daily.
+     * So the occurrences are walked over two periods, and at least a sixty-two-day horizon so that a
+     * monthly shape shows its longest gap, each gap compared with the period. A schedule whose walk
+     * exceeds {@value #CADENCE_STEPS} occurrences before the horizon is not believed: the answer errs
+     * towards "not established", which a rule reads as unmet rather than as a pass nobody checked.
+     */
+    public static boolean runsAtLeastEvery(Optional<CronSchedule> cron, Duration interval, Duration period, Instant now) {
+        if (period == null || period.isZero() || period.isNegative()) {
+            return false;
+        }
+        if (cron.isEmpty()) {
+            return interval != null && !interval.isZero() && !interval.isNegative() && interval.compareTo(period) <= 0;
+        }
+        Duration span = period.multipliedBy(2);
+        Instant horizon = now.plus(span.compareTo(Duration.ofDays(62)) < 0 ? Duration.ofDays(62) : span);
+        Instant from = now;
+        for (int step = 0; step < CADENCE_STEPS; step++) {
+            Optional<Instant> next = cron.get().nextAfter(from);
+            if (next.isEmpty() || Duration.between(from, next.get()).compareTo(period) > 0) {
+                return false;
+            }
+            if (next.get().isAfter(horizon)) {
+                return true;
+            }
+            from = next.get();
+        }
+        return false;
+    }
 }
