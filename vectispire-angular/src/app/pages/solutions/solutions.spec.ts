@@ -382,6 +382,71 @@ describe('the solutions tree', () => {
     });
 
     /**
+     * A taken name is a 409 with a type, created, renamed or moved alike — a create or a rename used to
+     * answer 400 — and the dialog says it in the screen's language rather than the server's English.
+     */
+    describe('a name already taken', () => {
+        const conflict = (type: string, detail: string) => ({ type, title: 'Conflict', status: 409, detail });
+
+        it('names the solution a project name is taken in, on a create and on a rename', async () => {
+            await mount('ADMIN');
+
+            fixture.componentInstance.newProject(TREE.solutions[0]);
+            fixture.componentInstance.formName.set('ledger');
+            fixture.componentInstance.saveEditor();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/solutions/1/projects').flush(
+                conflict(
+                    'urn:vectispire:problem:project-name-taken',
+                    'This solution already holds a project named "ledger".'
+                ),
+                { status: 409, statusText: 'Conflict' }
+            );
+            expect(fixture.componentInstance.editorVisible()).toBe(true);
+            expect(fixture.componentInstance.formError()).toBe(
+                'Payments already holds a project named ledger. Choose another name.'
+            );
+
+            fixture.componentInstance.editProject(TREE.solutions[0], TREE.solutions[0].projects[0]);
+            fixture.componentInstance.formName.set('Ledger');
+            fixture.componentInstance.saveEditor();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
+                conflict(
+                    'urn:vectispire:problem:project-name-taken',
+                    'This solution already holds a project named "Ledger".'
+                ),
+                { status: 409, statusText: 'Conflict' }
+            );
+            expect(fixture.componentInstance.formError()).toBe(
+                'Payments already holds a project named Ledger. Choose another name.'
+            );
+        });
+
+        it('says a solution name is taken, and leaves any other conflict in the server words', async () => {
+            await mount('ADMIN');
+
+            fixture.componentInstance.newSolution();
+            fixture.componentInstance.formName.set('mobile');
+            fixture.componentInstance.saveEditor();
+            http.expectOne((call) => call.method === 'POST' && call.url === '/api/v1/solutions').flush(
+                conflict('urn:vectispire:problem:solution-name-taken', 'A solution named "mobile" already exists.'),
+                { status: 409, statusText: 'Conflict' }
+            );
+            expect(fixture.componentInstance.formError()).toBe(
+                'A solution named mobile already exists. Choose another name.'
+            );
+
+            fixture.componentInstance.editSolution(TREE.solutions[1]);
+            fixture.componentInstance.formName.set('Mobile apps');
+            fixture.componentInstance.saveEditor();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/solutions/2').flush(
+                { title: 'Conflict', status: 409, detail: 'Somebody changed this solution.' },
+                { status: 409, statusText: 'Conflict' }
+            );
+            expect(fixture.componentInstance.formError()).toBe('Somebody changed this solution.');
+        });
+    });
+
+    /**
      * A project moves to another solution with everything it holds. The request carries
      * `solutionId` and nothing it was not asked to change; a name taken in the destination keeps
      * the dialog open with the way out beside it.

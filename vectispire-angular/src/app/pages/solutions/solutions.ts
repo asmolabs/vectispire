@@ -437,9 +437,28 @@ export class Solutions {
                 this.saving.set(false);
                 // Kept in the dialog: a name already taken is the usual refusal, and closing the
                 // dialog to say so would lose what was typed.
-                this.formError.set(messageOf(failure, this.i18n.t('solutions.error_save')));
+                this.formError.set(
+                    this.nameTaken(failure, editing, name) ?? messageOf(failure, this.i18n.t('solutions.error_save'))
+                );
             }
         });
+    }
+
+    /**
+     * A taken name, read from the 409's type and said in the screen's language — null for any other
+     * refusal. The server answers a taken name the same way whether the dialog creates or renames (it
+     * used to be a 400 on those and a 409 on a move), so the type is what tells it apart, never the
+     * status or the English sentence.
+     */
+    private nameTaken(failure: unknown, editing: Editing, name: string): string | null {
+        const type = problemType(failure);
+        if (editing.kind === 'solution' && type === SOLUTION_NAME_TAKEN) {
+            return this.i18n.t('solutions.solution_name_taken', { name });
+        }
+        if (editing.kind === 'project' && type === PROJECT_NAME_TAKEN) {
+            return this.i18n.t('solutions.project_name_taken', { solution: editing.solution.name, name });
+        }
+        return null;
     }
 
     // --- Delete, remove -------------------------------------------------------------------------
@@ -593,6 +612,7 @@ export class Solutions {
 }
 
 const PROJECT_NAME_TAKEN = 'urn:vectispire:problem:project-name-taken';
+const SOLUTION_NAME_TAKEN = 'urn:vectispire:problem:solution-name-taken';
 
 /** The RFC 7807 `type` of a refusal, so a refusal the screen can answer is told from one it can only show. */
 function problemType(failure: unknown): unknown {

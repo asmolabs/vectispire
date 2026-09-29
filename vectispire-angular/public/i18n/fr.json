@@ -2257,6 +2257,8 @@
     "move_project_new_name": "Nouveau nom",
     "move_project_consequence": "Tout ce que contient {{project}} le suit : ses dépôts, attributions, checklists, plugins et sources SARIF. Personne ne gagne ni ne perd la vue sur quoi que ce soit.",
     "move_project_name_taken": "{{solution}} contient déjà un projet nommé {{name}}. Donnez-lui un autre nom ci-dessus, ou choisissez une autre solution.",
+    "solution_name_taken": "Une solution nommée {{name}} existe déjà. Choisissez un autre nom.",
+    "project_name_taken": "{{solution}} contient déjà un projet nommé {{name}}. Choisissez un autre nom.",
     "project_moved": "Projet {{project}} déplacé vers la solution {{solution}}.",
     "plugins_btn": "Plugins",
     "aria_plugins": "Plugins activés pour {{name}}",
