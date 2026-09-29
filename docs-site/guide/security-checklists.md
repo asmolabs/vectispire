@@ -218,6 +218,17 @@ a yes there then needs a comment and a proof. Choosing another answer than the m
 resting on none. If the measurement changed between your read and your click, the page reads it again
 and says so on the line: read it, then answer.
 
+**Every measured line at once.** `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`,
+with the `edition` you read, gives that one click for every line where it needs nothing from you: each
+unanswered line whose measurement is *met* is answered *yes*, under your name, resting on the
+measurement it was answered by — a line of its history like any other answer, and one audit entry
+each. It leaves alone, and names with the reason: a line **already answered** — whatever the answer,
+even one awaiting confirmation or equal to the measurement: an answer somebody gave is never
+replaced by a gesture that did not look at it; a line with **no data**; and a line *not met*, whose no
+**needs a comment** — the one click opens the form for you to write it, and a comment the product
+wrote would be a claim nobody made, so answer those one at a time. If anything was written on the
+revision since the edition you read, nothing is answered (`checklist-changed`): read it again.
+
 **Submit** is offered only once the measurements are read and none keeps the revision back — a yes
 contradicted, or a yes without data missing its comment or its proof — which each line's own state
 does not know; the page names the lines. A submitted revision whose measurement is no longer the

@@ -300,6 +300,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **Every measured line of a checklist answered as measured, in one act.**
+  `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`, body `{ edition }`, on a
+  draft: each unanswered line whose measurement passes is answered *yes* by the caller, resting on
+  that measurement — the one click of a measured line, for every line at once, each answer a row of
+  its history and a `CHECKLIST_ANSWERED` entry of its own. Lines already answered, lines without data
+  and failing lines — whose *no* needs a comment a person writes — are left alone and returned in
+  `skipped` with their reason (`already_answered`, `no_data`, `needs_comment`). The whole-project
+  guard of every checklist route; anything written since the edition read refuses the act
+  (`checklist-changed`). See [Security checklists](../guide/security-checklists.md#measured-lines).
 - **A signed-off checklist is a signed document** (V55 adds `t_checklist_document`).
   `GET /api/v1/projects/{id}/checklists/{revision}/document` returns a zip: `checklist.xlsx`, the
   organisation's own workbook with only the answer, comment and header cells written and an `Evidence`

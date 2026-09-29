@@ -226,6 +226,18 @@ quoi reposer : répondez vous-même, et un oui y demande alors un commentaire et
 autre réponse que celle mesurée l'envoie sans mesure. Si la mesure a changé entre votre lecture et
 votre clic, la page la relit et le dit sur la ligne : lisez-la, puis répondez.
 
+**Toutes les lignes mesurées d'un coup.** `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`,
+avec l'`edition` que vous avez lue, donne ce clic pour chaque ligne où il n'attend rien de vous : chaque
+ligne sans réponse dont la mesure est *atteinte* reçoit un *oui*, en votre nom, reposant sur la mesure
+qui l'a donné — une ligne de son historique comme toute autre réponse, et une entrée d'audit chacune.
+Il laisse telles quelles, et les nomme avec la raison : une ligne **déjà répondue** — quelle que soit
+la réponse, même en attente de confirmation ou égale à la mesure : une réponse donnée par quelqu'un
+n'est jamais remplacée par un geste qui ne l'a pas regardée ; une ligne **sans données** ; et une ligne
+*non atteinte*, dont le non **demande un commentaire** — le clic unique ouvre le formulaire pour que
+vous l'écriviez, et un commentaire écrit par le produit serait une affirmation que personne n'a faite :
+répondez-y une à une. Si quoi que ce soit a été écrit sur la révision depuis l'édition lue, rien n'est
+répondu (`checklist-changed`) : relisez-la.
+
 **Soumettre** n'est proposé qu'une fois les mesures lues et quand aucune ne retient la révision — un oui
 contredit, ou un oui sans données auquel manque son commentaire ou sa preuve — ce que l'état de chaque
 ligne seul ne sait pas ; la page nomme les lignes. Une révision soumise dont une mesure n'est plus
