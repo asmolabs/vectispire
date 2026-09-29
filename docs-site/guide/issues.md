@@ -63,6 +63,13 @@ the record has to be able to tell the difference.
 - **Triaged / untriaged** — what has been decided against what has not.
 - **Past its deadline** — open findings past the remediation window their severity carries,
   settled triage excluded (see [Remediation times](remediation-delays.md)).
+- **Project or solution** — `project_id` / `solution_id` on `GET /api/v1/issues`: the issues of the
+  repositories filed in that project (or in any project of that solution) at the moment you ask, so a
+  repository filed or moved since is counted where it now is. Images are in no project and never
+  match. Like every filter it is **narrowed to what you may see**: a project you see only part of shows
+  the issues of that part — the part the solutions tree shows you — and a project you see nothing of
+  shows an empty list, exactly as a project that does not exist does. The tree's badges count with
+  settled triage left out; add `unsettled=true` for the list to agree with them.
 - **Hide settled triage** — leaves out what was argued not affected or marked fixed. It is the
   clause the dashboard's per-severity figures count by, and the links from those figures set it.
 

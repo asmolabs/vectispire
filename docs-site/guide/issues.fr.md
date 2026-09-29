@@ -65,6 +65,14 @@ différence.
 - **Triées / non triées** — ce qui a été décidé face à ce qui ne l'a pas été.
 - **Échéance dépassée** — les constats ouverts qui ont dépassé le délai de correction de leur
   gravité, triage réglé exclu (voir [Délais de correction](remediation-delays.md)).
+- **Projet ou solution** — `project_id` / `solution_id` sur `GET /api/v1/issues` : les problèmes des
+  dépôts rangés dans ce projet (ou dans un projet quelconque de cette solution) au moment où vous
+  demandez, si bien qu'un dépôt rangé ou déplacé depuis compte là où il est désormais. Les images ne
+  sont dans aucun projet et ne correspondent jamais. Comme tout filtre, il est **restreint à ce que
+  vous pouvez voir** : un projet que vous ne voyez qu'en partie montre les problèmes de cette partie —
+  celle que l'arborescence des solutions vous montre — et un projet dont vous ne voyez rien montre une
+  liste vide, exactement comme un projet qui n'existe pas. Les pastilles de l'arborescence comptent
+  sans le triage réglé ; ajoutez `unsettled=true` pour que la liste s'accorde avec elles.
 - **Masquer le triage réglé** — écarte ce qui a été jugé non affecté ou marqué corrigé. C'est la
   règle selon laquelle comptent les chiffres par gravité du tableau de bord, et les liens depuis ces
   chiffres l'activent.
