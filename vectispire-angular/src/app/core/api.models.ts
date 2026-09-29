@@ -2765,3 +2765,39 @@ export type ChecklistMeasuredConflictLine = Refine<
         submittedReason: NoDataReason | null;
     }
 >;
+
+/** Why the as-measured act left a line alone — `AsMeasuredSkipReason.wireName()`. */
+export type AsMeasuredSkipReason = NonNullable<Schema<'AsMeasuredSkip'>['reason']>;
+
+/** One line the as-measured act answered: a yes, resting on the measurement stored with it. */
+export type ChecklistAsMeasuredAnswer = Refine<Schema<'AsMeasuredAnswer'>, { value: 'yes'; evidenceDigest: string }>;
+
+/**
+ * One measured line the act left alone, with why and what it measures now; `answer` is the one it
+ * already had, if any.
+ */
+export type ChecklistAsMeasuredSkip = Refine<
+    Schema<'AsMeasuredSkip'>,
+    {
+        reason: AsMeasuredSkipReason;
+        outcome: MeasurementOutcome;
+        noDataReason: NoDataReason | null;
+        evidenceDigest: string;
+        answer: ChecklistAnswerValue | null;
+    }
+>;
+
+/**
+ * What `POST …/answers/as-measured` answers: the checklist as it now is — its edition moved on only
+ * when a line was answered — the lines answered, and every measured line left alone.
+ */
+export type ChecklistAsMeasured = Refine<
+    Schema<'ChecklistAsMeasuredView'>,
+    { checklist: ChecklistView; answered: ChecklistAsMeasuredAnswer[]; skipped: ChecklistAsMeasuredSkip[] }
+>;
+
+/** One line the screen offered the one click on, with the digest of the measurement it showed. */
+export type ChecklistShownMeasurement = Refine<
+    Schema<'ShownMeasurement'>,
+    { itemId: number; measurementDigest: string }
+>;

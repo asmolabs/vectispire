@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { resetLoginThrottle } from './support/fixture';
-import { goTo, ROLE_PASSWORD, ROLE_PASSWORD_ROTATED, signInAs } from './support/session';
+import {
+    BOOTSTRAP_PASSWORD,
+    E2E_PASSWORD,
+    goTo,
+    ROLE_PASSWORD,
+    ROLE_PASSWORD_ROTATED,
+    signInAs
+} from './support/session';
 import { checklistWorkbook } from './support/workbook';
 
 /**
@@ -19,8 +26,12 @@ test.describe('Project checklists', () => {
     test.beforeEach(() => resetLoginThrottle());
 
     /** A bearer token for `page.request`: the session lives in memory, where no request can read it. */
-    async function tokenOf(page: Page, username: string): Promise<string> {
-        for (const password of [ROLE_PASSWORD_ROTATED, ROLE_PASSWORD]) {
+    async function tokenOf(
+        page: Page,
+        username: string,
+        passwords: string[] = [ROLE_PASSWORD_ROTATED, ROLE_PASSWORD]
+    ): Promise<string> {
+        for (const password of passwords) {
             const response = await page.request.post('/api/v1/auth/login', { data: { username, password } });
             if (response.ok()) {
                 const token = (await response.json())['token'];
@@ -388,6 +399,118 @@ test.describe('Project checklists', () => {
         await page.getByRole('button', { name: 'Submit for sign-off' }).click();
         await expect(page.getByTestId('notice')).toHaveText('Revision 1 submitted for sign-off.');
         await expect(page.getByTestId('status')).toHaveText('Submitted');
+    });
+
+    /**
+     * Every measured line answered in one click (decision 0032 §6): rows 4 and 5 measured by coverage,
+     * at least half and at least nine tenths, on a project whose one repository imported three lines
+     * covered of four. The act answers line 1, met, yes; line 2, not met, is left for the person's no
+     * with its comment, and the summary opens its form on no.
+     *
+     * The coverage comes the way a pipeline sends it — a key holding `report_import`, declared for the
+     * project by the platform's governor — because no scan runs here: the worker is off.
+     */
+    test('every measured line is answered as measured in one click, and a line not met is left for its no', async ({
+        page
+    }) => {
+        const run = Date.now().toString(36);
+        const slug = `e2e-as-measured-${run}`;
+        const name = `E2E as measured ${run}`;
+        const templateName = `E2E as-measured checklist ${run}`;
+
+        const cisoName = await signInAs(page, 'CISO');
+        const adminName = await signInAs(page, 'ADMIN');
+        const ciso = await tokenOf(page, cisoName);
+        const admin = await tokenOf(page, adminName);
+        const governor = await tokenOf(page, 'admin', [E2E_PASSWORD, BOOTSTRAP_PASSWORD]);
+        const revision = await draftTemplate(page, slug, ciso, templateName);
+
+        const draft = (await (
+            await page.request.get(`/api/v1/checklist-templates/${slug}/versions/1`, { headers: bearer(ciso) })
+        ).json()) as { items: { sheetRow: number; itemKey: string }[] };
+        const keyOf = (row: number) => draft.items.find((item) => item.sheetRow === row)!.itemKey;
+        const coverage = (minimumRatio: number) => ({
+            kind: 'coverage_threshold',
+            maxAgeDays: 7,
+            metric: 'line',
+            minimumRatio,
+            aggregation: 'per_repository'
+        });
+        const bound = await page.request.put(`/api/v1/checklist-templates/${slug}/versions/1/rules`, {
+            params: { revision },
+            headers: bearer(ciso),
+            data: {
+                items: [
+                    { itemKey: keyOf(4), rule: coverage(0.5) },
+                    { itemKey: keyOf(5), rule: coverage(0.9) }
+                ]
+            }
+        });
+        expect(bound.status(), await bound.text()).toBe(200);
+        await publish(page, slug, admin, ((await bound.json()) as { version: { revision: number } }).version.revision);
+        const projectId = await project(page, name, admin);
+
+        const repository = await page.request.post('/api/v1/repositories', {
+            headers: bearer(admin),
+            data: { name: `e2e-as-measured-${run}`, url: `https://example.invalid/e2e-${run}.git`, branch: 'main' }
+        });
+        expect(repository.ok(), await repository.text()).toBe(true);
+        const repositoryId = ((await repository.json()) as { id: number }).id;
+        const attached = await page.request.put(`/api/v1/projects/${projectId}/repositories/${repositoryId}`, {
+            headers: bearer(admin)
+        });
+        expect(attached.status(), await attached.text()).toBe(204);
+        const key = await page.request.post('/api/v1/api-keys', {
+            headers: bearer(admin),
+            data: { name: `e2e-coverage-${run}`, scopes: ['report_import'] }
+        });
+        expect(key.ok(), await key.text()).toBe(true);
+        const issued = (await key.json()) as { key: { id: string }; secret: string };
+        const declared = await page.request.post('/api/v1/sarif-sources', {
+            headers: bearer(governor),
+            data: {
+                slug: `e2e-ci-${run}`,
+                name: `E2E CI ${run}`,
+                api_key_id: issued.key.id,
+                project_id: projectId,
+                kinds: ['coverage']
+            }
+        });
+        expect(declared.ok(), await declared.text()).toBe(true);
+        const imported = await page.request.post(`/api/v1/repositories/${repositoryId}/coverage-imports`, {
+            params: { format: 'lcov' },
+            headers: { ...bearer(issued.secret), 'Content-Type': 'text/plain' },
+            data: 'SF:a.ts\nDA:1,1\nDA:2,1\nDA:3,1\nDA:4,0\nend_of_record\n'
+        });
+        expect(imported.status(), await imported.text()).toBe(201);
+
+        await signInAs(page, 'CISO');
+        await openFromSolutions(page, name);
+        await page.locator('#open-version').selectOption({ label: `${templateName} — version 1` });
+        await page.getByRole('button', { name: 'Open the checklist' }).click();
+        await expect(page.getByTestId('notice')).toHaveText('The checklist is open: revision 1.');
+        await expect(page.getByTestId('measurement-1').getByTestId('outcome')).toHaveText('Met');
+        await expect(page.getByTestId('measurement-2').getByTestId('outcome')).toHaveText('Not met');
+
+        await page.getByRole('button', { name: 'Answer every measured line as measured' }).click();
+        await expect(page.getByTestId('as-measured-answered')).toHaveText('1 line(s) answered yes as measured.');
+        await expect(page.getByTestId('line-1').getByTestId('answer-value')).toHaveText('Yes');
+        await expect(page.getByTestId('measurement-1').getByTestId('reconciliation')).toHaveText('Consistent');
+        await expect(page.getByTestId('as-measured-needs_comment')).toContainText(
+            'Lines 2, measured as not met, need your “no” with a comment:'
+        );
+        await expect(page.getByTestId('line-2').getByTestId('answer-value')).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Line 2: answer no' }).click();
+        const line = page.getByTestId('line-2');
+        await expect(line.getByRole('radio', { name: /^No/ })).toBeChecked();
+        await expect(line.getByLabel('Comment:')).toBeFocused();
+        await line.getByLabel('Comment:').fill('Coverage below target on the ledger: tests planned this sprint.');
+        await line.getByRole('button', { name: 'Save the answer' }).click();
+        await expect(line.getByTestId('answer-value')).toHaveText('No');
+        await expect(page.getByTestId('as-measured-needs_comment')).toHaveCount(0);
+        // Nothing left that the one click offers on an unanswered line: the act is no longer offered.
+        await expect(page.getByRole('button', { name: 'Answer every measured line as measured' })).toHaveCount(0);
     });
 
     test('an auditor reads a project checklist and is offered no write', async ({ page }) => {

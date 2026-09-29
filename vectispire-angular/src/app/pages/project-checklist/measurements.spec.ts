@@ -14,6 +14,7 @@ import { SessionStore } from '@/app/core/session.store';
 import {
     CARRIED_LINE,
     conflict,
+    COVERAGE_RULE,
     CONTEXT,
     FAIL_MEASUREMENT,
     MEASURED_CHECKLIST,
@@ -46,7 +47,7 @@ import {
     RECONCILIATION_KEYS,
     SOURCE_KEYS
 } from './measurements';
-import { ProjectChecklist } from './project-checklist';
+import { AS_MEASURED_SKIP_KEYS, ProjectChecklist } from './project-checklist';
 
 /**
  * A project checklist's measured lines (decision 0032 §6), through the DOM.
@@ -391,6 +392,253 @@ describe('the measured lines of a project checklist', () => {
         expect(has('[data-testid="no-one-click"]')).toBe(false);
     });
 
+    // ------------------------------------------------------------------ every measured line, in one act
+
+    /** Line 1 unanswered and met, line 2 answered and met, line 3 unanswered and not met. */
+    const UNANSWERED_MET: ChecklistLine = { ...MEASURED_READY_LINE, answer: null, problems: ['unanswered'] };
+    const ANSWERED_MET: ChecklistLine = { ...CARRIED_LINE, rule: COVERAGE_RULE };
+    const OFFERING: ChecklistView = asSchema('ChecklistView', {
+        ...MEASURED_CHECKLIST,
+        lines: [UNANSWERED_MET, ANSWERED_MET, MEASURED_OPEN_LINE]
+    });
+    const MET_UNANSWERED = measurement(101, {
+        ...PASS_MEASUREMENT,
+        answerId: null,
+        answerValue: null,
+        reconciliation: 'unanswered'
+    });
+    const MET_ANSWERED = measurement(102, { ...PASS_MEASUREMENT, itemId: 102, evidenceDigest: '5'.repeat(64) });
+    const OFFERED_MEASUREMENTS: ChecklistMeasurements = {
+        ...MEASUREMENTS,
+        lines: [
+            measuredLine(UNANSWERED_MET, MET_UNANSWERED),
+            measuredLine(ANSWERED_MET, MET_ANSWERED),
+            measuredLine(MEASURED_OPEN_LINE, FAIL_MEASUREMENT)
+        ]
+    };
+    /** The view once line 1 is answered yes. */
+    const AFTER: ChecklistView = asSchema('ChecklistView', {
+        ...OFFERING,
+        checklist: { ...OFFERING.checklist, edition: 6 },
+        lines: [MEASURED_READY_LINE, ANSWERED_MET, MEASURED_OPEN_LINE]
+    });
+    const skip = (itemId: number, position: number, reason: string, extra: Record<string, unknown> = {}) => ({
+        itemId,
+        position,
+        reason,
+        outcome: 'pass',
+        noDataReason: null,
+        evidenceDigest: 'a'.repeat(64),
+        answer: null,
+        ...extra
+    });
+    const actUrl = `${BASE}/2/answers/as-measured`;
+
+    it('sends every unanswered line its button offers, each with the digest shown, and no other', async () => {
+        await start('USER', OFFERING, OFFERED_MEASUREMENTS);
+
+        expect(button('answer-all-measured').textContent).toContain('Answer every measured line as measured');
+        click('answer-all-measured');
+        const act = http.expectOne({ method: 'POST', url: actUrl });
+        expect(asSchema('ChecklistAsMeasuredRequest', act.request.body)).toEqual({
+            edition: 5,
+            lines: [
+                { itemId: 101, measurementDigest: MET_UNANSWERED.evidenceDigest },
+                { itemId: 103, measurementDigest: FAIL_MEASUREMENT.evidenceDigest }
+            ]
+        });
+        act.flush(
+            asSchema('ChecklistAsMeasuredView', {
+                checklist: AFTER,
+                answered: [
+                    {
+                        itemId: 101,
+                        position: 1,
+                        value: 'yes',
+                        answerId: 700,
+                        measurementId: 800,
+                        evidenceDigest: MET_UNANSWERED.evidenceDigest
+                    }
+                ],
+                skipped: [
+                    skip(102, 2, 'already_answered', { answer: 'yes' }),
+                    skip(103, 3, 'needs_comment', { outcome: 'fail' })
+                ]
+            })
+        );
+        fixture.detectChanges();
+        measurementsRead().flush({
+            ...OFFERED_MEASUREMENTS,
+            lines: [
+                measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT),
+                OFFERED_MEASUREMENTS.lines[1],
+                OFFERED_MEASUREMENTS.lines[2]
+            ]
+        });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="line-1"] [data-testid="answer-value"]')).toBe('Yes');
+        expect(text('[data-testid="as-measured-answered"]')).toBe('1 line(s) answered yes as measured.');
+        expect(text('[data-testid="as-measured-needs_comment"]')).toContain(
+            'Lines 3, measured as not met, need your “no” with a comment:'
+        );
+        // Line 2 was answered before the act and not sent: naming it would bury what the act did.
+        expect(has('[data-testid="as-measured-already_answered"]')).toBe(false);
+        // Line 3 alone still offers the one click, and the act is offered for it: its no is still owed.
+        expect(has('#answer-all-measured')).toBe(true);
+    });
+
+    it('offers the act on no line answered, no line without data, and no revision the person cannot answer', async () => {
+        // Line 1 answered, line 3 without data: no button offers the one click on an unanswered line.
+        await start('USER');
+        expect(has('#answer-measured-101')).toBe(true);
+        expect(has('#answer-all-measured')).toBe(false);
+        TestBed.resetTestingModule();
+
+        await start('AUDITOR', OFFERING, OFFERED_MEASUREMENTS);
+        expect(has('#answer-all-measured')).toBe(false);
+        TestBed.resetTestingModule();
+
+        const submitted = asSchema('ChecklistView', { ...OFFERING, checklist: SUBMITTED_CHECKLIST.checklist });
+        await start('USER', submitted, {
+            ...OFFERED_MEASUREMENTS,
+            revision: submitted.checklist.revision,
+            status: 'submitted'
+        });
+        expect(has('#answer-all-measured')).toBe(false);
+        TestBed.resetTestingModule();
+
+        // Frozen measurements are read, not answered.
+        await start('USER', OFFERING, { ...OFFERED_MEASUREMENTS, live: false });
+        expect(has('#answer-all-measured')).toBe(false);
+    });
+
+    it('names what it left alone by reason, in plain words, and a line answered meanwhile only if it was sent', async () => {
+        await start('USER', OFFERING, OFFERED_MEASUREMENTS);
+
+        click('answer-all-measured');
+        http.expectOne({ method: 'POST', url: actUrl }).flush(
+            asSchema('ChecklistAsMeasuredView', {
+                checklist: OFFERING,
+                answered: [],
+                skipped: [
+                    skip(103, 3, 'measurement_changed', { outcome: 'no_data', noDataReason: 'stale' }),
+                    skip(105, 5, 'no_data', { outcome: 'no_data', noDataReason: 'never_examined' }),
+                    skip(104, 4, 'no_data', { outcome: 'no_data', noDataReason: 'step_absent' }),
+                    skip(106, 6, 'not_shown'),
+                    skip(101, 1, 'already_answered', { answer: 'no' })
+                ]
+            })
+        );
+        fixture.detectChanges();
+        measurementsRead().flush(OFFERED_MEASUREMENTS);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="as-measured-answered"]')).toBe('0 line(s) answered yes as measured.');
+        expect(text('[data-testid="as-measured-measurement_changed"]')).toBe(
+            'The measurement of lines 3 changed since you read it: check it again, then answer.'
+        );
+        expect(text('[data-testid="as-measured-no_data"]')).toBe(
+            'Lines 4, 5 have no data: answer them yourself — a yes there needs a comment and a proof.'
+        );
+        expect(text('[data-testid="as-measured-not_shown"]')).toContain('Lines 6 are measured met now');
+        expect(text('[data-testid="as-measured-already_answered"]')).toBe(
+            'Lines 1 were answered meanwhile: their answer is left as it is.'
+        );
+        expect(has('[data-testid="as-measured-needs_comment"]')).toBe(false);
+
+        click('dismiss-as-measured');
+        expect(has('[data-testid="as-measured-summary"]')).toBe(false);
+    });
+
+    it('opens a line left for its no on no, resting on the measurement, and drops it once answered', async () => {
+        await start('USER', OFFERING, OFFERED_MEASUREMENTS);
+
+        click('answer-all-measured');
+        http.expectOne({ method: 'POST', url: actUrl }).flush(
+            asSchema('ChecklistAsMeasuredView', {
+                checklist: AFTER,
+                answered: [],
+                skipped: [
+                    skip(103, 3, 'needs_comment', { outcome: 'fail', evidenceDigest: FAIL_MEASUREMENT.evidenceDigest })
+                ]
+            })
+        );
+        fixture.detectChanges();
+        measurementsRead().flush(OFFERED_MEASUREMENTS);
+        fixture.detectChanges();
+
+        expect(button('as-measured-no-103').textContent).toContain('Line 3: answer no');
+        click('as-measured-no-103');
+        await fixture.whenStable();
+        http.expectNone((call) => call.method === 'POST');
+        expect((dom().querySelector('#answer-103-no') as HTMLInputElement).checked).toBe(true);
+        expect(text('[data-testid="answer-resting"]')).toContain('rests on the measurement read at');
+        expect(document.activeElement?.id).toBe('comment-103');
+
+        type('#comment-103', 'Two leaked tokens, rotation planned.');
+        click('save-answer-103');
+        const no = http.expectOne({ method: 'POST', url: `${BASE}/2/items/103/answers` });
+        expect(no.request.body).toEqual({
+            value: 'no',
+            comment: 'Two leaked tokens, rotation planned.',
+            edition: 6,
+            measurementDigest: FAIL_MEASUREMENT.evidenceDigest
+        });
+        const answeredNo: ChecklistLine = {
+            ...MEASURED_OPEN_LINE,
+            answer: { ...READY_CHECKLIST.lines[0].answer!, id: 604, itemId: 103, value: 'no' },
+            problems: []
+        };
+        no.flush(
+            { ...AFTER, lines: [MEASURED_READY_LINE, ANSWERED_MET, answeredNo] },
+            { status: 201, statusText: 'Created' }
+        );
+        fixture.detectChanges();
+        measurementsRead().flush(OFFERED_MEASUREMENTS);
+        fixture.detectChanges();
+        expect(has('[data-testid="as-measured-needs_comment"]')).toBe(false);
+        expect(has('[data-testid="as-measured-summary"]')).toBe(true);
+    });
+
+    it('explains a refusal by its problem type, offering the reload a stale checklist needs', async () => {
+        await start('USER', OFFERING, OFFERED_MEASUREMENTS);
+
+        click('answer-all-measured');
+        http.expectOne({ method: 'POST', url: actUrl }).flush(conflict('checklist-changed'), {
+            status: 409,
+            statusText: 'Conflict'
+        });
+        fixture.detectChanges();
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            'The checklist changed since you read it. Reload it, look at what changed, then try again.'
+        );
+        expect(has('[data-testid="as-measured-summary"]')).toBe(false);
+
+        click('reload-checklist');
+        http.expectOne({ method: 'GET', url: `${BASE}/context` }).flush({
+            ...CONTEXT,
+            latestRevision: 2,
+            latestEdition: 6
+        });
+        http.expectOne({ method: 'GET', url: BASE }).flush([AFTER.checklist, SIGNED_REVISION]);
+        for (const offered of http.match({ method: 'GET', url: `${BASE}/offered` })) offered.flush([]);
+        http.expectOne({ method: 'GET', url: `${BASE}/2` }).flush(AFTER);
+        fixture.detectChanges();
+        measurementsRead().flush(OFFERED_MEASUREMENTS);
+        fixture.detectChanges();
+        expect(has('[data-testid="refusal"]')).toBe(false);
+
+        click('answer-all-measured');
+        http.expectOne({ method: 'POST', url: actUrl }).flush(conflict('checklist-not-draft'), {
+            status: 409,
+            statusText: 'Conflict'
+        });
+        fixture.detectChanges();
+        expect(text('[data-testid="refusal-message"]')).toContain('This revision is no longer a draft');
+        expect(has('#reload-checklist')).toBe(true);
+    });
+
     // ------------------------------------------------------------------ badges and the submission
 
     /** Line 3 answered yes, with the view counting what the measurement makes of it, as a draft's read does. */
@@ -643,7 +891,8 @@ describe('the measured lines, by their rules', () => {
             LOOK_STATUS_KEYS,
             SOURCE_KEYS,
             RECONCILIATION_KEYS,
-            MEASURED_PROBLEM_KEYS
+            MEASURED_PROBLEM_KEYS,
+            AS_MEASURED_SKIP_KEYS
         ]) {
             for (const key of Object.values(map)) {
                 expect(typeof lookup(english, key), `${key} in en.json`).toBe('string');

@@ -1,6 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { HttpHeaders } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import {
+    afterNextRender,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    effect,
+    inject,
+    Injector,
+    input,
+    signal,
+    untracked
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin, type Observable } from 'rxjs';
@@ -14,7 +25,10 @@ import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_EVIDENCE_BYTES } from '../../core/api/checklists.api';
 import type {
+    AsMeasuredSkipReason,
     ChecklistAnswerValue,
+    ChecklistAsMeasured,
+    ChecklistAsMeasuredSkip,
     ChecklistEvidence,
     ChecklistEvidenceKind,
     ChecklistIncompleteLine,
@@ -26,6 +40,7 @@ import type {
     ChecklistOfferedVersion,
     ChecklistProjectContext,
     ChecklistRevisionSummary,
+    ChecklistShownMeasurement,
     ChecklistStatus,
     ChecklistView,
     MeasuredLine
@@ -41,6 +56,7 @@ import {
     measuredAnswer,
     measuredConflictLinesOf,
     NO_DATA_SHORT_KEYS,
+    oneClickAnswer,
     OUTCOME_KEYS
 } from './measurements';
 
@@ -130,6 +146,33 @@ export const CONFLICT_KEYS = {
     measurement_changed: 'project_checklist.conflict_measurement_changed'
 } as const satisfies Record<ConflictCause, string>;
 
+/**
+ * The reasons the as-measured act's summary names, in the order a person deals with them: the no they
+ * owe first. `already_answered` is named only for a line the screen sent — every line answered before
+ * is also reported, and listing them would bury what the act did.
+ */
+export const AS_MEASURED_SKIP_KEYS = {
+    needs_comment: 'project_checklist.as_measured_needs_comment',
+    measurement_changed: 'project_checklist.as_measured_changed',
+    not_shown: 'project_checklist.as_measured_not_shown',
+    no_data: 'project_checklist.as_measured_no_data',
+    already_answered: 'project_checklist.as_measured_already_answered'
+} as const satisfies Record<AsMeasuredSkipReason, string>;
+
+/** One reason of the summary with the lines it left alone, by position. */
+export interface AsMeasuredGroup {
+    reason: AsMeasuredSkipReason;
+    lines: { itemId: number; position: number }[];
+}
+
+/** What the last as-measured act did, for the summary: kept until another revision is read. */
+interface AsMeasuredSummary {
+    revision: number;
+    answered: number;
+    sent: ReadonlySet<number>;
+    skipped: ChecklistAsMeasuredSkip[];
+}
+
 /** Why the sign-off is greyed out for the person on screen — a hint: the server decides. */
 export type SignOffBlock = 'not_approver' | 'four_eyes';
 
@@ -214,6 +257,7 @@ export class ProjectChecklist {
     private readonly api = inject(ChecklistsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
+    private readonly injector = inject(Injector);
     // The revision shown can be switched faster than the server answers; the older answer must not
     // land over the newer one.
     private readonly readRequest = new LatestRequest();
@@ -267,6 +311,8 @@ export class ProjectChecklist {
      * `checklist-measurement-changed` at a sign-off or an answer — by item, as the server found them.
      */
     readonly measuredConflicts = signal<Record<number, ChecklistMeasuredConflictLine>>({});
+    /** The last "every measured line" act's summary, or null. */
+    readonly asMeasured = signal<AsMeasuredSummary | null>(null);
     /** The revision whose document is being fetched, if one. */
     readonly downloading = signal<number | null>(null);
     readonly copied = signal(false);
@@ -318,6 +364,44 @@ export class ProjectChecklist {
     readonly canSubmit = computed(() => !!this.view()?.readyToSubmit);
     /** Lines measured otherwise than at the submission: the sign-off would be refused for them. */
     readonly changedSinceSubmission = computed(() => changedSinceSubmission(this.measurements()));
+    /**
+     * The lines "every measured line" sends: each unanswered line whose own button offers the one click,
+     * with the digest of the measurement that button would rest on — `oneClickAnswer`, the button's own
+     * test, so the act never names a line the person was not shown as answerable. A not-met line is sent
+     * too: the server leaves it for the person's no, and the summary names it.
+     */
+    readonly asMeasuredOffer = computed<ChecklistShownMeasurement[]>(() => {
+        const live = !!this.measurements()?.live;
+        const answerable = this.editable();
+        return (this.view()?.lines ?? []).flatMap((line) => {
+            const measured = this.measuredOf(line);
+            const found = measured?.measurement;
+            return !line.answer && found && oneClickAnswer(measured, live, answerable)
+                ? [{ itemId: line.itemId, measurementDigest: found.evidenceDigest }]
+                : [];
+        });
+    });
+    /**
+     * The summary's groups, against the view as it now is: a line answered since — the no a
+     * `needs_comment` line was waiting for — leaves its group, so the summary is a list to work through.
+     */
+    readonly asMeasuredGroups = computed<AsMeasuredGroup[]>(() => {
+        const summary = this.asMeasured();
+        if (!summary) return [];
+        const answered = new Set((this.view()?.lines ?? []).filter((line) => !!line.answer).map((line) => line.itemId));
+        return (Object.keys(AS_MEASURED_SKIP_KEYS) as AsMeasuredSkipReason[])
+            .map((reason) => ({
+                reason,
+                lines: summary.skipped
+                    .filter((skip) => skip.reason === reason)
+                    .filter((skip) =>
+                        reason === 'already_answered' ? summary.sent.has(skip.itemId) : !answered.has(skip.itemId)
+                    )
+                    .map((skip) => ({ itemId: skip.itemId, position: skip.position }))
+                    .sort((a, b) => a.position - b.position)
+            }))
+            .filter((group) => group.lines.length > 0);
+    });
 
     constructor() {
         // An effect rather than a call in the constructor: a signal input is not bound yet there.
@@ -345,6 +429,7 @@ export class ProjectChecklist {
         this.error.set(null);
         this.refusal.set(null);
         this.incomplete.set({});
+        this.asMeasured.set(null);
         this.closeForms();
         const both = forkJoin({
             context: this.api.projectChecklistContext(projectId),
@@ -372,6 +457,7 @@ export class ProjectChecklist {
     read(revision: number): void {
         this.loading.set(true);
         this.incomplete.set({});
+        this.asMeasured.set(null);
         this.closeForms();
         this.readRequest.run(this.api.projectChecklist(this.id(), revision), {
             next: (view) => {
@@ -626,6 +712,51 @@ export class ProjectChecklist {
             ),
             line.itemId
         );
+    }
+
+    /**
+     * The one click for every line that offers it, in one act: the met ones are answered yes, each
+     * resting on the measurement its button showed; the rest are named in the summary with why. The
+     * lines sent are exactly `asMeasuredOffer`'s — never a line the person was not shown.
+     */
+    answerAllAsMeasured(): void {
+        const shown = this.summary();
+        const lines = this.asMeasuredOffer();
+        if (!shown || lines.length === 0) return;
+        this.answering.set(null);
+        this.asMeasured.set(null);
+        this.send(
+            this.api.answerChecklistAsMeasured(this.id(), shown.revision, lines, shown.edition),
+            (result) => result.checklist,
+            null,
+            (result: ChecklistAsMeasured) =>
+                this.asMeasured.set({
+                    revision: result.checklist.checklist.revision,
+                    answered: result.answered.length,
+                    sent: new Set(lines.map((line) => line.itemId)),
+                    skipped: result.skipped
+                })
+        );
+    }
+
+    /**
+     * A line the act left for the person's no: its form opens on no, resting on the measurement, and
+     * the comment it needs takes the focus. Should the measurement no longer say not met — read again
+     * after the act — the plain form opens instead, and the person reads the line before answering.
+     */
+    answerNoFromSummary(itemId: number): void {
+        const line = this.view()?.lines.find((one) => one.itemId === itemId);
+        if (!line) return;
+        if (measuredAnswer(this.measuredOf(line)) === 'no') this.answerAsMeasured(line);
+        else this.startAnswer(line);
+        afterNextRender(() => document.getElementById(`comment-${itemId}`)?.focus(), { injector: this.injector });
+    }
+
+    asMeasuredLabel(group: AsMeasuredGroup): string {
+        this.i18n.translations();
+        return this.i18n.t(AS_MEASURED_SKIP_KEYS[group.reason], {
+            lines: group.lines.map((line) => line.position).join(', ')
+        });
     }
 
     setAnswer(patch: Partial<Pick<AnswerDraft, 'value' | 'comment'>>): void {
@@ -922,6 +1053,16 @@ export class ProjectChecklist {
         itemId: number | null,
         done?: (view: ChecklistView) => void
     ): void {
+        this.send(request, (view) => view, itemId, done);
+    }
+
+    /** A write whose answer carries the view beside something else — the as-measured act's summary. */
+    private send<T>(
+        request: Observable<T>,
+        viewOf: (result: T) => ChecklistView,
+        itemId: number | null,
+        done?: (result: T) => void
+    ): void {
         this.busy.set(true);
         this.refusal.set(null);
         this.incomplete.set({});
@@ -929,10 +1070,10 @@ export class ProjectChecklist {
         this.error.set(null);
         this.notice.set(null);
         request.subscribe({
-            next: (view) => {
+            next: (result) => {
                 this.busy.set(false);
-                this.adopt(view);
-                done?.(view);
+                this.adopt(viewOf(result));
+                done?.(result);
             },
             error: (failure) => {
                 this.busy.set(false);

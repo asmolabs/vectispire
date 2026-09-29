@@ -453,6 +453,65 @@
                     </p>
                 }
             }
+            <!-- The one click for every line that offers it, in one act (decision 0032 §6). -->
+            @if (asMeasuredOffer().length > 0) {
+                <div class="mb-4 flex flex-wrap items-center gap-3" data-testid="as-measured">
+                    <p-button
+                        id="answer-all-measured"
+                        icon="pi pi-check-square"
+                        size="small"
+                        [label]="'project_checklist.as_measured_btn' | translate"
+                        [disabled]="busy()"
+                        (onClick)="answerAllAsMeasured()"
+                    />
+                    <span class="text-sm text-muted-color">{{ 'project_checklist.as_measured_hint' | translate }}</span>
+                </div>
+            }
+            @if (asMeasured(); as done) {
+                <div
+                    class="mb-4 p-3 rounded-md border flex flex-col gap-2 text-sm"
+                    style="border-color: var(--surface-border)"
+                    role="status"
+                    data-testid="as-measured-summary"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <strong data-testid="as-measured-answered">{{
+                            'project_checklist.as_measured_answered' | translate: { count: done.answered }
+                        }}</strong>
+                        <p-button
+                            id="dismiss-as-measured"
+                            icon="pi pi-times"
+                            size="small"
+                            [text]="true"
+                            [ariaLabel]="'project_checklist.as_measured_dismiss' | translate"
+                            (onClick)="asMeasured.set(null)"
+                        />
+                    </div>
+                    @for (group of asMeasuredGroups(); track group.reason) {
+                        <div [attr.data-testid]="'as-measured-' + group.reason">
+                            <span>{{ asMeasuredLabel(group) }}</span>
+                            @if (group.reason === 'needs_comment' && editable()) {
+                                <div class="mt-1 flex flex-wrap gap-2">
+                                    @for (line of group.lines; track line.itemId) {
+                                        <p-button
+                                            [id]="'as-measured-no-' + line.itemId"
+                                            icon="pi pi-pencil"
+                                            size="small"
+                                            [outlined]="true"
+                                            [label]="
+                                                'project_checklist.as_measured_answer_no'
+                                                    | translate: { position: line.position }
+                                            "
+                                            [disabled]="busy()"
+                                            (onClick)="answerNoFromSummary(line.itemId)"
+                                        />
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
             @for (group of groups(); track group.domain) {
                 <section class="mb-6" [attr.data-testid]="'domain-' + $index">
                     <h3 class="text-lg font-semibold mt-0 mb-2">

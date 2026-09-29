@@ -105,6 +105,19 @@ export function measuredAnswer(line: MeasuredLine | null | undefined): Checklist
 }
 
 /**
+ * The answer the one click offers on a line, or null where it offers none: only on live measurements
+ * (a frozen one is read, not answered), to a person who may answer now. The line's button and the
+ * page's "every measured line" act read it here, so the act sends exactly the lines a button showed.
+ */
+export function oneClickAnswer(
+    line: MeasuredLine | null | undefined,
+    live: boolean,
+    answerable: boolean
+): ChecklistAnswerValue | null {
+    return live && answerable ? measuredAnswer(line) : null;
+}
+
+/**
  * The lines of a submitted revision whose measurement is not what the submission stored — outcome or
  * reason, as the sign-off compares them — by position: the sign-off would be refused for them.
  */

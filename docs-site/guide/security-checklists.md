@@ -233,6 +233,18 @@ replaced by a gesture that did not look at it; a line with **no data**; and a li
 wrote would be a claim nobody made, so answer those one at a time. If anything was written on the
 revision since the edition you read, nothing is answered (`checklist-changed`): read it again.
 
+On the page, the act is the button **Answer every measured line as measured**, at the top of the lines,
+under the note saying the measurements are live. It is offered to those who write, on the newest
+draft, once the measurements are read, and only while at least one unanswered line shows its own
+one-click button: it sends exactly those lines, each with the measurement its button would rest on.
+A summary then stays above the lines until you close it or read another revision: how many lines were
+answered yes as measured, then what was left alone, by reason — the lines *not met* waiting for your
+no, each with a **Line N: answer no** button that opens its form on no, resting on the measurement,
+the comment field ready; the lines whose measurement changed since you read it, to check again; the
+lines without data, to answer yourself; a line met that you had not been shown; and a line you sent
+that somebody answered meanwhile. A line leaves the summary once it is answered. A refusal is
+explained like any other write on the page — `checklist-changed` with the offer to reload.
+
 **Submit** is offered only once the measurements are read and none keeps the revision back — a yes
 contradicted, or a yes without data missing its comment or its proof — which each line's own state
 does not know; the page names the lines. A submitted revision whose measurement is no longer the

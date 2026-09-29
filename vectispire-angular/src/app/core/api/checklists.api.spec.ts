@@ -256,6 +256,20 @@ describe('the project checklist client', () => {
         plain.flush(MEASURED_CHECKLIST, { status: 201, statusText: 'Created' });
     });
 
+    it('sends the lines shown for the as-measured act, the empty list included, with the edition read', () => {
+        const shown = [{ itemId: 101, measurementDigest: PASS_MEASUREMENT.evidenceDigest }];
+        api.answerChecklistAsMeasured(PROJECT_ID, 2, shown, 5).subscribe();
+        const act = http.expectOne({ method: 'POST', url: `${BASE}/2/answers/as-measured` });
+        expect(asSchema('ChecklistAsMeasuredRequest', act.request.body)).toEqual({ edition: 5, lines: shown });
+        act.flush({ checklist: MEASURED_CHECKLIST, answered: [], skipped: [] });
+
+        // Empty is a list, not an absence: the server refuses a missing one (400).
+        api.answerChecklistAsMeasured(PROJECT_ID, 2, [], 6).subscribe();
+        const none = http.expectOne({ method: 'POST', url: `${BASE}/2/answers/as-measured` });
+        expect(none.request.body).toEqual({ edition: 6, lines: [] });
+        none.flush({ checklist: MEASURED_CHECKLIST, answered: [], skipped: [] });
+    });
+
     it('confirms, withdraws and moves the revision through its life naming the edition', () => {
         const writes: [() => unknown, string][] = [
             [() => api.confirmChecklistAnswer(PROJECT_ID, 2, 102, 5).subscribe(), `${BASE}/2/items/102/confirmation`],

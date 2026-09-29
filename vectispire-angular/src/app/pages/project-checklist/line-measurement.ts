@@ -11,9 +11,9 @@ import {
     differs,
     LOOK_STATUS_KEYS,
     MEASURED_PROBLEM_KEYS,
-    measuredAnswer,
     NO_DATA_KEYS,
     NO_DATA_SHORT_KEYS,
+    oneClickAnswer,
     OUTCOME_KEYS,
     RECONCILIATION_KEYS,
     RECONCILIATION_SEVERITIES,
@@ -64,7 +64,7 @@ export class LineMeasurement {
     readonly evidenceOpen = signal(false);
 
     readonly found = computed(() => this.measured()?.measurement ?? null);
-    readonly offered = computed(() => (this.live() && this.answerable() ? measuredAnswer(this.measured()) : null));
+    readonly offered = computed(() => oneClickAnswer(this.measured(), this.live(), this.answerable()));
     /** What the measurement keeps from a submission that the line's own problems do not already say. */
     readonly measuredProblems = computed(() => {
         const said = new Set(this.lineProblems());

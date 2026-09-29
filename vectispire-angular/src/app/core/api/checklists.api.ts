@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Observable } from 'rxjs';
 import type {
     ChecklistAnswerValue,
+    ChecklistAsMeasured,
     ChecklistItemEvidence,
     ChecklistItemPair,
     ChecklistItemRule,
@@ -13,6 +14,7 @@ import type {
     ChecklistPreview,
     ChecklistProjectContext,
     ChecklistRevisionSummary,
+    ChecklistShownMeasurement,
     ChecklistTemplate,
     ChecklistVersion,
     ChecklistView,
@@ -266,6 +268,23 @@ export class ChecklistsApi {
         if (trimmed) body.comment = trimmed;
         if (measurementDigest) body.measurementDigest = measurementDigest;
         return this.http.post<ChecklistView>(`${linePath(projectId, revision, itemId)}/answers`, body);
+    }
+
+    /**
+     * The one click for every line named at once: each one unanswered, still on the evidence whose
+     * digest is sent and met, is answered yes resting on it; every other measured line is left alone and
+     * named with why — a not-met line's no needs the person's comment. `lines` are the lines the screen
+     * offered the one click on, never more: a met line not named is `not_shown`, not answered. An empty
+     * list answers nothing. Any write since `edition` refuses the whole act (`checklist-changed`).
+     */
+    answerChecklistAsMeasured(
+        projectId: number,
+        revision: number,
+        lines: ChecklistShownMeasurement[],
+        edition: number
+    ): Observable<ChecklistAsMeasured> {
+        const body: Schema<'ChecklistAsMeasuredRequest'> = { edition, lines };
+        return this.http.post<ChecklistAsMeasured>(`${revisionPath(projectId, revision)}/answers/as-measured`, body);
     }
 
     /** The answer carried onto a line that changed still holds, under the caller's name. */

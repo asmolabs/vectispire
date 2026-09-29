@@ -243,6 +243,20 @@ vous l'écriviez, et un commentaire écrit par le produit serait une affirmation
 répondez-y une à une. Si quoi que ce soit a été écrit sur la révision depuis l'édition lue, rien n'est
 répondu (`checklist-changed`) : relisez-la.
 
+Sur la page, cet acte est le bouton **Répondre comme mesuré pour les lignes mesurées**, en tête des
+lignes, sous la note qui dit que les mesures sont calculées en direct. Il est proposé à qui écrit, sur
+le brouillon le plus récent, une fois les mesures lues, et seulement tant qu'au moins une ligne sans
+réponse montre son propre bouton en un clic : il envoie exactement ces lignes, chacune avec la mesure
+sur laquelle son bouton reposerait. Un récapitulatif reste ensuite au-dessus des lignes jusqu'à ce que
+vous le fermiez ou lisiez une autre révision : combien de lignes ont reçu un oui comme mesuré, puis ce
+qui a été laissé tel quel, par raison — les lignes *non atteintes* qui attendent votre non, chacune avec
+un bouton **Ligne N : répondre non** qui ouvre son formulaire sur non, reposant sur la mesure, le champ
+de commentaire prêt ; les lignes dont la mesure a changé depuis votre lecture, à vérifier à nouveau ;
+les lignes sans données, auxquelles répondre vous-même ; une ligne atteinte qui ne vous avait pas été
+montrée ; et une ligne envoyée à laquelle quelqu'un a répondu entre-temps. Une ligne quitte le
+récapitulatif dès qu'elle a sa réponse. Un refus s'explique comme toute autre écriture de la page —
+`checklist-changed` avec l'offre de recharger.
+
 **Soumettre** n'est proposé qu'une fois les mesures lues et quand aucune ne retient la révision — un oui
 contredit, ou un oui sans données auquel manque son commentaire ou sa preuve — ce que l'état de chaque
 ligne seul ne sait pas ; la page nomme les lignes. Une révision soumise dont une mesure n'est plus
