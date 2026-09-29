@@ -3,13 +3,22 @@ package com.asmolabs.vectispire.core.checklists;
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 
 /**
- * A project checklist's 409, naming its cause — the problem's {@code type} is {@code
- * urn:vectispire:problem:} followed by {@link Cause#token()}.
+ * A checklist's 409 — a project checklist's or a template version's — naming its cause: the problem's
+ * {@code type} is {@code urn:vectispire:problem:} followed by {@link Cause#token()}.
  *
  * <p><b>Why each cause is named.</b> The template routes answered one 409 for "changed since you read
  * it", "not a draft" and "four-eyes", and a screen could only show the sentence: it could not offer to
  * reload for the first, nor say "somebody else must sign" for the last, without parsing words that
- * change with their wording. Every checklist write can meet several of these; each is its own token.
+ * change with their wording. Every checklist write can meet several of these; each is its own token —
+ * the template routes' included, since the lot after the project checklists: they had kept the one
+ * bare 409 the causes were invented to end.
+ *
+ * <p><b>One convention for both halves of the module.</b> The template versions' causes are {@code
+ * checklist-template-…}, apart from the project checklists' ones, because the gesture differs even
+ * where the words match: a template version that is not a draft is derived from, a checklist revision
+ * that is not a draft is returned; a template read again is named by its {@code revision}, a checklist
+ * by its {@code edition}. One token is shared, {@code checklist-four-eyes}: on both it means exactly
+ * "four-eyes is on and you wrote this — somebody else has to do it".
  */
 public class ChecklistConflict extends ConflictException {
 
@@ -29,7 +38,10 @@ public class ChecklistConflict extends ConflictException {
         NOT_LATEST("checklist-not-latest"),
         /** A line is unanswered, uncommented, unproven, its proof out of date, or awaiting confirmation. */
         INCOMPLETE("checklist-incomplete"),
-        /** Four-eyes is on and the signer is one of the revision's authors. */
+        /**
+         * Four-eyes is on and the caller wrote what it is signing off, publishing or retiring — a
+         * checklist revision's author, or a template version's.
+         */
         FOUR_EYES("checklist-four-eyes"),
         /** A checklist opens on a published version only — not a draft, not a retired one. */
         VERSION_NOT_PUBLISHED("checklist-version-not-published"),
@@ -38,7 +50,24 @@ public class ChecklistConflict extends ConflictException {
         /** The line's answer is not a carried one awaiting confirmation. */
         NOTHING_TO_CONFIRM("checklist-nothing-to-confirm"),
         /** The proof is already withdrawn. */
-        EVIDENCE_WITHDRAWN("checklist-evidence-withdrawn");
+        EVIDENCE_WITHDRAWN("checklist-evidence-withdrawn"),
+
+        // The template versions' causes (decision 0032 §3, §4, §8).
+
+        /** Only a draft version is edited or published; this one is published or retired — derive a new one. */
+        TEMPLATE_NOT_DRAFT("checklist-template-not-draft"),
+        /** The draft's layout is not confirmed, so it has no item: confirm it first. */
+        TEMPLATE_NO_LAYOUT("checklist-template-no-layout"),
+        /** The version changed since the revision the writer read — edited, published or retired. */
+        TEMPLATE_CHANGED("checklist-template-changed"),
+        /** The template already has a draft: one at a time, published or set aside before another. */
+        TEMPLATE_HAS_DRAFT("checklist-template-has-draft"),
+        /** A new version is derived from a published one, and this one is a draft or retired. */
+        TEMPLATE_NOT_PUBLISHED("checklist-template-not-published"),
+        /** The version is already retired. */
+        TEMPLATE_RETIRED("checklist-template-retired"),
+        /** The draft follows no published version, so there is nothing to pair its items with. */
+        TEMPLATE_NOTHING_TO_PAIR("checklist-template-nothing-to-pair");
 
         private final String token;
 

@@ -130,6 +130,27 @@ publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seco
 - **Écarter le brouillon** quand il ne doit jamais être publié. Cela ne change rien à ce qu'un projet
   atteste, donc cela ne demande personne d'autre, et la version s'affiche comme *retirée*.
 
+## Refus, pour les scripts et les intégrations
+
+Chaque refus d'une route de modèle qui tient à l'état de la version répond **409**, et nomme sa cause
+dans le `type` du problème, `urn:vectispire:problem:` suivi du jeton ci-dessous — pour qu'un script
+distingue « relisez » de « quelqu'un d'autre doit le faire » sans lire la phrase, écrite pour une
+personne et susceptible de changer.
+
+| `type` se termine par | Signification | Que faire |
+|---|---|---|
+| `checklist-template-changed` | Le brouillon a changé depuis la `revision` nommée | Le relire |
+| `checklist-template-not-draft` | La version est publiée ou retirée | Dériver un nouveau brouillon de la version publiée |
+| `checklist-template-no-layout` | La disposition du brouillon n'est pas confirmée | La confirmer d'abord |
+| `checklist-template-has-draft` | Le modèle a déjà un brouillon | Le publier ou l'écarter d'abord |
+| `checklist-template-not-published` | Dériver d'un brouillon ou d'une version retirée | Dériver d'une version publiée |
+| `checklist-template-retired` | La version est déjà retirée | — |
+| `checklist-template-nothing-to-pair` | Une première version : aucune précédente avec laquelle apparier | — |
+| `checklist-four-eyes` | Le double contrôle est activé et vous avez écrit ce brouillon | Quelqu'un d'autre le publie ou le retire |
+
+`checklist-four-eyes` est aussi le jeton de l'approbation d'une checklist de projet : il y signifie la
+même chose.
+
 ## Ce qui est consigné
 
 Chaque import, confirmation de disposition, appariement, dérivation, publication et retrait est inscrit

@@ -256,7 +256,10 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   deployment where the setting is already on is not changed. See [Four-eyes](../administration/four-eyes.md#signing-a-checklist-off).
 - **A 409 may name its cause** in the problem's `type`, `urn:vectispire:problem:<cause>`, where a route
   refuses for several reasons that call for different gestures — the project checklists' routes do
-  (`checklist-changed`, `checklist-line-changed`, `checklist-four-eyes`, `checklist-incomplete`, …).
+  (`checklist-changed`, `checklist-line-changed`, `checklist-four-eyes`, `checklist-incomplete`, …),
+  and so do the checklist templates' (`checklist-template-changed`, `checklist-template-not-draft`,
+  `checklist-template-has-draft`, … and `checklist-four-eyes`, which means the same there — see
+  [Checklist templates](../administration/checklist-templates.md#refusals-for-scripts-and-integrations)).
   A problem without a cause keeps `about:blank`; the `detail` is unchanged.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits

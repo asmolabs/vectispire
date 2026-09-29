@@ -2,6 +2,9 @@ package com.asmolabs.vectispire.core.platform.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import com.asmolabs.vectispire.core.checklists.ChecklistConflict;
+import java.net.URI;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -41,5 +44,19 @@ class ApiExceptionHandlerTest {
         assertThat(answer).isNotNull();
         assertThat(answer.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(((ProblemDetail) answer.getBody()).getDetail()).isEqualTo("Invalid credentials.");
+    }
+
+    @Test
+    @DisplayName("a conflict naming its cause types the problem by it, and one naming none leaves it about:blank")
+    void aConflictIsTypedByItsCauseOnly() {
+        ProblemDetail typed = handler.conflict(new ChecklistConflict(ChecklistConflict.Cause.TEMPLATE_CHANGED, "Read it again."));
+        assertThat(typed.getType()).isEqualTo(URI.create("urn:vectispire:problem:checklist-template-changed"));
+        assertThat(typed.getDetail()).isEqualTo("Read it again.");
+
+        // A client branching on the type must not read a cause into a conflict that states none. No type
+        // is set, so none is written: absent is about:blank (RFC 9457 §3.1.1).
+        ProblemDetail plain = handler.conflict(new ConflictException("Already there."));
+        assertThat(plain.getType()).isNull();
+        assertThat(plain.getStatus()).isEqualTo(409);
     }
 }

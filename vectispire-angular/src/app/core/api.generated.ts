@@ -739,7 +739,7 @@ export interface paths {
         put?: never;
         /**
          * Import checklist template workbook
-         * @description Security lead only. The .xlsx is the raw body; it becomes the template's next version, a draft, whose layout is then confirmed — never published in one step. A new slug creates the template, named by name. 400 for a body that is not an .xlsx workbook or fails a zip or XML guard; 409 while the template has a draft; 413 past the size ceiling.
+         * @description Security lead only. The .xlsx is the raw body; it becomes the template's next version, a draft, whose layout is then confirmed — never published in one step. A new slug creates the template, named by name. 400 for a body that is not an .xlsx workbook or fails a zip or XML guard; 409 checklist-template-has-draft while the template has a draft; 413 past the size ceiling.
          */
         post: operations["importWorkbook"];
         delete?: never;
@@ -779,7 +779,7 @@ export interface paths {
         put?: never;
         /**
          * Derive checklist template version
-         * @description Security lead only. A new draft from a published version: the same workbook, layout and items. 409 for a version that is not published, or while the template has a draft.
+         * @description Security lead only. A new draft from a published version: the same workbook, layout and items. 409 checklist-template-not-published, checklist-template-has-draft.
          */
         post: operations["deriveVersion"];
         delete?: never;
@@ -798,7 +798,7 @@ export interface paths {
         get?: never;
         /**
          * Confirm checklist template layout
-         * @description Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. revision is the one the editor read. 400 for a layout that cannot be one, or without revision; 409 for a version that is not a draft, or that changed since that revision.
+         * @description Security lead only, on a draft. The sheet, the column of each field, the item rows, the header cells and the answer words; the items are read from the workbook by it, and pairs made earlier are cleared. revision is the one the editor read. 400 for a layout that cannot be one, or without revision; 409 checklist-template-not-draft, checklist-template-changed (changed since that revision).
          */
         put: operations["confirmLayout"];
         post?: never;
@@ -818,7 +818,7 @@ export interface paths {
         get?: never;
         /**
          * Pair checklist template items
-         * @description Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. revision is the one the editor read. 400 for a pair of items that are not added and removed, or without revision; 409 when there is no previous version, or the draft changed since that revision.
+         * @description Security lead only, on a draft with a confirmed layout. Each pair says an item the draft adds is one the previous version removes, reworded: it takes the old key, and a project's answer follows it, to be confirmed. The list replaces the draft's pairs. revision is the one the editor read. 400 for a pair of items that are not added and removed, or without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-nothing-to-pair (no previous version), checklist-template-changed.
          */
         put: operations["pairItems"];
         post?: never;
@@ -859,7 +859,7 @@ export interface paths {
         put?: never;
         /**
          * Publish checklist template version
-         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 409 for a version that is not a draft, has no layout, changed since the revision named, or was written by the caller while four-eyes is on.
+         * @description Security lead only, on a draft with a confirmed layout, naming the revision reviewed. With four-eyes approval on, not by one of its authors. 400 without revision; 409 checklist-template-not-draft, checklist-template-no-layout, checklist-template-changed (changed since the revision named), checklist-four-eyes (written by the caller while four-eyes is on).
          */
         post: operations["publishVersion"];
         delete?: never;
@@ -879,7 +879,7 @@ export interface paths {
         put?: never;
         /**
          * Retire checklist template version
-         * @description Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 for a version already retired.
+         * @description Security lead only. A published version stops being offered for new checklists — with four-eyes approval on, not by one of its authors — and a draft is set aside. 409 checklist-template-retired, checklist-four-eyes, checklist-template-changed.
          */
         post: operations["retireVersion"];
         delete?: never;

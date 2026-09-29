@@ -44,6 +44,7 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
 
     private static final String BASE = "/api/v1/checklist-templates";
     private static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private static final String PROBLEM = "urn:vectispire:problem:";
 
     @Autowired
     private SettingsService settings;
@@ -150,8 +151,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
                     .andExpect(status().isBadRequest()).andReturn())).contains("slug");
 
             importWorkbook(importer, "release", workbook, "").andExpect(status().isCreated());
-            assertThat(detailOf(importWorkbook(reviewer, "release", workbook, "").andExpect(status().isConflict())
-                    .andReturn())).contains("already has a draft");
+            MvcResult second = importWorkbook(reviewer, "release", workbook, "").andExpect(status().isConflict())
+                    .andReturn();
+            assertThat(detailOf(second)).contains("already has a draft");
+            assertThat(typeOf(second)).isEqualTo(PROBLEM + "checklist-template-has-draft");
         }
     }
 
@@ -262,6 +265,8 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
 
             MvcResult refused = publish(importer, "release", 1, revision).andExpect(status().isConflict()).andReturn();
             assertThat(detailOf(refused)).contains("Four-eyes").contains(importerName);
+            assertThat(typeOf(refused)).as("the project checklists' token: the same meaning")
+                    .isEqualTo(PROBLEM + "checklist-four-eyes");
             assertThat(statusOf("release", 1)).as("a refusal publishes nothing").isEqualTo("draft");
             assertThat(queued("CHECKLIST_TEMPLATE_CHANGED")).isEmpty();
 
@@ -278,8 +283,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             });
 
             // Published is immutable: a change is a new version.
-            confirm(reviewer, "release", 1, layout(9)).andExpect(status().isConflict());
-            publish(reviewer, "release", 1, revision + 1).andExpect(status().isConflict());
+            assertThat(typeOf(confirm(reviewer, "release", 1, layout(9)).andExpect(status().isConflict()).andReturn()))
+                    .isEqualTo(PROBLEM + "checklist-template-not-draft");
+            assertThat(typeOf(publish(reviewer, "release", 1, revision + 1).andExpect(status().isConflict()).andReturn()))
+                    .isEqualTo(PROBLEM + "checklist-template-not-draft");
         }
 
         @Test
@@ -312,8 +319,9 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
                     .andExpect(status().isCreated());
 
-            assertThat(detailOf(publish(reviewer, "release", 1, 1).andExpect(status().isConflict()).andReturn()))
-                    .contains("no confirmed layout");
+            MvcResult refused = publish(reviewer, "release", 1, 1).andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(refused)).contains("no confirmed layout");
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-template-no-layout");
             assertThat(statusOf("release", 1)).isEqualTo("draft");
         }
 
@@ -345,8 +353,9 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             int reviewed = draftWithLayout("release");
             confirm(importer, "release", 1, layout(8)).andExpect(status().isOk());
 
-            assertThat(detailOf(publish(reviewer, "release", 1, reviewed).andExpect(status().isConflict()).andReturn()))
-                    .contains("has changed since revision " + reviewed);
+            MvcResult stale = publish(reviewer, "release", 1, reviewed).andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(stale)).contains("has changed since revision " + reviewed);
+            assertThat(typeOf(stale)).isEqualTo(PROBLEM + "checklist-template-changed");
             assertThat(detailOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/publish"), reviewer)
                             .contentType(MediaType.APPLICATION_JSON).content("{}"))
                     .andExpect(status().isBadRequest()).andReturn())).contains("revision");
@@ -361,9 +370,9 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             confirm(importer, "release", 1, layout(8), seen).andExpect(status().isOk());
 
             // The reviewer's layout and pairs were made on what they saw, which is no longer the draft.
-            assertThat(detailOf(confirm(reviewer, "release", 1, layout(9), seen)
-                    .andExpect(status().isConflict()).andReturn()))
-                    .contains("has changed since revision " + seen);
+            MvcResult stale = confirm(reviewer, "release", 1, layout(9), seen).andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(stale)).contains("has changed since revision " + seen);
+            assertThat(typeOf(stale)).isEqualTo(PROBLEM + "checklist-template-changed");
             assertThat(detailOf(confirm(reviewer, "release", 1, layout(9), null)
                     .andExpect(status().isBadRequest()).andReturn()))
                     .contains("revision");
@@ -376,9 +385,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             int second = read(confirm(importer, "release", 2, layout(10)).andExpect(status().isOk()))
                     .at("/version/revision").asInt();
             confirm(importer, "release", 2, layout(10), second).andExpect(status().isOk());
-            assertThat(detailOf(pair(reviewer, "release", 2, List.of(), second)
-                    .andExpect(status().isConflict()).andReturn()))
-                    .contains("has changed since revision " + second);
+            MvcResult stalePairs = pair(reviewer, "release", 2, List.of(), second).andExpect(status().isConflict())
+                    .andReturn();
+            assertThat(detailOf(stalePairs)).contains("has changed since revision " + second);
+            assertThat(typeOf(stalePairs)).isEqualTo(PROBLEM + "checklist-template-changed");
             pair(reviewer, "release", 2, List.of(), null).andExpect(status().isBadRequest());
         }
     }
@@ -433,8 +443,9 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         void theFirstVersionPairsWithNothing() throws Exception {
             draftWithLayout("release");
             assertThat(changes(preview("release", 1).at("/pairing"))).containsOnly("added");
-            assertThat(detailOf(pair(importer, "release", 1, List.of()).andExpect(status().isConflict()).andReturn()))
-                    .contains("nothing to pair");
+            MvcResult refused = pair(importer, "release", 1, List.of()).andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(refused)).contains("nothing to pair");
+            assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-template-nothing-to-pair");
         }
 
         @Test
@@ -459,10 +470,12 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             assertThat(entries("CHECKLIST_TEMPLATE_DERIVED")).hasSize(1);
 
             // One draft at a time, and a draft is edited rather than derived from.
-            mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), importer))
-                    .andExpect(status().isConflict());
-            assertThat(detailOf(mvc.perform(authenticated(post(BASE + "/release/versions/2/derive"), importer))
-                    .andExpect(status().isConflict()).andReturn())).contains("derived from a published one");
+            assertThat(typeOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), importer))
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "checklist-template-has-draft");
+            MvcResult fromADraft = mvc.perform(authenticated(post(BASE + "/release/versions/2/derive"), importer))
+                    .andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(fromADraft)).contains("derived from a published one");
+            assertThat(typeOf(fromADraft)).isEqualTo(PROBLEM + "checklist-template-not-published");
         }
     }
 
@@ -476,8 +489,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             publishFirst("release");
             exportTo("127.0.0.1:9");
 
-            assertThat(detailOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), importer))
-                    .andExpect(status().isConflict()).andReturn())).contains("Four-eyes");
+            MvcResult byItsAuthor = mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), importer))
+                    .andExpect(status().isConflict()).andReturn();
+            assertThat(detailOf(byItsAuthor)).contains("Four-eyes");
+            assertThat(typeOf(byItsAuthor)).isEqualTo(PROBLEM + "checklist-four-eyes");
 
             JsonNode retired = read(mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), reviewer))
                     .andExpect(status().isOk()));
@@ -486,8 +501,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             assertThat(queued("CHECKLIST_TEMPLATE_CHANGED")).singleElement()
                     .satisfies(event -> assertThat(event.at("/extensions/act").asText()).isEqualTo("CHECKLIST_TEMPLATE_RETIRED"));
 
-            mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), reviewer)).andExpect(status().isConflict());
-            mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), reviewer)).andExpect(status().isConflict());
+            assertThat(typeOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/retire"), reviewer))
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "checklist-template-retired");
+            assertThat(typeOf(mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), reviewer))
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "checklist-template-not-published");
         }
 
         @Test
@@ -674,6 +691,10 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
             }
         }
         throw new AssertionError("no cell " + reference + " in the preview");
+    }
+
+    private String typeOf(MvcResult result) throws Exception {
+        return json.readTree(result.getResponse().getContentAsString()).path("type").asText();
     }
 
     private JsonNode read(ResultActions result) throws Exception {

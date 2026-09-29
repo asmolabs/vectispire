@@ -122,6 +122,26 @@ With four-eyes on, the platform refuses to be left with a single account able to
 - **Set the draft aside** when it should never be published. That changes nothing any project
   attests to, so it asks nobody else, and the version shows as *retired*.
 
+## Refusals, for scripts and integrations
+
+Every refusal of a template route that depends on the state the version is in answers **409**, and
+names its cause in the problem's `type`, `urn:vectispire:problem:` followed by the token below — so
+that a script tells "read it again" from "somebody else has to do it" without reading the sentence,
+which is written for a person and may change.
+
+| `type` ends with | Meaning | What to do |
+|---|---|---|
+| `checklist-template-changed` | The draft changed since the `revision` you named | Read it again |
+| `checklist-template-not-draft` | The version is published or retired | Derive a new draft from the published one |
+| `checklist-template-no-layout` | The draft's layout is not confirmed | Confirm it first |
+| `checklist-template-has-draft` | The template already has a draft | Publish it or set it aside first |
+| `checklist-template-not-published` | Deriving from a draft or a retired version | Derive from a published one |
+| `checklist-template-retired` | The version is already retired | — |
+| `checklist-template-nothing-to-pair` | A first version: no previous one to pair with | — |
+| `checklist-four-eyes` | Four-eyes approval is on and you wrote this draft | Somebody else publishes or retires it |
+
+`checklist-four-eyes` is the token a project checklist's sign-off uses too: it means the same there.
+
 ## What is recorded
 
 Every import, layout confirmation, pairing, derivation, publication and retirement is written to the

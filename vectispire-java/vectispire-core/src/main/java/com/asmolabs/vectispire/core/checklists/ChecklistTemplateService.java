@@ -15,7 +15,6 @@ import com.asmolabs.vectispire.common.domain.checklists.Sheet;
 import com.asmolabs.vectispire.common.domain.checklists.TemplateVersion;
 import com.asmolabs.vectispire.common.domain.checklists.VersionPairing;
 import com.asmolabs.vectispire.common.domain.checklists.Workbook;
-import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
@@ -23,6 +22,7 @@ import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
 import com.asmolabs.vectispire.common.domain.text.BoundedText;
 import com.asmolabs.vectispire.core.audit.AuditLogService;
 import com.asmolabs.vectispire.core.audit.RequestActor;
+import com.asmolabs.vectispire.core.checklists.ChecklistConflict.Cause;
 import com.asmolabs.vectispire.core.checklists.internal.StoredForms;
 import com.asmolabs.vectispire.core.checklists.internal.StoredForms.DraftAuthor;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
@@ -80,6 +80,11 @@ import org.springframework.util.unit.DataSize;
  * two requests but let one lead's layout silently replace another's. Publishing is the case that
  * matters most: an author's edit made after the review refuses the publication rather than being
  * published unseen, which a check of the status alone would let through.
+ *
+ * <p><b>Every 409 names its cause</b> — a {@link ChecklistConflict}, whose {@code checklist-template-…}
+ * token (or {@code checklist-four-eyes}) the problem's {@code type} ends with — so that a screen offers
+ * to read the draft again, to derive a new version, or to hand the publication to somebody else,
+ * without reading the sentence.
  *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
  * on SQLite would wait on this one's file lock. Publishing a version, and retiring a published one,
@@ -210,7 +215,7 @@ public class ChecklistTemplateService {
      *
      * @throws InvalidInputException a slug, name or label refused, or a file the reader refuses —
      *     not an {@code .xlsx}, past a zip or XML guard (400)
-     * @throws ConflictException the template already has a draft (409): one at a time, so that what a
+     * @throws ChecklistConflict {@code checklist-template-has-draft} (409): one at a time, so that what a
      *     draft is paired with, and which number it takes, are never in question
      */
     public ChecklistVersionView importWorkbook(String slug, String name, String label, byte[] file, Editor editor) {
@@ -302,8 +307,8 @@ public class ChecklistTemplateService {
         requireSeen(template, version, seenRevision, "pairing its items");
         requireLayout(version, "pairing its items");
         if (version.getPreviousVersionId() == null) {
-            throw new ConflictException("Version " + ordinal + " of \"" + template.getSlug() + "\" follows no published "
-                    + "version: there is nothing to pair its items with.");
+            throw new ChecklistConflict(Cause.TEMPLATE_NOTHING_TO_PAIR, "Version " + ordinal + " of \""
+                    + template.getSlug() + "\" follows no published version: there is nothing to pair its items with.");
         }
         VersionPairing pairing = VersionPairing.of(itemsOf(version.getPreviousVersionId()), asRead(version), pairs);
 
@@ -332,8 +337,8 @@ public class ChecklistTemplateService {
         ChecklistTemplateEntity template = requireTemplate(slug);
         ChecklistTemplateVersionEntity source = requireVersion(template, ordinal);
         if (TemplateVersionStatus.ofStored(source.getStatus()) != TemplateVersionStatus.PUBLISHED) {
-            throw new ConflictException("Version " + ordinal + " of \"" + template.getSlug() + "\" is "
-                    + source.getStatus() + ": a new version is derived from a published one.");
+            throw new ChecklistConflict(Cause.TEMPLATE_NOT_PUBLISHED, "Version " + ordinal + " of \""
+                    + template.getSlug() + "\" is " + source.getStatus() + ": a new version is derived from a published one.");
         }
         List<ChecklistItemEntity> copied = items.findByVersionIdOrderByPositionAsc(source.getId());
         Instant now = clock.instant();
@@ -365,7 +370,8 @@ public class ChecklistTemplateService {
      * Publishes a draft: from now on, what projects open their checklists on. Immutable once done.
      *
      * @param reviewedRevision the revision the publisher read — a draft edited since is refused
-     * @throws ConflictException not a draft, no confirmed layout, edited since the review, or, with
+     * @throws ChecklistConflict {@code checklist-template-not-draft}, {@code checklist-template-no-layout},
+     *     {@code checklist-template-changed} (edited since the review), or {@code checklist-four-eyes} — with
      *     four-eyes on, the publisher is one of its authors (409)
      */
     public ChecklistVersionView publish(String slug, int ordinal, Integer reviewedRevision, Editor editor) {
@@ -402,7 +408,8 @@ public class ChecklistTemplateService {
         ChecklistTemplateVersionEntity version = requireVersion(template, ordinal);
         TemplateVersionStatus from = TemplateVersionStatus.ofStored(version.getStatus());
         if (from == TemplateVersionStatus.RETIRED) {
-            throw new ConflictException("Version " + ordinal + " of \"" + template.getSlug() + "\" is already retired.");
+            throw new ChecklistConflict(Cause.TEMPLATE_RETIRED, "Version " + ordinal + " of \"" + template.getSlug()
+                    + "\" is already retired.");
         }
         boolean published = from == TemplateVersionStatus.PUBLISHED;
         boolean fourEyes = published && requireAnotherPerson(template, version, editor, "retired");
@@ -435,7 +442,7 @@ public class ChecklistTemplateService {
             return false;
         }
         if (editor.wrote(forms.authors(version.getDraftAuthors()))) {
-            throw new ConflictException("Four-eyes approval: version " + version.getOrdinal() + " of \""
+            throw new ChecklistConflict(Cause.FOUR_EYES, "Four-eyes approval: version " + version.getOrdinal() + " of \""
                     + template.getSlug() + "\" was written by " + authorNames(version) + ", so it has to be " + act
                     + " by somebody else.");
         }
@@ -550,7 +557,8 @@ public class ChecklistTemplateService {
 
     private static ChecklistTemplateVersionEntity requireDraft(ChecklistTemplateVersionEntity version, String act) {
         if (TemplateVersionStatus.ofStored(version.getStatus()) != TemplateVersionStatus.DRAFT) {
-            throw new ConflictException("Version " + version.getOrdinal() + " is " + version.getStatus()
+            throw new ChecklistConflict(Cause.TEMPLATE_NOT_DRAFT, "Version " + version.getOrdinal() + " is "
+                    + version.getStatus()
                     + ": only a draft can " + act + ". A change to a published version is a new version, derived from it.");
         }
         return version;
@@ -558,14 +566,16 @@ public class ChecklistTemplateService {
 
     private static void requireLayout(ChecklistTemplateVersionEntity version, String act) {
         if (version.getLayout() == null) {
-            throw new ConflictException("Version " + version.getOrdinal() + " has no confirmed layout, so no item: "
+            throw new ChecklistConflict(Cause.TEMPLATE_NO_LAYOUT, "Version " + version.getOrdinal()
+                    + " has no confirmed layout, so no item: "
                     + "confirm its layout before " + act + ".");
         }
     }
 
     private void requireNoDraft(ChecklistTemplateEntity template) {
         if (versions.existsByTemplateIdAndStatus(template.getId(), TemplateVersionStatus.DRAFT.wireName())) {
-            throw new ConflictException("Checklist template \"" + template.getSlug() + "\" already has a draft: publish "
+            throw new ChecklistConflict(Cause.TEMPLATE_HAS_DRAFT, "Checklist template \"" + template.getSlug()
+                    + "\" already has a draft: publish "
                     + "it or set it aside before making another.");
         }
     }
@@ -573,7 +583,8 @@ public class ChecklistTemplateService {
     /** The conditional update's answer: nothing matched means somebody else changed the version first. */
     private static void requireStill(int updated, ChecklistTemplateVersionEntity version) {
         if (updated != 1) {
-            throw new ConflictException("Version " + version.getOrdinal() + " changed while this was being done — "
+            throw new ChecklistConflict(Cause.TEMPLATE_CHANGED, "Version " + version.getOrdinal()
+                    + " changed while this was being done — "
                     + "edited, published or retired by somebody else. Read it again.");
         }
     }
@@ -591,7 +602,7 @@ public class ChecklistTemplateService {
     private <T> T arbitrated(String slug, Supplier<T> write) {
         try {
             return write.get();
-        } catch (ConflictException | InvalidInputException | NotFoundException refusal) {
+        } catch (ChecklistConflict | InvalidInputException | NotFoundException refusal) {
             throw refusal;
         } catch (RuntimeException failed) {
             Optional<ChecklistTemplateEntity> template = templates.findBySlug(slug);
@@ -802,7 +813,8 @@ public class ChecklistTemplateService {
                     + "changed from what somebody has seen.");
         }
         if (!version.getRevision().equals(seenRevision)) {
-            throw new ConflictException("Version " + version.getOrdinal() + " of \"" + template.getSlug() + "\" has "
+            throw new ChecklistConflict(Cause.TEMPLATE_CHANGED, "Version " + version.getOrdinal() + " of \""
+                    + template.getSlug() + "\" has "
                     + "changed since revision " + seenRevision + " — it is at revision " + version.getRevision()
                     + ". Read it again before " + doing + ".");
         }

@@ -288,7 +288,10 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 - **Un 409 peut nommer sa cause** dans le `type` du problème, `urn:vectispire:problem:<cause>`, là où une
   route refuse pour plusieurs raisons qui appellent des gestes différents — celles des checklists de
   projet le font (`checklist-changed`, `checklist-line-changed`, `checklist-four-eyes`,
-  `checklist-incomplete`, …). Un problème sans cause garde `about:blank` ; le `detail` ne change pas.
+  `checklist-incomplete`, …), et celles des modèles de checklist aussi (`checklist-template-changed`,
+  `checklist-template-not-draft`, `checklist-template-has-draft`, … et `checklist-four-eyes`, qui y
+  signifie la même chose — voir [Modèles de checklists](../administration/checklist-templates.fr.md#refus-pour-les-scripts-et-les-integrations)).
+  Un problème sans cause garde `about:blank` ; le `detail` ne change pas.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.
