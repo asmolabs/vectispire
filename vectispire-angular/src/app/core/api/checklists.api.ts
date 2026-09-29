@@ -324,6 +324,19 @@ export class ChecklistsApi {
         });
     }
 
+    /**
+     * The revision as a document to hand over (decision 0032 §10): a zip of the template's workbook filled
+     * in and `checklist.json` — with their detached signatures when the revision is signed off and its
+     * package was stored at the sign-off, unsigned otherwise. Through `HttpClient` as a blob, for the
+     * same reason as a proof: a navigation would carry no token.
+     */
+    checklistDocument(projectId: number, revision: number): Observable<HttpResponse<Blob>> {
+        return this.http.get(`${revisionPath(projectId, revision)}/document`, {
+            responseType: 'blob',
+            observe: 'response'
+        });
+    }
+
     /** The proof stops counting; its row stays, dated and attributed. */
     withdrawChecklistEvidence(
         projectId: number,

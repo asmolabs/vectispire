@@ -2,7 +2,7 @@ import { provideHttpClient, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChecklistProjectContext, ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
@@ -523,6 +523,175 @@ describe('the project checklist screen', () => {
             HTMLAnchorElement.prototype.click = original;
         }
         expect(saved).toEqual(['pentest-report.pdf']);
+    });
+
+    // ------------------------------------------------------------------ the document
+
+    /** The names the page gave the anchors it clicked while `act` ran — the files it saved. */
+    function savedBy(act: () => void): string[] {
+        const saved: string[] = [];
+        const original = HTMLAnchorElement.prototype.click;
+        HTMLAnchorElement.prototype.click = function (this: HTMLAnchorElement) {
+            saved.push(this.download);
+        };
+        try {
+            act();
+        } finally {
+            HTMLAnchorElement.prototype.click = original;
+        }
+        return saved;
+    }
+
+    /** The `<button>` inside a host found by its test id. */
+    function inside(testId: string): HTMLButtonElement {
+        const found = dom().querySelector(`[data-testid="${testId}"] button`);
+        if (!found) throw new Error(`no button in ${testId}`);
+        return found as HTMLButtonElement;
+    }
+
+    it("calls a draft's document an unsigned rendering, and offers no verification for it", async () => {
+        await start('AUDITOR');
+
+        expect(button('download-document').textContent?.trim()).toBe('Download an unsigned rendering');
+        expect(text('[data-testid="document-hint"]')).toContain('Draft — not signed off');
+        expect(has('[data-testid="verification"]')).toBe(false);
+        expect(text('[data-testid="document"]')).not.toContain('cosign');
+    });
+
+    it("calls a submitted revision's document unsigned too: only a sign-off is signed", async () => {
+        await start('CISO', 'carol', {
+            view: SUBMITTED_CHECKLIST,
+            revisions: [SUBMITTED_CHECKLIST.checklist, SIGNED_REVISION]
+        });
+
+        expect(button('download-document').textContent?.trim()).toBe('Download an unsigned rendering');
+        expect(has('[data-testid="verification"]')).toBe(false);
+    });
+
+    it("labels each listed revision's download by its own status", async () => {
+        await start('AUDITOR');
+
+        expect(inside('download-document-1').getAttribute('aria-label')).toBe(
+            'Download the signed package of revision 1'
+        );
+        expect(inside('download-document-2').getAttribute('aria-label')).toBe(
+            'Download an unsigned rendering of revision 2'
+        );
+    });
+
+    it("downloads the shown revision's document through the client, as a blob, under the server's name", async () => {
+        await start('AUDITOR');
+
+        const saved = savedBy(() => {
+            click('download-document');
+            const request = http.expectOne({ method: 'GET', url: `${BASE}/2/document` });
+            expect(request.request.responseType).toBe('blob');
+            request.flush(new Blob(['PK']), {
+                headers: { 'Content-Disposition': 'attachment; filename="checklist-project-7-revision-2.zip"' }
+            });
+        });
+        expect(saved).toEqual(['checklist-project-7-revision-2.zip']);
+    });
+
+    it("downloads a listed revision's document by its own number, not the one shown", async () => {
+        await start('AUDITOR');
+
+        const saved = savedBy(() => {
+            inside('download-document-1').click();
+            fixture.detectChanges();
+            http.expectOne({ method: 'GET', url: `${BASE}/1/document` }).flush(new Blob(['PK']));
+        });
+        // No header read: the name the server gives, built on this side.
+        expect(saved).toEqual(['checklist-project-7-revision-1.zip']);
+    });
+
+    it("calls a signed-off revision's document a signed package, and shows the guide's verification commands", async () => {
+        await start('AUDITOR', 'someone', {
+            view: SIGNED_CHECKLIST,
+            revisions: [SIGNED_CHECKLIST.checklist, SIGNED_REVISION]
+        });
+
+        expect(button('download-document').textContent?.trim()).toBe('Download the signed package');
+        const commands = (dom().querySelector('[data-testid="verification-commands"]')?.textContent ?? '').split('\n');
+        expect(commands).toEqual([
+            `curl -fsS -o vectispire.pub "${window.location.origin}/api/v1/crypto/public-key.pub"`,
+            'unzip checklist-project-7-revision-2.zip',
+            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.xlsx.sig checklist.xlsx',
+            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
+        ]);
+        const key = dom().querySelector('[data-testid="public-key-link"]') as HTMLAnchorElement;
+        expect(key.getAttribute('href')).toBe('/api/v1/crypto/public-key.pub');
+        expect(key.getAttribute('download')).toBe('vectispire.pub');
+    });
+
+    it('saves the public key under the name the commands use, not the one the server suggests', async () => {
+        await start('AUDITOR', 'someone', {
+            view: SIGNED_CHECKLIST,
+            revisions: [SIGNED_CHECKLIST.checklist, SIGNED_REVISION]
+        });
+
+        const saved = savedBy(() => {
+            (dom().querySelector('[data-testid="public-key-link"]') as HTMLAnchorElement).dispatchEvent(
+                new MouseEvent('click', { cancelable: true })
+            );
+            http.expectOne({ method: 'GET', url: '/api/v1/crypto/public-key.pub' }).flush(
+                '-----BEGIN PUBLIC KEY-----',
+                {
+                    headers: { 'Content-Disposition': 'attachment; filename="vectispire-signing-key.pub"' }
+                }
+            );
+        });
+        expect(saved).toEqual(['vectispire.pub']);
+    });
+
+    it('copies the verification commands whole', async () => {
+        await start('AUDITOR', 'someone', {
+            view: SIGNED_CHECKLIST,
+            revisions: [SIGNED_CHECKLIST.checklist, SIGNED_REVISION]
+        });
+        const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+        try {
+            click('Copy the verification commands');
+            expect(writeText).toHaveBeenCalledWith(
+                dom().querySelector('[data-testid="verification-commands"]')!.textContent
+            );
+            await Promise.resolve();
+            fixture.detectChanges();
+            expect(button('Verification commands copied')).toBeTruthy();
+        } finally {
+            writeText.mockRestore();
+        }
+    });
+
+    it('answers a refused document as an absence, with a reload, and nothing saved', async () => {
+        await start('AUDITOR');
+
+        const saved = savedBy(() => {
+            click('download-document');
+            http.expectOne({ method: 'GET', url: `${BASE}/2/document` }).flush(new Blob(['{}']), {
+                status: 404,
+                statusText: 'Not Found'
+            });
+        });
+        fixture.detectChanges();
+        expect(saved).toEqual([]);
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            'The document of revision 2 was not found: the project is no longer visible to you as a whole, or the revision does not exist. Reload the checklist.'
+        );
+        expect(has('#reload-checklist')).toBe(true);
+    });
+
+    it('says a failed download failed, in its own words', async () => {
+        await start('AUDITOR');
+
+        click('download-document');
+        http.expectOne({ method: 'GET', url: `${BASE}/2/document` }).flush(new Blob(['{}']), {
+            status: 500,
+            statusText: 'Server Error'
+        });
+        fixture.detectChanges();
+        expect(text('[data-testid="error"]')).toContain('Could not download the document.');
+        expect(has('[data-testid="refusal"]')).toBe(false);
     });
 
     // ------------------------------------------------------------------ history

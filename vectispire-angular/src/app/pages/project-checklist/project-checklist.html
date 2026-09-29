@@ -215,6 +215,66 @@
                     <dd class="m-0" data-testid="authors">{{ shown.authors.join(', ') }}</dd>
                 }
             </dl>
+            <!-- The document to hand over: signed only as far as the status can say (decision 0032 §10). -->
+            <div class="border-t mt-4 pt-4" style="border-color: var(--surface-border)" data-testid="document">
+                <h3 class="text-base font-semibold mt-0 mb-1">{{ 'project_checklist.document_title' | translate }}</h3>
+                <div class="flex flex-wrap items-center gap-3">
+                    <p-button
+                        id="download-document"
+                        icon="pi pi-download"
+                        size="small"
+                        [outlined]="true"
+                        [loading]="downloading() === current.revision"
+                        [label]="
+                            documentSigned(current.status)
+                                ? ('project_checklist.document_signed_btn' | translate)
+                                : ('project_checklist.document_unsigned_btn' | translate)
+                        "
+                        (onClick)="downloadDocument(current.revision)"
+                    />
+                    <span class="text-sm text-muted-color" data-testid="document-hint">
+                        {{
+                            documentSigned(current.status)
+                                ? ('project_checklist.document_signed_hint' | translate)
+                                : ('project_checklist.document_unsigned_hint' | translate)
+                        }}
+                    </span>
+                </div>
+                @if (verificationCommands(); as commands) {
+                    <div class="mt-3 text-sm" data-testid="verification">
+                        <p class="mt-0 mb-2">
+                            {{ 'project_checklist.verify_intro' | translate }}
+                            <a
+                                [href]="publicKeyPath"
+                                download="vectispire.pub"
+                                data-testid="public-key-link"
+                                (click)="downloadPublicKey($event)"
+                                >{{ 'project_checklist.verify_key_link' | translate }}</a
+                            >
+                        </p>
+                        <div class="flex items-start gap-2">
+                            <pre
+                                class="m-0 p-3 rounded-md overflow-x-auto flex-1 font-mono text-xs"
+                                style="background: var(--surface-ground)"
+                                data-testid="verification-commands"
+                                >{{ commands }}</pre>
+                            <p-button
+                                id="copy-verification"
+                                [icon]="copied() ? 'pi pi-check' : 'pi pi-copy'"
+                                size="small"
+                                [text]="true"
+                                [ariaLabel]="
+                                    copied()
+                                        ? ('project_checklist.verify_copied' | translate)
+                                        : ('project_checklist.verify_copy' | translate)
+                                "
+                                (onClick)="copyCommands(commands)"
+                            />
+                        </div>
+                        <p class="text-muted-color mt-2 mb-0">{{ 'project_checklist.verify_tlog' | translate }}</p>
+                    </div>
+                }
+            </div>
         </p-card>
 
         <!-- The acts the revision's status allows, to those who may make them. -->
@@ -1128,6 +1188,21 @@
                             }
                         </td>
                         <td class="text-right">
+                            <p-button
+                                icon="pi pi-download"
+                                size="small"
+                                [text]="true"
+                                [loading]="downloading() === row.revision"
+                                [ariaLabel]="
+                                    documentSigned(row.status)
+                                        ? ('project_checklist.aria_document_signed'
+                                          | translate: { revision: row.revision })
+                                        : ('project_checklist.aria_document_unsigned'
+                                          | translate: { revision: row.revision })
+                                "
+                                [attr.data-testid]="'download-document-' + row.revision"
+                                (onClick)="downloadDocument(row.revision)"
+                            />
                             @if (row.revision === current.revision) {
                                 <p-tag severity="info" [value]="'project_checklist.shown_tag' | translate" />
                             } @else {

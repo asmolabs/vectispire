@@ -331,6 +331,13 @@ describe('the project checklist client', () => {
         request.flush(new Blob(['%PDF']));
     });
 
+    it("fetches a revision's document as a blob with the response, for a download", () => {
+        api.checklistDocument(PROJECT_ID, 3).subscribe();
+        const request = http.expectOne({ method: 'GET', url: `${BASE}/3/document` });
+        expect(request.request.responseType).toBe('blob');
+        request.flush(new Blob(['PK']));
+    });
+
     it('holds the ceiling the server holds: twenty-five megabytes as Spring reads them', () => {
         expect(MAX_EVIDENCE_BYTES).toBe(26_214_400);
     });

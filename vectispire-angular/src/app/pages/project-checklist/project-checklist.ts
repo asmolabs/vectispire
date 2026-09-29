@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpHeaders } from '@angular/common/http';
+import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +13,7 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_EVIDENCE_BYTES } from '../../core/api/checklists.api';
+import { DocumentsApi } from '../../core/api/documents.api';
 import type {
     ChecklistAnswerValue,
     ChecklistEvidence,
@@ -133,6 +134,11 @@ export const CONFLICT_KEYS = {
 /** Why the sign-off is greyed out for the person on screen — a hint: the server decides. */
 export type SignOffBlock = 'not_approver' | 'four_eyes';
 
+/** The platform's public key, the one the document's signatures are checked against (decision 0032 §10). */
+export const PUBLIC_KEY_PATH = '/api/v1/crypto/public-key.pub';
+/** The name the guide's commands give the key, and the one it is saved under. */
+export const PUBLIC_KEY_FILE = 'vectispire.pub';
+
 /** A refusal explained, whether reloading is what it asks for, and the line it concerns, if one. */
 interface Refusal {
     message: string;
@@ -207,6 +213,7 @@ export interface DomainGroup {
 })
 export class ProjectChecklist {
     private readonly api = inject(ChecklistsApi);
+    private readonly documents = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     // The revision shown can be switched faster than the server answers; the older answer must not
@@ -262,6 +269,11 @@ export class ProjectChecklist {
      * `checklist-measurement-changed` at a sign-off or an answer — by item, as the server found them.
      */
     readonly measuredConflicts = signal<Record<number, ChecklistMeasuredConflictLine>>({});
+    /** The revision whose document is being fetched, if one. */
+    readonly downloading = signal<number | null>(null);
+    readonly copied = signal(false);
+    /** Served to anybody, so the link works on its own; the page still saves it itself (see `downloadPublicKey`). */
+    readonly publicKeyPath = PUBLIC_KEY_PATH;
 
     /** Named before any checklist exists, from the context; from the view only if the context is not read yet. */
     readonly projectName = computed(() => this.context()?.projectName ?? this.view()?.projectName ?? null);
@@ -760,6 +772,93 @@ export class ProjectChecklist {
             next: (response) =>
                 saveDocument(response.clone({ headers: new HttpHeaders() }), proof.fileName ?? 'evidence'),
             error: (failure) => this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_download')))
+        });
+    }
+
+    // ------------------------------------------------------------------ the document
+
+    /**
+     * Whether the revision's document is called signed. **Only its status can say so**: a signed-off
+     * revision's package was signed at its sign-off — except one signed off before documents were, which
+     * the server renders unsigned and the screen cannot tell apart. So the screen says "signed package"
+     * for a signed-off revision and nothing stronger, and the guide names the exception.
+     */
+    documentSigned(status: string): boolean {
+        return status === 'signed_off';
+    }
+
+    /** The name the server gives the zip, which the verification commands unpack. */
+    documentName(revision: number): string {
+        return `checklist-project-${this.id()}-revision-${revision}.zip`;
+    }
+
+    /**
+     * Saved as a download, never opened. A 404 is a project this account no longer sees whole, or a
+     * revision gone — the words of an absence, as everywhere on this page: the checklist is read again.
+     * The body of a blob request's refusal is a Blob, so its problem type is not read here; the status
+     * is all a 404 needs.
+     */
+    downloadDocument(revision: number): void {
+        this.downloading.set(revision);
+        this.api.checklistDocument(this.id(), revision).subscribe({
+            next: (response) => {
+                this.downloading.set(null);
+                saveDocument(response, this.documentName(revision));
+            },
+            error: (failure) => {
+                this.downloading.set(null);
+                if ((failure as { status?: number } | null)?.status === 404) {
+                    this.refusal.set({
+                        message: this.i18n.t('project_checklist.document_not_found', { revision }),
+                        reload: true,
+                        itemId: null
+                    });
+                    return;
+                }
+                this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_document')));
+            }
+        });
+    }
+
+    /**
+     * The guide's commands for the revision shown, when it is signed off: unpack, then check each entry
+     * against the key fetched on its own — `--insecure-ignore-tlog=true` because Vectispire publishes no
+     * transparency-log entry, and cosign fails looking for one without it.
+     */
+    readonly verificationCommands = computed(() => {
+        const shown = this.summary();
+        if (!shown || !this.documentSigned(shown.status)) return null;
+        return [
+            `curl -fsS -o ${PUBLIC_KEY_FILE} "${window.location.origin}${PUBLIC_KEY_PATH}"`,
+            `unzip ${this.documentName(shown.revision)}`,
+            ...['checklist.xlsx', 'checklist.json'].map(
+                (entry) =>
+                    `cosign verify-blob --key ${PUBLIC_KEY_FILE} --insecure-ignore-tlog=true --signature ${entry}.sig ${entry}`
+            )
+        ].join('\n');
+    });
+
+    /**
+     * The key saved as `vectispire.pub`, the name the commands use. Followed as a plain link it would be
+     * saved as `vectispire-signing-key.pub`: the server's `Content-Disposition` wins over the anchor's
+     * `download` in the browser, and the commands would then name a file that is not there.
+     */
+    downloadPublicKey(event: Event): void {
+        event.preventDefault();
+        this.documents.getPublicKeyPem().subscribe({
+            next: (pem) =>
+                saveDocument(
+                    new HttpResponse({ body: new Blob([pem], { type: 'application/x-pem-file' }) }),
+                    PUBLIC_KEY_FILE
+                ),
+            error: (failure) => this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_public_key')))
+        });
+    }
+
+    copyCommands(commands: string): void {
+        void navigator.clipboard.writeText(commands).then(() => {
+            this.copied.set(true);
+            setTimeout(() => this.copied.set(false), 3000);
         });
     }
 
