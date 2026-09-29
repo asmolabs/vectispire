@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { HttpHeaders, HttpResponse } from '@angular/common/http';
+import { HttpHeaders } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,7 +13,6 @@ import { TagModule } from '@openng/optimus-ui/tag';
 import { TextareaModule } from '@openng/optimus-ui/textarea';
 import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_EVIDENCE_BYTES } from '../../core/api/checklists.api';
-import { DocumentsApi } from '../../core/api/documents.api';
 import type {
     ChecklistAnswerValue,
     ChecklistEvidence,
@@ -136,8 +135,8 @@ export type SignOffBlock = 'not_approver' | 'four_eyes';
 
 /** The platform's public key, the one the document's signatures are checked against (decision 0032 §10). */
 export const PUBLIC_KEY_PATH = '/api/v1/crypto/public-key.pub';
-/** The name the guide's commands give the key, and the one it is saved under. */
-export const PUBLIC_KEY_FILE = 'vectispire.pub';
+/** The name the server's `Content-Disposition` gives the key, which the commands use and the link repeats. */
+export const PUBLIC_KEY_FILE = 'vectispire-signing-key.pub';
 
 /** A refusal explained, whether reloading is what it asks for, and the line it concerns, if one. */
 interface Refusal {
@@ -213,7 +212,6 @@ export interface DomainGroup {
 })
 export class ProjectChecklist {
     private readonly api = inject(ChecklistsApi);
-    private readonly documents = inject(DocumentsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     // The revision shown can be switched faster than the server answers; the older answer must not
@@ -272,8 +270,9 @@ export class ProjectChecklist {
     /** The revision whose document is being fetched, if one. */
     readonly downloading = signal<number | null>(null);
     readonly copied = signal(false);
-    /** Served to anybody, so the link works on its own; the page still saves it itself (see `downloadPublicKey`). */
+    /** Served to anybody, so the link works on its own — no session, no request of the page. */
     readonly publicKeyPath = PUBLIC_KEY_PATH;
+    readonly publicKeyFile = PUBLIC_KEY_FILE;
 
     /** Named before any checklist exists, from the context; from the view only if the context is not read yet. */
     readonly projectName = computed(() => this.context()?.projectName ?? this.view()?.projectName ?? null);
@@ -837,23 +836,6 @@ export class ProjectChecklist {
             )
         ].join('\n');
     });
-
-    /**
-     * The key saved as `vectispire.pub`, the name the commands use. Followed as a plain link it would be
-     * saved as `vectispire-signing-key.pub`: the server's `Content-Disposition` wins over the anchor's
-     * `download` in the browser, and the commands would then name a file that is not there.
-     */
-    downloadPublicKey(event: Event): void {
-        event.preventDefault();
-        this.documents.getPublicKeyPem().subscribe({
-            next: (pem) =>
-                saveDocument(
-                    new HttpResponse({ body: new Blob([pem], { type: 'application/x-pem-file' }) }),
-                    PUBLIC_KEY_FILE
-                ),
-            error: (failure) => this.error.set(messageOf(failure, this.i18n.t('project_checklist.error_public_key')))
-        });
-    }
 
     copyCommands(commands: string): void {
         void navigator.clipboard.writeText(commands).then(() => {

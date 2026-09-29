@@ -192,13 +192,13 @@ test.describe('Project checklists', () => {
             expect(zip.includes(entry), entry).toBe(true);
         }
         await expect(page.getByTestId('verification-commands')).toContainText(
-            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
+            'cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
         );
-        // Saved under the name the commands give it, whatever the key route's own header suggests.
+        // Saved under the name the commands give it — the one the key route's header sends as well.
         const keySaved = page.waitForEvent('download');
         await page.getByTestId('public-key-link').click();
         const key = await keySaved;
-        expect(key.suggestedFilename()).toBe('vectispire.pub');
+        expect(key.suggestedFilename()).toBe('vectispire-signing-key.pub');
         expect(readFileSync(await key.path(), 'utf8')).toContain('PUBLIC KEY');
     });
 

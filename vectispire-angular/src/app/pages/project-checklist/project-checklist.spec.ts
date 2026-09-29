@@ -614,34 +614,14 @@ describe('the project checklist screen', () => {
         expect(button('download-document').textContent?.trim()).toBe('Download the signed package');
         const commands = (dom().querySelector('[data-testid="verification-commands"]')?.textContent ?? '').split('\n');
         expect(commands).toEqual([
-            `curl -fsS -o vectispire.pub "${window.location.origin}/api/v1/crypto/public-key.pub"`,
+            `curl -fsS -o vectispire-signing-key.pub "${window.location.origin}/api/v1/crypto/public-key.pub"`,
             'unzip checklist-project-7-revision-2.zip',
-            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.xlsx.sig checklist.xlsx',
-            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
+            'cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature checklist.xlsx.sig checklist.xlsx',
+            'cosign verify-blob --key vectispire-signing-key.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
         ]);
         const key = dom().querySelector('[data-testid="public-key-link"]') as HTMLAnchorElement;
         expect(key.getAttribute('href')).toBe('/api/v1/crypto/public-key.pub');
-        expect(key.getAttribute('download')).toBe('vectispire.pub');
-    });
-
-    it('saves the public key under the name the commands use, not the one the server suggests', async () => {
-        await start('AUDITOR', 'someone', {
-            view: SIGNED_CHECKLIST,
-            revisions: [SIGNED_CHECKLIST.checklist, SIGNED_REVISION]
-        });
-
-        const saved = savedBy(() => {
-            (dom().querySelector('[data-testid="public-key-link"]') as HTMLAnchorElement).dispatchEvent(
-                new MouseEvent('click', { cancelable: true })
-            );
-            http.expectOne({ method: 'GET', url: '/api/v1/crypto/public-key.pub' }).flush(
-                '-----BEGIN PUBLIC KEY-----',
-                {
-                    headers: { 'Content-Disposition': 'attachment; filename="vectispire-signing-key.pub"' }
-                }
-            );
-        });
-        expect(saved).toEqual(['vectispire.pub']);
+        expect(key.getAttribute('download')).toBe('vectispire-signing-key.pub');
     });
 
     it('copies the verification commands whole', async () => {
