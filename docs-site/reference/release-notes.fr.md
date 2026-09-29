@@ -334,14 +334,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
-- **Chaque ligne mesurée d'une checklist répondue comme mesuré, en un seul geste.**
-  `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`, corps `{ edition }`, sur un
-  brouillon : chaque ligne sans réponse dont la mesure est atteinte reçoit un *oui* de l'appelant,
-  reposant sur cette mesure — le clic unique d'une ligne mesurée, pour toutes les lignes à la fois,
-  chaque réponse une ligne de son historique et une entrée `CHECKLIST_ANSWERED` à elle. Les lignes déjà
-  répondues, celles sans données et celles non atteintes — dont le *non* demande un commentaire écrit
+- **Les lignes mesurées d'une checklist répondues comme mesuré, en un seul geste.**
+  `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`, corps
+  `{ edition, lines: [{ itemId, measurementDigest }] }`, sur un brouillon : chaque ligne désignée — telle
+  que montrée, avec l'empreinte lue — sans réponse, toujours sur cette preuve et atteinte reçoit un *oui*
+  de l'appelant, reposant sur cette mesure — le clic unique d'une ligne mesurée, pour toutes les lignes
+  montrées à la fois, chaque réponse une ligne de son historique et une entrée `CHECKLIST_ANSWERED` à
+  elle. Les lignes déjà répondues, les lignes désignées dont la preuve a bougé, les lignes atteintes non
+  désignées, celles sans données et celles non atteintes — dont le *non* demande un commentaire écrit
   par une personne — sont laissées telles quelles et renvoyées dans `skipped` avec leur raison
-  (`already_answered`, `no_data`, `needs_comment`). La garde du projet entier de toutes les routes de
+  (`already_answered`, `measurement_changed`, `not_shown`, `no_data`, `needs_comment`). La garde du projet entier de toutes les routes de
   checklist ; toute écriture depuis l'édition lue refuse le geste (`checklist-changed`). Voir
   [Checklists de sécurité](../guide/security-checklists.fr.md#lignes-mesurees).
 - **Une checklist signée est un document signé** (V55 ajoute `t_checklist_document`).

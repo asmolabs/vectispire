@@ -219,10 +219,14 @@ resting on none. If the measurement changed between your read and your click, th
 and says so on the line: read it, then answer.
 
 **Every measured line at once.** `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`,
-with the `edition` you read, gives that one click for every line where it needs nothing from you: each
-unanswered line whose measurement is *met* is answered *yes*, under your name, resting on the
-measurement it was answered by — a line of its history like any other answer, and one audit entry
-each. It leaves alone, and names with the reason: a line **already answered** — whatever the answer,
+with the `edition` you read and, in `lines`, each line the page showed you as answerable with the
+`measurementDigest` you read, gives that one click for every one of them where it needs nothing from
+you: each named line, unanswered, still on the evidence you read and *met*, is answered *yes*, under
+your name, resting on that measurement — a line of its history like any other answer, and one audit
+entry each. Only what you were shown is answered: a named line whose evidence moved since your read —
+a new scan, a new finding — is left alone as **measurement changed**, with what it is now, and a met
+line you were not shown as **not shown**. It also leaves alone, and names with the reason: a line
+**already answered** — whatever the answer,
 even one awaiting confirmation or equal to the measurement: an answer somebody gave is never
 replaced by a gesture that did not look at it; a line with **no data**; and a line *not met*, whose no
 **needs a comment** — the one click opens the form for you to write it, and a comment the product

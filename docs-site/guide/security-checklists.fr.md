@@ -227,10 +227,15 @@ autre réponse que celle mesurée l'envoie sans mesure. Si la mesure a changé e
 votre clic, la page la relit et le dit sur la ligne : lisez-la, puis répondez.
 
 **Toutes les lignes mesurées d'un coup.** `POST /api/v1/projects/{id}/checklists/{revision}/answers/as-measured`,
-avec l'`edition` que vous avez lue, donne ce clic pour chaque ligne où il n'attend rien de vous : chaque
-ligne sans réponse dont la mesure est *atteinte* reçoit un *oui*, en votre nom, reposant sur la mesure
-qui l'a donné — une ligne de son historique comme toute autre réponse, et une entrée d'audit chacune.
-Il laisse telles quelles, et les nomme avec la raison : une ligne **déjà répondue** — quelle que soit
+avec l'`edition` que vous avez lue et, dans `lines`, chaque ligne que la page vous a montrée comme
+répondable avec le `measurementDigest` lu, donne ce clic pour chacune d'elles où il n'attend rien de
+vous : chaque ligne désignée, sans réponse, toujours sur la preuve que vous avez lue et *atteinte*,
+reçoit un *oui*, en votre nom, reposant sur cette mesure — une ligne de son historique comme toute autre
+réponse, et une entrée d'audit chacune. Seul ce qui vous a été montré est répondu : une ligne désignée
+dont la preuve a bougé depuis votre lecture — une nouvelle analyse, un nouveau constat — est laissée
+telle quelle comme **mesure changée**, avec ce qu'elle est maintenant, et une ligne atteinte qui ne vous
+a pas été montrée comme **non montrée**. Il laisse aussi telles quelles, et les nomme avec la raison :
+une ligne **déjà répondue** — quelle que soit
 la réponse, même en attente de confirmation ou égale à la mesure : une réponse donnée par quelqu'un
 n'est jamais remplacée par un geste qui ne l'a pas regardée ; une ligne **sans données** ; et une ligne
 *non atteinte*, dont le non **demande un commentaire** — le clic unique ouvre le formulaire pour que
