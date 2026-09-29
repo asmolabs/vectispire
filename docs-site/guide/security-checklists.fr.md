@@ -165,6 +165,61 @@ mêmes mots dans une autre checklist sont une autre question.
 La révision quittée devient *remplacée* si elle était un brouillon ou soumise ; une révision approuvée
 reste approuvée. Dans les deux cas elle reste lisible.
 
+## Lignes mesurées
+
+Une ligne que le modèle lie à une règle — voir
+[modèles de checklists](../administration/checklist-templates.fr.md#lignes-mesurees-la-regle-liee-a-une-ligne)
+— est **mesurée** : Vectispire lit ce que ses analyses, les plugins, les imports de votre CI et le
+passif ont enregistré pour chaque dépôt du projet, et dit ce qu'il a trouvé à côté de la réponse.
+**Vectispire ne répond jamais** : la mesure est une preuve, et la réponse reste celle d'une personne.
+
+La page montre les mesures à partir de la prochaine version ; le serveur les prend déjà, et un script
+les lit à `GET /api/v1/projects/{id}/checklists/{revision}/measurements`. Une mesure est **pass**,
+**fail** ou **no data** — jamais un succès par défaut — avec l'instant auquel elle vaut (sa preuve la
+plus ancienne), et pour chaque dépôt l'analyse ou l'import lu, sa date et l'empreinte du document
+qu'un import a accepté, et les chiffres.
+
+**L'absence de données dit pourquoi.** Un seul dépôt sans données rend la ligne *no data*, et un
+seuil n'est jamais jugé sur une partie du passif d'un projet :
+
+| Raison | Sens |
+|---|---|
+| `no_repository` | Le projet n'a aucun dépôt : « chacun des zéro dépôts passe » n'est pas un succès. |
+| `never_examined` | Un dépôt n'a aucune analyse ni aucun import où le périmètre a produit. |
+| `step_absent` | Chaque analyse dans l'âge maximal s'est faite sans l'étape ou le plugin — n'a pas regardé, n'a pas « rien trouvé » ; aussi un rapport de couverture qui n'a compté aucune branche, pour une règle sur les branches. |
+| `examination_unrecorded` | Les analyses dans l'âge maximal datent d'avant que Vectispire enregistre quelles étapes ont tourné, ou un import d'avant qu'il enregistre quels outils il portait : relancez l'analyse, ou renvoyez le rapport. |
+| `stale` | Le regard le plus récent est plus ancien que l'âge maximal de la règle. |
+| `not_applicable_anywhere` | Un plugin ne s'applique à aucun dépôt du projet : il n'a rien regardé. Un dépôt où il ne s'applique pas est exclu des chiffres quand un autre est mesuré. |
+| `suite_not_found`, `no_test_ran` | Aucune suite du rapport de tests le plus récent ne correspond, ou celles qui correspondent n'ont rien exécuté. |
+
+Les chiffres du passif excluent le **triage réglé** des deux côtés — *non affecté*, *corrigé* — et
+comptent tout autre statut, y compris un statut que cette version ne connaît pas.
+
+**La réponse à côté de la mesure :**
+
+| Réponse | Mesure | La ligne est | À la soumission |
+|---|---|---|---|
+| *oui* | pass | cohérente | passe |
+| *oui* | fail | **contredite** | **refusée** — répondez *non* avec la raison, ou réglez les constats par le triage, que les chiffres excluent alors |
+| *oui* | no data | déclarée, non mesurée | passe **avec un commentaire et une preuve** en cours de validité, quoi que la ligne demande elle-même |
+| *non* | pass | sous-déclarée | passe ; le commentaire dit pourquoi |
+| *non* | fail | cohérente | passe |
+| *non applicable* | toute | exclue | passe, commentée |
+
+Une réponse peut **reposer sur la mesure** que la personne a lue : la réponse nomme l'`evidenceDigest`
+de cette mesure (`measurementDigest`), la règle est appliquée à nouveau, et la réponse est conservée
+en désignant la mesure conservée avec elle. Une mesure qui a bougé depuis — une nouvelle analyse, un
+nouveau constat — est refusée plutôt qu'acceptée sans avoir été vue.
+
+**La fraîcheur est rejugée à chaque étape.** La soumission mesure à nouveau chaque ligne liée et
+conserve ce qu'elle a trouvé, chacune avec la réponse à laquelle elle a été rapprochée. L'approbation
+mesure à nouveau, et **est refusée quand le résultat ou la raison d'une ligne n'est plus celui que la
+soumission a conservé** — une signature ne doit pas attester une preuve qui a cessé d'être vraie
+entre-temps (et une ligne devenue satisfaite est un tableau que l'auteur de la soumission n'a pas
+attesté non plus). Le refus est consigné et signalé comme toute approbation refusée ; renvoyez la
+révision, et soumettez-la à nouveau. Une approbation acceptée conserve ses mesures : une révision
+approuvée lit ses mesures telles qu'elles ont été signées, quoi que fasse le passif ensuite.
+
 ## Révisions antérieures
 
 **Révisions** liste chaque révision de la checklist du projet, de la plus récente à la plus ancienne,
@@ -183,6 +238,8 @@ Chaque refus est nommé par sa cause, et l'écran le dit en une phrase :
 | Seule une révision approuvée se rouvre / une révision plus récente existe | Agissez sur la révision la plus récente. |
 | Toutes les lignes ne sont pas prêtes | Des lignes demandent encore de l'attention : elles sont nommées, et chacune est marquée *Refusé pour cette ligne* avec ses problèmes — pas de réponse, commentaire requis, preuve requise ou périmée, en attente de confirmation — tels que le serveur les a trouvés, ce qu'une preuve expirée depuis le chargement de la page peut faire différer de ce que la ligne montrait. |
 | Principe des quatre yeux : une deuxième personne doit l'approuver | Vous avez écrit une partie de cette révision. |
+| Une ligne répond oui là où sa mesure échoue (`checklist-measurement-contradicted`) | La soumission est refusée ; les lignes sont nommées. Voir [lignes mesurées](#lignes-mesurees). |
+| Une mesure a changé (`checklist-measurement-changed`) | À l'approbation : la mesure d'une ligne n'est plus celle que la soumission a conservée — renvoyez la révision. Sur une réponse qui repose sur une mesure : ce n'est pas celle que vous avez lue — rechargez. |
 | Cette version n'est plus publiée / déjà sur cette version | Choisissez une autre version ; après une approbation, rouvrez plutôt. |
 | Plus de réponse reportée en attente / preuve déjà retirée | Quelqu'un l'a fait avant vous. |
 

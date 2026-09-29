@@ -171,7 +171,7 @@ tentatives en quelques secondes ; le worker intégré faisait échouer une analy
 première erreur, avec le message brut. Un sous-chemin absent du clone fait désormais échouer l'analyse
 avant tout analyseur, là où chacun le signalait.
 
-**Les migrations V32 à V50 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Les migrations V32 à V54 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
@@ -295,12 +295,40 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `checklist-incomplete` nomme aussi ses lignes comme données, dans un membre `lines` — l'`itemId`, la
   `position` et les `problems` de chaque ligne (`unanswered`, `evidence_required`, …) — pour qu'un
   client les désigne dans sa propre langue plutôt que d'analyser la phrase anglaise.
+- **Les lignes mesurées d'une checklist ajoutent deux causes de 409 et changent trois routes.** Une
+  soumission répond `checklist-measurement-contradicted` quand une ligne répond *oui* là où sa mesure
+  échoue, et une approbation `checklist-measurement-changed` quand la mesure d'une ligne n'est plus
+  celle que la soumission a conservée — chacune nommant ses lignes dans le membre `lines` du problème
+  (`itemId`, `position`, `answer`, `outcome`, `reason`, et pour l'approbation `submittedOutcome`,
+  `submittedReason`). Un *oui* là où une mesure n'a pas de données demande un commentaire et une preuve
+  à la soumission : `checklist-incomplete` les nomme `comment_required` et `evidence_required`, les
+  jetons qu'il avait déjà. La route de réponse accepte un `measurementDigest` facultatif ; la vue d'une
+  ligne de checklist gagne `rule`, et les lignes d'une version de modèle portent leur `boundRule` sous
+  sa forme canonique. La vue d'un import SARIF gagne `toolKeys` (V53) : les clés d'outil dont les
+  exécutions ont été acceptées, `null` pour un import accepté avant.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.
 
 ### Nouveautés
 
+- **Les lignes de checklist mesurées par les preuves qui ont tourné** (V54 ajoute
+  `t_checklist_measurement`). Un responsable sécurité lie une règle à une ligne d'un brouillon
+  (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, sur la `revision` lue, consigné
+  `CHECKLIST_TEMPLATE_RULES_BOUND`) : analyse des dépendances, seuil de constats sur des étapes
+  intégrées, des plugins ou des outils importés, couverture, suite de tests passée, ou versions de
+  composants d'après une liste explicite — chacune avec son âge maximal (exigé, 1 à 366 jours) et ses
+  propres paramètres, dans l'empreinte de contenu de la ligne et reportée comme son exigence de preuve.
+  `GET /api/v1/projects/{id}/checklists/{revision}/measurements` montre la mesure de chaque ligne liée —
+  pass, fail ou no data avec sa raison (`never_examined`, `step_absent`, `examination_unrecorded`,
+  `stale`, `not_applicable_anywhere`, …), jamais un succès par défaut — à côté de la réponse. La
+  soumission mesure à nouveau et refuse un *oui* face à un échec ; l'approbation mesure à nouveau et
+  est refusée quand une mesure a changé depuis la soumission, et fige les autres avec la révision.
+  Vectispire ne répond jamais : une réponse peut reposer sur une mesure que la personne a lue, et reste
+  la sienne. **Les analyses d'un dépôt antérieures à V49, et les imports SARIF d'une source antérieurs à
+  V53, se lisent `examination_unrecorded`** — rien n'a enregistré s'ils ont regardé — jusqu'à sa
+  prochaine analyse ou son prochain envoi. Les écrans viennent avec le prochain lot de l'interface —
+  [Checklists de sécurité](../guide/security-checklists.fr.md#lignes-mesurees).
 - **La preuve qu'une ligne de checklist demande se définit sur le brouillon du modèle**
   (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, sur la `revision` lue) : pour
   chaque ligne, `none`, `link_or_file` ou `file`, et pour une preuve qui expire, sa validité en mois

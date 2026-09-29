@@ -156,7 +156,7 @@ attempts in seconds; the built-in worker failed a scan for good at its first err
 message. A sub-path the clone does not hold now fails the scan before any scanner runs, where each
 analyser used to report it.
 
-**Schema migrations V32 to V50 run at start**, on MySQL and PostgreSQL. Back up the database
+**Schema migrations V32 to V54 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
@@ -264,12 +264,38 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   problem also names its lines as data, in a `lines` member — each line's `itemId`, `position` and
   `problems` (`unanswered`, `evidence_required`, …) — so that a client points at them in its own
   language rather than parsing the English sentence.
+- **A checklist's measured lines add two 409 causes and change three routes.** A submission answers
+  `checklist-measurement-contradicted` when a line is answered *yes* where its measurement fails, and a
+  sign-off `checklist-measurement-changed` when a line's measurement is no longer what the submission
+  stored — each naming its lines in the problem's `lines` member (`itemId`, `position`, `answer`,
+  `outcome`, `reason`, and for the sign-off `submittedOutcome`, `submittedReason`). A *yes* where a
+  measurement has no data needs a comment and a proof at submission: `checklist-incomplete` names them
+  `comment_required` and `evidence_required`, the tokens it already had. The answer route takes an
+  optional `measurementDigest`; a checklist line's view gains `rule`, and a template version's items
+  carry their `boundRule` in its canonical form. A SARIF import's view gains `toolKeys` (V53): the tool
+  keys its runs were accepted for, `null` for an import accepted before.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.
 
 ### New
 
+- **Checklist lines measured by the evidence that ran** (V54 adds `t_checklist_measurement`). A security
+  lead binds a rule to a draft's line (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`,
+  on the `revision` read, audited `CHECKLIST_TEMPLATE_RULES_BOUND`): dependency analysis, a findings
+  threshold over built-in steps, plugins or imported tools, coverage, a test suite passed, or component
+  versions from an explicit list — each with its maximum age (required, 1 to 366 days) and its own
+  parameters, part of the line's content digest and carried like its proof requirement.
+  `GET /api/v1/projects/{id}/checklists/{revision}/measurements` shows each bound line's measurement —
+  pass, fail or no data with its reason (`never_examined`, `step_absent`, `examination_unrecorded`,
+  `stale`, `not_applicable_anywhere`, …), never a pass by default — beside the answer. The submission
+  measures again and refuses a *yes* against a failure; the sign-off measures again and is refused when
+  a measurement changed since the submission, and freezes the rest with the revision. Vectispire
+  never answers: an answer may rest on a measurement the person read, and stays theirs. **A
+  repository's scans from before V49, and a source's SARIF imports from before V53, read as
+  `examination_unrecorded`** — nothing recorded whether they looked — until its next scan or upload.
+  The screens come with the interface's next lot —
+  [Security checklists](../guide/security-checklists.md#measured-lines).
 - **What proof a checklist line asks for is set on the template's draft**
   (`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence`, on the `revision` read): for
   each line, `none`, `link_or_file` or `file`, and for a proof that expires, its validity in months

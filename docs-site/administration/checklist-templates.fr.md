@@ -128,6 +128,46 @@ L'exigence **fait partie de ce que la ligne demande** : une ligne dont l'exigenc
 quelqu'un la confirme — elle a été donnée quand aucune preuve, ou une autre, n'était demandée. Les
 exigences d'une version publiée ne changent jamais ; dérivez un nouveau brouillon pour en changer une.
 
+## Lignes mesurées : la règle liée à une ligne
+
+Une ligne que Vectispire sait mesurer — dépendances analysées, aucun secret dans l'arbre, analyse
+statique assez propre, couverture, une suite d'architecture passée, bibliothèques internes à des
+versions maintenues — est **liée à une règle** sur le brouillon, et la checklist de chaque projet
+montre alors la mesure de la règle à côté de la réponse. Vectispire ne répond jamais : il mesure, et
+des personnes répondent.
+
+L'écran des modèles recevra le formulaire de liaison dans la prochaine version ; d'ici là, une règle
+se lie par l'API, sur le brouillon et la **révision** lue, comme une exigence de preuve :
+`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, chaque ligne nommée par son
+`itemKey` avec sa `rule`, ou `null` pour la délier. Seuls un gouverneur de la plateforme, un
+administrateur ou un CISO lient des règles, et qui le fait devient l'un des auteurs du brouillon.
+
+| Type | Ce qu'il lit | Une ligne est satisfaite quand, sur chaque dépôt du projet |
+|---|---|---|
+| `dependency_analysis` | l'analyse la plus récente dont l'étape des dépendances a produit | elle date de moins que l'âge maximal et a conservé son SBOM ; si `requireSchedule`, le dépôt est planifié au moins aussi souvent que l'âge maximal ; des `thresholds` facultatifs sur les vulnérabilités ouvertes |
+| `findings_threshold` | pour chacun de ses `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<outil>` — l'analyse ou l'import le plus récent où ce périmètre a produit | chaque périmètre a produit dans l'âge maximal, et le passif respecte les `thresholds` par sévérité : `maxOpen`, `minResolvedRatio` (résolus ÷ résolus et ouverts), le triage réglé exclu des deux côtés |
+| `coverage_threshold` | l'import de couverture le plus récent | il date de moins que l'âge maximal et son taux de `line` ou de `branch` (`metric`) atteint `minimumRatio` — `per_repository`, ou `project_weighted` (`aggregation`) |
+| `test_suite_passed` | l'import de rapport de tests le plus récent | une suite correspond à `suitePattern` (`*` et `?`), celles qui correspondent ont exécuté au moins `minimumTests` tests (les ignorés non comptés), aucun en échec ni en erreur |
+| `component_versions` | les composants du SBOM analysé le plus récent | chaque paquet déclaré (`purlPrefix`) est présent à l'une de ses `versions` listées — une liste explicite, sans ordre de versions |
+
+**Rien n'est supposé.** Chaque type exige `maxAgeDays` (1 à 366 — sept est un bon début), une règle
+de dépendances indique `requireSchedule`, une règle de constats indique au moins un seuil — *aucun
+secret en clair* est `builtin:secret` avec chaque compte à zéro — et un paramètre d'un autre type est
+refusé plutôt qu'ignoré. La colonne KPI reste les mots du modèle : un seuil est un paramètre écrit
+par quelqu'un, jamais un nombre lu dans une phrase. Aucune liste de paquets n'est livrée avec le
+produit ; `component_versions` existe pour l'organisation qui la lie avec les siens.
+
+Une liaison **fait partie de ce que la ligne demande**, comme son exigence de preuve : une ligne dont
+la liaison a changé est *modifiée* par rapport à la version précédente, et la réponse d'un projet
+reportée sur elle attend une confirmation. Elle suit la clé de sa ligne — une disposition confirmée
+à nouveau la garde, un brouillon dérivé la copie, la ligne d'un nouveau classeur reprend la liaison
+de la version précédente sous la même clé. Les liaisons d'une version publiée ne changent jamais ;
+dérivez un nouveau brouillon pour en changer une. Les lignes de la version portent la liaison en
+`boundRule`, sous sa forme canonique.
+
+Ce que la ligne d'un projet montre ensuite, et quand une mesure refuse une soumission ou une
+approbation, est dans [checklists de sécurité](../guide/security-checklists.fr.md#lignes-mesurees).
+
 ## 5. Publier
 
 Publier fait de la version celle sur laquelle les projets ouvrent leurs checklists. Le bouton nomme la
@@ -192,8 +232,8 @@ même chose.
 
 ## Ce qui est consigné
 
-Chaque import, confirmation de disposition, appariement, exigence de preuve définie, dérivation,
-publication et retrait est inscrit au [journal d'audit](audit-log.fr.md). Publier une version, et retirer une version publiée, est aussi
+Chaque import, confirmation de disposition, appariement, exigence de preuve définie, liaison de
+règle, dérivation, publication et retrait est inscrit au [journal d'audit](audit-log.fr.md). Publier une version, et retirer une version publiée, est aussi
 signalé au SIEM comme `VECTI-SEC-024`.
 
 ## À lire aussi

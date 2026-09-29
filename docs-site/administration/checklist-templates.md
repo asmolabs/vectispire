@@ -121,6 +121,44 @@ against the previous version, and a project's answer carried onto it waits for s
 it — the answer was given when no proof, or another one, was asked. A published version's
 requirements never change; derive a new draft to change one.
 
+## Measured lines: the rule a line is bound to
+
+A line Vectispire can measure — dependencies analysed, no secret in the tree, static analysis clean
+enough, coverage, an architecture suite that passed, internal libraries at maintained versions — is
+**bound to a rule** on the draft, and each project's checklist then shows the rule's measurement
+beside the answer. Vectispire never answers: it measures, and people answer.
+
+The template screen gains the binding form in the next release; until then a rule is bound through
+the API, on the draft and the **revision** you read, like a proof requirement:
+`PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/rules`, each line named by its `itemKey`
+with its `rule`, or `null` to unbind it. Only a platform governor, an administrator or a CISO binds
+rules, and whoever does becomes one of the draft's authors.
+
+| Kind | What it reads | A line passes when, on every repository of the project |
+|---|---|---|
+| `dependency_analysis` | the newest scan whose dependency step produced | it is within the maximum age and kept its SBOM; if `requireSchedule`, the repository is scheduled at least as often as the maximum age; optional `thresholds` on the open vulnerabilities |
+| `findings_threshold` | for each of its `scopes` — `builtin:secret`, `builtin:sast`, `builtin:iac`, `builtin:vulnerability`, `builtin:quality`, `builtin:eol`, `builtin:license`, `plugin:<id>`, `import:<source>/<tool>` — the newest scan or import in which that scope produced | every scope produced within the maximum age, and the backlog meets the `thresholds` per severity: `maxOpen`, `minResolvedRatio` (resolved ÷ resolved and open), settled triage left out of both |
+| `coverage_threshold` | the newest coverage import | it is within the maximum age and its `line` or `branch` ratio (`metric`) is at least `minimumRatio` — `per_repository`, or `project_weighted` (`aggregation`) |
+| `test_suite_passed` | the newest test-report import | a suite matches `suitePattern` (`*` and `?`), those that match ran at least `minimumTests` (skipped ones not counted), none failed or errored |
+| `component_versions` | the components of the newest analysed SBOM | every declared package (`purlPrefix`) is present at one of its listed `versions` — an explicit list, no version ordering |
+
+**Nothing is assumed.** Every kind requires `maxAgeDays` (1 to 366 — seven is a sensible start), a
+dependency rule states `requireSchedule`, a findings rule states at least one threshold — *no
+plaintext secret* is `builtin:secret` with every count at zero — and a parameter another kind takes
+is refused rather than ignored. The KPI column stays the template's words: a threshold is a
+parameter somebody wrote, never a number read out of a sentence. No package list ships with the
+product; `component_versions` exists for the organisation that binds it with its own.
+
+A binding is **part of what the line asks**, like its proof requirement: a line whose binding moved
+is *changed* against the previous version, and a project's answer carried onto it waits for
+confirmation. It follows its line's key — a layout confirmed again keeps it, a derived draft copies
+it, a new workbook's line takes the previous version's binding under the same key. A published
+version's bindings never change; derive a new draft to change one. The version's items carry the
+binding as `boundRule`, in its canonical form.
+
+What a project's line then shows, and when a measurement refuses a submission or a sign-off, is in
+[security checklists](../guide/security-checklists.md#measured-lines).
+
 ## 5. Publish
 
 Publishing makes the version what projects open their checklists on. The button names the
@@ -181,8 +219,8 @@ which is written for a person and may change.
 
 ## What is recorded
 
-Every import, layout confirmation, pairing, evidence requirement set, derivation, publication and
-retirement is written to the
+Every import, layout confirmation, pairing, evidence requirement set, rule binding, derivation,
+publication and retirement is written to the
 [audit log](audit-log.md). Publishing a version, and retiring a published one, is also signalled to
 the SIEM as `VECTI-SEC-024`.
 

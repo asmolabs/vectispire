@@ -79,7 +79,8 @@ class MigrationsTest {
                         "t_coverage_import", "t_test_report_import", "t_test_suite_result",
                         "t_rate_window", "t_epss_score", "t_one_shot_job",
                         "t_checklist_template", "t_checklist_template_version", "t_checklist_item",
-                        "t_checklist", "t_checklist_answer", "t_checklist_evidence", "t_checklist_file");
+                        "t_checklist", "t_checklist_answer", "t_checklist_evidence", "t_checklist_file",
+                        "t_checklist_measurement");
     }
 
     @Test

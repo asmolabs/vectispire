@@ -126,6 +126,17 @@ import org.springframework.util.unit.DataSize;
  * stop. The refusal is audited and signalled ({@code VECTI-SEC-026}), and so is a sign-off refused
  * because a proof stopped holding since the submission.
  *
+ * <h2>Measured lines (§6)</h2>
+ *
+ * <p>A line bound to a rule is measured by {@link ChecklistMeasurer} over exactly the repositories the
+ * whole-project guard judged the caller by. <b>Vectispire never answers</b>: a measurement is evidence
+ * beside a person's answer. It is computed for a reader and stored nowhere, and stored when something
+ * relies on it — an answer resting on the measurement its person read, the submission, the sign-off —
+ * each time applied again, since freshness is judged at every step that relies on it. A "yes" against
+ * a failure is refused at submission (question 3); a "yes" where there is no data needs its comment
+ * and a proof (question 4); a sign-off whose measurement is no longer what the submission stored is
+ * refused, and an accepted one freezes the revision's measurements with it.
+ *
  * <p><b>Every write is audited after its transaction commits</b> — the audit log opens its own, and
  * on SQLite would wait on this one's file lock.
  */

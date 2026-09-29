@@ -158,6 +158,61 @@ another template carries nothing**: the same words in another checklist are anot
 The revision it leaves becomes *superseded* if it was a draft or submitted; a signed-off one stays
 signed off. Either way it stays readable.
 
+## Measured lines
+
+A line the template binds to a rule — see
+[checklist templates](../administration/checklist-templates.md#measured-lines-the-rule-a-line-is-bound-to)
+— is **measured**: Vectispire reads what its scans, the plugins, the imports from your CI and the
+backlog recorded for every repository of the project, and says what it found beside the answer.
+**Vectispire never answers**: the measurement is evidence, and the answer stays a person's.
+
+The page shows the measurements from the next release; the server already takes them, and a script
+reads them at `GET /api/v1/projects/{id}/checklists/{revision}/measurements`. A measurement is
+**pass**, **fail** or **no data** — never a pass by default — with the instant it is **as of** (its
+oldest evidence), and for each repository the scan or import it read, its date and the digest of
+the document an import accepted, and the figures.
+
+**No data says why.** One repository without data makes the line *no data*, and a threshold is never
+judged on part of a project's backlog:
+
+| Reason | Meaning |
+|---|---|
+| `no_repository` | The project has no repository: "every one of none passes" is not a pass. |
+| `never_examined` | A repository has no scan or import in which the scope produced. |
+| `step_absent` | Every scan within the age ran without the step or the plugin — did not look, not found nothing; also a coverage report that counted no branch, for a rule on branches. |
+| `examination_unrecorded` | The scans within the age are from before Vectispire recorded which steps ran, or an import from before it recorded which tools it carried: rescan, or upload again. |
+| `stale` | The newest look is older than the rule's maximum age. |
+| `not_applicable_anywhere` | A plugin applies to none of the project's repositories: it looked at nothing. A repository where it is not applicable is left out of the figures when another is measured. |
+| `suite_not_found`, `no_test_ran` | No suite of the newest test report matches, or those that match ran nothing. |
+
+The backlog's figures leave **settled triage** out of both sides — *not affected*, *fixed* — and count
+any other status, one this version does not know included.
+
+**The answer beside the measurement:**
+
+| Answer | Measurement | The line is | At submission |
+|---|---|---|---|
+| *yes* | pass | consistent | goes |
+| *yes* | fail | **contradicted** | **refused** — answer *no* with the reason, or settle the findings by triage, which the figures then leave out |
+| *yes* | no data | declared, not measured | goes **with a comment and a proof** in date, whatever the line itself asks |
+| *no* | pass | understated | goes; the comment says why |
+| *no* | fail | consistent | goes |
+| *not applicable* | any | excluded | goes, commented |
+
+An answer may **rest on the measurement** the person read: the answer names that measurement's
+`evidenceDigest` (`measurementDigest`), the rule is applied again, and the answer is stored pointing
+at the measurement stored with it. A measurement that moved since — a new scan, a new finding — is
+refused rather than accepted unseen.
+
+**Freshness is judged again at every step.** The submission measures every bound line again and
+stores what it found, each with the answer it was reconciled with. The sign-off measures again, and
+**is refused when a line's outcome or its reason is no longer what the submission stored** — a
+signature must not attest to evidence that stopped being true in between (and a line that started
+passing is a picture the submitter did not attest to either). The refusal is recorded and signalled
+like any refused sign-off; return the revision, and submit it again. An accepted sign-off stores its
+measurements: a signed-off revision reads its measurements as they were signed, whatever the
+backlog does next.
+
 ## Earlier revisions
 
 **Revisions** lists every revision of the project's checklist, newest first, with its status, its
@@ -176,6 +231,8 @@ Each refusal is named by its cause, and the screen says it in one sentence:
 | Only a signed-off revision is reopened / a newer revision exists | Act on the newest revision. |
 | Not every line is ready | Lines still need attention: they are named, and each is marked *Refused for this line* with its problems — unanswered, comment required, evidence required or out of date, awaiting confirmation — as the server found them, which a proof lapsed since you loaded the page can make differ from what the line showed. |
 | Four-eyes approval: a second person must sign it off | You wrote part of this revision. |
+| A line is answered yes where its measurement fails (`checklist-measurement-contradicted`) | The submission is refused; the lines are named. See [measured lines](#measured-lines). |
+| A measurement changed (`checklist-measurement-changed`) | At the sign-off: a line's measurement is not what the submission stored — return the revision. On an answer resting on a measurement: it is not the one you read — reload. |
 | That version is no longer published / already on that version | Choose another version; after a sign-off, reopen instead. |
 | No carried answer awaiting confirmation / evidence already withdrawn | Somebody did it before you. |
 

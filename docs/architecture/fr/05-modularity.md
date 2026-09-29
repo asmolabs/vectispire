@@ -42,7 +42,7 @@ décision 0032, le dernier — et les paquetages par couche ont disparu :
 | `tickets` | domaine | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domaine | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domaine | `access`, `issues`, `scanning`, `targets` — implémente le port `ScanPlugins` de `scanning` ; la route des manifestes des agents l'atteint par ce port |
-| `checklists` | domaine | `access` — les marqueurs des routes, le compte connecté que compare le double contrôle, l'autorisation de l'appelant et le garde du projet entier ; `targets` — les dépôts d'un projet, et `ProjectDeleted` ; la décision 0032 §1 liste ce que ses lots suivants ajouteront |
+| `checklists` | domaine | `access` — les marqueurs des routes, le compte connecté que compare le double contrôle, l'autorisation de l'appelant et le garde du projet entier ; `targets` — les dépôts d'un projet, leurs planifications, et `ProjectDeleted` ; `scanning`, `scanning::queries` — l'analyse la plus récente où une étape a produit, les analyses dans un âge, l'état de chaque plugin par analyse ; `issues` — le passif d'un périmètre, triage réglé exclu ; `plugins` — les imports sur lesquels une mesure repose ; `inventory` — les composants d'un SBOM (§6) |
 | `platform` | la coque | tous ; utilisé par aucun |
 | `config` | infrastructure | — |
 

@@ -42,7 +42,7 @@ layered packages are gone:
 | `tickets` | domain | `access`, `gate`, `issues`, `targets` |
 | `compliance` | domain | `access`, `ai`, `exports`, `gate`, `inventory`, `issues`, `posture`, `rules`, `scanning`, `targets` |
 | `plugins` | domain | `access`, `issues`, `scanning`, `targets` — implements `scanning`'s `ScanPlugins` port; the agents' manifest route reaches it through that port |
-| `checklists` | domain | `access` — the routes' markers, the signed-in account four-eyes compares, the caller's allowance and the whole-project guard; `targets` — a project's repositories, and `ProjectDeleted`; decision 0032 §1 lists what its later lots will add |
+| `checklists` | domain | `access` — the routes' markers, the signed-in account four-eyes compares, the caller's allowance and the whole-project guard; `targets` — a project's repositories, their schedules, and `ProjectDeleted`; `scanning`, `scanning::queries` — the newest scan in which a step produced, the scans within an age, each plugin's state per scan; `issues` — a scope's backlog, settled triage out; `plugins` — the imports a measurement rests on; `inventory` — an SBOM's components (§6) |
 | `platform` | the shell | any; used by none |
 | `config` | infrastructure | — |
 

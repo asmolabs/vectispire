@@ -148,6 +148,9 @@ same name; decision records written before that date keep the names they had.
 | A project's checklist is read and written only by a caller who sees the whole project — everything, the project granted as such, or every one of its repositories and at least one — and anybody else is answered "Project not found."; the guard is its service's, and its proof is minted by the guard alone | `ProjectChecklistsRoutesTest`, `RowVisibilityTest`, `ArchitectureTest.routesLeaveTheRefusalToTheirServices`, `ArchitectureTest.visibleTargetsAreMintedByTheGuard` |
 | A checklist's answers are never rewritten, every write names the edition its writer read, a carried answer onto a changed line waits for confirmation, and, with four-eyes on, none of a revision's authors signs it off | `ProjectChecklistsRoutesTest` |
 | One open checklist per project is a key on the engines, several closed revisions under it; its conditional statements arbitrate every transition; deleting a project takes its checklists, answers, proofs and files in its transaction | `ChecklistStorageIntegrationTest` (MySQL, PostgreSQL, SQLite) |
+| A checklist line's measurement is never a pass on data nobody looked at: no repository, a step absent in every scan within the age, scans from before `examined_types`, a plugin not applicable anywhere, stale evidence each answer "no data" with its reason, and one repository without data is enough; a threshold is judged on the whole backlog only, settled triage out and a status this version does not know in | `RuleEvaluationTest`, `ChecklistMeasurementsRoutesTest` |
+| A binding is part of its line's digest and follows its key; a "yes" against a failing measurement is refused at submission, a "yes" without data needs a comment and a proof, an answer rests only on the measurement its person read, and a sign-off whose measurement changed since the submission is refused and freezes the rest | `ChecklistTemplatesRoutesTest`, `ChecklistMeasurementsRoutesTest` |
+| The owners' questions a measurement asks — the newest analysed scan and its SBOM, the scans within an age, each plugin's state, a scope's backlog, the import carrying a tool (its key escaped), an SBOM's components — answer past 70,000 identifiers | `MeasurementQueriesIntegrationTest` (MySQL, PostgreSQL, SQLite) |
 | An expired session, a reset password and a role change all close the sessions; a reset also revokes the account's integration keys | `AccountAdministrationService`, `ApiKeyIntegrationRoutesTest` |
 | The session store holds no usable token, only its hash | `AuthDatabaseTest`, `SessionsTest` |
 | The content security policy is sent, whole, on every response | `SecurityHeadersTest` |
@@ -353,7 +356,7 @@ historically experienced with abstractions:
   `${ts}` is `datetime(6)` for the same reason, pinned by `MigrationLayoutTest`.
 
 `MigrationsTest` applies the Flyway migrations directly to a real SQLite file in one second, asserting
-that all fifty-nine tables are created by name, and that the twenty-seven foreign keys of the
+that all sixty tables are created by name, and that the twenty-seven foreign keys of the
 seventeen tables that carry one really exist.
 
 `SchemaParityIntegrationTest` validates with Hibernate against the schema Flyway built, on
