@@ -1,10 +1,13 @@
 package com.asmolabs.vectispire.core.platform.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.core.checklists.ChecklistConflict;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -58,5 +61,23 @@ class ApiExceptionHandlerTest {
         ProblemDetail plain = handler.conflict(new ConflictException("Already there."));
         assertThat(plain.getType()).isNull();
         assertThat(plain.getStatus()).isEqualTo(409);
+    }
+
+    @Test
+    @DisplayName("a conflict's members are the problem's extension members, and none may take a field of its own")
+    void membersAreExtensionMembers() {
+        record Cited(long itemId) {}
+        class Named extends ConflictException {
+            Named(Map<String, ?> members) {
+                super("Two lines.", "checklist-incomplete", members);
+            }
+        }
+        ProblemDetail problem = handler.conflict(new Named(Map.of("lines", List.of(new Cited(4), new Cited(9)))));
+        assertThat(problem.getProperties()).containsEntry("lines", List.of(new Cited(4), new Cited(9)));
+        assertThat(problem.getDetail()).isEqualTo("Two lines.");
+
+        assertThatThrownBy(() -> new Named(Map.of("detail", "another sentence")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("own field");
+        assertThat(handler.conflict(new ConflictException("Plain.")).getProperties()).isNullOrEmpty();
     }
 }

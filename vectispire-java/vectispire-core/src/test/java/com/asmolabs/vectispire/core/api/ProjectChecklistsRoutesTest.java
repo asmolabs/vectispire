@@ -433,6 +433,11 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
             MvcResult unproven = submit(developer, 1, edition(1)).andExpect(status().isConflict()).andReturn();
             assertThat(typeOf(unproven)).isEqualTo(PROBLEM + "checklist-incomplete");
             assertThat(detailOf(unproven)).contains("line 1 evidence required");
+            JsonNode named = json.readTree(unproven.getResponse().getContentAsString()).path("lines");
+            assertThat(named).singleElement().satisfies(line -> {
+                assertThat(line.path("itemId").asLong()).isEqualTo(lines.getFirst());
+                assertThat(line.path("problems").toString()).isEqualTo("[\"evidence_required\"]");
+            });
 
             attachLink(developer, 1, lines.getFirst(), "https://wiki.example.invalid/review", today().toString(), edition(1))
                     .andExpect(status().isCreated());
@@ -467,6 +472,13 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
             MvcResult incomplete = submit(developer, 1, edition(1)).andExpect(status().isConflict()).andReturn();
             assertThat(typeOf(incomplete)).isEqualTo(PROBLEM + "checklist-incomplete");
             assertThat(detailOf(incomplete)).contains("line 2 unanswered").contains("line 3 unanswered");
+            // The same lines as data, for a client that names them in its own language.
+            JsonNode named = json.readTree(incomplete.getResponse().getContentAsString()).path("lines");
+            assertThat(named).hasSize(2);
+            assertThat(named.get(0).path("itemId").asLong()).isEqualTo(lines.get(1));
+            assertThat(named.get(0).path("position").asInt()).isEqualTo(2);
+            assertThat(named.get(0).path("problems").toString()).isEqualTo("[\"unanswered\"]");
+            assertThat(named.get(1).path("itemId").asLong()).isEqualTo(lines.get(2));
 
             answer(developer, 1, lines.get(1), "no", "Two service accounts remain.", edition(1)).andExpect(status().isCreated());
             answer(developer, 1, lines.get(2), "yes", null, edition(1)).andExpect(status().isCreated());

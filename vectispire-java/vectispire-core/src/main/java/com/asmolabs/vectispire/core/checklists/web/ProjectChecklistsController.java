@@ -49,7 +49,9 @@ import org.springframework.web.bind.annotation.RestController;
  * checklist-line-changed} (the line did), {@code checklist-not-draft}, {@code checklist-not-submitted},
  * {@code checklist-not-signed-off}, {@code checklist-not-latest}, {@code checklist-incomplete}, {@code
  * checklist-four-eyes}, {@code checklist-version-not-published}, {@code checklist-same-version},
- * {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}.
+ * {@code checklist-nothing-to-confirm}, {@code checklist-evidence-withdrawn}. A {@code
+ * checklist-incomplete} problem also names its lines as data, in a {@code lines} member — each line's
+ * {@code itemId}, {@code position} and {@code problems} — so that a client shows them in its own words.
  *
  * <p>A proof's file arrives as the raw body — there is no multipart route, and the body filter bounds
  * a raw body where it could not bound a part — capped at {@code
@@ -268,7 +270,9 @@ public class ProjectChecklistsController {
 
     @Operation(summary = "Submit project checklist", description = "A draft, at the edition read, for sign-off: every "
             + "line answered, every negative answer commented, every proof a yes needs attached and in date, no carried "
-            + "answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete.")
+            + "answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete — whose "
+            + "problem names the lines in its lines member as well as in its detail: each line's itemId, position and "
+            + "problems, the tokens a line's view carries.")
     @PostMapping("/{revision}/submission")
     @RequiresWriteAccount
     public ChecklistView submit(
@@ -298,7 +302,7 @@ public class ProjectChecklistsController {
     @Operation(summary = "Sign off project checklist", description = "An approver — administrator, CISO, security "
             + "champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its "
             + "authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, "
-            + "checklist-incomplete (a proof lapsed since the submission).")
+            + "checklist-incomplete (a proof lapsed since the submission; its lines in the problem's lines member).")
     @PostMapping("/{revision}/sign-off")
     @RequiresWriteAccount
     public ChecklistView signOff(

@@ -291,7 +291,10 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `checklist-incomplete`, …), et celles des modèles de checklist aussi (`checklist-template-changed`,
   `checklist-template-not-draft`, `checklist-template-has-draft`, … et `checklist-four-eyes`, qui y
   signifie la même chose — voir [Modèles de checklists](../administration/checklist-templates.fr.md#refus-pour-les-scripts-et-les-integrations)).
-  Un problème sans cause garde `about:blank` ; le `detail` ne change pas.
+  Un problème sans cause garde `about:blank` ; le `detail` ne change pas. Un problème
+  `checklist-incomplete` nomme aussi ses lignes comme données, dans un membre `lines` — l'`itemId`, la
+  `position` et les `problems` de chaque ligne (`unanswered`, `evidence_required`, …) — pour qu'un
+  client les désigne dans sa propre langue plutôt que d'analyser la phrase anglaise.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.

@@ -13209,7 +13209,7 @@
     },
     "/api/v1/projects/{projectId}/checklists/{revision}/sign-off" : {
       "post" : {
-        "description" : "An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission).",
+        "description" : "An approver — administrator, CISO, security champion — signs a submitted revision off at the edition read. With four-eyes approval on, not one of its authors. 403 for another role; 409 checklist-not-submitted, checklist-changed, checklist-four-eyes, checklist-incomplete (a proof lapsed since the submission; its lines in the problem's lines member).",
         "operationId" : "signOff",
         "parameters" : [ {
           "in" : "path",
@@ -13256,7 +13256,7 @@
     },
     "/api/v1/projects/{projectId}/checklists/{revision}/submission" : {
       "post" : {
-        "description" : "A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete.",
+        "description" : "A draft, at the edition read, for sign-off: every line answered, every negative answer commented, every proof a yes needs attached and in date, no carried answer awaiting confirmation. 409 checklist-not-draft, checklist-changed, checklist-incomplete — whose problem names the lines in its lines member as well as in its detail: each line's itemId, position and problems, the tokens a line's view carries.",
         "operationId" : "submit",
         "parameters" : [ {
           "in" : "path",

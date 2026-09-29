@@ -172,6 +172,9 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         // "a second person has to do it" by the type and not by a sentence that changes with its words.
         if (error instanceof ConflictException conflict) {
             conflict.conflictCause().ifPresent(cause -> problem.setType(URI.create(PROBLEM_TYPE + cause)));
+            // What the sentence names, as data — a checklist's incomplete lines by item — for a client
+            // that shows them in its own language.
+            conflict.members().forEach(problem::setProperty);
         }
         return problem;
     }

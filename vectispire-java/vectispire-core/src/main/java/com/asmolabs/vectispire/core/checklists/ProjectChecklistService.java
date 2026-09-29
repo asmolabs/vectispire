@@ -640,13 +640,13 @@ public class ProjectChecklistService {
                             + "four-eyes is on and the signer is one of its authors (" + names(authors) + ")."));
             throw refused;
         }
-        List<String> lapsed = incompleteLines(checklist);
+        List<ChecklistConflict.IncompleteLine> lapsed = incompleteLines(checklist);
         if (!lapsed.isEmpty()) {
             audit.record(who.actor().entry(AuditOperation.CHECKLIST_SIGN_OFF_REFUSED, resource(project, revision),
                     "Checklist of project \"" + project.name() + "\", revision " + revision + ": sign-off refused, "
-                            + "no longer complete since its submission — " + String.join("; ", lapsed)));
-            throw new ChecklistConflict(Cause.INCOMPLETE, "Revision " + revision + " cannot be signed off: "
-                    + String.join("; ", lapsed) + ". Return it to its authors.");
+                            + "no longer complete since its submission — " + inWords(lapsed)));
+            throw ChecklistConflict.incomplete("Revision " + revision + " cannot be signed off: " + inWords(lapsed)
+                    + ". Return it to its authors.", lapsed);
         }
         Instant now = clock.instant();
 
@@ -736,10 +736,10 @@ public class ProjectChecklistService {
     }
 
     private void requireComplete(ChecklistEntity checklist, String act) {
-        List<String> incomplete = incompleteLines(checklist);
+        List<ChecklistConflict.IncompleteLine> incomplete = incompleteLines(checklist);
         if (!incomplete.isEmpty()) {
-            throw new ChecklistConflict(Cause.INCOMPLETE, "Revision " + checklist.getRevision() + " cannot be " + act
-                    + ": " + String.join("; ", incomplete) + ".");
+            throw ChecklistConflict.incomplete("Revision " + checklist.getRevision() + " cannot be " + act + ": "
+                    + inWords(incomplete) + ".", incomplete);
         }
     }
 
@@ -1036,19 +1036,23 @@ public class ProjectChecklistService {
     // ------------------------------------------------------------------ completeness and authors
 
     /**
-     * What keeps each line from a submission, in words naming the line; empty when the revision is
-     * ready. A proof is asked of a "yes" only: a "no" or "not applicable" states that the control is
-     * not in place, and its comment says why — requiring a document proving a control that is absent
-     * would push the honest answer towards the dishonest one.
+     * The lines kept from a submission, each with what keeps it; empty when the revision is ready. A
+     * proof is asked of a "yes" only: a "no" or "not applicable" states that the control is not in
+     * place, and its comment says why — requiring a document proving a control that is absent would
+     * push the honest answer towards the dishonest one.
      */
-    private List<String> incompleteLines(ChecklistEntity checklist) {
-        List<String> incomplete = new ArrayList<>();
-        for (ChecklistLineView line : lines(checklist, today())) {
-            if (!line.problems().isEmpty()) {
-                incomplete.add("line " + line.position() + " " + String.join(", ", line.problems()).replace('_', ' '));
-            }
-        }
-        return incomplete;
+    private List<ChecklistConflict.IncompleteLine> incompleteLines(ChecklistEntity checklist) {
+        return lines(checklist, today()).stream()
+                .filter(line -> !line.problems().isEmpty())
+                .map(line -> new ChecklistConflict.IncompleteLine(line.itemId(), line.position(), line.problems()))
+                .toList();
+    }
+
+    /** The lines in the refusal's sentence and the audit entry: "line 2 unanswered; line 3 evidence required". */
+    private static String inWords(List<ChecklistConflict.IncompleteLine> lines) {
+        return lines.stream()
+                .map(line -> "line " + line.position() + " " + String.join(", ", line.problems()).replace('_', ' '))
+                .collect(Collectors.joining("; "));
     }
 
     private List<String> problems(ChecklistItemEntity item, ChecklistAnswerEntity answer,

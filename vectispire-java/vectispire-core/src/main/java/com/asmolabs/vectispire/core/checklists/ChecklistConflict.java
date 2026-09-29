@@ -1,6 +1,8 @@
 package com.asmolabs.vectispire.core.checklists;
 
 import com.asmolabs.vectispire.common.domain.errors.ConflictException;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A checklist's 409 — a project checklist's or a template version's — naming its cause: the problem's
@@ -85,6 +87,35 @@ public class ChecklistConflict extends ConflictException {
     public ChecklistConflict(Cause reason, String message) {
         super(message, reason.token());
         this.reason = reason;
+    }
+
+    /**
+     * A {@link Cause#INCOMPLETE} refusal naming its lines as data too, in the problem's {@code lines}
+     * member: each line's item, position and problems — the tokens a line's view carries — so that a
+     * client points at them in its own language rather than parsing the English sentence.
+     */
+    static ChecklistConflict incomplete(String message, List<IncompleteLine> lines) {
+        return new ChecklistConflict(Cause.INCOMPLETE, message, Map.of("lines", List.copyOf(lines)));
+    }
+
+    private ChecklistConflict(Cause reason, String message, Map<String, ?> members) {
+        super(message, reason.token(), members);
+        this.reason = reason;
+    }
+
+    /**
+     * One line keeping a revision from a submission or a sign-off, as the problem's {@code lines} member
+     * states it.
+     *
+     * @param itemId the template item the line answers — what the line's routes name
+     * @param problems {@code unanswered}, {@code awaiting_confirmation}, {@code comment_required}, {@code
+     *     evidence_required}, {@code evidence_expired}, as a line's view names them
+     */
+    public record IncompleteLine(long itemId, int position, List<String> problems) {
+
+        public IncompleteLine {
+            problems = List.copyOf(problems);
+        }
     }
 
     public Cause reason() {

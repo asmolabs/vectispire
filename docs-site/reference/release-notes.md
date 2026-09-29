@@ -260,7 +260,10 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   and so do the checklist templates' (`checklist-template-changed`, `checklist-template-not-draft`,
   `checklist-template-has-draft`, … and `checklist-four-eyes`, which means the same there — see
   [Checklist templates](../administration/checklist-templates.md#refusals-for-scripts-and-integrations)).
-  A problem without a cause keeps `about:blank`; the `detail` is unchanged.
+  A problem without a cause keeps `about:blank`; the `detail` is unchanged. A `checklist-incomplete`
+  problem also names its lines as data, in a `lines` member — each line's `itemId`, `position` and
+  `problems` (`unanswered`, `evidence_required`, …) — so that a client points at them in its own
+  language rather than parsing the English sentence.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.
