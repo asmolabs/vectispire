@@ -252,7 +252,9 @@ public enum SecurityEventType {
                     CHECKLIST_TEMPLATE_RETIRED,
                     // A checklist being filled is work, not a security event (§9): the sign-off is one.
                     CHECKLIST_OPENED, CHECKLIST_MOVED_TO_VERSION, CHECKLIST_ANSWERED, CHECKLIST_EVIDENCE_ADDED,
-                    CHECKLIST_EVIDENCE_WITHDRAWN, CHECKLIST_SUBMITTED, CHECKLIST_REOPENED -> Optional.empty();
+                    CHECKLIST_EVIDENCE_WITHDRAWN, CHECKLIST_SUBMITTED, CHECKLIST_REOPENED,
+                    // A download of what was attested, like REPORT_EXPORTED: the sign-off was the event.
+                    CHECKLIST_EXPORTED -> Optional.empty();
         };
     }
 }

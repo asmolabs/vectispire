@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.checklists;
 
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementRepository;
@@ -12,9 +13,11 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * A project's checklists, their answers, proofs, files and measurements, in the transaction that deletes it
- * (decision 0032, open question 10). The audit entries stay: they record what was attested, and by
- * whom, after the project is gone.
+ * A project's checklists, their answers, proofs, files, measurements and signed documents, in the
+ * transaction that deletes it (decision 0032, open question 10). The audit entries stay: they record what
+ * was attested, and by whom, after the project is gone; and so do the documents already delivered, which
+ * are their recipients' — kept here, a signed document would be evidence nobody can reach through any
+ * grant.
  *
  * <p><b>Why a listener and not a cascade.</b> The tables were written once, in a common migration,
  * with no foreign key — a key would have to be written three times (decision 0027) — so nothing
@@ -34,18 +37,21 @@ class ChecklistPurge {
     private final ChecklistEvidenceRepository evidence;
     private final ChecklistFileRepository files;
     private final ChecklistMeasurementRepository measurements;
+    private final ChecklistDocumentRepository documents;
 
     ChecklistPurge(
             ChecklistRepository checklists,
             ChecklistAnswerRepository answers,
             ChecklistEvidenceRepository evidence,
             ChecklistFileRepository files,
-            ChecklistMeasurementRepository measurements) {
+            ChecklistMeasurementRepository measurements,
+            ChecklistDocumentRepository documents) {
         this.checklists = checklists;
         this.answers = answers;
         this.evidence = evidence;
         this.files = files;
         this.measurements = measurements;
+        this.documents = documents;
     }
 
     @EventListener
@@ -55,6 +61,7 @@ class ChecklistPurge {
         evidence.deleteByProject(deleted.projectId());
         measurements.deleteByProject(deleted.projectId());
         files.deleteByProject(deleted.projectId());
+        documents.deleteByProject(deleted.projectId());
         checklists.deleteByProject(deleted.projectId());
     }
 }

@@ -382,7 +382,14 @@ public enum AuditOperation {
     CHECKLIST_SIGN_OFF_REFUSED,
 
     /** A signed-off revision was reopened: the next revision, on the same version, every answer carried. */
-    CHECKLIST_REOPENED;
+    CHECKLIST_REOPENED,
+
+    /**
+     * A revision's document was downloaded (decision 0032 §9): a signed-off revision's stored, signed
+     * package, or a revision not signed off rendered unsigned for the request. The entry names which, and
+     * the package's SHA-256.
+     */
+    CHECKLIST_EXPORTED;
 
     /** The value stored in the column. The enum name is the wire name, here deliberately. */
     public String wireName() {

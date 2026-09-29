@@ -1,10 +1,14 @@
 package com.asmolabs.vectispire.core.checklists.web;
 
+import com.asmolabs.vectispire.common.domain.apikeys.ApiKeyScope;
 import com.asmolabs.vectispire.core.access.VisibilityService;
+import com.asmolabs.vectispire.core.access.web.security.AcceptsApiKey;
 import com.asmolabs.vectispire.core.access.web.security.RequestActors;
 import com.asmolabs.vectispire.core.access.web.security.RequiresAccount;
 import com.asmolabs.vectispire.core.access.web.security.RequiresWriteAccount;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
+import com.asmolabs.vectispire.core.checklists.ChecklistDocumentDownload;
+import com.asmolabs.vectispire.core.checklists.ChecklistDocumentService;
 import com.asmolabs.vectispire.core.checklists.ChecklistEvidenceDownload;
 import com.asmolabs.vectispire.core.checklists.ChecklistLineHistory;
 import com.asmolabs.vectispire.core.checklists.ChecklistMeasurementsView;
@@ -14,6 +18,9 @@ import com.asmolabs.vectispire.core.checklists.ChecklistRevisionSummary;
 import com.asmolabs.vectispire.core.checklists.ChecklistView;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
@@ -72,10 +79,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectChecklistsController {
 
     private final ProjectChecklistService checklists;
+    private final ChecklistDocumentService documents;
     private final VisibilityService visibility;
 
-    public ProjectChecklistsController(ProjectChecklistService checklists, VisibilityService visibility) {
+    public ProjectChecklistsController(ProjectChecklistService checklists, ChecklistDocumentService documents,
+            VisibilityService visibility) {
         this.checklists = checklists;
+        this.documents = documents;
         this.visibility = visibility;
     }
 
@@ -291,6 +301,34 @@ public class ProjectChecklistsController {
                 .header("X-Content-Type-Options", "nosniff")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(file.content());
+    }
+
+    @Operation(summary = "Download checklist document", description = "A zip: checklist.xlsx — the template's own "
+            + "workbook with the answers, comments and header written in and an Evidence sheet added — and "
+            + "checklist.json, the same statement machine-readable. For a signed-off revision, the package rendered "
+            + "and signed at its sign-off, served as stored, with checklist.xlsx.sig and checklist.json.sig: detached "
+            + "signatures to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub. For any other "
+            + "revision, rendered for this request, unsigned, its Evidence sheet opening with \"Draft — not signed "
+            + "off\". Always an attachment. Accepts an integration key with the export scope; 404 for a project not "
+            + "seen whole — a key restricted to one repository included — or a revision it does not have.")
+    @ApiResponse(responseCode = "200", description = "The document, application/zip",
+            content = @Content(mediaType = "application/zip", schema = @Schema(type = "string", format = "binary")))
+    @GetMapping(value = "/{revision}/document", produces = "application/zip")
+    @RequiresAccount
+    @AcceptsApiKey(ApiKeyScope.EXPORT)
+    public ResponseEntity<byte[]> checklistDocument(
+            @PathVariable long projectId,
+            @PathVariable int revision,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        ChecklistDocumentDownload document = documents.export(projectId, revision, allowanceOf(principal),
+                RequestActors.of(principal, request));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(document.fileName(), StandardCharsets.UTF_8).build().toString())
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .body(document.content());
     }
 
     @Operation(summary = "Withdraw checklist proof", description = "On a draft: the proof stops counting; its row "

@@ -61,7 +61,9 @@ public abstract class VectispireContextTest {
             // its slug's next version number, and its draft, in the next test.
             // No foreign key either (V52, common). Left out, a project's checklist would hold the next
             // test's open slot, and its revision numbers. The measurements (V54, common) likewise: left
-            // out, a sign-off would compare with another test's submission.
+            // out, a sign-off would compare with another test's submission. The documents (V55, common)
+            // likewise: left out, a revision's number would find another test's signed package.
+            "t_checklist_document",
             "t_checklist_measurement",
             "t_checklist_file",
             "t_checklist_evidence",

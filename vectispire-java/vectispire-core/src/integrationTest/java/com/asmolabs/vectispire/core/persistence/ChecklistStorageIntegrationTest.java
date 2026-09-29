@@ -8,6 +8,8 @@ import com.asmolabs.vectispire.core.VectispireApplication;
 import com.asmolabs.vectispire.core.audit.RequestActor;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentEntity;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
@@ -84,6 +86,9 @@ class ChecklistStorageIntegrationTest {
 
     @Autowired
     private ChecklistMeasurementRepository measurements;
+
+    @Autowired
+    private ChecklistDocumentRepository documents;
 
     @Autowired
     private SolutionAdministrationService solutions;
@@ -184,8 +189,37 @@ class ChecklistStorageIntegrationTest {
     }
 
     @Test
-    @DisplayName("deleting a project takes its checklists, answers, proofs, files and measurements, in its transaction, "
-            + "and nobody else's")
+    @DisplayName("a signed document comes back byte for byte, one per revision, in the engine's binary type")
+    void theDocuments() throws Exception {
+        long project = ++nextProject;
+        long checklistId = checklists.save(checklist(project, 1, "signed_off", null)).getId();
+        byte[] content = new byte[5 * 1024 * 1024];
+        for (int i = 0; i < content.length; i++) {
+            content[i] = (byte) (i * 131);
+        }
+        documents.save(document(checklistId, project, content));
+        assertThat(documents.findByChecklistId(checklistId)).get().satisfies(read -> {
+            assertThat(read.getContent()).isEqualTo(content);
+            assertThat(read.getProducedAt()).isEqualTo(NOW);
+            assertThat(read.getProductVersion()).isEqualTo("1.2.3");
+        });
+        assertThatThrownBy(() -> documents.saveAndFlush(document(checklistId, project, new byte[] {1})))
+                .as("a second document for the same revision").isInstanceOf(RuntimeException.class);
+
+        String type;
+        try (Connection connection = dataSource.getConnection()) {
+            type = columnType(connection, "t_checklist_document", "content");
+        }
+        switch (ENGINE) {
+            case MYSQL -> assertThat(type).isEqualTo("longblob");
+            case POSTGRES -> assertThat(type).isEqualTo("bytea");
+            case SQLITE -> assertThat(type).isEqualTo("blob");
+        }
+    }
+
+    @Test
+    @DisplayName("deleting a project takes its checklists, answers, proofs, files, measurements and documents, in its "
+            + "transaction, and nobody else's")
     void deletingAProjectPurges() {
         long solution = solutions.createSolution("Purge " + System.nanoTime(), null, ACTOR).id();
         long doomed = solutions.createProject(solution, "Doomed", null, ACTOR).id();
@@ -200,11 +234,13 @@ class ChecklistStorageIntegrationTest {
         assertThat(evidence.findByChecklistIdOrderByIdAsc(doomedChecklist)).isEmpty();
         assertThat(files.findAll()).noneMatch(file -> file.getProjectId() == doomed);
         assertThat(measurements.findByChecklistIdAndPurposeOrderByIdAsc(doomedChecklist, "sign_off")).isEmpty();
+        assertThat(documents.findByChecklistId(doomedChecklist)).isEmpty();
 
         assertThat(checklists.findByProjectIdOrderByRevisionDesc(kept)).hasSize(1);
         assertThat(answers.findByChecklistIdOrderByIdAsc(keptChecklist)).hasSize(1);
         assertThat(evidence.findByChecklistIdOrderByIdAsc(keptChecklist)).hasSize(1);
         assertThat(files.findAll()).anyMatch(file -> file.getProjectId() == kept);
+        assertThat(documents.findByChecklistId(keptChecklist)).isPresent();
         assertThat(measurements.findByChecklistIdAndPurposeOrderByIdAsc(keptChecklist, "sign_off")).singleElement()
                 .satisfies(row -> {
                     // The evidence is long text on every engine: a project's figures run past a varchar.
@@ -254,7 +290,25 @@ class ChecklistStorageIntegrationTest {
         measured.setEvidenceDigest("3".repeat(64));
         measured.setEvidence("e".repeat(70_000));
         measurements.save(measured);
+        documents.save(document(checklistId, project, new byte[] {4, 5, 6}));
         return checklistId;
+    }
+
+    private static ChecklistDocumentEntity document(long checklistId, long project, byte[] content) {
+        ChecklistDocumentEntity document = new ChecklistDocumentEntity();
+        document.setChecklistId(checklistId);
+        document.setProjectId(project);
+        document.setContent(content);
+        document.setSizeBytes((long) content.length);
+        document.setSha256("4".repeat(64));
+        document.setWorkbookSha256("5".repeat(64));
+        document.setWorkbookSignature("M".repeat(96));
+        document.setStatementSha256("6".repeat(64));
+        document.setStatementSignature("N".repeat(96));
+        document.setSigningKeyId("7".repeat(64));
+        document.setProductVersion("1.2.3");
+        document.setProducedAt(NOW);
+        return document;
     }
 
     private static ChecklistEntity checklist(long project, int revision, String status, Integer openSlot) {

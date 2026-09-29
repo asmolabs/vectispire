@@ -169,6 +169,7 @@ public class ProjectChecklistService {
     private final ChecklistMeasurementRepository measurements;
     private final StoredForms forms;
     private final ChecklistMeasurer measurer;
+    private final ChecklistDocumentService documents;
     private final SolutionQueryService projects;
     private final SettingsService settings;
     private final AuditLogService audit;
@@ -187,6 +188,7 @@ public class ProjectChecklistService {
             ChecklistMeasurementRepository measurements,
             StoredForms forms,
             ChecklistMeasurer measurer,
+            ChecklistDocumentService documents,
             SolutionQueryService projects,
             SettingsService settings,
             AuditLogService audit,
@@ -203,6 +205,7 @@ public class ProjectChecklistService {
         this.measurements = measurements;
         this.forms = forms;
         this.measurer = measurer;
+        this.documents = documents;
         this.projects = projects;
         this.settings = settings;
         this.audit = audit;
@@ -718,7 +721,9 @@ public class ProjectChecklistService {
      * sign-off, naming the lines — a signature must not attest to evidence that stopped being true
      * between submission and signature, and a line that started passing since is a picture the
      * submitter did not attest to either. Accepted, the sign-off's measurements are stored with it and
-     * the revision's measurements are frozen: a signed-off revision is read back as signed.
+     * the revision's measurements are frozen: a signed-off revision is read back as signed. Its document —
+     * the workbook filled in and {@code checklist.json}, each signed — is produced in the same transaction
+     * ({@link ChecklistDocumentService}).
      *
      * @throws AccessDeniedException a role that may not approve — refused before anything is read (403)
      * @throws ChecklistConflict {@code checklist-not-submitted}, {@code checklist-changed}, {@code
@@ -797,17 +802,23 @@ public class ProjectChecklistService {
                     + "a measurement changed since its submission — " + lines + ". Return it to its authors.", changed);
         }
 
-        transactions.executeWithoutResult(status -> {
+        // The document is signed in the transaction below; the key is loaded, or created, before it opens.
+        documents.requireSigningKey();
+        String document = transactions.execute(status -> {
             requireStill(checklists.signOff(checklist.getId(), seenEdition, ChecklistStatus.SUBMITTED.wireName(),
                     ChecklistStatus.SIGNED_OFF.wireName(), now, who.username(), who.accountId(), fourEyes), checklist);
             store(checklist, measured, MeasurementPurpose.SIGN_OFF, now, who, current);
+            // Rendered and signed with the sign-off, from the rows it has just written (§10): a sign-off
+            // whose document cannot be produced does not happen, and a document is never signed for a
+            // sign-off that rolled back.
+            return documents.produceSigned(checklist.getId(), project, guarded.repositoryIds());
         });
 
         audit.record(who.actor().entry(AuditOperation.CHECKLIST_SIGNED_OFF, resource(project, revision),
                 "Checklist of project \"" + project.name() + "\", revision " + revision + " signed off, submitted by "
                         + checklist.getSubmittedBy() + "; four-eyes " + (fourEyes
                                 ? "required, and the signer is none of its authors (" + names(authors) + ")"
-                                : "not required") + tally(measured) + "."));
+                                : "not required") + tally(measured) + "; signed document SHA-256 " + document + "."));
         return view(project, reread(checklist));
     }
 

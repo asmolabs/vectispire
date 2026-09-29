@@ -3,18 +3,26 @@ package com.asmolabs.vectispire.core.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.asmolabs.vectispire.common.domain.access.VisibilityMode;
+import com.asmolabs.vectispire.common.domain.checklists.CellRef;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistStatement;
+import com.asmolabs.vectispire.common.domain.checklists.Sheet;
+import com.asmolabs.vectispire.common.domain.checklists.Workbook;
+import com.asmolabs.vectispire.common.domain.crypto.CosignSigner;
 import com.asmolabs.vectispire.common.domain.crypto.Digests;
 import com.asmolabs.vectispire.common.domain.settings.Setting;
 import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.access.persistence.UserRepository;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogEntity;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerEntity;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistAnswerRepository;
+import com.asmolabs.vectispire.core.checklists.persistence.ChecklistDocumentRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistEvidenceRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistFileRepository;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistRepository;
@@ -24,12 +32,17 @@ import com.asmolabs.vectispire.core.siem.SiemEvents;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.PublicKey;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -79,6 +92,9 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
 
     @Autowired
     private ChecklistFileRepository files;
+
+    @Autowired
+    private ChecklistDocumentRepository documents;
 
     /** An account the test acts as: its token, its identifier, its name. */
     private record Account(String token, long id, String name) {}
@@ -134,6 +150,7 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
                     mvc.perform(authenticated(get(base() + "/context"), partial.token())),
                     mvc.perform(authenticated(get(base() + "/1"), partial.token())),
                     mvc.perform(authenticated(get(base() + "/1/items/" + item + "/history"), partial.token())),
+                    mvc.perform(authenticated(get(base() + "/1/document"), partial.token())),
                     open(partial, "release", 1, 1),
                     answer(partial, 1, item, "yes", null, 1),
                     submit(partial, 1, 1));
@@ -606,6 +623,158 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
     }
 
+    // ------------------------------------------------------------------ the document
+
+    @Nested
+    @DisplayName("the document")
+    class TheDocument {
+
+        @Test
+        @DisplayName("a draft renders on request, unsigned, and says it is not signed off")
+        void aDraftIsUnsigned() throws Exception {
+            open(developer, "release", 1, null).andExpect(status().isCreated());
+            List<Long> lines = itemIds(read(developer, 1));
+            answer(developer, 1, lines.get(0), "yes", null, edition(1)).andExpect(status().isCreated());
+
+            MvcResult downloaded = mvc.perform(authenticated(get(base() + "/1/document"), asAuditor()))
+                    .andExpect(status().isOk()).andReturn();
+            assertThat(downloaded.getResponse().getContentType()).isEqualTo("application/zip");
+            assertThat(downloaded.getResponse().getHeader("Content-Disposition"))
+                    .startsWith("attachment").contains("checklist-project-" + project + "-revision-1.zip");
+            Map<String, byte[]> parts = unzip(downloaded.getResponse().getContentAsByteArray());
+            assertThat(parts.keySet()).as("no signature on what nobody signed off")
+                    .containsExactly("checklist.xlsx", "checklist.json");
+
+            Sheet evidence = Workbook.read(parts.get("checklist.xlsx"), 50L * 1024 * 1024).sheet("Evidence").orElseThrow();
+            assertThat(evidence.cells().get(CellRef.parse("A1").orElseThrow()).text()).isEqualTo("Draft — not signed off");
+            Sheet checklist = Workbook.read(parts.get("checklist.xlsx"), 50L * 1024 * 1024).sheet("Checklist").orElseThrow();
+            assertThat(checklist.cells().get(CellRef.parse("F7").orElseThrow()).text()).isEqualTo("Done");
+            assertThat(checklist.cells().get(CellRef.parse("B3").orElseThrow()).text()).isEqualTo("Checkout");
+            assertThat(checklist.cells()).as("a draft is dated by nobody").doesNotContainKey(CellRef.parse("B2").orElseThrow());
+
+            JsonNode statement = json.readTree(parts.get("checklist.json"));
+            assertThat(statement.path("status").asText()).isEqualTo("draft");
+            assertThat(statement.path("signed").asBoolean()).isFalse();
+            assertThat(statement.at("/header/date").isNull()).isTrue();
+            assertThat(entries("CHECKLIST_EXPORTED")).singleElement().satisfies(entry -> assertThat(entry.getDescription())
+                    .contains("rendered unsigned").contains(Digests.sha256Hex(downloaded.getResponse().getContentAsByteArray())));
+        }
+
+        @Test
+        @DisplayName("a signed-off revision serves the package signed at its sign-off, verifiable with the published key")
+        void aSignedOffRevisionIsSigned() throws Exception {
+            signedOffRevisionOne();
+            JsonNode revision = read(developer, 1);
+
+            byte[] zip = mvc.perform(authenticated(get(base() + "/1/document"), developer.token()))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+            Map<String, byte[]> parts = unzip(zip);
+            assertThat(parts.keySet())
+                    .containsExactly("checklist.xlsx", "checklist.json", "checklist.xlsx.sig", "checklist.json.sig");
+
+            // The key anybody can fetch, and the check cosign verify-blob --key makes.
+            PublicKey published = CosignSigner.parsePublicKey(mvc.perform(get("/api/v1/crypto/public-key.pub"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            for (String part : List.of("checklist.xlsx", "checklist.json")) {
+                String signature = new String(parts.get(part + ".sig"), StandardCharsets.US_ASCII);
+                assertThat(CosignSigner.verify(parts.get(part), signature, published)).as(part).isTrue();
+                byte[] tampered = parts.get(part).clone();
+                tampered[tampered.length / 2] ^= 1;
+                assertThat(CosignSigner.verify(tampered, signature, published)).as(part + ", one bit changed").isFalse();
+            }
+
+            // The statement, read by the real mapper, as a report plugin will read it.
+            JsonNode statement = json.readTree(parts.get("checklist.json"));
+            assertThat(statement.path("form").asInt()).isEqualTo(ChecklistStatement.FORM);
+            assertThat(statement.path("status").asText()).isEqualTo("signed_off");
+            assertThat(statement.path("signed").asBoolean()).isTrue();
+            assertThat(statement.at("/project/id").asLong()).isEqualTo(project);
+            assertThat(statement.at("/template/slug").asText()).isEqualTo("release");
+            assertThat(statement.at("/template/sourceSha256").asText())
+                    .isEqualTo(Digests.sha256Hex(ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST)));
+            assertThat(statement.at("/signedOff/by").asText()).isEqualTo(ciso.name());
+            assertThat(statement.at("/submitted/by").asText()).isEqualTo(developer.name());
+            assertThat(statement.at("/header/date").asText()).as("dated by the sign-off, never by the download")
+                    .isEqualTo(revision.at("/checklist/signedOffAt").asText());
+            assertThat(statement.path("fourEyesRequired").asBoolean()).isFalse();
+            assertThat(statement.path("lines")).hasSize(3);
+            assertThat(statement.at("/lines/0/answer/value").asText()).isEqualTo("yes");
+            assertThat(statement.at("/lines/0/answer/word").asText()).isEqualTo("Done");
+            assertThat(statement.at("/lines/0/answer/answeredBy").asText()).isEqualTo(developer.name());
+            assertThat(statement.at("/lines/0/history")).hasSize(1);
+            assertThat(statement.at("/lines/0/reconciliation").asText()).isEqualTo("not_measured_here");
+            ChecklistStatement contract = json.readValue(parts.get("checklist.json"), ChecklistStatement.class);
+            assertThat(contract.lines()).extracting(ChecklistStatement.Line::row).containsExactly(7, 8, 9);
+
+            Sheet evidence = Workbook.read(parts.get("checklist.xlsx"), 50L * 1024 * 1024).sheet("Evidence").orElseThrow();
+            assertThat(evidence.cells().get(CellRef.parse("A1").orElseThrow()).text())
+                    .startsWith("Signed off by " + ciso.name());
+            assertThat(entries("CHECKLIST_SIGNED_OFF")).singleElement().satisfies(entry -> assertThat(entry.getDescription())
+                    .contains("signed document SHA-256 " + Digests.sha256Hex(zip)));
+            assertThat(entries("CHECKLIST_EXPORTED")).singleElement().satisfies(entry -> assertThat(entry.getDescription())
+                    .contains("signed at its sign-off"));
+        }
+
+        @Test
+        @DisplayName("the stored package is served, not a new rendering: what changed since does not reach it")
+        void theStoredBytes() throws Exception {
+            signedOffRevisionOne();
+            byte[] signed = mvc.perform(authenticated(get(base() + "/1/document"), developer.token()))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+
+            // The product renamed, and a row slipped under the signed revision: a rendering would show both.
+            mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Checkout, renamed"))))
+                    .andExpect(status().isOk());
+            ChecklistAnswerEntity late = new ChecklistAnswerEntity();
+            late.setChecklistId(checklists.findByProjectIdAndRevision(project, 1).orElseThrow().getId());
+            late.setItemId(itemIds(read(developer, 1)).getFirst());
+            late.setValue("no");
+            late.setComment("Written after the signature.");
+            late.setAnsweredBy(developer.name());
+            late.setAnsweredById(developer.id());
+            late.setAnsweredAt(java.time.Instant.now());
+            late.setEdition(99);
+            answers.save(late);
+
+            byte[] again = mvc.perform(authenticated(get(base() + "/1/document"), developer.token()))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+            assertThat(again).isEqualTo(signed);
+            assertThat(documents.findAll()).singleElement().satisfies(document -> {
+                assertThat(document.getContent()).isEqualTo(signed);
+                assertThat(document.getSha256()).isEqualTo(Digests.sha256Hex(signed));
+            });
+
+            mvc.perform(authenticated(delete("/api/v1/projects/" + project), asAdmin())).andExpect(status().isNoContent());
+            assertThat(documents.findAll()).as("purged with its project").isEmpty();
+        }
+
+        @Test
+        @DisplayName("an integration key needs the export scope, and one restricted to a repository never sees the whole")
+        void theKeys() throws Exception {
+            signedOffRevisionOne();
+            String exporter = key(Map.of("name", "auditor-export", "scopes", List.of("export")));
+            String reader = key(Map.of("name", "reader", "scopes", List.of("read")));
+            String narrowed = key(Map.of("name", "narrowed", "scopes", List.of("export"),
+                    "target_kind", "repository", "target_id", firstRepository));
+
+            mvc.perform(authenticated(get(base() + "/1/document"), exporter)).andExpect(status().isOk());
+            mvc.perform(authenticated(get(base() + "/1/document"), reader)).andExpect(status().isForbidden());
+            MvcResult hidden = mvc.perform(authenticated(get(base() + "/1/document"), narrowed))
+                    .andExpect(status().isNotFound()).andReturn();
+            assertThat(detailOf(hidden)).isEqualTo("Project not found.");
+            // The key reaches the document route only: the checklist itself is a session's.
+            mvc.perform(authenticated(get(base() + "/1"), exporter)).andExpect(status().isForbidden());
+            mvc.perform(authenticated(get(base() + "/2/document"), exporter)).andExpect(status().isNotFound());
+        }
+
+        private String key(Map<String, Object> body) throws Exception {
+            return read(mvc.perform(authenticated(post("/api/v1/api-keys"), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON).content(write(body)))
+                    .andExpect(status().isOk())).path("secret").asText();
+        }
+    }
+
     // ------------------------------------------------------------------ reopening and moving
 
     @Nested
@@ -953,6 +1122,16 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
 
     private JsonNode read(ResultActions result) throws Exception {
         return json.readTree(result.andReturn().getResponse().getContentAsString());
+    }
+
+    private static Map<String, byte[]> unzip(byte[] zip) throws Exception {
+        Map<String, byte[]> parts = new LinkedHashMap<>();
+        try (ZipInputStream in = new ZipInputStream(new ByteArrayInputStream(zip))) {
+            for (ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                parts.put(entry.getName(), in.readAllBytes());
+            }
+        }
+        return parts;
     }
 
     private List<AuditLogEntity> entries(String operation) {

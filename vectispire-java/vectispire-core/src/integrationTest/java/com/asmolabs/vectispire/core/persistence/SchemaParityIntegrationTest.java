@@ -180,6 +180,10 @@ class SchemaParityIntegrationTest {
                 .as("a submission's and a sign-off's measurements are read back by revision at every sign-off and "
                         + "every read of a signed revision, and purged with its project")
                 .contains("checklist_id");
+        assertThat(indexedFirstColumns("t_checklist_document"))
+                .as("the document route reads a revision's signed package by its checklist, and a project's deletion "
+                        + "purges its documents by project")
+                .contains("checklist_id", "project_id");
 
         // The child tables of a scan: read with it, purged with it by the `TargetDeleted` listeners.
         // Three of them carried an index that led with the wrong column, which is the case this

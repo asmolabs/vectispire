@@ -423,7 +423,8 @@
       "checklist_returned": "Checklist de projet renvoyée",
       "checklist_signed_off": "Checklist de projet approuvée",
       "checklist_sign_off_refused": "Approbation de checklist de projet refusée",
-      "checklist_reopened": "Checklist de projet rouverte"
+      "checklist_reopened": "Checklist de projet rouverte",
+      "checklist_exported": "Document de checklist de projet téléchargé"
     },
     "error_verify": "La vérification de la chaîne n'a pas abouti. Son état est inconnu, ce qui n'est pas la même chose que rompu.",
     "error_load": "Impossible de charger le journal.",
