@@ -188,10 +188,39 @@ judged on part of a project's backlog:
 | `no_repository` | The project has no repository: "every one of none passes" is not a pass. |
 | `never_examined` | A repository has no scan or import in which the scope produced. |
 | `step_absent` | Every scan within the age ran without the step or the plugin — did not look, not found nothing; also a coverage report that counted no branch, for a rule on branches. |
+| `language_not_analysed` | The static analysis produced on a tree it could not read: a source language of the repository that none of the SAST rules the scan ran with reads, or a plugin that produced on a tree holding none of its languages. The evidence names the languages. Install rules for them — a rule set from the catalogue — and scan again. |
 | `examination_unrecorded` | The scans within the age are from before Vectispire recorded which steps ran, or an import from before it recorded which tools it carried: rescan, or upload again. |
+| `languages_unrecorded` | The scan the analysis produced in did not record its tree's languages, or the languages its rules read: every scan from before this version, a tree too large to count whole, an agent older than the census. Rescan with an up-to-date executor. |
 | `stale` | The newest look is older than the rule's maximum age. |
 | `not_applicable_anywhere` | A plugin applies to none of the project's repositories: it looked at nothing. A repository where it is not applicable is left out of the figures when another is measured. |
 | `suite_not_found`, `no_test_ran` | No suite of the newest test report matches, or those that match ran nothing. |
+
+**Static analysis counts only what it read.** A line on `builtin:sast` or `builtin:quality` — both are
+Semgrep and its rules — or on a plugin is judged by the languages the scan behind it recorded: those
+its census found in the repository's tree, and those its analysis reads. Zero findings from rules that
+read none of the code is not a clean result, and Vectispire would otherwise answer *yes* to it in a
+document somebody signs.
+
+- **Built-in SAST and quality:** every *source* language of the tree must be read by one of the rules
+  the scan ran with — the bundled rules (one Python pattern) plus the rule set active **when the scan's
+  task was built**, each rule counted for its catalogue directory (`java/…`, `javascript/…`). A set
+  activated later does not reach back to older scans; scan again. Java read and TypeScript not is
+  `language_not_analysed`, not a pass on the Java half. Rules an executor reads from its own
+  `VECTISPIRE_SEMGREP_RULES_DIR` are on that executor's disk and are not counted.
+- **Source languages** are those a program's behaviour is written in: every language of the vocabulary
+  except `json`, `yaml` (data), `html` (markup), `dockerfile` and `terraform` (infrastructure — the IaC
+  step's). `bash` counts: a shell script runs, and command injection is a SAST finding. A tree with no
+  source language the census knows — code in a language outside the vocabulary, say — is not a tree
+  whose code was analysed: `language_not_analysed`.
+- **A plugin** must have read one of the tree's languages, by the manifest the scan ran it with (not
+  the plugin's current one). The evidence names the source languages it does not read, without holding
+  the line back for them: a plugin is chosen for what it declares.
+- A line on a secret, IaC, dependency, licence or end-of-life scope, or on an imported tool, is not
+  judged by language.
+
+After an upgrade to this version, every line on these scopes reads `languages_unrecorded` until each
+repository of the project is scanned again — no earlier scan recorded the languages of its rules —
+and an automatic *yes* Vectispire gave there is withdrawn at the next measurement.
 
 The backlog's figures leave **settled triage** out of both sides — *not affected*, *fixed* — and count
 any other status, one this version does not know included.

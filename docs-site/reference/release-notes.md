@@ -161,10 +161,25 @@ document in the same transaction. An installation with neither `ENCRYPTION_KEY` 
 `vectispire.signing.key` answers 412 there, as every other signed export already did — and a sign-off
 that cannot be signed is not recorded. See [Security checklists](../guide/security-checklists.md).
 
-**Schema migrations V32 to V55 run at start**, on MySQL and PostgreSQL. Back up the database
+**A checklist line on static analysis reads "no data" until each repository is scanned again.** A
+line on `builtin:sast`, `builtin:quality` or a plugin now counts a repository as examined only where
+the analysis read the tree's languages, judged on what the scan recorded: its census and, from V58,
+the languages of the SAST rules its task carried. No earlier scan recorded the latter, so every such
+line measures `languages_unrecorded` until the next scan of each repository, and an automatic *yes*
+Vectispire gave there is withdrawn at the next measurement. Then, on an installation with only the
+bundled rules — one Python pattern — a Java or JavaScript repository measures `language_not_analysed`:
+install a rule set covering its languages (Rule sets, *import from the catalogue*) and scan again. A
+line that passed before because its rules found nothing in code they could not read was not measuring
+anything. See [Security checklists](../guide/security-checklists.md#measured-lines).
+
+**Schema migrations V32 to V58 run at start**, on MySQL and PostgreSQL. Back up the database
 first, as for any upgrade — [backup and restore](https://github.com/asmolabs/vectispire/blob/main/docs/en/BACKUP_AND_RESTORE.md).
 
 ### Changes an integration can see
+
+- **Two new reasons for a measurement without data**, `language_not_analysed` and
+  `languages_unrecorded`, in a measurement's `reason` and a repository's `status` in its evidence — a
+  script matching the reasons it knows should treat an unknown one as no data, which it is.
 
 - **A name already taken is a 409 with a type, whatever the gesture.** Creating a solution, or
   renaming one, to a name another solution holds (case aside) answered `400`; it answers `409` with the

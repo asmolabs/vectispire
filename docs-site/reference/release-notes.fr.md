@@ -176,10 +176,27 @@ désormais son document dans la même transaction. Une installation sans `ENCRYP
 `vectispire.signing.key` configurée y répond 412, comme tout autre export signé — et une signature qui ne
 peut pas être signée n'est pas enregistrée. Voir [Checklists de sécurité](../guide/security-checklists.fr.md).
 
-**Les migrations V32 à V55 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
+**Une ligne de checklist sur l'analyse statique lit « pas de données » jusqu'à la prochaine analyse de
+chaque dépôt.** Une ligne sur `builtin:sast`, `builtin:quality` ou un plugin ne compte désormais un
+dépôt comme examiné que là où l'analyse a lu les langages de l'arbre, jugé sur ce que l'analyse a
+enregistré : son recensement et, depuis V58, les langages des règles SAST que portait sa tâche. Aucune
+analyse antérieure n'a enregistré ces derniers : chacune de ces lignes mesure `languages_unrecorded`
+jusqu'à la prochaine analyse de chaque dépôt, et un *oui* automatique que Vectispire y avait donné est
+retiré à la mesure suivante. Ensuite, sur une installation qui n'a que les règles embarquées — un motif
+Python —, un dépôt Java ou JavaScript mesure `language_not_analysed` : installez un jeu de règles
+couvrant ses langages (Jeux de règles, *importer depuis le catalogue*) et relancez l'analyse. Une ligne
+qui passait avant parce que ses règles ne trouvaient rien dans du code qu'elles ne savaient pas lire ne
+mesurait rien. Voir [Checklists de sécurité](../guide/security-checklists.md#lignes-mesurees).
+
+**Les migrations V32 à V58 s'exécutent au démarrage**, sur MySQL et PostgreSQL. Sauvegardez la
 base avant, comme pour toute mise à jour — [sauvegarde et restauration](https://github.com/asmolabs/vectispire/blob/main/docs/fr/BACKUP_AND_RESTORE.fr.md).
 
 ### Changements visibles d'une intégration
+
+- **Deux nouvelles raisons pour une mesure sans données**, `language_not_analysed` et
+  `languages_unrecorded`, dans le `reason` d'une mesure et le `status` d'un dépôt dans ses preuves — un
+  script qui compare les raisons qu'il connaît doit lire une raison inconnue comme une absence de
+  données, ce qu'elle est.
 
 - **Un nom déjà pris est un 409 typé, quel que soit le geste.** Créer une solution, ou en renommer
   une, avec le nom d'une autre (casse ignorée) répondait `400` ; cela répond `409` de type

@@ -671,3 +671,41 @@ carrying a claim its signer never made — is met by naming the author, not by f
   called after their own commit and never able to fail the scan or the import; an opening answers right
   after its own commit, so the response shows the answers. The setting `checklist_auto_answer` is the
   platform governor's, like the other rules, and audited as a security setting.
+
+## Amendment (2026-09-29) — the static analysis counts only what it read
+
+**The gap.** §6 reads a findings scope as examined when its step *produced*. The built-in SAST step
+produces whenever Semgrep runs — with the bundled rules alone, one Python pattern — so a Java
+repository measured `builtin:sast` at zero findings and passed: nothing found, because nothing was
+read. Since the previous amendment that pass is an automatic *yes* in a signed document. Decision
+[0007](0007-none-is-not-an-empty-list.md) applied once more: a step that could not read the tree did
+not look.
+
+**The resolution.** `builtin:sast`, `builtin:quality` (both Semgrep) and every `plugin:<id>` are
+judged by the languages the examined scan recorded — never by today's rules or manifest, which would
+let a set activated after the scan claim coverage it never gave:
+
+- the tree's languages: the scan's census (`detected_languages`, V57);
+- Semgrep's reach: the languages of the rules its task carried (`sast_languages`, V58), written by the
+  control plane when it builds the task, from the same hash the task names — the bundled rules plus the
+  active set, each file counted for its catalogue directory, never by parsing its YAML (`RuleSet`);
+- a plugin's reach: the languages of the manifest the scan named by its digest (manifests are kept
+  forever).
+
+**Two reasons join the closed set.** `LANGUAGE_NOT_ANALYSED`: a source language of the tree that no
+rule reads — for the built-in steps, *every* source language must be read, so Java read and TypeScript
+not is no data; a plugin, chosen for what it declares, must have read one of the tree's languages, and
+the evidence names the source languages it does not read without refusing the line for them.
+`LANGUAGES_UNRECORDED`: either side unknown — a scan from before V57 or V58, a census stopped at its
+bound, a manifest no longer known.
+
+**Source languages** are the vocabulary minus `json`, `yaml`, `html`, `dockerfile` and `terraform`
+(`SourceLanguages`, an exhaustive switch). `bash` counts. A tree with no source language the census
+knows is `LANGUAGE_NOT_ANALYSED`: code in a language outside the vocabulary is not code nobody wrote.
+
+**Accepted costs.** Every line on these scopes measures `LANGUAGES_UNRECORDED` after the upgrade
+until each repository is scanned again, and Vectispire's automatic *yes* is withdrawn by the existing
+path; the precedent is `EXAMINATION_UNRECORDED`. Rules an executor reads from its own
+`VECTISPIRE_SEMGREP_RULES_DIR` are not counted, and a `javascript/` rule that also reads TypeScript
+counts for JavaScript alone: both errors keep a line from passing and never make one pass. Imported
+tools record no language and are not judged by it.

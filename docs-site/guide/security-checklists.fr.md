@@ -197,10 +197,42 @@ seuil n'est jamais jugé sur une partie du passif d'un projet :
 | `no_repository` | Le projet n'a aucun dépôt : « chacun des zéro dépôts passe » n'est pas un succès. |
 | `never_examined` | Un dépôt n'a aucune analyse ni aucun import où le périmètre a produit. |
 | `step_absent` | Chaque analyse dans l'âge maximal s'est faite sans l'étape ou le plugin — n'a pas regardé, n'a pas « rien trouvé » ; aussi un rapport de couverture qui n'a compté aucune branche, pour une règle sur les branches. |
+| `language_not_analysed` | L'analyse statique a produit sur un arbre qu'elle ne savait pas lire : un langage source du dépôt qu'aucune des règles SAST de l'analyse ne lit, ou un plugin qui a produit sur un arbre ne contenant aucun de ses langages. Les preuves nomment les langages. Installez des règles pour eux — un jeu de règles du catalogue — et relancez l'analyse. |
 | `examination_unrecorded` | Les analyses dans l'âge maximal datent d'avant que Vectispire enregistre quelles étapes ont tourné, ou un import d'avant qu'il enregistre quels outils il portait : relancez l'analyse, ou renvoyez le rapport. |
+| `languages_unrecorded` | L'analyse où l'examen a produit n'a pas enregistré les langages de son arbre, ou ceux que lisent ses règles : toute analyse d'avant cette version, un arbre trop grand pour être compté en entier, un agent plus ancien que le recensement. Relancez l'analyse avec un exécuteur à jour. |
 | `stale` | Le regard le plus récent est plus ancien que l'âge maximal de la règle. |
 | `not_applicable_anywhere` | Un plugin ne s'applique à aucun dépôt du projet : il n'a rien regardé. Un dépôt où il ne s'applique pas est exclu des chiffres quand un autre est mesuré. |
 | `suite_not_found`, `no_test_ran` | Aucune suite du rapport de tests le plus récent ne correspond, ou celles qui correspondent n'ont rien exécuté. |
+
+**L'analyse statique ne compte que ce qu'elle a lu.** Une ligne sur `builtin:sast` ou
+`builtin:quality` — tous deux Semgrep et ses règles — ou sur un plugin est jugée sur les langages
+qu'a enregistrés l'analyse qui la fonde : ceux que son recensement a trouvés dans l'arbre du dépôt, et
+ceux que lit son examen. Zéro constat de règles qui ne lisent rien du code n'est pas un résultat
+propre, et Vectispire y répondrait sinon *oui* dans un document que quelqu'un signe.
+
+- **SAST et qualité intégrés :** chaque langage *source* de l'arbre doit être lu par une des règles
+  avec lesquelles l'analyse a tourné — les règles embarquées (un motif Python) plus le jeu de règles
+  actif **quand la tâche de l'analyse a été construite**, chaque règle comptée pour son répertoire du
+  catalogue (`java/…`, `javascript/…`). Un jeu activé plus tard ne remonte pas aux analyses plus
+  anciennes ; relancez l'analyse. Java lu et TypeScript non, c'est `language_not_analysed`, pas un
+  succès sur la moitié Java. Les règles qu'un exécuteur lit dans son propre
+  `VECTISPIRE_SEMGREP_RULES_DIR` sont sur le disque de cet exécuteur et ne sont pas comptées.
+- **Les langages source** sont ceux dans lesquels s'écrit le comportement d'un programme : tous les
+  langages du vocabulaire sauf `json`, `yaml` (données), `html` (balisage), `dockerfile` et
+  `terraform` (infrastructure — celle de l'étape IaC). `bash` compte : un script shell s'exécute, et
+  l'injection de commande est un constat SAST. Un arbre sans aucun langage source que le recensement
+  connaît — du code dans un langage hors du vocabulaire, par exemple — n'est pas un arbre dont le code
+  a été analysé : `language_not_analysed`.
+- **Un plugin** doit avoir lu un des langages de l'arbre, d'après le manifeste avec lequel l'analyse
+  l'a lancé (pas le manifeste actuel du plugin). Les preuves nomment les langages source qu'il ne lit
+  pas, sans retenir la ligne pour autant : un plugin est choisi pour ce qu'il déclare.
+- Une ligne sur un périmètre de secrets, d'IaC, de dépendances, de licences ou de fin de vie, ou sur
+  un outil importé, n'est pas jugée par langage.
+
+Après une mise à jour vers cette version, chaque ligne sur ces périmètres lit `languages_unrecorded`
+jusqu'à ce que chaque dépôt du projet soit analysé à nouveau — aucune analyse antérieure n'a
+enregistré les langages de ses règles — et un *oui* automatique que Vectispire y avait donné est
+retiré à la mesure suivante.
 
 Les chiffres du passif excluent le **triage réglé** des deux côtés — *non affecté*, *corrigé* — et
 comptent tout autre statut, y compris un statut que cette version ne connaît pas.

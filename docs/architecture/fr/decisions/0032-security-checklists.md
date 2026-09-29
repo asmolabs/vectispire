@@ -731,3 +731,44 @@ dans le code :
   l'import ; une ouverture répond juste après son propre commit, pour que la réponse montre les réponses.
   Le réglage `checklist_auto_answer` appartient au gouverneur de plateforme, comme les autres règles, et
   est audité comme réglage de sécurité.
+
+## Amendement (2026-09-29) — l'analyse statique ne compte que ce qu'elle a lu
+
+**Le trou.** Le §6 lit un périmètre de constats comme examiné quand son étape a *produit*. L'étape SAST
+intégrée produit dès que Semgrep tourne — avec les seules règles embarquées, un motif Python — si bien
+qu'un dépôt Java mesurait `builtin:sast` à zéro constat et passait : rien trouvé, parce que rien lu.
+Depuis l'amendement précédent, ce succès est un *oui* automatique dans un document signé. La décision
+[0007](0007-none-is-not-an-empty-list.md) une fois de plus : une étape qui ne savait pas lire l'arbre
+n'a pas regardé.
+
+**La résolution.** `builtin:sast`, `builtin:quality` (Semgrep tous deux) et chaque `plugin:<id>` sont
+jugés sur les langages qu'a enregistrés l'analyse examinée — jamais sur les règles ou le manifeste
+d'aujourd'hui, qui laisseraient un jeu activé après l'analyse revendiquer une couverture qu'elle n'a
+jamais eue :
+
+- les langages de l'arbre : le recensement de l'analyse (`detected_languages`, V57) ;
+- la portée de Semgrep : les langages des règles que portait sa tâche (`sast_languages`, V58), écrits
+  par le plan de contrôle quand il construit la tâche, depuis l'empreinte même que la tâche nomme — les
+  règles embarquées plus le jeu actif, chaque fichier compté pour son répertoire du catalogue, jamais en
+  analysant son YAML (`RuleSet`) ;
+- la portée d'un plugin : les langages du manifeste que l'analyse a nommé par son empreinte (les
+  manifestes sont gardés pour toujours).
+
+**Deux raisons rejoignent l'ensemble fermé.** `LANGUAGE_NOT_ANALYSED` : un langage source de l'arbre
+qu'aucune règle ne lit — pour les étapes intégrées, *chaque* langage source doit être lu, donc Java lu
+et TypeScript non, c'est pas de données ; un plugin, choisi pour ce qu'il déclare, doit avoir lu un des
+langages de l'arbre, et les preuves nomment les langages source qu'il ne lit pas sans refuser la ligne
+pour eux. `LANGUAGES_UNRECORDED` : un des deux côtés inconnu — une analyse d'avant V57 ou V58, un
+recensement arrêté à sa borne, un manifeste qui n'est plus connu.
+
+**Les langages source** sont le vocabulaire moins `json`, `yaml`, `html`, `dockerfile` et `terraform`
+(`SourceLanguages`, un `switch` exhaustif). `bash` compte. Un arbre sans aucun langage source que le
+recensement connaît est `LANGUAGE_NOT_ANALYSED` : du code dans un langage hors du vocabulaire n'est pas
+du code que personne n'a écrit.
+
+**Coûts acceptés.** Chaque ligne sur ces périmètres mesure `LANGUAGES_UNRECORDED` après la mise à jour
+jusqu'à la prochaine analyse de chaque dépôt, et le *oui* automatique de Vectispire est retiré par le
+chemin existant ; le précédent est `EXAMINATION_UNRECORDED`. Les règles qu'un exécuteur lit dans son
+propre `VECTISPIRE_SEMGREP_RULES_DIR` ne sont pas comptées, et une règle `javascript/` qui lit aussi
+TypeScript compte pour JavaScript seul : les deux erreurs empêchent une ligne de passer et n'en font
+jamais passer une. Les outils importés n'enregistrent aucun langage et n'en sont pas jugés.
