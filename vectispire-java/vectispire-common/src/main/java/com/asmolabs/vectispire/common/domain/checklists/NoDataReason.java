@@ -20,8 +20,22 @@ public enum NoDataReason {
      * them, which is not 0 of 0.
      */
     STEP_ABSENT,
+    /**
+     * The analysis produced, on a tree none — or not all — of whose source languages it reads: the
+     * built-in SAST or quality step whose Semgrep rules read none of some source language the scan's
+     * census found ({@link SourceLanguages}), or a plugin that produced on a tree holding none of the
+     * languages its manifest declares. Nothing found, because nothing was read.
+     */
+    LANGUAGE_NOT_ANALYSED,
     /** The scans within the age predate {@code examined_types}: whether the step ran is unknown. */
     EXAMINATION_UNRECORDED,
+    /**
+     * The scan the analysis produced in did not record its tree's languages (no whole census: a scan
+     * from before V57, a walk stopped at its bound, an agent older than the census), or not the
+     * languages its analysis reads (the Semgrep rules of a scan from before V58, a plugin manifest no
+     * longer known): whether it read the tree is unknown.
+     */
+    LANGUAGES_UNRECORDED,
     /** The newest scan or import in which the scope produced is older than the maximum age. */
     STALE,
     /** A plugin was not applicable on every repository: a line passed by a tool that looked at nothing is refused. */

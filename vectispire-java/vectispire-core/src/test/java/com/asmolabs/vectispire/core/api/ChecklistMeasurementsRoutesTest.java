@@ -208,7 +208,8 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             assertThat(measurements(developer, project, 1).at("/lines/0/measurement/reason").asText())
                     .isEqualTo("not_applicable_anywhere");
 
-            scan(second, hoursAgo(1), "secret", plugin("java-arch", "produced"), true);
+            // Produced under a manifest the plugins keep: its languages, the scan's census, say it read Java.
+            scan(second, hoursAgo(1), "secret", plugin("java-arch", registeredPlugin("java-arch"), "produced"), true);
             JsonNode somewhere = measurements(developer, project, 1).at("/lines/0/measurement");
             assertThat(somewhere.at("/outcome").asText())
                     .as("the repository it skipped is out of the figures, its old issue with it").isEqualTo("pass");
@@ -1064,8 +1065,19 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         return Instant.now().minus(Duration.ofHours(hours)).minusSeconds(1);
     }
 
+    /**
+     * A scan as today's executors record one: a Java tree, counted whole, and a task whose SAST rules read
+     * Java and the bundled Python — so a static analysis line is judged on its backlog, as these tests mean.
+     */
     private long scan(long repositoryId, Instant createdAt, String examinedTypes, String pluginSteps, boolean sbom) {
+        return scan(repositoryId, createdAt, examinedTypes, pluginSteps, sbom, "java", "java,python");
+    }
+
+    private long scan(long repositoryId, Instant createdAt, String examinedTypes, String pluginSteps, boolean sbom,
+            String detectedLanguages, String sastLanguages) {
         ScanEntity scan = new ScanEntity();
+        scan.setDetectedLanguages(detectedLanguages);
+        scan.setSastLanguages(sastLanguages);
         scan.setRepoId(repositoryId);
         scan.setBranch("main");
         scan.setStatus(ScanStatus.COMPLETED.wireName());
@@ -1079,8 +1091,31 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
 
     /** A scan's plugin steps as the ingestor writes them: one outcome, its state one of decision 0017's three. */
     private static String plugin(String id, String state) {
-        return "[{\"pluginId\":\"" + id + "\",\"manifestDigest\":\"sha256:" + "a".repeat(64) + "\",\"state\":\"" + state
+        return plugin(id, "sha256:" + "a".repeat(64), state);
+    }
+
+    private static String plugin(String id, String digest, String state) {
+        return "[{\"pluginId\":\"" + id + "\",\"manifestDigest\":\"" + digest + "\",\"state\":\"" + state
                 + "\",\"findings\":" + (state.equals("produced") ? "0" : "null") + ",\"languages\":[],\"reason\":null}]";
+    }
+
+    /** A plugin registered through its route, reading Java and Kotlin; answers the digest a scan's task names. */
+    private String registeredPlugin(String id) throws Exception {
+        String governor = tokenFor("governor-" + System.nanoTime(), Role.SUPERUSER, false);
+        String digest = "sha256:" + "b".repeat(64);
+        Map<String, Object> manifest = new LinkedHashMap<>();
+        manifest.put("id", id);
+        manifest.put("name", "Architecture rules");
+        manifest.put("image", "registry.acme.internal/sec/" + id + "@" + digest);
+        manifest.put("languages", List.of("java", "kotlin"));
+        manifest.put("arguments", List.of("--sarif", "{output}", "{source}"));
+        manifest.put("output", "results.sarif");
+        manifest.put("exit_codes", List.of(0, 1));
+        manifest.put("network", false);
+        manifest.put("timeout_seconds", 600);
+        return read(mvc.perform(authenticated(post("/api/v1/plugins"), governor)
+                        .contentType(MediaType.APPLICATION_JSON).content(write(manifest)))
+                .andExpect(status().isCreated())).at("/manifestDigest").asText();
     }
 
     private long issue(long repositoryId, String type, String tool, String severity, String state, String triage) {

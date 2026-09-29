@@ -15,12 +15,15 @@ import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ScopeFa
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Source;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Suite;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.TestReport;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ScanLanguages;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -100,9 +103,11 @@ class RuleEvaluationTest {
             assertThat(nowhere.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
             assertThat(nowhere.reason()).contains(NoDataReason.NOT_APPLICABLE_ANYWHERE);
 
-            PluginRuns produced = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.PRODUCED)), 1, false);
+            PluginRuns produced = new PluginRuns(List.of(new PluginRun(look(FRESH), PluginState.PRODUCED,
+                    Optional.of(Set.of(Language.JAVA)))), 1, false);
             Measurement somewhere = RuleEvaluation.evaluate(rule, facts(List.of(1L, 2L))
                     .scope("plugin:java-arch", 1L, produced).scope("plugin:java-arch", 2L, skipped)
+                    .languages(look(FRESH), Set.of(Language.JAVA), Set.of())
                     .count("plugin:java-arch", 2L, "high", "open", 5).build(), NOW);
             assertThat(somewhere.outcome()).as("the repository it skipped is out of the figures").isEqualTo(MeasurementOutcome.PASS);
         }
@@ -179,7 +184,8 @@ class RuleEvaluationTest {
         void resolvedRatio() {
             ChecklistRule rule = ChecklistRule.parse("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,"
                     + "\"scopes\":[\"builtin:sast\"],\"thresholds\":{\"medium\":{\"minResolvedRatio\":0.6}}}");
-            Builder facts = facts(List.of(1L)).scope("builtin:sast", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0));
+            Builder facts = facts(List.of(1L)).scope("builtin:sast", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .languages(look(FRESH), Set.of(Language.JAVA), Set.of(Language.JAVA));
             assertThat(RuleEvaluation.evaluate(rule, facts.build(), NOW).outcome())
                     .as("nothing to resolve").isEqualTo(MeasurementOutcome.PASS);
             assertThat(RuleEvaluation.evaluate(rule, facts.count("builtin:sast", 1L, "medium", "resolved", 3)
@@ -299,6 +305,136 @@ class RuleEvaluationTest {
         }
     }
 
+    @Nested
+    @DisplayName("the static analysis counts only what it read")
+    class WhatWasRead {
+
+        private static final ChecklistRule SAST = ChecklistRule.parse("""
+                {"kind":"findings_threshold","maxAgeDays":7,"scopes":["builtin:sast"],
+                 "thresholds":{"critical":{"maxOpen":0}}}""");
+
+        private static final ChecklistRule PLUGIN = ChecklistRule.parse("""
+                {"kind":"findings_threshold","maxAgeDays":7,"scopes":["plugin:java-arch"],
+                 "thresholds":{"critical":{"maxOpen":0}}}""");
+
+        private Builder sast(Set<Language> detected, Set<Language> rules) {
+            return facts(List.of(1L)).scope("builtin:sast", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .languages(look(FRESH), detected, rules);
+        }
+
+        @Test
+        @DisplayName("SAST that produced on a tree whose languages none of its rules read has no data, never a pass")
+        void noLanguageRead() {
+            // The demo instance: Java and JavaScript behind a build script, the bundled rule reading Python alone.
+            Measurement measured = RuleEvaluation.evaluate(SAST, sast(
+                    Set.of(Language.JAVA, Language.JAVASCRIPT, Language.HTML, Language.JSON, Language.YAML, Language.BASH),
+                    Set.of(Language.PYTHON)).build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(measured.reason()).contains(NoDataReason.LANGUAGE_NOT_ANALYSED);
+            assertThat(measured.repositories().getFirst().status()).isEqualTo("language_not_analysed");
+            assertThat(measured.repositories().getFirst().detail()).hasValueSatisfying(detail -> assertThat(detail)
+                    .startsWith("not analysed: bash, java, javascript")
+                    .contains("its SAST rules read python"));
+            assertThat(measured.summary()).contains("not analysed: bash, java, javascript");
+        }
+
+        @Test
+        @DisplayName("SAST whose rules read every source language of the tree is examined; data and markup need no rule")
+        void everySourceLanguageRead() {
+            Measurement measured = RuleEvaluation.evaluate(SAST, sast(
+                    Set.of(Language.JAVA, Language.JSON, Language.YAML, Language.HTML, Language.DOCKERFILE, Language.TERRAFORM),
+                    Set.of(Language.JAVA, Language.PYTHON)).build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.PASS);
+            assertThat(measured.repositories().getFirst().detail()).contains("source languages analysed: java");
+        }
+
+        @Test
+        @DisplayName("SAST that read Java and not TypeScript has no data: the part nobody read is not examined")
+        void partialCoverage() {
+            Measurement measured = RuleEvaluation.evaluate(SAST, sast(Set.of(Language.JAVA, Language.TYPESCRIPT),
+                    Set.of(Language.JAVA)).build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(measured.reason()).contains(NoDataReason.LANGUAGE_NOT_ANALYSED);
+            assertThat(measured.repositories().getFirst().detail()).hasValueSatisfying(detail -> assertThat(detail)
+                    .startsWith("not analysed: typescript").contains("source languages in its tree: java, typescript"));
+        }
+
+        @Test
+        @DisplayName("a tree with no source language the census knows is not one whose code was analysed")
+        void noSourceLanguage() {
+            Measurement measured = RuleEvaluation.evaluate(SAST, sast(Set.of(Language.YAML), Set.of(Language.PYTHON))
+                    .build(), NOW);
+            assertThat(measured.reason()).contains(NoDataReason.LANGUAGE_NOT_ANALYSED);
+            assertThat(measured.repositories().getFirst().detail().orElseThrow()).contains("no source language");
+        }
+
+        @Test
+        @DisplayName("languages unrecorded on either side — the census or the rules — are no data, never a pass")
+        void unrecorded() {
+            Measurement noCensus = RuleEvaluation.evaluate(SAST, sast(null, Set.of(Language.JAVA)).build(), NOW);
+            assertThat(noCensus.reason()).contains(NoDataReason.LANGUAGES_UNRECORDED);
+            assertThat(noCensus.repositories().getFirst().detail().orElseThrow()).contains("recorded no census");
+            Measurement noRules = RuleEvaluation.evaluate(SAST, sast(Set.of(Language.JAVA), null).build(), NOW);
+            assertThat(noRules.reason()).contains(NoDataReason.LANGUAGES_UNRECORDED);
+            assertThat(noRules.repositories().getFirst().detail().orElseThrow()).contains("SAST rules");
+            Measurement nothing = RuleEvaluation.evaluate(SAST, facts(List.of(1L))
+                    .scope("builtin:sast", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0)).build(), NOW);
+            assertThat(nothing.reason()).as("a scan nothing is known of").contains(NoDataReason.LANGUAGES_UNRECORDED);
+        }
+
+        @Test
+        @DisplayName("the quality step is Semgrep too, and the other built-in steps read no language")
+        void whichScopes() {
+            ChecklistRule quality = ChecklistRule.parse("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,"
+                    + "\"scopes\":[\"builtin:quality\"],\"thresholds\":{\"critical\":{\"maxOpen\":0}}}");
+            assertThat(RuleEvaluation.evaluate(quality, facts(List.of(1L))
+                    .scope("builtin:quality", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .languages(look(FRESH), Set.of(Language.GO), Set.of(Language.PYTHON)).build(), NOW).reason())
+                    .contains(NoDataReason.LANGUAGE_NOT_ANALYSED);
+            assertThat(RuleEvaluation.evaluate(SECRETS, facts(List.of(1L))
+                    .scope("builtin:secret", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0)).build(), NOW).outcome())
+                    .as("secrets are looked for in any language").isEqualTo(MeasurementOutcome.PASS);
+        }
+
+        private Builder plugin(PluginState state, Set<Language> reads, Set<Language> detected) {
+            return facts(List.of(1L)).scope("plugin:java-arch", 1L, new PluginRuns(List.of(
+                            new PluginRun(look(FRESH), state, Optional.ofNullable(reads))), 1, false))
+                    .languages(look(FRESH), detected, null);
+        }
+
+        @Test
+        @DisplayName("a plugin that produced on a tree holding one of its languages is examined, the rest named")
+        void pluginRead() {
+            Measurement measured = RuleEvaluation.evaluate(PLUGIN, plugin(PluginState.PRODUCED, Set.of(Language.JAVA),
+                    Set.of(Language.JAVA, Language.TYPESCRIPT, Language.YAML)).build(), NOW);
+            assertThat(measured.outcome()).as("a plugin is judged on what it declares").isEqualTo(MeasurementOutcome.PASS);
+            assertThat(measured.repositories().getFirst().detail())
+                    .contains("it reads java; source languages in its tree it does not read: typescript");
+        }
+
+        @Test
+        @DisplayName("a plugin that produced on a tree holding none of its languages, or on an uncounted one, has no data")
+        void pluginReadNothing() {
+            assertThat(RuleEvaluation.evaluate(PLUGIN, plugin(PluginState.PRODUCED, Set.of(Language.JAVA),
+                    Set.of(Language.PYTHON)).build(), NOW).reason()).contains(NoDataReason.LANGUAGE_NOT_ANALYSED);
+            assertThat(RuleEvaluation.evaluate(PLUGIN, plugin(PluginState.PRODUCED, Set.of(Language.JAVA), null)
+                    .build(), NOW).reason()).as("no census: an incomplete one runs every plugin")
+                    .contains(NoDataReason.LANGUAGES_UNRECORDED);
+            assertThat(RuleEvaluation.evaluate(PLUGIN, plugin(PluginState.PRODUCED, null, Set.of(Language.JAVA))
+                    .build(), NOW).reason()).as("the manifest the scan named is not known")
+                    .contains(NoDataReason.LANGUAGES_UNRECORDED);
+        }
+
+        @Test
+        @DisplayName("a plugin not applicable to the project's only repository has no data")
+        void pluginNotApplicable() {
+            Measurement measured = RuleEvaluation.evaluate(PLUGIN, plugin(PluginState.NOT_APPLICABLE, Set.of(Language.JAVA),
+                    Set.of(Language.PYTHON)).build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.NO_DATA);
+            assertThat(measured.reason()).contains(NoDataReason.NOT_APPLICABLE_ANYWHERE);
+        }
+    }
+
     @Test
     @DisplayName("the stored evidence reads back as written, and its digest follows it")
     void evidenceRoundTrip() {
@@ -327,6 +463,7 @@ class RuleEvaluationTest {
         private final Map<Long, CoverageReport> coverage = new HashMap<>();
         private final Map<Long, TestReport> tests = new HashMap<>();
         private final Map<Long, List<Component>> components = new HashMap<>();
+        private final Map<Long, ScanLanguages> languages = new HashMap<>();
 
         Builder(List<Long> repositories) {
             this.repositories = repositories;
@@ -364,6 +501,12 @@ class RuleEvaluationTest {
             return this;
         }
 
+        /** What the scan behind {@code look} recorded; null for a side it did not record. */
+        Builder languages(Look look, Set<Language> detected, Set<Language> sastRules) {
+            languages.put(look.id(), new ScanLanguages(Optional.ofNullable(detected), Optional.ofNullable(sastRules)));
+            return this;
+        }
+
         MeasurementFacts build() {
             Map<String, Map<Long, List<IssueCount>>> copied = new HashMap<>();
             counts.forEach((key, byRepository) -> {
@@ -371,7 +514,7 @@ class RuleEvaluationTest {
                 byRepository.forEach((repository, list) -> inner.put(repository, List.copyOf(list)));
                 copied.put(key, inner);
             });
-            return new MeasurementFacts(repositories, scopes, copied, scheduled, coverage, tests, components);
+            return new MeasurementFacts(repositories, scopes, copied, scheduled, coverage, tests, components, languages);
         }
     }
 }

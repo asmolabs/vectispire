@@ -11,12 +11,16 @@ import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Source;
 import com.asmolabs.vectispire.common.domain.checklists.RuleEvaluation;
 import com.asmolabs.vectispire.common.domain.checklists.ToolScope;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
+import com.asmolabs.vectispire.common.domain.plugins.PluginManifest;
+import com.asmolabs.vectispire.common.domain.plugins.PluginRef;
 import com.asmolabs.vectispire.common.domain.scheduling.Schedules;
 import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
 import com.asmolabs.vectispire.core.inventory.ComponentCatalog;
 import com.asmolabs.vectispire.core.issues.IssueCatalog;
 import com.asmolabs.vectispire.core.plugins.CoverageImportView;
 import com.asmolabs.vectispire.core.plugins.LatestTestReport;
+import com.asmolabs.vectispire.core.plugins.PluginService;
 import com.asmolabs.vectispire.core.plugins.ReportImportCatalog;
 import com.asmolabs.vectispire.core.plugins.SarifImportView;
 import com.asmolabs.vectispire.core.scanning.PluginOutcome;
@@ -44,7 +48,9 @@ import org.springframework.stereotype.Component;
  * each plugin's state ({@code scanning}); the imports say which accepted a tool, and the newest coverage
  * and test report ({@code plugins}); the backlog counts by scope, settled triage left out ({@code
  * issues}); the inventory lists an SBOM's components ({@code inventory}); the repositories carry their
- * schedules ({@code targets}). No other module's repository is read, and no statement names another
+ * schedules ({@code targets}); the static analysis and the plugins are judged by the languages the scan
+ * they produced in recorded — its census, its rules' languages ({@code scanning}), the manifest it named
+ * ({@code plugins}). No other module's repository is read, and no statement names another
  * module's entity: every question is a method of its owner's API.
  *
  * <p><b>Batched by the owners.</b> A project's repositories reach every one of those questions a
@@ -66,14 +72,16 @@ class ChecklistMeasurer {
     private final ReportImportCatalog imports;
     private final ComponentCatalog components;
     private final TargetCatalog targets;
+    private final PluginService plugins;
 
     ChecklistMeasurer(ScanCatalog scans, IssueCatalog issues, ReportImportCatalog imports, ComponentCatalog components,
-            TargetCatalog targets) {
+            TargetCatalog targets, PluginService plugins) {
         this.scans = scans;
         this.issues = issues;
         this.imports = imports;
         this.components = components;
         this.targets = targets;
+        this.plugins = plugins;
     }
 
     /** Every bound line of {@code items}, measured over these repositories at {@code now}, in their order. */
@@ -103,6 +111,7 @@ class ChecklistMeasurer {
         Map<Long, MeasurementFacts.CoverageReport> coverage = Map.of();
         Map<Long, MeasurementFacts.TestReport> tests = Map.of();
         Map<Long, List<MeasurementFacts.Component>> listed = Map.of();
+        Set<Long> languageScans = new java.util.HashSet<>();
         if (repositories.isEmpty()) {
             return new MeasurementFacts(repositories, scopes, counts, scheduled, coverage, tests, listed);
         }
@@ -120,12 +129,19 @@ class ChecklistMeasurer {
                 for (ToolScope scope : findings.scopes()) {
                     switch (scope) {
                         case ToolScope.BuiltIn builtIn -> {
-                            scopes.put(scope.key(), scanned(repositories, builtIn.type(), since).facts());
+                            Scanned scanned = scanned(repositories, builtIn.type(), since);
+                            scopes.put(scope.key(), scanned.facts());
+                            if (builtIn.type() == FindingType.SAST || builtIn.type() == FindingType.QUALITY) {
+                                scanned.newest().values().forEach(row -> languageScans.add(row.scanId()));
+                            }
                             counts.put(scope.key(), counts(issues.countUnsettledOfTypeWithin(builtIn.type().wireName(),
                                     repositories)));
                         }
                         case ToolScope.Plugin plugin -> {
-                            scopes.put(scope.key(), plugin(repositories, plugin.pluginId(), since));
+                            Map<Long, ScopeFacts> runs = plugin(repositories, plugin.pluginId(), since);
+                            scopes.put(scope.key(), runs);
+                            runs.values().forEach(facts -> ((MeasurementFacts.PluginRuns) facts).withinAge()
+                                    .forEach(run -> languageScans.add(run.scan().id())));
                             counts.put(scope.key(), counts(issues.countUnsettledOfToolWithin(scope.key(), repositories)));
                         }
                         case ToolScope.Imported imported -> {
@@ -144,7 +160,19 @@ class ChecklistMeasurer {
                 listed = components(scanned.newest());
             }
         }
-        return new MeasurementFacts(repositories, scopes, counts, scheduled, coverage, tests, listed);
+        return new MeasurementFacts(repositories, scopes, counts, scheduled, coverage, tests, listed,
+                languages(languageScans));
+    }
+
+    /** What the scans a language-scoped analysis produced in recorded of languages, by scan id. */
+    private Map<Long, MeasurementFacts.ScanLanguages> languages(Set<Long> scanIds) {
+        if (scanIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, MeasurementFacts.ScanLanguages> languages = new HashMap<>();
+        scans.languagesOf(scanIds).forEach((scanId, recorded) ->
+                languages.put(scanId, new MeasurementFacts.ScanLanguages(recorded.detected(), recorded.sastRules())));
+        return languages;
     }
 
     /** A built-in step's facts per repository, and the newest scans in which it produced, at any age. */
@@ -172,10 +200,18 @@ class ChecklistMeasurer {
         Map<Long, ScanCatalog.ScansWithin> within = scans.completedWithin(repositories, since);
         Set<Long> namedBefore = scans.namingPluginBefore(repositories, pluginId, since);
         Map<Long, ScopeFacts> facts = new HashMap<>();
+        // By the digest each scan named, never the plugin's current manifest: an update that added a
+        // language would otherwise claim it for scans that ran without it. Manifests are kept forever
+        // (`PluginService.manifest`), and a project's scans name few of them.
+        Map<String, Optional<Set<Language>>> declared = new HashMap<>();
         for (long repository : repositories) {
             List<MeasurementFacts.PluginRun> states = runs.getOrDefault(repository, List.of()).stream()
                     .map(run -> new MeasurementFacts.PluginRun(
-                            new Look(Source.SCAN, run.scanId(), run.createdAt(), Optional.empty()), state(run.outcome())))
+                            new Look(Source.SCAN, run.scanId(), run.createdAt(), Optional.empty()), state(run.outcome()),
+                            run.outcome().manifestDigest() == null
+                                    ? Optional.empty()
+                                    : declared.computeIfAbsent(run.outcome().manifestDigest(), digest -> plugins
+                                            .manifest(new PluginRef(pluginId, digest)).map(PluginManifest::languages))))
                     .toList();
             ScanCatalog.ScansWithin counted = within.get(repository);
             facts.put(repository, new MeasurementFacts.PluginRuns(states, counted == null ? 0 : (int) counted.completed(),

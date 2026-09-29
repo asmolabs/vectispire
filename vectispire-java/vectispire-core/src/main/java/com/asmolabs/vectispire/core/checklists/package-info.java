@@ -38,11 +38,13 @@
  * <ul>
  *   <li>{@code scanning}, {@code scanning::queries}: {@code ScanCatalog} — the newest scan in which a
  *       built-in step produced ({@code ExaminingScanRow}, a published query record), the completed
- *       scans within an age and the unrecorded among them, each plugin's state per scan;
+ *       scans within an age and the unrecorded among them, each plugin's state per scan, and the
+ *       languages a scan recorded — its census, its SAST rules';
  *   <li>{@code issues}: {@code IssueCatalog} — the backlog of a scope counted per repository, severity
  *       and state, settled triage left out by the owner's {@code not in};
  *   <li>{@code plugins}: {@code ReportImportCatalog} — the newest SARIF import carrying a tool, the
- *       newest coverage and test report (§7);
+ *       newest coverage and test report (§7); {@code PluginService.manifest} — the languages a plugin's
+ *       manifest declared, by the digest a scan named;
  *   <li>{@code inventory}: {@code ComponentCatalog} — the components of the newest analysed SBOM, for
  *       the component rule.
  * </ul>

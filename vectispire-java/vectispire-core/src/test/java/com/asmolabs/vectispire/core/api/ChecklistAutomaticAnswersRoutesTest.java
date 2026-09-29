@@ -68,6 +68,10 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
     private static final Map<String, Object> COVERAGE = Map.of("kind", "coverage_threshold", "maxAgeDays", 7,
             "metric", "line", "minimumRatio", 0.8, "aggregation", "per_repository");
 
+    /** A static analysis line: no critical finding of Semgrep's rules — judged only where they read the tree. */
+    private static final Map<String, Object> SAST = Map.of("kind", "findings_threshold", "maxAgeDays", 7,
+            "scopes", List.of("builtin:sast"), "thresholds", Map.of("critical", Map.of("maxOpen", 0)));
+
     private static final String CLEAN = """
             {"secrets":[], "iac":[], "duration":"PT1S"}
             """;
@@ -265,6 +269,39 @@ class ChecklistAutomaticAnswersRoutesTest extends ApiTestBase {
             JsonNode line = json.readTree(unzip(zip).get("checklist.json")).at("/lines/1");
             assertThat(line.at("/answer").isNull()).as("a withdrawn answer is no answer").isTrue();
             assertThat(line.at("/history/2/withdrawn").asBoolean()).isTrue();
+        }
+
+        @Test
+        @DisplayName("a static analysis yes is withdrawn once the tree holds a source language its rules do not read")
+        void aLanguageNobodyReadWithdrawsTheYes() throws Exception {
+            // A false pass here is an automatic "yes, static analysis" in a signed document, on code nobody read.
+            settings.set(Setting.SAST_ENABLED, "true");
+            publish("release", List.of(SECRETS, SAST), false);
+            open(developer, "release", null);
+
+            // A Python tree, and the bundled rule reads Python: examined, nothing found, answered yes.
+            completeScan("""
+                    {"secrets":[], "sast":[], "languages":["python","yaml"], "duration":"PT1S"}
+                    """);
+            assertThat(scans.findAll()).extracting(ScanEntity::getSastLanguages)
+                    .as("recorded by the dispatcher from the rules the task carried").containsExactly("python");
+            long sastLine = itemIds(read(developer, 1)).get(1);
+            assertThat(read(developer, 1).at("/lines/1/answer/value").asText()).isEqualTo("yes");
+
+            // Java arrives beside it, and no rule of the task reads Java: no data, and Vectispire's yes withdrawn.
+            completeScan("""
+                    {"secrets":[], "sast":[], "languages":["java","python","yaml"], "duration":"PT1S"}
+                    """);
+            JsonNode measurement = read(mvc.perform(authenticated(get(base() + "/1/measurements"), developer.token()))
+                    .andExpect(status().isOk())).at("/lines/1/measurement");
+            assertThat(measurement.at("/outcome").asText()).isEqualTo("no_data");
+            assertThat(measurement.at("/reason").asText()).isEqualTo("language_not_analysed");
+            assertThat(measurement.at("/evidence/summary").asText()).contains("not analysed: java");
+            assertThat(read(developer, 1).at("/lines/1/answer").isNull()).as("withdrawn: no current answer").isTrue();
+            assertThat(read(developer, 1).at("/lines/0/answer/value").asText()).as("the secrets line stands")
+                    .isEqualTo("yes");
+            JsonNode history = history(1, sastLine).at("/answers");
+            assertThat(history).extracting(row -> row.at("/withdrawn").asBoolean()).containsExactly(false, true);
         }
 
         @Test

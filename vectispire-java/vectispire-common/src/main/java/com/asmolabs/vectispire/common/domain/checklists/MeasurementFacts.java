@@ -1,11 +1,13 @@
 package com.asmolabs.vectispire.common.domain.checklists;
 
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * What the owners of the evidence answered about a project's repositories — the scans, the plugins'
@@ -29,6 +31,8 @@ import java.util.Optional;
  * @param tests each repository's newest test report, at any age
  * @param components the components of each repository's newest scan in which the dependency step
  *     produced, at any age — the scan {@code scopes} names for {@code builtin:vulnerability}
+ * @param languages by scan id, what the scans a language-scoped analysis produced in recorded of
+ *     languages — the static analysis steps and the plugins; a scan missing here recorded nothing
  */
 public record MeasurementFacts(
         List<Long> repositoryIds,
@@ -37,7 +41,15 @@ public record MeasurementFacts(
         Map<Long, Boolean> scheduled,
         Map<Long, CoverageReport> coverage,
         Map<Long, TestReport> tests,
-        Map<Long, List<Component>> components) {
+        Map<Long, List<Component>> components,
+        Map<Long, ScanLanguages> languages) {
+
+    /** Facts for rules that read no language — every one but the static analysis and the plugins. */
+    public MeasurementFacts(List<Long> repositoryIds, Map<String, Map<Long, ScopeFacts>> scopes,
+            Map<String, Map<Long, List<IssueCount>>> counts, Map<Long, Boolean> scheduled,
+            Map<Long, CoverageReport> coverage, Map<Long, TestReport> tests, Map<Long, List<Component>> components) {
+        this(repositoryIds, scopes, counts, scheduled, coverage, tests, components, Map.of());
+    }
 
     public MeasurementFacts {
         repositoryIds = List.copyOf(repositoryIds);
@@ -47,6 +59,7 @@ public record MeasurementFacts(
         coverage = Map.copyOf(coverage);
         tests = Map.copyOf(tests);
         components = Map.copyOf(components);
+        languages = Map.copyOf(languages);
     }
 
     /** Where a piece of evidence was read. */
@@ -101,11 +114,20 @@ public record MeasurementFacts(
         ABSENT
     }
 
-    public record PluginRun(Look scan, PluginState state) {
+    /**
+     * @param reads the languages the plugin's manifest declared in that scan — the manifest the scan
+     *     named by its digest, never the plugin's current one; empty when that manifest is not known
+     */
+    public record PluginRun(Look scan, PluginState state, Optional<Set<Language>> reads) {
 
         public PluginRun {
             Objects.requireNonNull(scan, "scan");
             Objects.requireNonNull(state, "state");
+            reads = reads.map(Set::copyOf);
+        }
+
+        public PluginRun(Look scan, PluginState state) {
+            this(scan, state, Optional.empty());
         }
     }
 
@@ -135,6 +157,21 @@ public record MeasurementFacts(
 
         public Imported {
             Objects.requireNonNull(newestProducing, "newestProducing");
+        }
+    }
+
+    /**
+     * What one scan recorded of languages. Each is empty where it recorded none, which is unknown —
+     * never the empty set, which is "counted, and none".
+     *
+     * @param detected the languages its census found in the tree ({@code detected_languages})
+     * @param sastRules the languages the Semgrep rules of its task read ({@code sast_languages})
+     */
+    public record ScanLanguages(Optional<Set<Language>> detected, Optional<Set<Language>> sastRules) {
+
+        public ScanLanguages {
+            detected = detected.map(Set::copyOf);
+            sastRules = sastRules.map(Set::copyOf);
         }
     }
 

@@ -14,18 +14,22 @@ import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Look;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginRun;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginRuns;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.PluginState;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ScanLanguages;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Scanned;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.ScopeFacts;
+import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Source;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.Suite;
 import com.asmolabs.vectispire.common.domain.checklists.MeasurementFacts.TestReport;
 import com.asmolabs.vectispire.common.domain.issues.FindingType;
 import com.asmolabs.vectispire.common.domain.issues.IssueState;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -66,11 +70,22 @@ public final class RuleEvaluation {
     /** What one scope was on one repository, once the rules have read its facts. */
     sealed interface ScopeState permits Examined, NotApplicable, Missing {}
 
-    record Examined(Look look) implements ScopeState {}
+    /** @param note what the evidence adds to "examined" — which languages were read, for one */
+    record Examined(Look look, Optional<String> note) implements ScopeState {
+
+        Examined(Look look) {
+            this(look, Optional.empty());
+        }
+    }
 
     record NotApplicable(Look look) implements ScopeState {}
 
-    record Missing(NoDataReason reason, Optional<Look> newest) implements ScopeState {}
+    record Missing(NoDataReason reason, Optional<Look> newest, Optional<String> detail) implements ScopeState {
+
+        Missing(NoDataReason reason, Optional<Look> newest) {
+            this(reason, newest, Optional.empty());
+        }
+    }
 
     public static Measurement evaluate(ChecklistRule rule, MeasurementFacts facts, Instant now) {
         Objects.requireNonNull(rule, "rule");
@@ -153,6 +168,106 @@ public final class RuleEvaluation {
         };
     }
 
+    // ------------------------------------------------------------------ what the analysis read
+
+    /**
+     * An examined scope, asked whether its analysis read the tree it produced on — for the scopes whose
+     * reach is a set of languages: the built-in SAST and quality steps, which are Semgrep and its rules,
+     * and every plugin, which declares the languages it reads. The other scopes are returned as they
+     * came: a secret, a misconfiguration or a vulnerable dependency is looked for whatever the code's
+     * language, and an import records no language at all.
+     *
+     * <p><b>Judged on the scan the measurement rests on</b>, by what that scan recorded: its census of
+     * the tree, the languages of the rules its task carried, the manifest it named. The rules or the
+     * manifest of today would let a set activated after the scan pass it — coverage the scan never had.
+     *
+     * <p><b>A step that produced on a tree it could not read found nothing because it read nothing</b>
+     * — decision 0007 once more, and the line would carry an automatic <i>yes</i> into a signed document.
+     * So: unknown languages on either side are {@link NoDataReason#LANGUAGES_UNRECORDED}; for the
+     * built-in steps, a source language of the tree ({@link SourceLanguages}) that no rule reads is
+     * {@link NoDataReason#LANGUAGE_NOT_ANALYSED}, even when another is read — "static analysis" said of
+     * a Java and TypeScript repository whose TypeScript nobody read would be the claim refused. A
+     * plugin is a tool chosen for what it declares: it must have read one of the tree's languages, and
+     * the evidence names the source languages it does not read, without refusing the line for them —
+     * a Dockerfile linter bound to a line must be able to pass on a Java repository.
+     */
+    static ScopeState read(ToolScope scope, ScopeFacts scoped, ScopeState state, Map<Long, ScanLanguages> languages) {
+        if (!(state instanceof Examined examined)) {
+            return state;
+        }
+        Look look = examined.look();
+        ScanLanguages recorded = look.source() == Source.SCAN ? languages.get(look.id()) : null;
+        return switch (scope) {
+            case ToolScope.BuiltIn builtIn when builtIn.type() == FindingType.SAST
+                    || builtIn.type() == FindingType.QUALITY -> semgrep(look, recorded);
+            case ToolScope.Plugin ignored -> plugin(look, scoped, recorded);
+            default -> state;
+        };
+    }
+
+    private static ScopeState semgrep(Look look, ScanLanguages recorded) {
+        if (recorded == null || recorded.detected().isEmpty()) {
+            return new Missing(NoDataReason.LANGUAGES_UNRECORDED, Optional.of(look), Optional.of("scan " + look.id()
+                    + " recorded no census of its tree: which languages it holds, and so whether its rules read"
+                    + " any of them, is unknown"));
+        }
+        if (recorded.sastRules().isEmpty()) {
+            return new Missing(NoDataReason.LANGUAGES_UNRECORDED, Optional.of(look), Optional.of("scan " + look.id()
+                    + " did not record which languages its SAST rules read"));
+        }
+        Set<Language> detected = recorded.detected().get();
+        Set<Language> source = SourceLanguages.of(detected);
+        Set<Language> rules = recorded.sastRules().get();
+        String read = "its SAST rules read " + names(rules);
+        if (source.isEmpty()) {
+            return new Missing(NoDataReason.LANGUAGE_NOT_ANALYSED, Optional.of(look), Optional.of("its tree holds no"
+                    + " source language the census recognises (found: " + names(detected) + "); " + read
+                    + " — nothing says its code was analysed"));
+        }
+        Set<Language> unread = source.stream().filter(language -> !rules.contains(language))
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(Language.class)));
+        if (!unread.isEmpty()) {
+            return new Missing(NoDataReason.LANGUAGE_NOT_ANALYSED, Optional.of(look), Optional.of("not analysed: "
+                    + names(unread) + " — source languages in its tree: " + names(source) + "; " + read));
+        }
+        return new Examined(look, Optional.of("source languages analysed: " + names(source)));
+    }
+
+    private static ScopeState plugin(Look look, ScopeFacts scoped, ScanLanguages recorded) {
+        if (recorded == null || recorded.detected().isEmpty()) {
+            // An incomplete census runs every plugin (`LanguageCensus.Census.applies`): produced on a
+            // tree nobody counted, it may have read none of it.
+            return new Missing(NoDataReason.LANGUAGES_UNRECORDED, Optional.of(look), Optional.of("scan " + look.id()
+                    + " recorded no census of its tree: a plugin runs on such a tree whatever its languages, and"
+                    + " may have read nothing"));
+        }
+        Optional<Set<Language>> declared = scoped instanceof PluginRuns runs
+                ? runs.withinAge().stream().filter(run -> run.scan().equals(look)).findFirst()
+                        .flatMap(PluginRun::reads)
+                : Optional.empty();
+        if (declared.isEmpty()) {
+            return new Missing(NoDataReason.LANGUAGES_UNRECORDED, Optional.of(look), Optional.of("the manifest"
+                    + " scan " + look.id() + " ran the plugin with is no longer known: which languages it reads is"
+                    + " unknown"));
+        }
+        Set<Language> detected = recorded.detected().get();
+        Set<Language> reads = declared.get();
+        if (detected.stream().noneMatch(reads::contains)) {
+            return new Missing(NoDataReason.LANGUAGE_NOT_ANALYSED, Optional.of(look), Optional.of("it reads "
+                    + names(reads) + ", and its tree holds none of them (found: " + names(detected) + ")"));
+        }
+        Set<Language> unread = SourceLanguages.of(detected).stream().filter(language -> !reads.contains(language))
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(Language.class)));
+        return new Examined(look, Optional.of("it reads " + names(reads)
+                + (unread.isEmpty() ? "" : "; source languages in its tree it does not read: " + names(unread))));
+    }
+
+    private static String names(Set<Language> languages) {
+        return languages.isEmpty()
+                ? "none"
+                : languages.stream().map(Language::wireName).sorted().collect(Collectors.joining(", "));
+    }
+
     // ------------------------------------------------------------------ the kinds
 
     private static Measurement findings(FindingsThreshold rule, MeasurementFacts facts, List<Long> repositories,
@@ -161,7 +276,7 @@ public final class RuleEvaluation {
         Map<Severity, long[]> totals = new EnumMap<>(Severity.class);
         List<Figure> figures = new ArrayList<>();
         for (ToolScope scope : rule.scopes()) {
-            Set<Long> included = collector.scope(scope.key(), facts, repositories, since, Optional.of(scope.key()));
+            Set<Long> included = collector.scope(scope, facts, repositories, since);
             Map<Severity, long[]> counts = counts(facts.counts().get(scope.key()), included);
             counts.forEach((severity, pair) -> {
                 figures.add(new Figure(scope.key(), severity.wireName(), pair[0], pair[1], Optional.empty(), Optional.empty()));
@@ -406,12 +521,14 @@ public final class RuleEvaluation {
          * One scope over every repository; answers the repositories where it looked. A scope not
          * applicable on every repository is no data of its own: it looked at nothing.
          */
-        Set<Long> scope(String key, MeasurementFacts facts, List<Long> repositories, Instant since, Optional<String> named) {
-            Map<Long, ScopeFacts> scoped = facts.scopes().getOrDefault(key, Map.of());
+        Set<Long> scope(ToolScope scope, MeasurementFacts facts, List<Long> repositories, Instant since) {
+            Map<Long, ScopeFacts> scoped = facts.scopes().getOrDefault(scope.key(), Map.of());
+            Optional<String> named = Optional.of(scope.key());
             Set<Long> examined = new LinkedHashSet<>();
             boolean everywhereNotApplicable = true;
             for (long repository : repositories) {
-                ScopeState state = classify(scoped.get(repository), since);
+                ScopeFacts about = scoped.get(repository);
+                ScopeState state = read(scope, about, classify(about, since), facts.languages());
                 add(repository, named, state);
                 if (state instanceof Examined) {
                     examined.add(repository);
@@ -428,14 +545,15 @@ public final class RuleEvaluation {
             switch (state) {
                 case Examined examined -> {
                     evidence.add(new RepositoryEvidence(repository, scope, RepositoryEvidence.EXAMINED,
-                            Optional.of(examined.look()), Optional.empty(), Optional.empty()));
+                            Optional.of(examined.look()), Optional.empty(), examined.note()));
                     included.add(repository);
                     looks.add(examined.look().at());
                 }
                 case NotApplicable skipped -> evidence.add(new RepositoryEvidence(repository, scope,
                         RepositoryEvidence.NOT_APPLICABLE, Optional.of(skipped.look()), Optional.empty(),
                         Optional.of("the plugin applies to none of its languages; left out of the figures")));
-                case Missing absent -> missing(repository, scope, absent.reason(), absent.newest(), null);
+                case Missing absent -> missing(repository, scope, absent.reason(), absent.newest(),
+                        absent.detail().orElse(null));
             }
         }
 
@@ -470,6 +588,21 @@ public final class RuleEvaluation {
             looks.add(look.at());
         }
 
+        /**
+         * Where a headline's words alone do not say what to do — which languages nobody read, which
+         * record is missing — the first repository's own sentence, so the line's summary names them.
+         */
+        private String firstReason(NoDataReason headline) {
+            if (headline != NoDataReason.LANGUAGE_NOT_ANALYSED && headline != NoDataReason.LANGUAGES_UNRECORDED) {
+                return "";
+            }
+            return evidence.stream()
+                    .filter(line -> line.status().equals(headline.wireName()) && line.detail().isPresent())
+                    .findFirst()
+                    .map(line -> "; repository " + line.repositoryId() + ", " + line.detail().get())
+                    .orElse("");
+        }
+
         Set<Long> included() {
             return included;
         }
@@ -490,7 +623,7 @@ public final class RuleEvaluation {
                         ? "No data (not_applicable_anywhere): the plugin applies to no repository of the project."
                         : "No data (" + headline.wireName() + ") for " + what + ": " + lacking + " of "
                                 + evidence.stream().map(RepositoryEvidence::repositoryId).distinct().count()
-                                + " repositories without evidence.";
+                                + " repositories without evidence" + firstReason(headline) + ".";
                 return new Measurement(MeasurementOutcome.NO_DATA, Optional.of(headline), asOf, evidence, figures, summary);
             }
             List<String> failures = new ArrayList<>(unmet);
