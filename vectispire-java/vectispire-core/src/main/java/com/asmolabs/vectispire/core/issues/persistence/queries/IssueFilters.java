@@ -3,7 +3,10 @@ package com.asmolabs.vectispire.core.issues.persistence.queries;
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.issues.Severity;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The backlog's filters: what a query over the issues asks, never how.
@@ -25,6 +28,12 @@ import java.util.Map;
  * @param onlyKev restricts to actively exploited vulnerabilities, and like {@code onlyDirect}
  *     acts on {@code true} alone. The dashboard has always linked to this filter; nothing read
  *     it, so the most actionable figure on the screen opened the entire backlog
+ * @param repoIdsWithin the repositories of a project or a solution, as their owner listed them at the
+ *     moment of asking, or null for no such narrowing. <b>An empty set matches nothing</b>: a project
+ *     holding no repository has no issue, and reading "none" as "no filter" would answer the whole
+ *     backlog for it. It narrows and never authorises — the visibility is applied beside it — and the
+ *     predicate built from it writes its identifiers into the statement rather than binding them, since
+ *     a project is sized by the data ({@code IssueSpecifications})
  */
 public record IssueFilters(
         String state,
@@ -40,7 +49,32 @@ public record IssueFilters(
         Map<Severity, Instant> overdueBefore,
         Visibility visibility,
         Instant touchingSince,
-        boolean cveOnly) {
+        boolean cveOnly,
+        Set<Long> repoIdsWithin) {
+
+    public IssueFilters {
+        repoIdsWithin = repoIdsWithin == null ? null : Set.copyOf(repoIdsWithin);
+    }
+
+    /** Every criterion but the narrowing to a project's or a solution's repositories. */
+    public IssueFilters(
+            String state,
+            String severity,
+            String type,
+            String triageStatus,
+            Long repoId,
+            Long containerId,
+            boolean onlyDirect,
+            boolean onlyKev,
+            String search,
+            boolean excludeSettled,
+            Map<Severity, Instant> overdueBefore,
+            Visibility visibility,
+            Instant touchingSince,
+            boolean cveOnly) {
+        this(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, null);
+    }
 
     /** Everything the caller asked for, seen by somebody the deployment does not restrict. */
     public IssueFilters(
@@ -105,7 +139,7 @@ public record IssueFilters(
      */
     public IssueFilters touching(Instant windowStart) {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, windowStart, cveOnly);
+                excludeSettled, overdueBefore, visibility, windowStart, cveOnly, repoIdsWithin);
     }
 
     /**
@@ -115,6 +149,20 @@ public record IssueFilters(
      */
     public IssueFilters onlyCves() {
         return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
-                excludeSettled, overdueBefore, visibility, touchingSince, true);
+                excludeSettled, overdueBefore, visibility, touchingSince, true, repoIdsWithin);
+    }
+
+    /**
+     * The issues of these repositories and no others — a project's or a solution's, listed by {@code
+     * targets}, which owns the membership. Narrows what is already narrowed: called twice, it keeps
+     * the repositories both lists name, so a project within a solution it is not in matches nothing.
+     */
+    public IssueFilters within(Collection<Long> repositoryIds) {
+        Set<Long> narrowed = Set.copyOf(repositoryIds);
+        if (repoIdsWithin != null) {
+            narrowed = narrowed.stream().filter(repoIdsWithin::contains).collect(Collectors.toUnmodifiableSet());
+        }
+        return new IssueFilters(state, severity, type, triageStatus, repoId, containerId, onlyDirect, onlyKev, search,
+                excludeSettled, overdueBefore, visibility, touchingSince, cveOnly, narrowed);
     }
 }

@@ -44,6 +44,9 @@ public final class IssueSpecifications {
         if (filters.containerId() != null) {
             predicates.add(builder.equal(root.get("containerId"), filters.containerId()));
         }
+        if (filters.repoIdsWithin() != null) {
+            predicates.add(within(root, builder, filters.repoIdsWithin()));
+        }
         if (filters.onlyDirect()) {
             predicates.add(builder.isTrue(root.get("isDirectDependency")));
         }
@@ -124,6 +127,43 @@ public final class IssueSpecifications {
             }
         }
         return perTarget.isEmpty() ? builder.disjunction() : builder.or(perTarget.toArray(Predicate[]::new));
+    }
+
+    /** How many identifiers one {@code in} list carries: the batch every id-list lookup here uses. */
+    static final int IN_LIST_BATCH = 1_000;
+
+    /**
+     * The rows of these repositories — a project's or a solution's.
+     *
+     * <p><b>Empty is false, not absent</b>, like {@link #visible}: a project that holds no repository
+     * has no issue, and the whole backlog would be the opposite answer.
+     *
+     * <p><b>One statement, and the identifiers written into it rather than bound.</b> A lookup is split
+     * into statements of a thousand identifiers each ({@code TargetCatalog.carryingCredentials}); a page
+     * and its count cannot be, since the order and the total span every repository at once. Bound, one
+     * parameter per repository, the statement failed on PostgreSQL past 65,535 — the driver's ceiling,
+     * measured by {@code ProjectBacklogIntegrationTest} before this was written. So each identifier is a
+     * {@code literal}, which Hibernate renders into the SQL: they are {@code Long}s read from {@code
+     * targets}' own table, so there is nothing to inject, and the cost accepted is a statement text that
+     * differs per project. They are still grouped in lists of {@link #IN_LIST_BATCH}, the batch every
+     * id-list query here uses, sorted so the same project renders the same SQL.
+     */
+    private static Predicate within(
+            jakarta.persistence.criteria.Root<IssueEntity> root,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            java.util.Set<Long> repositoryIds) {
+
+        if (repositoryIds.isEmpty()) {
+            return builder.disjunction();
+        }
+        List<Long> sorted = repositoryIds.stream().sorted().toList();
+        List<Predicate> lists = new ArrayList<>();
+        for (int from = 0; from < sorted.size(); from += IN_LIST_BATCH) {
+            jakarta.persistence.criteria.CriteriaBuilder.In<Long> list = builder.in(root.get("repoId"));
+            sorted.subList(from, Math.min(from + IN_LIST_BATCH, sorted.size())).forEach(id -> list.value(builder.literal(id)));
+            lists.add(list);
+        }
+        return lists.size() == 1 ? lists.getFirst() : builder.or(lists.toArray(Predicate[]::new));
     }
 
     private static void equalIfPresent(

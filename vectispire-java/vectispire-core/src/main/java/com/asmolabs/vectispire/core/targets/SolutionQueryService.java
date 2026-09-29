@@ -139,6 +139,16 @@ public class SolutionQueryService {
                 repositories.findIdsByProjectIdIn(List.of(project.getId()))));
     }
 
+    /**
+     * The repositories filed in this solution's projects now, visible or not — empty when there is no
+     * such solution, or it holds none. The backlog narrows by them and applies its reader's visibility
+     * beside them, so the list carries no more than a lookup of the tree would.
+     */
+    @Transactional(readOnly = true)
+    public List<Long> repositoriesOfSolution(long solutionId) {
+        return repositories.findIdsBySolutionId(solutionId);
+    }
+
     @Transactional(readOnly = true)
     public SolutionTree tree(VisibilityService.Allowance allowance) {
         Visibility visibility = allowance.visibility();

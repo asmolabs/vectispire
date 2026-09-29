@@ -14,6 +14,7 @@ import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
 import com.asmolabs.vectispire.core.issues.persistence.TriageEventRepository;
 import com.asmolabs.vectispire.core.issues.persistence.queries.IssueFilters;
 import com.asmolabs.vectispire.core.scanning.ScanCatalog;
+import com.asmolabs.vectispire.core.targets.SolutionQueryService;
 import com.asmolabs.vectispire.core.targets.TargetNaming;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import java.time.Instant;
@@ -51,17 +52,30 @@ public class IssueQueryService {
     private final TriageEventRepository events;
     private final TargetNaming naming;
     private final SlaService sla;
+    private final SolutionQueryService solutions;
 
     public IssueQueryService(
-            IssueRepository issues, ScanCatalog findings, TriageEventRepository events, TargetNaming naming, SlaService sla) {
+            IssueRepository issues,
+            ScanCatalog findings,
+            TriageEventRepository events,
+            TargetNaming naming,
+            SlaService sla,
+            SolutionQueryService solutions) {
         this.issues = issues;
         this.findings = findings;
         this.events = events;
         this.naming = naming;
         this.sla = sla;
+        this.solutions = solutions;
     }
 
-    /** What a backlog request can ask for, as the query string spells it. */
+    /**
+     * What a backlog request can ask for, as the query string spells it.
+     *
+     * @param projectId the issues of the repositories filed in this project now — see {@link #page}
+     *     for what a reader who sees part of it, or none, is answered
+     * @param solutionId the same over every project of the solution; with {@code projectId}, both hold
+     */
     public record BacklogQuery(
             String state,
             String severity,
@@ -69,6 +83,8 @@ public class IssueQueryService {
             String triageStatus,
             Long repositoryId,
             Long containerId,
+            Long projectId,
+            Long solutionId,
             boolean onlyDirect,
             boolean onlyKev,
             boolean overdue,
@@ -103,6 +119,16 @@ public class IssueQueryService {
      *
      * <p><b>The visibility is a parameter, not a filter the request carries</b>: a filter the
      * request supplies is a filter the request can omit.
+     *
+     * <p><b>A project or a solution narrows like a repository does: intersected with the visibility,
+     * never refused.</b> Its repositories are asked of {@code targets}, which owns the membership, at
+     * the moment of asking, and the query keeps those of them the caller sees. A reader who sees part
+     * of the project gets the issues of that part — what the tree shows them of it, and what the
+     * unfiltered list already showed. One who sees none of it, and one naming a project that does not
+     * exist, both get an empty page, as {@code repository_id} answers for a repository hidden or
+     * absent: the two are indistinguishable, and a 404 here would be the list's one filter that could.
+     * The checklist refuses a partial project (404) because its answers speak for the whole of it; a
+     * page of issues speaks for no more than its rows.
      */
     public IssuePage page(BacklogQuery query, Visibility allowed) {
         int size = Math.clamp(query.limit(), 1, MAX_PAGE_SIZE);
@@ -123,6 +149,14 @@ public class IssueQueryService {
                 query.overdue() || query.unsettled(),
                 query.overdue() ? sla.overdueThresholds() : Map.of(),
                 allowed);
+        if (query.projectId() != null) {
+            filters = filters.within(solutions.members(query.projectId())
+                    .map(SolutionQueryService.ProjectMembers::repositoryIds)
+                    .orElse(List.of()));
+        }
+        if (query.solutionId() != null) {
+            filters = filters.within(solutions.repositoriesOfSolution(query.solutionId()));
+        }
 
         var page = issues.findAll(
                 IssueSpecifications.of(filters),

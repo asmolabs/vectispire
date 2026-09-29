@@ -91,6 +91,11 @@ public class IssuesController {
             @RequestParam(name = "triage_status", required = false) String triageStatus,
             @RequestParam(name = "repository_id", required = false) Long repositoryId,
             @RequestParam(name = "container_id", required = false) Long containerId,
+            // **A project's or a solution's issues, within what the caller sees** — the tree's badges
+            // lead here. Intersected with the visibility like `repository_id`, never refused: a
+            // project hidden or absent answers an empty page, as a repository does (`IssueQueryService.page`).
+            @RequestParam(name = "project_id", required = false) Long projectId,
+            @RequestParam(name = "solution_id", required = false) Long solutionId,
             @RequestParam(name = "only_direct", required = false, defaultValue = "false") boolean onlyDirect,
             // The dashboard has linked here since the first version. Nothing read it, so the
             // most actionable figure on that screen opened the whole backlog instead.
@@ -110,7 +115,7 @@ public class IssuesController {
 
         return queries.page(
                 new IssueQueryService.BacklogQuery(
-                        state, severity, type, triageStatus, repositoryId, containerId,
+                        state, severity, type, triageStatus, repositoryId, containerId, projectId, solutionId,
                         onlyDirect, onlyKev, overdue, unsettled, search, limit, offset),
                 // Narrowed here and not by the caller: a filter the request supplies is a filter
                 // the request can omit.
