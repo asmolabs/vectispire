@@ -93,6 +93,14 @@ public class ComplianceHistoryService {
 
             int captured = 0;
             for (ComplianceEvaluation evaluation : summary.evaluations()) {
+                if (!evaluation.overallStatus().measured()) {
+                    // A month with nothing measured has no verdict to chart: its score of zero read
+                    // as a fall to nothing, then as a rise the month scanning began. The current
+                    // month is rewritten on every pass, so an earlier pass's row goes with it.
+                    snapshots.findByPeriodAndFramework(period, evaluation.framework().name())
+                            .ifPresent(snapshots::delete);
+                    continue;
+                }
                 SoaStatement statement = soa.statement(evaluation.framework(), Visibility.everything());
                 write(period, now, evaluation, summary.totalMonitoredTargets(),
                         summary.observedTargets(), summary.freshTargets(),

@@ -118,6 +118,14 @@ public final class ComplianceEngine {
             assessments.add(cappedByPlatform(evaluateControl(control, input), platform));
         }
 
+        // A control with no data makes the framework's verdict no data too, even beside a measured
+        // one: the only control measured on an unobserved estate is the audit trail's, and a framework
+        // scored on it alone — SOC 2 "partial, 65 %" with nothing scanned — would present the
+        // platform's sign-in policy as the estate's posture. The controls keep their own statuses.
+        if (assessments.stream().anyMatch(assessment -> !assessment.status().measured())) {
+            return new ComplianceEvaluation(framework, 0, ComplianceControl.Status.NO_DATA, assessments);
+        }
+
         int totalScore = 0;
         int nonCompliantCount = 0;
         int partialCount = 0;
@@ -145,6 +153,9 @@ public final class ComplianceEngine {
     }
 
     private static ComplianceEvaluation.ControlAssessment evaluateControl(ComplianceControl control, PostureInput input) {
+        if (control.category() != ComplianceControl.Category.AUDIT_AND_LOGGING && input.scannedTargets() == 0) {
+            return noData(control, input);
+        }
         return switch (control.category()) {
             case VULNERABILITY_MANAGEMENT -> evaluateVulnerabilities(control, input);
             case SUPPLY_CHAIN -> evaluateSupplyChain(control, input);
@@ -154,6 +165,29 @@ public final class ComplianceEngine {
             case GOVERNANCE -> evaluateGovernance(control, input);
             case AUDIT_AND_LOGGING -> evaluateAudit(control, input);
         };
+    }
+
+    /**
+     * A control of the estate with no target ever observed: not measured, whatever the counts say.
+     *
+     * <p><b>Every control but the audit trail's reads the estate</b>, and on an estate nobody has
+     * scanned each read something it had not seen. Secure coding, configuration and secrets scored
+     * zero findings as compliant; vulnerability management, capped by coverage, read "1 target(s)
+     * have never been scanned" as non-compliant on an instance with no target at all (the service
+     * handed the engine at least one, to divide by); the SBOM and gate ratios failed on 0/1. None of
+     * them measured anything. The audit trail's control reads this platform's own chain, which exists
+     * without a scan, and is left to measure it.
+     *
+     * <p>Only when <em>nothing</em> was observed. An estate observed in part keeps the coverage cap,
+     * which reads a never-scanned target as a failure of monitoring beside targets that were watched.
+     */
+    private static ComplianceEvaluation.ControlAssessment noData(ComplianceControl control, PostureInput input) {
+        String details = input.totalTargets() == 0
+                ? "No target is registered: nothing here measures this control yet."
+                : "None of the " + input.totalTargets() + " target(s) has ever been scanned successfully: nothing "
+                        + "here measures this control yet.";
+        return new ComplianceEvaluation.ControlAssessment(control, ComplianceControl.Status.NO_DATA, 0, details,
+                "Register and scan the estate: a control cannot be evidenced before anything has been observed.");
     }
 
     /**
@@ -238,14 +272,19 @@ public final class ComplianceEngine {
         return assessment;
     }
 
-    /** Keeps the lower of the two scores, and never reports better than PARTIAL. */
+    /**
+     * Keeps the lower of the two scores, and never reports better than PARTIAL. A control with no data
+     * keeps it — a cap stops a green tick, and there is none to stop; the note still says which switch
+     * is off.
+     */
     private static ComplianceEvaluation.ControlAssessment capped(
             ComplianceEvaluation.ControlAssessment assessment, int ceiling, String why, String how) {
 
         int score = Math.min(assessment.scorePercentage(), ceiling);
-        ComplianceControl.Status status = assessment.status() == ComplianceControl.Status.NON_COMPLIANT
-                ? ComplianceControl.Status.NON_COMPLIANT
-                : ComplianceControl.Status.PARTIAL;
+        ComplianceControl.Status status = switch (assessment.status()) {
+            case NON_COMPLIANT, NO_DATA -> assessment.status();
+            case COMPLIANT, PARTIAL -> ComplianceControl.Status.PARTIAL;
+        };
 
         return new ComplianceEvaluation.ControlAssessment(
                 assessment.control(),
@@ -428,7 +467,8 @@ public final class ComplianceEngine {
      *
      * <p>Declared order is best to worst — {@code COMPLIANT}, {@code PARTIAL},
      * {@code NON_COMPLIANT} — so the higher ordinal is the worse one. Written out because the
-     * opposite reading is the natural one and would turn this cap into a whitewash.
+     * opposite reading is the natural one and would turn this cap into a whitewash. {@code NO_DATA}
+     * is last and no verdict: it never reaches here, {@link #noData} having answered first.
      */
     private static ComplianceControl.Status worseOf(ComplianceControl.Status left, ComplianceControl.Status right) {
         return left.ordinal() >= right.ordinal() ? left : right;

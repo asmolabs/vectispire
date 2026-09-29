@@ -63,6 +63,51 @@ class StatementOfApplicabilityTest {
     }
 
     @Test
+    @DisplayName("calls a declared control with nothing measured unevidenced, never consistent")
+    void noDataIsUnevidencedNotConsistent() {
+        for (Implementation implementation : List.of(Implementation.IMPLEMENTED, Implementation.PLANNED)) {
+            SoaStatement statement = reconcile(
+                    List.of(declared(VULN, implementation, EvidenceSource.VECTISPIRE),
+                            declared(SECRETS, implementation, EvidenceSource.BOTH)),
+                    measured(VULN, ComplianceControl.Status.NO_DATA));
+
+            assertThat(divergenceOf(statement, VULN)).as(implementation.name()).isEqualTo(Divergence.UNEVIDENCED);
+            assertThat(divergenceOf(statement, SECRETS))
+                    .as("a control the evaluation says nothing of is no more measured than one with no data")
+                    .isEqualTo(Divergence.UNEVIDENCED);
+        }
+        assertThat(Divergence.UNEVIDENCED.isFinding())
+                .as("nothing contradicts the claim; nothing supports it either")
+                .isFalse();
+    }
+
+    @Test
+    @DisplayName("reconciles an instance with no scan to no data on every line evidenced here")
+    void anEmptyInstanceIsUnevidenced() {
+        ComplianceEvaluation empty = ComplianceEngine.evaluate(FRAMEWORK,
+                new ComplianceEngine.PostureInput(0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, true),
+                ComplianceEngine.PlatformPosture.FULLY_ENABLED);
+        List<Declaration> all = FRAMEWORK.getControls().stream()
+                .map(control -> declared(control.id(), Implementation.IMPLEMENTED, EvidenceSource.VECTISPIRE))
+                .toList();
+
+        SoaStatement statement = reconcile(all, empty);
+
+        assertThat(statement.lines()).extracting(Line::measured).containsOnly(ComplianceControl.Status.NO_DATA);
+        assertThat(statement.lines()).extracting(Line::divergence).containsOnly(Divergence.UNEVIDENCED);
+    }
+
+    @Test
+    @DisplayName("still declines to judge an external control with nothing measured here")
+    void externalStaysNotMeasuredHere() {
+        SoaStatement statement = reconcile(
+                List.of(declared(VULN, Implementation.IMPLEMENTED, EvidenceSource.EXTERNAL)),
+                measured(VULN, ComplianceControl.Status.NO_DATA));
+
+        assertThat(divergenceOf(statement, VULN)).isEqualTo(Divergence.NOT_MEASURED_HERE);
+    }
+
+    @Test
     @DisplayName("declines to judge a control whose evidence lives somewhere else")
     void externalEvidenceIsNotJudged() {
         Declaration elsewhere = new Declaration(

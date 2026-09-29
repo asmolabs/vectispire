@@ -3,12 +3,19 @@ package com.asmolabs.vectispire.core.compliance;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceHistory;
+import com.asmolabs.vectispire.common.domain.scans.ScanStatus;
 import com.asmolabs.vectispire.core.VectispireContextTest;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotEntity;
 import com.asmolabs.vectispire.core.compliance.persistence.ComplianceSnapshotRepository;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanEntity;
+import com.asmolabs.vectispire.core.scanning.persistence.ScanRepository;
+import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
+import com.asmolabs.vectispire.core.targets.persistence.RepositoryEntity;
+import java.time.Instant;
 import java.time.Clock;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +44,30 @@ class ComplianceCaptureTest extends VectispireContextTest {
 
     @Autowired
     private Clock clock;
+
+    @Autowired
+    private GitRepositoryRepository repositories;
+
+    @Autowired
+    private ScanRepository scans;
+
+    /**
+     * One repository, scanned: a framework with nothing measured is not captured (its month has no
+     * verdict — {@code ComplianceNoDataRoutesTest}), so the capture needs an estate to capture.
+     */
+    @BeforeEach
+    void aScannedEstate() {
+        RepositoryEntity repository = new RepositoryEntity();
+        repository.setUrl("https://example.invalid/captured.git");
+        repository.setBranch("main");
+        long id = repositories.save(repository).getId();
+        ScanEntity scan = new ScanEntity();
+        scan.setRepoId(id);
+        scan.setStatus(ScanStatus.COMPLETED.wireName());
+        scan.setBranch("main");
+        scan.setCreatedAt(Instant.now());
+        scans.save(scan);
+    }
 
     @Test
     @DisplayName("writes one capture per framework, for the month it runs in")

@@ -62,10 +62,59 @@ class ComplianceEngineTest {
 
         assertThat(assessed.status())
                 .as("no findings because nobody looked is not the same fact as no findings")
-                .isEqualTo(ComplianceControl.Status.NON_COMPLIANT);
+                .isEqualTo(ComplianceControl.Status.NO_DATA);
         assertThat(assessed.details())
-                .as("and the reader is told which part of the estate the verdict does not cover")
-                .contains("never been scanned");
+                .as("and the reader is told that nothing of the estate was observed")
+                .contains("None of the 10 target(s) has ever been scanned");
+    }
+
+    @Test
+    @DisplayName("measures nothing of an instance with no scan: every control of the estate reads no data")
+    void anEmptyInstanceMeasuresNothing() {
+        ComplianceEngine.PostureInput empty = new ComplianceEngine.PostureInput(
+                0, 0, 0, 30, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0,
+                true);
+
+        List<ComplianceEvaluation> results = ComplianceEngine.evaluateAll(empty, ComplianceEngine.PlatformPosture.FULLY_ENABLED);
+
+        for (ComplianceEvaluation evaluation : results) {
+            assertThat(evaluation.overallStatus()).as(evaluation.framework().name())
+                    .isEqualTo(ComplianceControl.Status.NO_DATA);
+            assertThat(evaluation.scorePercentage()).isZero();
+            for (ComplianceEvaluation.ControlAssessment control : evaluation.controls()) {
+                ComplianceControl.Status expected = control.control().category() == ComplianceControl.Category.AUDIT_AND_LOGGING
+                        ? ComplianceControl.Status.COMPLIANT
+                        : ComplianceControl.Status.NO_DATA;
+                assertThat(control.status())
+                        .as("%s: the audit chain is the platform's own and exists without a scan; the rest read the estate",
+                                control.control().id())
+                        .isEqualTo(expected);
+            }
+        }
+        ComplianceEvaluation iso = results.stream()
+                .filter(evaluation -> evaluation.framework() == ComplianceFramework.ISO_27001).findFirst().orElseThrow();
+        assertThat(iso.controls()).extracting(ComplianceEvaluation.ControlAssessment::details)
+                .as("A.8.8 used to read \"1 target(s) have never been scanned\" on an instance with none")
+                .allMatch(details -> details.startsWith("No target is registered"));
+    }
+
+    @Test
+    @DisplayName("keeps no data when a platform cap applies, and says which switch is off")
+    void aCapKeepsNoData() {
+        ComplianceEngine.PostureInput empty = new ComplianceEngine.PostureInput(
+                0, 0, 0, 30, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0,
+                true);
+        ComplianceEngine.PlatformPosture noKey = new ComplianceEngine.PlatformPosture(false, false, true, true, true, false);
+
+        ComplianceEvaluation.ControlAssessment secrets = control(
+                ComplianceEngine.evaluateAll(empty, noKey), ComplianceControl.Category.SECRETS_MANAGEMENT);
+
+        assertThat(secrets.status()).isEqualTo(ComplianceControl.Status.NO_DATA);
+        assertThat(secrets.details()).contains("No encryption key is configured");
     }
 
     @Test

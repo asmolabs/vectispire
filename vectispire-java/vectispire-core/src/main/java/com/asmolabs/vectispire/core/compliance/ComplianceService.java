@@ -1,6 +1,7 @@
 package com.asmolabs.vectispire.core.compliance;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
+import com.asmolabs.vectispire.common.domain.compliance.ComplianceControl;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEngine;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceEvaluation;
 import com.asmolabs.vectispire.common.domain.compliance.ComplianceFramework;
@@ -160,6 +161,30 @@ public class ComplianceService {
                 signIn.passwordAllowed());
     }
 
+    /**
+     * One target's row of the matrix, read from its evaluations.
+     *
+     * <p><b>A framework with no data is left out</b> of the scores (the screen shows a dash) and of
+     * the average, and a target none of whose frameworks was measured — never scanned successfully —
+     * reads {@code NO_DATA} with an average of zero. It read an average of its zero findings, capped
+     * here and there by coverage: a percentage for a target nobody had looked at.
+     */
+    private record TargetScores(Map<String, Integer> byFramework, int average, String status) {
+
+        static TargetScores of(List<ComplianceEvaluation> evaluations) {
+            Map<String, Integer> scores = new java.util.HashMap<>();
+            evaluations.stream()
+                    .filter(evaluation -> evaluation.overallStatus().measured())
+                    .forEach(evaluation -> scores.put(evaluation.framework().name(), evaluation.scorePercentage()));
+            if (scores.isEmpty()) {
+                return new TargetScores(scores, 0, ComplianceControl.Status.NO_DATA.name());
+            }
+            int average = (int) Math.round(scores.values().stream().mapToInt(Integer::intValue).average().orElse(0));
+            String status = average == 100 ? "COMPLIANT" : (average >= 70 ? "PARTIAL" : "NON_COMPLIANT");
+            return new TargetScores(scores, average, status);
+        }
+    }
+
     public record TargetCompliance(
             String targetId,
             String name,
@@ -314,8 +339,10 @@ public class ComplianceService {
                 .filter(target -> withInventory.contains(target.target()))
                 .count();
 
+        // The count as it is, zero included: the engine divides by at least one itself, and a one
+        // passed here made an empty instance read "1 target(s) have never been scanned".
         ComplianceEngine.PostureInput input = new ComplianceEngine.PostureInput(
-                Math.max(1, totalTargets),
+                totalTargets,
                 observedTargets,
                 fresh.within(),
                 fresh.windowDays(),
@@ -376,12 +403,10 @@ public class ComplianceService {
                     withInventory.contains(targetPosture.target()) ? 1 : 0,
                     auditValid);
 
-            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);
-            Map<String, Integer> scores = new java.util.HashMap<>();
-            tEvals.forEach(e -> scores.put(e.framework().name(), e.scorePercentage()));
-
-            int avgScore = (int) Math.round(tEvals.stream().mapToInt(ComplianceEvaluation::scorePercentage).average().orElse(100.0));
-            String status = avgScore == 100 ? "COMPLIANT" : (avgScore >= 70 ? "PARTIAL" : "NON_COMPLIANT");
+            TargetScores scored = TargetScores.of(ComplianceEngine.evaluateAll(tInput, platform));
+            Map<String, Integer> scores = scored.byFramework();
+            int avgScore = scored.average();
+            String status = scored.status();
             
             String gateStatus;
             if (targetPosture.observation() == SecurityOverview.Observation.IN_PROGRESS) {
@@ -529,12 +554,10 @@ public class ComplianceService {
                     withInventory.contains(tp.target()) ? 1 : 0,
                     auditValid);
 
-            List<ComplianceEvaluation> tEvals = ComplianceEngine.evaluateAll(tInput, platform);
-            Map<String, Integer> scores = new java.util.HashMap<>();
-            tEvals.forEach(e -> scores.put(e.framework().name(), e.scorePercentage()));
-
-            int avgScore = (int) Math.round(tEvals.stream().mapToInt(ComplianceEvaluation::scorePercentage).average().orElse(100.0));
-            String status = avgScore == 100 ? "COMPLIANT" : (avgScore >= 70 ? "PARTIAL" : "NON_COMPLIANT");
+            TargetScores scored = TargetScores.of(ComplianceEngine.evaluateAll(tInput, platform));
+            Map<String, Integer> scores = scored.byFramework();
+            int avgScore = scored.average();
+            String status = scored.status();
             
             String gateStatus;
             if (tp.observation() == SecurityOverview.Observation.IN_PROGRESS) {

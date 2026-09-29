@@ -81,17 +81,32 @@ public final class ComplianceReportPdf {
 
         cursor.text("Executive Summary by Framework", ReportCursor.HELVETICA_BOLD_12, INK);
         for (ComplianceEvaluation eval : evaluations) {
-            Color statusColor = eval.overallStatus() == ComplianceControl.Status.COMPLIANT ? SUCCESS
-                    : eval.overallStatus() == ComplianceControl.Status.PARTIAL ? WARNING : DANGER;
             cursor.text(
-                    eval.framework().getTitle() + " — " + eval.scorePercentage() + "% (" + eval.overallStatus() + ")",
+                    eval.framework().getTitle() + " — " + verdict(eval.overallStatus(), eval.scorePercentage(), false),
                     ReportCursor.HELVETICA_BOLD_10,
-                    statusColor);
+                    colour(eval.overallStatus()));
             cursor.text("  " + eval.framework().getDescription(), ReportCursor.HELVETICA_9, MUTED);
         }
         cursor.gap();
         cursor.rule(MUTED);
         cursor.gap();
+    }
+
+    /** No data is not red, and its score of zero is not printed as a measured 0 %. */
+    private static Color colour(ComplianceControl.Status status) {
+        return switch (status) {
+            case COMPLIANT -> SUCCESS;
+            case PARTIAL -> WARNING;
+            case NON_COMPLIANT -> DANGER;
+            case NO_DATA -> MUTED;
+        };
+    }
+
+    private static String verdict(ComplianceControl.Status status, int score, boolean statusFirst) {
+        if (!status.measured()) {
+            return "NO DATA";
+        }
+        return statusFirst ? status + " — " + score + "%" : score + "% (" + status + ")";
     }
 
     private static void body(ReportCursor cursor, List<ComplianceEvaluation> evaluations) {
@@ -101,14 +116,11 @@ public final class ComplianceReportPdf {
             cursor.gap();
 
             for (ComplianceEvaluation.ControlAssessment assessment : eval.controls()) {
-                Color controlColor = assessment.status() == ComplianceControl.Status.COMPLIANT ? SUCCESS
-                        : assessment.status() == ComplianceControl.Status.PARTIAL ? WARNING : DANGER;
-
                 cursor.text(
-                        "[" + assessment.status() + " — " + assessment.scorePercentage() + "%] "
+                        "[" + verdict(assessment.status(), assessment.scorePercentage(), true) + "] "
                                 + assessment.control().id() + ": " + assessment.control().name(),
                         ReportCursor.HELVETICA_BOLD_10,
-                        controlColor);
+                        colour(assessment.status()));
 
                 cursor.paragraph("Requirement: " + assessment.control().requirement(), ReportCursor.HELVETICA_9, 10);
                 cursor.paragraph("Current State: " + assessment.details(), ReportCursor.HELVETICA_9, 10);

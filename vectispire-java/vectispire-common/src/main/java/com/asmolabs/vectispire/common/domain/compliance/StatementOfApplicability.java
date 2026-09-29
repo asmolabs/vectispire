@@ -133,6 +133,17 @@ public final class StatementOfApplicability {
         /** Declared implemented; measured partial. Overstated rather than untrue. */
         OVERSTATED,
         /**
+         * Evidenced here, by the declaration's own account, and nothing here has measured it yet —
+         * {@link ComplianceControl.Status#NO_DATA}.
+         *
+         * <p><b>It read consistent.</b> On an instance with no scan a control declared implemented
+         * was set against a measurement resting on nothing and said to agree with it. It is not a
+         * finding — nothing contradicts the claim — and not {@link #NOT_MEASURED_HERE} either: that one
+         * says the evidence lives elsewhere, and here the declaration says it lives in this product,
+         * which has none to show yet.
+         */
+        UNEVIDENCED,
+        /**
          * Declared planned or not implemented; measured compliant.
          *
          * <p>Harmless to the estate and still worth showing: it means the document has drifted
@@ -159,7 +170,8 @@ public final class StatementOfApplicability {
 
     /**
      * @param declaration absent when {@code divergence} is {@link Divergence#UNDECLARED}
-     * @param measured what the engine made of this control, or null when it evaluated none
+     * @param measured what the engine made of this control — {@code NO_DATA} when nothing was observed
+     *     for it — or null when it evaluated none
      * @param reviewOverdue the line's own review has lapsed, whatever its divergence
      */
     public record Line(
@@ -241,7 +253,8 @@ public final class StatementOfApplicability {
      * <p>Absence first, because an undeclared control cannot be anything else. Then exclusion,
      * which ends the question — an excluded control is not measured against, whatever the estate
      * happens to look like. Then evidence source, which decides whether the measurement is about
-     * this claim at all. Only then do the two get compared.
+     * this claim at all. Then whether anything here measured it — a claim set against nothing agrees
+     * with nothing. Only then do the two get compared.
      */
     private static Divergence diverge(Declaration declaration, ComplianceControl.Status measured) {
         if (declaration == null) {
@@ -255,7 +268,10 @@ public final class StatementOfApplicability {
         if (declaration.evidenceSource() == EvidenceSource.EXTERNAL) {
             return Divergence.NOT_MEASURED_HERE;
         }
-        if (measured == null || declaration.implementation() == null) {
+        if (measured == null || !measured.measured()) {
+            return Divergence.UNEVIDENCED;
+        }
+        if (declaration.implementation() == null) {
             return Divergence.CONSISTENT;
         }
         return switch (declaration.implementation()) {
@@ -263,6 +279,7 @@ public final class StatementOfApplicability {
                 case NON_COMPLIANT -> Divergence.CONTRADICTED;
                 case PARTIAL -> Divergence.OVERSTATED;
                 case COMPLIANT -> Divergence.CONSISTENT;
+                case NO_DATA -> Divergence.UNEVIDENCED;
             };
             case PLANNED, NOT_IMPLEMENTED -> measured == ComplianceControl.Status.COMPLIANT
                     ? Divergence.UNDERSTATED
