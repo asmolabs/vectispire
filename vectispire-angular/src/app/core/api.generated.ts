@@ -2059,6 +2059,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read project checklist context
+         * @description The project's name, as a checklist's header states the product, and its newest revision and edition — null while it has no checklist, which is the edition opening one names. 404 for a project the caller does not see whole.
+         */
+        get: operations["context"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/checklists/offered": {
         parameters: {
             query?: never;
@@ -4234,6 +4254,15 @@ export interface components {
         };
         ChecklistPairsRequest: {
             pairs?: components["schemas"]["ChecklistItemPair"][];
+        };
+        ChecklistProjectContext: {
+            /** Format: int32 */
+            latestEdition?: number;
+            /** Format: int32 */
+            latestRevision?: number;
+            /** Format: int64 */
+            projectId: number;
+            projectName?: string;
         };
         ChecklistPublishRequest: {
             /** Format: int32 */
@@ -9914,6 +9943,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    context: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChecklistProjectContext"];
                 };
             };
         };

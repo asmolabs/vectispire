@@ -8,6 +8,7 @@ import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.checklists.ChecklistEvidenceDownload;
 import com.asmolabs.vectispire.core.checklists.ChecklistLineHistory;
 import com.asmolabs.vectispire.core.checklists.ChecklistOfferedVersion;
+import com.asmolabs.vectispire.core.checklists.ChecklistProjectContext;
 import com.asmolabs.vectispire.core.checklists.ChecklistRevisionSummary;
 import com.asmolabs.vectispire.core.checklists.ChecklistView;
 import com.asmolabs.vectispire.core.checklists.ProjectChecklistService;
@@ -100,6 +101,16 @@ public class ProjectChecklistsController {
     public List<ChecklistRevisionSummary> list(
             @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
         return checklists.list(projectId, allowanceOf(principal));
+    }
+
+    @Operation(summary = "Read project checklist context", description = "The project's name, as a checklist's "
+            + "header states the product, and its newest revision and edition — null while it has no checklist, "
+            + "which is the edition opening one names. 404 for a project the caller does not see whole.")
+    @GetMapping("/context")
+    @RequiresAccount
+    public ChecklistProjectContext context(
+            @PathVariable long projectId, @AuthenticationPrincipal VectispirePrincipal principal) {
+        return checklists.context(projectId, allowanceOf(principal));
     }
 
     @Operation(summary = "List checklist versions offered to a project", description = "The published template "

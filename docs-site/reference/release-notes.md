@@ -289,6 +289,8 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   names the `edition` read. Audited `CHECKLIST_*`; a sign-off is sent to the SIEM as `VECTI-SEC-025`, a
   refused sign-off or a return as `VECTI-SEC-026`. Deleting a project deletes its checklists; the audit
   entries stay. The screens come with the interface's half of this lot.
+  `GET /api/v1/projects/{id}/checklists/context` names the project and its newest revision for a page
+  that has no checklist to show yet; the list and the offered versions stay bare arrays.
 - **Coverage and test reports from declared sources.** A pipeline sends a JaCoCo, Cobertura or lcov
   coverage report (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) or a JUnit report — one
   XML file or a zip of them (`…/test-report-imports`) — with a `report_import` key its source is

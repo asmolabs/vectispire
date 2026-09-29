@@ -321,7 +321,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   un 404. Chaque écriture nomme l'`edition` lue. Auditées `CHECKLIST_*` ; une approbation part au SIEM
   en `VECTI-SEC-025`, une approbation refusée ou un renvoi en `VECTI-SEC-026`. Supprimer un projet
   supprime ses checklists ; les entrées d'audit restent. Les écrans viennent avec la moitié interface de
-  ce lot.
+  ce lot. `GET /api/v1/projects/{id}/checklists/context` nomme le projet et sa révision la plus récente
+  pour une page qui n'a pas encore de checklist à montrer ; la liste et les versions proposées restent
+  des tableaux nus.
 - **Couverture et rapports de tests depuis les sources déclarées.** Un pipeline envoie un rapport de
   couverture JaCoCo, Cobertura ou lcov (`POST /api/v1/repositories/{id}/coverage-imports?format=…`) ou
   un rapport JUnit — un fichier XML ou un zip de plusieurs (`…/test-report-imports`) — avec une clé

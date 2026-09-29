@@ -131,6 +131,7 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
             List<ResultActions> refused = List.of(
                     mvc.perform(authenticated(get(base()), partial.token())),
                     mvc.perform(authenticated(get(base() + "/offered"), partial.token())),
+                    mvc.perform(authenticated(get(base() + "/context"), partial.token())),
                     mvc.perform(authenticated(get(base() + "/1"), partial.token())),
                     mvc.perform(authenticated(get(base() + "/1/items/" + item + "/history"), partial.token())),
                     open(partial, "release", 1, 1),
@@ -189,6 +190,29 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
     @Nested
     @DisplayName("opening a checklist")
     class Opening {
+
+        @Test
+        @DisplayName("the page's context names the project before a checklist exists, then where the newest stands")
+        void theContext() throws Exception {
+            JsonNode before = read(mvc.perform(authenticated(get(base() + "/context"), asAuditor()))
+                    .andExpect(status().isOk()));
+            assertThat(before.at("/projectId").asLong()).isEqualTo(project);
+            assertThat(before.at("/projectName").asText()).isEqualTo("Checkout");
+            assertThat(before.at("/latestRevision").isNull()).isTrue();
+            assertThat(before.at("/latestEdition").isNull()).as("what opening names when none was seen").isTrue();
+
+            open(developer, "release", 1, null).andExpect(status().isCreated());
+            answer(developer, 1, itemIds(read(developer, 1)).getFirst(), "yes", null, edition(1))
+                    .andExpect(status().isCreated());
+            JsonNode after = read(mvc.perform(authenticated(get(base() + "/context"), developer.token()))
+                    .andExpect(status().isOk()));
+            assertThat(after.at("/latestRevision").asInt()).isEqualTo(1);
+            assertThat(after.at("/latestEdition").asInt()).isEqualTo(edition(1));
+
+            assertThat(detailOf(mvc.perform(authenticated(get("/api/v1/projects/" + (project + 1000) + "/checklists/context"),
+                    developer.token())).andExpect(status().isNotFound()).andReturn())).isEqualTo("Project not found.");
+            mvc.perform(get(base() + "/context")).andExpect(status().isUnauthorized());
+        }
 
         @Test
         @DisplayName("opens a draft on a published version, its lines in the template's order, its header the caller's")

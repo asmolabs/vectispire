@@ -224,6 +224,18 @@ public class ProjectChecklistService {
                 .toList();
     }
 
+    /**
+     * The project's name and its newest revision — what the page shows before a checklist exists —
+     * behind the same whole-project guard as every other read: a caller who sees part of the project
+     * learns not even its name.
+     */
+    public ChecklistProjectContext context(long projectId, VisibilityService.Allowance allowance) {
+        VisibleProject project = requireProject(projectId, allowance);
+        Optional<ChecklistEntity> latest = checklists.findFirstByProjectIdOrderByRevisionDesc(project.projectId());
+        return new ChecklistProjectContext(project.projectId(), project.name(),
+                latest.map(ChecklistEntity::getRevision).orElse(null), latest.map(ChecklistEntity::getEdition).orElse(null));
+    }
+
     /** The published versions a checklist may be opened on, by template slug then number. */
     public List<ChecklistOfferedVersion> offered(long projectId, VisibilityService.Allowance allowance) {
         requireProject(projectId, allowance);

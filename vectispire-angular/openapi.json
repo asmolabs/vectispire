@@ -1590,6 +1590,27 @@
         },
         "type" : "object"
       },
+      "ChecklistProjectContext" : {
+        "properties" : {
+          "latestEdition" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "latestRevision" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "projectId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "projectId" ],
+        "type" : "object"
+      },
       "ChecklistPublishRequest" : {
         "properties" : {
           "revision" : {
@@ -12645,6 +12666,35 @@
           }
         },
         "summary" : "Open project checklist",
+        "tags" : [ "Project checklists" ]
+      }
+    },
+    "/api/v1/projects/{projectId}/checklists/context" : {
+      "get" : {
+        "description" : "The project's name, as a checklist's header states the product, and its newest revision and edition — null while it has no checklist, which is the edition opening one names. 404 for a project the caller does not see whole.",
+        "operationId" : "context",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "projectId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChecklistProjectContext"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "Read project checklist context",
         "tags" : [ "Project checklists" ]
       }
     },
