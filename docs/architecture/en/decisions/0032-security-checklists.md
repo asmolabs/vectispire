@@ -618,3 +618,29 @@ the record and the module agree.
   export already does. A template whose written cells include the master of a shared formula cannot be
   rendered, so none of its revisions can be signed off; checking this with a trial rendering when the
   version is published is a later step.
+
+## Amendment (2026-09-29) — the scans answer the lines they measure
+
+**What changes.** §6 said *"Vectispire never answers"*. The product owner reversed that on
+2026-09-29: a line bound to a rule is answered by Vectispire from its measurement, so that a project's
+checklist arrives filled with everything the scans can state. The concern §6 named — a signed document
+carrying a claim its signer never made — is met by naming the author, not by forbidding the answer.
+
+- **When.** When a scan or an import completes on a repository of a project with a checklist in
+  draft, and when a checklist is opened or moved to another version. Never on a submitted or signed-off
+  revision, never on a read.
+- **What.** `PASS` answers *yes*; `FAIL` answers *no*, with a comment generated from the measurement
+  (the rule and the figures that failed it) — the comment a *no* requires (§5) says what was measured,
+  it does not pretend a person wrote it. `NO_DATA` answers nothing.
+- **Who.** The author is **Vectispire**, a system actor that is no account and can hold no role. Every
+  such answer rests on the measurement that produced it (the same reference the one-click answer
+  keeps), enters the line's history, is audited `CHECKLIST_ANSWERED` with the system as actor, and is
+  shown as *automatic* on the screen, in the `Evidence` sheet and in `checklist.json`.
+- **People first.** An answer a person gave is never replaced by the system. An automatic answer is
+  replaced by the system when its measurement changes (the history keeps both), and by a person who
+  answers the line — from then on the answer is theirs and the scans leave it.
+- **What a person still does.** Submitting and signing off stay acts of people, under four-eyes; the
+  submitter attests to the whole revision, automatic answers included, and the document says which
+  answers were automatic.
+- **Who decides.** A platform setting, on by default, lets an organisation return to answers by people
+  only; the one-click and the as-measured act remain either way.

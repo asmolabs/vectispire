@@ -671,3 +671,33 @@ code ; cet amendement les consigne pour que la décision et le module disent la 
   autre export signé. Un modèle dont une cellule écrite est le maître d'une formule partagée ne peut pas
   être rendu, donc aucune de ses révisions ne peut être signée ; le vérifier par un rendu d'essai à la
   publication de la version est une étape ultérieure.
+
+## Amendement (2026-09-29) — les scans répondent aux lignes qu'ils mesurent
+
+**Ce qui change.** Le §6 disait *« Vectispire ne répond jamais »*. Le propriétaire du produit est revenu
+sur ce choix le 2026-09-29 : une ligne liée à une règle reçoit de Vectispire la réponse que donne sa
+mesure, pour que la checklist d'un projet arrive remplie de tout ce que les scans peuvent affirmer. Le
+risque que nommait le §6 — un document signé portant une affirmation que son signataire n'a jamais faite
+— est traité en nommant l'auteur, pas en interdisant la réponse.
+
+- **Quand.** Quand un scan ou un import se termine sur un dépôt d'un projet dont la checklist est en
+  brouillon, et quand une checklist est ouverte ou passe à une autre version. Jamais sur une révision
+  soumise ou signée, jamais à la lecture.
+- **Quoi.** `PASS` répond *oui* ; `FAIL` répond *non*, avec un commentaire généré à partir de la mesure
+  (la règle et les chiffres qui l'ont fait échouer) — le commentaire qu'exige un *non* (§5) dit ce qui a
+  été mesuré, il ne prétend pas qu'une personne l'a écrit. `NO_DATA` ne répond rien.
+- **Qui.** L'auteur est **Vectispire**, un acteur système qui n'est pas un compte et ne peut porter aucun
+  rôle. Chaque réponse de ce type repose sur la mesure qui l'a produite (la même référence que garde la
+  réponse en un clic), entre dans l'historique de la ligne, est auditée `CHECKLIST_ANSWERED` avec le
+  système pour acteur, et est affichée *automatique* à l'écran, dans la feuille `Evidence` et dans
+  `checklist.json`.
+- **Les personnes d'abord.** Une réponse donnée par une personne n'est jamais remplacée par le système.
+  Une réponse automatique est remplacée par le système quand sa mesure change (l'historique garde les
+  deux), et par une personne qui répond à la ligne — la réponse est dès lors la sienne et les scans n'y
+  touchent plus.
+- **Ce qui reste à une personne.** Soumettre et signer restent des actes de personnes, sous double
+  validation ; celui qui soumet atteste la révision entière, réponses automatiques comprises, et le
+  document dit quelles réponses étaient automatiques.
+- **Qui décide.** Un réglage de plateforme, actif par défaut, permet à une organisation de revenir à des
+  réponses données par des personnes seulement ; la réponse en un clic et l'acte « comme mesuré »
+  restent dans les deux cas.
