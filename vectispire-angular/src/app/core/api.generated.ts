@@ -2150,7 +2150,7 @@ export interface paths {
         put?: never;
         /**
          * Answer measured checklist lines as measured
-         * @description On a draft, in one act: every line bound to a rule is measured now, and each unanswered line whose measurement passes is answered yes by the caller, resting on that measurement, stored with it — the one click of the answer route, given for each line at once. Left alone, each named in skipped with its reason: a line already answered (already_answered — any current answer, one awaiting confirmation or one equal to the measurement included), a measurement with no data (no_data), a failing one (needs_comment — its no needs the comment the person writes, one line at a time). edition is the one read; anything written since refuses the act. One transaction, one edition; nothing to answer writes nothing and leaves the edition. Each answer is audited as a single one. 400 for no edition; 409 checklist-not-draft, checklist-changed.
+         * @description On a draft, in one act: every line bound to a rule is measured now, and each line named in lines — its itemId and the measurementDigest read, the evidenceDigest the single one-click sends — that is unanswered, still has that evidence and passes is answered yes by the caller, resting on that measurement, stored with it. Left alone, each named in skipped with its reason, the outcome and the evidenceDigest it has now: a line already answered (already_answered — any current answer, one awaiting confirmation or one equal to the measurement included), a named line whose evidence moved (measurement_changed), a passing line not named (not_shown), a measurement with no data (no_data), a failing one (needs_comment — its no needs the comment the person writes, one line at a time). edition is the one read; anything written since refuses the act. One transaction, one edition; nothing to answer writes nothing and leaves the edition. Each answer is audited as a single one. 400 for no edition, no lines, an element without its itemId or digest, a line named twice, not of this revision or measured by no rule; 409 checklist-not-draft, checklist-changed.
          */
         post: operations["answerAsMeasured"];
         delete?: never;
@@ -3917,6 +3917,7 @@ export interface components {
         AsMeasuredSkip: {
             /** @enum {string} */
             answer?: "yes" | "no" | "not_applicable";
+            evidenceDigest?: string;
             /** Format: int64 */
             itemId: number;
             /** @enum {string} */
@@ -3926,7 +3927,7 @@ export interface components {
             /** Format: int32 */
             position: number;
             /** @enum {string} */
-            reason?: "already_answered" | "no_data" | "needs_comment";
+            reason?: "already_answered" | "measurement_changed" | "not_shown" | "no_data" | "needs_comment";
         };
         Assessment: {
             ecosystemsInEstate?: string[];
@@ -4222,6 +4223,11 @@ export interface components {
             needsConfirmation: boolean;
             /** @enum {string} */
             value?: "yes" | "no" | "not_applicable";
+        };
+        ChecklistAsMeasuredRequest: {
+            /** Format: int32 */
+            edition?: number;
+            lines?: components["schemas"]["ShownMeasurement"][];
         };
         ChecklistAsMeasuredView: {
             answered?: components["schemas"]["AsMeasuredAnswer"][];
@@ -6670,6 +6676,11 @@ export interface components {
             issuer?: string;
             qrCodeUri?: string;
             secret?: string;
+        };
+        ShownMeasurement: {
+            /** Format: int64 */
+            itemId?: number;
+            measurementDigest?: string;
         };
         SiemConfigRequest: {
             authHeader?: string;
@@ -10356,7 +10367,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChecklistEditionRequest"];
+                "application/json": components["schemas"]["ChecklistAsMeasuredRequest"];
             };
         };
         responses: {
