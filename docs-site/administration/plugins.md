@@ -146,14 +146,17 @@ Only the **platform governor** registers, updates, enables or disables a plugin:
 code that will read the source of every project it is switched on for. Every change is in the audit
 log with the manifest's digest, and forwarded to the SIEM (`VECTI-SEC-021`).
 
-**On screen**, **Plugins** — in the sidebar under Configuration, for every account — lists each plugin
-with its state, languages, network exception and the start of its manifest digest; the eye opens its
+**On screen**, **Plugins** — in the sidebar under Administration, for the accounts that see that
+section — lists each plugin with its state, languages, network exception and the start of its
+manifest digest; the eye opens its
 detail: the image, the digest in full, the arguments in order, the report file, the exit codes, the
 network and its justification, the timeout, and who registered and last changed it. Governance readers
 also see the projects it is switched on for. The governor alone gets **Register a plugin**, the pencil
 that edits the manifest, and **Enable** / **Disable**. The form says where the id is typed that it can
 never be renamed or reused, and locks it when editing; a refusal — an id already taken, a tag beside
-the digest, a justification too short — stays in the form with the server's reason.
+the digest, a justification too short — stays in the form with the server's reason. The page itself
+stays open to every account: a developer or a security champion, who has no Administration section,
+reaches it from the scan's **Plugins** card, whose plugin names link to it.
 
 Through the API:
 

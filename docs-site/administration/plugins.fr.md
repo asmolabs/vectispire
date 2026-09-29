@@ -148,15 +148,18 @@ Seul le **gouverneur de la plateforme** enregistre, met à jour, active ou désa
 du code tiers qui lira le source de chaque projet pour lequel il sera activé. Chaque changement est au
 journal d'audit avec le digest du manifeste, et transmis au SIEM (`VECTI-SEC-021`).
 
-**À l'écran**, **Plugins** — dans la barre latérale sous Configuration, pour tout compte — liste chaque
-plugin avec son état, ses langages, son exception réseau et le début du digest de son manifeste ; l'œil
+**À l'écran**, **Plugins** — dans la barre latérale sous Administration, pour les comptes qui voient
+cette section — liste chaque plugin avec son état, ses langages, son exception réseau et le début du
+digest de son manifeste ; l'œil
 ouvre son détail : l'image, le digest complet, les arguments dans l'ordre, le fichier du rapport, les
 codes de sortie, le réseau et sa justification, le délai, et qui l'a enregistré et modifié en dernier.
 Les rôles de gouvernance voient aussi les projets pour lesquels il est activé. Seul le gouverneur a
 **Enregistrer un plugin**, le crayon qui modifie le manifeste, et **Activer** / **Désactiver**. Le
 formulaire dit, là où l'id se saisit, qu'il ne pourra jamais être renommé ni réutilisé, et le verrouille
 en modification ; un refus — id déjà pris, tag à côté du digest, justification trop courte — reste dans
-le formulaire avec la raison donnée par le serveur.
+le formulaire avec la raison donnée par le serveur. La page elle-même reste ouverte à tout compte : un
+développeur ou un security champion, qui n'a pas de section Administration, l'atteint depuis la carte
+**Plugins** du scan, dont les noms de plugin y mènent.
 
 Par l'API :
 

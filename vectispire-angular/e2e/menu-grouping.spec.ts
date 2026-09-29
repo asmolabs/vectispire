@@ -1,5 +1,5 @@
 import { resetLoginThrottle } from './support/fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { signInAs } from './support/session';
 
 /**
@@ -17,10 +17,10 @@ test.describe('Sidebar grouping', () => {
 
     test.beforeEach(() => resetLoginThrottle());
 
-    /** The four entries of the evidence section reserved to governance read access. */
+    /** Four of the evidence section's entries reserved to governance read access. */
     const GOVERNANCE_ONLY = [
         'Compliance progression', 'Statement of applicability', 'Certified scope',
-        'Verdict register', 'Audit log'
+        'Verdict register'
     ];
 
     /** Les trois que tout compte peut ouvrir. */
@@ -44,6 +44,37 @@ test.describe('Sidebar grouping', () => {
 
         for (const label of [...EVERYONE, ...GOVERNANCE_ONLY]) {
             await expect(page.getByRole('link', { name: label }), label).toHaveCount(1);
+        }
+    });
+
+    /** The links under one section title of the sidebar. */
+    function section(page: Page, title: string) {
+        return page.locator('app-menu li.layout-root-menuitem', {
+            has: page.locator('.layout-menuitem-root-text', { hasText: title })
+        });
+    }
+
+    test('files the plugins and the audit log under Administration, and offers them to no one else', async ({
+        page, browser
+    }) => {
+        // The product owner's decision: both are administration entries. The audit log keeps the
+        // governance-read condition it had among the evidence; the plugins go to whoever sees the
+        // section, and an ordinary account loses the link while keeping the page.
+        await signInAs(page, 'AUDITOR');
+        for (const path of ['/plugins', '/audit-log']) {
+            await expect(section(page, 'Administration').locator(`a[href="${path}"]`), path).toHaveCount(1);
+            await expect(page.locator(`app-menu a[href="${path}"]`), `${path} only once`).toHaveCount(1);
+        }
+
+        const other = await browser.newContext();
+        try {
+            const user = await other.newPage();
+            await signInAs(user, 'USER');
+            for (const path of ['/plugins', '/audit-log']) {
+                await expect(user.locator(`app-menu a[href="${path}"]`), path).toHaveCount(0);
+            }
+        } finally {
+            await other.close();
         }
     });
 });

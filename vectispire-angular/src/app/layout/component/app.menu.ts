@@ -67,12 +67,17 @@ export class AppMenu {
          * **What can be shown, and to whom.**
          *
          * <p>These screens used to be read in two distant sections: the matrix, the exceptions, the
-         * statement and the scope filed with the estate's state; the attestation, the verdicts and
-         * the audit log filed with administration. Yet they answer a single question, and an
-         * assessor opens them one after another. Separating them forced a reader to know the
-         * product in order to find the continuation of their own reading.
+         * statement and the scope filed with the estate's state; the attestation and the verdicts
+         * filed with administration. Yet they answer a single question, and an assessor opens them
+         * one after another. Separating them forced a reader to know the product in order to find
+         * the continuation of their own reading.
          *
-         * <p><b>Every entry carries its own condition, never the section.</b> Four of these routes
+         * <p><b>The audit log is not among them any more, by the product owner's decision.</b> It
+         * had come here with the verdicts and the attestation; it went back to the Administration
+         * section, under the same governance-read condition, so nobody gained or lost access by the
+         * move — only its place changed.
+         *
+         * <p><b>Every entry carries its own condition, never the section.</b> Five of these routes
          * require governance read access; offering them to everybody would be offering a link that
          * leads to a refusal — the defect the deployment keys already had here. An ordinary account
          * sees the first three, an auditor all eight.
@@ -112,8 +117,7 @@ export class AppMenu {
                           icon: 'pi pi-fw pi-ban',
                           routerLink: ['/gate-verdicts']
                       },
-                      { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] },
-                      { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
+                      { label: this.i18n.t('menu.attestation'), icon: 'pi pi-verified', routerLink: ['/attestation'] }
                   ]
                 : [])
         ];
@@ -138,10 +142,7 @@ export class AppMenu {
                         icon: 'pi pi-fw pi-objects-column',
                         routerLink: ['/solutions']
                     },
-                    { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] },
-                    // For every account, as the registry's read is: a developer whose scan lists a
-                    // plugin as absent has to be able to see what that plugin is.
-                    { label: this.i18n.t('menu.plugins'), icon: 'pi pi-fw pi-th-large', routerLink: ['/plugins'] }
+                    { label: this.i18n.t('menu.containers'), icon: 'pi pi-fw pi-box', routerLink: ['/containers'] }
                 ]
             },
             {
@@ -195,8 +196,8 @@ export class AppMenu {
             if (this.session.canReadGovernance()) {
                 // **What *sets* a control stays here; what it *produces* has moved to the
                 // evidence.** The gate policy says what would be refused, the rule sets what would
-                // be looked for: two settings. The verdicts, the attestation and the audit log are
-                // what gets shown, and are read following the rest of the evidence.
+                // be looked for: two settings. The verdicts and the attestation are what gets
+                // shown, and are read following the rest of the evidence.
                 adminItems.push(
                     {
                         label: this.i18n.t('menu.gate_policies'),
@@ -214,14 +215,36 @@ export class AppMenu {
                         label: this.i18n.t('menu.sarif_sources'),
                         icon: 'pi pi-fw pi-file-import',
                         routerLink: ['/sarif-sources']
-                    },
+                    }
+                );
+            }
+
+            // **An administration entry, by the product owner's decision, and the cost is accepted
+            // knowingly.** A plugin decides what enters the backlog, like the rule sets and the
+            // declared sources beside it. Developers and security champions lose the menu link;
+            // they do not lose the page: the route and the server stay readable by every account,
+            // and a scan listing a plugin as absent still links to it. Pushed at section level, so
+            // every account that sees this section sees it, whichever of the two conditions opened it.
+            adminItems.push({
+                label: this.i18n.t('menu.plugins'),
+                icon: 'pi pi-fw pi-th-large',
+                routerLink: ['/plugins']
+            });
+
+            if (this.session.canReadGovernance()) {
+                adminItems.push(
                     // The checklist a project attests to is the organisation's own words: a governance
-                    // setting like the two above. The auditor reads it; the security leads write it.
+                    // setting like the gate policy and the rule sets. The auditor reads it; the
+                    // security leads write it.
                     {
                         label: this.i18n.t('menu.checklist_templates'),
                         icon: 'pi pi-fw pi-list-check',
                         routerLink: ['/checklist-templates']
-                    }
+                    },
+                    // **Here by the product owner's decision, under the condition it had in the
+                    // evidence section**, which mirrors `@RequiresGovernanceRead` on the route: the
+                    // move changed where it is read, not who reads it.
+                    { label: this.i18n.t('menu.audit_log'), icon: 'pi pi-fw pi-history', routerLink: ['/audit-log'] }
                 );
             }
 

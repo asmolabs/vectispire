@@ -9,8 +9,9 @@ type Manifest = components['schemas']['PluginManifest'];
  * The plugin registry and the SARIF sources (decision 0017), against the real server.
  *
  * <p>The unit specs pin each screen against fixtures read from the contract; this pins the roles
- * against the routes: every account reaches the registry through the sidebar and is offered no
- * change, the platform governor registers a plugin and sees the digest the server computed, and the
+ * against the routes: every account reaches the registry and is offered no change — through the
+ * Administration section for the accounts that see it, through the route for the others — the
+ * platform governor registers a plugin and sees the digest the server computed, and the
  * SARIF sources are in the sidebar for governance readers only — a link that leads to a refusal is
  * the defect the menu suite already watches for.
  *
@@ -26,7 +27,17 @@ test.describe('Plugins and SARIF sources', () => {
         page
     }) => {
         await signInAs(page, 'USER');
-        await goTo(page, '/plugins');
+
+        // **No menu link, and still the page.** The product owner made the entry an administration
+        // one, knowing an ordinary account loses the link; the route stays open to it, as a scan's
+        // link to an absent plugin needs. A `page.goto` would reload and drop the in-memory session,
+        // so the router is driven the way a link inside the application drives it.
+        await expect(page.locator('app-menu a[href="/plugins"]')).toHaveCount(0);
+        await page.evaluate(() => {
+            history.pushState(null, '', '/plugins');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        });
+        await expect(page).toHaveURL(/\/plugins(\?|$)/, { timeout: 15_000 });
 
         await expect(page.getByRole('heading', { name: 'Plugins', level: 1 })).toBeVisible({ timeout: 15_000 });
         await expect(page.getByRole('button', { name: 'Register a plugin' })).toHaveCount(0);

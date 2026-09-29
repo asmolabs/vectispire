@@ -89,14 +89,16 @@ scans, the findings, the [remediation plan](../guide/remediation.md) and the
 **Evidence** is what you can show, and to whom: [compliance](../guide/compliance.md), the
 [statement of applicability](../guide/statement-of-applicability.md), the
 [certified scope](../guide/certified-scope.md), the [exceptions](../guide/exceptions.md), the
-[attestation](../guide/attestation.md), the gate verdicts and the audit log. An assessor opens
-these one after another, which is why they sit together rather than being filed by the part of the
-product that produces them.
+[attestation](../guide/attestation.md) and the gate verdicts. An assessor opens these one after
+another, which is why they sit together rather than being filed by the part of the product that
+produces them.
 
-Four of those entries need governance read access, so an ordinary account sees the first three and
+Five of those entries need governance read access, so an ordinary account sees the first three and
 an auditor sees all of them. **Settings** stay under Administration, with one distinction worth
 knowing: what *configures* a control is a setting, what a control *produces* is evidence. The gate
-policy is a setting; its refusals are evidence.
+policy is a setting; its refusals are evidence. The **audit log** and the **plugins** are
+Administration entries too, shown to the accounts that see that section; an ordinary account still
+opens a plugin's page from the scan that names it.
 
 The interface follows your language: the toggle in the top bar switches between English and
 French, and the choice is remembered in that browser. Prose written by a language model — the

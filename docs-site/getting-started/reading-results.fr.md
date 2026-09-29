@@ -89,14 +89,17 @@ scans, les constats, le [plan de remédiation](../guide/remediation.fr.md) et le
 **Les preuves**, c'est ce qu'on peut montrer, et à qui : la [conformité](../guide/compliance.fr.md),
 la [déclaration d'applicabilité](../guide/statement-of-applicability.fr.md), le
 [périmètre certifié](../guide/certified-scope.fr.md), les [exceptions](../guide/exceptions.fr.md),
-l'[attestation](../guide/attestation.fr.md), les verdicts de barrière et le journal d'audit. Un
-évaluateur les ouvre l'un après l'autre : c'est pourquoi ils sont ensemble plutôt que rangés selon
-la partie du produit qui les fabrique.
+l'[attestation](../guide/attestation.fr.md) et les verdicts de barrière. Un évaluateur les ouvre
+l'un après l'autre : c'est pourquoi ils sont ensemble plutôt que rangés selon la partie du produit
+qui les fabrique.
 
-Quatre de ces entrées demandent la lecture de gouvernance : un compte ordinaire voit les trois
+Cinq de ces entrées demandent la lecture de gouvernance : un compte ordinaire voit les trois
 premières, un auditeur les voit toutes. Les **réglages** restent sous Administration, avec une
 distinction qui mérite d'être connue : ce qui *règle* un contrôle est un réglage, ce qu'un contrôle
-*produit* est une preuve. La politique de barrière est un réglage ; ses refus sont une preuve.
+*produit* est une preuve. La politique de barrière est un réglage ; ses refus sont une preuve. Le
+**journal d'audit** et les **plugins** sont aussi des entrées d'Administration, montrées aux comptes
+qui voient cette section ; un compte ordinaire ouvre encore la page d'un plugin depuis le scan qui
+le nomme.
 
 L'interface suit votre langue : le sélecteur de la barre supérieure bascule entre le français et
 l'anglais, et le choix est retenu dans ce navigateur. La prose écrite par un modèle de langage — les

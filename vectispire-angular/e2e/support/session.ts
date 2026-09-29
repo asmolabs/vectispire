@@ -150,7 +150,8 @@ const LINKS: Record<string, string> = {
     // produce a false conclusion. This is the only one of the two with a menu entry.
     '/rule-sets': 'Semgrep rules',
 
-    // Decision 0017: the registry is every account's, the declared sources are governance's.
+    // Decision 0017: the registry's page is every account's, the declared sources are governance's.
+    // Both menu entries sit in the Administration section, the owner's choice for the plugins.
     '/plugins': 'Plugins',
     '/sarif-sources': 'Declared sources',
 
