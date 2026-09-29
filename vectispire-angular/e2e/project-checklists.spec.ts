@@ -269,6 +269,96 @@ test.describe('Project checklists', () => {
         await expect(page.getByTestId('status')).toHaveText('Submitted');
     });
 
+    /**
+     * A measured line, end to end (decision 0032 §6): the CISO binds "secrets at zero" to row 4 on the
+     * draft's screen, an administrator publishes it, and on a fresh project the line's measurement is
+     * no data — the project has no repository, so nothing looked, and the screen says so rather than
+     * passing it. A yes against it is ready by the line's own count, yet the submission is not offered
+     * until the yes carries a comment and a proof (question 4): the measurements say what the view's
+     * readyToSubmit does not.
+     */
+    test('a line bound to a rule on the draft is measured on the project, and a yes without data needs a comment and a proof', async ({
+        page
+    }) => {
+        const run = Date.now().toString(36);
+        const slug = `e2e-measured-${run}`;
+        const name = `E2E measured ${run}`;
+        const templateName = `E2E measured checklist ${run}`;
+
+        const cisoName = await signInAs(page, 'CISO');
+        const adminName = await signInAs(page, 'ADMIN');
+        const ciso = await tokenOf(page, cisoName);
+        const admin = await tokenOf(page, adminName);
+        await draftTemplate(page, slug, ciso, templateName);
+
+        await signInAs(page, 'CISO');
+        await goTo(page, '/checklist-templates');
+        await page.getByRole('button', { name: `Open version 1 of ${slug}` }).click();
+        await expect(page.getByTestId('item-4').getByTestId('item-rule')).toContainText('No rule', { timeout: 15_000 });
+        await page.getByRole('button', { name: 'Rule of row 4' }).click();
+        const editor = page.getByTestId('rule-editor');
+        await editor.getByRole('button', { name: 'Preset: secrets at zero' }).click();
+        await expect(editor.getByTestId('rule-described')).toContainText('Critical — at most 0 open');
+        await expect(editor.getByTestId('rule-described')).toContainText('Evidence at most 7 days old');
+        await editor.getByRole('button', { name: 'Keep this rule' }).click();
+        await page.getByRole('button', { name: 'Save the rules (1)' }).click();
+        await expect(page.getByTestId('notice')).toHaveText('Rules saved on 1 line(s).');
+        await expect(page.getByTestId('item-4').getByTestId('item-rule-kind')).toHaveText('Findings within thresholds');
+
+        const version = (await (
+            await page.request.get(`/api/v1/checklist-templates/${slug}/versions/1`, { headers: bearer(admin) })
+        ).json()) as { version: { revision: number }; items: { sheetRow: number; boundRule: string | null }[] };
+        expect(JSON.parse(version.items.find((item) => item.sheetRow === 4)?.boundRule ?? 'null')).toEqual({
+            kind: 'findings_threshold',
+            maxAgeDays: 7,
+            scopes: ['builtin:secret'],
+            thresholds: { critical: { maxOpen: 0 }, high: { maxOpen: 0 } }
+        });
+        await publish(page, slug, admin, version.version.revision);
+        await project(page, name, admin);
+
+        await openFromSolutions(page, name);
+        await page.locator('#open-version').selectOption({ label: `${templateName} — version 1` });
+        await page.getByRole('button', { name: 'Open the checklist' }).click();
+        await expect(page.getByTestId('notice')).toHaveText('The checklist is open: revision 1.');
+
+        const measured = page.getByTestId('measurement-1');
+        await expect(measured.getByTestId('outcome')).toHaveText('No data');
+        await expect(measured.getByTestId('reason')).toHaveText(
+            'The project has no repository: there is nothing to measure, and nothing passes by default.'
+        );
+        await expect(page.getByTestId('measurements-mode')).toContainText('Measurements computed now');
+        await expect(page.getByTestId('measurement-2')).toHaveCount(0);
+        // No data offers nothing to rest an answer on.
+        await expect(page.getByRole('button', { name: 'Answer line 1 as measured' })).toHaveCount(0);
+
+        await answer(page, 1, /^Yes/);
+        await answer(page, 2, /^Yes/);
+        await answer(page, 3, /^Yes/);
+        await expect(measured.getByTestId('reconciliation')).toHaveText('Declared, not measured');
+        await expect(measured.getByTestId('measured-problem')).toHaveText([
+            'No data: a yes needs a comment',
+            'No data: a yes needs a proof'
+        ]);
+        await expect(page.getByRole('button', { name: 'Submit for sign-off' })).toBeDisabled();
+        await expect(page.getByTestId('submit-blocked-measured')).toHaveText(
+            'Line(s) 1 disagree with their measurement: see what each one still needs.'
+        );
+
+        const line = page.getByTestId('line-1');
+        await answer(page, 1, /^Yes/, 'No repository filed yet: the secrets review was done by hand.');
+        await expect(measured.getByTestId('measured-problem')).toHaveText(['No data: a yes needs a proof']);
+        await line.getByRole('button', { name: 'Add evidence to line 1' }).click();
+        await line.getByLabel('Link (https: or http:)').fill('https://wiki.example.invalid/secrets-review');
+        await line.getByRole('button', { name: 'Attach' }).click();
+        await expect(line.getByTestId('evidence')).toContainText('secrets-review');
+        await expect(measured.getByTestId('measured-problem')).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Submit for sign-off' }).click();
+        await expect(page.getByTestId('notice')).toHaveText('Revision 1 submitted for sign-off.');
+        await expect(page.getByTestId('status')).toHaveText('Submitted');
+    });
+
     test('an auditor reads a project checklist and is offered no write', async ({ page }) => {
         const run = Date.now().toString(36);
         const adminName = await signInAs(page, 'ADMIN');
