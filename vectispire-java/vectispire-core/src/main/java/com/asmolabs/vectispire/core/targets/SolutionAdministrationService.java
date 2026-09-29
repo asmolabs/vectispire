@@ -19,6 +19,11 @@ import com.asmolabs.vectispire.core.targets.persistence.SolutionEntity;
 import com.asmolabs.vectispire.core.targets.persistence.SolutionRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
@@ -241,6 +246,49 @@ public class SolutionAdministrationService {
     public Optional<ProjectView> project(long id) {
         return projects.findById(id).map(ProjectView::of);
     }
+
+    /**
+     * How a row naming a project shows it: the project's name and its solution's.
+     *
+     * @param solutionName null only when the solution row could not be read, which the schema's key
+     *     does not allow — never an invented name
+     */
+    public record ProjectLabel(long id, String name, Long solutionId, String solutionName) {}
+
+    /**
+     * The labels of these projects, for a module above that lists rows naming a project (plugin
+     * activations) and would otherwise leave the screen to load the whole tree for the names. A
+     * project that does not exist is missing from the map.
+     *
+     * <p>No visibility here: the caller decides who reads the rows, and a project's name is shown to
+     * exactly those who may read them. <b>One lookup per {@link #LOOKUP_BATCH} ids</b> — the list is
+     * sized by the data, and one bind parameter per element fails past the PostgreSQL driver's 65,535.
+     */
+    public Map<Long, ProjectLabel> projectLabels(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        List<ProjectEntity> found = new ArrayList<>();
+        List<Long> distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            found.addAll(projects.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size()))));
+        }
+        List<Long> solutionIds = found.stream().map(ProjectEntity::getSolutionId).filter(Objects::nonNull).distinct().toList();
+        Map<Long, String> solutionNames = new HashMap<>();
+        for (int from = 0; from < solutionIds.size(); from += LOOKUP_BATCH) {
+            solutions.findAllById(solutionIds.subList(from, Math.min(from + LOOKUP_BATCH, solutionIds.size())))
+                    .forEach(solution -> solutionNames.put(solution.getId(), solution.getName()));
+        }
+        Map<Long, ProjectLabel> labels = new HashMap<>();
+        for (ProjectEntity project : found) {
+            labels.put(project.getId(), new ProjectLabel(project.getId(), project.getName(), project.getSolutionId(),
+                    project.getSolutionId() == null ? null : solutionNames.get(project.getSolutionId())));
+        }
+        return Map.copyOf(labels);
+    }
+
+    /** How many identifiers one lookup binds: far under every engine's limit. */
+    static final int LOOKUP_BATCH = 1_000;
 
     // ------------------------------------------------------------------ filing a repository
 

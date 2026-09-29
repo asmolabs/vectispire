@@ -186,6 +186,35 @@ class SarifImportRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("names its key to the governance readers who may not open the key list, and nothing more of it")
+        void namesItsKey() throws Exception {
+            String name = "team-ci-pipeline-" + System.nanoTime();
+            Key key = key(Map.of("name", name, "scopes", List.of("sarif_import")));
+
+            declare(governor(), source("team-ci", key))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.apiKeyName").value(name));
+            // An auditor and a CISO may not list the keys; the source list is where they learn which
+            // pipeline delivers — by the name the administrator gave it, never its prefix or scopes.
+            mvc.perform(authenticated(get("/api/v1/api-keys"), asAuditor())).andExpect(status().isForbidden());
+            for (String reader : List.of(asAuditor(), asCiso())) {
+                mvc.perform(authenticated(get("/api/v1/sarif-sources"), reader))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$[0].apiKeyId").value(key.id()))
+                        .andExpect(jsonPath("$[0].apiKeyName").value(name))
+                        .andExpect(jsonPath("$[0].apiKeyPrefix").doesNotExist())
+                        .andExpect(jsonPath("$[0].scopes").doesNotExist());
+            }
+
+            mvc.perform(authenticated(delete("/api/v1/api-keys/" + key.id()), asAdmin()))
+                    .andExpect(status().is2xxSuccessful());
+            mvc.perform(authenticated(get("/api/v1/sarif-sources"), asAuditor()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].apiKeyId").value(key.id()))
+                    .andExpect(jsonPath("$[0].apiKeyName").value(Matchers.nullValue()));
+        }
+
+        @Test
         @DisplayName("binds a key that holds the scope, to exactly one scope that exists — never the estate")
         void whatADeclarationNeeds() throws Exception {
             String governor = governor();
@@ -228,6 +257,22 @@ class SarifImportRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("the tools of a report are a list, one per run, and a comma in a version does not split one")
+        void toolsAreAList() throws Exception {
+            String semgrep = sarif("Semgrep OSS", "1.90.0, build 7", "python.eval", "src/app.py");
+            String sonar = sarif("SonarQube", "10.4", "java:S2076", "src/Main.java");
+            String twoRuns = semgrep.substring(0, semgrep.lastIndexOf(']')) + ","
+                    + sonar.substring(sonar.indexOf("\"runs\":[") + 8, sonar.lastIndexOf(']')) + "]}";
+
+            upload(key, inScope, twoRuns)
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")));
+            mvc.perform(authenticated(get("/api/v1/repositories/" + inScope + "/sarif-imports"), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")));
+        }
+
+        @Test
         @DisplayName("a declared source's report opens imported issues that say where they came from")
         void provenance() throws Exception {
             upload(key, inScope, sarif("Semgrep OSS", "1.90.0", "python.eval", "src/app.py", "python.exec", "./src/run.py"))
@@ -236,7 +281,7 @@ class SarifImportRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$.repoId").value(inScope))
                     .andExpect(jsonPath("$.resultsCount").value(2))
                     .andExpect(jsonPath("$.createdCount").value(2))
-                    .andExpect(jsonPath("$.tools").value("Semgrep OSS 1.90.0"))
+                    .andExpect(jsonPath("$.tools", Matchers.contains("Semgrep OSS 1.90.0")))
                     // The tool keys the import accepted, what a checklist reads to know the tool produced.
                     .andExpect(jsonPath("$.toolKeys").value("import:team-ci/semgrep oss"))
                     .andExpect(jsonPath("$.documentSha256").value(Matchers.matchesPattern("[0-9a-f]{64}")));

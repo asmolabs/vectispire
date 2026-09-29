@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -187,13 +188,20 @@ public class PluginService {
     /** The plugins switched on for a project; 404 for a project that does not exist. */
     public List<PluginActivationView> activations(long projectId) {
         requireProject(projectId);
-        return activations.findByProjectIdOrderByPluginIdAsc(projectId).stream().map(PluginActivationView::of).toList();
+        return labelled(activations.findByProjectIdOrderByPluginIdAsc(projectId));
     }
 
     /** The projects a plugin is switched on for; 404 for a plugin that does not exist. */
     public List<PluginActivationView> activationsOf(String pluginId) {
         require(pluginId);
-        return activations.findByPluginIdOrderByProjectIdAsc(pluginId).stream().map(PluginActivationView::of).toList();
+        return labelled(activations.findByPluginIdOrderByProjectIdAsc(pluginId));
+    }
+
+    /** The rows with their projects' names, read in one batched lookup rather than one per row. */
+    private List<PluginActivationView> labelled(List<PluginActivationEntity> rows) {
+        Map<Long, SolutionAdministrationService.ProjectLabel> labels =
+                projects.projectLabels(rows.stream().map(PluginActivationEntity::getProjectId).toList());
+        return rows.stream().map(row -> PluginActivationView.of(row, labels.get(row.getProjectId()))).toList();
     }
 
     /**
@@ -221,7 +229,7 @@ public class PluginService {
                     "Plugin \"" + pluginId + "\" switched on for project \"" + project.name() + "\" (" + projectId
                             + "): it reads that project's repositories from the next scan."));
         }
-        return PluginActivationView.of(result.activation());
+        return PluginActivationView.of(result.activation(), projects.projectLabels(List.of(projectId)).get(projectId));
     }
 
     /** Switches it off; 404 when it was not on. The plugin's issues stay, as they would for a failure. */

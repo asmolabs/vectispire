@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -90,7 +91,9 @@ public class SarifSourceService {
             List<String> kinds) {}
 
     public List<SarifSourceView> list() {
-        return sources.findAllByOrderBySlugAsc().stream().map(SarifSourceView::of).toList();
+        List<SarifSourceEntity> rows = sources.findAllByOrderBySlugAsc();
+        Map<UUID, String> keyNames = apiKeys.names(rows.stream().map(SarifSourceEntity::getApiKeyId).toList());
+        return rows.stream().map(row -> SarifSourceView.of(row, keyNames.get(row.getApiKeyId()))).toList();
     }
 
     /** Declares a source, or refuses it with a reason the governor can act on. */
@@ -129,7 +132,7 @@ public class SarifSourceService {
         audit.record(actor.entry(AuditOperation.SARIF_SOURCE_CHANGED, slug,
                 "Source \"" + slug + "\" declared for " + scope + ", key " + keyId + ", delivering "
                         + SourceKind.stored(kinds) + (tools.isEmpty() ? "" : ", tools " + tools) + "."));
-        return SarifSourceView.of(saved);
+        return view(saved);
     }
 
     /** Suspends or resumes a source; its key is refused while it is disabled. Repeating records nothing. */
@@ -147,7 +150,7 @@ public class SarifSourceService {
             audit.record(actor.entry(AuditOperation.SARIF_SOURCE_CHANGED, result.source().getSlug(),
                     "SARIF source \"" + result.source().getSlug() + "\" " + (enabled ? "enabled" : "disabled") + "."));
         }
-        return SarifSourceView.of(result.source());
+        return view(result.source());
     }
 
     /**
@@ -166,6 +169,10 @@ public class SarifSourceService {
         });
         audit.record(actor.entry(AuditOperation.SARIF_SOURCE_CHANGED, source.getSlug(),
                 "SARIF source \"" + source.getSlug() + "\" removed; its key imports nothing any more."));
+    }
+
+    private SarifSourceView view(SarifSourceEntity source) {
+        return SarifSourceView.of(source, apiKeys.names(List.of(source.getApiKeyId())).get(source.getApiKeyId()));
     }
 
     private SarifSourceEntity require(long id) {

@@ -6,7 +6,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * What became of one plugin in one scan, as the scan keeps it: the state, and what the state needs to
@@ -20,7 +22,8 @@ import java.util.List;
  *
  * <p>The findings themselves are the scan's findings rows; only their count is kept here.
  *
- * @param state {@code produced}, {@code not_applicable} or {@code absent} — the wire's discriminator
+ * @param state {@code produced}, {@code not_applicable} or {@code absent} — {@link State} — the wire's
+ *     discriminator
  * @param findings for a produced plugin, how many results it reported; {@code null} otherwise
  * @param languages for a not-applicable plugin, the languages it declares and the tree lacked
  * @param reason for an absent plugin, what went wrong
@@ -28,9 +31,32 @@ import java.util.List;
 public record PluginOutcome(
         String pluginId, String manifestDigest, String state, Integer findings, List<String> languages, String reason) {
 
-    public static final String PRODUCED = "produced";
-    public static final String NOT_APPLICABLE = "not_applicable";
-    public static final String ABSENT = "absent";
+    /**
+     * Decision 0017's three states, as {@code state} spells them. The component stays a string, so a
+     * state a later version writes is still read back — and read as absent by whoever decides on it —
+     * rather than failing the whole scan's list; this type is what the code and the OpenAPI document
+     * ({@link ScanVocabularies}) take the tokens from.
+     */
+    public enum State {
+        PRODUCED("produced"),
+        NOT_APPLICABLE("not_applicable"),
+        ABSENT("absent");
+
+        private final String wireName;
+
+        State(String wireName) {
+            this.wireName = wireName;
+        }
+
+        public String wireName() {
+            return wireName;
+        }
+
+        /** Empty for a state this version does not know, and for none. */
+        public static Optional<State> fromWire(String value) {
+            return Arrays.stream(values()).filter(state -> state.wireName.equals(value)).findFirst();
+        }
+    }
 
     private static final ObjectMapper JSON =
             new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -38,12 +64,13 @@ public record PluginOutcome(
     public static PluginOutcome of(PluginStep step) {
         return switch (step) {
             case PluginStep.Produced produced -> new PluginOutcome(
-                    produced.pluginId(), produced.manifestDigest(), PRODUCED, produced.findings().size(), List.of(), null);
+                    produced.pluginId(), produced.manifestDigest(), State.PRODUCED.wireName(), produced.findings().size(),
+                    List.of(), null);
             case PluginStep.NotApplicable skipped -> new PluginOutcome(
-                    skipped.pluginId(), skipped.manifestDigest(), NOT_APPLICABLE, null,
+                    skipped.pluginId(), skipped.manifestDigest(), State.NOT_APPLICABLE.wireName(), null,
                     skipped.languages().stream().map(Language::wireName).toList(), null);
             case PluginStep.Absent absent -> new PluginOutcome(
-                    absent.pluginId(), absent.manifestDigest(), ABSENT, null, List.of(), absent.reason());
+                    absent.pluginId(), absent.manifestDigest(), State.ABSENT.wireName(), null, List.of(), absent.reason());
         };
     }
 

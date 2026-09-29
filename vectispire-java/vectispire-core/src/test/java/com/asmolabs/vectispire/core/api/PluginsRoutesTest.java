@@ -254,6 +254,46 @@ class PluginsRoutesTest extends ApiTestBase {
         }
 
         @Test
+        @DisplayName("names each activation's project and solution, on both lists and on the switch itself")
+        void namesTheProject() throws Exception {
+            register(governor(), manifest("acme-lint", DIGEST)).andExpect(status().isCreated());
+            SolutionEntity solution = new SolutionEntity();
+            solution.setName("Payments platform");
+            solution.setCreatedAt(Instant.now());
+            long solutionId = solutions.save(solution).getId();
+            long[] named = new long[2];
+            String[] names = {"checkout", "ledger"};
+            for (int i = 0; i < named.length; i++) {
+                ProjectEntity project = new ProjectEntity();
+                project.setSolutionId(solutionId);
+                project.setName(names[i]);
+                project.setCreatedAt(Instant.now());
+                named[i] = projects.save(project).getId();
+            }
+
+            mvc.perform(authenticated(put("/api/v1/projects/" + named[0] + "/plugins/acme-lint"), asCiso()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.projectName").value("checkout"))
+                    .andExpect(jsonPath("$.solutionId").value(solutionId))
+                    .andExpect(jsonPath("$.solutionName").value("Payments platform"));
+            mvc.perform(authenticated(put("/api/v1/projects/" + named[1] + "/plugins/acme-lint"), asCiso()))
+                    .andExpect(status().isOk());
+
+            mvc.perform(authenticated(get("/api/v1/plugins/acme-lint/projects"), asAuditor()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].projectId").value(named[0]))
+                    .andExpect(jsonPath("$[0].projectName").value("checkout"))
+                    .andExpect(jsonPath("$[1].projectId").value(named[1]))
+                    .andExpect(jsonPath("$[1].projectName").value("ledger"))
+                    .andExpect(jsonPath("$[1].solutionName").value("Payments platform"));
+            mvc.perform(authenticated(get("/api/v1/projects/" + named[1] + "/plugins"), asAuditor()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].projectName").value("ledger"))
+                    .andExpect(jsonPath("$[0].solutionId").value(solutionId))
+                    .andExpect(jsonPath("$[0].solutionName").value("Payments platform"));
+        }
+
+        @Test
         @DisplayName("an unknown project or plugin is absent, and switching off what is not on is too")
         void absent() throws Exception {
             register(governor(), manifest("acme-lint", DIGEST)).andExpect(status().isCreated());

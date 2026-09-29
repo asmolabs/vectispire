@@ -4,6 +4,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +39,22 @@ class OpenApiRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.paths['/api/v1/repositories']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/scans']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/compliance/summary']").exists());
+    }
+
+    @Test
+    @DisplayName("a plugin's state is one of decision 0017's three, and an import's tools are a list of strings")
+    void closesThePluginContract() throws Exception {
+        mvc.perform(authenticated(get("/v3/api-docs"), asReader()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.PluginOutcome.properties.state.enum",
+                        Matchers.contains("produced", "not_applicable", "absent")))
+                .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.type").value("array"))
+                .andExpect(jsonPath("$.components.schemas.SarifImportView.properties.tools.items.type").value("string"))
+                .andExpect(jsonPath("$.components.schemas.SarifSourceView.properties.apiKeyName.type").value("string"))
+                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.projectName.type")
+                        .value("string"))
+                .andExpect(jsonPath("$.components.schemas.PluginActivationView.properties.solutionName.type")
+                        .value("string"));
     }
 
     @Test

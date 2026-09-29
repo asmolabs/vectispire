@@ -9,6 +9,9 @@ import java.util.UUID;
 /**
  * A declared source, under the entity's property names.
  *
+ * @param apiKeyName the bound key's name, as the key list shows it — what lets a governance reader who
+ *     may not open that list (an auditor, a CISO) tell which pipeline delivers; null once the key is
+ *     revoked, which leaves the source importing nothing
  * @param projectId and {@code repositoryId}: exactly one is set — the one scope it may deliver for
  * @param tools the SARIF tool names it may deliver, lowercased, as {@code tool.driver.name} is
  *     compared; empty for a source that delivers no SARIF
@@ -19,6 +22,7 @@ public record SarifSourceView(
         String slug,
         String name,
         UUID apiKeyId,
+        String apiKeyName,
         Long projectId,
         Long repositoryId,
         List<String> tools,
@@ -27,8 +31,8 @@ public record SarifSourceView(
         Instant createdAt,
         String createdBy) {
 
-    static SarifSourceView of(SarifSourceEntity source) {
-        return new SarifSourceView(source.getId(), source.getSlug(), source.getName(), source.getApiKeyId(),
+    static SarifSourceView of(SarifSourceEntity source, String apiKeyName) {
+        return new SarifSourceView(source.getId(), source.getSlug(), source.getName(), source.getApiKeyId(), apiKeyName,
                 source.getProjectId(), source.getRepositoryId(), tools(source.getTools()),
                 SourceKind.fromStored(source.getKinds()).stream().map(SourceKind::wireName).toList(), source.getEnabled(),
                 source.getCreatedAt(), source.getCreatedBy());

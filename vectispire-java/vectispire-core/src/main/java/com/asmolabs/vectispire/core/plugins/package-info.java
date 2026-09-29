@@ -16,7 +16,8 @@
  * same rules. {@code targets}: an activation and a source name a project or a repository, checked
  * through {@code SolutionAdministrationService} and {@code TargetCatalog}, and purged on {@code
  * ProjectDeleted} and {@code TargetDeleted}, which {@code targets} publishes. {@code access}: a source
- * is bound to an integration key checked through {@code ApiKeyAdministrationService}, and the routes
+ * is bound to an integration key checked through {@code ApiKeyAdministrationService}, which also names
+ * the keys the source list shows its governance readers, and the routes
  * resolve the caller's visibility through {@code VisibilityService}.
  *
  * <p>{@code access::security} for its routes: the markers, the principal and {@code Visibilities},

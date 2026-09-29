@@ -35,33 +35,38 @@ class EntityViewsTest {
 
     static java.util.stream.Stream<Arguments> pairs() {
         return java.util.stream.Stream.of(
-                Arguments.of(IssueEntity.class, IssueView.class),
-                Arguments.of(IssueTicketEntity.class, IssueTicketView.class),
-                Arguments.of(AuditLogEntity.class, AuditEntryView.class),
-                Arguments.of(ApiContractEntity.class, ApiContractView.class),
-                Arguments.of(SolutionEntity.class, SolutionAdministrationService.SolutionView.class),
-                Arguments.of(ProjectEntity.class, SolutionAdministrationService.ProjectView.class),
+                Arguments.of(IssueEntity.class, IssueView.class, Set.of()),
+                Arguments.of(IssueTicketEntity.class, IssueTicketView.class, Set.of()),
+                Arguments.of(AuditLogEntity.class, AuditEntryView.class, Set.of()),
+                Arguments.of(ApiContractEntity.class, ApiContractView.class, Set.of()),
+                Arguments.of(SolutionEntity.class, SolutionAdministrationService.SolutionView.class, Set.of()),
+                Arguments.of(ProjectEntity.class, SolutionAdministrationService.ProjectView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.PluginActivationEntity.class,
-                        com.asmolabs.vectispire.core.plugins.PluginActivationView.class),
+                        com.asmolabs.vectispire.core.plugins.PluginActivationView.class,
+                        Set.of("projectName", "solutionId", "solutionName")),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifSourceEntity.class,
-                        com.asmolabs.vectispire.core.plugins.SarifSourceView.class),
+                        com.asmolabs.vectispire.core.plugins.SarifSourceView.class, Set.of("apiKeyName")),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity.class,
-                        com.asmolabs.vectispire.core.plugins.SarifImportView.class),
+                        com.asmolabs.vectispire.core.plugins.SarifImportView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.CoverageImportEntity.class,
-                        com.asmolabs.vectispire.core.plugins.CoverageImportView.class),
+                        com.asmolabs.vectispire.core.plugins.CoverageImportView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestReportImportEntity.class,
-                        com.asmolabs.vectispire.core.plugins.TestReportImportView.class),
+                        com.asmolabs.vectispire.core.plugins.TestReportImportView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.plugins.persistence.TestSuiteResultEntity.class,
-                        com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class),
+                        com.asmolabs.vectispire.core.plugins.TestSuiteResultView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity.class,
-                        com.asmolabs.vectispire.core.checklists.ChecklistItemView.class),
+                        com.asmolabs.vectispire.core.checklists.ChecklistItemView.class, Set.of()),
                 Arguments.of(com.asmolabs.vectispire.core.checklists.persistence.ChecklistMeasurementEntity.class,
-                        com.asmolabs.vectispire.core.checklists.ChecklistMeasurementView.class));
+                        com.asmolabs.vectispire.core.checklists.ChecklistMeasurementView.class, Set.of()));
     }
 
+    /**
+     * @param derived the components a view adds that no column holds — a name looked up in another
+     *     module — listed here so that adding one is as deliberate as publishing a column
+     */
     @ParameterizedTest(name = "{1} carries every property of {0}")
     @MethodSource("pairs")
-    void aViewCarriesEveryPublishedProperty(Class<?> entity, Class<? extends Record> view) {
+    void aViewCarriesEveryPublishedProperty(Class<?> entity, Class<? extends Record> view, Set<String> derived) {
         Set<String> published = Arrays.stream(entity.getMethods())
                 .filter(method -> method.getDeclaringClass() == entity)
                 .filter(method -> method.getParameterCount() == 0 && !Modifier.isStatic(method.getModifiers()))
@@ -72,6 +77,7 @@ class EntityViewsTest {
                 .collect(Collectors.toSet());
         Set<String> carried = Arrays.stream(view.getRecordComponents())
                 .map(RecordComponent::getName)
+                .filter(name -> !derived.contains(name))
                 .collect(Collectors.toSet());
 
         assertThat(carried).containsExactlyInAnyOrderElementsOf(published);

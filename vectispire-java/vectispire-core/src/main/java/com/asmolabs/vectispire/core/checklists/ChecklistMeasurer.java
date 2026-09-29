@@ -189,11 +189,11 @@ class ChecklistMeasurer {
      * read as absent — should have run, did not — never as produced nor as not applicable.
      */
     private static PluginState state(PluginOutcome outcome) {
-        return switch (outcome.state() == null ? "" : outcome.state()) {
-            case PluginOutcome.PRODUCED -> PluginState.PRODUCED;
-            case PluginOutcome.NOT_APPLICABLE -> PluginState.NOT_APPLICABLE;
-            default -> PluginState.ABSENT;
-        };
+        return PluginOutcome.State.fromWire(outcome.state()).map(state -> switch (state) {
+            case PRODUCED -> PluginState.PRODUCED;
+            case NOT_APPLICABLE -> PluginState.NOT_APPLICABLE;
+            case ABSENT -> PluginState.ABSENT;
+        }).orElse(PluginState.ABSENT);
     }
 
     private Map<Long, ScopeFacts> imported(List<Long> repositories, ToolScope.Imported scope, Instant since) {

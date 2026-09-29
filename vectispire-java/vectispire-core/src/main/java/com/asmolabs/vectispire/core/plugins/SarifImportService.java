@@ -176,7 +176,9 @@ public class SarifImportService {
                 findings.add(observed(finding, run, tool));
             }
             results += run.results().get().size();
-            described.add(run.toolName() + (run.toolVersion() == null ? "" : " " + run.toolVersion()));
+            // The comma separates the entries the view splits back into a list; a tool name cannot hold
+            // one (only declared names are accepted, and those are refused with a comma), a version can.
+            described.add(run.toolName() + (run.toolVersion() == null ? "" : " " + run.toolVersion().replace(',', ';')));
         }
 
         String sha256 = Digests.sha256Hex(document);

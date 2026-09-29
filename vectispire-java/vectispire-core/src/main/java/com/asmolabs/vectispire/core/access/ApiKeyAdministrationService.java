@@ -17,10 +17,12 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -156,6 +158,32 @@ public class ApiKeyAdministrationService {
                 .orElse(Map.of());
         return new Issued(viewOf(saved, issuedAt, targets.labels(), owner), issued.fullKey());
     }
+
+    /**
+     * The names of these keys, for a module that lists rows bound to a key (the declared SARIF
+     * sources) to readers who may not open the key list — an auditor, a CISO. The name alone: it is
+     * what the administrator wrote to say which pipeline holds the key, and the list shows it; the
+     * prefix, the scopes, the owner and the target stay the key list's. A key revoked since is
+     * missing from the map.
+     *
+     * <p><b>One lookup per {@link #LOOKUP_BATCH} ids</b>: the rows are sized by the data, and one bind
+     * parameter per element fails past the PostgreSQL driver's 65,535.
+     */
+    public Map<UUID, String> names(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        List<UUID> distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+        Map<UUID, String> names = new HashMap<>();
+        for (int from = 0; from < distinct.size(); from += LOOKUP_BATCH) {
+            keys.findAllById(distinct.subList(from, Math.min(from + LOOKUP_BATCH, distinct.size())))
+                    .forEach(key -> names.put(key.getId(), key.getName()));
+        }
+        return Map.copyOf(names);
+    }
+
+    /** How many identifiers one lookup binds: far under every engine's limit. */
+    static final int LOOKUP_BATCH = 1_000;
 
     /**
      * A key as the list shows it, by id — for a module that binds a key to something of its own (a
