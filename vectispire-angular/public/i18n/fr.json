@@ -1981,6 +1981,10 @@
         "label": "Fournisseur",
         "help": "« Ollama » garde le code sur une machine que vous exploitez. « API compatible OpenAI » l'envoie à l'adresse configurée — publique ou locale, c'est l'URL qui décide."
       },
+      "checklist_auto_answer": {
+        "label": "Répondre automatiquement aux lignes mesurées des checklists",
+        "help": "Quand une analyse ou un import se termine, et quand une checklist est ouverte ou passée à une autre version, Vectispire répond aux lignes liées à une règle d'une checklist en brouillon : oui si elle est atteinte, non avec la mesure pour commentaire sinon, rien sans données. Ses réponses sont marquées comme les siennes, ne remplacent jamais celle d'une personne, et la soumission comme l'approbation restent des actes de personnes. Désactivé, les réponses existantes restent et plus rien n'est écrit automatiquement ; la réponse comme mesuré en un clic demeure."
+      },
       "compliance_freshness_days": {
         "label": "Conformité : une observation reste courante pendant",
         "help": "**Une cible jamais observée n'a aucune vulnérabilité connue**, et sur un tableau naïf elle est verte — c'est le seul vert qui devrait déclencher une alarme. Au-delà de ce nombre de jours, un scan cesse de compter comme une observation courante, et un contrôle évalué sur une couverture incomplète ne peut plus être rendu conforme : il est *non évalué*, ce qui n'est pas la même phrase devant un auditeur. Zéro désactive le plafond et rend à l'évaluation son comportement d'avant."
