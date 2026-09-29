@@ -521,8 +521,17 @@ export type MonitoredRepository = Refine<
         httpsTokenId: string | null;
         lastScan: LastScan | null;
         tier?: AssetTier;
+        /**
+         * What its newest completed scan counted. **`null` is unknown, `[]` is "counted, none"** —
+         * never scanned since the count existed, or the walk stopped at its bound. Rendering both
+         * alike would say "no language" of a tree nobody has looked at.
+         */
+        detectedLanguages: DetectedLanguage[] | null;
     }
 >;
+
+/** A language counted in a repository, spelt as a plugin manifest declares it, so the two compare as strings. */
+export type DetectedLanguage = NonNullable<Schema<'RepositorySummary'>['detectedLanguages']>[number];
 
 export interface NewRepository {
     url: string;
@@ -723,6 +732,10 @@ export type ProjectNode = Refine<
         description: string | null;
         openIssues: OpenIssues;
         repositories: RepositoryRef[];
+        /** The union over the repositories the reader sees; it speaks only for those not in `languagesUnknownFor`. */
+        detectedLanguages: DetectedLanguage[];
+        /** The visible repositories whose languages are unknown. */
+        languagesUnknownFor: number[];
     }
 >;
 

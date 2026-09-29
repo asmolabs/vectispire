@@ -16,7 +16,10 @@ test.describe.configure({ mode: 'serial' });
 const NONE = { critical: 0, high: 0, medium: 0, low: 0, negligible: 0, unknown: 0, total: 0 };
 const THREE_HIGH = { ...NONE, high: 3, total: 3 };
 
-/** One solution holding one project with three open high issues, at ids no seeded data uses. */
+/**
+ * One solution holding one project with three open high issues, at ids no seeded data uses. Its
+ * languages are those of a counted repository beside one nobody has counted yet.
+ */
 async function stubTree(page: Page): Promise<void> {
     await page.route('**/api/v1/solutions', (route) =>
         route.fulfill({
@@ -42,7 +45,12 @@ async function stubTree(page: Page): Promise<void> {
                                 partial: false,
                                 repositoryCount: 1,
                                 openIssues: THREE_HIGH,
-                                repositories: [{ id: 987653, name: 'ledger-core' }]
+                                repositories: [
+                                    { id: 987653, name: 'ledger-core' },
+                                    { id: 987655, name: 'ledger-ui' }
+                                ],
+                                detectedLanguages: ['java', 'yaml'],
+                                languagesUnknownFor: [987655]
                             }
                         ]
                     }
@@ -139,6 +147,59 @@ test.describe('Solutions and projects', () => {
         await target.getByRole('button', { name: `Delete ${to}` }).click();
         await page.getByRole('button', { name: 'Confirm' }).click();
         await expect(page.getByRole('heading', { name: to, level: 2 })).toHaveCount(0, { timeout: 15_000 });
+    });
+
+    /**
+     * A plugin's languages beside the project's, in a real browser. The tree and the registry are
+     * stubbed — a real count needs a completed scan, which this campaign's worker does not run.
+     */
+    test("the plugins dialog sets a plugin's languages against the project's", async ({ page }) => {
+        await stubTree(page);
+        const manifest = (id: string, languages: string[]) => ({
+            id,
+            name: id,
+            image: `registry.example/${id}@sha256:${'a'.repeat(64)}`,
+            languages,
+            arguments: ['{source}'],
+            output: 'results.sarif',
+            exit_codes: [0],
+            network: false,
+            network_justification: null,
+            timeout_seconds: 600,
+            signature: null
+        });
+        const plugin = (id: string, languages: string[]) => ({
+            id,
+            name: id,
+            manifest: manifest(id, languages),
+            manifestDigest: 'b'.repeat(64),
+            enabled: true,
+            createdAt: '2026-09-27T08:00:00Z',
+            createdBy: 'admin',
+            updatedAt: null,
+            updatedBy: null
+        });
+        await page.route('**/api/v1/plugins', (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([plugin('e2e-java-lint', ['java', 'kotlin']), plugin('e2e-py-rules', ['python'])])
+            })
+        );
+        await page.route('**/api/v1/projects/987654/plugins', (route) =>
+            route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+        );
+        await signInAs(page, 'AUDITOR');
+        await goTo(page, '/solutions');
+
+        await page.getByRole('button', { name: 'Plugins switched on for Ledger' }).click();
+        const dialog = page.getByTestId('plugins-dialog');
+        await expect(dialog.getByTestId('plugins-project-languages')).toContainText('java');
+        await expect(dialog.getByTestId('plugins-languages-unknown')).toContainText('(1): ledger-ui');
+        await expect(page.getByTestId('project-plugin-e2e-java-lint')).toContainText('Present in this project: java.');
+        await expect(page.getByTestId('project-plugin-e2e-py-rules')).toContainText(
+            'those not yet scanned may hold one'
+        );
     });
 
     /**

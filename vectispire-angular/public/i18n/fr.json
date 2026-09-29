@@ -723,6 +723,11 @@
     "delete_header": "Supprimer cette image ?",
     "delete_body": "et tout son historique — analyses, constats et {{count}} constat(s) en cours — seront supprimés. C'est définitif."
   },
+  "detected_languages": {
+    "label": "Langages :",
+    "unknown": "pas encore connus",
+    "none": "aucun langage détecté"
+  },
   "dashboard": {
     "title": "Tableau de bord",
     "subtitle": "L'état de la surveillance de sécurité en un coup d'œil.",
@@ -2206,6 +2211,11 @@
     "unknown": "Inconnue"
   },
   "solutions": {
+    "plugins_project_languages": "Langages détectés dans ce projet :",
+    "plugins_languages_unknown": "Dépôts pas encore analysés pour leurs langages ({{count}}) : {{names}}. Ce qui suit ne vaut que pour les autres.",
+    "plugin_languages_present": "Présents dans ce projet : {{languages}}.",
+    "plugin_languages_absent": "Aucun langage de ce projet : il serait non applicable, ne serait pas lancé, et laisserait ses issues en l'état.",
+    "plugin_languages_absent_so_far": "Aucun de ses langages parmi les dépôts déjà comptés ; ceux qui n'ont pas encore été analysés peuvent en contenir un.",
     "title": "Solutions et projets",
     "subtitle": "Quels dépôts composent quel produit. Les chiffres ne couvrent que ce que vous pouvez voir.",
     "new_solution": "Nouvelle solution",

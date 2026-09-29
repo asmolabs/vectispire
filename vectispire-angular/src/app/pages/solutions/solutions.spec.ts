@@ -8,6 +8,7 @@ import { SessionStore } from '@/app/core/session.store';
 import { asSchema } from '@/app/core/testing/contract';
 import { useEnglish } from '@/app/core/testing/english';
 import { ACTIVATION, PLUGIN } from '@/app/core/testing/plugins.fixtures';
+import type { Plugin } from '@/app/core/api.models';
 
 /**
  * The solutions tree (decision 0023), through the DOM.
@@ -52,7 +53,9 @@ describe('the solutions tree', () => {
                         partial: true,
                         repositoryCount: 1,
                         openIssues: issues(2, 0),
-                        repositories: [{ id: 9, name: 'api-gateway' }]
+                        repositories: [{ id: 9, name: 'api-gateway' }],
+                        detectedLanguages: [],
+                        languagesUnknownFor: []
                     },
                     {
                         id: 12,
@@ -63,7 +66,9 @@ describe('the solutions tree', () => {
                         partial: false,
                         repositoryCount: 1,
                         openIssues: issues(0, 1),
-                        repositories: [{ id: 10, name: 'ledger-core' }]
+                        repositories: [{ id: 10, name: 'ledger-core' }],
+                        detectedLanguages: [],
+                        languagesUnknownFor: []
                     }
                 ]
             },
@@ -85,7 +90,9 @@ describe('the solutions tree', () => {
                         partial: false,
                         repositoryCount: 0,
                         openIssues: issues(0, 0),
-                        repositories: []
+                        repositories: [],
+                        detectedLanguages: [],
+                        languagesUnknownFor: []
                     }
                 ]
             }
@@ -558,10 +565,16 @@ describe('the solutions tree', () => {
      * activations, with each plugin's languages, so what would run is visible before the switch.
      */
     describe('plugins per project', () => {
-        const OTHER = { ...PLUGIN, id: 'py-rules', name: 'Python rules', enabled: false };
+        const OTHER: Plugin = {
+            ...PLUGIN,
+            id: 'py-rules',
+            name: 'Python rules',
+            enabled: false,
+            manifest: { ...PLUGIN.manifest, id: 'py-rules', languages: ['python'] }
+        };
 
-        async function openFor(role: string): Promise<void> {
-            await mount(role);
+        async function openFor(role: string, tree: object = TREE): Promise<void> {
+            await mount(role, tree);
             (
                 page().querySelector('[data-testid="project-11"] [data-testid="project-plugins"] button') as HTMLElement
             ).click();
@@ -608,6 +621,81 @@ describe('the solutions tree', () => {
             await fixture.whenStable();
 
             expect([...fixture.componentInstance.activations().keys()]).toEqual(['py-rules']);
+        });
+
+        /** The tree with project 11 carrying the given languages and the given uncounted repositories. */
+        const withLanguages = (detectedLanguages: string[], languagesUnknownFor: number[]) => ({
+            ...TREE,
+            solutions: TREE.solutions.map((solution) => ({
+                ...solution,
+                projects: solution.projects.map((project) =>
+                    project.id === 11
+                        ? {
+                              ...project,
+                              repositoryCount: 2,
+                              repositories: [
+                                  { id: 9, name: 'api-gateway' },
+                                  { id: 13, name: 'gateway-ui' }
+                              ],
+                              detectedLanguages,
+                              languagesUnknownFor
+                          }
+                        : project
+                )
+            }))
+        });
+        const matched = (id: string) =>
+            [...document.querySelectorAll(`[data-testid="project-plugin-${id}"] p-tag[data-matched]`)].map((tag) =>
+                tag.textContent?.trim()
+            );
+
+        it("highlights the plugin's languages the project holds, and says it of a disjoint one", async () => {
+            await openFor('AUDITOR', withLanguages(['java', 'typescript'], []));
+
+            expect(matched('acme-lint')).toEqual(['java']);
+            expect(text('[data-testid="project-plugin-acme-lint"]')).toContain('Present in this project: java.');
+            expect(matched('py-rules')).toEqual([]);
+            expect(text('[data-testid="project-plugin-py-rules"]')).toContain(
+                'No language of this project: it would report not applicable'
+            );
+            expect(text('[data-testid="plugins-project-languages"]')).toContain('typescript');
+            expect(document.querySelector('[data-testid="plugins-languages-unknown"]')).toBeNull();
+        });
+
+        it('informs and never blocks: a disjoint plugin can still be switched on', async () => {
+            await openFor('CISO', withLanguages(['java'], []));
+            expect(text('[data-testid="project-plugin-py-rules"]')).toContain('No language of this project');
+            expect(toggle('py-rules')?.disabled).toBe(false);
+        });
+
+        it('names the repositories not yet counted, and does not call a plugin disjoint on their account', async () => {
+            await openFor('AUDITOR', withLanguages(['java'], [13]));
+
+            const note = text('[data-testid="plugins-languages-unknown"]');
+            expect(note).toContain('(1)');
+            expect(note).toContain('gateway-ui');
+            expect(note).not.toContain('api-gateway');
+            expect(text('[data-testid="project-plugin-py-rules"]')).toContain('those not yet scanned may hold one');
+            expect(text('[data-testid="project-plugin-py-rules"]')).not.toContain('No language of this project');
+        });
+
+        it('says "not yet known" of a project nobody has counted', async () => {
+            await openFor('AUDITOR', withLanguages([], [9, 13]));
+            expect(text('[data-testid="plugins-project-languages"]')).toContain('not yet known');
+            expect(text('[data-testid="plugins-project-languages"]')).not.toContain('no language detected');
+            expect(text('[data-testid="plugins-languages-unknown"]')).toContain('(2)');
+        });
+
+        it('says "no language detected" of a project counted with none', async () => {
+            await openFor('AUDITOR', withLanguages([], []));
+            expect(text('[data-testid="plugins-project-languages"]')).toContain('no language detected');
+            expect(text('[data-testid="plugins-project-languages"]')).not.toContain('not yet known');
+        });
+
+        it("shows a project's languages in the tree, and nothing where none is known", async () => {
+            await mount('USER', withLanguages(['java', 'typescript'], [13]));
+            expect(text('[data-testid="project-11"] [data-testid="project-languages"]')).toContain('typescript');
+            expect(page().querySelector('[data-testid="project-12"] [data-testid="project-languages"]')).toBeNull();
         });
 
         it("keeps the stored state and the server's reason when a switch is refused", async () => {

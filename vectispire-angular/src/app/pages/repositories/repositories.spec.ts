@@ -92,6 +92,38 @@ describe('the repository list', () => {
     });
 
     /**
+     * What the newest completed scan counted. `null` is unknown and `[]` is "counted, none": the two
+     * render as two different sentences, or an unscanned repository reads as holding no language.
+     */
+    describe('the languages detected in it', () => {
+        const languages = () =>
+            fixture.nativeElement.querySelector('[data-testid="repository-languages"]') as HTMLElement;
+
+        it('shows each language as a tag', () => {
+            load(asSchema('RepositorySummary', { ...REPOSITORY, detectedLanguages: ['java', 'typescript'] }));
+            const tags = [...languages().querySelectorAll('[data-testid="languages"] p-tag')];
+            expect(tags.map((tag) => tag.textContent?.trim())).toEqual(['java', 'typescript']);
+            expect(languages().querySelector('[data-testid="languages-unknown"]')).toBeNull();
+        });
+
+        it('says "not yet known" when nothing was counted', () => {
+            load(asSchema('RepositorySummary', { ...REPOSITORY, detectedLanguages: null }));
+            expect(languages().querySelector('[data-testid="languages-unknown"]')?.textContent).toContain(
+                'detected_languages.unknown'
+            );
+            expect(languages().querySelector('[data-testid="languages-none"]')).toBeNull();
+        });
+
+        it('says "no language detected" when the count found none, not "not yet known"', () => {
+            load(asSchema('RepositorySummary', { ...REPOSITORY, detectedLanguages: [] }));
+            expect(languages().querySelector('[data-testid="languages-none"]')?.textContent).toContain(
+                'detected_languages.none'
+            );
+            expect(languages().querySelector('[data-testid="languages-unknown"]')).toBeNull();
+        });
+    });
+
+    /**
      * The imported evidence is per repository — the SARIF behind imported issues, the coverage and
      * test figures a checklist reads — and the row must offer a way to it, for every account.
      */

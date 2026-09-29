@@ -25,6 +25,7 @@ import type {
 } from '../../core/api.models';
 import { SessionStore } from '../../core/session.store';
 import { LastScanTag } from '../../shared/last-scan';
+import { DetectedLanguages } from '../../shared/detected-languages';
 import { ScheduleFields, scheduleLabel } from '../../shared/schedule-fields';
 import { ReportImports } from '../../shared/report-imports';
 import { SarifImports } from '../../shared/sarif-imports';
@@ -103,6 +104,7 @@ const CLI_SCRIPT_URL = `https://raw.githubusercontent.com/asmolabs/vectispire/v$
         SelectModule,
         TagModule,
         LastScanTag,
+        DetectedLanguages,
         ScheduleFields,
         TranslatePipe,
         RuleCoverageBanner,

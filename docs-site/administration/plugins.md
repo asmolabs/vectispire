@@ -226,6 +226,18 @@ compared as they are written:
   whose languages are unknown. A project reading `["java"]` with a repository in `languagesUnknownFor`
   may hold more than Java; the union speaks only for the others.
 
+
+**On screen**, the **Plugins** dialog of a project in [Solutions & projects](solutions-and-projects.md)
+opens on the project's languages, then sets each plugin's against them: the languages the project holds
+are highlighted, with "Present in this project: …" beneath; a plugin sharing none says **"No language of
+this project"** — at the next scan it would be *not applicable* and not start. When some of the
+project's repositories have not been counted yet, the dialog names them ("Repositories not yet scanned
+for languages (N): …"), and a plugin sharing no language with the others says only that none was found
+*so far*. None of this blocks a switch: the count is one push old at best, and switching a plugin on
+ahead of the language that will need it is legitimate. The tree shows a project's union as small tags
+when it has one, and nothing otherwise; [Repositories](../guide/repositories.md#languages) shows each
+repository's, with **"not yet known"** for `null` and **"no language detected"** for `[]`.
+
 An image scan has no tree and records no language.
 
 ## How an issue keeps its identity

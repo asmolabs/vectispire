@@ -723,6 +723,11 @@
     "delete_header": "Delete this image?",
     "delete_body": "and its whole history — scans, findings and {{count}} outstanding issue(s) — will be deleted. This is permanent."
   },
+  "detected_languages": {
+    "label": "Languages:",
+    "unknown": "not yet known",
+    "none": "no language detected"
+  },
   "dashboard": {
     "title": "Dashboard",
     "subtitle": "The state of the watch, on one page.",
@@ -2088,6 +2093,11 @@
     "unknown": "Unknown"
   },
   "solutions": {
+    "plugins_project_languages": "Languages detected in this project:",
+    "plugins_languages_unknown": "Repositories not yet scanned for languages ({{count}}): {{names}}. What follows speaks only for the others.",
+    "plugin_languages_present": "Present in this project: {{languages}}.",
+    "plugin_languages_absent": "No language of this project: it would report not applicable, not start, and leave its issues as they are.",
+    "plugin_languages_absent_so_far": "None of its languages among the repositories counted so far; those not yet scanned may hold one.",
     "title": "Solutions & projects",
     "subtitle": "Which repositories make up which product. Figures cover only what you may see.",
     "new_solution": "New solution",

@@ -29,6 +29,26 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
+import { DetectedLanguages } from '../../shared/detected-languages';
+
+/** How a plugin's declared languages meet a project's detected ones. */
+interface PluginFit {
+    matched: ReadonlySet<string>;
+    verdict: 'present' | 'absent' | 'absent_so_far';
+    list: string;
+}
+
+// Defensive on purpose: a control plane from before the count sends neither field, and that is
+// "unknown", not a crash of the whole tree.
+function languagesOf(project: ProjectNode): readonly string[] {
+    const languages: readonly string[] | undefined = project.detectedLanguages;
+    return languages ?? [];
+}
+
+function unknownFor(project: ProjectNode): readonly number[] {
+    const ids: readonly number[] | undefined = project.languagesUnknownFor;
+    return ids ?? [];
+}
 
 /** The server's limits (decision 0023), enforced in the form so a long name is stopped as it is typed. */
 export const NAME_MAX = 100;
@@ -86,7 +106,8 @@ interface Filing {
         SelectModule,
         TagModule,
         ToggleSwitchModule,
-        TranslatePipe
+        TranslatePipe,
+        DetectedLanguages
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     templateUrl: './solutions.html'
@@ -103,6 +124,7 @@ export class Solutions {
     /** Which plugins a project runs is governance: read by its readers, changed by a security lead. */
     readonly readsGovernance = this.session.canReadGovernance;
     readonly isSecurityLead = this.session.isSecurityLead;
+    readonly languagesOf = languagesOf;
     readonly nameMax = NAME_MAX;
     readonly descriptionMax = DESCRIPTION_MAX;
 
@@ -268,6 +290,50 @@ export class Solutions {
     readonly pluginsError = signal<string | null>(null);
     readonly pluginBusy = signal<string | null>(null);
     private readonly pluginsLoad = new LatestRequest();
+
+    /**
+     * The project's visible repositories whose languages nobody has counted yet. Named, because
+     * "two repositories" sends the reader looking; the names are in the tree already.
+     */
+    readonly unknownLanguages = computed(() => {
+        const project = this.pluginsProject()?.project;
+        const ids = new Set(project ? unknownFor(project) : []);
+        const names = (project?.repositories ?? []).filter((r) => ids.has(r.id)).map((r) => r.name);
+        return { count: ids.size, names: names.join(', ') };
+    });
+
+    /**
+     * The union the dialog shows — `null` when nothing was counted and something is unknown, so a
+     * project whose only repository is unscanned reads "not yet known", not "no language".
+     */
+    readonly projectLanguages = computed<readonly string[] | null>(() => {
+        const project = this.pluginsProject()?.project;
+        if (!project) return null;
+        const languages = languagesOf(project);
+        return languages.length === 0 && unknownFor(project).length > 0 ? null : languages;
+    });
+
+    /**
+     * Each plugin's languages against the project's (information, never a block: the count can be
+     * stale by one push). Disjoint with every repository counted means `not_applicable` at the next
+     * scan; disjoint with some uncounted only says "so far", since those may hold one of them.
+     */
+    readonly pluginFits = computed(() => {
+        const fits = new Map<string, PluginFit>();
+        const project = this.pluginsProject()?.project;
+        if (!project) return fits;
+        const present = new Set<string>(languagesOf(project));
+        const someUnknown = unknownFor(project).length > 0;
+        for (const plugin of this.registry() ?? []) {
+            const matched = plugin.manifest.languages.filter((language) => present.has(language));
+            fits.set(plugin.id, {
+                matched: new Set(matched),
+                verdict: matched.length > 0 ? 'present' : someUnknown ? 'absent_so_far' : 'absent',
+                list: matched.join(', ')
+            });
+        }
+        return fits;
+    });
 
     constructor() {
         this.reload();

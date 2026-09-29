@@ -176,6 +176,14 @@
                                                 "
                                             />
                                         }
+                                        <!-- The union only, and only when there is one: "not yet known" on every
+                                             project of a fresh install would be the loudest thing on the page.
+                                             The plugins dialog says what is unknown. -->
+                                        @if (languagesOf(project).length > 0) {
+                                            <span data-testid="project-languages">
+                                                <app-detected-languages [languages]="languagesOf(project)" />
+                                            </span>
+                                        }
                                         <ng-container
                                             *ngTemplateOutlet="
                                                 badges;
@@ -408,6 +416,17 @@
         @if (!isSecurityLead()) {
             <p-message severity="info" [closable]="false">{{ 'solutions.plugins_read_only' | translate }}</p-message>
         }
+        <div class="text-sm flex flex-wrap items-center gap-2" data-testid="plugins-project-languages">
+            <span>{{ 'solutions.plugins_project_languages' | translate }}</span>
+            <app-detected-languages [languages]="projectLanguages()" />
+        </div>
+        @if (unknownLanguages(); as unknown) {
+            @if (unknown.count > 0) {
+                <p class="m-0 text-sm text-muted-color" data-testid="plugins-languages-unknown">
+                    {{ 'solutions.plugins_languages_unknown' | translate: unknown }}
+                </p>
+            }
+        }
         @if (pluginsError(); as message) {
             <p-message severity="error" [closable]="false">{{ message }}</p-message>
         }
@@ -428,9 +447,39 @@
                             </div>
                             <div class="flex flex-wrap gap-1 mt-1">
                                 @for (language of plugin.manifest.languages; track language) {
-                                    <p-tag severity="secondary" [value]="language" />
+                                    @if (pluginFits().get(plugin.id)?.matched?.has(language)) {
+                                        <p-tag
+                                            severity="success"
+                                            icon="pi pi-check"
+                                            data-matched="true"
+                                            [value]="language"
+                                        />
+                                    } @else {
+                                        <p-tag severity="secondary" [value]="language" />
+                                    }
                                 }
                             </div>
+                            <!-- Said in words as well as in colour, and never a block: see pluginFits. -->
+                            @switch (pluginFits().get(plugin.id)?.verdict) {
+                                @case ('present') {
+                                    <div class="text-sm mt-1" data-testid="plugin-languages-present">
+                                        {{
+                                            'solutions.plugin_languages_present'
+                                                | translate: { languages: pluginFits().get(plugin.id)?.list ?? '' }
+                                        }}
+                                    </div>
+                                }
+                                @case ('absent') {
+                                    <div class="text-sm text-muted-color mt-1" data-testid="plugin-languages-absent">
+                                        {{ 'solutions.plugin_languages_absent' | translate }}
+                                    </div>
+                                }
+                                @case ('absent_so_far') {
+                                    <div class="text-sm text-muted-color mt-1" data-testid="plugin-languages-absent">
+                                        {{ 'solutions.plugin_languages_absent_so_far' | translate }}
+                                    </div>
+                                }
+                            }
                             @if (!plugin.enabled) {
                                 <div class="text-sm text-orange-600 mt-1">
                                     {{ 'solutions.plugin_disabled' | translate }}

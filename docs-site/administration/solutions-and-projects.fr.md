@@ -132,7 +132,9 @@ voient le même arbre sans aucune de ces actions ; le serveur les refuserait de 
 
 Les rôles de gouvernance ont aussi **Plugins** sur chaque projet : le registre avec un interrupteur
 par plugin, actif pour les administrateurs, le RSSI et le gouverneur, en lecture seule pour un
-auditeur (voir [Plugins et imports SARIF](plugins.md)).
+auditeur, les langages de chaque plugin confrontés à ceux du projet (voir
+[Plugins et imports SARIF](plugins.md#les-langages-detectes-dans-un-depot)). Un projet dont les dépôts
+ont été recensés montre l'union de leurs langages en petites étiquettes à côté de ses chiffres.
 
 La liste des dépôts indique sur chaque dépôt le projet où il est rangé — un lien vers ce projet dans
 l'arbre — ou « — » s'il n'est dans aucun.

@@ -201,6 +201,15 @@ scorecard, not only the letter.
 This grade is **not** the one in the dashboard's maturity ranking, which uses another rule —
 see [Dashboard](dashboard.md#security-posture-grade).
 
+## Languages {#languages}
+
+Each repository shows, under its details, the languages its **newest completed scan** counted, as
+small tags in the plugin manifests' own words (`java`, `typescript`…). **"not yet known"** means
+nothing was counted — no completed scan since the count existed, or a tree too large to count —
+and is not the same as **"no language detected"**, which means the count ran and found none. See
+[plugins](../administration/plugins.md#the-languages-detected-in-a-repository) for what the
+languages decide.
+
 ## What is read from the tree, and what is not
 
 The scanners run in containers. Two readings happen in Vectispire's own process — the project

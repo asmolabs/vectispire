@@ -207,6 +207,16 @@ compteurs de la fiche, pas seulement la lettre.
 Cette note n'est **pas** celle du classement de maturité du tableau de bord, qui suit une autre
 règle — voir [Tableau de bord](dashboard.md#note-de-posture-de-securite).
 
+## Langages {#languages}
+
+Chaque dépôt montre, sous ses détails, les langages recensés par son **scan terminé le plus récent**,
+en petites étiquettes dans le vocabulaire même des manifestes de plugin (`java`, `typescript`…).
+**« pas encore connus »** signifie que rien n'a été recensé — aucun scan terminé depuis que le
+recensement existe, ou un arbre trop grand pour être compté — et n'est pas **« aucun langage
+détecté »**, qui signifie que le recensement a eu lieu et n'en a trouvé aucun. Voir
+[plugins](../administration/plugins.md#les-langages-detectes-dans-un-depot) pour ce que les langages
+décident.
+
 ## Ce qui est lu de l'arbre, et ce qui ne l'est pas
 
 Les scanners tournent dans des conteneurs. Deux lectures ont lieu dans le processus de Vectispire

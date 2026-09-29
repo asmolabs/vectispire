@@ -230,6 +230,19 @@ dépôt se comparent tels qu'ils sont écrits :
   inconnus. Un projet qui affiche `["java"]` avec un dépôt dans `languagesUnknownFor` contient peut-être
   plus que du Java ; l'union ne parle que pour les autres.
 
+
+**À l'écran**, la fenêtre **Plugins** d'un projet dans [Solutions et projets](solutions-and-projects.md)
+s'ouvre sur les langages du projet, puis leur confronte ceux de chaque plugin : les langages que le
+projet contient sont mis en évidence, avec « Présents dans ce projet : … » en dessous ; un plugin qui
+n'en partage aucun affiche **« Aucun langage de ce projet »** — au prochain scan il serait *non
+applicable* et ne serait pas lancé. Quand certains dépôts du projet n'ont pas encore été recensés, la
+fenêtre les nomme (« Dépôts pas encore analysés pour leurs langages (N) : … »), et un plugin qui ne
+partage aucun langage avec les autres dit seulement qu'aucun n'a été trouvé *jusqu'ici*. Rien de tout
+cela ne bloque l'interrupteur : le recensement a au mieux un push de retard, et activer un plugin avant
+le langage qui en aura besoin est légitime. L'arbre montre l'union d'un projet en petites étiquettes
+quand il y en a une, et rien sinon ; [Dépôts](../guide/repositories.md#languages) montre celle de chaque
+dépôt, avec **« pas encore connus »** pour `null` et **« aucun langage détecté »** pour `[]`.
+
 Un scan d'image n'a pas d'arbre et n'enregistre aucun langage.
 
 ## Comment une issue garde son identité

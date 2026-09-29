@@ -109,6 +109,17 @@
                                 }
                             </span>
                         </div>
+                        <!--
+                            What the newest completed scan counted, in the plugin manifests' own
+                            words, so "would this plugin run here?" is answered by reading.
+                        -->
+                        <div
+                            class="text-sm text-muted-color mt-1 flex flex-wrap items-center gap-2"
+                            data-testid="repository-languages"
+                        >
+                            <span>{{ 'detected_languages.label' | translate }}</span>
+                            <app-detected-languages [languages]="repository.detectedLanguages" />
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-2 shrink-0">
