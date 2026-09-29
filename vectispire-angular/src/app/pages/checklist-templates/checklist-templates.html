@@ -575,6 +575,11 @@
                     <h3 class="text-base font-semibold mt-6 mb-2">
                         {{ 'checklist_templates.items_title' | translate: { count: whole.items.length } }}
                     </h3>
+                    @if (evidenceEditable()) {
+                        <p class="text-sm text-muted-color mt-0" data-testid="evidence-explain">
+                            {{ 'checklist_templates.evidence_explain' | translate }}
+                        </p>
+                    }
                     <div class="overflow-auto max-h-[24rem] mb-4">
                         <p-table [value]="whole.items" dataKey="id" styleClass="p-datatable-sm" data-testid="items">
                             <ng-template #header>
@@ -585,20 +590,84 @@
                                     <th>{{ 'checklist_templates.column_control' | translate }}</th>
                                     <th>{{ 'checklist_templates.column_contact' | translate }}</th>
                                     <th>{{ 'checklist_templates.column_kpi' | translate }}</th>
+                                    <th>{{ 'checklist_templates.col_evidence' | translate }}</th>
                                 </tr>
                             </ng-template>
                             <ng-template #body let-item>
-                                <tr>
+                                <tr [attr.data-testid]="'item-' + item.sheetRow">
                                     <td class="font-mono">{{ item.sheetRow }}</td>
                                     <td>{{ item.domain ?? '' }}</td>
                                     <td>{{ item.objective ?? '' }}</td>
                                     <td>{{ item.control }}</td>
                                     <td>{{ item.contact ?? '' }}</td>
                                     <td>{{ item.kpi ?? '' }}</td>
+                                    <td class="whitespace-nowrap" data-testid="item-evidence">
+                                        @if (evidenceEditable()) {
+                                            <div class="flex items-center gap-2">
+                                                <label [for]="'evidence-kind-' + item.id" class="sr-only">{{
+                                                    'checklist_templates.evidence_kind_field'
+                                                        | translate: { row: item.sheetRow }
+                                                }}</label>
+                                                <select
+                                                    [id]="'evidence-kind-' + item.id"
+                                                    class="p-1 border rounded-md bg-surface-0 dark:bg-surface-900 border-surface-300 dark:border-surface-700 text-surface-900 dark:text-surface-0"
+                                                    [ngModel]="requirement(item).kind"
+                                                    (ngModelChange)="setEvidenceKind(item, $event)"
+                                                >
+                                                    @for (kind of evidenceKinds; track kind) {
+                                                        <option [ngValue]="kind">{{ evidenceKindLabel(kind) }}</option>
+                                                    }
+                                                </select>
+                                                <label [for]="'evidence-months-' + item.id" class="sr-only">{{
+                                                    'checklist_templates.evidence_months_field'
+                                                        | translate: { row: item.sheetRow }
+                                                }}</label>
+                                                <input
+                                                    pInputText
+                                                    type="number"
+                                                    class="w-24"
+                                                    step="1"
+                                                    [min]="minValidity"
+                                                    [max]="maxValidity"
+                                                    [id]="'evidence-months-' + item.id"
+                                                    [placeholder]="
+                                                        'checklist_templates.evidence_months_placeholder' | translate
+                                                    "
+                                                    [disabled]="requirement(item).kind === 'none'"
+                                                    [ngModel]="requirement(item).months"
+                                                    (ngModelChange)="setEvidenceMonths(item, $event)"
+                                                />
+                                            </div>
+                                        } @else {
+                                            {{ requirementLabel(item) }}
+                                        }
+                                    </td>
                                 </tr>
                             </ng-template>
                         </p-table>
                     </div>
+                    @if (evidenceEditable()) {
+                        @if (evidenceError(); as message) {
+                            <p-message
+                                severity="error"
+                                [closable]="false"
+                                styleClass="mb-3 w-full"
+                                data-testid="evidence-error"
+                            >
+                                {{ message }}
+                            </p-message>
+                        }
+                        <p-button
+                            id="save-evidence"
+                            icon="pi pi-save"
+                            [label]="
+                                'checklist_templates.save_evidence_btn' | translate: { count: evidenceChanges().length }
+                            "
+                            [loading]="busy()"
+                            [disabled]="evidenceChanges().length === 0 || busy()"
+                            (onClick)="saveEvidence()"
+                        />
+                    }
                 }
             }
 

@@ -309,8 +309,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   l'exigence a bougé est *modifiée* par rapport à la version précédente, et la réponse d'un projet
   reportée sur elle attend confirmation. Confirmer à nouveau une disposition garde l'exigence de chaque
   ligne, et la ligne d'un nouveau classeur prend celle de la version précédente sous la même clé ;
-  dériver une version les reporte. Consigné `CHECKLIST_TEMPLATE_EVIDENCE_SET`. L'écran suit avec la
-  moitié interface — [Modèles de checklists](../administration/checklist-templates.fr.md#4-dire-quelle-preuve-chaque-ligne-demande).
+  dériver une version les reporte. Consigné `CHECKLIST_TEMPLATE_EVIDENCE_SET`. L'écran du brouillon la
+  fixe ligne par ligne, dans la colonne **Preuve demandée** des items lus, et n'envoie que les lignes
+  modifiées — [Modèles de checklists](../administration/checklist-templates.fr.md#4-dire-quelle-preuve-chaque-ligne-demande).
 - **Checklists de projet, remplies par des personnes** (V52 ajoute `t_checklist`, `t_checklist_answer`,
   `t_checklist_evidence`, `t_checklist_file`). La checklist d'un projet s'ouvre sur une version de modèle
   publiée (`POST /api/v1/projects/{id}/checklists`), se remplit ligne par ligne — chaque réponse gardée,

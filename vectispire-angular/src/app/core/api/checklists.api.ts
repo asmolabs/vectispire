@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Observable } from 'rxjs';
 import type {
     ChecklistAnswerValue,
+    ChecklistItemEvidence,
     ChecklistItemPair,
     ChecklistLayout,
     ChecklistLineHistory,
@@ -123,6 +124,24 @@ export class ChecklistsApi {
         return this.http.put<ChecklistVersion>(
             `${versionPath(slug, ordinal)}/pairs`,
             { pairs },
+            { params: new HttpParams().set('revision', revision) }
+        );
+    }
+
+    /**
+     * Sets what proof the lines named ask for, on a draft with a confirmed layout — **a partial
+     * update**: a line not listed keeps its own, so the screen sends only the lines it changed.
+     * `revision` is the one on screen, as for a layout: a draft edited meanwhile is refused (409).
+     */
+    setChecklistEvidence(
+        slug: string,
+        ordinal: number,
+        revision: number,
+        items: ChecklistItemEvidence[]
+    ): Observable<ChecklistVersion> {
+        return this.http.put<ChecklistVersion>(
+            `${versionPath(slug, ordinal)}/evidence`,
+            { items },
             { params: new HttpParams().set('revision', revision) }
         );
     }

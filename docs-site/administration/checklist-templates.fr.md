@@ -103,28 +103,30 @@ Un classeur dit ce que chaque ligne demande, jamais la preuve qu'il lui faut : c
 nouveau brouillon ne demande donc **aucune** preuve — sauf si la ligne existait déjà : confirmer à
 nouveau une disposition garde ce que chaque ligne demandait, et la ligne d'un nouveau classeur prend
 l'exigence de la ligne de même clé de la version précédente. Sur un brouillon dont la disposition est
-confirmée, donnez l'exigence de chaque ligne :
+confirmée, la colonne **Preuve demandée** des items lus propose, pour chaque ligne, l'exigence :
 
 | Exigence | Ce qu'un *oui* demande avant que la checklist puisse être soumise |
 |---|---|
-| `none` | Rien. |
-| `link_or_file` | Un lien ou un fichier, à jour. |
-| `file` | Un fichier, à jour — un lien ne suffit pas. |
+| **Aucune** (`none`) | Rien. |
+| **Lien ou fichier** (`link_or_file`) | Un lien ou un fichier, à jour. |
+| **Fichier** (`file`) | Un fichier, à jour — un lien ne suffit pas. |
 
-et, pour une preuve qui expire, **combien de mois elle vaut**, de 1 à 120 — chaque preuve vaut alors
-jusqu'au jour où le travail a été fait plus ce nombre de mois. Une exigence est envoyée sur la
-**révision affichée**, comme une disposition, et qui la définit devient l'un des auteurs du brouillon.
+et, à côté, pour une preuve qui expire, **combien de mois elle vaut**, de 1 à 120 — chaque preuve vaut
+alors jusqu'au jour où le travail a été fait plus ce nombre de mois. Laissez les mois vides pour une
+preuve qui n'expire pas ; une ligne qui ne demande aucune preuve n'a pas de mois à donner, et le champ
+est grisé. L'écran refuse une validité hors de 1 à 120, ou qui n'est pas un nombre entier de mois,
+avant de rien envoyer.
+
+**Enregistrer la preuve demandée** envoie les lignes que vous avez modifiées, et seulement elles — une
+ligne ramenée à ce qu'elle demandait n'est pas envoyée, et le bouton compte les lignes qu'il enverra.
+Elles sont envoyées sur la **révision affichée**, comme une disposition, et qui les définit devient
+l'un des auteurs du brouillon. Sur une version publiée ou retirée, et pour l'auditeur, la colonne dit
+seulement ce que chaque ligne demande — *Lien ou fichier · valable 12 mois*.
 
 L'exigence **fait partie de ce que la ligne demande** : une ligne dont l'exigence a bougé est
 *modifiée* par rapport à la version précédente, et la réponse d'un projet reportée sur elle attend que
 quelqu'un la confirme — elle a été donnée quand aucune preuve, ou une autre, n'était demandée. Les
 exigences d'une version publiée ne changent jamais ; dérivez un nouveau brouillon pour en changer une.
-
-!!! note "Par l'API tant que l'écran ne le propose pas"
-    L'écran du brouillon ne définit pas encore les exigences. D'ici là, un script les définit avec
-    `PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence?revision=…`, dont le corps liste
-    les lignes par leur `itemKey` telle que la version la montre, chacune avec son `evidenceKind` et,
-    quand une preuve expire, son `evidenceValidityMonths` ; les lignes non listées gardent la leur.
 
 ## 5. Publier
 

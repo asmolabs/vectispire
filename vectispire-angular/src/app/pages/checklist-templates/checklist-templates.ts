@@ -15,7 +15,10 @@ import { ChecklistsApi, MAX_WORKBOOK_BYTES } from '../../core/api/checklists.api
 import type {
     ChecklistChange,
     ChecklistColumn,
+    ChecklistEvidenceKind,
     ChecklistHeaderField,
+    ChecklistItem,
+    ChecklistItemEvidence,
     ChecklistItemPair,
     ChecklistLayout,
     ChecklistPairingChange,
@@ -139,6 +142,25 @@ export const REFUSAL_RELOADS = {
     four_eyes_retire: false
 } as const satisfies Record<Refusal, boolean>;
 
+/** In the order the form offers them: from asking nothing to asking the most. */
+export const EVIDENCE_KINDS: readonly ChecklistEvidenceKind[] = ['none', 'link_or_file', 'file'];
+
+export const EVIDENCE_KIND_KEYS = {
+    none: 'checklist_templates.evidence_kind_none',
+    link_or_file: 'checklist_templates.evidence_kind_link_or_file',
+    file: 'checklist_templates.evidence_kind_file'
+} as const satisfies Record<ChecklistEvidenceKind, string>;
+
+/** `ChecklistTemplateService`'s bounds on a proof's validity, in months. */
+export const MIN_VALIDITY_MONTHS = 1;
+export const MAX_VALIDITY_MONTHS = 120;
+
+/** A line's requirement as the form edits it, before it is sent. */
+export interface EvidenceEdit {
+    kind: ChecklistEvidenceKind;
+    months: number | null;
+}
+
 /** What the client refuses before sending a layout; the server has the last word, in its own. */
 export const PROBLEM_KEYS = {
     sheet: 'checklist_templates.problem_sheet',
@@ -249,10 +271,21 @@ export class ChecklistTemplates {
     readonly deriveLabel = signal('');
     readonly pairAdded = signal<string | null>(null);
     readonly pairRemoved = signal<string | null>(null);
+    /** The requirements changed on screen and not sent yet, by item key. */
+    readonly evidenceEdits = signal<Record<string, EvidenceEdit>>({});
+    readonly evidenceError = signal<string | null>(null);
+
+    readonly evidenceKinds = EVIDENCE_KINDS;
+    readonly minValidity = MIN_VALIDITY_MONTHS;
+    readonly maxValidity = MAX_VALIDITY_MONTHS;
 
     /** What the panel shows, and what publishing names: the preview's summary, read with the cells. */
     readonly shown = computed(() => this.preview()?.version ?? null);
     readonly editable = computed(() => this.writes() && this.shown()?.status === 'draft');
+    /** The route's own conditions: a draft, a confirmed layout — its items exist only then — a security lead. */
+    readonly evidenceEditable = computed(() => this.editable() && !!this.shown()?.layoutConfirmed);
+    /** The lines whose requirement the form changed, as the route reads them: only those are sent. */
+    readonly evidenceChanges = computed(() => evidenceChangesOf(this.version()?.items ?? [], this.evidenceEdits()));
     readonly grid = computed(() => gridOf(this.preview()?.cells ?? []));
     readonly sheetOptions = computed(() =>
         (this.preview()?.sheets ?? []).map((sheet) => ({ label: sheet, value: sheet }))
@@ -447,6 +480,8 @@ export class ChecklistTemplates {
         this.confirming.set(null);
         this.pairAdded.set(null);
         this.pairRemoved.set(null);
+        this.evidenceEdits.set({});
+        this.evidenceError.set(null);
         this.loadPreview(null, true);
         this.loadVersion();
     }
@@ -643,6 +678,79 @@ export class ChecklistTemplates {
         });
     }
 
+    // ------------------------------------------------------------------ what proof each line asks for
+
+    /** The line's requirement as the form shows it: the one changed on screen, else the version's. */
+    requirement(item: ChecklistItem): EvidenceEdit {
+        return this.evidenceEdits()[item.itemKey] ?? { kind: item.evidenceKind, months: item.evidenceValidityMonths };
+    }
+
+    /** "None", or "File · 12 months": a line's requirement, read-only. */
+    requirementLabel(item: ChecklistItem): string {
+        const kind = this.evidenceKindLabel(item.evidenceKind);
+        return item.evidenceKind !== 'none' && item.evidenceValidityMonths
+            ? `${kind} · ${this.i18n.t('checklist_templates.evidence_validity', { months: item.evidenceValidityMonths })}`
+            : kind;
+    }
+
+    evidenceKindLabel(kind: string): string {
+        this.i18n.translations();
+        const key = (EVIDENCE_KIND_KEYS as Record<string, string | undefined>)[kind];
+        return key ? this.i18n.t(key) : kind;
+    }
+
+    /** A line that asks for no proof has no validity either: the server refuses one, so the form drops it. */
+    setEvidenceKind(item: ChecklistItem, kind: ChecklistEvidenceKind): void {
+        const current = this.requirement(item);
+        this.editEvidence(item, { kind, months: kind === 'none' ? null : current.months });
+    }
+
+    setEvidenceMonths(item: ChecklistItem, months: number | null): void {
+        this.editEvidence(item, { ...this.requirement(item), months: months ?? null });
+    }
+
+    private editEvidence(item: ChecklistItem, edit: EvidenceEdit): void {
+        this.evidenceError.set(null);
+        this.evidenceEdits.update((edits) => ({ ...edits, [item.itemKey]: edit }));
+    }
+
+    /**
+     * Sends the lines changed, and only those — the route is a partial update, and a line sent
+     * unchanged would make its sender one of the draft's authors for nothing — on the revision on
+     * screen, like a layout.
+     */
+    saveEvidence(): void {
+        const selected = this.selected();
+        const shown = this.shown();
+        const changes = this.evidenceChanges();
+        if (!selected || !shown || changes.length === 0) return;
+        if (changes.some((change) => !validityAllowed(change))) {
+            this.evidenceError.set(
+                this.i18n.t('checklist_templates.problem_evidence_months', {
+                    min: MIN_VALIDITY_MONTHS,
+                    max: MAX_VALIDITY_MONTHS
+                })
+            );
+            return;
+        }
+        this.busy.set(true);
+        this.evidenceError.set(null);
+        this.refusal.set(null);
+        this.api.setChecklistEvidence(selected.slug, selected.ordinal, shown.revision, changes).subscribe({
+            next: (version) => {
+                this.busy.set(false);
+                this.notice.set(this.i18n.t('checklist_templates.evidence_saved', { count: changes.length }));
+                this.afterWrite(version);
+            },
+            error: (failure) => {
+                this.busy.set(false);
+                if (!this.refuse(failure, 'edit', shown.revision)) {
+                    this.evidenceError.set(messageOf(failure, this.i18n.t('checklist_templates.error_evidence')));
+                }
+            }
+        });
+    }
+
     // ------------------------------------------------------------------ derive, publish, retire
 
     derive(): void {
@@ -744,6 +852,9 @@ export class ChecklistTemplates {
     /** A write answered with the version: shown, its preview and its template's row read again. */
     private afterWrite(version: ChecklistVersion): void {
         this.version.set(version);
+        // The summary the write answered is the one the next write names, before the preview lands.
+        this.preview.update((preview) => (preview ? { ...preview, version: version.version } : preview));
+        this.evidenceEdits.set({});
         this.loadPreview(this.layoutDraft()?.sheet ?? null, true);
         this.loadVersion();
         this.refreshTemplate();
@@ -867,6 +978,37 @@ export function layoutOf(draft: LayoutDraft): ChecklistLayout {
 export function wrote(authors: string[], username: string | null | undefined): boolean {
     const me = username?.trim().toLowerCase();
     return !!me && authors.some((author) => author.trim().toLowerCase() === me);
+}
+
+/**
+ * The lines whose requirement the form changed, in the version's order, as the route reads them. A
+ * line edited back to what it was is not sent; a line asking for no proof is sent without a validity.
+ */
+export function evidenceChangesOf(
+    items: ChecklistItem[],
+    edits: Record<string, EvidenceEdit>
+): ChecklistItemEvidence[] {
+    const changes: ChecklistItemEvidence[] = [];
+    for (const item of items) {
+        const edit = edits[item.itemKey];
+        if (!edit) continue;
+        const months = edit.kind === 'none' ? null : edit.months;
+        if (edit.kind === item.evidenceKind && months === item.evidenceValidityMonths) continue;
+        changes.push({ itemKey: item.itemKey, evidenceKind: edit.kind, evidenceValidityMonths: months });
+    }
+    return changes;
+}
+
+/** The server's bounds: no validity, or a whole number of months from 1 to 120 — never on a line asking nothing. */
+export function validityAllowed(change: ChecklistItemEvidence): boolean {
+    const months = change.evidenceValidityMonths;
+    if (months === null) return true;
+    return (
+        change.evidenceKind !== 'none' &&
+        Number.isInteger(months) &&
+        months >= MIN_VALIDITY_MONTHS &&
+        months <= MAX_VALIDITY_MONTHS
+    );
 }
 
 /** The cause a template refusal names in its problem type, or `null` for any other failure. */

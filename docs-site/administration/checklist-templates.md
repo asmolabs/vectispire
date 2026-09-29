@@ -96,28 +96,30 @@ on screen, rather than replacing theirs unseen. Reload the draft and make it aga
 A workbook states what each line asks, never what proof it needs, so every line of a new draft asks
 for **none** — unless the line was there before: confirming a layout again keeps what each line
 asked for, and a new workbook's line takes the requirement of the previous version's line with the
-same key. On a draft with a confirmed layout, set each line's requirement:
+same key. On a draft with a confirmed layout, the **Proof asked** column of the items read offers,
+for each line, the requirement:
 
 | Requirement | What a *yes* needs before the checklist can be submitted |
 |---|---|
-| `none` | Nothing. |
-| `link_or_file` | A link or a file, in date. |
-| `file` | A file, in date — a link does not satisfy it. |
+| **None** (`none`) | Nothing. |
+| **Link or file** (`link_or_file`) | A link or a file, in date. |
+| **File** (`file`) | A file, in date — a link does not satisfy it. |
 
-and, for a proof that expires, **how many months it holds**, 1 to 120 — each proof is then valid
-until the day the work was done plus that many months. A requirement is sent on the **revision on
-screen**, like a layout, and whoever sets it becomes one of the draft's authors.
+and, beside it, for a proof that expires, **how many months it holds**, 1 to 120 — each proof is then
+valid until the day the work was done plus that many months. Leave the months empty for a proof that
+does not expire; a line asking for none has no months to give, and the field is greyed out. The
+screen refuses a validity outside 1 to 120, or not a whole number of months, before sending anything.
+
+**Save the proof asked** sends the lines you changed, and only those — a line edited back to what it
+asked is not sent, and the button counts the lines it will send. They are sent on the **revision on
+screen**, like a layout, and whoever sets them becomes one of the draft's authors. On a published or
+retired version, and for the auditor, the column only states what each line asks —
+*Link or file · valid 12 months*.
 
 The requirement is **part of what the line asks**: a line whose requirement moved is *changed*
 against the previous version, and a project's answer carried onto it waits for somebody to confirm
 it — the answer was given when no proof, or another one, was asked. A published version's
 requirements never change; derive a new draft to change one.
-
-!!! note "Through the API until the screen offers it"
-    The draft's screen does not set requirements yet. Until it does, a script sets them with
-    `PUT /api/v1/checklist-templates/{slug}/versions/{ordinal}/evidence?revision=…`, whose body lists
-    the lines by their `itemKey` as the version shows it, each with its `evidenceKind` and, when a
-    proof expires, its `evidenceValidityMonths`; lines not listed keep theirs.
 
 ## 5. Publish
 

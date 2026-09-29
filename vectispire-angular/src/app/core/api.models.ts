@@ -2332,7 +2332,7 @@ export type ChecklistItem = Refine<
         kpi: string | null;
         contentDigest: string;
         sheetRow: number;
-        evidenceKind: string;
+        evidenceKind: ChecklistEvidenceKind;
         evidenceValidityMonths: number | null;
         boundRule: string | null;
     }
@@ -2340,6 +2340,15 @@ export type ChecklistItem = Refine<
 
 /** "The added item is the removed one, reworded" — both named by their keys as the preview shows them. */
 export type ChecklistItemPair = Refine<Schema<'ChecklistItemPair'>, { added: string; removed: string }>;
+
+/**
+ * What proof one line of a draft is to ask for, named by its key as the version shows it. The
+ * validity is 1 to 120 months, or null for a proof that does not expire — always null on `none`.
+ */
+export type ChecklistItemEvidence = Refine<
+    Schema<'ChecklistItemEvidence'>,
+    { itemKey: string; evidenceKind: ChecklistEvidenceKind; evidenceValidityMonths: number | null }
+>;
 
 /** One version whole: its summary, its confirmed layout (null until confirmed), its items and pairs. */
 export type ChecklistVersion = Refine<

@@ -278,7 +278,8 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   the previous version, and a project's answer carried onto it waits for confirmation. Confirming a
   layout again keeps each line's requirement, and a new workbook's line takes the previous version's
   under the same key; deriving a version carries them. Audited `CHECKLIST_TEMPLATE_EVIDENCE_SET`. The
-  screen follows with the interface's half — [Checklist templates](../administration/checklist-templates.md#4-say-what-proof-each-line-asks-for).
+  draft's screen sets it line by line, in the **Proof asked** column of the items read, and sends only
+  the lines changed — [Checklist templates](../administration/checklist-templates.md#4-say-what-proof-each-line-asks-for).
 - **Project checklists, answered by people** (V52 adds `t_checklist`, `t_checklist_answer`,
   `t_checklist_evidence`, `t_checklist_file`). A project's checklist is opened on a published template
   version (`POST /api/v1/projects/{id}/checklists`), answered line by line — every answer kept, with

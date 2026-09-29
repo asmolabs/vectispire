@@ -146,6 +146,7 @@ const VOCABULARIES: Record<string, Record<string, readonly string[]>> = {
     ChecklistAnswerRequest: { value: CHECKLIST_ANSWERS },
     ChecklistLineView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
     ChecklistItemView: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
+    ChecklistItemEvidence: { evidenceKind: CHECKLIST_EVIDENCE_KINDS },
     ChecklistEvidenceView: { kind: CHECKLIST_PROOF_KINDS }
 };
 

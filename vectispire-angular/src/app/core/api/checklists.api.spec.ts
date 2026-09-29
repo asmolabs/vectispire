@@ -104,6 +104,20 @@ describe('the checklist template client', () => {
         paired.flush(VERSION);
     });
 
+    it('sets the proof the lines named ask for, on the revision shown, in the body the server reads', () => {
+        const items = [
+            { itemKey: 'text:a', evidenceKind: 'file' as const, evidenceValidityMonths: 12 },
+            { itemKey: 'text:b', evidenceKind: 'none' as const, evidenceValidityMonths: null }
+        ];
+        api.setChecklistEvidence('release', 2, 6, items).subscribe();
+        const request = http.expectOne(
+            (call) => call.method === 'PUT' && call.url === '/api/v1/checklist-templates/release/versions/2/evidence'
+        );
+        expect(request.request.params.get('revision')).toBe('6');
+        expect(asSchema('ChecklistEvidenceRequest', request.request.body)).toEqual({ items });
+        request.flush(VERSION);
+    });
+
     it('derives, with the label only when there is one', () => {
         api.deriveChecklistVersion('release', 1, ' 2027 ').subscribe();
         const labelled = http.expectOne({

@@ -5,6 +5,7 @@ import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
 import type { ChecklistPreview } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
+import { asSchema } from '@/app/core/testing/contract';
 import {
     conflict,
     CONFIRMED_PREVIEW,
@@ -24,13 +25,16 @@ import {
     conflictOf,
     ChecklistTemplates,
     draftFrom,
+    EVIDENCE_KIND_KEYS,
+    evidenceChangesOf,
     gridOf,
     HEADER_KEYS,
     layoutOf,
     layoutProblem,
     PROBLEM_KEYS,
     REFUSAL_KEYS,
-    STATUS_KEYS
+    STATUS_KEYS,
+    validityAllowed
 } from './checklist-templates';
 
 /**
@@ -417,6 +421,212 @@ describe('the checklist templates screen', () => {
         expect(dom().querySelector('[data-testid="pair-form"]')).toBeNull();
     });
 
+    // ------------------------------------------------------------------ what proof each line asks for
+
+    function choose(selector: string, label: string): void {
+        const select = dom().querySelector(selector) as HTMLSelectElement;
+        const index = Array.from(select.options).findIndex((option) => option.textContent?.trim() === label);
+        if (index < 0) throw new Error(`no option ${label} in ${selector}`);
+        select.selectedIndex = index;
+        select.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+    }
+
+    /** `ngModel` writes a value, and its `disabled`, a tick after the change it follows. */
+    async function settle(): Promise<void> {
+        await fixture.whenStable();
+        fixture.detectChanges();
+    }
+
+    const months = (id: number) => dom().querySelector(`#evidence-months-${id}`) as HTMLInputElement;
+    const evidencePut = () => http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/evidence`);
+
+    /** Version 2 as the server answers once line 2 asks for a link or a file, valid a year, and line 3 for a file. */
+    const WITH_EVIDENCE = {
+        ...VERSION,
+        version: { ...DRAFT, revision: 5 },
+        items: [
+            VERSION.items[0],
+            { ...VERSION.items[1], evidenceKind: 'link_or_file' as const, evidenceValidityMonths: 12 },
+            { ...VERSION.items[2], evidenceKind: 'file' as const }
+        ]
+    };
+
+    it('sets what proof each line asks for on a confirmed draft, sending only the lines changed on the revision shown', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+
+        expect(text('[data-testid="evidence-explain"]')).toContain('Only the lines you change are sent');
+        expect(button('save-evidence').disabled).toBe(true);
+        // Each control is named for its row: a screen reader hears which line it sets.
+        expect(text('label[for="evidence-kind-102"]')).toBe('Proof asked by the item of row 6');
+        expect(text('label[for="evidence-months-102"]')).toBe('Months a proof of the item of row 6 holds');
+        // Asking nothing, a line has no validity to give.
+        await settle();
+        expect(months(102).disabled).toBe(true);
+
+        choose('#evidence-kind-102', 'Link or file');
+        await settle();
+        expect(months(102).disabled).toBe(false);
+        type('#evidence-months-102', '12');
+        choose('#evidence-kind-103', 'File');
+        expect(button('save-evidence').textContent).toContain('Save the proof asked (2 changed)');
+        button('save-evidence').click();
+
+        const request = evidencePut();
+        expect(request.request.params.get('revision')).toBe('4');
+        expect(asSchema('ChecklistEvidenceRequest', request.request.body)).toEqual({
+            items: [
+                {
+                    itemKey: 'text:secrets are rotated every ninety days',
+                    evidenceKind: 'link_or_file',
+                    evidenceValidityMonths: 12
+                },
+                {
+                    itemKey: 'text:dependencies carry no known critical vulnerability',
+                    evidenceKind: 'file',
+                    evidenceValidityMonths: null
+                }
+            ]
+        });
+        request.flush(WITH_EVIDENCE);
+        fixture.detectChanges();
+
+        expect(text('[data-testid="notice"]')).toBe('Proof asked set on 2 item(s).');
+        // The view answered is adopted: its revision is the one the next write names.
+        expect(text('[data-testid="shown-revision"]')).toBe('5');
+        http.expectOne((call) => call.url === `${VERSION_URL}/preview`).flush({
+            ...CONFIRMED_PREVIEW,
+            version: WITH_EVIDENCE.version
+        });
+        http.expectOne(VERSION_URL).flush(WITH_EVIDENCE);
+        http.expectOne(`${TEMPLATE_URL}/release`).flush(TEMPLATE);
+        await settle();
+        expect(
+            (dom().querySelector('#evidence-kind-102') as HTMLSelectElement).selectedOptions[0].textContent?.trim()
+        ).toBe('Link or file');
+        expect(months(102).value).toBe('12');
+        expect(button('save-evidence').disabled).toBe(true);
+    });
+
+    it('sends nothing for a line edited back to what it asked', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+
+        choose('#evidence-kind-101', 'File');
+        expect(button('save-evidence').disabled).toBe(false);
+        choose('#evidence-kind-101', 'None');
+        expect(button('save-evidence').disabled).toBe(true);
+    });
+
+    it('drops the validity of a line set back to asking nothing', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW, WITH_EVIDENCE);
+
+        await settle();
+        expect(months(102).value).toBe('12');
+        choose('#evidence-kind-102', 'None');
+        await settle();
+        expect(months(102).disabled).toBe(true);
+        expect(months(102).value).toBe('');
+        button('save-evidence').click();
+
+        const request = evidencePut();
+        expect(request.request.body).toEqual({
+            items: [
+                {
+                    itemKey: 'text:secrets are rotated every ninety days',
+                    evidenceKind: 'none',
+                    evidenceValidityMonths: null
+                }
+            ]
+        });
+        request.flush(VERSION);
+        answerRereads();
+    });
+
+    it.each(['0', '121', '1.5'])('refuses a validity of %s months before sending it', async (value) => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+
+        choose('#evidence-kind-102', 'File');
+        type('#evidence-months-102', value);
+        button('save-evidence').click();
+        fixture.detectChanges();
+
+        expect(text('[data-testid="evidence-error"]')).toBe(
+            'A validity is a whole number of months from 1 to 120, or left empty for a proof that does not expire.'
+        );
+        http.expectNone((call) => call.method === 'PUT');
+    });
+
+    it('accepts both bounds, 1 and 120 months', () => {
+        const change = { itemKey: 'k', evidenceKind: 'file' as const, evidenceValidityMonths: 1 };
+        expect(validityAllowed(change)).toBe(true);
+        expect(validityAllowed({ ...change, evidenceValidityMonths: 120 })).toBe(true);
+        expect(validityAllowed({ ...change, evidenceValidityMonths: null })).toBe(true);
+        expect(validityAllowed({ ...change, evidenceValidityMonths: 0 })).toBe(false);
+        expect(validityAllowed({ ...change, evidenceValidityMonths: 121 })).toBe(false);
+        expect(validityAllowed({ ...change, evidenceKind: 'none', evidenceValidityMonths: 12 })).toBe(false);
+    });
+
+    it("explains a requirement refused for a draft changed meanwhile, and shows another refusal in the server's words", async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+
+        choose('#evidence-kind-102', 'File');
+        button('save-evidence').click();
+        refuse(evidencePut(), 'checklist-template-changed');
+        expect(text('[data-testid="refusal-message"]')).toContain('you had revision 4 on screen');
+        expect(dom().querySelector('[data-testid="evidence-error"]')).toBeNull();
+
+        button('save-evidence').click();
+        evidencePut().flush(
+            { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'Line "text:x" is not in version 2.' },
+            { status: 400, statusText: 'Bad Request' }
+        );
+        fixture.detectChanges();
+        expect(text('[data-testid="evidence-error"]')).toBe('Line "text:x" is not in version 2.');
+        expect(dom().querySelector('[data-testid="refusal"]')).toBeNull();
+    });
+
+    it('offers no requirement to set on a draft whose layout is not confirmed', async () => {
+        await start('CISO', 'bob');
+        openDraft(PREVIEW);
+
+        expect(dom().querySelector('#evidence-kind-101')).toBeNull();
+        expect(dom().querySelector('#save-evidence')).toBeNull();
+        expect(text('[data-testid="item-5"] [data-testid="item-evidence"]')).toBe('None');
+    });
+
+    it('shows each line of a published version with what it asks, and nothing to change', async () => {
+        await start('ADMIN', 'bob');
+        button('Open version 1 of release').click();
+        fixture.detectChanges();
+        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush({
+            ...CONFIRMED_PREVIEW,
+            version: PUBLISHED
+        });
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...WITH_EVIDENCE, version: PUBLISHED });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="item-5"] [data-testid="item-evidence"]')).toBe('None');
+        expect(text('[data-testid="item-6"] [data-testid="item-evidence"]')).toBe('Link or file · valid 12 months');
+        expect(text('[data-testid="item-7"] [data-testid="item-evidence"]')).toBe('File');
+        expect(dom().querySelector('#evidence-kind-102')).toBeNull();
+        expect(dom().querySelector('#save-evidence')).toBeNull();
+    });
+
+    it('shows an auditor what each line of a draft asks, and nothing to change', async () => {
+        await start('AUDITOR');
+        openDraft(CONFIRMED_PREVIEW, WITH_EVIDENCE);
+
+        expect(text('[data-testid="item-6"] [data-testid="item-evidence"]')).toBe('Link or file · valid 12 months');
+        expect(dom().querySelector('select')).toBeNull();
+        expect(dom().querySelector('#save-evidence')).toBeNull();
+        expect(dom().querySelector('[data-testid="evidence-explain"]')).toBeNull();
+    });
+
     // ------------------------------------------------------------------ publish
 
     /** Opens the confirmed draft, asks to publish, confirms, and hands back the request. */
@@ -628,7 +838,15 @@ describe('the checklist templates screen', () => {
             key
                 .split('.')
                 .reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], bundle);
-        for (const map of [COLUMN_KEYS, HEADER_KEYS, STATUS_KEYS, CHANGE_KEYS, REFUSAL_KEYS, PROBLEM_KEYS]) {
+        for (const map of [
+            COLUMN_KEYS,
+            HEADER_KEYS,
+            STATUS_KEYS,
+            CHANGE_KEYS,
+            REFUSAL_KEYS,
+            PROBLEM_KEYS,
+            EVIDENCE_KIND_KEYS
+        ]) {
             for (const key of Object.values(map)) {
                 expect(typeof lookup(english, key), `${key} in English`).toBe('string');
                 expect(typeof lookup(french, key), `${key} in French`).toBe('string');
@@ -674,6 +892,24 @@ describe('the checklist layout helpers', () => {
         expect(layout.answers.notApplicable).toBeNull();
         expect('kpi' in layout.columns).toBe(false);
         expect('author' in layout.header).toBe(false);
+    });
+
+    it('sends the lines changed only, in the version order, a line asking nothing without a validity', () => {
+        const [first, second, third] = VERSION.items;
+        expect(evidenceChangesOf(VERSION.items, {})).toEqual([]);
+        expect(
+            evidenceChangesOf(VERSION.items, {
+                [third.itemKey]: { kind: 'file', months: 6 },
+                [first.itemKey]: { kind: 'none', months: null },
+                [second.itemKey]: { kind: 'none', months: 24 }
+            })
+        ).toEqual([{ itemKey: third.itemKey, evidenceKind: 'file', evidenceValidityMonths: 6 }]);
+        // A validity alone is a change on a line that asks for a proof.
+        const asking = [{ ...first, evidenceKind: 'file' as const, evidenceValidityMonths: 12 }];
+        expect(evidenceChangesOf(asking, { [first.itemKey]: { kind: 'file', months: 24 } })).toEqual([
+            { itemKey: first.itemKey, evidenceKind: 'file', evidenceValidityMonths: 24 }
+        ]);
+        expect(evidenceChangesOf(asking, { [first.itemKey]: { kind: 'file', months: 12 } })).toEqual([]);
     });
 
     it('knows every cause the template routes name, and no other', () => {
