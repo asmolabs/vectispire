@@ -57,6 +57,42 @@ public record AllowedComponent(String purlPrefix, List<String> versions) {
         versions = List.copyOf(sorted);
     }
 
+    /**
+     * A package as a person declares it on a draft — the canonical constructor's checks, and one more
+     * it cannot make.
+     *
+     * <p><b>A prefix ending on a separator is refused here, never normalised and never in the
+     * constructor.</b> {@link #names} takes {@code /}, {@code ?} and {@code #} as the boundary <em>after</em>
+     * the prefix, so {@code pkg:maven/com.example/} matched no component at all and the line failed with
+     * "is not in its SBOM" while the whole group was there. The constructor also reads every stored rule
+     * back ({@link ChecklistRule#fromCanonical}), and the stored text is the content digest (decision
+     * 0032 §2, §4): refusing there would make a published version unreadable, stripping there would
+     * recompute a digest nobody changed and mark the line changed in the next version. Stripping on this
+     * path alone would store something other than what the person wrote, beside a form showing what they
+     * wrote; the refusal names the prefix that works instead.
+     */
+    static AllowedComponent declared(String purlPrefix, List<String> versions) {
+        AllowedComponent component = new AllowedComponent(purlPrefix, versions);
+        if (component.endsOnSeparator()) {
+            String prefix = component.purlPrefix();
+            String trimmed = prefix.substring(0, prefix.length() - 1);
+            throw new InvalidInputException("A package-URL prefix stops before the separator, never on it: \""
+                    + BoundedText.clip(prefix, 60) + "\" names no package. Write \"" + BoundedText.clip(trimmed, 60)
+                    + "\" for every package it continues with /, @, ? or # — a namespace's packages — or name one"
+                    + " package in full.");
+        }
+        return component;
+    }
+
+    /**
+     * Whether the prefix ends on a boundary {@link #names} expects after it — refused when declared, kept
+     * readable when stored so a line bound before the refusal still says why it matched nothing.
+     */
+    boolean endsOnSeparator() {
+        char last = purlPrefix.charAt(purlPrefix.length() - 1);
+        return last == '/' || last == '?' || last == '#';
+    }
+
     /** Whether a component's package URL is this package's. */
     boolean names(String purl) {
         if (purl == null || !purl.startsWith(purlPrefix)) {

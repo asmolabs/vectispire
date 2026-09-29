@@ -283,6 +283,20 @@ class RuleEvaluationTest {
             assertThat(RuleEvaluation.evaluate(rule, facts.components(1L, List.of()).build(), NOW).outcome())
                     .as("not present").isEqualTo(MeasurementOutcome.FAIL);
         }
+
+        @Test
+        @DisplayName("components: a stored prefix ending on its separator says why it matched nothing")
+        void aStoredPrefixEndingOnItsSeparator() {
+            ChecklistRule rule = ChecklistRule.fromCanonical("{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example/\","
+                    + "\"versions\":[\"3.2.1\"]}],\"kind\":\"component_versions\",\"maxAgeDays\":7}");
+            Measurement measured = RuleEvaluation.evaluate(rule, facts(List.of(1L))
+                    .scope("builtin:vulnerability", 1L, new Scanned(Optional.of(look(FRESH)), true, 1, 0))
+                    .components(1L, List.of(new Component("ledger-core", "3.2.1",
+                            "pkg:maven/com.example/ledger-core@3.2.1"))).build(), NOW);
+            assertThat(measured.outcome()).isEqualTo(MeasurementOutcome.FAIL);
+            assertThat(measured.evidenceJson()).contains("pkg:maven/com.example/ ends on its separator")
+                    .doesNotContain("is not in its SBOM");
+        }
     }
 
     @Test

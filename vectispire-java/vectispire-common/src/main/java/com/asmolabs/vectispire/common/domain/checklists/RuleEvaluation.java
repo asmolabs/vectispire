@@ -320,7 +320,10 @@ public final class RuleEvaluation {
                 List<MeasurementFacts.Component> occurrences = listed.stream()
                         .filter(component -> allowed.names(component.purl())).toList();
                 if (occurrences.isEmpty()) {
-                    unmet.add(allowed.purlPrefix() + " is not in its SBOM");
+                    unmet.add(allowed.endsOnSeparator()
+                            ? allowed.purlPrefix() + " ends on its separator and names no package — bind it without"
+                                    + " the last character"
+                            : allowed.purlPrefix() + " is not in its SBOM");
                     continue;
                 }
                 Set<String> versions = occurrences.stream()

@@ -121,6 +121,31 @@ class ChecklistRuleTest {
     }
 
     @Test
+    @DisplayName("refuses a prefix ending on its separator when bound, naming the prefix that works, and reads a stored one unchanged")
+    void aPrefixEndingOnItsSeparator() {
+        String stated = """
+                {"kind":"component_versions","maxAgeDays":30,"components":[
+                  {"purlPrefix":"pkg:maven/com.example.tools/","versions":["1.0.0"]}]}""";
+        assertThatThrownBy(() -> ChecklistRule.parse(stated))
+                .as("it matched nothing: names() expects the separator after the prefix")
+                .isInstanceOf(InvalidInputException.class)
+                .hasMessageContaining("\"pkg:maven/com.example.tools/\" names no package")
+                .hasMessageContaining("Write \"pkg:maven/com.example.tools\"");
+
+        // A line bound before the refusal: its stored text is its digest, so reading it back neither
+        // refuses nor rewrites it.
+        String stored = "{\"components\":[{\"purlPrefix\":\"pkg:maven/com.example.tools/\",\"versions\":[\"1.0.0\"]}],"
+                + "\"kind\":\"component_versions\",\"maxAgeDays\":30}";
+        ChecklistRule read = ChecklistRule.fromCanonical(stored);
+        assertThat(read.canonical()).isEqualTo(stored);
+
+        ChecklistRule fixed = ChecklistRule.parse(stated.replace("tools/", "tools"));
+        AllowedComponent namespace = ((ChecklistRule.ComponentVersions) fixed).components().getFirst();
+        assertThat(namespace.names("pkg:maven/com.example.tools/cli@1.0.0")).as("the fix names the namespace").isTrue();
+        assertThat(namespace.names("pkg:maven/com.example.toolsmith/cli@1.0.0")).isFalse();
+    }
+
+    @Test
     @DisplayName("matches a suite's whole name with * and ?, and nothing else as a wildcard")
     void suitePatterns() {
         SuitePattern arch = SuitePattern.of("com.example.arch.*Test");

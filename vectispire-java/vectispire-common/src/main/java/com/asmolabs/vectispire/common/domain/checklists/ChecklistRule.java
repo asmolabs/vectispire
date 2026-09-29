@@ -282,6 +282,14 @@ public sealed interface ChecklistRule {
 
     /** A rule as a request states it, refused in words — a key another kind takes is refused, never ignored. */
     static ChecklistRule parse(JsonNode node) {
+        return read(node, true);
+    }
+
+    /**
+     * {@code stated} is a person binding the rule now; otherwise it is a stored canonical form read back,
+     * which a check added after it was bound must not refuse — its text is its digest.
+     */
+    private static ChecklistRule read(JsonNode node, boolean stated) {
         if (node == null || !node.isObject()) {
             throw new InvalidInputException("A rule is an object: its kind, its maximum age and its parameters.");
         }
@@ -321,14 +329,14 @@ public sealed interface ChecklistRule {
             case TEST_SUITE_PASSED -> new TestSuitePassed(maxAge, text(node, "suitePattern").orElse(null),
                     integer(node, "minimumTests").orElseThrow(() -> new InvalidInputException("State the least number "
                             + "of tests the matching suites must run, minimumTests.")));
-            case COMPONENT_VERSIONS -> new ComponentVersions(maxAge, components(node.get("components")));
+            case COMPONENT_VERSIONS -> new ComponentVersions(maxAge, components(node.get("components"), stated));
         };
     }
 
     /** A stored canonical form read back — written by {@link #canonical()}, so a refusal is a defect. */
     static ChecklistRule fromCanonical(String canonical) {
         try {
-            return parse(Json.READER.readTree(canonical));
+            return read(Json.READER.readTree(canonical), false);
         } catch (JsonProcessingException unreadable) {
             throw new IllegalStateException("A stored rule does not read as JSON.", unreadable);
         }
@@ -400,7 +408,7 @@ public sealed interface ChecklistRule {
         return scopes;
     }
 
-    private static List<AllowedComponent> components(JsonNode node) {
+    private static List<AllowedComponent> components(JsonNode node, boolean stated) {
         if (node == null || !node.isArray()) {
             throw new InvalidInputException("A component rule declares its packages, components: each a purlPrefix "
                     + "and its allowed versions.");
@@ -421,7 +429,8 @@ public sealed interface ChecklistRule {
                 }
                 allowed.add(version.asText());
             });
-            components.add(new AllowedComponent(text(component, "purlPrefix").orElse(""), allowed));
+            String prefix = text(component, "purlPrefix").orElse("");
+            components.add(stated ? AllowedComponent.declared(prefix, allowed) : new AllowedComponent(prefix, allowed));
         }
         return components;
     }
