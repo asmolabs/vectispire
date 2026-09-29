@@ -490,22 +490,33 @@ public class ProjectChecklistService {
     }
 
     /**
+     * A measurement a person was shown, and that a one-act answer may rest on: the line, and the {@code
+     * evidenceDigest} of its measurement as read — what the single one-click sends as {@code
+     * measurementDigest}.
+     */
+    public record ShownMeasurement(Long itemId, String measurementDigest) {}
+
+    /**
      * Answers every measured line of a draft as measured, in one act: the one click of {@link #answer}
-     * resting on a measurement, given by the caller for each line where it can be given without them
-     * writing anything (decision 0032 §6).
+     * resting on a measurement, given by the caller for each line the screen offered it on and where it
+     * can be given without them writing anything (decision 0032 §6).
      *
-     * <p><b>The answers are the caller's.</b> Each is a row of its line's history under the principal's
-     * name, resting on the measurement it was answered by, stored with it as the single one-click stores
-     * it — Vectispire still never answers; the person asked for every line at once. The lines are
-     * measured here, now, as a read and a submission measure them; the caller named the edition they
-     * read, not each line's evidence, so the response names each measurement an answer rests on.
+     * <p><b>The answers are the caller's, on the measurements they saw.</b> Each is a row of its line's
+     * history under the principal's name, resting on the measurement it was answered by, stored with it
+     * as the single one-click stores it — Vectispire still never answers; the person asked for the lines
+     * shown at once. The caller names each measurement they were shown, by its digest, and the lines
+     * are measured here, now, as a read and a submission measure them: a line is answered only when it is
+     * named and its evidence is still the one read. Named by the edition alone, the act answered "yes"
+     * on a line whose "no data" had turned into a pass between the read and the click — a finding
+     * nobody saw. A named line whose measurement moved is left alone ({@code measurement_changed}, with
+     * the digest it has now), and a passing line not named is too ({@code not_shown}).
      *
-     * <p><b>What it leaves alone</b>, each named with its reason: a line already answered — any current
-     * answer, a carried one awaiting confirmation and one equal to the measurement included: a person's
-     * answer is never replaced by a gesture that did not look at it; a line with no data; and a failing
-     * line, whose answer would be "no", which needs its comment (§5) — the single one-click opens the
-     * form for the person to write it, and a comment the product invented would be a claim nobody made.
-     * So every answer this act gives is a "yes" on a passing measurement.
+     * <p><b>What else it leaves alone</b>, each named with its reason: a line already answered — any
+     * current answer, a carried one awaiting confirmation and one equal to the measurement included: a
+     * person's answer is never replaced by a gesture that did not look at it; a line with no data; and
+     * a failing line, whose answer would be "no", which needs its comment (§5) — the single one-click
+     * opens the form for the person to write it, and a comment the product invented would be a claim
+     * nobody made. So every answer this act gives is a "yes" on a passing measurement.
      *
      * <p><b>The revision's grain.</b> The act writes as many lines as it finds, so it is refused when
      * <em>anything</em> changed since the edition read ({@code checklist-changed}), like a transition:
@@ -515,32 +526,40 @@ public class ProjectChecklistService {
      * CHECKLIST_ANSWERED} entry per line, after the commit — the audit trail reads a line's answers the
      * same whichever gesture gave them.
      *
-     * @throws InvalidInputException no edition (400)
+     * @param shown the measurements the person was shown, one per line at most; required, and empty
+     *     answers nothing
+     * @throws InvalidInputException no edition, no list of shown measurements, an element that is none,
+     *     names no line or no digest, a line named twice, a line this revision does not have or one
+     *     measured by no rule (400)
      * @throws ChecklistConflict {@code checklist-not-draft}, {@code checklist-changed}
      */
     public ChecklistAsMeasuredView answerAsMeasured(long projectId, int revision, VisibilityService.Allowance allowance,
-            Integer seenEdition, Participant who) {
+            Integer seenEdition, List<ShownMeasurement> shown, Participant who) {
         Guarded guarded = requireWhole(projectId, allowance);
         VisibleProject project = guarded.project();
         ChecklistEntity checklist = requireRevision(project, revision);
         requireEdition(seenEdition);
+        List<ChecklistItemEntity> lines = items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId());
+        Map<Long, String> seen = requireShown(shown, lines);
         requireStatus(checklist, ChecklistStatus.DRAFT, Cause.NOT_DRAFT, "answered");
         requireSeen(checklist, seenEdition, "answering its measured lines");
         GivenAnswer yes = GivenAnswer.of(ChecklistAnswer.YES, null, wordsOf(checklist));
         Instant now = clock.instant();
-        List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(),
-                items.findByVersionIdOrderByPositionAsc(checklist.getTemplateVersionId()), now);
+        List<ChecklistMeasurer.LineMeasurement> measured = measurer.measure(guarded.repositoryIds(), lines, now);
         Map<Long, ChecklistAnswerEntity> current = currentAnswers(checklist.getId());
 
         List<ChecklistMeasurer.LineMeasurement> passing = new ArrayList<>();
         List<ChecklistAsMeasuredView.AsMeasuredSkip> skipped = new ArrayList<>();
         for (ChecklistMeasurer.LineMeasurement line : measured) {
             ChecklistAnswerEntity answer = current.get(line.item().getId());
-            MeasurementOutcome outcome = line.measurement().outcome();
-            // Answered first: a person's answer stands whatever the measurement now says.
+            Measurement found = line.measurement();
+            String read = seen.get(line.item().getId());
+            // Answered first: a person's answer stands whatever the measurement now says. Then what the
+            // person read: evidence other than theirs is a measurement they never saw, whatever it finds.
             AsMeasuredSkipReason reason = answer != null ? AsMeasuredSkipReason.ALREADY_ANSWERED
-                    : switch (outcome) {
-                        case PASS -> null;
+                    : read != null && !read.equals(found.evidenceDigest()) ? AsMeasuredSkipReason.MEASUREMENT_CHANGED
+                    : switch (found.outcome()) {
+                        case PASS -> read == null ? AsMeasuredSkipReason.NOT_SHOWN : null;
                         case FAIL -> AsMeasuredSkipReason.NEEDS_COMMENT;
                         case NO_DATA -> AsMeasuredSkipReason.NO_DATA;
                     };
@@ -548,8 +567,8 @@ public class ProjectChecklistService {
                 passing.add(line);
             } else {
                 skipped.add(new ChecklistAsMeasuredView.AsMeasuredSkip(line.item().getId(), line.item().getPosition(),
-                        reason.wireName(), outcome.wireName(),
-                        line.measurement().reason().map(NoDataReason::wireName).orElse(null),
+                        reason.wireName(), found.outcome().wireName(),
+                        found.reason().map(NoDataReason::wireName).orElse(null), found.evidenceDigest(),
                         answer == null ? null : answer.getValue()));
             }
         }
@@ -1146,6 +1165,40 @@ public class ProjectChecklistService {
                     throw new ChecklistConflict(Cause.NOT_LATEST, "Revision " + checklist.getRevision()
                             + " has been followed by revision " + latest.getRevision() + ": act on that one.");
                 });
+    }
+
+    /**
+     * The measurements a one-act answer names, by line: every element a line of this revision bound to a
+     * rule, named once, with a digest — a list that says anything else is refused rather than read as
+     * "shown nothing" for the lines it got wrong.
+     */
+    private static Map<Long, String> requireShown(List<ShownMeasurement> shown, List<ChecklistItemEntity> lines) {
+        if (shown == null) {
+            throw new InvalidInputException("Name the measurements you were shown (\"lines\": each line's itemId and "
+                    + "the measurementDigest you read): only those are answered.");
+        }
+        Map<Long, ChecklistItemEntity> byId = new HashMap<>();
+        lines.forEach(line -> byId.put(line.getId(), line));
+        Map<Long, String> seen = new HashMap<>();
+        for (ShownMeasurement element : shown) {
+            if (element == null || element.itemId() == null
+                    || element.measurementDigest() == null || element.measurementDigest().isBlank()) {
+                throw new InvalidInputException("Each shown measurement names its line (\"itemId\") and the digest you "
+                        + "read (\"measurementDigest\").");
+            }
+            ChecklistItemEntity line = byId.get(element.itemId());
+            if (line == null) {
+                throw new InvalidInputException("This revision has no line " + element.itemId() + ".");
+            }
+            if (line.getBoundRule() == null) {
+                throw new InvalidInputException("Line " + line.getPosition() + " is measured by no rule: an answer cannot "
+                        + "rest on a measurement it does not have.");
+            }
+            if (seen.put(line.getId(), element.measurementDigest().strip()) != null) {
+                throw new InvalidInputException("Line " + line.getPosition() + " is named twice.");
+            }
+        }
+        return seen;
     }
 
     private static void requireEdition(Integer seenEdition) {

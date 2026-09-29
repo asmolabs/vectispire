@@ -108,6 +108,13 @@ public class ProjectChecklistsController {
     /** @param edition the edition the person read */
     public record ChecklistEditionRequest(Integer edition) {}
 
+    /**
+     * @param edition the edition the person read
+     * @param lines the measurements the screen showed as answerable, each line's {@code itemId} and the {@code
+     *     evidenceDigest} read ({@code measurementDigest}); required — only those lines are answered
+     */
+    public record ChecklistAsMeasuredRequest(Integer edition, List<ProjectChecklistService.ShownMeasurement> lines) {}
+
     /** @param performedOn the day the work was done, {@code yyyy-MM-dd} */
     public record ChecklistLinkRequest(String link, String performedOn, Integer edition) {}
 
@@ -225,25 +232,28 @@ public class ProjectChecklistsController {
     }
 
     @Operation(summary = "Answer measured checklist lines as measured", description = "On a draft, in one act: "
-            + "every line bound to a rule is measured now, and each unanswered line whose measurement passes is "
-            + "answered yes by the caller, resting on that measurement, stored with it — the one click of the answer "
-            + "route, given for each line at once. Left alone, each named in skipped with its reason: a line already "
-            + "answered (already_answered — any current answer, one awaiting confirmation or one equal to the "
-            + "measurement included), a measurement with no data (no_data), a failing one (needs_comment — its no "
-            + "needs the comment the person writes, one line at a time). edition is the one read; anything written "
-            + "since refuses the act. One transaction, one edition; nothing to answer writes nothing and leaves the "
-            + "edition. Each answer is audited as a single one. 400 for no edition; 409 checklist-not-draft, "
+            + "every line bound to a rule is measured now, and each line named in lines — its itemId and the "
+            + "measurementDigest read, the evidenceDigest the single one-click sends — that is unanswered, still has "
+            + "that evidence and passes is answered yes by the caller, resting on that measurement, stored with it. "
+            + "Left alone, each named in skipped with its reason, the outcome and the evidenceDigest it has now: a "
+            + "line already answered (already_answered — any current answer, one awaiting confirmation or one equal to "
+            + "the measurement included), a named line whose evidence moved (measurement_changed), a passing line not "
+            + "named (not_shown), a measurement with no data (no_data), a failing one (needs_comment — its no needs the "
+            + "comment the person writes, one line at a time). edition is the one read; anything written since refuses "
+            + "the act. One transaction, one edition; nothing to answer writes nothing and leaves the edition. Each "
+            + "answer is audited as a single one. 400 for no edition, no lines, an element without its itemId or "
+            + "digest, a line named twice, not of this revision or measured by no rule; 409 checklist-not-draft, "
             + "checklist-changed.")
     @PostMapping("/{revision}/answers/as-measured")
     @RequiresWriteAccount
     public ChecklistAsMeasuredView answerAsMeasured(
             @PathVariable long projectId,
             @PathVariable int revision,
-            @RequestBody ChecklistEditionRequest body,
+            @RequestBody ChecklistAsMeasuredRequest body,
             @AuthenticationPrincipal VectispirePrincipal principal,
             HttpServletRequest request) {
         return checklists.answerAsMeasured(projectId, revision, allowanceOf(principal),
-                body == null ? null : body.edition(), participant(principal, request));
+                body == null ? null : body.edition(), body == null ? null : body.lines(), participant(principal, request));
     }
 
     @Operation(summary = "Confirm carried checklist answer", description = "On a draft: the answer carried onto a "

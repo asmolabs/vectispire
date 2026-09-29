@@ -3,7 +3,7 @@ package com.asmolabs.vectispire.core.checklists;
 import java.util.List;
 
 /**
- * What answering every measured line as measured did (decision 0032 §6): the revision as it is after
+ * What answering the measured lines as measured did (decision 0032 §6): the revision as it is after
  * the act, the lines it answered and those it left alone, with why.
  *
  * @param checklist the revision after the act, as every other write returns it
@@ -34,12 +34,16 @@ public record ChecklistAsMeasuredView(ChecklistView checklist, List<AsMeasuredAn
     /**
      * One line left alone.
      *
-     * @param reason {@code already_answered}, {@code no_data} or {@code needs_comment} — a failing
-     *     measurement, whose "no" the person answers with its comment, one line at a time
-     * @param outcome the measurement's outcome: {@code pass}, {@code fail} or {@code no_data}
+     * @param reason {@code already_answered}; {@code measurement_changed} — named, and its evidence is
+     *     no longer the one read; {@code not_shown} — passing, and not named; {@code no_data}; or {@code
+     *     needs_comment} — a failing measurement, whose "no" the person answers with its comment, one line
+     *     at a time
+     * @param outcome the measurement's outcome now: {@code pass}, {@code fail} or {@code no_data}
      * @param noDataReason why it has no data, null unless the outcome is {@code no_data}
+     * @param evidenceDigest the measurement's {@code evidenceDigest} now — for {@code measurement_changed},
+     *     what to show the person before they answer
      * @param answer the line's current answer, null unless the reason is {@code already_answered}
      */
     public record AsMeasuredSkip(long itemId, int position, String reason, String outcome, String noDataReason,
-            String answer) {}
+            String evidenceDigest, String answer) {}
 }

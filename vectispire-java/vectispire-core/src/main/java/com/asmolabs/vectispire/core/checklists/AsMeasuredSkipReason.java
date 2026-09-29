@@ -13,6 +13,13 @@ enum AsMeasuredSkipReason {
      * not look at it; one equal to the measurement would be a second row saying the same thing.
      */
     ALREADY_ANSWERED,
+    /**
+     * The person named the line, and its evidence is no longer the one they read: the act would rest an
+     * answer on a measurement they never saw. The skip carries the outcome and digest it has now.
+     */
+    MEASUREMENT_CHANGED,
+    /** The line passes, and the person did not name it: they were not shown it as answerable. */
+    NOT_SHOWN,
     /** The measurement has no data: there is nothing to answer as measured, and a "yes" on it is declared. */
     NO_DATA,
     /**

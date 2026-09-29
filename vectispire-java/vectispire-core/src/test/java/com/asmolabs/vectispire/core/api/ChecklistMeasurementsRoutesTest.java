@@ -612,7 +612,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
                     .andExpect(status().isCreated());
             int before = edition();
 
-            JsonNode done = read(asMeasured(ciso, 1, before).andExpect(status().isOk()));
+            JsonNode done = read(asMeasured(ciso, 1, before, shownPassing()).andExpect(status().isOk()));
 
             assertThat(done.at("/checklist/checklist/edition").asInt()).as("one act, one edition").isEqualTo(before + 1);
             assertThat(done.at("/answered")).hasSize(1);
@@ -634,6 +634,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             assertThat(skipped.get(lines.get(3)).at("/outcome").asText()).as("passing, and still left alone")
                     .isEqualTo("pass");
             assertThat(skipped.get(lines.get(3)).at("/answer").asText()).isEqualTo("no");
+            assertThat(skipped.get(lines.get(1)).at("/evidenceDigest").asText()).as("the digest it has now").hasSize(64);
 
             // The answer is the caller's, a row of the line's history, resting on the measurement stored with it.
             assertThat(answers.findAll()).filteredOn(row -> row.getItemId().equals(lines.get(0))).singleElement()
@@ -680,7 +681,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             answer(developer, 1, lines.get(0), "yes", null, null, edition()).andExpect(status().isCreated());
             answer(developer, 1, lines.get(3), "yes", null, null, edition()).andExpect(status().isCreated());
             int before = edition();
-            JsonNode done = read(asMeasured(ciso, 1, before).andExpect(status().isOk()));
+            JsonNode done = read(asMeasured(ciso, 1, before, shownPassing()).andExpect(status().isOk()));
             assertThat(done.at("/answered")).isEmpty();
             assertThat(done.at("/skipped")).hasSize(4);
             assertThat(edition()).isEqualTo(before);
@@ -695,7 +696,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             int read = edition();
             answer(developer, 1, lines.get(3), "no", "Being migrated.", null, read).andExpect(status().isCreated());
 
-            MvcResult stale = asMeasured(ciso, 1, read).andExpect(status().isConflict()).andReturn();
+            MvcResult stale = asMeasured(ciso, 1, read, shownPassing()).andExpect(status().isConflict()).andReturn();
             assertThat(typeOf(stale)).isEqualTo(PROBLEM + "checklist-changed");
             assertThat(answers.findAll()).singleElement()
                     .satisfies(row -> assertThat(row.getItemId()).isEqualTo(lines.get(3)));
@@ -704,10 +705,14 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
 
             // With nothing left to answer nothing would be written, and the edition read is still judged.
             answer(developer, 1, lines.get(0), "yes", null, null, edition()).andExpect(status().isCreated());
-            assertThat(typeOf(asMeasured(ciso, 1, read).andExpect(status().isConflict()).andReturn()))
+            assertThat(typeOf(asMeasured(ciso, 1, read, shownPassing()).andExpect(status().isConflict()).andReturn()))
                     .isEqualTo(PROBLEM + "checklist-changed");
 
-            asMeasured(ciso, 1, null).andExpect(status().isBadRequest());
+            asMeasured(ciso, 1, null, shownPassing()).andExpect(status().isBadRequest());
+            assertThat(detailOf(asMeasured(ciso, 1, edition(), null).andExpect(status().isBadRequest()).andReturn()))
+                    .as("the measurements shown are required").contains("measurements you were shown");
+            assertThat(detailOf(asMeasured(ciso, 1, edition(), Map.of(lines.get(0), "0".repeat(64), 999_999L, "x"))
+                    .andExpect(status().isBadRequest()).andReturn())).contains("no line 999999");
         }
 
         @Test
@@ -721,7 +726,7 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
             submit(developer, 1, edition()).andExpect(status().isOk());
             long answered = answers.count();
 
-            MvcResult refused = asMeasured(ciso, 1, edition()).andExpect(status().isConflict()).andReturn();
+            MvcResult refused = asMeasured(ciso, 1, edition(), Map.of()).andExpect(status().isConflict()).andReturn();
             assertThat(typeOf(refused)).isEqualTo(PROBLEM + "checklist-not-draft");
             assertThat(answers.count()).isEqualTo(answered);
         }
@@ -731,25 +736,88 @@ class ChecklistMeasurementsRoutesTest extends ApiTestBase {
         void whoMayAnswer() throws Exception {
             fourMeasuredLines();
             int edition = edition();
+            Map<Long, String> shown = shownPassing();
             settings.set(Setting.TARGET_VISIBILITY, VisibilityMode.ASSIGNED.wireName());
             Account partial = account(Role.USER);
             grant(partial.id(), "repository", first);
-            assertThat(detailOf(asMeasured(partial, 1, edition).andExpect(status().isNotFound()).andReturn()))
+            assertThat(detailOf(asMeasured(partial, 1, edition, shown).andExpect(status().isNotFound()).andReturn()))
                     .isEqualTo("Project not found.");
 
             Account auditor = account(Role.AUDITOR);
-            asMeasured(auditor, 1, edition).andExpect(status().isForbidden());
+            asMeasured(auditor, 1, edition, shown).andExpect(status().isForbidden());
             assertThat(answers.findAll()).isEmpty();
 
             grant(partial.id(), "repository", second);
-            asMeasured(partial, 1, edition).andExpect(status().isOk());
+            asMeasured(partial, 1, edition, shown).andExpect(status().isOk());
             assertThat(answers.findAll()).as("the two passing lines, under the caller's name").hasSize(2)
                     .allSatisfy(row -> assertThat(row.getAnsweredBy()).isEqualTo(partial.name()));
         }
 
-        private ResultActions asMeasured(Account who, int revision, Integer edition) throws Exception {
+        @Test
+        @DisplayName("a line whose evidence is not the one shown is left alone, even passing, and says what it is now")
+        void aMeasurementThatMoved() throws Exception {
+            List<Long> lines = fourMeasuredLines();
+            Map<Long, String> shown = shownPassing();
+            // A scan since the read: the secrets lines still pass, on evidence the person never saw.
+            scan(second, hoursAgo(1), "secret,sast", null, true);
+
+            JsonNode done = read(asMeasured(ciso, 1, edition(), shown).andExpect(status().isOk()));
+            assertThat(done.at("/answered")).isEmpty();
+            JsonNode moved = skipOf(done, lines.get(0));
+            assertThat(moved.at("/reason").asText()).isEqualTo("measurement_changed");
+            assertThat(moved.at("/outcome").asText()).isEqualTo("pass");
+            assertThat(moved.at("/evidenceDigest").asText()).isNotEqualTo(shown.get(lines.get(0)))
+                    .isEqualTo(measurements(developer, project, 1).at("/lines/0/measurement/evidenceDigest").asText());
+            assertThat(answers.findAll()).isEmpty();
+            assertThat(measurements.findAll()).isEmpty();
+            assertThat(entries("CHECKLIST_ANSWERED")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("a passing line the person was not shown is left alone")
+        void aLineNotShown() throws Exception {
+            List<Long> lines = fourMeasuredLines();
+            Map<Long, String> shown = shownPassing();
+            shown.remove(lines.get(3));
+
+            JsonNode done = read(asMeasured(ciso, 1, edition(), shown).andExpect(status().isOk()));
+            assertThat(done.at("/answered")).singleElement()
+                    .satisfies(line -> assertThat(line.at("/itemId").asLong()).isEqualTo(lines.get(0)));
+            assertThat(skipOf(done, lines.get(3)).at("/reason").asText()).isEqualTo("not_shown");
+            assertThat(skipOf(done, lines.get(3)).at("/outcome").asText()).isEqualTo("pass");
+            assertThat(answers.findAll()).singleElement()
+                    .satisfies(row -> assertThat(row.getItemId()).isEqualTo(lines.get(0)));
+        }
+
+        /** What the screen offers the one click on: each passing line's itemId and the digest it read. */
+        private Map<Long, String> shownPassing() throws Exception {
+            Map<Long, String> shown = new LinkedHashMap<>();
+            measurements(developer, project, 1).at("/lines").forEach(line -> {
+                if (line.at("/measurement/outcome").asText().equals("pass")) {
+                    shown.put(line.at("/itemId").asLong(), line.at("/measurement/evidenceDigest").asText());
+                }
+            });
+            return shown;
+        }
+
+        private JsonNode skipOf(JsonNode done, long itemId) {
+            for (JsonNode line : done.at("/skipped")) {
+                if (line.at("/itemId").asLong() == itemId) {
+                    return line;
+                }
+            }
+            throw new AssertionError("Line " + itemId + " was not skipped: " + done.at("/skipped"));
+        }
+
+        private ResultActions asMeasured(Account who, int revision, Integer edition, Map<Long, String> shown)
+                throws Exception {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("edition", edition);
+            if (shown != null) {
+                List<Map<String, Object>> lines = new ArrayList<>();
+                shown.forEach((itemId, digest) -> lines.add(Map.of("itemId", itemId, "measurementDigest", digest)));
+                body.put("lines", lines);
+            }
             return send(who, base(project) + "/" + revision + "/answers/as-measured", body);
         }
     }
