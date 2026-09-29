@@ -26,7 +26,7 @@
                         [value]="reconciliationLabel(line.reconciliation)"
                         data-testid="reconciliation"
                     />
-                    @for (problem of line.problems; track problem) {
+                    @for (problem of measuredProblems(); track problem) {
                         <p-tag severity="danger" [value]="problemLabel(problem)" data-testid="measured-problem" />
                     }
                 }
@@ -158,8 +158,8 @@
                     <tbody>
                         @for (repository of m.evidence.repositories; track $index) {
                             <tr>
-                                <td class="pr-3 font-mono">
-                                    {{ 'project_checklist.repository_n' | translate: { id: repository.repositoryId } }}
+                                <td class="pr-3" [class.font-mono]="repository.repositoryName === null">
+                                    {{ repositoryLabel(repository) }}
                                 </td>
                                 <td class="pr-3">{{ repository.scope ? scopeLabel(repository.scope) : '—' }}</td>
                                 <td class="pr-3">{{ statusLabel(repository.status) }}</td>

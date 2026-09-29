@@ -46,6 +46,12 @@ export class LineMeasurement {
     readonly position = input.required<number>();
     /** The line as the measurements route answered; null while it is read, or when it failed. */
     readonly measured = input<MeasuredLine | null>(null);
+    /**
+     * The line's problems as the checklist view counts them. On a draft they include the measurement's
+     * own (`measurement_contradicted`, and a yes without data wanting its comment or proof): a badge
+     * naming one of those again would show the same obstacle twice.
+     */
+    readonly lineProblems = input<readonly string[]>([]);
     /** Computed for this read (a draft, a submitted revision) rather than frozen by the sign-off. */
     readonly live = input(false);
     /** Whether the person may answer the line now: the newest draft, a role that writes. */
@@ -59,6 +65,11 @@ export class LineMeasurement {
 
     readonly found = computed(() => this.measured()?.measurement ?? null);
     readonly offered = computed(() => (this.live() && this.answerable() ? measuredAnswer(this.measured()) : null));
+    /** What the measurement keeps from a submission that the line's own problems do not already say. */
+    readonly measuredProblems = computed(() => {
+        const said = new Set(this.lineProblems());
+        return (this.measured()?.problems ?? []).filter((problem) => !said.has(problem));
+    });
     readonly changedSinceSubmission = computed(() => {
         const line = this.measured();
         return !!line && differs(line);
@@ -102,6 +113,12 @@ export class LineMeasurement {
 
     problemLabel(problem: string): string {
         return this.label(MEASURED_PROBLEM_KEYS, problem);
+    }
+
+    /** The repository by its name, as every screen names it; by its id once it left the project or is gone. */
+    repositoryLabel(look: RepositoryLook): string {
+        this.i18n.translations();
+        return look.repositoryName ?? this.i18n.t('project_checklist.repository_n', { id: look.repositoryId });
     }
 
     statusLabel(status: string): string {

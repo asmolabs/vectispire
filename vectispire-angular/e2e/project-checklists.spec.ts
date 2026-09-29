@@ -300,9 +300,8 @@ test.describe('Project checklists', () => {
      * A measured line, end to end (decision 0032 §6): the CISO binds "secrets at zero" to row 4 on the
      * draft's screen, an administrator publishes it, and on a fresh project the line's measurement is
      * no data — the project has no repository, so nothing looked, and the screen says so rather than
-     * passing it. A yes against it is ready by the line's own count, yet the submission is not offered
-     * until the yes carries a comment and a proof (question 4): the measurements say what the view's
-     * readyToSubmit does not.
+     * passing it. A yes against it is not ready until it carries a comment and a proof (question 4): the
+     * view's line problems and readyToSubmit count what the submission's measurement would refuse.
      */
     test('a line bound to a rule on the draft is measured on the project, and a yes without data needs a comment and a proof', async ({
         page
@@ -334,8 +333,8 @@ test.describe('Project checklists', () => {
 
         const version = (await (
             await page.request.get(`/api/v1/checklist-templates/${slug}/versions/1`, { headers: bearer(admin) })
-        ).json()) as { version: { revision: number }; items: { sheetRow: number; boundRule: string | null }[] };
-        expect(JSON.parse(version.items.find((item) => item.sheetRow === 4)?.boundRule ?? 'null')).toEqual({
+        ).json()) as { version: { revision: number }; items: { sheetRow: number; boundRule: unknown }[] };
+        expect(version.items.find((item) => item.sheetRow === 4)?.boundRule).toMatchObject({
             kind: 'findings_threshold',
             maxAgeDays: 7,
             scopes: ['builtin:secret'],
@@ -362,24 +361,26 @@ test.describe('Project checklists', () => {
         await answer(page, 1, /^Yes/);
         await answer(page, 2, /^Yes/);
         await answer(page, 3, /^Yes/);
+        const line = page.getByTestId('line-1');
+        const problems = line.getByTestId('problems');
         await expect(measured.getByTestId('reconciliation')).toHaveText('Declared, not measured');
-        await expect(measured.getByTestId('measured-problem')).toHaveText([
-            'No data: a yes needs a comment',
-            'No data: a yes needs a proof'
-        ]);
+        // Said once, by the line: the measurement's badges do not repeat what the view already counts.
+        await expect(problems).toContainText('Comment required');
+        await expect(problems).toContainText('Evidence required');
+        await expect(measured.getByTestId('measured-problem')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Submit for sign-off' })).toBeDisabled();
-        await expect(page.getByTestId('submit-blocked-measured')).toHaveText(
-            'Line(s) 1 disagree with their measurement: see what each one still needs.'
+        await expect(page.getByTestId('submit-blocked')).toHaveText(
+            'Not ready to submit: lines 1 still need attention.'
         );
 
-        const line = page.getByTestId('line-1');
         await answer(page, 1, /^Yes/, 'No repository filed yet: the secrets review was done by hand.');
-        await expect(measured.getByTestId('measured-problem')).toHaveText(['No data: a yes needs a proof']);
+        await expect(problems).not.toContainText('Comment required');
+        await expect(problems).toContainText('Evidence required');
         await line.getByRole('button', { name: 'Add evidence to line 1' }).click();
         await line.getByLabel('Link (https: or http:)').fill('https://wiki.example.invalid/secrets-review');
         await line.getByRole('button', { name: 'Attach' }).click();
         await expect(line.getByTestId('evidence')).toContainText('secrets-review');
-        await expect(measured.getByTestId('measured-problem')).toHaveCount(0);
+        await expect(problems).toHaveText('Ready');
 
         await page.getByRole('button', { name: 'Submit for sign-off' }).click();
         await expect(page.getByTestId('notice')).toHaveText('Revision 1 submitted for sign-off.');

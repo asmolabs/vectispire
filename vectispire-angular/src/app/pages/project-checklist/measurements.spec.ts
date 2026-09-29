@@ -3,7 +3,13 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { ChecklistMeasurements, ChecklistView, MeasuredLine, NoDataReason } from '@/app/core/api.models';
+import type {
+    ChecklistLine,
+    ChecklistMeasurements,
+    ChecklistView,
+    MeasuredLine,
+    NoDataReason
+} from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
     CARRIED_LINE,
@@ -34,7 +40,6 @@ import {
     MEASURED_PROBLEM_KEYS,
     measuredAnswer,
     measuredConflictLinesOf,
-    measurementBlocks,
     NO_DATA_KEYS,
     NO_DATA_SHORT_KEYS,
     OUTCOME_KEYS,
@@ -49,8 +54,9 @@ import { ProjectChecklist } from './project-checklist';
  * What it must get right: every bound line shows what its rule found — met, not met, or no data and
  * why, in the reader's words for every reason the server names — with its evidence on demand; the one
  * click sends the person's answer resting on the measurement they read, and a measurement that moved
- * in between is read again and said so; the submission is not offered while a measurement keeps the
- * revision from it, which the view's `readyToSubmit` does not know; and the two measurement refusals
+ * in between is read again and said so; the submission is offered on the view's `readyToSubmit` alone,
+ * which on a draft already counts what the measurement would refuse, and a measured obstacle is said
+ * once — by the line's problems, not again by the measurement's badge; and the two measurement refusals
  * point at the lines they name.
  */
 describe('the measured lines of a project checklist', () => {
@@ -201,7 +207,9 @@ describe('the measured lines of a project checklist', () => {
         expect(has('[data-testid="measured-evidence-1"]')).toBe(false);
         click('Evidence measured for line 1');
         const coverage = text('[data-testid="measured-evidence-1"]');
-        expect(coverage).toContain('#31');
+        // By its name, as every screen names a repository — not by its id.
+        expect(coverage).toContain('checkout-api');
+        expect(coverage).not.toContain('#31');
         expect(coverage).toContain('examined');
         expect(coverage).toContain('Coverage report 77');
         expect(coverage).toContain('27/09/2026');
@@ -214,6 +222,25 @@ describe('the measured lines of a project checklist', () => {
         expect(secrets).toContain('never examined');
         click('Evidence measured for line 3');
         expect(has('[data-testid="measured-evidence-3"]')).toBe(false);
+    });
+
+    it('names a repository no longer in the project by its id, since it has no name to show', async () => {
+        const gone = {
+            ...PASS_MEASUREMENT,
+            evidence: {
+                ...PASS_MEASUREMENT.evidence,
+                repositories: [{ ...PASS_MEASUREMENT.evidence.repositories[0], repositoryName: null }]
+            }
+        };
+        await start('USER', MEASURED_CHECKLIST, {
+            ...MEASUREMENTS,
+            lines: [measuredLine(MEASURED_READY_LINE, gone), MEASUREMENTS.lines[1]]
+        });
+
+        click('Evidence measured for line 1');
+        const cell = dom().querySelector('[data-testid="measured-evidence-1"] tbody td');
+        expect(cell?.textContent?.trim()).toBe('#31');
+        expect(text('[data-testid="measured-evidence-1"]')).not.toContain('null');
     });
 
     it('links a scan the measurement read to its page, and marks the threshold not met', async () => {
@@ -236,15 +263,14 @@ describe('the measured lines of a project checklist', () => {
         expect(has('[data-testid="measurements-mode"]')).toBe(false);
     });
 
-    it('says a measurement could not be read, and does not hold the submission back for it', async () => {
+    it('says a measurement could not be read, and neither waits for it nor holds the submission back for it', async () => {
         await start('USER', { ...READY_CHECKLIST, lines: [MEASURED_READY_LINE] }, null);
 
-        expect(button('submit-checklist').disabled).toBe(true);
-        expect(text('[data-testid="submit-waiting"]')).toBe('Reading the measurements…');
+        // The view's readiness already counts the measurement: the submission does not wait for the route.
+        expect(button('submit-checklist').disabled).toBe(false);
         measurementsRead().flush({ detail: 'down' }, { status: 503, statusText: 'Unavailable' });
         fixture.detectChanges();
         expect(text('[data-testid="measurements-error"]')).toBe('down');
-        // The server measures again at the submission, and refuses in its own right.
         expect(button('submit-checklist').disabled).toBe(false);
     });
 
@@ -367,44 +393,95 @@ describe('the measured lines of a project checklist', () => {
 
     // ------------------------------------------------------------------ badges and the submission
 
-    it('names what a yes without data still needs, and keeps the submission back that readyToSubmit would allow', async () => {
-        const answered = {
-            ...MEASURED_OPEN_LINE,
-            answer: { ...READY_CHECKLIST.lines[0].answer!, id: 603, itemId: 103 },
-            problems: []
+    /** Line 3 answered yes, with the view counting what the measurement makes of it, as a draft's read does. */
+    const answeredYes = (problems: ChecklistLine['problems']): ChecklistLine => ({
+        ...MEASURED_OPEN_LINE,
+        answer: { ...READY_CHECKLIST.lines[0].answer!, id: 603, itemId: 103 },
+        problems
+    });
+    const lineProblems = (position: number) =>
+        Array.from(dom().querySelectorAll(`[data-testid="line-${position}"] [data-testid="problems"] p-tag`)).map(
+            (tag) => tag.textContent?.trim()
+        );
+    const badges = (position: number) =>
+        Array.from(
+            dom().querySelectorAll(`[data-testid="measurement-${position}"] [data-testid="measured-problem"]`)
+        ).map((tag) => tag.textContent?.trim());
+
+    it('keeps back a draft whose only obstacle is a failing measurement, and says so once, on the line', async () => {
+        const contradicted = answeredYes(['measurement_contradicted']);
+        const view: ChecklistView = {
+            ...READY_CHECKLIST,
+            readyToSubmit: false,
+            lines: [MEASURED_READY_LINE, READY_CHECKLIST.lines[1], contradicted]
         };
-        const view = { ...READY_CHECKLIST, lines: [MEASURED_READY_LINE, READY_CHECKLIST.lines[1], answered] };
+        await start(
+            'USER',
+            view,
+            withLine3(
+                measuredLine(
+                    contradicted,
+                    { ...FAIL_MEASUREMENT, reconciliation: 'contradicted' },
+                    { reconciliation: 'contradicted', problems: ['measurement_contradicted'] }
+                )
+            )
+        );
+
+        expect(button('submit-checklist').disabled).toBe(true);
+        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: lines 3 still need attention.');
+        expect(text('[data-testid="measurement-3"] [data-testid="reconciliation"]')).toBe(
+            'Contradicted: yes where the measurement is not met'
+        );
+        const sentence = 'A yes against a measurement not met is refused at the submission';
+        expect(lineProblems(3)).toEqual([sentence]);
+        expect(badges(3)).toEqual([]);
+        expect(text('[data-testid="line-3"]').split(sentence)).toHaveLength(2);
+    });
+
+    it('names what a yes without data still needs by the line, as the view counts it, and no badge again', async () => {
+        const answered = answeredYes(['comment_required', 'evidence_required']);
+        const view: ChecklistView = {
+            ...READY_CHECKLIST,
+            readyToSubmit: false,
+            lines: [MEASURED_READY_LINE, READY_CHECKLIST.lines[1], answered]
+        };
         const declared = measuredLine(
             answered,
             { ...NO_DATA_MEASUREMENT, reconciliation: 'declared_not_measured' },
-            {
-                reconciliation: 'declared_not_measured',
-                problems: ['comment_required', 'evidence_required']
-            }
+            { reconciliation: 'declared_not_measured', problems: ['comment_required', 'evidence_required'] }
         );
         await start('USER', view, withLine3(declared));
 
-        expect(view.readyToSubmit).toBe(true);
         expect(text('[data-testid="measurement-3"] [data-testid="reconciliation"]')).toBe('Declared, not measured');
-        const problems = Array.from(
-            dom().querySelectorAll('[data-testid="measurement-3"] [data-testid="measured-problem"]')
-        ).map((tag) => tag.textContent?.trim());
-        expect(problems).toEqual(['No data: a yes needs a comment', 'No data: a yes needs a proof']);
+        expect(lineProblems(3)).toEqual(['Comment required', 'Evidence required']);
+        expect(badges(3)).toEqual([]);
         expect(button('submit-checklist').disabled).toBe(true);
-        expect(text('[data-testid="submit-blocked-measured"]')).toBe(
-            'Line(s) 3 disagree with their measurement: see what each one still needs.'
-        );
+        expect(text('[data-testid="submit-blocked"]')).toBe('Not ready to submit: lines 3 still need attention.');
     });
 
-    it('lets a ready revision whose measurements keep nothing back be submitted', async () => {
+    it('still badges what the measurement says and the line does not', async () => {
+        await start(
+            'USER',
+            MEASURED_CHECKLIST,
+            withLine3(measuredLine(MEASURED_OPEN_LINE, NO_DATA_MEASUREMENT, { problems: ['evidence_expired'] }))
+        );
+
+        expect(badges(3)).toEqual(['No data: the proof of this yes is out of date']);
+    });
+
+    it('offers the submission the view says is ready, whatever the measurements route answers', async () => {
         await start(
             'USER',
             { ...READY_CHECKLIST, lines: [MEASURED_READY_LINE] },
-            { ...MEASUREMENTS, lines: [MEASUREMENTS.lines[0]] }
+            {
+                ...MEASUREMENTS,
+                lines: [measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT, { problems: ['measurement_contradicted'] })]
+            }
         );
 
+        // The view decides; the route only shows. A second verdict would be a second authority.
         expect(button('submit-checklist').disabled).toBe(false);
-        expect(has('[data-testid="submit-blocked-measured"]')).toBe(false);
+        expect(has('[data-testid="submit-blocked"]')).toBe(false);
     });
 
     it('highlights the lines a submission is refused for as contradicted, in the reader words', async () => {
@@ -512,15 +589,7 @@ describe('the measured lines, by their rules', () => {
         expect(measuredAnswer(null)).toBeNull();
     });
 
-    it('holds back only what a live measurement keeps, and names what moved since a submission', () => {
-        const blocked = {
-            ...MEASUREMENTS,
-            lines: [{ ...MEASUREMENTS.lines[1], problems: ['measurement_contradicted' as const] }]
-        };
-        expect(measurementBlocks(blocked)).toEqual([3]);
-        expect(measurementBlocks({ ...blocked, live: false })).toEqual([]);
-        expect(measurementBlocks(null)).toEqual([]);
-
+    it('names what moved since a submission', () => {
         const line = measuredLine(MEASURED_READY_LINE, PASS_MEASUREMENT, { atSubmission: PASS_MEASUREMENT });
         const submitted = { ...MEASUREMENTS, status: 'submitted' as const, lines: [line] };
         expect(changedSinceSubmission(submitted)).toEqual([]);

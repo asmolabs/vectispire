@@ -40,7 +40,6 @@ import {
     changedSinceSubmission,
     measuredAnswer,
     measuredConflictLinesOf,
-    measurementBlocks,
     NO_DATA_SHORT_KEYS,
     OUTCOME_KEYS
 } from './measurements';
@@ -311,20 +310,12 @@ export class ProjectChecklist {
     readonly measuredLines = computed(
         () => new Map((this.measurements()?.lines ?? []).map((line) => [line.itemId, line] as const))
     );
-    /** Bound lines on screen, their measurements not read yet (nor refused): the submission waits for them. */
-    readonly measurementsPending = computed(
-        () => this.measured() && this.measurements() === null && this.measurementsError() === null
-    );
-    /** What a live measurement keeps from a submission, which `readyToSubmit` does not count. */
-    readonly measurementBlocks = computed(() => measurementBlocks(this.measurements()));
     /**
-     * `readyToSubmit` combined with the measurements: the view's flag counts each line's own problems
-     * only, and a yes the measurement contradicts — or a yes without data, its comment or its proof
-     * missing — would be refused by the submission (409) on a screen that had offered it.
+     * The view's own verdict: on a draft its `readyToSubmit` and line problems already count what the
+     * submission's measurement would refuse — a yes the measurement contradicts, a yes without data short
+     * of its comment or proof — so the measurements route is read to show them, never to decide.
      */
-    readonly canSubmit = computed(
-        () => !!this.view()?.readyToSubmit && !this.measurementsPending() && this.measurementBlocks().length === 0
-    );
+    readonly canSubmit = computed(() => !!this.view()?.readyToSubmit);
     /** Lines measured otherwise than at the submission: the sign-off would be refused for them. */
     readonly changedSinceSubmission = computed(() => changedSinceSubmission(this.measurements()));
 

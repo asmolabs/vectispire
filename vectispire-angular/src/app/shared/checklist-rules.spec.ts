@@ -19,7 +19,6 @@ import {
     draftOf,
     emptyDraft,
     METRIC_KEYS,
-    parseBoundRule,
     ratioAllowed,
     RULE_KIND_KEYS,
     RULE_PROBLEM_KEYS,
@@ -244,17 +243,9 @@ describe('the checklist rules, as the form reads them', () => {
         expect(canonicalRule(COVERAGE_RULE)).toBe(COVERAGE_CANONICAL);
     });
 
-    it('takes a bound rule as the server sends it, structured', () => {
-        expect(parseBoundRule(COVERAGE_RULE)).toBe(COVERAGE_RULE);
-    });
-
-    it('reads a bound rule from its canonical text, and nothing from text that is none', () => {
-        expect(parseBoundRule(SECRETS_CANONICAL)).toEqual(SECRETS_RULE);
-        expect(parseBoundRule(null)).toBeNull();
-        expect(parseBoundRule('{')).toBeNull();
-        expect(parseBoundRule('"findings_threshold"')).toBeNull();
-        // Reopened and kept unchanged, a rule is the same rule: the form sends nothing for it.
-        expect(canonicalRule(ruleOf(draftOf(parseBoundRule(COVERAGE_CANONICAL))))).toBe(COVERAGE_CANONICAL);
+    it('reopens a bound rule unchanged as the same rule: the form sends nothing for it', () => {
+        expect(canonicalRule(ruleOf(draftOf(COVERAGE_RULE)))).toBe(COVERAGE_CANONICAL);
+        expect(canonicalRule(ruleOf(draftOf(SECRETS_RULE)))).toBe(SECRETS_CANONICAL);
     });
 
     it('writes a rule in words, every condition and the age, in the reader language', () => {

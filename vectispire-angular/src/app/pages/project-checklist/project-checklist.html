@@ -292,18 +292,6 @@
                                 {{ 'project_checklist.submit_blocked' | translate: { lines: unready().join(', ') } }}
                             </span>
                         }
-                        @if (measurementBlocks().length > 0) {
-                            <span class="text-sm text-muted-color" data-testid="submit-blocked-measured">
-                                {{
-                                    'project_checklist.submit_blocked_measured'
-                                        | translate: { lines: measurementBlocks().join(', ') }
-                                }}
-                            </span>
-                        } @else if (measurementsPending()) {
-                            <span class="text-sm text-muted-color" data-testid="submit-waiting">
-                                {{ 'project_checklist.submit_waiting_measurements' | translate }}
-                            </span>
-                        }
                     </div>
                 }
                 @if (current.status === 'submitted') {
@@ -604,6 +592,7 @@
                                             [rule]="rule"
                                             [position]="line.position"
                                             [measured]="measuredOf(line)"
+                                            [lineProblems]="line.problems"
                                             [live]="!!measurements()?.live"
                                             [answerable]="editable()"
                                             [busy]="busy()"

@@ -3092,8 +3092,6 @@
     "conflict_measurement_changed": "Une mesure a changé depuis la soumission — ligne(s) {{lines}}. Une validation attesterait de preuves qui ne sont plus celles soumises : renvoyez la révision à ses auteurs.",
     "conflict_measurement_changed_answer": "La mesure a changé depuis que vous l’avez lue : elle est relue ici. Vérifiez ce qu’elle dit maintenant, puis répondez.",
     "error_measurements": "Impossible de lire les mesures.",
-    "submit_blocked_measured": "La ou les lignes {{lines}} sont en désaccord avec leur mesure : voyez ce qu’il manque à chacune.",
-    "submit_waiting_measurements": "Lecture des mesures…",
     "sign_off_blocked_measured": "La ou les lignes {{lines}} sont mesurées autrement qu’à la soumission : la validation serait refusée. Renvoyez la révision à ses auteurs.",
     "measurements_live": "Mesures calculées maintenant ({{at}}) à partir des preuves enregistrées : en direct, jamais conservées par leur lecture, et calculées à nouveau à la soumission et à la validation.",
     "measurements_frozen": "Mesures figées par la validation : les preuves telles qu’elles ont été jugées alors, non recalculées sur des données qui ont bougé depuis.",

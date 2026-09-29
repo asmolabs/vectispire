@@ -37,7 +37,7 @@ import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { LatestRequest } from '../../core/latest-request';
 import { SessionStore } from '../../core/session.store';
-import { canonicalRule, describeRule, parseBoundRule, ruleKindLabel, sameRule } from '../../shared/checklist-rules';
+import { canonicalRule, describeRule, ruleKindLabel, sameRule } from '../../shared/checklist-rules';
 import { ChecklistRuleEditor } from './rule-editor';
 
 /** In the order the form lists them: the sheet's reading order, left to right, as a template usually runs. */
@@ -818,13 +818,13 @@ export class ChecklistTemplates {
     /** The line's rule as the form shows it: the one kept on screen, else the version's. */
     ruleOf(item: ChecklistItem): ChecklistRule | null {
         const edits = this.ruleEdits();
-        return item.itemKey in edits ? edits[item.itemKey] : parseBoundRule(item.boundRule);
+        return item.itemKey in edits ? edits[item.itemKey] : item.boundRule;
     }
 
     /** Whether the line's rule on screen is not the version's yet. */
     rulePending(item: ChecklistItem): boolean {
         const edits = this.ruleEdits();
-        return item.itemKey in edits && !sameRule(edits[item.itemKey], parseBoundRule(item.boundRule));
+        return item.itemKey in edits && !sameRule(edits[item.itemKey], item.boundRule);
     }
 
     ruleWords(rule: ChecklistRule): string[] {
@@ -1173,7 +1173,7 @@ export function ruleChangesOf(
     for (const item of items) {
         if (!(item.itemKey in edits)) continue;
         const rule = edits[item.itemKey];
-        if (canonicalRule(rule) === canonicalRule(parseBoundRule(item.boundRule))) continue;
+        if (canonicalRule(rule) === canonicalRule(item.boundRule)) continue;
         changes.push({ itemKey: item.itemKey, rule });
     }
     return changes;

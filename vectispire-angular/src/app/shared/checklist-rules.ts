@@ -444,24 +444,6 @@ export function ruleOf(draft: RuleDraft): ChecklistRule | null {
     }
 }
 
-// ---------------------------------------------------------------------- reading a bound rule
-
-/**
- * An item's `boundRule` as the rule's shape; `null` for an unbound line. The server sends it structured;
- * canonical text — how it was sent before, and how the signed `checklist.json` carries it — still reads,
- * and text that does not read is `null`.
- */
-export function parseBoundRule(bound: ChecklistRule | string | null | undefined): ChecklistRule | null {
-    if (!bound) return null;
-    if (typeof bound === 'object') return bound;
-    try {
-        const parsed = JSON.parse(bound) as ChecklistRule | null;
-        return parsed && typeof parsed === 'object' && typeof parsed.kind === 'string' ? parsed : null;
-    } catch {
-        return null;
-    }
-}
-
 /**
  * A rule written the one way whatever order it was typed in: keys sorted, nulls dropped, scopes and
  * versions sorted, packages by prefix — the server's canonical form, near enough to tell a line the form

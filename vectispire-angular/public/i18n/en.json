@@ -2978,8 +2978,6 @@
     "conflict_measurement_changed": "A measurement changed since the submission — line(s) {{lines}}. A sign-off would attest to evidence that is no longer what was submitted: return the revision to its authors.",
     "conflict_measurement_changed_answer": "The measurement changed since you read it: it is read again here. Check what it says now, then answer.",
     "error_measurements": "Could not read the measurements.",
-    "submit_blocked_measured": "Line(s) {{lines}} disagree with their measurement: see what each one still needs.",
-    "submit_waiting_measurements": "Reading the measurements…",
     "sign_off_blocked_measured": "Line(s) {{lines}} are measured otherwise than at the submission: the sign-off would be refused. Return the revision to its authors.",
     "measurements_live": "Measurements computed now ({{at}}) from the evidence recorded: live, never stored by reading them, and computed again at the submission and at the sign-off.",
     "measurements_frozen": "Measurements frozen by the sign-off: the evidence as it was judged then, not recomputed over data that has moved since.",

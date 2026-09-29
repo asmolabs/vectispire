@@ -84,7 +84,10 @@ export const RECONCILIATION_SEVERITIES = {
     unanswered: 'secondary'
 } as const satisfies Record<Reconciliation, 'success' | 'danger' | 'warn' | 'info' | 'secondary'>;
 
-/** What the measurement keeps from a submission — which the checklist view's `readyToSubmit` does not know. */
+/**
+ * What the measurement keeps from a submission, in its own words. On a draft the checklist view's line
+ * problems and `readyToSubmit` count these too; the badge only says what the line does not already.
+ */
 export const MEASURED_PROBLEM_KEYS = {
     measurement_contradicted: 'project_checklist.measured_problem_contradicted',
     comment_required: 'project_checklist.measured_problem_comment_required',
@@ -99,19 +102,6 @@ export const MEASURED_PROBLEM_KEYS = {
 export function measuredAnswer(line: MeasuredLine | null | undefined): ChecklistAnswerValue | null {
     const outcome = line?.measurement?.outcome;
     return outcome === 'pass' ? 'yes' : outcome === 'fail' ? 'no' : null;
-}
-
-/**
- * The lines a live measurement keeps from a submission, by position. `readyToSubmit` counts the line's
- * own problems only: a yes against a failure, or a yes where there is no data without its comment and
- * proof, would be refused by the submission (409) on a screen that offered it.
- */
-export function measurementBlocks(measurements: ChecklistMeasurements | null): number[] {
-    if (!measurements?.live) return [];
-    return measurements.lines
-        .filter((line) => line.problems.length > 0)
-        .map((line) => line.position)
-        .sort((a, b) => a - b);
 }
 
 /**
