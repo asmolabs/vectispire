@@ -168,7 +168,8 @@ is *changed* against the previous version, and a project's answer carried onto i
 confirmation. It follows its line's key — a layout confirmed again keeps it, a derived draft copies
 it, a new workbook's line takes the previous version's binding under the same key. A published
 version's bindings never change; derive a new draft to change one. The version's items carry the
-binding as `boundRule`, in its canonical form.
+binding as `boundRule`, structured as the rules route takes it; its canonical form — keys sorted — is
+what the line's content digest reads and what the signed `checklist.json` states.
 
 What a project's line then shows, and when a measurement refuses a submission or a sign-off, is in
 [security checklists](../guide/security-checklists.md#measured-lines).

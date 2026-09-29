@@ -277,8 +277,15 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   measurement has no data needs a comment and a proof at submission: `checklist-incomplete` names them
   `comment_required` and `evidence_required`, the tokens it already had. The answer route takes an
   optional `measurementDigest`; a checklist line's view gains `rule`, and a template version's items
-  carry their `boundRule` in its canonical form. A SARIF import's view gains `toolKeys` (V53): the tool
-  keys its runs were accepted for, `null` for an import accepted before.
+  and each measurement carry their `boundRule`, structured as the rules route takes it. On a draft, a
+  line's `problems` and the checklist's `readyToSubmit` count what its measurement keeps from a
+  submission — `measurement_contradicted` for a *yes* against a failure, the comment and proof a *yes*
+  without data needs — judged as the submission judges it, so a client needs no second request to know
+  whether it will pass. A measurement's evidence names each repository, `repositoryName` beside
+  `repositoryId` (null for one no longer in the project). The closed vocabularies of the checklist views
+  are enumerated in the OpenAPI document, and the two problems' `lines` members have their schemas
+  (`ChecklistIncompleteProblem`, `ChecklistMeasurementProblem`). A SARIF import's view gains `toolKeys`
+  (V53): the tool keys its runs were accepted for, `null` for an import accepted before.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.

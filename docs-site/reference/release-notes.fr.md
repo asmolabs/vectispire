@@ -308,8 +308,15 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   `submittedReason`). Un *oui* là où une mesure n'a pas de données demande un commentaire et une preuve
   à la soumission : `checklist-incomplete` les nomme `comment_required` et `evidence_required`, les
   jetons qu'il avait déjà. La route de réponse accepte un `measurementDigest` facultatif ; la vue d'une
-  ligne de checklist gagne `rule`, et les lignes d'une version de modèle portent leur `boundRule` sous
-  sa forme canonique. La vue d'un import SARIF gagne `toolKeys` (V53) : les clés d'outil dont les
+  ligne de checklist gagne `rule`, et les lignes d'une version de modèle comme chaque mesure portent leur
+  `boundRule`, structurée comme la route des règles la reçoit. Sur un brouillon, les `problems` d'une
+  ligne et le `readyToSubmit` de la checklist comptent ce que sa mesure empêche à la soumission —
+  `measurement_contradicted` pour un *oui* face à un échec, le commentaire et la preuve qu'un *oui* sans
+  données demande — jugé comme la soumission le juge : un client n'a plus besoin d'une seconde requête
+  pour savoir si elle passera. Les preuves d'une mesure nomment chaque dépôt, `repositoryName` à côté de
+  `repositoryId` (null pour un dépôt qui n'est plus dans le projet). Les vocabulaires fermés des vues de
+  checklist sont énumérés dans le document OpenAPI, et le membre `lines` des deux problèmes a son schéma
+  (`ChecklistIncompleteProblem`, `ChecklistMeasurementProblem`). La vue d'un import SARIF gagne `toolKeys` (V53) : les clés d'outil dont les
   exécutions ont été acceptées, `null` pour un import accepté avant.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre

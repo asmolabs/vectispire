@@ -179,7 +179,8 @@ reportée sur elle attend une confirmation. Elle suit la clé de sa ligne — un
 à nouveau la garde, un brouillon dérivé la copie, la ligne d'un nouveau classeur reprend la liaison
 de la version précédente sous la même clé. Les liaisons d'une version publiée ne changent jamais ;
 dérivez un nouveau brouillon pour en changer une. Les lignes de la version portent la liaison en
-`boundRule`, sous sa forme canonique.
+`boundRule`, structurée comme la route des règles la reçoit ; sa forme canonique — clés triées — est
+ce que lit l'empreinte de contenu de la ligne et ce qu'énonce le `checklist.json` signé.
 
 Ce que la ligne d'un projet montre ensuite, et quand une mesure refuse une soumission ou une
 approbation, est dans [checklists de sécurité](../guide/security-checklists.fr.md#lignes-mesurees).
