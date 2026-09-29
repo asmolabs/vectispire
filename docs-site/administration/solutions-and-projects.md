@@ -108,10 +108,15 @@ Administrators also get:
 | **New solution** | top of the page | — |
 | **New project** | on a solution | — |
 | Rename or describe (pencil) | on a solution or a project | — |
+| **Move to…** | on a project | that everything the project holds goes with it and nobody gains or loses sight of anything; the solution is chosen among the others, with an optional new name |
 | Delete (bin) | on a solution or a project | for a project: its repositories return to "no project" and every grant naming it is revoked; for a solution: refused while it holds projects, with the server's reason shown |
 | **File into project** | on a repository under "No project" | who gains sight of it: every account and team granted the project |
 | Move (two arrows) | on a filed repository | who loses and who gains sight of it |
 | Remove from project (cross) | on a filed repository | who loses sight of it |
+
+When a project is moved to a solution already holding a project of the same name, the move dialog
+stays open, says so, and takes a new name in the same dialog; once moved, the tree is redrawn and a
+notice says where the project went.
 
 The destination project is chosen from a list grouped by solution. Names are limited to 100
 characters and descriptions to 255, in the form as on the server. Other accounts see the same tree

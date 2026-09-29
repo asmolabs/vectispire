@@ -21,6 +21,7 @@ import type {
     PluginActivation,
     ProjectNode,
     RepositoryRef,
+    Schema,
     SolutionNode,
     SolutionTree
 } from '../../core/api.models';
@@ -110,6 +111,7 @@ export class Solutions {
     readonly saving = signal(false);
     readonly error = signal<string | null>(null);
     readonly formError = signal<string | null>(null);
+    readonly notice = signal<string | null>(null);
 
     /** The project a link from the repository list points at, highlighted once the tree is drawn. */
     readonly focused = signal<string | null>(inject(ActivatedRoute).snapshot.fragment ?? null);
@@ -236,6 +238,25 @@ export class Solutions {
                   to: target
               })
             : this.i18n.t('solutions.file_consequence', { repository: filing.repository.name, to: target });
+    });
+
+    // --- Moving a project ---------------------------------------------------------------------------
+
+    readonly moving = signal<{ solution: SolutionNode; project: ProjectNode } | null>(null);
+    readonly moveVisible = signal(false);
+    readonly targetSolutionId = signal<number | null>(null);
+    readonly moveName = signal('');
+    readonly moveNameTaken = signal<string | null>(null);
+
+    /**
+     * The other solutions only. Offering the current one would offer a click that changes nothing
+     * and still reads, after the notice, as if something had moved.
+     */
+    readonly solutionChoices = computed(() => {
+        const current = this.moving()?.solution.id ?? null;
+        return this.solutions()
+            .filter((solution) => solution.id !== current)
+            .map((solution) => ({ label: solution.name, value: solution.id }));
     });
 
     // --- Plugins switched on for a project (decision 0017) -----------------------------------------
@@ -497,6 +518,58 @@ export class Solutions {
         });
     }
 
+    // --- Move a project to another solution --------------------------------------------------------
+
+    openMoveProject(solution: SolutionNode, project: ProjectNode): void {
+        this.moving.set({ solution, project });
+        this.targetSolutionId.set(null);
+        this.moveName.set('');
+        this.moveNameTaken.set(null);
+        this.formError.set(null);
+        this.moveVisible.set(true);
+    }
+
+    /**
+     * Only `solutionId`, and `name` when one was typed: a missing field is "unchanged" to the server,
+     * so a move never rewrites a description it was not asked about.
+     */
+    saveMoveProject(): void {
+        const moving = this.moving();
+        const solutionId = this.targetSolutionId();
+        if (!moving || solutionId === null) return;
+        const target = this.solutions().find((solution) => solution.id === solutionId);
+        if (!target) return;
+        const name = this.moveName().trim();
+        const body: Schema<'ProjectChange'> = name ? { solutionId, name } : { solutionId };
+
+        this.saving.set(true);
+        this.formError.set(null);
+        this.moveNameTaken.set(null);
+        this.api.updateProject(moving.project.id, body).subscribe({
+            next: (moved) => {
+                this.saving.set(false);
+                this.moveVisible.set(false);
+                this.notice.set(this.i18n.t('solutions.project_moved', { project: moved.name, solution: target.name }));
+                this.reload();
+            },
+            error: (failure) => {
+                this.saving.set(false);
+                // The dialog stays open with the name field beside the sentence: renaming is the way
+                // out of this refusal, and closing would make the administrator start again.
+                if (problemType(failure) === PROJECT_NAME_TAKEN) {
+                    this.moveNameTaken.set(
+                        this.i18n.t('solutions.move_project_name_taken', {
+                            solution: target.name,
+                            name: name || moving.project.name
+                        })
+                    );
+                    return;
+                }
+                this.formError.set(messageOf(failure, this.i18n.t('solutions.error_change')));
+            }
+        });
+    }
+
     private projectPath(projectId: number | null): string | null {
         if (projectId === null) return null;
         for (const solution of this.solutions()) {
@@ -517,6 +590,13 @@ export class Solutions {
             injector: this.injector
         });
     }
+}
+
+const PROJECT_NAME_TAKEN = 'urn:vectispire:problem:project-name-taken';
+
+/** The RFC 7807 `type` of a refusal, so a refusal the screen can answer is told from one it can only show. */
+function problemType(failure: unknown): unknown {
+    return (failure as { error?: { type?: unknown } } | null)?.error?.type;
 }
 
 /** "Solution / Project" — how the server names a project in a grant, and so how this screen does. */

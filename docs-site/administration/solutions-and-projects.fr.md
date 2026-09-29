@@ -112,10 +112,15 @@ Les administrateurs disposent en plus de :
 | **Nouvelle solution** | en haut de la page | — |
 | **Nouveau projet** | sur une solution | — |
 | Renommer ou décrire (crayon) | sur une solution ou un projet | — |
+| **Déplacer vers…** | sur un projet | que tout ce que contient le projet le suit et que personne ne gagne ni ne perd la vue sur quoi que ce soit ; la solution se choisit parmi les autres, avec un nouveau nom facultatif |
 | Supprimer (corbeille) | sur une solution ou un projet | pour un projet : ses dépôts reviennent à « sans projet » et toute attribution qui le nomme est révoquée ; pour une solution : refusé tant qu'elle contient des projets, avec la raison donnée par le serveur |
 | **Ranger dans un projet** | sur un dépôt de « Sans projet » | qui le voit désormais : tout compte et toute équipe titulaires d'une attribution sur le projet |
 | Déplacer (deux flèches) | sur un dépôt rangé | qui cesse de le voir et qui le voit désormais |
 | Retirer du projet (croix) | sur un dépôt rangé | qui cesse de le voir |
+
+Quand un projet est déplacé vers une solution qui contient déjà un projet du même nom, la fenêtre de
+déplacement reste ouverte, le dit, et accepte un nouveau nom dans la même fenêtre ; une fois le
+projet déplacé, l'arbre est redessiné et un avis dit où il est allé.
 
 Le projet de destination se choisit dans une liste groupée par solution. Les noms sont limités à
 100 caractères et les descriptions à 255, dans le formulaire comme sur le serveur. Les autres comptes

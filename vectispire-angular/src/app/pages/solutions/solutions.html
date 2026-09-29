@@ -16,6 +16,11 @@
 @if (error(); as message) {
     <p-message severity="error" [closable]="false" styleClass="mb-4 w-full">{{ message }}</p-message>
 }
+@if (notice(); as message) {
+    <p-message severity="success" [closable]="true" styleClass="mb-4 w-full" data-testid="notice">{{
+        message
+    }}</p-message>
+}
 
 <!--
     The open issues of a node, by severity: one tag per severity that has any, worst first. On a
@@ -212,6 +217,20 @@
                                 }
                                 @if (isAdmin()) {
                                     <div class="whitespace-nowrap">
+                                        <!-- Disabled rather than hidden with a single solution: the
+                                             action exists, there is only nowhere to go yet. -->
+                                        <p-button
+                                            icon="pi pi-arrow-right-arrow-left"
+                                            [text]="true"
+                                            size="small"
+                                            [label]="'solutions.move_project_btn' | translate"
+                                            [ariaLabel]="
+                                                'solutions.aria_move_project' | translate: { name: project.name }
+                                            "
+                                            [disabled]="solutions().length < 2"
+                                            data-testid="move-project"
+                                            (onClick)="openMoveProject(solution, project)"
+                                        />
                                         <p-button
                                             icon="pi pi-pencil"
                                             [text]="true"
@@ -490,6 +509,66 @@
             [disabled]="targetProjectId() === null"
             [loading]="saving()"
             (onClick)="saveFile()"
+        />
+    </ng-template>
+</p-dialog>
+
+<p-dialog
+    [header]="'solutions.header_move_project' | translate: { name: moving()?.project?.name ?? '' }"
+    [(visible)]="moveVisible"
+    [modal]="true"
+    [style]="{ width: '34rem' }"
+>
+    <div class="flex flex-col gap-4" data-testid="move-project-dialog">
+        @if (moving(); as current) {
+            <p class="m-0">{{ 'solutions.currently_in' | translate: { project: current.solution.name } }}</p>
+            <p class="m-0 text-sm text-muted-color">
+                {{ 'solutions.move_project_consequence' | translate: { project: current.project.name } }}
+            </p>
+        }
+        <div class="flex flex-col gap-2">
+            <label for="target-solution" class="font-medium">{{ 'solutions.target_solution' | translate }}</label>
+            <p-select
+                inputId="target-solution"
+                name="target-solution"
+                [options]="solutionChoices()"
+                optionLabel="label"
+                optionValue="value"
+                [(ngModel)]="targetSolutionId"
+                [placeholder]="'solutions.choose_solution' | translate"
+                appendTo="body"
+                styleClass="w-full"
+            />
+        </div>
+        <div class="flex flex-col gap-2">
+            <label for="move-name" class="font-medium"
+                >{{ 'solutions.move_project_new_name' | translate }}
+                <span class="text-muted-color font-normal">({{ 'common.optional' | translate }})</span></label
+            >
+            <input
+                pInputText
+                id="move-name"
+                name="move-name"
+                [maxlength]="nameMax"
+                [placeholder]="moving()?.project?.name ?? ''"
+                [(ngModel)]="moveName"
+            />
+        </div>
+        @if (moveNameTaken(); as message) {
+            <p-message severity="warn" [closable]="false" data-testid="move-name-taken">{{ message }}</p-message>
+        }
+        @if (formError(); as message) {
+            <p-message severity="error" [closable]="false">{{ message }}</p-message>
+        }
+    </div>
+    <ng-template #footer>
+        <p-button [label]="'common.cancel' | translate" [text]="true" (onClick)="moveVisible.set(false)" />
+        <p-button
+            id="move-project-confirm"
+            [label]="'solutions.move' | translate"
+            [disabled]="targetSolutionId() === null"
+            [loading]="saving()"
+            (onClick)="saveMoveProject()"
         />
     </ng-template>
 </p-dialog>

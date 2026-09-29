@@ -382,6 +382,112 @@ describe('the solutions tree', () => {
     });
 
     /**
+     * A project moves to another solution with everything it holds. The request carries
+     * `solutionId` and nothing it was not asked to change; a name taken in the destination keeps
+     * the dialog open with the way out beside it.
+     */
+    describe('moving a project to another solution', () => {
+        const PROJECT_NAME_TAKEN = {
+            type: 'urn:vectispire:problem:project-name-taken',
+            title: 'Conflict',
+            status: 409,
+            detail: 'A project with this name already exists in this solution.'
+        };
+        const confirmButton = () => document.querySelector('#move-project-confirm button') as HTMLButtonElement;
+
+        async function openMove(): Promise<void> {
+            await mount('ADMIN');
+            button('Move Gateway to another solution')!.click();
+            await fixture.whenStable();
+        }
+
+        async function typeName(value: string): Promise<void> {
+            const input = document.querySelector('#move-name') as HTMLInputElement;
+            input.value = value;
+            input.dispatchEvent(new Event('input'));
+            await fixture.whenStable();
+        }
+
+        it('is not offered to an account that is not an administrator', async () => {
+            await mount('CISO');
+
+            expect(button('Move Gateway to another solution')).toBeUndefined();
+            expect(document.querySelector('[data-testid="move-project"]')).toBeNull();
+        });
+
+        it('offers only the other solutions, so a move that changes nothing cannot be chosen', async () => {
+            await openMove();
+
+            expect(fixture.componentInstance.solutionChoices()).toEqual([{ label: 'Mobile', value: 2 }]);
+            expect(confirmButton().disabled).toBe(true);
+        });
+
+        it('sends solutionId alone, refreshes the tree and says where the project went', async () => {
+            await openMove();
+            fixture.componentInstance.targetSolutionId.set(2);
+            await fixture.whenStable();
+            confirmButton().click();
+
+            const patch = http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11');
+            expect(patch.request.body).toEqual({ solutionId: 2 });
+            patch.flush(
+                asSchema('ProjectView', {
+                    id: 11,
+                    solutionId: 2,
+                    name: 'Gateway',
+                    description: null,
+                    createdAt: '2026-09-01T00:00:00Z'
+                })
+            );
+            http.expectOne((call) => call.method === 'GET' && call.url === '/api/v1/solutions').flush(TREE);
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.moveVisible()).toBe(false);
+            expect(text('[data-testid="notice"]')).toContain('Project Gateway moved to solution Mobile.');
+        });
+
+        it('keeps the dialog open on a name taken in the destination, and sends the new name on the retry', async () => {
+            await openMove();
+            fixture.componentInstance.targetSolutionId.set(2);
+            await fixture.whenStable();
+            confirmButton().click();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
+                PROJECT_NAME_TAKEN,
+                { status: 409, statusText: 'Conflict' }
+            );
+            await fixture.whenStable();
+
+            expect(fixture.componentInstance.moveVisible()).toBe(true);
+            expect(text('[data-testid="move-name-taken"]')).toContain(
+                'Mobile already holds a project named Gateway. Give it another name above'
+            );
+            // The generic refusal is not shown beside it: the server's sentence names no way out.
+            expect(fixture.componentInstance.formError()).toBeNull();
+            http.expectNone((call) => call.method === 'GET' && call.url === '/api/v1/solutions');
+
+            await typeName('  Gateway EU  ');
+            confirmButton().click();
+            const retry = http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11');
+            expect(retry.request.body).toEqual({ solutionId: 2, name: 'Gateway EU' });
+        });
+
+        it('shows any other refusal as the server words it', async () => {
+            await openMove();
+            fixture.componentInstance.targetSolutionId.set(2);
+            await fixture.whenStable();
+            confirmButton().click();
+            http.expectOne((call) => call.method === 'PATCH' && call.url === '/api/v1/projects/11').flush(
+                { detail: 'Solution not found.', status: 404 },
+                { status: 404, statusText: 'Not Found' }
+            );
+            await fixture.whenStable();
+
+            expect(document.querySelector('[data-testid="move-name-taken"]')).toBeNull();
+            expect(fixture.componentInstance.formError()).toBe('Solution not found.');
+        });
+    });
+
+    /**
      * Plugins per project (decision 0017): which plugins a project runs is governance — read by its
      * readers, changed by a security lead. The dialog lists the whole registry beside the project's
      * activations, with each plugin's languages, so what would run is visible before the switch.

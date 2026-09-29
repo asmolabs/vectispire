@@ -7,7 +7,7 @@ import { resetLoginThrottle } from './support/fixture';
  *
  * <p>The unit spec pins the screen against fixtures; this pins it against the routes: that an
  * ordinary account reaches the tree through the sidebar and is offered no change, and that an
- * administrator's create, delete and their confirmations go through. Names carry a suffix and are
+ * administrator's create, move, delete and their confirmations go through. Names carry a suffix and are
  * deleted at the end, because the campaign's SQLite file survives a local re-run and names are
  * unique.
  */
@@ -91,6 +91,54 @@ test.describe('Solutions and projects', () => {
         await solution.getByRole('button', { name: `Delete ${name}` }).click();
         await page.getByRole('button', { name: 'Confirm' }).click();
         await expect(page.getByRole('heading', { name, level: 2 })).toHaveCount(0, { timeout: 15_000 });
+    });
+
+    /**
+     * The select is driven like a user would, because a move whose dialog opens but whose PATCH
+     * never leaves is exactly what a component test cannot see.
+     */
+    test('an administrator moves a project to another solution', async ({ page }) => {
+        const suffix = Date.now().toString(36);
+        const from = `E2E from ${suffix}`;
+        const to = `E2E to ${suffix}`;
+        await signInAs(page, 'ADMIN');
+        await goTo(page, '/solutions');
+
+        for (const name of [from, to]) {
+            await page.getByRole('button', { name: 'New solution' }).click();
+            await page.locator('#node-name').fill(name);
+            await page.getByRole('button', { name: 'Save' }).click();
+            await expect(page.getByRole('heading', { name, level: 2 })).toBeVisible({ timeout: 15_000 });
+        }
+        const source = page.locator('section', { has: page.getByRole('heading', { name: from, level: 2 }) });
+        const target = page.locator('section', { has: page.getByRole('heading', { name: to, level: 2 }) });
+
+        await source.getByRole('button', { name: 'New project' }).click();
+        await page.locator('#node-name').fill('Gateway');
+        await page.getByRole('button', { name: 'Save' }).click();
+        await expect(source.getByRole('heading', { name: 'Gateway', level: 3 })).toBeVisible({ timeout: 15_000 });
+
+        await source.getByRole('button', { name: 'Move Gateway to another solution' }).click();
+        await page.locator('p-select', { has: page.locator('#target-solution') }).click();
+        await page.getByRole('option', { name: to, exact: true }).click();
+        const patch = page.waitForRequest((request) => request.method() === 'PATCH');
+        await page.locator('#move-project-confirm').getByRole('button').click();
+        expect((await patch).postDataJSON()).toMatchObject({ solutionId: expect.any(Number) });
+
+        await expect(page.getByTestId('notice')).toContainText(`Project Gateway moved to solution ${to}.`);
+        await expect(target.getByRole('heading', { name: 'Gateway', level: 3 })).toBeVisible({ timeout: 15_000 });
+        await expect(source.getByRole('heading', { name: 'Gateway', level: 3 })).toHaveCount(0);
+
+        // The emptied solution can go; the one holding the project is cleaned up after it.
+        await source.getByRole('button', { name: `Delete ${from}` }).click();
+        await page.getByRole('button', { name: 'Confirm' }).click();
+        await expect(page.getByRole('heading', { name: from, level: 2 })).toHaveCount(0, { timeout: 15_000 });
+        await target.getByRole('button', { name: 'Delete Gateway' }).click();
+        await page.getByRole('button', { name: 'Confirm' }).click();
+        await expect(target.getByRole('heading', { name: 'Gateway', level: 3 })).toHaveCount(0, { timeout: 15_000 });
+        await target.getByRole('button', { name: `Delete ${to}` }).click();
+        await page.getByRole('button', { name: 'Confirm' }).click();
+        await expect(page.getByRole('heading', { name: to, level: 2 })).toHaveCount(0, { timeout: 15_000 });
     });
 
     /**
