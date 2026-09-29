@@ -163,6 +163,13 @@ is refused rather than ignored. The KPI column stays the template's words: a thr
 parameter somebody wrote, never a number read out of a sentence. No package list ships with the
 product; `component_versions` exists for the organisation that binds it with its own.
 
+A `purlPrefix` is a package URL without its version, and it matches a component whose package URL is
+exactly it or continues it with `/`, `@`, `?` or `#` — `pkg:npm/left` does not match
+`pkg:npm/left-pad`. To require every package of a namespace, stop before the separator:
+`pkg:maven/com.example.tools`, not `pkg:maven/com.example.tools/`, which named no package and is
+refused when bound. A line bound with the trailing `/` before that refusal keeps its text — its
+digest reads it — and its measurement says it names no package; derive a draft to bind it again.
+
 A binding is **part of what the line asks**, like its proof requirement: a line whose binding moved
 is *changed* against the previous version, and a project's answer carried onto it waits for
 confirmation. It follows its line's key — a layout confirmed again keeps it, a derived draft copies

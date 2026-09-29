@@ -173,6 +173,14 @@ refusé plutôt qu'ignoré. La colonne KPI reste les mots du modèle : un seuil 
 par quelqu'un, jamais un nombre lu dans une phrase. Aucune liste de paquets n'est livrée avec le
 produit ; `component_versions` existe pour l'organisation qui la lie avec les siens.
 
+Un `purlPrefix` est une URL de paquet sans sa version ; il désigne un composant dont l'URL de paquet
+est exactement lui, ou le prolonge par `/`, `@`, `?` ou `#` — `pkg:npm/left` ne désigne pas
+`pkg:npm/left-pad`. Pour exiger chaque paquet d'un espace de noms, arrêtez-vous avant le séparateur :
+`pkg:maven/com.example.tools`, et non `pkg:maven/com.example.tools/`, qui ne désignait aucun paquet
+et est refusé à la liaison. Une ligne liée avec le `/` final avant ce refus garde son texte — son
+empreinte le lit — et sa mesure indique qu'il ne désigne aucun paquet ; dérivez un brouillon pour la
+lier à nouveau.
+
 Une liaison **fait partie de ce que la ligne demande**, comme son exigence de preuve : une ligne dont
 la liaison a changé est *modifiée* par rapport à la version précédente, et la réponse d'un projet
 reportée sur elle attend une confirmation. Elle suit la clé de sa ligne — une disposition confirmée
