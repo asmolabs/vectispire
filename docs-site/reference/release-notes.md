@@ -166,6 +166,13 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### Changes an integration can see
 
+- **A name already taken is a 409 with a type, whatever the gesture.** Creating a solution, or
+  renaming one, to a name another solution holds (case aside) answered `400`; it answers `409` with the
+  type `urn:vectispire:problem:solution-name-taken`. Creating a project, or renaming one within its
+  solution, to a name the solution holds answered `400`; it answers `409` with the type
+  `urn:vectispire:problem:project-name-taken`, as a move to such a solution already did. The `detail`
+  is unchanged. Branch on the `type`, not on the status — a `400` from these routes is now a malformed
+  name only (empty, too long) — [Solutions and projects](../administration/solutions-and-projects.md).
 - **A compliance verdict can be `NO_DATA`.** Until a target has been scanned successfully, every control
   that reads the estate — and every framework — reads `NO_DATA` with a score of zero, which is no
   measurement, on `GET /api/v1/compliance/summary`, the framework detail, the evidence bundle's
@@ -315,6 +322,12 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
 
 ### New
 
+- **The languages detected in a repository are kept.** Every repository scan counts its tree's
+  languages and keeps them; `GET /api/v1/repositories` gives each repository `detectedLanguages` from
+  its newest completed scan (`null` when unknown, `[]` when none), and each project of
+  `GET /api/v1/solutions` the union over the repositories the caller sees, with `languagesUnknownFor`.
+  They are spelled as a plugin manifest declares its `languages` —
+  [Plugins](../administration/plugins.md#the-languages-detected-in-a-repository).
 - **Vectispire answers the lines it measures** (V56 adds `answered_by_kind` and `withdrawn` to
   `t_checklist_answer`). On a draft checklist, a line bound to a rule is answered *yes* when its
   measurement passes and *no*, with the measurement as its comment, when it fails — when a scan

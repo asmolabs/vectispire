@@ -14,7 +14,11 @@ what the products are.
 - Container images are not attached to projects yet.
 
 Names are unique regardless of case: a solution's across the installation, a project's within its
-solution. Two solutions may each hold an "API".
+solution. Two solutions may each hold an "API". A name already taken is refused the same way whether
+it is being created, renamed or moved into a solution: `409`, with the type
+`urn:vectispire:problem:solution-name-taken` for a solution and
+`urn:vectispire:problem:project-name-taken` for a project, and the dialog stays open saying which name
+is taken.
 
 ## "No project"
 
@@ -136,11 +140,11 @@ The same operations, for scripts:
 | Route | Who | Does |
 |---|---|---|
 | `GET /api/v1/solutions` | any account | the tree, as far as the caller may see |
-| `POST /api/v1/solutions` | administrator | create a solution (`name`, `description`) |
-| `PATCH /api/v1/solutions/{id}` | administrator | rename or describe it; an absent field is kept |
+| `POST /api/v1/solutions` | administrator | create a solution (`name`, `description`); `409` of type `urn:vectispire:problem:solution-name-taken` when the name is taken |
+| `PATCH /api/v1/solutions/{id}` | administrator | rename or describe it; an absent field is kept; `409` of type `urn:vectispire:problem:solution-name-taken` when the name is taken |
 | `DELETE /api/v1/solutions/{id}` | administrator | delete it; `409` while it holds projects |
-| `POST /api/v1/solutions/{id}/projects` | administrator | create a project in it |
-| `PATCH /api/v1/projects/{id}` | administrator | rename or describe a project, or move it: `solutionId`; `409` with the type `urn:vectispire:problem:project-name-taken` when the target solution holds its name, `404` for a solution that does not exist |
+| `POST /api/v1/solutions/{id}/projects` | administrator | create a project in it; `409` of type `urn:vectispire:problem:project-name-taken` when the solution holds the name |
+| `PATCH /api/v1/projects/{id}` | administrator | rename or describe a project, or move it: `solutionId`; `409` with the type `urn:vectispire:problem:project-name-taken` when the solution it ends up in holds its name — renamed, moved or both — `404` for a solution that does not exist |
 | `DELETE /api/v1/projects/{id}` | administrator | delete a project, as described above |
 | `PUT /api/v1/projects/{id}/repositories/{repositoryId}` | administrator | file or move a repository |
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrator | back to "no project" |

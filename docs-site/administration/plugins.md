@@ -209,6 +209,25 @@ Languages are detected from file names and manifests (`pom.xml`, `package.json`,
 `go.mod`…), within a bound; a repository too large to count runs every plugin rather than skipping
 one wrongly.
 
+### The languages detected in a repository
+
+Every repository scan counts the languages of its tree — the whole tree, whether or not a plugin is
+switched on — and keeps the answer on the scan. It is spelled in **the manifest's own vocabulary**, the
+list under `languages` above (`java`, `typescript`…), so a plugin's languages and a repository's are
+compared as they are written:
+
+- `GET /api/v1/repositories` gives each repository `detectedLanguages`: the languages its **newest
+  completed scan** found, sorted. **`null` means unknown** — the repository has no completed scan yet,
+  its newest one is from before this version, or the count stopped at its bound — and never "no
+  language", which is `[]`. An older scan's answer is not borrowed: the newest completed scan describes
+  the tree as it is now.
+- `GET /api/v1/solutions` gives each project `detectedLanguages`, the union over the repositories of
+  the project **the caller can see**, and `languagesUnknownFor`, the identifiers of those among them
+  whose languages are unknown. A project reading `["java"]` with a repository in `languagesUnknownFor`
+  may hold more than Java; the union speaks only for the others.
+
+An image scan has no tree and records no language.
+
 ## How an issue keeps its identity
 
 A plugin issue is identified by **its rule, its normalised path and the tool** — `plugin:<id>` — on its

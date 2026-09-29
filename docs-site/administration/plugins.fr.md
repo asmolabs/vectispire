@@ -213,6 +213,25 @@ Les langages sont détectés à partir des noms de fichiers et des manifestes (`
 `pyproject.toml`, `go.mod`…), dans une borne ; un dépôt trop grand pour être recensé lance tous les
 plugins plutôt que d'en sauter un à tort.
 
+### Les langages détectés dans un dépôt
+
+Chaque scan de dépôt recense les langages de son arbre — l'arbre entier, qu'un plugin soit activé ou
+non — et garde la réponse sur le scan. Elle s'écrit dans **le vocabulaire même du manifeste**, la liste
+de `languages` ci-dessus (`java`, `typescript`…), de sorte que les langages d'un plugin et ceux d'un
+dépôt se comparent tels qu'ils sont écrits :
+
+- `GET /api/v1/repositories` donne à chaque dépôt `detectedLanguages` : les langages trouvés par son
+  **scan terminé le plus récent**, triés. **`null` signifie inconnu** — le dépôt n'a pas encore de scan
+  terminé, le plus récent date d'avant cette version, ou le recensement s'est arrêté à sa borne — et
+  jamais « aucun langage », qui s'écrit `[]`. La réponse d'un scan plus ancien n'est pas reprise : le
+  scan terminé le plus récent décrit l'arbre tel qu'il est aujourd'hui.
+- `GET /api/v1/solutions` donne à chaque projet `detectedLanguages`, l'union sur les dépôts du projet
+  **que l'appelant voit**, et `languagesUnknownFor`, les identifiants de ceux dont les langages sont
+  inconnus. Un projet qui affiche `["java"]` avec un dépôt dans `languagesUnknownFor` contient peut-être
+  plus que du Java ; l'union ne parle que pour les autres.
+
+Un scan d'image n'a pas d'arbre et n'enregistre aucun langage.
+
 ## Comment une issue garde son identité
 
 Une issue de plugin est identifiée par **sa règle, son chemin normalisé et l'outil** —

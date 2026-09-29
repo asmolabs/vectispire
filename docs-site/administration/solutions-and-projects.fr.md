@@ -14,7 +14,11 @@ sont la façon de dire à Vectispire quels sont les produits.
 - Les images de conteneur ne sont pas encore rattachées aux projets.
 
 Les noms sont uniques sans égard à la casse : celui d'une solution dans toute l'installation, celui
-d'un projet dans sa solution. Deux solutions peuvent chacune contenir une « API ».
+d'un projet dans sa solution. Deux solutions peuvent chacune contenir une « API ». Un nom déjà pris est
+refusé de la même façon à la création, au renommage ou au déplacement vers une solution : `409`, de
+type `urn:vectispire:problem:solution-name-taken` pour une solution et
+`urn:vectispire:problem:project-name-taken` pour un projet, et la boîte de dialogue reste ouverte en
+disant quel nom est pris.
 
 ## « Sans projet »
 
@@ -140,11 +144,11 @@ Les mêmes opérations, pour les scripts :
 | Route | Qui | Effet |
 |---|---|---|
 | `GET /api/v1/solutions` | tout compte | l'arbre, dans la mesure de ce que l'appelant peut voir |
-| `POST /api/v1/solutions` | administrateur | créer une solution (`name`, `description`) |
-| `PATCH /api/v1/solutions/{id}` | administrateur | la renommer ou la décrire ; un champ absent est conservé |
+| `POST /api/v1/solutions` | administrateur | créer une solution (`name`, `description`) ; `409` de type `urn:vectispire:problem:solution-name-taken` quand le nom est pris |
+| `PATCH /api/v1/solutions/{id}` | administrateur | la renommer ou la décrire ; un champ absent est conservé ; `409` de type `urn:vectispire:problem:solution-name-taken` quand le nom est pris |
 | `DELETE /api/v1/solutions/{id}` | administrateur | la supprimer ; `409` tant qu'elle contient des projets |
-| `POST /api/v1/solutions/{id}/projects` | administrateur | y créer un projet |
-| `PATCH /api/v1/projects/{id}` | administrateur | renommer ou décrire un projet, ou le déplacer : `solutionId` ; `409` de type `urn:vectispire:problem:project-name-taken` quand la solution cible contient déjà son nom, `404` pour une solution inexistante |
+| `POST /api/v1/solutions/{id}/projects` | administrateur | y créer un projet ; `409` de type `urn:vectispire:problem:project-name-taken` quand la solution contient déjà ce nom |
+| `PATCH /api/v1/projects/{id}` | administrateur | renommer ou décrire un projet, ou le déplacer : `solutionId` ; `409` de type `urn:vectispire:problem:project-name-taken` quand la solution où il aboutit contient déjà son nom — renommé, déplacé ou les deux — `404` pour une solution inexistante |
 | `DELETE /api/v1/projects/{id}` | administrateur | supprimer un projet, comme décrit plus haut |
 | `PUT /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | ranger ou déplacer un dépôt |
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | retour à « sans projet » |

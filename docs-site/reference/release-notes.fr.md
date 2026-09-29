@@ -181,6 +181,14 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Changements visibles d'une intégration
 
+- **Un nom déjà pris est un 409 typé, quel que soit le geste.** Créer une solution, ou en renommer
+  une, avec le nom d'une autre (casse ignorée) répondait `400` ; cela répond `409` de type
+  `urn:vectispire:problem:solution-name-taken`. Créer un projet, ou le renommer dans sa solution, avec
+  un nom que la solution contient déjà répondait `400` ; cela répond `409` de type
+  `urn:vectispire:problem:project-name-taken`, comme le faisait déjà un déplacement vers une telle
+  solution. Le `detail` ne change pas. Décidez sur le `type`, pas sur le statut — un `400` de ces routes
+  ne signale plus qu'un nom mal formé (vide, trop long) —
+  [Solutions et projets](../administration/solutions-and-projects.md).
 - **Un verdict de conformité peut être `NO_DATA`.** Tant qu'aucune cible n'a été analysée avec succès,
   chaque contrôle qui lit le parc — et chaque référentiel — vaut `NO_DATA` avec un score de zéro, qui
   n'est pas une mesure, sur `GET /api/v1/compliance/summary`, le détail d'un référentiel, le
@@ -352,6 +360,12 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
 
 ### Nouveautés
 
+- **Les langages détectés dans un dépôt sont conservés.** Chaque scan de dépôt recense les langages
+  de son arbre et les garde ; `GET /api/v1/repositories` donne à chaque dépôt `detectedLanguages`
+  d'après son scan terminé le plus récent (`null` si inconnu, `[]` si aucun), et chaque projet de
+  `GET /api/v1/solutions` l'union sur les dépôts que l'appelant voit, avec `languagesUnknownFor`. Ils
+  s'écrivent comme un manifeste de plugin déclare ses `languages` —
+  [Plugins](../administration/plugins.md#les-langages-detectes-dans-un-depot).
 - **Vectispire répond aux lignes qu'il mesure** (V56 ajoute `answered_by_kind` et `withdrawn` à
   `t_checklist_answer`). Sur une checklist en brouillon, une ligne liée à une règle reçoit *oui* quand
   sa mesure est atteinte et *non*, avec la mesure pour commentaire, quand elle échoue — quand une
