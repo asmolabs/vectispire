@@ -2139,6 +2139,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{projectId}/checklists/{revision}/document": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download checklist document
+         * @description A zip: checklist.xlsx — the template's own workbook with the answers, comments and header written in and an Evidence sheet added — and checklist.json, the same statement machine-readable. For a signed-off revision, the package rendered and signed at its sign-off, served as stored, with checklist.xlsx.sig and checklist.json.sig: detached signatures to check with cosign verify-blob --key against /api/v1/crypto/public-key.pub. For any other revision, rendered for this request, unsigned, its Evidence sheet opening with "Draft — not signed off". Always an attachment. Accepts an integration key with the export scope; 404 for a project not seen whole — a key restricted to one repository included — or a revision it does not have.
+         */
+        get: operations["checklistDocument"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{projectId}/checklists/{revision}/evidence/{evidenceId}/file": {
         parameters: {
             query?: never;
@@ -10195,6 +10215,29 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChecklistView"];
+                };
+            };
+        };
+    };
+    checklistDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                projectId: number;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The document, application/zip */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": string;
                 };
             };
         };
