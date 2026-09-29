@@ -616,6 +616,150 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
     }
 
     @Nested
+    @DisplayName("the rule a line is measured by")
+    class RuleBindings {
+
+        private static final Map<String, Object> SECRETS = Map.of("kind", "findings_threshold", "maxAgeDays", 7,
+                "scopes", List.of("builtin:secret"), "thresholds", Map.of("critical", Map.of("maxOpen", 0),
+                        "high", Map.of("maxOpen", 0)));
+
+        @Test
+        @DisplayName("is bound on a draft's lines in its canonical form, audited, and moves each bound line's digest alone")
+        void bindingAndReadingBack() throws Exception {
+            int revision = draftWithLayout("release");
+            JsonNode before = version("release", 1);
+            List<String> keys = keys(before);
+
+            JsonNode after = read(rules(reviewer, "release", 1, List.of(bound(keys.get(0), SECRETS)), revision)
+                    .andExpect(status().isOk()));
+
+            String canonical = after.at("/items/0/boundRule").asText();
+            assertThat(canonical).isEqualTo("{\"kind\":\"findings_threshold\",\"maxAgeDays\":7,\"scopes\":[\"builtin:secret\"],"
+                    + "\"thresholds\":{\"critical\":{\"maxOpen\":0},\"high\":{\"maxOpen\":0}}}");
+            assertThat(after.at("/items/1/boundRule").isNull()).as("a line not listed keeps its own").isTrue();
+            assertThat(after.at("/items/0/contentDigest").asText()).isNotEqualTo(before.at("/items/0/contentDigest").asText());
+            assertThat(after.at("/items/1/contentDigest").asText()).isEqualTo(before.at("/items/1/contentDigest").asText());
+            assertThat(after.at("/version/revision").asInt()).isEqualTo(revision + 1);
+            assertThat(after.at("/version/draftAuthors").toString()).as("whoever binds a rule wrote the draft")
+                    .contains(reviewerName);
+            // The stored form reads as the route's own shape: what a screen shows is what it may send back.
+            assertThat(json.readValue(canonical, com.asmolabs.vectispire.core.checklists.ChecklistRuleForm.class).scopes())
+                    .containsExactly("builtin:secret");
+
+            assertThat(entries("CHECKLIST_TEMPLATE_RULES_BOUND")).singleElement().satisfies(entry -> {
+                assertThat(entry.getResourceId()).isEqualTo("release/1");
+                assertThat(entry.getDescription()).contains("1 line").contains("line 1 (row 7) bound to findings_threshold");
+            });
+
+            // Unbound, the digest is the imported one again: the binding is all that moved.
+            Map<String, Object> unbind = new LinkedHashMap<>();
+            unbind.put("itemKey", keys.get(0));
+            unbind.put("rule", null);
+            JsonNode reset = read(rules(reviewer, "release", 1, List.of(unbind), revision + 1).andExpect(status().isOk()));
+            assertThat(reset.at("/items/0/boundRule").isNull()).isTrue();
+            assertThat(reset.at("/items/0/contentDigest").asText()).isEqualTo(before.at("/items/0/contentDigest").asText());
+        }
+
+        @Test
+        @DisplayName("is carried by derive, and a binding moved on the derived draft makes its line changed")
+        void carriedByDeriveAndPairedAsChanged() throws Exception {
+            int revision = draftWithLayout("release");
+            List<String> keys = keys(version("release", 1));
+            rules(importer, "release", 1, List.of(bound(keys.get(0), SECRETS)), revision).andExpect(status().isOk());
+            publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
+
+            JsonNode derived = read(mvc.perform(authenticated(post(BASE + "/release/versions/1/derive"), importer))
+                    .andExpect(status().isCreated()));
+            assertThat(derived.at("/items/0/boundRule").asText()).contains("builtin:secret");
+            assertThat(changes(preview("release", 2).at("/pairing"))).containsOnly("unchanged");
+
+            Map<String, Object> stricter = new LinkedHashMap<>(SECRETS);
+            stricter.put("maxAgeDays", 1);
+            rules(importer, "release", 2, List.of(bound(keys.get(0), stricter)), currentRevision("release", 2))
+                    .andExpect(status().isOk());
+            assertThat(changes(preview("release", 2).at("/pairing")))
+                    .as("§4: measured by another rule, a yes is another claim, and a carried answer waits")
+                    .containsExactly("changed", "unchanged", "unchanged");
+        }
+
+        @Test
+        @DisplayName("survives a layout confirmed again, and a new workbook inherits the previous version's by key")
+        void keptByKey() throws Exception {
+            int revision = draftWithLayout("release");
+            List<String> keys = keys(version("release", 1));
+            rules(importer, "release", 1, List.of(bound(keys.get(0), SECRETS)), revision).andExpect(status().isOk());
+
+            JsonNode relaid = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()));
+            assertThat(relaid.at("/items/0/boundRule").asText()).as("the workbook states no rule").contains("builtin:secret");
+            publish(reviewer, "release", 1, currentRevision("release", 1)).andExpect(status().isOk());
+
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.SECOND), "")
+                    .andExpect(status().isCreated());
+            JsonNode second = read(confirm(importer, "release", 2, layout(10)).andExpect(status().isOk()));
+            assertThat(second.at("/items/0/itemKey").asText()).isEqualTo(keys.get(0));
+            assertThat(second.at("/items/0/boundRule").asText()).contains("builtin:secret");
+            assertThat(changes(preview("release", 2).at("/pairing")).getFirst())
+                    .as("the unchanged control stays unchanged: its answers are carried as current")
+                    .isEqualTo("unchanged");
+        }
+
+        @Test
+        @DisplayName("names the revision read, on a draft with a layout, and refuses in words a rule the kind refuses")
+        void refusals() throws Exception {
+            importWorkbook(importer, "release", ChecklistWorkbooks.of(ChecklistWorkbooks.FIRST), "")
+                    .andExpect(status().isCreated());
+            assertThat(typeOf(rules(importer, "release", 1, List.of(bound("text:x", SECRETS)), 1)
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "checklist-template-no-layout");
+
+            int revision = read(confirm(importer, "release", 1, layout(9)).andExpect(status().isOk()))
+                    .at("/version/revision").asInt();
+            String key = keys(version("release", 1)).getFirst();
+
+            assertThat(typeOf(rules(importer, "release", 1, List.of(bound(key, SECRETS)), revision - 1)
+                    .andExpect(status().isConflict()).andReturn())).isEqualTo(PROBLEM + "checklist-template-changed");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, SECRETS)), null)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("revision");
+
+            Map<String, Object> ageless = new LinkedHashMap<>(SECRETS);
+            ageless.remove("maxAgeDays");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, ageless)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("maxAgeDays");
+            Map<String, Object> foreign = new LinkedHashMap<>(SECRETS);
+            foreign.put("metric", "line");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, foreign)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("takes no \"metric\"");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, Map.of("kind", "vibes", "maxAgeDays", 7))),
+                    revision).andExpect(status().isBadRequest()).andReturn())).contains("dependency_analysis");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, Map.of("kind", "findings_threshold",
+                            "maxAgeDays", 7, "scopes", List.of("builtin:ai_review"), "thresholds",
+                            Map.of("high", Map.of("maxOpen", 0))))), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("names no built-in step");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, Map.of("kind", "dependency_analysis",
+                            "maxAgeDays", 7))), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("requireSchedule");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound("text:nothing", SECRETS)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("has no item");
+            assertThat(detailOf(rules(importer, "release", 1, List.of(bound(key, SECRETS), bound(key, SECRETS)), revision)
+                    .andExpect(status().isBadRequest()).andReturn())).contains("named twice");
+            rules(importer, "release", 1, List.of(), revision).andExpect(status().isBadRequest());
+            assertThat(version("release", 1).at("/version/revision").asInt()).as("no refusal writes").isEqualTo(revision);
+            assertThat(entries("CHECKLIST_TEMPLATE_RULES_BOUND")).isEmpty();
+
+            for (Role refused : List.of(Role.SECURITY_CHAMPION, Role.AUDITOR, Role.USER)) {
+                rules(tokenFor("refused-" + refused + "-" + System.nanoTime(), refused, false), "release", 1,
+                        List.of(bound(key, SECRETS)), revision).andExpect(status().isForbidden());
+            }
+
+            publish(reviewer, "release", 1, revision).andExpect(status().isOk());
+            assertThat(typeOf(rules(importer, "release", 1, List.of(bound(key, SECRETS)), currentRevision("release", 1))
+                    .andExpect(status().isConflict()).andReturn()))
+                    .as("a published version is changed by deriving a new one")
+                    .isEqualTo(PROBLEM + "checklist-template-not-draft");
+            assertThat(version("release", 1).at("/items/0/boundRule").isNull()).isTrue();
+        }
+    }
+
+    @Nested
     @DisplayName("retiring")
     class Retiring {
 
@@ -762,6 +906,23 @@ class ChecklistTemplatesRoutesTest extends ApiTestBase {
         }
         return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON)
                 .content(write(Map.of("items", lines))));
+    }
+
+    private ResultActions rules(String token, String slug, int ordinal, List<Map<String, Object>> lines,
+            Integer revision) throws Exception {
+        var put = put(BASE + "/" + slug + "/versions/" + ordinal + "/rules");
+        if (revision != null) {
+            put = put.param("revision", String.valueOf(revision));
+        }
+        return mvc.perform(authenticated(put, token).contentType(MediaType.APPLICATION_JSON)
+                .content(write(Map.of("items", lines))));
+    }
+
+    private static Map<String, Object> bound(String itemKey, Map<String, Object> rule) {
+        Map<String, Object> line = new LinkedHashMap<>();
+        line.put("itemKey", itemKey);
+        line.put("rule", rule);
+        return line;
     }
 
     private static Map<String, Object> line(String itemKey, String kind, Integer validityMonths) {

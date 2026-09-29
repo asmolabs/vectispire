@@ -331,6 +331,13 @@ public enum AuditOperation {
      */
     CHECKLIST_TEMPLATE_EVIDENCE_SET,
 
+    /**
+     * Rules were bound to some of a draft's lines, or unbound from them (decision 0032 §6). A binding
+     * decides what a line is measured by and what a "yes" against it may claim, so who wrote which
+     * parameters is recorded — an operation of its own, as the evidence requirement is.
+     */
+    CHECKLIST_TEMPLATE_RULES_BOUND,
+
     /** A new draft was derived from a published version: same workbook, same layout, same items. */
     CHECKLIST_TEMPLATE_DERIVED,
 

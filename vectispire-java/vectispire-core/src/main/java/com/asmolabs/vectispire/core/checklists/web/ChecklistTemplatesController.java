@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.core.access.web.security.RequiresSecurityLead;
 import com.asmolabs.vectispire.core.access.web.security.VectispirePrincipal;
 import com.asmolabs.vectispire.core.checklists.ChecklistItemEvidence;
 import com.asmolabs.vectispire.core.checklists.ChecklistItemPair;
+import com.asmolabs.vectispire.core.checklists.ChecklistItemRule;
 import com.asmolabs.vectispire.core.checklists.ChecklistLayoutForm;
 import com.asmolabs.vectispire.core.checklists.ChecklistTemplatePreview;
 import com.asmolabs.vectispire.core.checklists.ChecklistTemplateService;
@@ -33,7 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p><b>Organisation-wide, not target-scoped.</b> A template is the organisation's own checklist: it
  * names no repository, no image, no project, and describes nobody's estate — so no route resolves a
  * visibility, and the roles decide. Writing one — importing a workbook, confirming a draft's layout
- * and words, pairing its items, setting what proof its lines ask for, deriving, publishing, retiring —
+ * and words, pairing its items, setting what proof its lines ask for, binding the rules its lines are
+ * measured by, deriving, publishing, retiring —
  * is {@code @RequiresSecurityLead}, the roles that {@code canWriteGovernance}: the platform governor, an
  * administrator, a CISO. Reading one
  * is {@code @RequiresGovernanceRead}, which adds the auditor: the words an organisation asks its teams
@@ -72,6 +74,9 @@ public class ChecklistTemplatesController {
 
     /** @param items the lines whose requirement changes; a line not listed keeps its own */
     public record ChecklistEvidenceRequest(List<ChecklistItemEvidence> items) {}
+
+    /** @param items the lines whose rule changes, a null rule unbinding one; a line not listed keeps its own */
+    public record ChecklistRulesRequest(List<ChecklistItemRule> items) {}
 
     /** @param label how the new version is known, beside its number; optional */
     public record ChecklistDeriveRequest(String label) {}
@@ -188,6 +193,28 @@ public class ChecklistTemplatesController {
             HttpServletRequest request) {
         return templates.setEvidence(slug, ordinal, revision, body == null ? null : body.items(),
                 editor(principal, request));
+    }
+
+    @Operation(summary = "Bind rules to checklist template lines", description = "Security lead only, on a draft "
+            + "with a confirmed layout. For each line named by its itemKey: the rule it is measured by — kind "
+            + "dependency_analysis, findings_threshold, coverage_threshold, test_suite_passed or component_versions, "
+            + "maxAgeDays (1 to 366, required of every kind) and the kind's own parameters — or a null rule to unbind "
+            + "it. Lines not listed keep theirs. The binding is part of the line's content digest: a line whose binding "
+            + "moved is changed against the previous version, and a project's answer carried onto it waits for "
+            + "confirmation. revision is the one the editor read. 400 without revision or lines, for a line named "
+            + "twice or not in the version, a rule the kind refuses — a missing maximum age, a parameter another kind "
+            + "takes, a scope nothing examines, a threshold that checks nothing; 409 checklist-template-not-draft, "
+            + "checklist-template-no-layout, checklist-template-changed.")
+    @PutMapping("/{slug}/versions/{ordinal}/rules")
+    @RequiresSecurityLead
+    public ChecklistVersionView bindRules(
+            @PathVariable String slug,
+            @PathVariable int ordinal,
+            @RequestParam(required = false) Integer revision,
+            @RequestBody ChecklistRulesRequest body,
+            @AuthenticationPrincipal VectispirePrincipal principal,
+            HttpServletRequest request) {
+        return templates.bindRules(slug, ordinal, revision, body == null ? null : body.items(), editor(principal, request));
     }
 
     @Operation(summary = "Derive checklist template version", description = "Security lead only. A new draft from a "

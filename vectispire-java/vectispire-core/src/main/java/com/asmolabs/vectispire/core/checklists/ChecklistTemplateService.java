@@ -7,6 +7,7 @@ import com.asmolabs.vectispire.common.domain.checklists.CellValue;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistColumn;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistItem;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistLayout;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule;
 import com.asmolabs.vectispire.common.domain.checklists.EvidenceRequirement;
 import com.asmolabs.vectispire.common.domain.checklists.HeaderCell;
 import com.asmolabs.vectispire.common.domain.checklists.ItemKey;
@@ -265,7 +266,7 @@ public class ChecklistTemplateService {
      * Confirms a draft's layout and answer words, and reads its items from the workbook by them —
      * blank domain and objective cells filled down, rows without a control left out. Pairs made
      * earlier are cleared: they named items as the previous layout read them. Evidence requirements
-     * are kept, by key ({@link #keepingEvidence}).
+     * and bound rules are kept, by key ({@link #keepingEvidence}).
      *
      * @param seenRevision the revision the editor read — a draft edited since is refused
      */
@@ -391,6 +392,71 @@ public class ChecklistTemplateService {
 
         audit.record(editor.actor().entry(AuditOperation.CHECKLIST_TEMPLATE_EVIDENCE_SET, resource(template, ordinal),
                 "Checklist template \"" + template.getSlug() + "\" version " + ordinal + ": evidence requirement set on "
+                        + changed.size() + (changed.size() == 1 ? " line — " : " lines — ")
+                        + String.join("; ", described.subList(0, Math.min(described.size(), AUDITED_LINES)))
+                        + (described.size() > AUDITED_LINES
+                                ? "; and " + (described.size() - AUDITED_LINES) + " more"
+                                : "")
+                        + "."));
+        return versionView(template, version.getId());
+    }
+
+    /**
+     * Binds a rule to some of a draft's lines, or unbinds them (decision 0032 §6): the lines listed
+     * change, the others keep theirs. Each rule is read by the domain, which refuses in words a kind
+     * that is none, a parameter another kind takes, a maximum age missing or out of bounds, a scope
+     * nothing examines, a threshold that checks nothing — no parameter is assumed.
+     *
+     * <p>The binding is part of each line's content digest (§2), so a line whose binding moved is
+     * <em>changed</em> against the previous version and an answer carried onto it waits for a person's
+     * confirmation (§4): a "yes" measured by another rule is another claim.
+     *
+     * @param seenRevision the revision the editor read — a draft edited since is refused
+     * @throws InvalidInputException no revision, no line, a line named twice or not in the version, a
+     *     rule the domain refuses (400)
+     * @throws ChecklistConflict {@code checklist-template-not-draft}, {@code checklist-template-no-layout},
+     *     {@code checklist-template-changed} (409)
+     */
+    public ChecklistVersionView bindRules(
+            String slug, int ordinal, Integer seenRevision, List<ChecklistItemRule> requested, Editor editor) {
+        Map<String, Optional<ChecklistRule>> wanted = parseRules(requested);
+        ChecklistTemplateEntity template = requireTemplate(slug);
+        ChecklistTemplateVersionEntity version = requireDraft(requireVersion(template, ordinal), "have its rules bound");
+        requireSeen(template, version, seenRevision, "binding its rules");
+        requireLayout(version, "binding its rules");
+
+        Map<String, ChecklistItemEntity> byKey = new LinkedHashMap<>();
+        items.findByVersionIdOrderByPositionAsc(version.getId()).forEach(item -> byKey.put(item.getItemKey(), item));
+        List<ChecklistItemEntity> changed = new ArrayList<>();
+        List<String> described = new ArrayList<>();
+        wanted.forEach((key, rule) -> {
+            ChecklistItemEntity item = byKey.get(key);
+            if (item == null) {
+                throw new InvalidInputException("Version " + ordinal + " of \"" + template.getSlug() + "\" has no item \""
+                        + BoundedText.clip(key, 60) + "\"; a line is named by its key as the version shows it.");
+            }
+            Optional<String> canonical = rule.map(ChecklistRule::canonical);
+            item.setBoundRule(canonical.orElse(null));
+            // The digest is what the version's view and every pairing read: a binding written without it
+            // would say the line asks what it asked before, and a carried answer would not wait.
+            item.setContentDigest(domain(item).withBoundRule(canonical).contentDigest());
+            changed.add(item);
+            described.add("line " + item.getPosition() + " (row " + item.getSheetRow() + ") "
+                    + rule.map(bound -> "bound to " + bound.kind().wireName() + ", evidence at most "
+                            + bound.maxAgeDays() + (bound.maxAgeDays() == 1 ? " day" : " days") + " old, rule sha256 "
+                            + bound.digest().substring(0, 12)).orElse("unbound"));
+        });
+
+        List<DraftAuthor> authors = withAuthor(forms.authors(version.getDraftAuthors()), editor);
+        transactions.executeWithoutResult(status -> {
+            requireStill(versions.editDraft(version.getId(), version.getRevision(), TemplateVersionStatus.DRAFT.wireName(),
+                    version.getLayout(), version.isOffersNotApplicable(), version.getItemPairs(), forms.authors(authors)),
+                    version);
+            items.saveAll(changed);
+        });
+
+        audit.record(editor.actor().entry(AuditOperation.CHECKLIST_TEMPLATE_RULES_BOUND, resource(template, ordinal),
+                "Checklist template \"" + template.getSlug() + "\" version " + ordinal + ": rules set on "
                         + changed.size() + (changed.size() == 1 ? " line — " : " lines — ")
                         + String.join("; ", described.subList(0, Math.min(described.size(), AUDITED_LINES)))
                         + (described.size() > AUDITED_LINES
@@ -643,6 +709,34 @@ public class ChecklistTemplateService {
         return wanted;
     }
 
+    /**
+     * The rules a request binds, by line key — empty to unbind — each read by the domain. A line named
+     * twice is refused: which of two rules was meant is not the service's to guess.
+     */
+    private Map<String, Optional<ChecklistRule>> parseRules(List<ChecklistItemRule> requested) {
+        if (requested == null || requested.isEmpty()) {
+            throw new InvalidInputException("Name the lines whose rule to bind — \"items\", each with its \"itemKey\" "
+                    + "and its \"rule\", or a null rule to unbind the line.");
+        }
+        Map<String, Optional<ChecklistRule>> wanted = new LinkedHashMap<>();
+        for (ChecklistItemRule line : requested) {
+            if (line == null || line.itemKey() == null || line.itemKey().isBlank()) {
+                throw new InvalidInputException("Each line is named by its \"itemKey\", as the version shows it; one "
+                        + "is empty.");
+            }
+            String key = line.itemKey().strip();
+            if (key.length() > MAX_KEY) {
+                throw new InvalidInputException("A line's key is at most " + MAX_KEY + " characters; \""
+                        + BoundedText.clip(key, 40) + "\" is longer.");
+            }
+            Optional<ChecklistRule> rule = line.rule() == null ? Optional.empty() : Optional.of(forms.rule(line.rule()));
+            if (wanted.put(key, rule) != null) {
+                throw new InvalidInputException("The line \"" + BoundedText.clip(key, 60) + "\" is named twice.");
+            }
+        }
+        return wanted;
+    }
+
     private static String describe(EvidenceRequirement evidence) {
         String asked = switch (evidence.kind()) {
             case NONE -> "asks for no proof";
@@ -797,25 +891,28 @@ public class ChecklistTemplateService {
     }
 
     /**
-     * The items a layout has just read, each asking for the proof its line already asked for: the
-     * draft's own requirement when the line was read before, else the previous version's line under
-     * the same key.
+     * The items a layout has just read, each asking for the proof its line already asked for and
+     * measured by the rule it was already bound to: the draft's own when the line was read before,
+     * else the previous version's line under the same key.
      *
-     * <p><b>Why not every line as {@code none}, as the workbook says.</b> No column of the workbook
-     * states a requirement, so what the reader returns is always {@code none}, and the requirement is
-     * part of the digest. Read as the workbook says, confirming a layout again would silently drop
-     * every requirement a lead had set on the draft, and a new workbook imported over a version that
-     * asked for proofs would make each such line <em>changed</em> — every project's answer on it
-     * waiting for a confirmation nobody meant to ask for, and no proof asked of it any more.
+     * <p><b>Why not every line as {@code none} and unbound, as the workbook says.</b> No column of the
+     * workbook states a requirement or a rule, so what the reader returns is always {@code none} and
+     * unbound, and both are part of the digest. Read as the workbook says, confirming a layout again
+     * would silently drop every requirement and every binding a lead had set on the draft, and a new
+     * workbook imported over a version that asked for proofs or measured its lines would make each such
+     * line <em>changed</em> — every project's answer on it waiting for a confirmation nobody meant to
+     * ask for, and nothing measured or asked of it any more.
      */
     private List<ChecklistItem> keepingEvidence(ChecklistTemplateVersionEntity version, List<ChecklistItem> read) {
-        Map<ItemKey, EvidenceRequirement> asked = new HashMap<>();
+        Map<ItemKey, ChecklistItem> set = new HashMap<>();
         if (version.getPreviousVersionId() != null) {
-            itemsOf(version.getPreviousVersionId()).forEach(item -> asked.put(item.key(), item.evidence()));
+            itemsOf(version.getPreviousVersionId()).forEach(item -> set.put(item.key(), item));
         }
-        asRead(version).forEach(item -> asked.put(item.key(), item.evidence()));
+        asRead(version).forEach(item -> set.put(item.key(), item));
         return read.stream()
-                .map(item -> Optional.ofNullable(asked.get(item.key())).map(item::withEvidence).orElse(item))
+                .map(item -> Optional.ofNullable(set.get(item.key()))
+                        .map(before -> item.withEvidence(before.evidence()).withBoundRule(before.boundRule()))
+                        .orElse(item))
                 .toList();
     }
 

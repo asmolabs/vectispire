@@ -8,8 +8,9 @@ import com.asmolabs.vectispire.core.checklists.persistence.ChecklistItemEntity;
  *
  * <p>The components are the entity's property names, so that the wire and the table cannot drift
  * apart unnoticed ({@code EntityViewsTest}). {@code evidenceKind} is {@code none}, {@code
- * link_or_file} or {@code file}; {@code boundRule} is null until a later lot binds rules (decision
- * 0032 §6).
+ * link_or_file} or {@code file}; {@code boundRule} is the canonical form of the rule the line is
+ * measured by (decision 0032 §6) — sorted keys, the shape of {@link ChecklistRuleForm} — or null for a
+ * line bound to none. It is the text the content digest reads, so it is published as stored.
  */
 public record ChecklistItemView(
         Long id,

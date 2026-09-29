@@ -4,11 +4,15 @@ import com.asmolabs.vectispire.common.domain.checklists.AnswerWords;
 import com.asmolabs.vectispire.common.domain.checklists.CellRef;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistColumn;
 import com.asmolabs.vectispire.common.domain.checklists.ChecklistLayout;
+import com.asmolabs.vectispire.common.domain.checklists.ChecklistRule;
 import com.asmolabs.vectispire.common.domain.checklists.HeaderCell;
 import com.asmolabs.vectispire.common.domain.checklists.ItemKey;
 import com.asmolabs.vectispire.common.domain.checklists.VersionPairing;
+import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
+import com.asmolabs.vectispire.core.checklists.ChecklistRuleForm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -20,7 +24,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * The JSON a template version's row keeps — its confirmed layout, its pairs made by hand, the
- * accounts that wrote the draft — in forms of their own.
+ * accounts that wrote the draft — in forms of their own; and a line's bound rule between the API's
+ * shape and the domain's canonical form, which is what the item stores.
  *
  * <p><b>Not the API's records.</b> The layout stored here is what the renderer will read to write
  * answers into the organisation's workbook (decision 0032 §3: "the renderer reads nothing else"),
@@ -107,6 +112,25 @@ public class StoredForms {
 
     public List<DraftAuthor> authors(String stored) {
         return read(stored, new TypeReference<>() {});
+    }
+
+    /**
+     * A rule as a request states it, read by the domain, which alone decides what a rule is: the API's
+     * record is turned into its JSON and parsed like any other statement of one, refused in words.
+     */
+    public ChecklistRule rule(ChecklistRuleForm form) {
+        if (form == null) {
+            throw new InvalidInputException("A rule is an object: its kind, its maximum age and its parameters.");
+        }
+        return ChecklistRule.parse(json.<JsonNode>valueToTree(form));
+    }
+
+    /**
+     * A stored rule — the domain's canonical form, which is what the item keeps and its digest reads —
+     * in the API's shape. Never the other way round: the stored form is not the route's record.
+     */
+    public ChecklistRuleForm ruleForm(String canonical) {
+        return read(canonical, new TypeReference<>() {});
     }
 
     private static CellRef stored(String reference) {

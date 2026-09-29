@@ -246,7 +246,7 @@ public enum SecurityEventType {
                     SARIF_IMPORTED, COVERAGE_IMPORTED, TEST_REPORT_IMPORTED,
                     // A draft being written changes nothing any project attests to: publishing it does.
                     CHECKLIST_TEMPLATE_IMPORTED, CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED, CHECKLIST_TEMPLATE_ITEMS_PAIRED,
-                    CHECKLIST_TEMPLATE_EVIDENCE_SET, CHECKLIST_TEMPLATE_DERIVED,
+                    CHECKLIST_TEMPLATE_EVIDENCE_SET, CHECKLIST_TEMPLATE_RULES_BOUND, CHECKLIST_TEMPLATE_DERIVED,
                     // A published version retired is the event, and a draft set aside is not: its writer
                     // knows which, and names the event itself.
                     CHECKLIST_TEMPLATE_RETIRED,

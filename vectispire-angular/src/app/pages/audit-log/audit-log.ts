@@ -80,6 +80,7 @@ const OPERATION_KEYS: Record<string, string> = {
     CHECKLIST_TEMPLATE_LAYOUT_CONFIRMED: 'audit_log.operations.checklist_template_layout_confirmed',
     CHECKLIST_TEMPLATE_ITEMS_PAIRED: 'audit_log.operations.checklist_template_items_paired',
     CHECKLIST_TEMPLATE_EVIDENCE_SET: 'audit_log.operations.checklist_template_evidence_set',
+    CHECKLIST_TEMPLATE_RULES_BOUND: 'audit_log.operations.checklist_template_rules_bound',
     CHECKLIST_TEMPLATE_DERIVED: 'audit_log.operations.checklist_template_derived',
     CHECKLIST_TEMPLATE_PUBLISHED: 'audit_log.operations.checklist_template_published',
     CHECKLIST_TEMPLATE_RETIRED: 'audit_log.operations.checklist_template_retired',
