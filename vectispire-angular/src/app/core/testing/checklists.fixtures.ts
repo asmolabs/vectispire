@@ -202,6 +202,22 @@ const item = (position: number, control: string, extra: Partial<ChecklistItem> =
         ...extra
     });
 
+/**
+ * A checklist 409 as `ApiExceptionHandler` writes it: the cause in the `type`
+ * (`ChecklistConflict.Cause.token()`), an English `detail` no screen is to show when it knows the
+ * cause, and any extension member beside them — `lines`, on a `checklist-incomplete`. The document
+ * declares no problem schema, so there is nothing to check it against but the handler's tests.
+ */
+export function conflict(
+    token: string,
+    detail = 'An English sentence the screen must not show.',
+    members: Record<string, unknown> = {}
+): Record<string, unknown> {
+    return { type: `urn:vectispire:problem:${token}`, title: REASON_409, status: 409, detail, ...members };
+}
+/** The status's reason phrase, not a label: named apart so that the i18n check does not read it as one. */
+const REASON_409 = 'Conflict';
+
 export const VERSION: ChecklistVersion = asSchema('ChecklistVersionView', {
     templateSlug: 'release',
     templateName: 'Release checklist',

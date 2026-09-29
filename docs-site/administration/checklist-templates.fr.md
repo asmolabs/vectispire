@@ -94,8 +94,8 @@ s'apparier : chaque item est nouveau.
 
 Confirmer une disposition et apparier des items sont envoyés sur la **révision affichée**, comme la
 publication : quand un autre responsable a modifié le brouillon après que vous l'avez ouvert, votre
-modification est refusée, les deux révisions nommées, plutôt que de remplacer la sienne sans qu'il le
-voie. Rechargez le brouillon et refaites-la.
+modification est refusée, la révision que vous aviez à l'écran nommée, plutôt que de remplacer la
+sienne sans qu'il le voie. Rechargez le brouillon et refaites-la.
 
 ## 4. Dire quelle preuve chaque ligne demande
 
@@ -133,17 +133,25 @@ Publier fait de la version celle sur laquelle les projets ouvrent leurs checklis
 envoyée : une modification faite par quelqu'un d'autre après l'ouverture de la page refuse la
 publication plutôt que de publier ce que personne ici n'a lu.
 
-Quand le serveur refuse, l'écran dit pourquoi :
+Quand le serveur refuse — une publication, ou toute autre modification d'une version — l'écran dit
+pourquoi, en une phrase pour chaque cause que le serveur nomme (voir
+[le tableau plus bas](#refus-pour-les-scripts-et-les-integrations)), et propose **Recharger la
+version** là où la relire est le remède :
 
-- **Vous avez écrit ce brouillon** — vous l'avez importé ou dérivé, avez confirmé sa disposition ou
-  apparié ses items — et la double validation est active : **une deuxième personne doit le publier**,
-  un autre gouverneur de la plateforme, administrateur ou CISO qui n'en a rien écrit. Chaque compte
-  qui a façonné le brouillon en est l'auteur, pas seulement celui qui l'a importé. L'écran vous
-  prévient aussi avant le clic.
-- **Le brouillon a changé depuis que vous l'avez lu** : la révision relue et la révision actuelle sont
-  toutes deux nommées. Rechargez-le, relisez-le, puis publiez.
-- **Il n'a pas de disposition confirmée**, ou **ce n'est plus un brouillon** parce que quelqu'un l'a
-  publié ou écarté entre-temps.
+- **Vous avez écrit ce brouillon** — vous l'avez importé ou dérivé, avez confirmé sa disposition,
+  apparié ses items ou fixé la preuve que ses lignes demandent — et la double validation est active :
+  **une deuxième personne doit le publier**, un autre gouverneur de la plateforme, administrateur ou
+  CISO qui n'en a rien écrit. Chaque compte qui a façonné le brouillon en est l'auteur, pas seulement
+  celui qui l'a importé. L'écran vous prévient aussi avant le clic.
+- **La version a changé depuis que vous l'avez lue** : la révision que vous aviez à l'écran est
+  nommée. Rechargez-la, relisez-la, puis publiez.
+- **Elle n'a pas de disposition confirmée** ; **ce n'est plus un brouillon** parce que quelqu'un l'a
+  publié ou écarté entre-temps — dérivez un nouveau brouillon de la version publiée pour la changer ;
+  **le modèle a déjà un brouillon**, quand vous en importez ou en dérivez un autre ; **elle n'est pas
+  publiée**, quand vous dérivez d'un brouillon ou d'une version retirée ; **elle est déjà retirée** ;
+  **elle ne suit aucune version publiée**, il n'y a donc rien à apparier.
+
+Un refus dont le serveur ne nomme pas la cause est affiché dans les mots du serveur.
 
 Double validation active, la plateforme refuse de se retrouver avec un seul compte capable de
 publier — voir [double validation](four-eyes.fr.md#lactiver-demande-quune-seconde-personne-existe).

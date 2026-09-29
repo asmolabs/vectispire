@@ -88,8 +88,8 @@ and becomes *changed*, *paired by hand*, so that a project's answer follows it, 
 **Unpair** undoes a pair. A first version has nothing to pair with: every item is new.
 
 Confirming a layout and pairing items are sent on the **revision on screen**, like publishing: when
-another lead changed the draft after you opened it, your change is refused with both revisions named,
-rather than replacing theirs unseen. Reload the draft and make it again.
+another lead changed the draft after you opened it, your change is refused, naming the revision you had
+on screen, rather than replacing theirs unseen. Reload the draft and make it again.
 
 ## 4. Say what proof each line asks for
 
@@ -126,16 +126,23 @@ Publishing makes the version what projects open their checklists on. The button 
 by somebody else after you opened the page refuses the publication rather than publishing something
 nobody here has read.
 
-When the server refuses, the screen says why:
+When the server refuses — a publication, or any other change to a version — the screen says why, in
+one sentence for each cause the server names (see [the table below](#refusals-for-scripts-and-integrations)),
+and offers **Reload the version** where reading it again is the remedy:
 
-- **You wrote this draft** — you imported or derived it, confirmed its layout or paired its items —
-  and four-eyes approval is on: **a second person must publish it**, another platform governor,
-  administrator or CISO who wrote none of it. Every account that shaped the draft is its author, not
-  only the importer. The screen warns you before you click, too.
-- **The draft changed since you read it**: the revision you reviewed and the current one are both
-  named. Reload it, review it again, then publish.
-- **It has no confirmed layout**, or **it is no longer a draft** because somebody published or set it
-  aside meanwhile.
+- **You wrote this draft** — you imported or derived it, confirmed its layout, paired its items or set
+  what proof its lines ask for — and four-eyes approval is on: **a second person must publish it**,
+  another platform governor, administrator or CISO who wrote none of it. Every account that shaped the
+  draft is its author, not only the importer. The screen warns you before you click, too.
+- **The version changed since you read it**: the revision you had on screen is named. Reload it,
+  review it again, then publish.
+- **It has no confirmed layout**; **it is no longer a draft** because somebody published or set it
+  aside meanwhile — derive a new draft from the published version to change it; **the template
+  already has a draft**, when you import or derive another; **it is not published**, when you derive
+  from a draft or a retired version; **it is already retired**; **it follows no published version**,
+  so there is nothing to pair.
+
+A refusal the server names no cause for is shown in the server's own words.
 
 With four-eyes on, the platform refuses to be left with a single account able to publish — see
 [four-eyes approval](four-eyes.md#switching-it-on-requires-that-a-second-person-exist).

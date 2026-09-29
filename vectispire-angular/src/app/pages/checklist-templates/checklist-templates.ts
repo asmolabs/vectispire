@@ -23,8 +23,7 @@ import type {
     ChecklistPreviewCell,
     ChecklistTemplate,
     ChecklistVersion,
-    ChecklistVersionStatus,
-    ChecklistVersionSummary
+    ChecklistVersionStatus
 } from '../../core/api.models';
 import { I18nService } from '../../core/i18n/i18n.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -87,19 +86,58 @@ export const CHANGE_KEYS = {
 } as const satisfies Record<ChecklistChange, string>;
 
 /**
- * Why the server said 409 to a publication or a retirement, read from the version as it stands
- * rather than from the refusal's English words — the checks in the order the service makes them.
+ * Why the server refused a template write for the state it found: `ChecklistConflict.Cause`, read
+ * from the problem's `type` — never from its English `detail`. It used to be guessed by reading the
+ * version again, which could only tell apart the causes a version's summary shows, and cost a
+ * request to do it.
  */
-export type Refusal = 'not_draft' | 'no_layout' | 'changed' | 'four_eyes_publish' | 'four_eyes_retire' | 'retired';
+export type TemplateConflict =
+    'changed' | 'not_draft' | 'no_layout' | 'has_draft' | 'not_published' | 'retired' | 'nothing_to_pair' | 'four_eyes';
+
+/** `ApiExceptionHandler.PROBLEM_TYPE` followed by `Cause.token()`, one per cause the template routes name. */
+export const CONFLICT_TYPES: Readonly<Record<string, TemplateConflict>> = {
+    'urn:vectispire:problem:checklist-template-changed': 'changed',
+    'urn:vectispire:problem:checklist-template-not-draft': 'not_draft',
+    'urn:vectispire:problem:checklist-template-no-layout': 'no_layout',
+    'urn:vectispire:problem:checklist-template-has-draft': 'has_draft',
+    'urn:vectispire:problem:checklist-template-not-published': 'not_published',
+    'urn:vectispire:problem:checklist-template-retired': 'retired',
+    'urn:vectispire:problem:checklist-template-nothing-to-pair': 'nothing_to_pair',
+    // The project checklists' token, shared because it means the same on both.
+    'urn:vectispire:problem:checklist-four-eyes': 'four_eyes'
+};
+
+/** A cause as the screen words it: under four-eyes, which act the second person must make. */
+export type Refusal = Exclude<TemplateConflict, 'four_eyes'> | 'four_eyes_publish' | 'four_eyes_retire';
 
 export const REFUSAL_KEYS = {
+    changed: 'checklist_templates.refusal_changed',
     not_draft: 'checklist_templates.refusal_not_draft',
     no_layout: 'checklist_templates.refusal_no_layout',
-    changed: 'checklist_templates.refusal_changed',
+    has_draft: 'checklist_templates.refusal_has_draft',
+    not_published: 'checklist_templates.refusal_not_published',
+    retired: 'checklist_templates.refusal_retired',
+    nothing_to_pair: 'checklist_templates.refusal_nothing_to_pair',
     four_eyes_publish: 'checklist_templates.refusal_four_eyes_publish',
-    four_eyes_retire: 'checklist_templates.refusal_four_eyes_retire',
-    retired: 'checklist_templates.refusal_retired'
+    four_eyes_retire: 'checklist_templates.refusal_four_eyes_retire'
 } as const satisfies Record<Refusal, string>;
+
+/**
+ * Whether reading the version again is the remedy — it is wherever the screen was behind the
+ * server. Not under four-eyes, since the person is who they are, nor for a first version, which
+ * reloading does not give a predecessor.
+ */
+export const REFUSAL_RELOADS = {
+    changed: true,
+    not_draft: true,
+    no_layout: true,
+    has_draft: true,
+    not_published: true,
+    retired: true,
+    nothing_to_pair: false,
+    four_eyes_publish: false,
+    four_eyes_retire: false
+} as const satisfies Record<Refusal, boolean>;
 
 /** What the client refuses before sending a layout; the server has the last word, in its own. */
 export const PROBLEM_KEYS = {
@@ -144,7 +182,7 @@ export interface Grid {
  * Reading is governance, the auditor included; every write is a security lead's (platform governor,
  * administrator, CISO), and a reader who may not write is shown no write control at all rather than
  * controls the server would refuse. With four-eyes on, the server refuses an author of a draft as its
- * publisher: a 409 is explained from the version as it now stands, not from the refusal's English.
+ * publisher. A 409 is explained from the cause its problem type names, never from its English.
  */
 @Component({
     selector: 'app-checklist-templates',
@@ -385,7 +423,13 @@ export class ChecklistTemplates {
                 },
                 error: (failure) => {
                     this.uploading.set(false);
-                    this.uploadError.set(messageOf(failure, this.i18n.t('checklist_templates.error_import')));
+                    // The one cause an import meets, said by the form rather than by a panel that may
+                    // show another version.
+                    this.uploadError.set(
+                        conflictOf(failure) === 'has_draft'
+                            ? this.i18n.t(REFUSAL_KEYS.has_draft)
+                            : messageOf(failure, this.i18n.t('checklist_templates.error_import'))
+                    );
                 }
             });
     }
@@ -538,6 +582,7 @@ export class ChecklistTemplates {
         }
         const hadPairs = (this.version()?.pairs.length ?? 0) > 0;
         this.formError.set(null);
+        this.refusal.set(null);
         this.busy.set(true);
         this.api.confirmChecklistLayout(selected.slug, selected.ordinal, shown.revision, layoutOf(draft)).subscribe({
             next: (version) => {
@@ -553,7 +598,9 @@ export class ChecklistTemplates {
             },
             error: (failure) => {
                 this.busy.set(false);
-                this.formError.set(messageOf(failure, this.i18n.t('checklist_templates.error_layout')));
+                if (!this.refuse(failure, 'edit', shown.revision)) {
+                    this.formError.set(messageOf(failure, this.i18n.t('checklist_templates.error_layout')));
+                }
             }
         });
     }
@@ -579,6 +626,7 @@ export class ChecklistTemplates {
         if (!selected || !shown) return;
         this.busy.set(true);
         this.panelError.set(null);
+        this.refusal.set(null);
         this.api.pairChecklistItems(selected.slug, selected.ordinal, shown.revision, pairs).subscribe({
             next: (version) => {
                 this.busy.set(false);
@@ -588,7 +636,9 @@ export class ChecklistTemplates {
             },
             error: (failure) => {
                 this.busy.set(false);
-                this.panelError.set(messageOf(failure, this.i18n.t('checklist_templates.error_pairs')));
+                if (!this.refuse(failure, 'edit', shown.revision)) {
+                    this.panelError.set(messageOf(failure, this.i18n.t('checklist_templates.error_pairs')));
+                }
             }
         });
     }
@@ -600,6 +650,7 @@ export class ChecklistTemplates {
         if (!selected) return;
         this.busy.set(true);
         this.panelError.set(null);
+        this.refusal.set(null);
         this.api.deriveChecklistVersion(selected.slug, selected.ordinal, this.deriveLabel()).subscribe({
             next: (derived) => {
                 this.busy.set(false);
@@ -615,7 +666,9 @@ export class ChecklistTemplates {
             },
             error: (failure) => {
                 this.busy.set(false);
-                this.panelError.set(messageOf(failure, this.i18n.t('checklist_templates.error_derive')));
+                if (!this.refuse(failure, 'edit', this.shown()?.revision ?? 0)) {
+                    this.panelError.set(messageOf(failure, this.i18n.t('checklist_templates.error_derive')));
+                }
             }
         });
     }
@@ -641,7 +694,6 @@ export class ChecklistTemplates {
     }
 
     private act(act: 'publish' | 'retire', request: Observable<ChecklistVersion>, revision: number): void {
-        const selected = this.selected()!;
         const wasDraft = this.shown()?.status === 'draft';
         this.busy.set(true);
         this.confirming.set(null);
@@ -662,46 +714,31 @@ export class ChecklistTemplates {
             },
             error: (failure) => {
                 this.busy.set(false);
-                if ((failure as { status?: number } | null)?.status !== 409) {
+                if (!this.refuse(failure, act, revision)) {
                     this.panelError.set(messageOf(failure, this.i18n.t('checklist_templates.error_act')));
-                    return;
                 }
-                this.explain(act, revision, selected, failure);
             }
         });
     }
 
     /**
-     * A 409 has several causes and one status. The version is read again — without replacing what
-     * the panel shows, which is what the reader reviewed — and the cause named from it; a cause this
-     * screen cannot see falls back to the server's own sentence.
+     * A refusal whose problem type names its cause, explained in the panel — the panel keeps what the
+     * reader reviewed rather than replacing it with what somebody changed meanwhile. `false` for any
+     * other failure, which the caller shows in the server's own words.
      */
-    private explain(
-        act: 'publish' | 'retire',
-        revision: number,
-        selected: { slug: string; ordinal: number },
-        failure: unknown
-    ): void {
-        const fallback = messageOf(failure, this.i18n.t('checklist_templates.error_act'));
-        this.api.checklistVersion(selected.slug, selected.ordinal).subscribe({
-            next: (fresh) => {
-                const cause = refusalOf(act, revision, fresh.version, this.session.user()?.username);
-                if (!cause) {
-                    this.refusal.set({ message: fallback, reload: false });
-                    return;
-                }
-                this.refusal.set({
-                    message: this.i18n.t(REFUSAL_KEYS[cause], {
-                        sent: revision,
-                        current: fresh.version.revision,
-                        status: this.statusLabel(fresh.version.status),
-                        authors: fresh.version.draftAuthors.join(', ')
-                    }),
-                    reload: cause === 'changed' || cause === 'not_draft' || cause === 'retired'
-                });
-            },
-            error: () => this.refusal.set({ message: fallback, reload: false })
+    private refuse(failure: unknown, act: 'publish' | 'retire' | 'edit', revision: number): boolean {
+        const cause = conflictOf(failure);
+        if (!cause) return false;
+        const refusal: Refusal =
+            cause === 'four_eyes' ? (act === 'retire' ? 'four_eyes_retire' : 'four_eyes_publish') : cause;
+        this.refusal.set({
+            message: this.i18n.t(REFUSAL_KEYS[refusal], {
+                revision,
+                authors: (this.shown()?.draftAuthors ?? []).join(', ')
+            }),
+            reload: REFUSAL_RELOADS[refusal]
         });
+        return true;
     }
 
     /** A write answered with the version: shown, its preview and its template's row read again. */
@@ -832,24 +869,8 @@ export function wrote(authors: string[], username: string | null | undefined): b
     return !!me && authors.some((author) => author.trim().toLowerCase() === me);
 }
 
-/**
- * Why a 409 came back, read from the version as it now stands, in the order the service checks:
- * the status, the layout, the revision reviewed, then the authors. `null` when none of these is it.
- */
-export function refusalOf(
-    act: 'publish' | 'retire',
-    reviewed: number,
-    fresh: ChecklistVersionSummary,
-    username: string | null | undefined
-): Refusal | null {
-    if (act === 'retire') {
-        if (fresh.status === 'retired') return 'retired';
-        if (fresh.status === 'published' && wrote(fresh.draftAuthors, username)) return 'four_eyes_retire';
-        return fresh.revision !== reviewed ? 'changed' : null;
-    }
-    if (fresh.status !== 'draft') return 'not_draft';
-    if (!fresh.layoutConfirmed) return 'no_layout';
-    if (fresh.revision !== reviewed) return 'changed';
-    if (wrote(fresh.draftAuthors, username)) return 'four_eyes_publish';
-    return null;
+/** The cause a template refusal names in its problem type, or `null` for any other failure. */
+export function conflictOf(failure: unknown): TemplateConflict | null {
+    const type = (failure as { error?: { type?: unknown } } | null)?.error?.type;
+    return typeof type === 'string' ? (CONFLICT_TYPES[type] ?? null) : null;
 }

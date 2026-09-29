@@ -206,7 +206,7 @@
         @if (refusal(); as refused) {
             <p-message severity="warn" [closable]="false" styleClass="mb-3 w-full" data-testid="refusal">
                 <div class="flex flex-col gap-2">
-                    <span>{{ refused.message }}</span>
+                    <span data-testid="refusal-message">{{ refused.message }}</span>
                     @if (refused.reload) {
                         <div>
                             <p-button

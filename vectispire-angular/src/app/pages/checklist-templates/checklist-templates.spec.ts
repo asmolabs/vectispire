@@ -3,9 +3,10 @@ import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@a
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it } from 'vitest';
-import type { ChecklistPreview, ChecklistVersionSummary } from '@/app/core/api.models';
+import type { ChecklistPreview } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
+    conflict,
     CONFIRMED_PREVIEW,
     DRAFT,
     PREVIEW,
@@ -19,6 +20,8 @@ import french from '../../../../public/i18n/fr.json';
 import {
     CHANGE_KEYS,
     COLUMN_KEYS,
+    CONFLICT_TYPES,
+    conflictOf,
     ChecklistTemplates,
     draftFrom,
     gridOf,
@@ -27,7 +30,6 @@ import {
     layoutProblem,
     PROBLEM_KEYS,
     REFUSAL_KEYS,
-    refusalOf,
     STATUS_KEYS
 } from './checklist-templates';
 
@@ -209,7 +211,7 @@ describe('the checklist templates screen', () => {
         http.expectOne(`${TEMPLATE_URL}/onboarding/versions/1`).flush(VERSION);
     });
 
-    it("does not send a name for a template that exists — the server would ignore it — and shows the server's refusal", async () => {
+    it('does not send a name for a template that exists — the server would ignore it — and says why a draft refuses it', async () => {
         await start('CISO');
         type('#checklist-slug', 'release');
         expect(dom().querySelector('#checklist-name')).toBeNull();
@@ -222,14 +224,28 @@ describe('the checklist templates screen', () => {
 
         const request = http.expectOne((call) => call.method === 'POST');
         expect(request.request.params.has('name')).toBe(false);
-        request.flush(
-            {
-                detail: 'Checklist template "release" already has a draft: publish it or set it aside before making another.'
-            },
-            { status: 409, statusText: 'Conflict' }
+        request.flush(conflict('checklist-template-has-draft'), { status: 409, statusText: 'Conflict' });
+        fixture.detectChanges();
+        expect(text('[data-testid="upload-error"]')).toBe(
+            'This template already has a draft, and it has one at a time: publish that draft or set it aside before importing or deriving another version.'
+        );
+    });
+
+    it("shows any other refusal of an import in the server's own words", async () => {
+        await start('CISO');
+        type('#checklist-slug', 'release');
+        const input = dom().querySelector('#checklist-file') as HTMLInputElement;
+        Object.defineProperty(input, 'files', { value: [new File(['x'], 'r.xlsx')], configurable: true });
+        input.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+        button('import-workbook').click();
+
+        http.expectOne((call) => call.method === 'POST').flush(
+            { type: 'about:blank', title: 'Bad Request', status: 400, detail: 'The file is not an .xlsx workbook.' },
+            { status: 400, statusText: 'Bad Request' }
         );
         fixture.detectChanges();
-        expect(text('[data-testid="upload-error"]')).toContain('already has a draft');
+        expect(text('[data-testid="upload-error"]')).toBe('The file is not an .xlsx workbook.');
     });
 
     // ------------------------------------------------------------------ the layout
@@ -413,11 +429,14 @@ describe('the checklist templates screen', () => {
         return http.expectOne({ method: 'POST', url: `${VERSION_URL}/publish` });
     }
 
-    /** The 409, then the version read again to name its cause. */
-    function refuse(request: TestRequest, fresh: ChecklistVersionSummary, detail: string): void {
-        request.flush({ detail }, { status: 409, statusText: 'Conflict' });
-        http.expectOne(VERSION_URL).flush({ ...VERSION, version: fresh });
+    /**
+     * The 409, naming its cause in its type — and nothing read after it: the cause is the problem's,
+     * and the version is not read again to guess it.
+     */
+    function refuse(request: TestRequest, token: string, detail?: string): void {
+        request.flush(conflict(token, detail), { status: 409, statusText: 'Conflict' });
         fixture.detectChanges();
+        http.expectNone((call) => call.method === 'GET');
     }
 
     it('publishes the revision on screen, not one read afterwards', async () => {
@@ -440,23 +459,65 @@ describe('the checklist templates screen', () => {
         fixture.detectChanges();
         button('confirm-act').click();
 
-        refuse(
-            http.expectOne({ method: 'POST', url: `${VERSION_URL}/publish` }),
-            DRAFT,
-            'Four-eyes approval: version 2 of "release" was written by alice, so it has to be published by somebody else.'
-        );
+        refuse(http.expectOne({ method: 'POST', url: `${VERSION_URL}/publish` }), 'checklist-four-eyes');
         expect(text('[data-testid="refusal"]')).toContain('You wrote this draft');
         expect(text('[data-testid="refusal"]')).toContain('a second person must publish it');
+        expect(text('[data-testid="refusal"]')).toContain('Written by: alice.');
         expect(dom().querySelector('#reload-version')).toBeNull();
     });
 
-    it('explains a draft edited since it was read, names both revisions, and offers to reload', async () => {
-        await start('CISO', 'bob');
-        refuse(publishShown(), { ...DRAFT, revision: 6, draftAuthors: ['alice', 'carol'] }, 'Version 2 has changed.');
+    const SENTENCES: [string, string, boolean][] = [
+        [
+            'checklist-template-changed',
+            'This version changed since you read it: you had revision 4 on screen, and somebody else has edited, published or retired it since. Nothing was written over their change. Reload it, look at what changed, then try again.',
+            true
+        ],
+        [
+            'checklist-template-not-draft',
+            'This version is no longer a draft: it is published or retired, and a published version never changes. To change it, derive a new draft from the published version.',
+            true
+        ],
+        [
+            'checklist-template-no-layout',
+            'This draft has no confirmed layout, so it has no items yet: confirm its layout first.',
+            true
+        ],
+        [
+            'checklist-template-has-draft',
+            'This template already has a draft, and it has one at a time: publish that draft or set it aside before importing or deriving another version.',
+            true
+        ],
+        [
+            'checklist-template-not-published',
+            "A new draft is derived from a published version only, and this one is a draft or retired. Derive it from the template's published version instead.",
+            true
+        ],
+        ['checklist-template-retired', 'This version is already retired. Reload it to see where it stands.', true],
+        [
+            'checklist-template-nothing-to-pair',
+            'This draft follows no published version, so there is nothing to pair its items with: every item is new.',
+            false
+        ],
+        [
+            'checklist-four-eyes',
+            'You wrote this draft — you imported or derived it, confirmed its layout, paired its items or set what proof its lines ask for. Four-eyes approval is on, so a second person must publish it: another platform governor, administrator or CISO who did not write it. Written by: alice.',
+            false
+        ]
+    ];
 
-        expect(text('[data-testid="refusal"]')).toContain(
-            'The draft changed since you read it: you reviewed revision 4, and it is now at revision 6.'
-        );
+    it.each(SENTENCES)('explains a 409 %s in one sentence of its own', async (token, sentence, reload) => {
+        await start('CISO', 'bob');
+        refuse(publishShown(), token);
+
+        expect(text('[data-testid="refusal-message"]')).toBe(sentence);
+        expect(dom().querySelector('#reload-version') !== null).toBe(reload);
+    });
+
+    it('explains a draft edited since it was read, naming the revision reviewed, and offers to reload', async () => {
+        await start('CISO', 'bob');
+        refuse(publishShown(), 'checklist-template-changed', 'Version 2 has changed.');
+
+        expect(text('[data-testid="refusal"]')).toContain('you had revision 4 on screen');
         // The panel still shows what was reviewed, not what somebody changed meanwhile.
         expect(text('[data-testid="shown-revision"]')).toBe('4');
 
@@ -472,11 +533,68 @@ describe('the checklist templates screen', () => {
         expect(dom().querySelector('[data-testid="refusal"]')).toBeNull();
     });
 
-    it("falls back to the server's sentence for a 409 the version does not explain", async () => {
+    it.each([
+        ['names a cause this screen does not know', conflict('checklist-template-something-new', 'Something new.')],
+        ['names no cause', { type: 'about:blank', title: 'Conflict', status: 409, detail: 'Something new.' }]
+    ])("falls back to the server's sentence for a 409 that %s", async (_, body) => {
         await start('CISO', 'bob');
-        refuse(publishShown(), DRAFT, 'Something only the server knows.');
+        publishShown().flush(body, { status: 409, statusText: 'Conflict' });
+        fixture.detectChanges();
 
-        expect(text('[data-testid="refusal"]')).toBe('Something only the server knows.');
+        expect(text('[data-testid="panel-error"]')).toBe('Something new.');
+        expect(dom().querySelector('[data-testid="refusal"]')).toBeNull();
+        http.expectNone((call) => call.method === 'GET');
+    });
+
+    it('explains a layout confirmed over a change made meanwhile, and offers to reload', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+        button('confirm-layout').click();
+
+        refuse(
+            http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/layout`),
+            'checklist-template-changed'
+        );
+        expect(text('[data-testid="refusal"]')).toContain('you had revision 4 on screen');
+        expect(dom().querySelector('[data-testid="layout-error"]')).toBeNull();
+        expect(dom().querySelector('#reload-version')).not.toBeNull();
+    });
+
+    it('says a first version has nothing to pair with when the server refuses a pair', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+        const page = fixture.componentInstance;
+        page.pairAdded.set('text:secrets are rotated every ninety days');
+        page.pairRemoved.set('text:secrets are rotated yearly');
+        fixture.detectChanges();
+        button('pair-items').click();
+
+        refuse(
+            http.expectOne((call) => call.method === 'PUT' && call.url === `${VERSION_URL}/pairs`),
+            'checklist-template-nothing-to-pair'
+        );
+        expect(text('[data-testid="refusal"]')).toContain('nothing to pair its items with');
+        expect(dom().querySelector('#reload-version')).toBeNull();
+    });
+
+    it('says a template has a draft already when deriving from its published version', async () => {
+        await start('ADMIN', 'bob');
+        button('Open version 1 of release').click();
+        fixture.detectChanges();
+        http.expectOne((call) => call.url === `${TEMPLATE_URL}/release/versions/1/preview`).flush({
+            ...CONFIRMED_PREVIEW,
+            version: PUBLISHED
+        });
+        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...VERSION, version: PUBLISHED });
+        fixture.detectChanges();
+        button('derive-version').click();
+
+        refuse(
+            http.expectOne({ method: 'POST', url: `${TEMPLATE_URL}/release/versions/1/derive` }),
+            'checklist-template-has-draft'
+        );
+        expect(text('[data-testid="refusal"]')).toContain('This template already has a draft');
+        expect(dom().querySelector('[data-testid="panel-error"]')).toBeNull();
     });
 
     it('explains a four-eyes refusal of a retirement to the author of the published version', async () => {
@@ -493,14 +611,14 @@ describe('the checklist templates screen', () => {
         button('retire-version').click();
         fixture.detectChanges();
         button('confirm-act').click();
-        http.expectOne({ method: 'POST', url: `${TEMPLATE_URL}/release/versions/1/retire` }).flush(
-            { detail: 'Four-eyes approval.' },
-            { status: 409, statusText: 'Conflict' }
+        refuse(
+            http.expectOne({ method: 'POST', url: `${TEMPLATE_URL}/release/versions/1/retire` }),
+            'checklist-four-eyes'
         );
-        http.expectOne(`${TEMPLATE_URL}/release/versions/1`).flush({ ...VERSION, version: PUBLISHED });
-        fixture.detectChanges();
 
-        expect(text('[data-testid="refusal"]')).toContain('a second person must retire it');
+        expect(text('[data-testid="refusal-message"]')).toBe(
+            'You wrote this version. Four-eyes approval is on, so a second person must retire it: another platform governor, administrator or CISO who did not write it. Written by: alice.'
+        );
     });
 
     // ------------------------------------------------------------------ the words
@@ -558,15 +676,28 @@ describe('the checklist layout helpers', () => {
         expect('author' in layout.header).toBe(false);
     });
 
-    it("names a 409's cause in the order the service checks", () => {
-        expect(refusalOf('publish', 4, { ...DRAFT, status: 'published' }, 'alice')).toBe('not_draft');
-        expect(refusalOf('publish', 4, { ...DRAFT, layoutConfirmed: false, revision: 5 }, 'alice')).toBe('no_layout');
-        expect(refusalOf('publish', 4, { ...DRAFT, revision: 5 }, 'alice')).toBe('changed');
-        expect(refusalOf('publish', 4, DRAFT, ' ALICE ')).toBe('four_eyes_publish');
-        expect(refusalOf('publish', 4, DRAFT, 'bob')).toBeNull();
-        expect(refusalOf('retire', 3, { ...PUBLISHED, status: 'retired' }, 'alice')).toBe('retired');
-        expect(refusalOf('retire', 3, PUBLISHED, 'alice')).toBe('four_eyes_retire');
-        // Setting a draft aside asks nobody else, so its author is not refused under four-eyes.
-        expect(refusalOf('retire', 4, DRAFT, 'alice')).toBeNull();
+    it('knows every cause the template routes name, and no other', () => {
+        // `ChecklistConflict.Cause`, the template causes and the one shared token — a cause added there
+        // and not here falls back to the English detail, which is survivable; a token misspelt here
+        // never matches, which is not.
+        expect(Object.keys(CONFLICT_TYPES).sort()).toEqual(
+            [
+                'checklist-template-not-draft',
+                'checklist-template-no-layout',
+                'checklist-template-changed',
+                'checklist-template-has-draft',
+                'checklist-template-not-published',
+                'checklist-template-retired',
+                'checklist-template-nothing-to-pair',
+                'checklist-four-eyes'
+            ]
+                .map((token) => `urn:vectispire:problem:${token}`)
+                .sort()
+        );
+        expect(conflictOf({ error: conflict('checklist-template-retired') })).toBe('retired');
+        // The project checklists' own causes are not this screen's.
+        expect(conflictOf({ error: conflict('checklist-changed') })).toBeNull();
+        expect(conflictOf({ error: 'text' })).toBeNull();
+        expect(conflictOf(null)).toBeNull();
     });
 });
