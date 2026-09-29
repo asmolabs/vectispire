@@ -4616,7 +4616,7 @@ export interface components {
             /** @enum {string} */
             framework?: "NIS_2" | "ISO_27001" | "EU_CRA" | "DORA" | "PCI_DSS" | "SOC_2";
             /** @enum {string} */
-            overallStatus?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            overallStatus?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT" | "NO_DATA";
             /** Format: int32 */
             scorePercentage: number;
         };
@@ -4643,7 +4643,7 @@ export interface components {
             /** Format: int32 */
             soaFindings: number;
             /** @enum {string} */
-            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT" | "NO_DATA";
             /** Format: int32 */
             targets: number;
         };
@@ -4725,7 +4725,7 @@ export interface components {
             /** Format: int32 */
             scorePercentage: number;
             /** @enum {string} */
-            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            status?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT" | "NO_DATA";
         };
         CoverageImportView: {
             /** Format: uuid */
@@ -5519,9 +5519,9 @@ export interface components {
             control?: components["schemas"]["ComplianceControl"];
             declaration?: components["schemas"]["Declaration"];
             /** @enum {string} */
-            divergence?: "CONTRADICTED" | "EXCLUDED_WITHOUT_JUSTIFICATION" | "UNDECLARED" | "OVERSTATED" | "UNDERSTATED" | "NOT_MEASURED_HERE" | "NOT_APPLICABLE" | "CONSISTENT";
+            divergence?: "CONTRADICTED" | "EXCLUDED_WITHOUT_JUSTIFICATION" | "UNDECLARED" | "OVERSTATED" | "UNEVIDENCED" | "UNDERSTATED" | "NOT_MEASURED_HERE" | "NOT_APPLICABLE" | "CONSISTENT";
             /** @enum {string} */
-            measured?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT";
+            measured?: "COMPLIANT" | "PARTIAL" | "NON_COMPLIANT" | "NO_DATA";
             reviewOverdue: boolean;
         };
         Location: {

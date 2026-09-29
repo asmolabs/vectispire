@@ -90,8 +90,13 @@
                 [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"
                 [class.text-amber-600]="statusTone(f.overallStatus) === 'partial'"
                 [class.text-red-700]="statusTone(f.overallStatus) === 'no'"
-                >{{ f.scorePercentage }}&nbsp;%</span
             >
+                @if (statusTone(f.overallStatus) === 'none') {
+                    —
+                } @else {
+                    {{ f.scorePercentage }}&nbsp;%
+                }
+            </span>
             <span
                 class="text-xs font-semibold"
                 [class.text-green-700]="statusTone(f.overallStatus) === 'ok'"

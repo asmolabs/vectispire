@@ -475,10 +475,17 @@ export class Compliance {
             });
     }
 
-    statusSeverity(status: string): 'success' | 'warn' | 'danger' {
+    statusSeverity(status: string): 'success' | 'warn' | 'danger' | 'secondary' {
         if (status === 'COMPLIANT') return 'success';
         if (status === 'PARTIAL') return 'warn';
+        // No data is no verdict: neither green nor red.
+        if (status === 'NO_DATA') return 'secondary';
         return 'danger';
+    }
+
+    /** A score, or a dash where nothing was measured — its zero is no measurement. */
+    scoreOf(status: string, score: number): string {
+        return status === 'NO_DATA' ? '—' : score + '%';
     }
 
     gateStatusSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' {

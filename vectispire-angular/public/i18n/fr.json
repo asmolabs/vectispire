@@ -2302,6 +2302,7 @@
       "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion non argumentée",
       "UNDECLARED": "Non traité",
       "OVERSTATED": "Surévalué",
+      "UNEVIDENCED": "Pas encore étayé",
       "UNDERSTATED": "Sous-évalué",
       "NOT_MEASURED_HERE": "Non mesuré ici",
       "NOT_APPLICABLE": "Exclu",
@@ -2312,6 +2313,7 @@
       "EXCLUDED_WITHOUT_JUSTIFICATION": "La clause 6.1.3 d autorise une exclusion et exige qu'elle soit argumentée.",
       "UNDECLARED": "Le cadre porte ce contrôle et la déclaration n'en parle pas.",
       "OVERSTATED": "Déclaré en place ; mesuré partiel.",
+      "UNEVIDENCED": "Selon la déclaration, la preuve est ici ; rien ici ne l'a encore mesuré — aucune cible n'a été analysée. Ni une contradiction, ni un accord.",
       "UNDERSTATED": "Déclaré prévu ou pas en place ; mesuré conforme. Le document a pris du retard sur la pratique.",
       "NOT_MEASURED_HERE": "La preuve vit hors de ce produit : rien ici ne porte sur cette affirmation.",
       "NOT_APPLICABLE": "Exclu avec justification. Rien à confronter.",
@@ -2334,7 +2336,8 @@
     "measured": {
       "COMPLIANT": "Conforme",
       "PARTIAL": "Partiel",
-      "NON_COMPLIANT": "Non conforme"
+      "NON_COMPLIANT": "Non conforme",
+      "NO_DATA": "Aucune donnée"
     },
     "not_declared": "non déclaré",
     "overdue_since": "à revoir depuis le",

@@ -2184,6 +2184,7 @@
       "EXCLUDED_WITHOUT_JUSTIFICATION": "Exclusion unargued",
       "UNDECLARED": "Not addressed",
       "OVERSTATED": "Overstated",
+      "UNEVIDENCED": "Not yet evidenced",
       "UNDERSTATED": "Understated",
       "NOT_MEASURED_HERE": "Not measured here",
       "NOT_APPLICABLE": "Excluded",
@@ -2194,6 +2195,7 @@
       "EXCLUDED_WITHOUT_JUSTIFICATION": "Clause 6.1.3 d allows an exclusion and requires it to be argued.",
       "UNDECLARED": "The framework has this control and the declaration does not mention it.",
       "OVERSTATED": "Declared implemented; measured partial.",
+      "UNEVIDENCED": "By the declaration's own account the evidence is here, and nothing here has measured it yet — no target has been scanned. Neither a contradiction nor an agreement.",
       "UNDERSTATED": "Declared planned or not implemented; measured compliant. The document has drifted behind the practice.",
       "NOT_MEASURED_HERE": "Evidence lives outside this product, so nothing here bears on the claim.",
       "NOT_APPLICABLE": "Excluded with a justification. Nothing to reconcile.",
@@ -2216,7 +2218,8 @@
     "measured": {
       "COMPLIANT": "Compliant",
       "PARTIAL": "Partial",
-      "NON_COMPLIANT": "Non-compliant"
+      "NON_COMPLIANT": "Non-compliant",
+      "NO_DATA": "No data"
     },
     "not_declared": "not declared",
     "overdue_since": "due since",

@@ -115,9 +115,11 @@ export class Attestation {
         });
     }
 
-    statusTone(status: string): 'ok' | 'partial' | 'no' {
+    statusTone(status: string): 'ok' | 'partial' | 'no' | 'none' {
         if (status === 'COMPLIANT') return 'ok';
         if (status === 'PARTIAL') return 'partial';
+        // No data is no verdict: not red, and its zero is not shown as a score.
+        if (status === 'NO_DATA') return 'none';
         return 'no';
     }
 

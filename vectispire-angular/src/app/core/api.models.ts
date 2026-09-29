@@ -1368,8 +1368,11 @@ export type GatePolicyRequest = Refine<
 /** The category a control belongs to, as the document enumerates it. */
 export type ComplianceCategory = Schema<'ComplianceControl'>['category'];
 
-/** A control's verdict, and the framework's own. One vocabulary for both. */
-export type ComplianceStatus = 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT';
+/**
+ * A control's verdict, and the framework's own. One vocabulary for both. `NO_DATA` is no verdict:
+ * nothing of the estate was observed, and the score beside it (zero) is no measurement.
+ */
+export type ComplianceStatus = 'COMPLIANT' | 'PARTIAL' | 'NON_COMPLIANT' | 'NO_DATA';
 
 /**
  * The frameworks evaluated, **read from the document**.
@@ -1930,6 +1933,7 @@ export type Divergence =
     | 'EXCLUDED_WITHOUT_JUSTIFICATION'
     | 'UNDECLARED'
     | 'OVERSTATED'
+    | 'UNEVIDENCED'
     | 'UNDERSTATED'
     | 'NOT_MEASURED_HERE'
     | 'NOT_APPLICABLE'

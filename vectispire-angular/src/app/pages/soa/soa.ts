@@ -118,6 +118,7 @@ export class Soa {
         'EXCLUDED_WITHOUT_JUSTIFICATION',
         'UNDECLARED',
         'OVERSTATED',
+        'UNEVIDENCED',
         'UNDERSTATED',
         'NOT_MEASURED_HERE',
         'NOT_APPLICABLE',
@@ -162,7 +163,11 @@ export class Soa {
         if (this.isFinding(line)) {
             return 'danger';
         }
-        if (line.divergence === 'OVERSTATED' || line.divergence === 'UNDERSTATED') {
+        if (
+            line.divergence === 'OVERSTATED' ||
+            line.divergence === 'UNEVIDENCED' ||
+            line.divergence === 'UNDERSTATED'
+        ) {
             return 'warn';
         }
         return line.divergence === 'CONSISTENT' ? 'secondary' : 'info';
