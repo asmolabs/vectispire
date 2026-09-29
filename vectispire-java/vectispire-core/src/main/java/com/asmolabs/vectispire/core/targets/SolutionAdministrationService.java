@@ -2,6 +2,7 @@ package com.asmolabs.vectispire.core.targets;
 
 import com.asmolabs.vectispire.common.domain.access.Visibility;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
+import com.asmolabs.vectispire.common.domain.errors.ConflictException;
 import com.asmolabs.vectispire.common.domain.errors.InvalidInputException;
 import com.asmolabs.vectispire.common.domain.errors.NotFoundException;
 import com.asmolabs.vectispire.common.domain.siem.SecurityEventType;
@@ -47,7 +48,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Refusals follow the house convention: {@link InvalidInputException} for what the
  * administrator can correct (400), {@link NotFoundException} for what is not there or not
  * visible (404, in one sentence for both), {@link SolutionNotEmptyException} for a deletion the
- * current state forbids (409).
+ * current state forbids and {@link ProjectNameTakenException} for a move the target solution's does
+ * (409).
  */
 @Service
 public class SolutionAdministrationService {
@@ -160,7 +162,7 @@ public class SolutionAdministrationService {
         long held = projects.countBySolutionId(id);
         if (held > 0) {
             throw new SolutionNotEmptyException("The solution " + solution.getName() + " still holds " + held
-                    + " project(s). Delete them first.");
+                    + " project(s). Move them to another solution or delete them first.");
         }
         solutions.deleteById(id);
         audit.record(actor.entry(AuditOperation.SOLUTION_UPDATED, String.valueOf(id), "Solution deleted: " + solution.getName()));
@@ -185,24 +187,81 @@ public class SolutionAdministrationService {
         return ProjectView.of(saved);
     }
 
-    /** Either field may be null, which leaves it as it is; an empty description clears it. */
-    public ProjectView updateProject(long id, String requestedName, String description, RequestActor actor) {
+    /**
+     * Renames, describes or moves a project to another solution; any of the three may be null, which
+     * leaves it as it is, and an empty description clears it.
+     *
+     * <p><b>A move takes everything with it and changes nobody's access.</b> Every row naming a
+     * project names it by its identifier — its repositories ({@code t_repository.project_id}), its
+     * grants, its checklists, its plugin activations, its SARIF sources — and nothing names a
+     * solution but {@code t_project.solution_id}: no grant is written for a solution (decision 0023),
+     * and the backlog's {@code solution_id} filter resolves the solution's repositories at each
+     * request. So the one column moves, and there is nothing to carry and nothing left behind.
+     *
+     * <p><b>The same solution is no move</b>, not a refusal: a PATCH that sends the value the project
+     * already holds asks for the state it is in, and a screen that sends the whole form back must not
+     * be told it erred.
+     *
+     * <p><b>A name taken in the target solution is a 409</b> ({@link ProjectNameTakenException}), where
+     * a rename within the solution stays the 400 it has always been: the move is well formed and the
+     * destination's state forbids it, and a client that renames either project first — a gesture the
+     * request does not contain — succeeds with the same request.
+     *
+     * @param solutionId the solution to move the project to, or null to leave it where it is
+     * @param allowed the caller's visibility. A move rearranges the tree every reader is shown and is
+     *     only asked of one who sees the whole estate — the target solution empty or not, the project
+     *     whole or not. Only administrators reach this today, and they see everything; anyone narrower
+     *     is answered the 404 an absent solution gets, so that the refusal confirms nothing
+     */
+    public ProjectView updateProject(
+            long id, String requestedName, String description, Long solutionId, Visibility allowed, RequestActor actor) {
         ProjectEntity project = requireProject(id);
         String previous = project.getName();
+        Long previousSolutionId = project.getSolutionId();
 
-        if (requestedName != null) {
-            String name = BoundedText.required(requestedName, NAME_LENGTH, "A project name");
-            refuseIfProjectNameTaken(project.getSolutionId(), name, id);
-            project.setName(name);
+        SolutionEntity target = null;
+        if (solutionId != null && !solutionId.equals(previousSolutionId)) {
+            if (!(allowed instanceof Visibility.Everything)) {
+                throw new NotFoundException(SOLUTION_NOT_FOUND);
+            }
+            target = requireSolution(solutionId);
         }
+
+        String name = requestedName == null ? previous : BoundedText.required(requestedName, NAME_LENGTH, "A project name");
+        if (target != null) {
+            refuseIfNameTakenInTarget(target, name);
+            project.setSolutionId(target.getId());
+        } else if (requestedName != null) {
+            refuseIfProjectNameTaken(previousSolutionId, name, id);
+        }
+        project.setName(name);
         if (description != null) {
             project.setDescription(BoundedText.optional(description, DESCRIPTION_LENGTH, "The description"));
         }
         ProjectEntity saved = projects.save(project);
 
-        audit.record(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id),
-                "Project " + previous + " updated" + (previous.equals(saved.getName()) ? "" : " → " + saved.getName())));
+        String change = "Project " + previous + " updated" + (previous.equals(saved.getName()) ? "" : " → " + saved.getName());
+        if (target != null) {
+            change += "; moved from solution " + solutionName(previousSolutionId) + " to " + target.getName()
+                    + " (its repositories, grants and checklists follow it)";
+        }
+        audit.record(actor.entry(AuditOperation.PROJECT_UPDATED, String.valueOf(id), change));
         return ProjectView.of(saved);
+    }
+
+    /**
+     * A project name already held in the solution a project is being moved to: 409, with the type
+     * {@code urn:vectispire:problem:project-name-taken}, so that a screen offers to rename rather than
+     * parse the sentence.
+     */
+    public static final class ProjectNameTakenException extends ConflictException {
+
+        /** The token the problem's {@code type} ends with, published in the route's description. */
+        public static final String CAUSE = "project-name-taken";
+
+        ProjectNameTakenException(String message) {
+            super(message, CAUSE);
+        }
     }
 
     /**
@@ -344,8 +403,22 @@ public class SolutionAdministrationService {
 
     // -------------------------------------------------------------------------------- helpers
 
+    /** Absent and hidden in the same words. */
+    private static final String SOLUTION_NOT_FOUND = "Solution not found.";
+
     private SolutionEntity requireSolution(long id) {
-        return solutions.findById(id).orElseThrow(() -> new NotFoundException("Solution not found."));
+        return solutions.findById(id).orElseThrow(() -> new NotFoundException(SOLUTION_NOT_FOUND));
+    }
+
+    private String solutionName(Long id) {
+        return id == null ? TargetNaming.DELETED : solutions.findById(id).map(SolutionEntity::getName).orElse(TargetNaming.DELETED);
+    }
+
+    private void refuseIfNameTakenInTarget(SolutionEntity target, String name) {
+        if (projects.findBySolutionIdAndNameIgnoreCase(target.getId(), name).isPresent()) {
+            throw new ProjectNameTakenException("The solution " + target.getName() + " already holds a project named \""
+                    + name + "\". Rename one of the two before moving.");
+        }
     }
 
     private ProjectEntity requireProject(long id) {

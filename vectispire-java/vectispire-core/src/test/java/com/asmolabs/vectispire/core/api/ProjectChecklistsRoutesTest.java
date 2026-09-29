@@ -908,6 +908,35 @@ class ProjectChecklistsRoutesTest extends ApiTestBase {
         }
     }
 
+    // ------------------------------------------------------------------ moving the project
+
+    @Test
+    @DisplayName("moving the project to another solution keeps its checklist, answers and proofs where they were")
+    void movingTheProjectKeepsItsChecklist() throws Exception {
+        open(developer, "release", 1, null).andExpect(status().isCreated());
+        long item = itemIds(read(developer, 1)).getFirst();
+        answer(developer, 1, item, "yes", null, edition(1)).andExpect(status().isCreated());
+        long elsewhere = idOf(mvc.perform(authenticated(post("/api/v1/solutions"), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("name", "Elsewhere " + System.nanoTime()))))
+                .andExpect(status().isCreated()));
+
+        mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON).content(write(Map.of("solutionId", elsewhere))))
+                .andExpect(status().isOk());
+
+        // Keyed by the project, not the solution: the same revision, its answer, and a reader who saw
+        // the whole project still does, its repositories having followed it.
+        JsonNode moved = read(developer, 1);
+        assertThat(moved.at("/checklist/revision").asInt()).isEqualTo(1);
+        assertThat(moved.at("/lines/0/answer/value").asText()).isEqualTo("yes");
+        assertThat(checklists.findByProjectIdOrderByRevisionDesc(project)).hasSize(1);
+        restrict();
+        Account whole = account(Role.USER);
+        grant(whole.id(), "repository", firstRepository);
+        grant(whole.id(), "repository", secondRepository);
+        mvc.perform(authenticated(get(base() + "/1"), whole.token())).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------------ deleting the project
 
     @Test

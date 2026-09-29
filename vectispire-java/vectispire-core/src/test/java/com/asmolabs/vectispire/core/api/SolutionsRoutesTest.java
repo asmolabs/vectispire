@@ -38,6 +38,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MvcResult;
 
 /**
  * Solutions, projects and grants on a project (decision 0023), through the routes.
@@ -422,6 +423,118 @@ class SolutionsRoutesTest extends ApiTestBase {
                 .andExpect(jsonPath("$.solutionId").value(solution));
     }
 
+    // ------------------------------------------------------------------------------ moving
+
+    @Test
+    @DisplayName("a project moves to another solution with its repositories, its grants and its backlog")
+    void aProjectMovesWithEverythingItNames() throws Exception {
+        restrict();
+        String fromName = unique("from");
+        String toName = unique("to");
+        long from = solution(fromName);
+        long to = solution(toName);
+        long project = project(from, "Moving");
+        long repo = repository("https://example.invalid/moving.git");
+        file(project, repo);
+        issue(repo, Severity.HIGH, TriageStatus.UNDER_REVIEW);
+        String reader = asReader();
+        grantDirectly(readerId(), "project", project);
+
+        mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("solutionId", to))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.solutionId").value(to))
+                .andExpect(jsonPath("$.name").value("Moving"));
+
+        JsonNode tree = tree(asAdmin());
+        assertThat(projectIds(solutionNode(tree, to))).containsExactly(project);
+        assertThat(projectIds(solutionNode(tree, from))).isEmpty();
+        assertThat(repositoryIds(projectNode(tree, project))).containsExactly(repo);
+        assertThat(repositories.findById(repo).orElseThrow().getProjectId()).isEqualTo(project);
+
+        // The backlog's solution filter resolves the solution's repositories at each request, so it
+        // follows the project without anything having been rewritten.
+        mvc.perform(authenticated(get("/api/v1/issues?solution_id=" + to), asAdmin()))
+                .andExpect(jsonPath("$.total").value(1));
+        mvc.perform(authenticated(get("/api/v1/issues?solution_id=" + from), asAdmin()))
+                .andExpect(jsonPath("$.total").value(0));
+
+        // The grant names the project, not the solution: its holder still sees the project, now under
+        // the other solution, and still its repository.
+        JsonNode seen = tree(reader);
+        assertThat(projectIds(solutionNode(seen, to))).containsExactly(project);
+        assertThat(solutionIds(seen)).doesNotContain(from);
+        assertThat(repositoryIds(projectNode(seen, project))).containsExactly(repo);
+
+        assertThat(audit.recent(20)).anySatisfy(entry -> {
+            assertThat(entry.getOperationType()).isEqualTo(AuditOperation.PROJECT_UPDATED.wireName());
+            assertThat(entry.getDescription()).contains("moved from solution " + fromName + " to " + toName);
+        });
+        // Nothing is left in the solution it came from.
+        mvc.perform(authenticated(delete("/api/v1/solutions/" + from), asAdmin())).andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("a move to an absent solution is a 404, to a name the solution holds a typed 409, to its own solution nothing")
+    void aMoveIsRefusedInWords() throws Exception {
+        long from = solution(unique("stay"));
+        long to = solution(unique("taken"));
+        long project = project(from, "Kept");
+        project(to, "kept");
+
+        MvcResult absent = mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("solutionId", 987654))))
+                .andExpect(status().isNotFound())
+                .andReturn();
+        assertThat(detailOf(absent)).isEqualTo("Solution not found.");
+
+        // Case-insensitively, as the key folds it on MySQL; and with a rename sent beside the move,
+        // the name checked is the one the project would carry there.
+        for (Map<String, Object> body : List.<Map<String, Object>>of(
+                Map.of("solutionId", to), Map.of("solutionId", to, "name", "KEPT"))) {
+            mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(write(body)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.type").value("urn:vectispire:problem:project-name-taken"));
+        }
+        long renamed = project(from, "Other");
+        mvc.perform(authenticated(patch("/api/v1/projects/" + renamed), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("solutionId", to, "name", "Kept"))))
+                .andExpect(status().isConflict());
+        assertThat(projectIds(solutionNode(tree(asAdmin()), from))).containsExactlyInAnyOrder(project, renamed);
+
+        // Its own solution is the state it is in: answered, and recorded as no move.
+        mvc.perform(authenticated(patch("/api/v1/projects/" + project), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("solutionId", from))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.solutionId").value(from));
+        assertThat(audit.recent(50)).noneSatisfy(entry -> assertThat(entry.getDescription()).contains("Project Kept updated; moved"));
+    }
+
+    @Test
+    @DisplayName("a caller who does not see the whole estate cannot move a project, and hears the absent solution's words")
+    void aNarrowCallerCannotMove() throws Exception {
+        // Every administrator sees everything today, so no session reaches this; the rule is asserted
+        // on the service the route calls, and must refuse in the sentence an absent solution gets.
+        long from = solution(unique("narrow-from"));
+        long to = solution(unique("narrow-to"));
+        long project = project(from, "P");
+        long repo = repository("https://example.invalid/narrow.git");
+        file(project, repo);
+        Visibility narrow = Visibility.only(List.of(new ScanTarget.Repository(repo)));
+        RequestActor actor = new RequestActor("test", "127.0.0.1", null);
+
+        assertThatThrownBy(() -> administration.updateProject(project, null, null, to, narrow, actor))
+                .isInstanceOf(NoSuchElementException.class)
+                .hasMessage("Solution not found.");
+        assertThat(projectIds(solutionNode(tree(asAdmin()), from))).containsExactly(project);
+    }
+
     @Test
     @DisplayName("a reader reads the tree and changes nothing")
     void readersCannotAdminister() throws Exception {
@@ -439,6 +552,10 @@ class SolutionsRoutesTest extends ApiTestBase {
         mvc.perform(authenticated(put("/api/v1/projects/" + project + "/repositories/" + repo), reader))
                 .andExpect(status().isForbidden());
         mvc.perform(authenticated(delete("/api/v1/projects/" + project), reader)).andExpect(status().isForbidden());
+        mvc.perform(authenticated(patch("/api/v1/projects/" + project), reader)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("solutionId", solution(unique("elsewhere"))))))
+                .andExpect(status().isForbidden());
     }
 
     // ------------------------------------------------------------------------------ helpers
@@ -506,6 +623,12 @@ class SolutionsRoutesTest extends ApiTestBase {
     private static List<Long> allProjectIds(JsonNode tree) {
         return StreamSupport.stream(tree.path("solutions").spliterator(), false)
                 .flatMap(solution -> StreamSupport.stream(solution.path("projects").spliterator(), false))
+                .map(node -> node.path("id").asLong())
+                .toList();
+    }
+
+    private static List<Long> projectIds(JsonNode solution) {
+        return StreamSupport.stream(solution.path("projects").spliterator(), false)
                 .map(node -> node.path("id").asLong())
                 .toList();
     }

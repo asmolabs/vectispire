@@ -44,10 +44,23 @@ public class ProjectsController {
         this.visibility = visibility;
     }
 
-    /** On a change, an absent field is left alone and an empty description clears it. */
-    public record ProjectChange(String name, String description) {}
+    /**
+     * On a change, an absent field is left alone and an empty description clears it; a
+     * {@code solutionId} moves the project to that solution, with its repositories, grants and
+     * checklists.
+     *
+     * <p>A move is a field of the change rather than a route of its own: the solution is already a
+     * property of the project this route answers ({@code ProjectView.solutionId}), and a rename and a
+     * move sent together are one write, checked once against the destination's names.
+     */
+    public record ProjectChange(String name, String description, Long solutionId) {}
 
-    @Operation(summary = "Rename or describe project")
+    @Operation(summary = "Rename, describe or move project", description = "A solutionId moves the project to that "
+            + "solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The "
+            + "solution it is already in changes nothing. A solution that does not exist answers 404; a name the "
+            + "target solution already holds answers 409 with the type urn:vectispire:problem:"
+            + SolutionAdministrationService.ProjectNameTakenException.CAUSE + "; a rename within the solution to a "
+            + "name it holds answers 400.")
     @PatchMapping("/{id}")
     public ProjectView update(
             @PathVariable long id,
@@ -58,6 +71,8 @@ public class ProjectsController {
                 id,
                 body == null ? null : body.name(),
                 body == null ? null : body.description(),
+                body == null ? null : body.solutionId(),
+                allowed(principal),
                 RequestActors.of(principal, request));
     }
 
