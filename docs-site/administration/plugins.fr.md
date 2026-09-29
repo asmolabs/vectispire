@@ -279,7 +279,8 @@ curl -X POST https://vectispire.example/api/v1/repositories/42/sarif-imports \
 ```
 
 La réponse (`201`) dit ce que le rapport a fait : `resultsCount`, `createdCount`, `resolvedCount`,
-`reopenedCount`, les outils, et le SHA-256 du document envoyé. Il est refusé avec :
+`reopenedCount`, les `tools` — une liste, un `nom version` par exécution, une virgule dans une version
+écrite en point-virgule — et le SHA-256 du document envoyé. Il est refusé avec :
 
 | Statut | Pourquoi |
 |---|---|

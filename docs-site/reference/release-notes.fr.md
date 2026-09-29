@@ -318,6 +318,16 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   checklist sont énumérés dans le document OpenAPI, et le membre `lines` des deux problèmes a son schéma
   (`ChecklistIncompleteProblem`, `ChecklistMeasurementProblem`). La vue d'un import SARIF gagne `toolKeys` (V53) : les clés d'outil dont les
   exécutions ont été acceptées, `null` pour un import accepté avant.
+- **Les `tools` d'un import SARIF sont une liste de chaînes**, un `nom version` par exécution, dans
+  l'ordre du rapport — c'était une seule chaîne jointe par des virgules, dans la réponse de l'envoi comme
+  dans `GET /api/v1/repositories/{id}/sarif-imports`. Une virgule dans la version d'un outil est écrite
+  en point-virgule, si bien qu'une virgule sépare toujours deux outils. Les imports SARIF sont nouveaux
+  dans cette version : aucune intégration de la 0.9.0 ne lisait la chaîne ; un script écrit contre une
+  version de développement qui la découpait doit lire la liste. Sur les mêmes listes, une activation de
+  plugin nomme son projet — `projectName`, `solutionId`, `solutionName` à côté de `projectId` — et une
+  source déclarée sa clé, `apiKeyName` à côté de `apiKeyId` (`null` une fois la clé révoquée) ; le
+  `plugins[].state` d'une analyse est énuméré dans le document OpenAPI : `produced`, `not_applicable`,
+  `absent`.
 - **Une nouvelle portée de clé, `report_import`**, jamais accordée par défaut : celle des envois de
   couverture et de rapports de tests, distincte de `sarif_import` pour qu'une clé qui envoie un chiffre
   de couverture ne dépose jamais de constats.

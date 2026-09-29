@@ -78,13 +78,13 @@ Vectispire APIs support three distinct authentication mechanisms:
 | **Plugins** | `POST` | `/api/v1/plugins` | Governor | Register a plugin from its manifest. The id is never reused. |
 | **Plugins** | `PUT` | `/api/v1/plugins/{id}` | Governor | A new manifest under the same id — a new image version keeps every issue's triage. |
 | **Plugins** | `PUT` | `/api/v1/plugins/{id}/enabled` | Governor | Enable or disable a plugin everywhere, keeping its activations. |
-| **Plugins** | `GET` | `/api/v1/plugins/{id}/projects` | Governance | The projects a plugin is switched on for. |
-| **Plugins** | `GET` | `/api/v1/projects/{id}/plugins` | Governance | The plugins switched on for a project. |
+| **Plugins** | `GET` | `/api/v1/plugins/{id}/projects` | Governance | The projects a plugin is switched on for, each named with its solution (`projectName`, `solutionId`, `solutionName`). |
+| **Plugins** | `GET` | `/api/v1/projects/{id}/plugins` | Governance | The plugins switched on for a project, named as above. |
 | **Plugins** | `PUT` / `DELETE` | `/api/v1/projects/{id}/plugins/{pluginId}` | Lead/Admin | Switch a plugin on or off for a project. |
-| **SARIF import** | `GET` / `POST` | `/api/v1/sarif-sources` | Governance / Governor | The declared internal sources: one integration key, one project or repository, the kinds it may deliver (`sarif`, `coverage`, `test_report`; absent is `sarif`) and, for SARIF, the tools. |
+| **SARIF import** | `GET` / `POST` | `/api/v1/sarif-sources` | Governance / Governor | The declared internal sources: one integration key, one project or repository, the kinds it may deliver (`sarif`, `coverage`, `test_report`; absent is `sarif`) and, for SARIF, the tools. Each names its key — `apiKeyName` beside `apiKeyId`, `null` once revoked — and nothing more of it. |
 | **SARIF import** | `PUT` / `DELETE` | `/api/v1/sarif-sources/{id}[/enabled]` | Governor | Suspend, resume or remove a declared source. |
 | **SARIF import** | `POST` | `/api/v1/repositories/{id}/sarif-imports` | `sarif_import` key | Deposit a declared source's SARIF 2.1.0 report into a repository's backlog; see [Plugins and SARIF imports](../../../docs-site/administration/plugins.md). |
-| **SARIF import** | `GET` | `/api/v1/repositories/{id}/sarif-imports` | Account | The repository's latest imports, with their document hashes and what each did. |
+| **SARIF import** | `GET` | `/api/v1/repositories/{id}/sarif-imports` | Account | The repository's latest imports, with their document hashes, their `tools` (a list, one `name version` per run) and what each did. |
 | **Report import** | `POST` | `/api/v1/repositories/{id}/coverage-imports` | `report_import` key | Record a declared source's coverage report for a repository, its format declared in `?format=` (`jacoco`, `cobertura`, `lcov`); see [Importing coverage and test reports](../../../docs-site/administration/plugins.md#importing-coverage-and-test-reports). |
 | **Report import** | `POST` | `/api/v1/repositories/{id}/test-report-imports` | `report_import` key | Record a declared source's JUnit report — one XML document or a zip of them — for a repository. |
 | **Report import** | `GET` | `/api/v1/repositories/{id}/coverage-imports`, `/test-report-imports` | Account | The repository's latest fifty imports of each kind, with their figures and document hashes. |

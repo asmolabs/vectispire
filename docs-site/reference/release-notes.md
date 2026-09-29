@@ -286,6 +286,14 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   are enumerated in the OpenAPI document, and the two problems' `lines` members have their schemas
   (`ChecklistIncompleteProblem`, `ChecklistMeasurementProblem`). A SARIF import's view gains `toolKeys`
   (V53): the tool keys its runs were accepted for, `null` for an import accepted before.
+- **A SARIF import's `tools` is a list of strings**, one `name version` per run in the report's order —
+  it was one comma-joined string, on the upload's answer and on `GET /api/v1/repositories/{id}/sarif-imports`.
+  A comma inside a tool's version is written as a semicolon, so a comma always separates two tools. SARIF
+  imports are new in this release, so no 0.9.0 integration read the string; a script written against a
+  development build that split it must read the list. On the same lists, a plugin activation names its
+  project — `projectName`, `solutionId`, `solutionName` beside `projectId` — and a declared source its key,
+  `apiKeyName` beside `apiKeyId` (`null` once the key is revoked); a scan's `plugins[].state` is enumerated
+  in the OpenAPI document: `produced`, `not_applicable`, `absent`.
 - **A new key scope, `report_import`**, never granted by default: the scope of the coverage and
   test-report uploads, apart from `sarif_import` so that a key sending a coverage figure never deposits
   findings.
