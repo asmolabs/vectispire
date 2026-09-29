@@ -13,8 +13,8 @@ import java.util.UUID;
  * @param tools the tools the report declared, one {@code name version} each, in the report's order.
  *     Split from the stored text, which the import clips at 1,000 characters — the last entry of a
  *     report naming that much ends where the clip did. The document's digest names the exact words.
- * @param toolKeys the tool keys whose runs were accepted, sorted, comma-separated; null for an import
- *     accepted before they were recorded
+ * @param toolKeys the tool keys whose runs were accepted, sorted, one per entry; null — never an empty
+ *     list — for an import accepted before they were recorded, which is not an import that accepted none
  * @param documentSha256 of the bytes uploaded — what lets a pipeline prove which report it sent
  */
 public record SarifImportView(
@@ -23,7 +23,7 @@ public record SarifImportView(
         String sourceSlug,
         Long repoId,
         List<String> tools,
-        String toolKeys,
+        List<String> toolKeys,
         String documentSha256,
         int resultsCount,
         int createdCount,
@@ -35,8 +35,21 @@ public record SarifImportView(
 
     static SarifImportView of(SarifImportEntity row) {
         return new SarifImportView(row.getId(), row.getSourceId(), row.getSourceSlug(), row.getRepoId(),
-                tools(row.getTools()), row.getToolKeys(), row.getDocumentSha256(), row.getResultsCount(),
+                tools(row.getTools()), toolKeys(row.getToolKeys()), row.getDocumentSha256(), row.getResultsCount(),
                 row.getCreatedCount(), row.getResolvedCount(), row.getReopenedCount(), row.getImportedAt(), row.getImportedBy(), row.getApiKeyId());
+    }
+
+    /**
+     * The stored keys as the list they were joined from. A key holds no comma — {@code import:<source>/<tool>},
+     * a slug and a declared tool name, both refused with one — which is what the repository's own match
+     * ({@code concat(',', toolKeys, ',')}) already relies on. Null stays null: a row from before V53
+     * recorded no keys, and an empty list would say it accepted none.
+     */
+    static List<String> toolKeys(String stored) {
+        if (stored == null) {
+            return null;
+        }
+        return Arrays.stream(stored.split(",")).map(String::strip).filter(key -> !key.isEmpty()).toList();
     }
 
     /**

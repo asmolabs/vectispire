@@ -15,6 +15,8 @@ import com.asmolabs.vectispire.common.domain.users.Role;
 import com.asmolabs.vectispire.core.audit.persistence.AuditLogRepository;
 import com.asmolabs.vectispire.core.issues.persistence.IssueEntity;
 import com.asmolabs.vectispire.core.issues.persistence.IssueRepository;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportEntity;
+import com.asmolabs.vectispire.core.plugins.persistence.SarifImportRepository;
 import com.asmolabs.vectispire.core.targets.persistence.GitRepositoryRepository;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectEntity;
 import com.asmolabs.vectispire.core.targets.persistence.ProjectRepository;
@@ -47,6 +49,9 @@ class SarifImportRoutesTest extends ApiTestBase {
 
     @Autowired
     private GitRepositoryRepository repositories;
+
+    @Autowired
+    private SarifImportRepository sarifImports;
 
     @Autowired
     private SolutionRepository solutions;
@@ -266,10 +271,36 @@ class SarifImportRoutesTest extends ApiTestBase {
 
             upload(key, inScope, twoRuns)
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")));
+                    .andExpect(jsonPath("$.tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")))
+                    .andExpect(jsonPath("$.toolKeys", Matchers.contains("import:team-ci/semgrep oss",
+                            "import:team-ci/sonarqube")));
             mvc.perform(authenticated(get("/api/v1/repositories/" + inScope + "/sarif-imports"), asAdmin()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")));
+                    .andExpect(jsonPath("$[0].tools", Matchers.contains("Semgrep OSS 1.90.0; build 7", "SonarQube 10.4")))
+                    .andExpect(jsonPath("$[0].toolKeys", Matchers.contains("import:team-ci/semgrep oss",
+                            "import:team-ci/sonarqube")));
+        }
+
+        @Test
+        @DisplayName("an import from before the tool keys were recorded reads null keys, never an empty list")
+        void keysNotRecordedAreNull() throws Exception {
+            SarifImportEntity before = new SarifImportEntity();
+            before.setSourceId(1L);
+            before.setSourceSlug("team-ci");
+            before.setRepoId(inScope);
+            before.setTools("Semgrep OSS 1.89.0");
+            before.setDocumentSha256("a".repeat(64));
+            before.setImportedAt(Instant.now());
+            before.setImportedBy("pipeline");
+            before.setApiKeyId(java.util.UUID.randomUUID());
+            sarifImports.save(before);
+
+            // An empty list would say the import accepted no tool; the row says nothing, and the view
+            // must not say more than the row.
+            mvc.perform(authenticated(get("/api/v1/repositories/" + inScope + "/sarif-imports"), asAdmin()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$[0].tools", Matchers.contains("Semgrep OSS 1.89.0")))
+                    .andExpect(jsonPath("$[0].toolKeys").value(Matchers.nullValue()));
         }
 
         @Test
@@ -283,7 +314,7 @@ class SarifImportRoutesTest extends ApiTestBase {
                     .andExpect(jsonPath("$.createdCount").value(2))
                     .andExpect(jsonPath("$.tools", Matchers.contains("Semgrep OSS 1.90.0")))
                     // The tool keys the import accepted, what a checklist reads to know the tool produced.
-                    .andExpect(jsonPath("$.toolKeys").value("import:team-ci/semgrep oss"))
+                    .andExpect(jsonPath("$.toolKeys", Matchers.contains("import:team-ci/semgrep oss")))
                     .andExpect(jsonPath("$.documentSha256").value(Matchers.matchesPattern("[0-9a-f]{64}")));
 
             assertThat(openImported(inScope)).hasSize(2).allSatisfy(issue -> {
