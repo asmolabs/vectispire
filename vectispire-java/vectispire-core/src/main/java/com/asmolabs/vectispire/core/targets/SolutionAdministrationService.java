@@ -48,8 +48,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  * <p>Refusals follow the house convention: {@link InvalidInputException} for what the
  * administrator can correct (400), {@link NotFoundException} for what is not there or not
  * visible (404, in one sentence for both), {@link SolutionNotEmptyException} for a deletion the
- * current state forbids and {@link ProjectNameTakenException} for a move the target solution's does
- * (409).
+ * current state forbids, and {@link SolutionNameTakenException} and {@link ProjectNameTakenException}
+ * for a name already held (409, each with its type).
  */
 @Service
 public class SolutionAdministrationService {
@@ -168,6 +168,21 @@ public class SolutionAdministrationService {
         audit.record(actor.entry(AuditOperation.SOLUTION_UPDATED, String.valueOf(id), "Solution deleted: " + solution.getName()));
     }
 
+    /**
+     * A solution name another solution holds, case aside: 409, with the type {@code
+     * urn:vectispire:problem:solution-name-taken} — the rule {@link ProjectNameTakenException} follows,
+     * one level up, so the two names of the tree are refused alike.
+     */
+    public static final class SolutionNameTakenException extends ConflictException {
+
+        /** The token the problem's {@code type} ends with, published in the routes' descriptions. */
+        public static final String CAUSE = "solution-name-taken";
+
+        SolutionNameTakenException(String message) {
+            super(message, CAUSE);
+        }
+    }
+
     // ------------------------------------------------------------------------------- projects
 
     public ProjectView createProject(long solutionId, String requestedName, String description, RequestActor actor) {
@@ -202,10 +217,10 @@ public class SolutionAdministrationService {
      * already holds asks for the state it is in, and a screen that sends the whole form back must not
      * be told it erred.
      *
-     * <p><b>A name taken in the target solution is a 409</b> ({@link ProjectNameTakenException}), where
-     * a rename within the solution stays the 400 it has always been: the move is well formed and the
-     * destination's state forbids it, and a client that renames either project first — a gesture the
-     * request does not contain — succeeds with the same request.
+     * <p><b>A name taken in the solution the project ends up in is a 409</b> ({@link
+     * ProjectNameTakenException}), whether the request renames it, moves it or both: the request is well
+     * formed and the solution's state forbids it, and a client that renames the other project first — a
+     * gesture the request does not contain — succeeds with the same request.
      *
      * @param solutionId the solution to move the project to, or null to leave it where it is
      * @param allowed the caller's visibility. A move rearranges the tree every reader is shown and is
@@ -250,9 +265,14 @@ public class SolutionAdministrationService {
     }
 
     /**
-     * A project name already held in the solution a project is being moved to: 409, with the type
-     * {@code urn:vectispire:problem:project-name-taken}, so that a screen offers to rename rather than
-     * parse the sentence.
+     * A project name already held in the solution — on creation, on a rename, on a move: 409, with the
+     * type {@code urn:vectispire:problem:project-name-taken}, so that a screen offers to rename rather
+     * than parse the sentence.
+     *
+     * <p><b>One code for the three gestures.</b> A rename answered 400 while a move answered 409 for the
+     * same fact — the name is held — and a client had to know which gesture it had made to read the
+     * refusal. The name is not malformed (that is the 400: empty, too long); the solution's state
+     * forbids it, and the same request succeeds once the other project is renamed.
      */
     public static final class ProjectNameTakenException extends ConflictException {
 
@@ -434,14 +454,14 @@ public class SolutionAdministrationService {
         if (existing.isPresent() && !existing.get().getId().equals(allowed)) {
             // Here rather than left to the constraint, which answers a 500 carrying a driver's
             // message — and which folds case on MySQL and not on PostgreSQL.
-            throw new InvalidInputException("A solution named \"" + name + "\" already exists.");
+            throw new SolutionNameTakenException("A solution named \"" + name + "\" already exists.");
         }
     }
 
     private void refuseIfProjectNameTaken(long solutionId, String name, Long allowed) {
         Optional<ProjectEntity> existing = projects.findBySolutionIdAndNameIgnoreCase(solutionId, name);
         if (existing.isPresent() && !existing.get().getId().equals(allowed)) {
-            throw new InvalidInputException("This solution already holds a project named \"" + name + "\".");
+            throw new ProjectNameTakenException("This solution already holds a project named \"" + name + "\".");
         }
     }
 }

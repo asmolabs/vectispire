@@ -63,7 +63,8 @@ public class SolutionsController {
         return tree.tree(allowanceOf(principal));
     }
 
-    @Operation(summary = "Create solution")
+    @Operation(summary = "Create solution", description = "A name another solution holds, case aside, answers 409 "
+            + "with the type urn:vectispire:problem:" + SolutionAdministrationService.SolutionNameTakenException.CAUSE + ".")
     @RequiresAdministrator
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -77,7 +78,9 @@ public class SolutionsController {
                 RequestActors.of(principal, request));
     }
 
-    @Operation(summary = "Rename or describe solution")
+    @Operation(summary = "Rename or describe solution", description = "A name another solution holds, case aside, "
+            + "answers 409 with the type urn:vectispire:problem:" + SolutionAdministrationService.SolutionNameTakenException.CAUSE
+            + ".")
     @RequiresAdministrator
     @PatchMapping("/{id}")
     public SolutionView update(
@@ -112,7 +115,9 @@ public class SolutionsController {
         return visibility.allowance(principal.user().orElse(null), principal.credentialRestriction());
     }
 
-    @Operation(summary = "Create project in solution")
+    @Operation(summary = "Create project in solution", description = "404 when the solution does not exist. A name "
+            + "the solution already holds, case aside, answers 409 with the type urn:vectispire:problem:"
+            + SolutionAdministrationService.ProjectNameTakenException.CAUSE + ".")
     @RequiresAdministrator
     @PostMapping("/{id}/projects")
     @ResponseStatus(HttpStatus.CREATED)

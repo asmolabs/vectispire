@@ -372,20 +372,44 @@ class SolutionsRoutesTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("names are unique case-insensitively, a solution's and a project's within its solution")
+    @DisplayName("names are unique case-insensitively, a solution's and a project's within its solution: a typed 409, created or renamed")
     void namesAreUnique() throws Exception {
         String name = unique("dup");
         long solution = solution(name);
         mvc.perform(authenticated(post("/api/v1/solutions"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("name", name.toUpperCase(java.util.Locale.ROOT)))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:vectispire:problem:solution-name-taken"));
+        long second = solution(unique("second"));
+        MvcResult renamedSolution = mvc.perform(authenticated(patch("/api/v1/solutions/" + second), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:vectispire:problem:solution-name-taken"))
+                .andReturn();
+        assertThat(detailOf(renamedSolution)).isEqualTo("A solution named \"" + name + "\" already exists.");
+        // Its own name, case changed, is no conflict with itself.
+        mvc.perform(authenticated(patch("/api/v1/solutions/" + solution), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", name.toUpperCase(java.util.Locale.ROOT)))))
+                .andExpect(status().isOk());
 
         project(solution, "Same");
         mvc.perform(authenticated(post("/api/v1/solutions/" + solution + "/projects"), asAdmin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(write(Map.of("name", "SAME"))))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:vectispire:problem:project-name-taken"));
+        // A rename within the solution is refused as a move is: one code for one fact.
+        long other = project(solution, "Other");
+        MvcResult renamed = mvc.perform(authenticated(patch("/api/v1/projects/" + other), asAdmin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(write(Map.of("name", "same"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.type").value("urn:vectispire:problem:project-name-taken"))
+                .andReturn();
+        assertThat(detailOf(renamed)).isEqualTo("This solution already holds a project named \"same\".");
         // Another solution may hold its own "Same".
         project(solution(unique("other")), "Same");
     }

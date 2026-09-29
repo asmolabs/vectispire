@@ -57,10 +57,9 @@ public class ProjectsController {
 
     @Operation(summary = "Rename, describe or move project", description = "A solutionId moves the project to that "
             + "solution; its repositories, grants, checklists, plugin activations and SARIF sources follow it. The "
-            + "solution it is already in changes nothing. A solution that does not exist answers 404; a name the "
-            + "target solution already holds answers 409 with the type urn:vectispire:problem:"
-            + SolutionAdministrationService.ProjectNameTakenException.CAUSE + "; a rename within the solution to a "
-            + "name it holds answers 400.")
+            + "solution it is already in changes nothing. A solution that does not exist answers 404. A name the "
+            + "solution the project ends up in already holds, case aside — a rename, a move, or both — answers 409 with "
+            + "the type urn:vectispire:problem:" + SolutionAdministrationService.ProjectNameTakenException.CAUSE + ".")
     @PatchMapping("/{id}")
     public ProjectView update(
             @PathVariable long id,
