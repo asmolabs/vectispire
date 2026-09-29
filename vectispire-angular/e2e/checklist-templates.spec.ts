@@ -56,8 +56,8 @@ test.describe('Checklist templates', () => {
 
     /**
      * The whole flow against the server's own reader and its four-eyes rule, which ships switched
-     * on and which no suite here switches off: the CISO who imported and confirmed the draft is
-     * refused as its publisher and told why, and an administrator who wrote none of it publishes
+     * on and which no suite here switches off: the CISO who imported and confirmed the draft is not
+     * offered its publication and is told why, and an administrator who wrote none of it publishes
      * the revision on screen.
      */
     test('a CISO imports and confirms a workbook, is told a second person must publish it, and an administrator does', async ({
@@ -110,10 +110,9 @@ test.describe('Checklist templates', () => {
         await expect(page.getByTestId('no-previous')).toBeVisible();
 
         const shown = (await page.getByTestId('shown-revision').textContent())?.trim();
-        await page.getByRole('button', { name: `Publish revision ${shown}` }).click();
-        await page.locator('#confirm-act button').click();
-        await expect(page.getByTestId('refusal')).toContainText('a second person must publish it');
-        await expect(page.getByTestId('refusal')).toContainText('Written by: e2e-ciso');
+        // The author is not offered a publication the server would refuse, and is told who may publish.
+        await expect(page.getByRole('button', { name: `Publish revision ${shown}` })).toBeDisabled();
+        await expect(page.getByTestId('publish-four-eyes')).toContainText('a security lead');
 
         await signInAs(page, 'ADMIN');
         await goTo(page, '/checklist-templates');

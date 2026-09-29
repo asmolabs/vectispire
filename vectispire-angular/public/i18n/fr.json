@@ -2844,7 +2844,7 @@
     "pair_btn": "Les apparier",
     "pair_explain": "Appariez un item ajouté avec un item supprimé quand c'est le même contrôle, reformulé : le nouvel item prend l'ancienne clé, et la réponse d'un projet le suit, à confirmer.",
     "publish_explain": "Publier fait de cette version celle sur laquelle les projets ouvrent leurs checklists. Une version publiée ne change jamais : un nouveau mot, une nouvelle disposition ou une nouvelle liaison fait une nouvelle version, dérivée d'elle.",
-    "four_eyes_hint": "Vous avez écrit ce brouillon. Quand la double validation est active, quelqu'un d'autre doit le publier.",
+    "publish_four_eyes": "Vous avez écrit ce brouillon et la double validation est active : il doit être publié par un responsable sécurité (gouverneur de la plateforme, administrateur ou RSSI) qui ne l'a pas écrit.",
     "publish_needs_layout": "Confirmez la disposition avant de publier : un brouillon sans disposition n'a aucun item.",
     "confirm_publish": "Publier la révision {{revision}}, telle qu'affichée sur cette page ?",
     "confirm_set_aside": "Écarter ce brouillon ? Il ne sera jamais publié.",

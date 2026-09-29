@@ -2730,7 +2730,7 @@
     "pair_btn": "Pair them",
     "pair_explain": "Pair an added item with a removed one when they are the same control, reworded: the new item takes the old key, and a project's answer follows it, to be confirmed.",
     "publish_explain": "Publishing makes this version what projects open their checklists on. A published version never changes: a new word, layout or binding is a new version, derived from it.",
-    "four_eyes_hint": "You wrote this draft. When four-eyes approval is on, somebody else has to publish it.",
+    "publish_four_eyes": "You wrote this draft, and four-eyes approval is on: it has to be published by a security lead (platform governor, administrator or CISO) who did not write it.",
     "publish_needs_layout": "Confirm the layout before publishing: a draft without one has no items.",
     "confirm_publish": "Publish revision {{revision}}, as shown on this page?",
     "confirm_set_aside": "Set this draft aside? It will never be published.",

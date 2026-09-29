@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Observable } from 'rxjs';
 import { ButtonModule } from '@openng/optimus-ui/button';
@@ -14,6 +14,7 @@ import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_WORKBOOK_BYTES } from '../../core/api/checklists.api';
 import { PluginsApi } from '../../core/api/plugins.api';
 import { SarifApi } from '../../core/api/sarif.api';
+import { SettingsApi } from '../../core/api/settings.api';
 import type {
     ChecklistChange,
     ChecklistColumn,
@@ -210,7 +211,7 @@ export interface Grid {
  * Reading is governance, the auditor included; every write is a security lead's (platform governor,
  * administrator, CISO), and a reader who may not write is shown no write control at all rather than
  * controls the server would refuse. With four-eyes on, the server refuses an author of a draft as its
- * publisher. A 409 is explained from the cause its problem type names, never from its English.
+ * publisher, so an author is shown the publish button disabled and who may publish instead. A 409 is explained from the cause its problem type names, never from its English.
  */
 @Component({
     selector: 'app-checklist-templates',
@@ -236,6 +237,7 @@ export class ChecklistTemplates {
     private readonly api = inject(ChecklistsApi);
     private readonly pluginsApi = inject(PluginsApi);
     private readonly sarifApi = inject(SarifApi);
+    private readonly settingsApi = inject(SettingsApi);
     private readonly i18n = inject(I18nService);
     private readonly session = inject(SessionStore);
     // Two streams: switching sheets must not cancel the items, and an older preview must not land
@@ -364,9 +366,38 @@ export class ChecklistTemplates {
     );
     /** Whether the signed-in account is among the draft's authors — who, under four-eyes, may not publish it. */
     readonly wroteShown = computed(() => wrote(this.shown()?.draftAuthors ?? [], this.session.user()?.username));
+    /**
+     * `triage_four_eyes_required` as the settings catalog reads it — the setting that also governs a
+     * template's publication. The version views do not carry it (a project checklist's view does), so
+     * it is read from the catalog, once, and only when an author of the shown draft could be refused.
+     * `null` until it is known, or when it could not be read: treated as on, the server's default.
+     */
+    readonly fourEyes = signal<boolean | null>(null);
+    private fourEyesAsked = false;
+    /**
+     * Whether publishing the shown draft is withheld from the person on screen: four-eyes would
+     * refuse them as one of its authors. The button used to stay enabled with an info message beside
+     * it, and the click met a 409 the author had no way to act on.
+     */
+    readonly publishBlocked = computed(() => this.wroteShown() && this.fourEyes() !== false);
 
     constructor() {
         this.reload();
+        effect(() => {
+            if (this.editable() && this.wroteShown()) untracked(() => this.readFourEyes());
+        });
+    }
+
+    private readFourEyes(): void {
+        if (this.fourEyesAsked) return;
+        this.fourEyesAsked = true;
+        this.settingsApi.settings().subscribe({
+            next: (result) => {
+                const value = (result?.settings ?? []).find((one) => one.key === 'triage_four_eyes_required')?.value;
+                this.fourEyes.set(value === 'true' ? true : value === 'false' ? false : null);
+            },
+            error: () => this.fourEyes.set(null)
+        });
     }
 
     reload(): void {

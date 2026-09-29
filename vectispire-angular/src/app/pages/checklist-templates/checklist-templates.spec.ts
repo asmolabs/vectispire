@@ -660,11 +660,71 @@ describe('the checklist templates screen', () => {
         answerRereads();
     });
 
-    it('explains a four-eyes refusal to the author: a second person must publish it', async () => {
+    /** The settings catalog as the page reads it: only the four-eyes entry matters here. */
+    function answerFourEyes(value: 'true' | 'false'): void {
+        http.expectOne({ method: 'GET', url: '/api/v1/settings' }).flush({
+            settings: [
+                {
+                    key: 'triage_four_eyes_required',
+                    type: 'boolean',
+                    section: 'triage',
+                    label: 'Four-eyes',
+                    help: '',
+                    default: 'true',
+                    value
+                }
+            ]
+        });
+        fixture.detectChanges();
+    }
+
+    it("withholds publishing from the draft's author under four-eyes, and says who may publish", async () => {
         await start('CISO', 'Alice');
         openDraft(CONFIRMED_PREVIEW);
-        // Said before the click too — the name compared as the server compares it, without case.
-        expect(dom().querySelector('[data-testid="four-eyes-hint"]')).not.toBeNull();
+        // The name compared as the server compares it, without case.
+        answerFourEyes('true');
+
+        const publish = button('publish-version');
+        expect(publish.disabled).toBe(true);
+        expect(text('#publish-four-eyes')).toContain(
+            'a security lead (platform governor, administrator or CISO) who did not write it'
+        );
+        // Setting it aside is not the four-eyes rule's to withhold.
+        expect(button('retire-version').disabled).toBe(false);
+    });
+
+    it('withholds publishing from an author when the setting cannot be read: four-eyes ships switched on', async () => {
+        await start('CISO', 'alice');
+        openDraft(CONFIRMED_PREVIEW);
+        http.expectOne('/api/v1/settings').flush(null, { status: 500, statusText: 'Server Error' });
+        fixture.detectChanges();
+
+        expect(button('publish-version').disabled).toBe(true);
+        expect(dom().querySelector('[data-testid="publish-four-eyes"]')).not.toBeNull();
+    });
+
+    it('offers publishing to a security lead who wrote none of the draft, without reading the settings', async () => {
+        await start('CISO', 'bob');
+        openDraft(CONFIRMED_PREVIEW);
+
+        http.expectNone('/api/v1/settings');
+        expect(button('publish-version').disabled).toBe(false);
+        expect(dom().querySelector('[data-testid="publish-four-eyes"]')).toBeNull();
+    });
+
+    it('offers publishing to the author when four-eyes is off', async () => {
+        await start('CISO', 'alice');
+        openDraft(CONFIRMED_PREVIEW);
+        answerFourEyes('false');
+
+        expect(button('publish-version').disabled).toBe(false);
+        expect(dom().querySelector('[data-testid="publish-four-eyes"]')).toBeNull();
+    });
+
+    it('explains a four-eyes refusal met anyway — the setting switched on since it was read', async () => {
+        await start('CISO', 'alice');
+        openDraft(CONFIRMED_PREVIEW);
+        answerFourEyes('false');
         button('publish-version').click();
         fixture.detectChanges();
         button('confirm-act').click();

@@ -910,16 +910,6 @@
                 <div class="border-t border-surface pt-4 mt-6 flex flex-col gap-3" data-testid="acts">
                     @if (current.version.status === 'draft') {
                         <p class="text-sm m-0">{{ 'checklist_templates.publish_explain' | translate }}</p>
-                        @if (wroteShown()) {
-                            <p-message
-                                severity="info"
-                                [closable]="false"
-                                styleClass="w-full"
-                                data-testid="four-eyes-hint"
-                            >
-                                {{ 'checklist_templates.four_eyes_hint' | translate }}
-                            </p-message>
-                        }
                         @if (!current.version.layoutConfirmed) {
                             <p class="text-sm text-muted-color m-0" data-testid="publish-needs-layout">
                                 {{ 'checklist_templates.publish_needs_layout' | translate }}
@@ -964,7 +954,7 @@
                                         'checklist_templates.publish_btn'
                                             | translate: { revision: current.version.revision }
                                     "
-                                    [disabled]="!current.version.layoutConfirmed || busy()"
+                                    [disabled]="!current.version.layoutConfirmed || busy() || publishBlocked()"
                                     (onClick)="confirming.set('publish')"
                                 />
                                 <p-button
@@ -976,6 +966,15 @@
                                     [disabled]="busy()"
                                     (onClick)="confirming.set('retire')"
                                 />
+                                @if (publishBlocked()) {
+                                    <p
+                                        id="publish-four-eyes"
+                                        class="basis-full text-sm text-muted-color m-0"
+                                        data-testid="publish-four-eyes"
+                                    >
+                                        {{ 'checklist_templates.publish_four_eyes' | translate }}
+                                    </p>
+                                }
                             } @else {
                                 <div class="flex flex-col gap-1">
                                     <label for="derive-label" class="text-sm font-medium">
