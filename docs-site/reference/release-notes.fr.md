@@ -455,6 +455,10 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   enregistré* jusqu'à la prochaine analyse de la cible — [Scans](../guide/scans.md#lire-un-scan).
 - **Solutions et projets** : une solution contient des projets, un projet référence des dépôts,
   et un droit peut viser un projet entier — [Solutions et projets](../administration/solutions-and-projects.md).
+- **Un projet se déplace vers une autre solution** (`solutionId` sur `PATCH /api/v1/projects/{id}`),
+  avec ses dépôts, ses droits, ses checklists, ses activations de plugins et ses sources SARIF ; l'accès
+  de personne ne change. Un nom que la solution cible contient déjà est refusé par un 409
+  `project-name-taken` — [Solutions et projets](../administration/solutions-and-projects.md#deplacer-un-projet-vers-une-autre-solution).
 - **Plugins d'analyse** : des analyseurs tiers livrés en images de conteneur, enregistrés par le
   gouverneur de la plateforme, activés par projet, lancés confinés comme les scanners intégrés, et
   seulement quand un langage qu'ils déclarent est présent. Une image peut déclarer son signataire ;

@@ -34,6 +34,20 @@ moment de chaque requête* (voir plus bas) : déplacer un dépôt d'un projet à
 titulaires du premier et le donne à ceux du second, immédiatement. Le journal d'audit enregistre
 chaque déplacement en ces termes, sous `PROJECT_REPOSITORIES_CHANGED`.
 
+## Déplacer un projet vers une autre solution
+
+Un administrateur peut déplacer un projet vers une autre solution. **Tout ce que le projet contient
+le suit** : ses dépôts restent rangés dans le projet, et ses attributions, ses checklists, les plugins
+activés pour lui et les sources SARIF qui le visent nomment le projet, pas la solution — aucun d'eux ne
+change. **Personne ne gagne ni ne perd la vue sur quoi que ce soit** : il n'existe pas d'attribution
+sur une solution, un déplacement ne change donc que l'endroit où le projet est dessiné dans l'arbre —
+et quelle solution le compte dans ses chiffres et dans son filtre d'issues, dès la requête suivante.
+
+Le déplacement est refusé quand la solution cible contient déjà un projet du même nom, casse ignorée
+(renommez d'abord l'un des deux), et une solution inexistante est traitée comme absente. Déplacer un
+projet vers la solution où il se trouve déjà ne change rien. Le journal d'audit enregistre le
+déplacement sous `PROJECT_UPDATED`, en nommant les deux solutions.
+
 ## Attributions sur un projet
 
 Dans [Utilisateurs et équipes](users-and-teams.md#ce-quune-attribution-nomme), un compte ou une
@@ -73,8 +87,8 @@ corrigé), comme tout autre chiffre de risque.
 - **Supprimer un projet** ramène ses dépôts à « sans projet » et révoque toute attribution qui le
   nomme. Cela ne supprime **aucun dépôt ni aucun constat**. L'entrée d'audit indique combien de
   dépôts ont été détachés et combien d'attributions révoquées.
-- **Supprimer une solution** est refusé tant qu'elle contient un projet : supprimez ou videz d'abord
-  ses projets, chacun étant une décision auditée à part.
+- **Supprimer une solution** est refusé tant qu'elle contient un projet : déplacez ses projets vers
+  une autre solution ou supprimez-les d'abord, chacun étant une décision auditée à part.
 
 ## L'écran
 
@@ -125,7 +139,7 @@ Les mêmes opérations, pour les scripts :
 | `PATCH /api/v1/solutions/{id}` | administrateur | la renommer ou la décrire ; un champ absent est conservé |
 | `DELETE /api/v1/solutions/{id}` | administrateur | la supprimer ; `409` tant qu'elle contient des projets |
 | `POST /api/v1/solutions/{id}/projects` | administrateur | y créer un projet |
-| `PATCH /api/v1/projects/{id}` | administrateur | renommer ou décrire un projet |
+| `PATCH /api/v1/projects/{id}` | administrateur | renommer ou décrire un projet, ou le déplacer : `solutionId` ; `409` de type `urn:vectispire:problem:project-name-taken` quand la solution cible contient déjà son nom, `404` pour une solution inexistante |
 | `DELETE /api/v1/projects/{id}` | administrateur | supprimer un projet, comme décrit plus haut |
 | `PUT /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | ranger ou déplacer un dépôt |
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrateur | retour à « sans projet » |

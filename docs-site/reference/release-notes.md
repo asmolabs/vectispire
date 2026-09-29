@@ -409,6 +409,10 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   version say *Not recorded* until the target is scanned again — [Scans](../guide/scans.md#reading-a-scan).
 - **Solutions and projects**: a solution holds projects, a project references repositories, and a
   grant may name a whole project — [Solutions and projects](../administration/solutions-and-projects.md).
+- **A project moves to another solution** (`solutionId` on `PATCH /api/v1/projects/{id}`), with its
+  repositories, grants, checklists, plugin activations and SARIF sources; nobody's access changes. A
+  name the target solution already holds is refused with 409 `project-name-taken` —
+  [Solutions and projects](../administration/solutions-and-projects.md#moving-a-project-to-another-solution).
 - **Analysis plugins**: third-party analysers packaged as container images, registered by the
   platform governor, switched on per project, run confined like the built-in scanners, only when
   a language they declare is present. An image may declare its signer; the signature is verified

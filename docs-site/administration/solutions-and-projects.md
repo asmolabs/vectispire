@@ -34,6 +34,20 @@ the time of each request* (see below), so moving a repository from one project t
 away from the first project's holders and gives it to the second's, at once. The audit log records
 every move in those words, under `PROJECT_REPOSITORIES_CHANGED`.
 
+## Moving a project to another solution
+
+An administrator can move a project to another solution. **Everything the project holds goes with
+it**: its repositories stay filed in it, and its grants, its checklists, the plugins switched on for
+it and the SARIF sources scoped to it all name the project, not the solution, so none of them
+changes. **Nobody gains or loses sight of anything**: there is no grant on a solution, so a move
+only changes where the project is drawn in the tree — and which solution's figures and issue filter
+count it, from the next request on.
+
+The move is refused when the target solution already holds a project of the same name, case aside
+(rename one of the two first), and a solution that does not exist is answered as absent. Moving a
+project to the solution it is already in changes nothing. The audit log records the move under
+`PROJECT_UPDATED`, naming both solutions.
+
 ## Grants on a project
 
 In [Users and teams](users-and-teams.md#what-a-grant-names), an account or a team can be granted a
@@ -70,8 +84,8 @@ fixed), like every other figure of risk.
 - **Deleting a project** returns its repositories to "no project" and revokes every grant naming the
   project. It deletes **no repository and no finding**. The audit entry states how many repositories
   were detached and how many grants revoked.
-- **Deleting a solution** is refused while it still holds a project: delete or empty its projects
-  first, each one an audited decision of its own.
+- **Deleting a solution** is refused while it still holds a project: move its projects to another
+  solution or delete them first, each one an audited decision of its own.
 
 ## The screen
 
@@ -121,7 +135,7 @@ The same operations, for scripts:
 | `PATCH /api/v1/solutions/{id}` | administrator | rename or describe it; an absent field is kept |
 | `DELETE /api/v1/solutions/{id}` | administrator | delete it; `409` while it holds projects |
 | `POST /api/v1/solutions/{id}/projects` | administrator | create a project in it |
-| `PATCH /api/v1/projects/{id}` | administrator | rename or describe a project |
+| `PATCH /api/v1/projects/{id}` | administrator | rename or describe a project, or move it: `solutionId`; `409` with the type `urn:vectispire:problem:project-name-taken` when the target solution holds its name, `404` for a solution that does not exist |
 | `DELETE /api/v1/projects/{id}` | administrator | delete a project, as described above |
 | `PUT /api/v1/projects/{id}/repositories/{repositoryId}` | administrator | file or move a repository |
 | `DELETE /api/v1/projects/{id}/repositories/{repositoryId}` | administrator | back to "no project" |
