@@ -77,19 +77,7 @@ final class WorkbookReader {
     }
 
     Workbook read(byte[] file, long maxBytes) {
-        if (file == null || file.length == 0) {
-            throw new InvalidTemplateException("The workbook is empty.");
-        }
-        if (file.length > maxBytes) {
-            throw new InvalidTemplateException("The workbook is larger than the " + maxBytes + " bytes accepted.");
-        }
-        if (startsWith(file, COMPOUND_FILE)) {
-            throw new InvalidTemplateException("This is a legacy .xls workbook, or an encrypted one: only an .xlsx "
-                    + "without a password is read. Save it as an Excel workbook (.xlsx) and import it again.");
-        }
-        if (!startsWith(file, new byte[] {'P', 'K', 3, 4})) {
-            throw new InvalidTemplateException("The file is not an .xlsx workbook.");
-        }
+        requireZip(file, maxBytes);
         Map<String, Part> parts = unzip(file);
 
         Part mimetype = parts.get("mimetype");
@@ -164,6 +152,39 @@ final class WorkbookReader {
         return new Workbook(Digests.sha256Hex(file), sheets, definedNames);
     }
 
+    /**
+     * Every entry of the package in the archive's order, under the name the archive gives it, its bytes
+     * whole — what the renderer copies (decision 0032 §10). Read through the same guards as {@link
+     * #read}: the renderer takes the stored template, which passed them at its import, and holds it to
+     * them again rather than trusting a row.
+     */
+    List<PackageEntry> entries(byte[] file, long maxBytes) {
+        requireZip(file, maxBytes);
+        List<PackageEntry> entries = new ArrayList<>();
+        walk(file, true, (entry, bytes) -> entries.add(new PackageEntry(entry.getName(), bytes, entry.isDirectory(),
+                entry.getMethod() == ZipEntry.STORED)));
+        return entries;
+    }
+
+    /** An entry of a package as the archive holds it; {@code stored} when it was not compressed. */
+    record PackageEntry(String name, byte[] bytes, boolean directory, boolean stored) {}
+
+    private static void requireZip(byte[] file, long maxBytes) {
+        if (file == null || file.length == 0) {
+            throw new InvalidTemplateException("The workbook is empty.");
+        }
+        if (file.length > maxBytes) {
+            throw new InvalidTemplateException("The workbook is larger than the " + maxBytes + " bytes accepted.");
+        }
+        if (startsWith(file, COMPOUND_FILE)) {
+            throw new InvalidTemplateException("This is a legacy .xls workbook, or an encrypted one: only an .xlsx "
+                    + "without a password is read. Save it as an Excel workbook (.xlsx) and import it again.");
+        }
+        if (!startsWith(file, new byte[] {'P', 'K', 3, 4})) {
+            throw new InvalidTemplateException("The file is not an .xlsx workbook.");
+        }
+    }
+
     private static InvalidTemplateException macroEnabled() {
         return new InvalidTemplateException("This workbook carries macros: a template is read without them. Save it as "
                 + "an Excel workbook (.xlsx) and import it again.");
@@ -174,6 +195,24 @@ final class WorkbookReader {
     /** The package's entries by lower-cased name: OOXML part names compare without case. */
     private Map<String, Part> unzip(byte[] file) {
         Map<String, Part> parts = new LinkedHashMap<>();
+        walk(file, false, (entry, bytes) -> {
+            if (!entry.isDirectory()) {
+                String key = normalizedName(BoundedText.clip(entry.getName(), 200));
+                parts.put(key, new Part(key, bytes));
+            }
+        });
+        return parts;
+    }
+
+    private interface EntrySink {
+        void accept(ZipEntry entry, byte[] bytes);
+    }
+
+    /**
+     * Walks the archive through the guards, handing each entry on — its bytes when it is kept: every
+     * entry with {@code keepAll}, only the parts the reader parses otherwise.
+     */
+    private void walk(byte[] file, boolean keepAll, EntrySink sink) {
         Set<String> seen = new HashSet<>();
         long[] inflated = {0};
         int entries = 0;
@@ -194,11 +233,11 @@ final class WorkbookReader {
                     throw nested(name);
                 }
                 if (entry.isDirectory()) {
+                    sink.accept(entry, new byte[0]);
                     continue;
                 }
-                boolean keep = key.endsWith(".xml") || key.endsWith(".rels") || key.equals("mimetype");
-                byte[] bytes = drain(zip, entry, name, keep, inflated);
-                parts.put(key, new Part(key, bytes));
+                boolean keep = keepAll || key.endsWith(".xml") || key.endsWith(".rels") || key.equals("mimetype");
+                sink.accept(entry, drain(zip, entry, name, keep, inflated));
             }
         } catch (ZipException malformed) {
             throw new InvalidTemplateException("The workbook is not a readable zip archive.");
@@ -208,7 +247,6 @@ final class WorkbookReader {
         if (entries == 0) {
             throw new InvalidTemplateException("The workbook is an empty zip archive.");
         }
-        return parts;
     }
 
     /**
@@ -648,7 +686,7 @@ final class WorkbookReader {
     }
 
     /** A part name as the package's index keys it: no leading slash, percent-escapes decoded, lower case. */
-    private static String normalizedName(String name) {
+    static String normalizedName(String name) {
         String stripped = name.strip();
         while (stripped.startsWith("/")) {
             stripped = stripped.substring(1);
@@ -656,7 +694,7 @@ final class WorkbookReader {
         return percentDecoded(stripped).toLowerCase(Locale.ROOT);
     }
 
-    private static String relationshipsOf(String part) {
+    static String relationshipsOf(String part) {
         int slash = part.lastIndexOf('/');
         return part.substring(0, slash + 1) + "_rels/" + part.substring(slash + 1) + ".rels";
     }
@@ -670,7 +708,7 @@ final class WorkbookReader {
     }
 
     /** A relationship's target, relative to its source part's folder unless it starts at the root. */
-    private static String resolve(String source, String target) {
+    static String resolve(String source, String target) {
         String path = target.startsWith("/") ? target : source.substring(0, source.lastIndexOf('/') + 1) + target;
         Deque<String> segments = new ArrayDeque<>();
         for (String segment : path.split("/")) {

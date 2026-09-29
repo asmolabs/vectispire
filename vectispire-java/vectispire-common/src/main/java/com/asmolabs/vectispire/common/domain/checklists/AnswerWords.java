@@ -63,6 +63,15 @@ public record AnswerWords(String yes, String no, Optional<String> notApplicable)
     }
 
     /**
+     * The word a document writes for an answer: {@link #word}, and in words — "Not applicable" — for a
+     * "not applicable" this version does not offer. Only a draft holds one — a carried line awaiting
+     * confirmation — and a draft still renders.
+     */
+    public String written(ChecklistAnswer answer) {
+        return answer == ChecklistAnswer.NOT_APPLICABLE && !offersNotApplicable() ? "Not applicable" : word(answer);
+    }
+
+    /**
      * The answer a cell's word stands for, compared as the words are distinguished above; empty
      * when it is none of them.
      */
