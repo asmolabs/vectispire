@@ -311,8 +311,9 @@ nom : un compte peut s'appeler *Vectispire*, et ses réponses sont celles d'une 
 - **Répondez vous-même à une ligne et elle est à vous** : votre réponse remplace celle de Vectispire,
   et les analyses la laissent ensuite en paix — même si la mesure la contredit, ce que la soumission
   nommera.
-- **Vectispire ne remplace sa propre réponse que si la mesure change** — une nouvelle analyse ou un
-  nouvel import aux preuves différentes. Les mêmes preuves n'écrivent rien, aussi souvent que la
+- **Vectispire ne remplace sa propre réponse que si ce qu'elle affirme change** — sa valeur, ou son
+  commentaire généré, qui porte les chiffres : un *non* dont « 5 open » devient « 3 open » reçoit une
+  nouvelle réponse. Une nouvelle analyse qui mesure la même chose n'écrit rien, aussi souvent que la
   checklist soit ouverte ou analysée : l'édition de la révision ne bouge pas sous les personnes qui la
   remplissent. L'historique garde chaque réponse.
 - **Quand la mesure n'a plus de données** — l'analyse la plus récente a dépassé l'âge maximal de la
@@ -327,6 +328,16 @@ la révision** : la double validation compare les personnes qui l'ont écrite. L
 s'appliquent aux réponses automatiques comme aux autres : un *non* porte son commentaire généré, il
 passe donc ; un *oui* automatique sur une ligne qui demande **un fichier ou un lien exige toujours
 cette preuve** — joignez-la, sinon la ligne retient la révision en *preuve requise*.
+
+**Sur la page.** Une réponse automatique porte le badge **Automatique — mesuré par Vectispire** à
+côté d'elle, est *répondue par Vectispire*, et son commentaire généré s'affiche comme commentaire de la
+ligne. L'en-tête les compte — **N réponse(s) automatique(s)** — pour que vous voyiez d'un coup d'œil ce
+que les analyses ont rempli, et ce qui vous reste. La ligne reste à vous : **Changer la réponse** ouvre
+le formulaire avec la réponse et le commentaire de Vectispire, et dit **Répondre remplace la réponse
+automatique : la ligne devient la vôtre.** Dans l'**historique** de la ligne, les entrées de Vectispire
+sont marquées *automatique*, et un retrait se lit **Réponse automatique retirée (plus de données)**.
+**Répondre comme mesuré pour les lignes mesurées** reste là, proposé seulement pour les lignes encore sans
+réponse — le réglage activé, il n'y en a le plus souvent aucune.
 
 **Désactivé**, plus rien n'est répondu automatiquement ; les réponses déjà écrites restent, chacune
 marquée comme étant de Vectispire, jusqu'à ce que quelqu'un y réponde par-dessus. La réponse « comme

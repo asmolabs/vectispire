@@ -296,9 +296,11 @@ person's.
   earlier revision and awaiting confirmation included.
 - **Answer a line yourself and it is yours**: your answer replaces Vectispire's, and the scans leave it
   alone from then on — even if the measurement then contradicts it, which the submission will name.
-- **Vectispire replaces its own answer only when the measurement changes** — a new scan or import with
-  other evidence. The same evidence writes nothing, however often the checklist is opened or scanned:
-  the revision's edition does not move under the people filling it. The history keeps every answer.
+- **Vectispire replaces its own answer only when what it states changes** — its value, or its
+  generated comment, which carries the figures: a *no* whose "5 open" becomes "3 open" is answered
+  again. A new scan that measures the same thing writes nothing, however often the checklist is opened
+  or scanned: the revision's edition does not move under the people filling it. The history keeps
+  every answer.
 - **When the measurement no longer has data** — the newest scan fell past the rule's maximum age, a
   step stopped producing — Vectispire **withdraws** its own answer: the line is unanswered again, and
   its history shows the answer and its withdrawal. A *yes* left standing on data that is no longer
@@ -310,6 +312,15 @@ answers included. Vectispire is **none of the revision's authors**: four-eyes co
 wrote it. The submission's rules apply to automatic answers as to any: a *no* carries its generated
 comment, so it goes; an automatic *yes* on a line that asks for **a file or a link still needs that
 proof** — attach it, or the line keeps the revision back as *evidence required*.
+
+**On the page.** An automatic answer carries the badge **Automatic — measured by Vectispire** beside
+it, is *answered by Vectispire*, and its generated comment shows as the line's comment. The header
+counts them — **N automatic answer(s)** — so that you see at a glance what the scans filled, and what
+is left for you. The line stays yours to answer: **Change the answer** opens the form with
+Vectispire's answer and comment in it, and says **Answering replaces the automatic answer: the line
+becomes yours.** In the line's **History**, Vectispire's rows are marked *automatic*, and a withdrawal
+reads **Automatic answer withdrawn (no more data)**. **Answer every measured line as measured** is still
+there, offered only for the lines still unanswered — with the setting on, that is mostly none.
 
 **Switched off**, nothing new is answered automatically; the answers already written stay, each marked
 as Vectispire's, until somebody answers over them. Answering as measured in one click remains.

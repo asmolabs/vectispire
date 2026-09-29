@@ -348,8 +348,9 @@ base avant, comme pour toute mise à jour — [sauvegarde et restauration](https
   données ne répond rien, et retire une réponse de Vectispire qui reposait sur des données qu'il n'a
   plus. L'auteur est Vectispire, aucun compte : marqué *automatique* à l'écran, dans l'historique, la
   feuille `Evidence` et `checklist.json`, audité en `CHECKLIST_ANSWERED` sans utilisateur. La réponse
-  d'une personne n'est jamais remplacée ; Vectispire ne remplace la sienne que si les preuves de la
-  mesure changent, et les mêmes preuves n'écrivent donc rien deux fois. La soumission et l'approbation
+  d'une personne n'est jamais remplacée ; Vectispire ne remplace la sienne que si ce qu'elle affirme
+  change — sa valeur, ou son commentaire qui porte les chiffres —, et une nouvelle analyse qui mesure la
+  même chose n'écrit donc rien. La soumission et l'approbation
   sont inchangées — des personnes, sous double validation, et un *oui* sur une ligne qui demande une
   preuve l'exige toujours. **Activé par défaut** : le paramètre `checklist_auto_answer`, celui du
   gouverneur de plateforme, revient aux réponses des seules personnes. Les checklists déjà en brouillon

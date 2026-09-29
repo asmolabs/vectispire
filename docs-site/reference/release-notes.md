@@ -313,7 +313,8 @@ first, as for any upgrade — [backup and restore](https://github.com/asmolabs/v
   Vectispire's that rested on data it no longer has. The author is Vectispire, no account: marked
   *automatic* on the screen, in the history, the `Evidence` sheet and `checklist.json`, audited as
   `CHECKLIST_ANSWERED` with no user. A person's answer is never replaced; Vectispire replaces its own
-  only when the measurement's evidence changes, so the same evidence writes nothing twice. Submitting
+  only when what it states changes — its value, or its comment carrying the figures — so a new scan
+  measuring the same thing writes nothing. Submitting
   and signing off are unchanged — people, under four-eyes, and a *yes* on a line asking for a proof
   still needs it. **On by default**: the platform governor's setting `checklist_auto_answer` returns to
   answers by people only. Checklists already in draft are answered at their project's next scan, import

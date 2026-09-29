@@ -692,8 +692,9 @@ risque que nommait le §6 — un document signé portant une affirmation que son
   système pour acteur, et est affichée *automatique* à l'écran, dans la feuille `Evidence` et dans
   `checklist.json`.
 - **Les personnes d'abord.** Une réponse donnée par une personne n'est jamais remplacée par le système.
-  Une réponse automatique est remplacée par le système quand sa mesure change (l'historique garde les
-  deux), et par une personne qui répond à la ligne — la réponse est dès lors la sienne et les scans n'y
+  Une réponse automatique est remplacée par le système quand ce qu'elle affirme change — sa valeur ou
+  son commentaire généré, qui porte les chiffres ; un nouveau scan qui mesure la même chose la laisse
+  (l'historique garde les deux) —, et par une personne qui répond à la ligne — la réponse est dès lors la sienne et les scans n'y
   touchent plus.
 - **Ce qui reste à une personne.** Soumettre et signer restent des actes de personnes, sous double
   validation ; celui qui soumet atteste la révision entière, réponses automatiques comprises, et le
@@ -714,9 +715,13 @@ dans le code :
   système marquée `withdrawn` rend la ligne sans réponse et garde dans l'historique ce qui a été retiré.
   Laissé debout, un *oui* sur des données qui ont cessé d'exister serait une affirmation que personne ne
   fait ; la soumission ne l'attraperait que comme un *oui* sans données.
-- **« Sa mesure change », c'est l'empreinte de ses preuves.** Les mêmes preuves n'écrivent rien : ni un
-  second scan qui trouve la même chose ni une ouverture ne font bouger l'édition sous les personnes qui
-  remplissent la checklist.
+- **Remplacée quand ce qu'elle affirme change**, pas quand l'empreinte des preuves change : l'empreinte
+  nomme le scan et sa date, si bien que chaque scan mesurant la même chose écrivait une nouvelle ligne et
+  faisait bouger l'édition sous les personnes qui remplissent la checklist — refusant leur soumission
+  suivante comme modifiée. La valeur ou le commentaire généré, qui porte les chiffres (« 5 ouverts »
+  devenant « 3 ouverts » est une nouvelle réponse), ou une réponse reportée d'une autre révision, est
+  réécrit ; la réponse continue de reposer sur la mesure à partir de laquelle elle a été écrite, et
+  l'approbation mesure de toute façon à nouveau (décidé le 2026-09-29).
 - **L'entrée d'audit n'a pas d'acteur**, comme toute entrée que personne n'a demandée (le rapport de
   posture, une acceptation échue) : une description qui nomme Vectispire, jamais un utilisateur inventé.
 - **Le commentaire généré est en anglais**, comme la feuille `Evidence` — la plateforme ne déclare pas de

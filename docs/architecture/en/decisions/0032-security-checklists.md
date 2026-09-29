@@ -637,7 +637,9 @@ carrying a claim its signer never made — is met by naming the author, not by f
   keeps), enters the line's history, is audited `CHECKLIST_ANSWERED` with the system as actor, and is
   shown as *automatic* on the screen, in the `Evidence` sheet and in `checklist.json`.
 - **People first.** An answer a person gave is never replaced by the system. An automatic answer is
-  replaced by the system when its measurement changes (the history keeps both), and by a person who
+  replaced by the system when what it states changes — its value or its generated comment, which
+  carries the figures; a new scan that measures the same thing leaves it (the history keeps both) — and
+  by a person who
   answers the line — from then on the answer is theirs and the scans leave it.
 - **What a person still does.** Submitting and signing off stay acts of people, under four-eyes; the
   submitter attests to the whole revision, automatic answers included, and the document says which
@@ -655,8 +657,12 @@ carrying a claim its signer never made — is met by naming the author, not by f
   `withdrawn` makes the line unanswered and keeps what was withdrawn in the history. Left standing, a
   *yes* on data that stopped existing would be a claim nobody makes; the submission would catch it only
   as a *yes* without data.
-- **"Its measurement changes" is its evidence digest.** The same evidence writes nothing, so neither a
-  second scan finding the same nor an opening moves the edition under the people filling the checklist.
+- **Replaced when what it states changes**, not when the evidence's digest does: the digest names the
+  scan and its date, so every scan measuring the same thing wrote a new row and moved the edition under
+  the people filling the checklist — refusing their next submission as changed. The value or the
+  generated comment, which carries the figures ("5 open" becoming "3 open" is a new answer), or an
+  answer carried from another revision, is written again; the answer keeps resting on the measurement it
+  was written from, and the sign-off measures again anyway (decided 2026-09-29).
 - **The audit entry has no actor**, as every entry nobody asked for (the posture digest, a lapsed
   acceptance): a description naming Vectispire, never an invented user.
 - **The generated comment is in English**, like the `Evidence` sheet — the platform states no document
