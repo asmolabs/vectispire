@@ -2114,13 +2114,11 @@ export type PluginActivation = Refine<
 >;
 
 /**
- * The three ends of a plugin's step (`PluginOutcome.PRODUCED`, `NOT_APPLICABLE`, `ABSENT`).
- *
- * The document types `state` as a plain string; the server writes one of these three constants and
- * nothing else. **`not_applicable` is not a failure and `absent` is** — the screens must not blur
- * the two, because one of them is somebody's problem and the other would be noise on every scan.
+ * The three ends of a plugin's step (`PluginOutcome.State`), enumerated by the document.
+ * **`not_applicable` is not a failure and `absent` is** — the screens must not blur the two, because
+ * one of them is somebody's problem and the other would be noise on every scan.
  */
-export type PluginState = 'produced' | 'not_applicable' | 'absent';
+export type PluginState = NonNullable<Schema<'PluginOutcome'>['state']>;
 
 export type PluginOutcome = Refine<
     Schema<'PluginOutcome'>,
@@ -2228,7 +2226,7 @@ export type TestReportImport = Refine<
 
 /**
  * One accepted import: the imported issue's dated evidence, where a scanned issue has its scan.
- * `tools` is the report's tools as one string, joined by the server.
+ * `tools` is the report's tools, one `name version` each, in the report's order.
  */
 export type SarifImport = Refine<
     Schema<'SarifImportView'>,
@@ -2237,7 +2235,7 @@ export type SarifImport = Refine<
         sourceId: number | null;
         sourceSlug: string;
         repoId: number;
-        tools: string;
+        tools: string[];
         documentSha256: string;
         importedAt: string;
         importedBy: string | null;

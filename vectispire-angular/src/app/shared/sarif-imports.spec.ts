@@ -20,7 +20,7 @@ describe("a repository's SARIF imports", () => {
             sourceId: 3,
             sourceSlug: 'payments-ci',
             repoId: 42,
-            tools: 'SonarQube, Semgrep OSS',
+            tools: ['SonarQube', 'Semgrep OSS'],
             documentSha256: 'f'.repeat(64),
             resultsCount: 12,
             createdCount: 5,

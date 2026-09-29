@@ -51,7 +51,7 @@ import { LatestRequest } from '../core/latest-request';
                             <div class="text-muted-color">{{ row.importedBy ?? '—' }}</div>
                         </td>
                         <td class="font-mono text-sm">{{ row.sourceSlug }}</td>
-                        <td class="text-sm">{{ row.tools }}</td>
+                        <td class="text-sm">{{ row.tools.join(', ') }}</td>
                         <td class="text-right">{{ row.resultsCount }}</td>
                         <td class="text-right">{{ row.createdCount }}</td>
                         <td class="text-right">{{ row.resolvedCount }}</td>

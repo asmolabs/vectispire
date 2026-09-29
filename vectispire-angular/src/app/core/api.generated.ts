@@ -5739,6 +5739,10 @@ export interface components {
             pluginId?: string;
             /** Format: int64 */
             projectId?: number;
+            projectName?: string;
+            /** Format: int64 */
+            solutionId?: number;
+            solutionName?: string;
         };
         PluginEnabled: {
             enabled: boolean;
@@ -5764,7 +5768,8 @@ export interface components {
             manifestDigest?: string;
             pluginId?: string;
             reason?: string;
-            state?: string;
+            /** @enum {string} */
+            state?: "produced" | "not_applicable" | "absent";
         };
         PluginSignature: {
             identity?: string;
@@ -6296,7 +6301,7 @@ export interface components {
             sourceId?: number;
             sourceSlug?: string;
             toolKeys?: string;
-            tools?: string;
+            tools?: string[];
         };
         SarifLog: {
             $schema?: string;
@@ -6306,6 +6311,7 @@ export interface components {
         SarifSourceView: {
             /** Format: uuid */
             apiKeyId?: string;
+            apiKeyName?: string;
             /** Format: date-time */
             createdAt?: string;
             createdBy?: string;

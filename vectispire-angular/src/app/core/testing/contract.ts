@@ -110,7 +110,7 @@ const FINDING_TYPES = [
     'imported',
     'quality'
 ]; // FindingType
-const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome.PRODUCED, NOT_APPLICABLE, ABSENT
+const PLUGIN_STATES = ['produced', 'not_applicable', 'absent']; // PluginOutcome.State
 const TRIAGE_STATUSES = ['under_review', 'affected', 'pending_approval', 'not_affected', 'fixed']; // TriageStatus
 const CHECKLIST_VERSION_STATUSES = ['draft', 'published', 'retired']; // TemplateVersionStatus
 const CHECKLIST_CHANGES = ['unchanged', 'changed', 'added', 'removed']; // ChecklistTemplateService.change

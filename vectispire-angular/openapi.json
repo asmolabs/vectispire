@@ -5348,6 +5348,16 @@
           "projectId" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "projectName" : {
+            "type" : "string"
+          },
+          "solutionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "solutionName" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -5436,6 +5446,7 @@
             "type" : "string"
           },
           "state" : {
+            "enum" : [ "produced", "not_applicable", "absent" ],
             "type" : "string"
           }
         },
@@ -6839,7 +6850,10 @@
             "type" : "string"
           },
           "tools" : {
-            "type" : "string"
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
           }
         },
         "required" : [ "createdCount", "reopenedCount", "resolvedCount", "resultsCount" ],
@@ -6866,6 +6880,9 @@
         "properties" : {
           "apiKeyId" : {
             "format" : "uuid",
+            "type" : "string"
+          },
+          "apiKeyName" : {
             "type" : "string"
           },
           "createdAt" : {
