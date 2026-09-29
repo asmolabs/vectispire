@@ -402,21 +402,21 @@ test.describe('Project checklists', () => {
     });
 
     /**
-     * Every measured line answered in one click (decision 0032 §6): rows 4 and 5 measured by coverage,
-     * at least half and at least nine tenths, on a project whose one repository imported three lines
-     * covered of four. The act answers line 1, met, yes; line 2, not met, is left for the person's no
-     * with its comment, and the summary opens its form on no.
+     * A published template whose rows 4 and 5 are measured by coverage, at least half and at least nine
+     * tenths, and a project whose one repository imported three lines covered of four — line 1 met,
+     * line 2 not met — with the platform governor's token, which decides whether Vectispire answers them.
      *
      * The coverage comes the way a pipeline sends it — a key holding `report_import`, declared for the
      * project by the platform's governor — because no scan runs here: the worker is off.
      */
-    test('every measured line is answered as measured in one click, and a line not met is left for its no', async ({
-        page
-    }) => {
+    async function measuredByCoverage(
+        page: Page,
+        prefix: string
+    ): Promise<{ name: string; templateName: string; governor: string }> {
         const run = Date.now().toString(36);
-        const slug = `e2e-as-measured-${run}`;
-        const name = `E2E as measured ${run}`;
-        const templateName = `E2E as-measured checklist ${run}`;
+        const slug = `e2e-${prefix}-${run}`;
+        const name = `E2E ${prefix} ${run}`;
+        const templateName = `E2E ${prefix} checklist ${run}`;
 
         const cisoName = await signInAs(page, 'CISO');
         const adminName = await signInAs(page, 'ADMIN');
@@ -452,7 +452,7 @@ test.describe('Project checklists', () => {
 
         const repository = await page.request.post('/api/v1/repositories', {
             headers: bearer(admin),
-            data: { name: `e2e-as-measured-${run}`, url: `https://example.invalid/e2e-${run}.git`, branch: 'main' }
+            data: { name: `e2e-${prefix}-${run}`, url: `https://example.invalid/e2e-${run}.git`, branch: 'main' }
         });
         expect(repository.ok(), await repository.text()).toBe(true);
         const repositoryId = ((await repository.json()) as { id: number }).id;
@@ -484,6 +484,19 @@ test.describe('Project checklists', () => {
         });
         expect(imported.status(), await imported.text()).toBe(201);
 
+        return { name, templateName, governor };
+    }
+
+    /** `checklist_auto_answer`, the platform governor's: on by default, and put back on by whoever turns it off. */
+    async function autoAnswer(page: Page, governor: string, on: boolean): Promise<void> {
+        const saved = await page.request.put('/api/v1/settings', {
+            headers: bearer(governor),
+            data: { checklist_auto_answer: String(on) }
+        });
+        expect(saved.ok(), await saved.text()).toBe(true);
+    }
+
+    async function openMeasured(page: Page, name: string, templateName: string): Promise<void> {
         await signInAs(page, 'CISO');
         await openFromSolutions(page, name);
         await page.locator('#open-version').selectOption({ label: `${templateName} — version 1` });
@@ -491,26 +504,86 @@ test.describe('Project checklists', () => {
         await expect(page.getByTestId('notice')).toHaveText('The checklist is open: revision 1.');
         await expect(page.getByTestId('measurement-1').getByTestId('outcome')).toHaveText('Met');
         await expect(page.getByTestId('measurement-2').getByTestId('outcome')).toHaveText('Not met');
+    }
 
-        await page.getByRole('button', { name: 'Answer every measured line as measured' }).click();
-        await expect(page.getByTestId('as-measured-answered')).toHaveText('1 line(s) answered yes as measured.');
-        await expect(page.getByTestId('line-1').getByTestId('answer-value')).toHaveText('Yes');
-        await expect(page.getByTestId('measurement-1').getByTestId('reconciliation')).toHaveText('Consistent');
-        await expect(page.getByTestId('as-measured-needs_comment')).toContainText(
-            'Lines 2, measured as not met, need your “no” with a comment:'
-        );
-        await expect(page.getByTestId('line-2').getByTestId('answer-value')).toHaveCount(0);
+    /**
+     * Every measured line answered in one click (decision 0032 §6). The act answers line 1, met, yes;
+     * line 2, not met, is left for the person's no with its comment, and the summary opens its form on no.
+     *
+     * The automatic answers are switched off for this one: they would answer both lines on opening, and
+     * the act this pins — a person's, still offered when the setting is off — would never be offered.
+     * They are switched back on whatever happens, since the setting is the platform's and ships on.
+     */
+    test('every measured line is answered as measured in one click, and a line not met is left for its no', async ({
+        page
+    }) => {
+        const { name, templateName, governor } = await measuredByCoverage(page, 'as-measured');
+        await autoAnswer(page, governor, false);
+        try {
+            await openMeasured(page, name, templateName);
+            await expect(page.getByTestId('automatic-count')).toHaveCount(0);
 
-        await page.getByRole('button', { name: 'Line 2: answer no' }).click();
-        const line = page.getByTestId('line-2');
-        await expect(line.getByRole('radio', { name: /^No/ })).toBeChecked();
-        await expect(line.getByLabel('Comment:')).toBeFocused();
-        await line.getByLabel('Comment:').fill('Coverage below target on the ledger: tests planned this sprint.');
-        await line.getByRole('button', { name: 'Save the answer' }).click();
-        await expect(line.getByTestId('answer-value')).toHaveText('No');
-        await expect(page.getByTestId('as-measured-needs_comment')).toHaveCount(0);
-        // Nothing left that the one click offers on an unanswered line: the act is no longer offered.
+            await page.getByRole('button', { name: 'Answer every measured line as measured' }).click();
+            await expect(page.getByTestId('as-measured-answered')).toHaveText('1 line(s) answered yes as measured.');
+            await expect(page.getByTestId('line-1').getByTestId('answer-value')).toHaveText('Yes');
+            await expect(page.getByTestId('measurement-1').getByTestId('reconciliation')).toHaveText('Consistent');
+            await expect(page.getByTestId('as-measured-needs_comment')).toContainText(
+                'Lines 2, measured as not met, need your “no” with a comment:'
+            );
+            await expect(page.getByTestId('line-2').getByTestId('answer-value')).toHaveCount(0);
+
+            await page.getByRole('button', { name: 'Line 2: answer no' }).click();
+            const line = page.getByTestId('line-2');
+            await expect(line.getByRole('radio', { name: /^No/ })).toBeChecked();
+            await expect(line.getByLabel('Comment:')).toBeFocused();
+            await line.getByLabel('Comment:').fill('Coverage below target on the ledger: tests planned this sprint.');
+            await line.getByRole('button', { name: 'Save the answer' }).click();
+            await expect(line.getByTestId('answer-value')).toHaveText('No');
+            await expect(page.getByTestId('as-measured-needs_comment')).toHaveCount(0);
+            // Nothing left that the one click offers on an unanswered line: the act is no longer offered.
+            await expect(page.getByRole('button', { name: 'Answer every measured line as measured' })).toHaveCount(0);
+        } finally {
+            await autoAnswer(page, governor, true);
+        }
+    });
+
+    /**
+     * Vectispire's own answers (decision 0032, amendment of 2026-09-29), with the setting as it ships:
+     * opening the checklist answers the met line yes and the unmet one no with the measurement for its
+     * comment, both marked as Vectispire's; a person answering one takes it over, and the history keeps
+     * both authors apart.
+     */
+    test('opening a measured checklist answers its lines as Vectispire, and a person answering one takes it over', async ({
+        page
+    }) => {
+        const { name, templateName } = await measuredByCoverage(page, 'automatic');
+        await openMeasured(page, name, templateName);
+
+        await expect(page.getByTestId('automatic-count')).toHaveText('2 automatic answer(s)');
+        const met = page.getByTestId('line-1');
+        await expect(met.getByTestId('answer-value')).toHaveText('Yes');
+        await expect(met.getByTestId('answer-automatic')).toHaveText('Automatic — measured by Vectispire');
+        await expect(met.getByTestId('answer-author')).toContainText('answered by Vectispire');
+        const unmet = page.getByTestId('line-2');
+        await expect(unmet.getByTestId('answer-value')).toHaveText('No');
+        await expect(unmet.getByTestId('answer-comment')).toContainText('Measured by Vectispire (coverage_threshold)');
+        // Nothing left unanswered for the one click to offer.
         await expect(page.getByRole('button', { name: 'Answer every measured line as measured' })).toHaveCount(0);
+
+        await unmet.getByRole('button', { name: 'Answer line 2', exact: true }).click();
+        await expect(unmet.getByTestId('takeover-hint')).toHaveText(
+            'Answering replaces the automatic answer: the line becomes yours.'
+        );
+        await unmet.getByLabel('Comment:').fill('Coverage below target on the ledger: tests planned this sprint.');
+        await unmet.getByRole('button', { name: 'Save the answer' }).click();
+        await expect(unmet.getByTestId('answer-comment')).toContainText('tests planned this sprint');
+        await expect(unmet.getByTestId('answer-automatic')).toHaveCount(0);
+        await expect(page.getByTestId('automatic-count')).toHaveText('1 automatic answer(s)');
+
+        await unmet.getByRole('button', { name: 'History of line 2' }).click();
+        const history = page.getByTestId('history-2');
+        await expect(history.getByTestId('history-automatic')).toHaveCount(1);
+        await expect(history.locator('li')).toHaveCount(2);
     });
 
     test('an auditor reads a project checklist and is offered no write', async ({ page }) => {

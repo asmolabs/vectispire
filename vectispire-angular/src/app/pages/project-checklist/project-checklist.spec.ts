@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ChecklistProjectContext, ChecklistRevisionSummary, ChecklistView } from '@/app/core/api.models';
 import { SessionStore } from '@/app/core/session.store';
 import {
+    CARRIED_LINE,
     CHECKLIST,
     conflict,
     CONTEXT,
@@ -13,8 +14,10 @@ import {
     EMPTY_CONTEXT,
     LINE_HISTORY,
     OFFERED,
+    OPEN_LINE,
     PROJECT_ID,
     READY_CHECKLIST,
+    READY_LINE,
     SIGNED_CHECKLIST,
     SIGNED_REVISION,
     SUBMITTED_CHECKLIST
@@ -690,6 +693,107 @@ describe('the project checklist screen', () => {
 
         click('History of line 2');
         expect(has('[data-testid="history-2"]')).toBe(false);
+    });
+
+    // ------------------------------------------------------------------ automatic answers (0032, 2026-09-29)
+
+    /**
+     * Line 3 answered no by Vectispire from a failing measurement, line 1 by a person whose username
+     * happens to be "Vectispire", and line 2 carrying no kind at all — a row from before the amendment.
+     * Only the kind makes an answer automatic.
+     */
+    const AUTOMATIC: ChecklistView = {
+        ...CHECKLIST,
+        lines: [
+            { ...READY_LINE, answer: { ...READY_LINE.answer!, answeredBy: 'Vectispire' } },
+            { ...CARRIED_LINE, answer: { ...CARRIED_LINE.answer!, answeredByKind: undefined } },
+            {
+                ...OPEN_LINE,
+                problems: [],
+                answer: {
+                    ...READY_LINE.answer!,
+                    id: 703,
+                    itemId: 103,
+                    value: 'no',
+                    comment: 'Measured by Vectispire (secrets): 2 open secrets on 1 repository.',
+                    answeredBy: 'Vectispire',
+                    answeredByKind: 'system',
+                    measurementId: 42
+                }
+            }
+        ]
+    };
+
+    it("marks an answer Vectispire wrote by its kind, never by its author's name, and counts them", async () => {
+        await start('USER', 'someone', { view: AUTOMATIC });
+
+        expect(has('[data-testid="line-3"] [data-testid="answer-automatic"]')).toBe(true);
+        expect(text('[data-testid="line-3"] [data-testid="answer-automatic"]')).toBe(
+            'Automatic — measured by Vectispire'
+        );
+        expect(text('[data-testid="line-3"] [data-testid="answer-author"]')).toMatch(/^· answered by Vectispire, /);
+        expect(text('[data-testid="line-3"] [data-testid="answer-comment"]')).toBe(
+            'Comment: Measured by Vectispire (secrets): 2 open secrets on 1 repository.'
+        );
+        // A person called Vectispire is a person; an answer with no kind is a person's.
+        expect(has('[data-testid="line-1"] [data-testid="answer-automatic"]')).toBe(false);
+        expect(has('[data-testid="line-2"] [data-testid="answer-automatic"]')).toBe(false);
+        expect(text('[data-testid="automatic-count"]')).toBe('1 automatic answer(s)');
+        // Still a line people answer.
+        expect(button('Answer line 3').textContent).toContain('Change the answer');
+    });
+
+    it('says no automatic answers are there by saying nothing', async () => {
+        await start('USER');
+
+        expect(has('[data-testid="automatic-count"]')).toBe(false);
+        expect(has('[data-testid="answer-automatic"]')).toBe(false);
+    });
+
+    it('tells whoever answers an automatic line that the answer becomes theirs, and only there', async () => {
+        await start('USER', 'someone', { view: AUTOMATIC });
+
+        click('Answer line 1');
+        expect(has('[data-testid="takeover-hint"]')).toBe(false);
+        click('Answer line 3');
+        expect(text('[data-testid="answer-form-3"] [data-testid="takeover-hint"]')).toBe(
+            'Answering replaces the automatic answer: the line becomes yours.'
+        );
+        tick('#answer-103-yes');
+        click('save-answer-103');
+        const request = post(`${BASE}/2/items/103/answers`);
+        expect(request.request.body).toMatchObject({ value: 'yes', edition: 5 });
+        request.flush(after(CHECKLIST, 6), { status: 201, statusText: 'Created' });
+    });
+
+    it("labels Vectispire's rows in a line history, and says a withdrawal withdrew", async () => {
+        await start('AUDITOR', 'someone', { view: AUTOMATIC });
+
+        const system = { ...LINE_HISTORY.answers[1], answeredBy: 'Vectispire', answeredByKind: 'system' as const };
+        click('History of line 2');
+        http.expectOne({ method: 'GET', url: `${BASE}/2/items/102/history` }).flush({
+            ...LINE_HISTORY,
+            answers: [
+                { ...system, id: 620, answeredAt: '2026-09-21T08:00:00Z' },
+                {
+                    ...system,
+                    id: 621,
+                    withdrawn: true,
+                    comment: 'Withdrawn by Vectispire: the measurement this answer rested on has no data any more.',
+                    answeredAt: '2026-09-22T08:00:00Z'
+                },
+                { ...LINE_HISTORY.answers[1], id: 622, answeredBy: 'Vectispire', answeredAt: '2026-09-23T08:00:00Z' }
+            ]
+        });
+        fixture.detectChanges();
+
+        expect(text('[data-testid="history-row-620"]')).toMatch(/^Yes · automatic — Vectispire, /);
+        expect(text('[data-testid="history-row-621"]')).toMatch(
+            /^Automatic answer withdrawn \(no more data\) — Vectispire, .*has no data any more\.$/
+        );
+        expect(has('[data-testid="history-row-621"] [data-testid="history-automatic"]')).toBe(false);
+        // The person named Vectispire answered as a person.
+        expect(text('[data-testid="history-row-622"]')).toMatch(/^Yes — Vectispire, /);
     });
 
     // ------------------------------------------------------------------ submitting

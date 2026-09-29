@@ -111,6 +111,11 @@
                     [value]="statusLabel(current.status)"
                     data-testid="status"
                 />
+                @if (automaticCount() > 0) {
+                    <span class="text-sm text-muted-color" data-testid="automatic-count">{{
+                        'project_checklist.automatic_count' | translate: { count: automaticCount() }
+                    }}</span>
+                }
             </div>
             @if (!isLatest()) {
                 <p-message severity="secondary" [closable]="false" styleClass="mb-3 w-full" data-testid="read-only-old">
@@ -666,13 +671,22 @@
                                         }}</span>
                                         @if (line.answer; as given) {
                                             <strong data-testid="answer-value">{{ answerLabel(given.value) }}</strong>
-                                            <span class="text-muted-color">
+                                            @if (isAutomatic(given)) {
+                                                <p-tag
+                                                    styleClass="ml-2"
+                                                    severity="info"
+                                                    icon="pi pi-cog"
+                                                    [value]="'project_checklist.automatic_tag' | translate"
+                                                    data-testid="answer-automatic"
+                                                />
+                                            }
+                                            <span class="text-muted-color" data-testid="answer-author">
                                                 ·
                                                 {{
                                                     'project_checklist.answered_by'
                                                         | translate
                                                             : {
-                                                                  who: given.answeredBy,
+                                                                  who: authorOf(given),
                                                                   at:
                                                                       (given.answeredAt | date: 'dd/MM/yyyy HH:mm') ??
                                                                       ''
@@ -956,6 +970,11 @@
                                                 <small class="text-muted-color">{{
                                                     'project_checklist.comment_hint' | translate
                                                 }}</small>
+                                                @if (isAutomatic(line.answer)) {
+                                                    <small class="text-muted-color" data-testid="takeover-hint">{{
+                                                        'project_checklist.takeover_hint' | translate
+                                                    }}</small>
+                                                }
                                                 @if (draft.restingOn; as resting) {
                                                     <small class="text-muted-color" data-testid="answer-resting">
                                                         {{
@@ -1107,14 +1126,27 @@
                                                 }
                                                 <ol class="m-0 pl-5">
                                                     @for (row of history.answers; track row.id) {
-                                                        <li>
-                                                            <strong>{{ answerLabel(row.value) }}</strong>
+                                                        <li [attr.data-testid]="'history-row-' + row.id">
+                                                            @if (row.withdrawn) {
+                                                                <strong data-testid="history-withdrawn">{{
+                                                                    'project_checklist.history_withdrawn' | translate
+                                                                }}</strong>
+                                                            } @else {
+                                                                <strong>{{ answerLabel(row.value) }}</strong>
+                                                                @if (isAutomatic(row)) {
+                                                                    ·
+                                                                    <span data-testid="history-automatic">{{
+                                                                        'project_checklist.history_automatic'
+                                                                            | translate
+                                                                    }}</span>
+                                                                }
+                                                            }
                                                             —
                                                             {{
                                                                 'project_checklist.by_at'
                                                                     | translate
                                                                         : {
-                                                                              who: row.answeredBy,
+                                                                              who: authorOf(row),
                                                                               at:
                                                                                   (row.answeredAt
                                                                                       | date: 'dd/MM/yyyy HH:mm') ?? ''

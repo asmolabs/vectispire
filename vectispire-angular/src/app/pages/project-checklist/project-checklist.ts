@@ -26,6 +26,7 @@ import { messageOf } from '../../core/api-error';
 import { ChecklistsApi, MAX_EVIDENCE_BYTES } from '../../core/api/checklists.api';
 import type {
     AsMeasuredSkipReason,
+    ChecklistAnswer,
     ChecklistAnswerValue,
     ChecklistAsMeasured,
     ChecklistAsMeasuredSkip,
@@ -59,6 +60,16 @@ import {
     oneClickAnswer,
     OUTCOME_KEYS
 } from './measurements';
+
+/**
+ * Whether Vectispire wrote this answer from a measurement (decision 0032, amendment of 2026-09-29).
+ * Decided by the kind and never by the name: `answeredBy` reads "Vectispire" on a system row, and an
+ * account may be called that too — usernames are free text. An absent kind is a person's: every row
+ * written before the amendment was one.
+ */
+export function isAutomatic(answer: Pick<ChecklistAnswer, 'answeredByKind'> | null | undefined): boolean {
+    return answer?.answeredByKind === 'system';
+}
 
 // Literal keys, so the i18n check sees each value's translation and a new one cannot ship as a raw
 // key (decision 0019). The check counts none of these — they are not `t('…')` calls — so the spec
@@ -353,6 +364,10 @@ export class ProjectChecklist {
 
     /** Whether any line of the revision is bound to a rule: only then are the measurements read. */
     readonly measured = computed(() => (this.view()?.lines ?? []).some((line) => !!line.rule));
+    /** Lines whose current answer Vectispire wrote: what the scans filled, at a glance in the header. */
+    readonly automaticCount = computed(
+        () => (this.view()?.lines ?? []).filter((line) => isAutomatic(line.answer)).length
+    );
     readonly measuredLines = computed(
         () => new Map((this.measurements()?.lines ?? []).map((line) => [line.itemId, line] as const))
     );
@@ -573,6 +588,18 @@ export class ProjectChecklist {
         this.i18n.translations();
         const key = (ANSWER_KEYS as Record<string, string | undefined>)[value];
         return key ? this.i18n.t(key) : value;
+    }
+
+    /** Exposed to the template, which decides the badge, the author and the takeover hint by it. */
+    readonly isAutomatic = isAutomatic;
+
+    /**
+     * Who an answer is by, as the screen names it: a system row is Vectispire's in the product's words,
+     * whatever its `answeredBy` says, so that it never reads as a person's.
+     */
+    authorOf(answer: Pick<ChecklistAnswer, 'answeredBy' | 'answeredByKind'>): string {
+        this.i18n.translations();
+        return isAutomatic(answer) ? this.i18n.t('project_checklist.system_author') : answer.answeredBy;
     }
 
     /** The template's own word for an answer, as the importer mapped it — what the signed document will write. */
