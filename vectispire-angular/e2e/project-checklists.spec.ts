@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { resetLoginThrottle } from './support/fixture';
 import { goTo, ROLE_PASSWORD, ROLE_PASSWORD_ROTATED, signInAs } from './support/session';
@@ -166,6 +167,11 @@ test.describe('Project checklists', () => {
         await openFromSolutions(page, name);
         await expect(page.getByTestId('status')).toHaveText('Submitted');
         await expect(page.getByTestId('sign-off-blocked')).toHaveCount(0);
+        // Submitted is not signed: its document is a rendering, and nothing offers to verify it.
+        // By its id: the icon's glyph opens the button's accessible name, and a name matched as a
+        // substring would also find each listed revision's own download.
+        await expect(page.locator('#download-document')).toHaveText('Download an unsigned rendering');
+        await expect(page.getByTestId('verification')).toHaveCount(0);
         await page.getByRole('button', { name: 'Sign off' }).click();
 
         await expect(page.getByTestId('notice')).toHaveText('Revision 1 signed off.');
@@ -173,6 +179,27 @@ test.describe('Project checklists', () => {
         await expect(page.getByTestId('signed-off')).toContainText(adminName);
         await expect(page.getByTestId('four-eyes')).toHaveText('Applied: whoever signed it off wrote none of it.');
         await expect(page.getByRole('button', { name: 'Reopen as a new revision' })).toBeEnabled();
+
+        // The package the sign-off stored, fetched by the page with its token: the zip carries both
+        // signatures, and the page gives the commands that check them against the published key.
+        const saved = page.waitForEvent('download');
+        await expect(page.locator('#download-document')).toHaveText('Download the signed package');
+        await page.locator('#download-document button').click();
+        const download = await saved;
+        expect(download.suggestedFilename()).toBe(`checklist-project-${projectId}-revision-1.zip`);
+        const zip = readFileSync(await download.path());
+        for (const entry of ['checklist.xlsx', 'checklist.json', 'checklist.xlsx.sig', 'checklist.json.sig']) {
+            expect(zip.includes(entry), entry).toBe(true);
+        }
+        await expect(page.getByTestId('verification-commands')).toContainText(
+            'cosign verify-blob --key vectispire.pub --insecure-ignore-tlog=true --signature checklist.json.sig checklist.json'
+        );
+        // Saved under the name the commands give it, whatever the key route's own header suggests.
+        const keySaved = page.waitForEvent('download');
+        await page.getByTestId('public-key-link').click();
+        const key = await keySaved;
+        expect(key.suggestedFilename()).toBe('vectispire.pub');
+        expect(readFileSync(await key.path(), 'utf8')).toContain('PUBLIC KEY');
     });
 
     /**
