@@ -74,6 +74,14 @@ public class ScanEntity {
     @Column(name = "detected_languages", length = 512)
     private String detectedLanguages;
 
+    /**
+     * The languages the Semgrep rules of its task read, as wire names — see {@code DetectedLanguages}.
+     * Written when the task is built; null when it was not (every scan from before V58, an image, a
+     * task without the SAST step), which is not "reads nothing".
+     */
+    @Column(name = "sast_languages", length = 512)
+    private String sastLanguages;
+
     @Column(name = "duration_ms")
     private Long durationMs;
 
@@ -206,6 +214,14 @@ public class ScanEntity {
 
     public void setDetectedLanguages(String detectedLanguages) {
         this.detectedLanguages = detectedLanguages;
+    }
+
+    public String getSastLanguages() {
+        return sastLanguages;
+    }
+
+    public void setSastLanguages(String sastLanguages) {
+        this.sastLanguages = sastLanguages;
     }
 
     public Long getDurationMs() {

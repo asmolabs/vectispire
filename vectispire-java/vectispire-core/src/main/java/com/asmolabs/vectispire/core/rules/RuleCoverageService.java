@@ -39,18 +39,6 @@ public class RuleCoverageService {
     }
 
     /**
-     * A stored file's path, expressed the way the shipped rule tree spells it.
-     *
-     * <p>The storage name is flat by construction; the original name carries the upstream path. It
-     * is the latter that states the language, and prefixing it with {@code semgrep/} puts it in
-     * the form {@link RuleCoverage} reads.
-     */
-    private static String asRuleTreePath(RuleSet.StoredFile file) {
-        String origin = file.originalName() == null ? "" : file.originalName().replace('\\', '/');
-        return origin.contains("/") ? "semgrep/" + origin : file.path();
-    }
-
-    /**
      * The OWASP categories the installed rules declare about themselves.
      *
      * <p><b>Read from the rules, not from the findings.</b> Deriving the set from the categories
@@ -90,7 +78,7 @@ public class RuleCoverageService {
         // goes into the rule identifier — and it reads like the shipped tree as soon as it is
         // prefixed the same way.
         active.ifPresent(row -> ruleSets.filesOf(row).stream()
-                .map(RuleCoverageService::asRuleTreePath)
+                .map(RuleCoverage::ruleTreePath)
                 .forEach(paths::add));
 
         return RuleCoverage.assess(paths, components.distinctPurls());
@@ -135,7 +123,7 @@ public class RuleCoverageService {
     private List<String> installedRulePaths() {
         List<String> paths = new ArrayList<>(BundledRules.expected());
         ruleSets.active().ifPresent(row -> ruleSets.filesOf(row).stream()
-                .map(RuleCoverageService::asRuleTreePath)
+                .map(RuleCoverage::ruleTreePath)
                 .forEach(paths::add));
         return paths;
     }

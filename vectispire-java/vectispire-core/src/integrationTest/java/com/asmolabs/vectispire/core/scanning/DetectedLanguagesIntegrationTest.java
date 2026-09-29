@@ -30,7 +30,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
 
 /**
  * Each repository's newest completed scan and the languages it recorded, on a real engine — V57's
- * column, and the lookup the repository list and the solutions tree make for every visible repository.
+ * column, and the lookup the repository list and the solutions tree make for every visible repository;
+ * and each scan's own record, V58's column beside it, which a checklist reads by scan.
  *
  * <p>The identifiers are the estate's, which the data sizes: one bind parameter each, so a statement
  * past 65,535 fails unless the catalogue batches — this asks for seventy thousand. PostgreSQL is the
@@ -102,6 +103,36 @@ class DetectedLanguagesIntegrationTest {
         assertThat(detected.get(empty)).isEmpty();
     }
 
+    /**
+     * A scan's own record of languages — its census and its SAST rules' (V58), read by a checklist on the
+     * scan a measurement rests on. Same limit, same engine to prove it: PostgreSQL.
+     */
+    @Test
+    @DisplayName("each scan's census and SAST rules' languages by scan id, past the bind limit, null kept unknown")
+    void eachScansLanguages() {
+        long repository = repository("scanned");
+        long both = scan(repository, ScanStatus.COMPLETED, "java,yaml");
+        scans.recordSastLanguages(both, "java,python");
+        long neither = scan(repository, ScanStatus.COMPLETED, null);
+        long counted = scan(repository, ScanStatus.COMPLETED, "");
+        scans.recordSastLanguages(counted, "");
+
+        List<Long> ids = new ArrayList<>();
+        ids.add(both);
+        ids.addAll(LongStream.rangeClosed(1_000_000, 1_070_000).boxed().toList());
+        ids.addAll(List.of(neither, counted));
+
+        Map<Long, ScanCatalog.ScanLanguages> languages = catalog.languagesOf(ids);
+
+        assertThat(languages).containsOnlyKeys(both, neither, counted);
+        assertThat(languages.get(both).detected()).contains(Set.of(Language.JAVA, Language.YAML));
+        assertThat(languages.get(both).sastRules()).contains(Set.of(Language.JAVA, Language.PYTHON));
+        assertThat(languages.get(neither).detected()).as("null is unknown").isEmpty();
+        assertThat(languages.get(neither).sastRules()).isEmpty();
+        assertThat(languages.get(counted).detected()).as("the empty string is none").contains(Set.of());
+        assertThat(languages.get(counted).sastRules()).contains(Set.of());
+    }
+
     private long repository(String name) {
         RepositoryEntity repository = new RepositoryEntity();
         repository.setUrl("https://example.invalid/" + name + ".git");
@@ -110,7 +141,7 @@ class DetectedLanguagesIntegrationTest {
         return repositories.save(repository).getId();
     }
 
-    private void scan(long repositoryId, ScanStatus status, String languages) {
+    private long scan(long repositoryId, ScanStatus status, String languages) {
         ScanEntity scan = new ScanEntity();
         scan.setRepoId(repositoryId);
         scan.setBranch("main");
@@ -118,6 +149,6 @@ class DetectedLanguagesIntegrationTest {
         scan.setCreatedAt(Instant.now());
         scan.setAttempts(1);
         scan.setDetectedLanguages(languages);
-        scans.save(scan);
+        return scans.save(scan).getId();
     }
 }

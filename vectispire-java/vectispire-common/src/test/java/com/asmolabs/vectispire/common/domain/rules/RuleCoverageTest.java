@@ -2,7 +2,9 @@ package com.asmolabs.vectispire.common.domain.rules;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -84,5 +86,26 @@ class RuleCoverageTest {
                 .as("nothing scanned and nothing configured is the same starting point, and the "
                         + "louder of the two readings is the useful one")
                 .isEqualTo(RuleCoverage.State.UNCONFIGURED);
+    }
+
+    @Test
+    @DisplayName("the languages a scan's rules read: Semgrep's directories in the vocabulary, nothing else")
+    void languagesRead() {
+        // The bundled rule reads Python and nothing more: the demo's Java and JavaScript are read by no rule.
+        assertThat(RuleCoverage.languagesRead(BUNDLED_ONLY)).containsExactly(Language.PYTHON);
+        assertThat(RuleCoverage.languagesRead(List.of("semgrep/java/xss.yaml", "semgrep/generic/secrets.yaml",
+                "semgrep/operator/extra.yaml", "semgrep/javascript/a/b.yaml", "gitleaks/gitleaks.toml",
+                "semgrep/top.yaml")))
+                .as("generic and operator name no language; gitleaks is no Semgrep directory")
+                .isEqualTo(Set.of(Language.JAVA, Language.JAVASCRIPT));
+    }
+
+    @Test
+    @DisplayName("a stored file is read by its original upstream path, never its storage name")
+    void ruleTreePath() {
+        assertThat(RuleCoverage.ruleTreePath(new RuleSet.StoredFile("rule-0001.yaml", "java\\xss\\a.yaml", "")))
+                .isEqualTo("semgrep/java/xss/a.yaml");
+        assertThat(RuleCoverage.ruleTreePath(new RuleSet.StoredFile("rule-0002.yaml", "flat.yaml", "")))
+                .isEqualTo("rule-0002.yaml");
     }
 }

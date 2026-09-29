@@ -136,6 +136,28 @@ class ScanDispatcherTest {
     }
 
     @Test
+    @DisplayName("the scan keeps the languages of the very rules its task carries, and none without the SAST step")
+    void theRulesLanguagesAreRecorded() {
+        // A checklist judges the static analysis by the rules the scan ran with (decision 0032 §6); read
+        // from the set active later, a set activated after the scan would claim coverage it never gave.
+        queueHolds(repositoryScan());
+        when(ruleSets.activeHash()).thenReturn(Optional.of("f".repeat(64)));
+        when(ruleSets.languagesRead("f".repeat(64)))
+                .thenReturn(Set.of(com.asmolabs.vectispire.common.domain.plugins.Language.PYTHON,
+                        com.asmolabs.vectispire.common.domain.plugins.Language.JAVA));
+        when(settings.isEnabled(Setting.SAST_ENABLED)).thenReturn(true);
+
+        ScanTask task = dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null)).orElseThrow().task();
+
+        assertThat(task.rulesHash()).isEqualTo("f".repeat(64));
+        verify(queue).recordSastLanguages(7L, "java,python");
+
+        when(settings.isEnabled(Setting.SAST_ENABLED)).thenReturn(false);
+        dispatcher.claimForAgent(agent(CredentialsMode.LOCAL, null));
+        verify(queue).recordSastLanguages(7L, null);
+    }
+
+    @Test
     @DisplayName("a delegated agent that announced a sealing key gets an envelope only it can open")
     void delegatedWithSealingKeyGetsAnEnvelope() {
         queueHolds(repositoryScan());

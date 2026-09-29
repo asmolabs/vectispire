@@ -273,6 +273,31 @@ public class ScanCatalog {
     }
 
     /**
+     * What one scan recorded of languages: those its census found in the tree, and those the Semgrep
+     * rules of its task read. Each is empty where the scan recorded none — unknown, never the empty
+     * set (see {@link DetectedLanguages}).
+     */
+    public record ScanLanguages(Optional<java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> detected,
+            Optional<java.util.Set<com.asmolabs.vectispire.common.domain.plugins.Language>> sastRules) {}
+
+    /**
+     * Each of these scans' languages, by scan id — what a checklist compares, on the very scan a
+     * measurement rests on, to tell a tree its static analysis read from one it did not (decision
+     * 0032 §6). A scan that does not exist is absent. A thousand identifiers per statement: the scans
+     * of a project's repositories are sized by the data.
+     */
+    public Map<Long, ScanLanguages> languagesOf(Collection<Long> scanIds) {
+        Map<Long, ScanLanguages> languages = new java.util.HashMap<>();
+        for (List<Long> batch : batches(scanIds)) {
+            for (Object[] row : scans.findLanguagesOf(batch)) {
+                languages.put(((Number) row[0]).longValue(), new ScanLanguages(
+                        DetectedLanguages.read((String) row[1]), DetectedLanguages.read((String) row[2])));
+            }
+        }
+        return Map.copyOf(languages);
+    }
+
+    /**
      * {@code %"pluginId":"<id>"%}, the id closed by its quote so that {@code java} never matches {@code
      * java-arch}. Refused for anything but an id's characters: a {@code %} or {@code _} in it would be a
      * wildcard, and a quote would end the field.

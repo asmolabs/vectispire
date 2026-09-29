@@ -356,6 +356,11 @@ public class ScanQueue {
         return scans.save(scan);
     }
 
+    /** The languages the Semgrep rules of a scan's task read, as the column keeps them — null when none was carried. */
+    public void recordSastLanguages(long scanId, String column) {
+        scans.recordSastLanguages(scanId, column);
+    }
+
     /** How many scans are running, from which the remaining capacity is deduced. */
     public long countRunning() {
         return scans.countByStatus(ScanStatus.SCANNING.wireName());

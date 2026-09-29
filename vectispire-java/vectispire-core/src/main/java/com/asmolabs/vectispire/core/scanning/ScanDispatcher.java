@@ -6,6 +6,7 @@ import com.asmolabs.vectispire.common.domain.agents.CredentialsMode;
 import com.asmolabs.vectispire.common.domain.audit.AuditOperation;
 import com.asmolabs.vectispire.common.domain.crypto.SealedEnvelope;
 import com.asmolabs.vectispire.common.domain.crypto.SecretCipher;
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import com.asmolabs.vectispire.common.domain.scans.ClassifiedFailure;
 import com.asmolabs.vectispire.common.domain.scans.FailureKind;
 import com.asmolabs.vectispire.common.domain.scans.FailureReason;
@@ -807,14 +808,22 @@ public class ScanDispatcher {
         if (settings.isEnabled(Setting.SAST_ENABLED)) {
             steps.add(ScanTask.Step.SAST);
         }
+        // **Set by the control plane, never read by the executor.** That is what makes every executor
+        // identical: an agent asking for "the active set" itself would scan with whatever it found at
+        // the moment it asked, and two agents could diverge on the same target.
+        String rulesHash = ruleSets.activeHash().orElse(null);
+        // The languages those rules read, kept on the scan from the very hash its task carries: a
+        // checklist line on the static analysis compares them with the tree's (decision 0032 §6), and
+        // the set active when the line is read may not be the one this scan ran with. Written again
+        // at every build, so a scan taken over after a lapse keeps the rules its last task carried.
+        queue.recordSastLanguages(scan.getId(), steps.contains(ScanTask.Step.SAST)
+                ? DetectedLanguages.write(Optional.of(ruleSets.languagesRead(rulesHash).stream()
+                        .map(Language::wireName).toList()))
+                : null);
 
         return new ScanTask(
                 new ScanTask.Target.Repository(repository.url(), branch, subPath, privateKey, https),
-                // **Set by the control plane, never read by the executor.** That is what makes
-                // every executor identical: an agent asking for "the active set" itself would
-                // scan with whatever it found at the moment it asked, and two agents could
-                // diverge on the same target.
-                ruleSets.activeHash().orElse(null),
+                rulesHash,
                 steps,
                 // **Decided here too, by id and manifest digest**, for the rule set's reason: an
                 // executor that looked the plugins up for itself would run what it found when it

@@ -1,6 +1,10 @@
 package com.asmolabs.vectispire.common.domain.rules;
 
+import com.asmolabs.vectispire.common.domain.plugins.Language;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -133,6 +137,41 @@ public final class RuleCoverage {
                 Set.copyOf(ecosystems),
                 state == State.PARTIAL ? Set.copyOf(uncovered) : Set.of(),
                 ruleFilePaths.size());
+    }
+
+    /**
+     * The languages a scan's Semgrep rules read, in {@link Language}'s vocabulary — what a checklist
+     * compares with the languages the scan's census found in the tree (decision 0032 §6).
+     *
+     * <p><b>Read from the path, never from the YAML</b>, for {@link RuleSet}'s reason: no rule an
+     * operator uploaded is parsed here. A rule's directory in the catalogue is its language, which is
+     * what the rule set screen offers and what a plugin manifest declares. A directory that names no
+     * language of the vocabulary ({@code generic}, {@code operator}) adds nothing: claiming a language
+     * nobody can name would be claiming coverage. The error runs one way only — a {@code javascript/}
+     * rule that also reads TypeScript is counted for JavaScript alone, which can keep a line from
+     * passing and never make one pass.
+     *
+     * @param ruleTreePaths the rule files as the shipped tree spells them ({@code semgrep/java/…}), see
+     *     {@link #ruleTreePath}
+     */
+    public static Set<Language> languagesRead(Collection<String> ruleTreePaths) {
+        Set<Language> read = EnumSet.noneOf(Language.class);
+        for (String path : ruleTreePaths) {
+            languageOf(path).flatMap(Language::fromWireName).ifPresent(read::add);
+        }
+        return Collections.unmodifiableSet(read);
+    }
+
+    /**
+     * A stored file's path, expressed the way the shipped rule tree spells it.
+     *
+     * <p>The storage name is flat by construction; the original name carries the upstream path. It is
+     * the latter that states the language, and prefixing it with {@code semgrep/} puts it in the form
+     * {@link #assess} and {@link #languagesRead} read.
+     */
+    public static String ruleTreePath(RuleSet.StoredFile file) {
+        String origin = file.originalName() == null ? "" : file.originalName().replace('\\', '/');
+        return origin.contains("/") ? "semgrep/" + origin : file.path();
     }
 
     /**

@@ -431,6 +431,24 @@ public interface ScanRepository extends JpaRepository<ScanEntity, Long> {
             @Param("pattern") String pattern);
 
     /**
+     * Each of these scans' id, the languages its census found and the languages its Semgrep rules
+     * read, each null where the scan recorded none. A scan that does not exist is absent.
+     *
+     * <p>{@code ids} binds one parameter per element: the caller hands at most a thousand.
+     */
+    @Query("select s.id, s.detectedLanguages, s.sastLanguages from ScanEntity s where s.id in :ids")
+    List<Object[]> findLanguagesOf(@Param("ids") Collection<Long> ids);
+
+    /**
+     * Records the languages the Semgrep rules of a scan's task read, when the task is built — null for a
+     * task without the SAST step.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("update ScanEntity s set s.sastLanguages = :languages where s.id = :id")
+    int recordSastLanguages(@Param("id") long id, @Param("languages") String languages);
+
+    /**
      * Per repository, its newest scan with this status (the highest id) and the languages that scan's
      * census recorded — null when it recorded none. A repository with no such scan is absent.
      *

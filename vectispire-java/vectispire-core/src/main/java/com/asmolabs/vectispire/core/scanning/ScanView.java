@@ -21,6 +21,9 @@ import java.util.Set;
  * @param detectedLanguages the languages the scan's census found in the tree; empty when no whole
  *     census was recorded, which is not the empty set, "no file named a language" (see {@link
  *     DetectedLanguages})
+ * @param sastLanguages the languages the Semgrep rules its task carried read; empty when that was not
+ *     recorded — a scan from before V58, an image, a task without the SAST step — which is not the
+ *     empty set, "its rules read no language of the vocabulary"
  */
 public record ScanView(
         Long id,
@@ -48,7 +51,8 @@ public record ScanView(
         Instant notBefore,
         List<PluginOutcome> plugins,
         Optional<Set<FindingType>> examinedTypes,
-        Optional<Set<Language>> detectedLanguages) {
+        Optional<Set<Language>> detectedLanguages,
+        Optional<Set<Language>> sastLanguages) {
 
     public static ScanView of(ScanEntity scan) {
         return new ScanView(
@@ -77,6 +81,7 @@ public record ScanView(
                 scan.getNotBefore(),
                 PluginOutcome.read(scan.getPluginSteps()),
                 ExaminedTypes.read(scan.getExaminedTypes()),
-                DetectedLanguages.read(scan.getDetectedLanguages()));
+                DetectedLanguages.read(scan.getDetectedLanguages()),
+                DetectedLanguages.read(scan.getSastLanguages()));
     }
 }
